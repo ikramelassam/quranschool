@@ -1,0 +1,373 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التسجيل كطالب</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Tajawal', sans-serif; }
+        body { background-color: #f0ebe3; }
+        .form-container {
+            max-width: 650px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+        .logo-container { text-align: center; margin-bottom: 20px; }
+        .logo-container img { width: 90px; border-radius: 12px; }
+        .page-title {
+            color: #2d5a1b;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section-title {
+            color: #2d5a1b;
+            font-weight: 700;
+            font-size: 1.1rem;
+            border-bottom: 2px solid #2d5a1b;
+            padding-bottom: 8px;
+            margin: 24px 0 16px;
+        }
+        .form-label { font-weight: 500; color: #333; }
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-family: 'Tajawal', sans-serif;
+            text-align: right;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #2d5a1b;
+            box-shadow: 0 0 0 3px rgba(45,90,27,0.1);
+        }
+
+        /* Boutons de sélection */
+        .select-btn {
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 10px 16px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            background: white;
+            width: 100%;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 0.95rem;
+        }
+        .select-btn:hover { border-color: #2d5a1b; background: #f0f7ed; }
+        .select-btn.active {
+            border-color: #2d5a1b;
+            background: #f0f7ed;
+            color: #2d5a1b;
+            font-weight: 600;
+        }
+
+        .btn-submit {
+            background-color: #2d5a1b;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 16px;
+            font-family: 'Tajawal', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-submit:hover { background-color: #1e3d12; }
+        .btn-back {
+            display: block;
+            border: 2px solid #ddd;
+            color: #888;
+            background: white;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            text-decoration: none;
+            margin-top: 10px;
+            font-family: 'Tajawal', sans-serif;
+            transition: all 0.2s;
+        }
+        .btn-back:hover { border-color: #aaa; color: #555; }
+        .creneau-section { display: none; }
+        .creneau-section.visible { display: block; }
+        .conditions-box {
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 0.85rem;
+            color: #555;
+            max-height: 150px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+<div class="form-container">
+
+    <!-- Logo -->
+    <div class="logo-container">
+        <img src="{% static 'images/logo.png' %}" alt="Logo">
+    </div>
+    <div class="page-title">
+        {% if type_age == 'enfant' %}
+            التسجيل - برنامج الأطفال 👶
+        {% else %}
+            التسجيل - برنامج البالغين 🎓
+        {% endif %}
+    </div>
+
+    <form method="POST" action="">
+        {% csrf_token %}
+        <input type="hidden" name="type_age" value="{{ type_age }}">
+
+        <!-- Infos personnelles -->
+        <div class="section-title">المعلومات الشخصية</div>
+
+        {% if type_age == 'enfant' %}
+        <div class="mb-3">
+            <label class="form-label">اسم ولي الأمر *</label>
+            <input type="text" name="nom_parent" class="form-control"
+                   placeholder="الاسم الكامل لولي الأمر" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">اسم الطفل/الطفلة *</label>
+            <input type="text" name="nom" class="form-control"
+                   placeholder="الاسم الكامل للطفل" required>
+        </div>
+        {% else %}
+        <div class="mb-3">
+            <label class="form-label">الاسم الكامل *</label>
+            <input type="text" name="nom" class="form-control"
+                   placeholder="الاسم الكامل" required>
+        </div>
+        {% endif %}
+
+        <div class="mb-3">
+            <label class="form-label">البريد الإلكتروني *</label>
+            <input type="email" name="email" class="form-control"
+                   placeholder="البريد الإلكتروني" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">رقم الهاتف (واتساب) *</label>
+            <input type="tel" name="telephone" class="form-control"
+                   placeholder="رقم الهاتف" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">تاريخ الميلاد *</label>
+            <input type="date" name="date_naissance" class="form-control"
+                   id="date_naissance" required onchange="calculerAge()">
+        </div>
+
+        <!-- Sexe -->
+        <div class="mb-3">
+            <label class="form-label">الجنس *</label>
+            <div class="row g-2">
+                <div class="col-6">
+                    <div class="select-btn" onclick="selectSexe('homme', this)">ذكر</div>
+                </div>
+                <div class="col-6">
+                    <div class="select-btn" onclick="selectSexe('femme', this)">أنثى</div>
+                </div>
+            </div>
+            <input type="hidden" name="sexe" id="sexe_value" required>
+        </div>
+
+        <!-- Créneaux (affichés dynamiquement) -->
+        <div class="section-title">الوقت المناسب</div>
+        <div id="creneaux_container">
+            <p class="text-muted text-center">يرجى إدخال تاريخ الميلاد واختيار الجنس أولاً</p>
+        </div>
+        <input type="hidden" name="creneau_souhaite" id="creneau_value">
+
+        <!-- Programme -->
+        <div class="section-title">اختيار البرنامج</div>
+        <div class="mb-3">
+            <label class="form-label">البرنامج المرغوب *</label>
+            <div class="row g-2">
+                <div class="col-12">
+                    <div class="select-btn" onclick="selectOption('programme', 'hifz', this)">
+                        الحفظ والمراجعة وتعلم أحكام التجويد
+                    </div>
+                </div>
+                <div class="col-12 mt-2">
+                    <div class="select-btn" onclick="selectOption('programme', 'tathbit', this)">
+                        التثبيت وتعلم أحكام التجويد
+                    </div>
+                </div>
+            </div>
+            <input type="hidden" name="programme" id="programme_value">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">الرواية *</label>
+            <div class="row g-2">
+                <div class="col-6">
+                    <div class="select-btn" onclick="selectOption('riwaya', 'warsh', this)">ورش</div>
+                </div>
+                <div class="col-6">
+                    <div class="select-btn" onclick="selectOption('riwaya', 'hafs', this)">حفص</div>
+                </div>
+            </div>
+            <input type="hidden" name="riwaya" id="riwaya_value">
+        </div>
+
+        <!-- Abonnement -->
+        <div class="section-title">مدة الاشتراك</div>
+        <div class="mb-3">
+            <div class="row g-2">
+                <div class="col-6">
+                    <div class="select-btn" onclick="selectOption('abonnement', 'groupe_1mois', this)">
+                        جماعي - شهر<br><small>80 درهم</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="select-btn" onclick="selectOption('abonnement', 'groupe_3mois', this)">
+                        جماعي - 3 أشهر<br><small>220 درهم</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="select-btn" onclick="selectOption('abonnement', 'individuel_1mois', this)">
+                        فردي - شهر<br><small>400 درهم</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="select-btn" onclick="selectOption('abonnement', 'individuel_3mois', this)">
+                        فردي - 3 أشهر<br><small>1100 درهم</small>
+                    </div>
+                </div>
+            </div>
+            <input type="hidden" name="abonnement" id="abonnement_value">
+        </div>
+
+        <!-- Outil -->
+        <div class="section-title">وسيلة الحضور</div>
+        <div class="mb-3">
+            <div class="row g-2">
+                <div class="col-4">
+                    <div class="select-btn" onclick="selectOption('outil', 'whatsapp', this)">واتساب</div>
+                </div>
+                <div class="col-4">
+                    <div class="select-btn" onclick="selectOption('outil', 'meet', this)">Google Meet</div>
+                </div>
+                <div class="col-4">
+                    <div class="select-btn" onclick="selectOption('outil', 'les_deux', this)">كلاهما</div>
+                </div>
+            </div>
+            <input type="hidden" name="outil" id="outil_value">
+        </div>
+
+        <!-- Conditions -->
+        <div class="section-title">سياسة الاشتراك</div>
+        <div class="conditions-box">
+            حرصاً على تنظيم سير العمل وضمان استمرارية البرامج التعليمية بالمنصة، يُرجى من جميع المشتركين الالتزام بما يلي:
+            1- يتم أداء المستحقات المالية في بداية كل شهر خلال الفترة من اليوم الأول إلى الخامس.
+            2- من التحق بعد يوم 15 يُلزم بدفع نصف الاشتراك فقط.
+            3- يُشترط إتمام الدفع قبل الانضمام للمجموعات.
+            4- تُتاح حصة تعريفية مجانية واحدة.
+            5- يُعلّق الالتحاق لمن تأخّر دون إشعار الإدارة.
+        </div>
+        <div class="mb-3">
+            <div class="row g-2">
+                <div class="col-6">
+                    <div class="select-btn" onclick="selectOption('conditions', 'oui', this)">أوافق ✅</div>
+                </div>
+                <div class="col-6">
+                    <div class="select-btn" onclick="selectOption('conditions', 'non', this)">لا أوافق ❌</div>
+                </div>
+            </div>
+            <input type="hidden" name="accepte_conditions" id="conditions_value">
+        </div>
+
+        <!-- Remarques -->
+        <div class="section-title">ملاحظات</div>
+        <div class="mb-3">
+            <textarea name="remarques" class="form-control" rows="3"
+                      placeholder="أي ملاحظات أو اقتراحات..."></textarea>
+        </div>
+
+        <!-- Boutons -->
+        <button type="submit" class="btn-submit">إرسال الطلب ✉️</button>
+        <a href="{% url 'inscription_eleve_choix' %}" class="btn-back">رجوع ←</a>
+
+    </form>
+</div>
+
+<script>
+    // Créneaux depuis Django
+    const creneaux = {{ creneaux_json|safe }};
+
+    function calculerAge() {
+        const dateNaissance = document.getElementById('date_naissance').value;
+        if (!dateNaissance) return;
+        const today = new Date();
+        const birthDate = new Date(dateNaissance);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+        window.ageCalcule = age;
+        afficherCreneaux();
+    }
+
+    function selectSexe(sexe, el) {
+        document.getElementById('sexe_value').value = sexe;
+        document.querySelectorAll('[onclick^="selectSexe"]').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        window.sexeSelectionne = sexe;
+        afficherCreneaux();
+    }
+
+    function afficherCreneaux() {
+        const age = window.ageCalcule;
+        const sexe = window.sexeSelectionne;
+        if (!age || !sexe) return;
+
+        const container = document.getElementById('creneaux_container');
+        container.innerHTML = '';
+
+        const creneauxFiltres = creneaux.filter(c => {
+            const ageOk = age >= c.age_min && age <= c.age_max;
+            const sexeOk = c.sexe_cible === 'mixte' || c.sexe_cible === sexe;
+            return ageOk && sexeOk;
+        });
+
+        if (creneauxFiltres.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center">لا توجد حلقات متاحة حالياً</p>';
+            return;
+        }
+
+        creneauxFiltres.forEach(c => {
+            const btn = document.createElement('div');
+            btn.className = 'select-btn mb-2';
+            btn.innerHTML = c.label;
+            btn.onclick = function() {
+                document.getElementById('creneau_value').value = c.id;
+                document.querySelectorAll('#creneaux_container .select-btn')
+                    .forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            };
+            container.appendChild(btn);
+        });
+    }
+
+    function selectOption(type, value, el) {
+        document.getElementById(type + '_value').value = value;
+        const parent = el.closest('.row') || el.parentElement;
+        parent.querySelectorAll('.select-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+{% extends 'dashboard/base_admin.html' %}
+
+{% block title %}تعديل المجموعة{% endblock %}
+
+{% block content %}
+<div class="page-title">تعديل: {{ groupe.nom }}</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">اسم المجموعة *</label>
+            <input type="text" name="nom" class="form-control mt-1" value="{{ groupe.nom }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">وصف المجموعة</label>
+            <textarea name="description" class="form-control mt-1" rows="2">{{ groupe.description }}</textarea>
+        </div>
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">المعلم</label>
+            <select name="prof" class="form-select mt-1">
+                <option value="">بدون معلم</option>
+                {% for prof in profs %}
+                <option value="{{ prof.id }}" {% if groupe.prof == prof %}selected{% endif %}>
+                    {{ prof.user.get_full_name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الحلقة (الجدول)</label>
+            <select name="creneau" class="form-select mt-1">
+                <option value="">بدون جدول</option>
+                {% for creneau in creneaux %}
+                <option value="{{ creneau.id }}" {% if groupe.creneau == creneau %}selected{% endif %}>
+                    {{ creneau }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الطاقة الاستيعابية القصوى</label>
+            <input type="number" name="capacite_max" class="form-control mt-1" 
+                   value="{{ groupe.capacite_max }}" min="1" max="50">
+        </div>
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الحالة</label>
+            <select name="statut" class="form-select mt-1">
+                <option value="actif" {% if groupe.statut == 'actif' %}selected{% endif %}>نشط</option>
+                <option value="archive" {% if groupe.statut == 'archive' %}selected{% endif %}>مؤرشف</option>
+            </select>
+        </div>
+
+        <div class="d-flex gap-3 mt-4">
+            <button type="submit"
+                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                حفظ التعديلات ✅
+            </button>
+            <a href="{% url 'admin_groupe_detail' groupe.id %}" 
+               style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends 'dashboard/base_admin.html' %}
+
+{% block title %}إضافة حلقة{% endblock %}
+
+{% block content %}
+<div class="page-title">إضافة حلقة جديدة</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الجنس المستهدف *</label>
+            <select name="sexe_cible" class="form-select mt-1" required>
+                <option value="mixte">مختلط</option>
+                <option value="homme">ذكر</option>
+                <option value="femme">أنثى</option>
+            </select>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-6">
+                <label style="font-weight:600; color:#333;">السن الأدنى *</label>
+                <input type="number" name="age_min" class="form-control mt-1" min="1" max="100" required>
+            </div>
+            <div class="col-6">
+                <label style="font-weight:600; color:#333;">السن الأقصى *</label>
+                <input type="number" name="age_max" class="form-control mt-1" min="1" max="999" required>
+            </div>
+        </div>
+
+        <!-- Jour 1 -->
+        <div style="background:#f9f9f9; border-radius:10px; padding:16px; margin-bottom:16px;">
+            <div style="font-weight:700; color:#2d5a1b; margin-bottom:12px;">اليوم الأول</div>
+            <div class="row g-3">
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">اليوم *</label>
+                    <select name="jour_1" class="form-select mt-1" required>
+                        <option value="lun">الاثنين</option>
+                        <option value="mar">الثلاثاء</option>
+                        <option value="mer">الأربعاء</option>
+                        <option value="jeu">الخميس</option>
+                        <option value="ven">الجمعة</option>
+                        <option value="sam">السبت</option>
+                        <option value="dim">الأحد</option>
+                    </select>
+                </div>
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">من *</label>
+                    <input type="time" name="heure_debut_1" class="form-control mt-1" required>
+                </div>
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">إلى *</label>
+                    <input type="time" name="heure_fin_1" class="form-control mt-1" required>
+                </div>
+            </div>
+        </div>
+
+        <!-- Jour 2 -->
+        <div style="background:#f9f9f9; border-radius:10px; padding:16px; margin-bottom:16px;">
+            <div style="font-weight:700; color:#2d5a1b; margin-bottom:12px;">اليوم الثاني</div>
+            <div class="row g-3">
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">اليوم *</label>
+                    <select name="jour_2" class="form-select mt-1" required>
+                        <option value="lun">الاثنين</option>
+                        <option value="mar">الثلاثاء</option>
+                        <option value="mer">الأربعاء</option>
+                        <option value="jeu">الخميس</option>
+                        <option value="ven">الجمعة</option>
+                        <option value="sam">السبت</option>
+                        <option value="dim">الأحد</option>
+                    </select>
+                </div>
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">من *</label>
+                    <input type="time" name="heure_debut_2" class="form-control mt-1" required>
+                </div>
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">إلى *</label>
+                    <input type="time" name="heure_fin_2" class="form-control mt-1" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-3 mt-4">
+            <button type="submit"
+                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                حفظ الحلقة ✅
+            </button>
+            <a href="{% url 'admin_creneaux' %}" 
+               style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

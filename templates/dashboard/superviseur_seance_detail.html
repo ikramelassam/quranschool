@@ -1,0 +1,43 @@
+{% extends 'dashboard/base_superviseur.html' %}
+{% block title %}تفاصيل الحصة{% endblock %}
+{% block content %}
+<div class="page-title">{{ seance.groupe.nom }}</div>
+<div class="page-subtitle">{{ seance.date }} — {{ seance.heure }}</div>
+
+{% for presence in presences %}
+<div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="font-weight:700; color:#6b3a2a; margin-bottom:12px;">{{ presence.eleve.user.get_full_name }}</div>
+
+    <div class="row g-2">
+        <div class="col-md-3">
+            <div style="color:#888; font-size:0.8rem;">الحضور</div>
+            <div style="font-weight:600;">{{ presence.get_statut_display }}</div>
+        </div>
+        <div class="col-md-3">
+            <div style="color:#888; font-size:0.8rem;">الحفظ</div>
+            <div style="font-weight:600;">{{ presence.quantite_memorisee|default:"—" }}</div>
+            {% if presence.note_memorisation %}
+            <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ presence.note_memorisation }}</span>
+            {% endif %}
+        </div>
+        <div class="col-md-3">
+            <div style="color:#888; font-size:0.8rem;">المراجعة</div>
+            <div style="font-weight:600;">{{ presence.quantite_revisee|default:"—" }}</div>
+            {% if presence.note_revision %}
+            <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ presence.note_revision }}</span>
+            {% endif %}
+        </div>
+        {% if presence.remarque %}
+        <div class="col-md-12">
+            <div style="color:#888; font-size:0.8rem;">ملاحظة المعلم</div>
+            <div style="background:#f9f9f9; padding:8px; border-radius:6px; font-size:0.9rem;">{{ presence.remarque }}</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% empty %}
+<div style="text-align:center; color:#aaa; padding:30px;">لا توجد تقييمات لهذه الحصة</div>
+{% endfor %}
+
+<a href="{% url 'dashboard_superviseur' %}" style="color:#6b3a2a; text-decoration:none;">← رجوع</a>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends 'dashboard/base_admin.html' %}
+
+{% block title %}تفاصيل الطلب{% endblock %}
+
+{% block content %}
+<div class="page-title">📋 تفاصيل طلب التسجيل</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+
+    <!-- Infos personnelles -->
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin-bottom:12px;">المعلومات الشخصية</div>
+
+    {% if inscription.nom_parent %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">ولي الأمر</span>
+        <span style="font-weight:600;">{{ inscription.nom_parent }}</span>
+    </div>
+    {% endif %}
+
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الاسم</span>
+        <span style="font-weight:600;">{{ inscription.nom }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">البريد الإلكتروني</span>
+        <span style="font-weight:600;">{{ inscription.email }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الهاتف</span>
+        <span style="font-weight:600;">{{ inscription.telephone }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">تاريخ الميلاد</span>
+        <span style="font-weight:600;">{{ inscription.date_naissance }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الجنس</span>
+        <span style="font-weight:600;">{{ inscription.sexe }}</span>
+    </div>
+
+    <!-- Programme -->
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin:20px 0 12px;">البرنامج</div>
+
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الحلقة المطلوبة</span>
+        <span style="font-weight:600;">
+            {% if inscription.creneau_souhaite %}{{ inscription.creneau_souhaite }}{% else %}غير محدد{% endif %}
+        </span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">البرنامج</span>
+        <span style="font-weight:600;">{{ inscription.get_programme_display }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الرواية</span>
+        <span style="font-weight:600;">{{ inscription.get_riwaya_display }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">وسيلة الحضور</span>
+        <span style="font-weight:600;">{{ inscription.get_outil_display }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الاشتراك</span>
+        <span style="font-weight:600;">{{ inscription.get_abonnement_display }}</span>
+    </div>
+
+    <!-- Extras -->
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin:20px 0 12px;">معلومات إضافية</div>
+
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">قبول الشروط</span>
+        <span style="font-weight:600;">{% if inscription.accepte_conditions %}✅ نعم{% else %}❌ لا{% endif %}</span>
+    </div>
+
+    {% if inscription.remarques %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">ملاحظات</span>
+        <span style="font-weight:600;">{{ inscription.remarques }}</span>
+    </div>
+    {% endif %}
+
+    <div style="display:flex; justify-content:space-between; padding:8px 0;">
+        <span style="color:#888;">تاريخ التقديم</span>
+        <span style="font-weight:600;">{{ inscription.date_soumission|date:"d-m-Y H:i" }}</span>
+    </div>
+
+    <!-- Boutons -->
+    <div class="d-flex gap-3 mt-4">
+        <a href="{% url 'admin_valider_eleve' inscription.id %}" 
+           style="background:#2d5a1b; color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">✅ قبول</a>
+        <a href="{% url 'admin_rejeter_eleve' inscription.id %}" 
+           style="background:#dc3545; color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">❌ رفض</a>
+        <a href="{% url 'admin_inscriptions' %}" 
+           style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+    </div>
+</div>
+{% endblock %}

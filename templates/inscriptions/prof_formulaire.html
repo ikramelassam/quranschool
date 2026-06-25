@@ -1,0 +1,336 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التسجيل كمعلم</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Tajawal', sans-serif; }
+        body { background-color: #f0ebe3; }
+        .form-container {
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 20px 40px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+        .logo-container { text-align: center; margin-bottom: 20px; }
+        .logo-container img { width: 90px; border-radius: 12px; }
+        .page-title {
+            color: #2d5a1b;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        .page-subtitle {
+            color: #888;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section-title {
+            color: #2d5a1b;
+            font-weight: 700;
+            font-size: 1.05rem;
+            border-bottom: 2px solid #2d5a1b;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+        .form-label { font-weight: 500; color: #333; }
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #2d5a1b;
+            box-shadow: 0 0 0 3px rgba(45,90,27,0.1);
+        }
+        .check-btn {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 8px 14px;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 0.9rem;
+            background: white;
+            transition: all 0.2s;
+            display: inline-block;
+            margin: 4px;
+        }
+        .check-btn.selected {
+            border-color: #2d5a1b;
+            background: #f0f7ed;
+            color: #2d5a1b;
+            font-weight: 600;
+        }
+        .btn-submit {
+            background-color: #2d5a1b;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            font-family: 'Tajawal', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-submit:hover { background-color: #1e3d12; }
+        .btn-back {
+            display: block;
+            border: 2px solid #ddd;
+            color: #888;
+            background: white;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            text-decoration: none;
+            margin-top: 10px;
+            font-family: 'Tajawal', sans-serif;
+        }
+    </style>
+</head>
+<body>
+<div class="form-container">
+
+    <div class="logo-container">
+        <img src="{% static 'images/logo.png' %}" alt="Logo">
+    </div>
+    <div class="page-title">التسجيل كمعلم</div>
+    <div class="page-subtitle">يرجى ملء جميع الخانات بدقة</div>
+
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <!-- Section 1 : Infos personnelles -->
+        <div class="card">
+            <div class="section-title">1. المعلومات الشخصية</div>
+            <div class="row g-3">
+                <div class="col-6">
+                    <label class="form-label">الاسم *</label>
+                    <input type="text" name="nom" class="form-control" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">اللقب *</label>
+                    <input type="text" name="prenom" class="form-control" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">البريد الإلكتروني *</label>
+                    <input type="email" name="email" class="form-control" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">رقم الهاتف *</label>
+                    <input type="tel" name="telephone" class="form-control" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">تاريخ الميلاد *</label>
+                    <input type="date" name="date_naissance" class="form-control" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">المدينة *</label>
+                    <input type="text" name="ville" class="form-control" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">الحالة الاجتماعية *</label>
+                    <select name="statut_familial" class="form-select" required>
+                        <option value="">اختر</option>
+                        <option value="celibataire">أعزب/عزباء</option>
+                        <option value="marie">متزوج/ة</option>
+                        <option value="divorce">مطلق/ة</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">الوظيفة الحالية</label>
+                    <input type="text" name="job_actuel" class="form-control">
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2 : Qualifications -->
+        <div class="card">
+            <div class="section-title">2. المؤهلات</div>
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">مستوى الحفظ *</label>
+                    <input type="text" name="niveau_memorisation" class="form-control"
+                           placeholder="مثال: حفظ القرآن كاملاً" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">الشهادات والإجازات</label>
+                    <textarea name="certifications" class="form-control" rows="2"
+                              placeholder="اذكر شهاداتك وإجازاتك"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3 : Préférences -->
+        <div class="card">
+            <div class="section-title">3. تفضيلات التدريس</div>
+
+            <div class="mb-3">
+                <label class="form-label">نوع الطلاب المفضل *</label><br>
+                <div onclick="toggleCheck(this, 'type_eleve', 'enfants')" class="check-btn">أطفال</div>
+                <div onclick="toggleCheck(this, 'type_eleve', 'adultes')" class="check-btn">بالغون</div>
+                <div onclick="toggleCheck(this, 'type_eleve', 'les_deux')" class="check-btn">الاثنان</div>
+                <input type="hidden" name="type_eleve" id="type_eleve_val">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">قيود الجنس *</label><br>
+                <div onclick="toggleCheck(this, 'contrainte_genre', 'homme')" class="check-btn">ذكور فقط</div>
+                <div onclick="toggleCheck(this, 'contrainte_genre', 'femme')" class="check-btn">إناث فقط</div>
+                <div onclick="toggleCheck(this, 'contrainte_genre', 'mixte')" class="check-btn">مختلط</div>
+                <input type="hidden" name="contrainte_genre" id="contrainte_genre_val">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">اللغات المتحدث بها *</label><br>
+                <div onclick="toggleMulti(this, 'langues', 'arabe')" class="check-btn">العربية</div>
+                <div onclick="toggleMulti(this, 'langues', 'francais')" class="check-btn">الفرنسية</div>
+                <div onclick="toggleMulti(this, 'langues', 'anglais')" class="check-btn">الإنجليزية</div>
+                <div onclick="toggleMulti(this, 'langues', 'autre')" class="check-btn">أخرى</div>
+            </div>
+        </div>
+
+        <!-- Section 4 : Disponibilités -->
+        <div class="card">
+            <div class="section-title">4. أوقات التفرغ</div>
+            <div class="row g-3">
+                <div class="col-6">
+                    <label class="form-label">اليوم الأول</label>
+                    <select name="dispo_jour_1" class="form-select">
+                        <option value="">اختر اليوم</option>
+                        <option value="lun">الاثنين</option>
+                        <option value="mar">الثلاثاء</option>
+                        <option value="mer">الأربعاء</option>
+                        <option value="jeu">الخميس</option>
+                        <option value="ven">الجمعة</option>
+                        <option value="sam">السبت</option>
+                        <option value="dim">الأحد</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">الوقت</label>
+                    <input type="time" name="dispo_heure_1" class="form-control">
+                </div>
+                <div class="col-6">
+                    <label class="form-label">اليوم الثاني</label>
+                    <select name="dispo_jour_2" class="form-select">
+                        <option value="">اختر اليوم</option>
+                        <option value="lun">الاثنين</option>
+                        <option value="mar">الثلاثاء</option>
+                        <option value="mer">الأربعاء</option>
+                        <option value="jeu">الخميس</option>
+                        <option value="ven">الجمعة</option>
+                        <option value="sam">السبت</option>
+                        <option value="dim">الأحد</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">الوقت</label>
+                    <input type="time" name="dispo_heure_2" class="form-control">
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5 : Outils -->
+        <div class="card">
+            <div class="section-title">5. الأدوات المتقنة</div>
+            <div onclick="toggleMulti(this, 'outils', 'whatsapp')" class="check-btn">واتساب</div>
+            <div onclick="toggleMulti(this, 'outils', 'meet')" class="check-btn">Google Meet</div>
+            <div onclick="toggleMulti(this, 'outils', 'zoom')" class="check-btn">Zoom</div>
+        </div>
+
+        <!-- Section 6 : Parcours -->
+        <div class="card">
+            <div class="section-title">6. المسار والخبرة</div>
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">المسار الدراسي *</label>
+                    <textarea name="parcours_scolaire" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">مسار التدريس *</label>
+                    <textarea name="parcours_enseignant" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">كيف تتعامل مع الطالب الضعيف؟ *</label>
+                    <textarea name="gestion_eleve_faible" class="form-control" rows="2" required></textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">كيف تتعامل مع الطالب الغائب؟ *</label>
+                    <textarea name="gestion_eleve_absent" class="form-control" rows="2" required></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 7 : Bancaire + Audio -->
+        <div class="card">
+            <div class="section-title">7. المعلومات البنكية والتسجيل الصوتي</div>
+            <div class="row g-3">
+                <div class="col-6">
+                    <label class="form-label">رقم الحساب البنكي</label>
+                    <input type="text" name="compte_bancaire" class="form-control">
+                </div>
+                <div class="col-6">
+                    <label class="form-label">RIB</label>
+                    <input type="text" name="rib" class="form-control">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">تسجيل صوتي (اختياري)</label>
+                    <input type="file" name="audio_enregistrement" class="form-control"
+                           accept="audio/*">
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-submit">إرسال الطلب ✉️</button>
+        <a href="{% url 'login' %}" class="btn-back">رجوع ←</a>
+
+    </form>
+</div>
+
+<script>
+// Pour les champs à choix unique
+function toggleCheck(el, field, value) {
+    document.querySelectorAll(`[onclick*="toggleCheck"][onclick*="${field}"]`)
+        .forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById(field + '_val').value = value;
+}
+
+// Pour les champs à choix multiple (checkboxes cachées)
+const multiSelections = {};
+function toggleMulti(el, field, value) {
+    if (!multiSelections[field]) multiSelections[field] = [];
+    const idx = multiSelections[field].indexOf(value);
+    if (idx > -1) {
+        multiSelections[field].splice(idx, 1);
+        el.classList.remove('selected');
+    } else {
+        multiSelections[field].push(value);
+        el.classList.add('selected');
+    }
+    // Met à jour les inputs cachés
+    document.querySelectorAll(`input[name="${field}"]`).forEach(i => i.remove());
+    multiSelections[field].forEach(v => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = field;
+        input.value = v;
+        document.querySelector('form').appendChild(input);
+    });
+}
+</script>
+</body>
+</html>

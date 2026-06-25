@@ -1,0 +1,59 @@
+{% extends 'dashboard/base_admin.html' %}
+
+{% block title %}إنشاء مجموعة{% endblock %}
+
+{% block content %}
+<div class="page-title">إنشاء مجموعة جديدة</div>
+<div class="page-subtitle">أدخل معلومات المجموعة</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">اسم المجموعة *</label>
+            <input type="text" name="nom" class="form-control mt-1" placeholder="مثال: مجموعة البقرة" required>
+        </div>
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">وصف المجموعة</label>
+            <textarea name="description" class="form-control mt-1" rows="2" 
+                    placeholder="مثال: مجموعة للأطفال من 7 إلى 12 سنة"></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">المعلم</label>
+            <select name="prof" class="form-select mt-1">
+                <option value="">بدون معلم</option>
+                {% for prof in profs %}
+                <option value="{{ prof.id }}">{{ prof.user.get_full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الحلقة (الجدول)</label>
+            <select name="creneau" class="form-select mt-1">
+                <option value="">بدون جدول</option>
+                {% for creneau in creneaux %}
+                <option value="{{ creneau.id }}">{{ creneau }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الطاقة الاستيعابية القصوى</label>
+            <input type="number" name="max_eleves" class="form-control mt-1" value="10" min="1" max="50">
+        </div>
+
+        <div class="d-flex gap-3 mt-4">
+            <button type="submit" 
+                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                إنشاء المجموعة ✅
+            </button>
+            <a href="{% url 'admin_groupes' %}" 
+               style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

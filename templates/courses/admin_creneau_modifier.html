@@ -1,0 +1,96 @@
+{% extends 'dashboard/base_admin.html' %}
+
+{% block title %}تعديل الحلقة{% endblock %}
+
+{% block content %}
+<div class="page-title">تعديل الحلقة</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الجنس المستهدف *</label>
+            <select name="sexe_cible" class="form-select mt-1" required>
+                <option value="mixte" {% if creneau.sexe_cible == 'mixte' %}selected{% endif %}>مختلط</option>
+                <option value="homme" {% if creneau.sexe_cible == 'homme' %}selected{% endif %}>ذكر</option>
+                <option value="femme" {% if creneau.sexe_cible == 'femme' %}selected{% endif %}>أنثى</option>
+            </select>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-6">
+                <label style="font-weight:600; color:#333;">السن الأدنى *</label>
+                <input type="number" name="age_min" class="form-control mt-1" value="{{ creneau.age_min }}" required>
+            </div>
+            <div class="col-6">
+                <label style="font-weight:600; color:#333;">السن الأقصى *</label>
+                <input type="number" name="age_max" class="form-control mt-1" value="{{ creneau.age_max }}" required>
+            </div>
+        </div>
+
+        <!-- Jour 1 -->
+        <div style="background:#f9f9f9; border-radius:10px; padding:16px; margin-bottom:16px;">
+            <div style="font-weight:700; color:#2d5a1b; margin-bottom:12px;">اليوم الأول</div>
+            <div class="row g-3">
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">اليوم *</label>
+                    <select name="jour_1" class="form-select mt-1" required>
+                        <option value="lun" {% if creneau.jour_1 == 'lun' %}selected{% endif %}>الاثنين</option>
+                        <option value="mar" {% if creneau.jour_1 == 'mar' %}selected{% endif %}>الثلاثاء</option>
+                        <option value="mer" {% if creneau.jour_1 == 'mer' %}selected{% endif %}>الأربعاء</option>
+                        <option value="jeu" {% if creneau.jour_1 == 'jeu' %}selected{% endif %}>الخميس</option>
+                        <option value="ven" {% if creneau.jour_1 == 'ven' %}selected{% endif %}>الجمعة</option>
+                        <option value="sam" {% if creneau.jour_1 == 'sam' %}selected{% endif %}>السبت</option>
+                        <option value="dim" {% if creneau.jour_1 == 'dim' %}selected{% endif %}>الأحد</option>
+                    </select>
+                </div>
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">من *</label>
+                    <input type="time" name="heure_debut_1" class="form-control mt-1" value="{{ creneau.heure_debut_1|time:'H:i' }}" required>
+                </div>
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">إلى *</label>
+                    <input type="time" name="heure_fin_1" class="form-control mt-1" value="{{ creneau.heure_fin_1|time:'H:i' }}" required>
+                </div>
+            </div>
+        </div>
+
+        <!-- Jour 2 -->
+        <div style="background:#f9f9f9; border-radius:10px; padding:16px; margin-bottom:16px;">
+            <div style="font-weight:700; color:#2d5a1b; margin-bottom:12px;">اليوم الثاني</div>
+            <div class="row g-3">
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">اليوم *</label>
+                    <select name="jour_2" class="form-select mt-1" required>
+                        <option value="lun" {% if creneau.jour_2 == 'lun' %}selected{% endif %}>الاثنين</option>
+                        <option value="mar" {% if creneau.jour_2 == 'mar' %}selected{% endif %}>الثلاثاء</option>
+                        <option value="mer" {% if creneau.jour_2 == 'mer' %}selected{% endif %}>الأربعاء</option>
+                        <option value="jeu" {% if creneau.jour_2 == 'jeu' %}selected{% endif %}>الخميس</option>
+                        <option value="ven" {% if creneau.jour_2 == 'ven' %}selected{% endif %}>الجمعة</option>
+                        <option value="sam" {% if creneau.jour_2 == 'sam' %}selected{% endif %}>السبت</option>
+                        <option value="dim" {% if creneau.jour_2 == 'dim' %}selected{% endif %}>الأحد</option>
+                    </select>
+                </div>
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">من *</label>
+                    <input type="time" name="heure_debut_2" class="form-control mt-1" value="{{ creneau.heure_debut_2|time:'H:i' }}" required>
+                </div>
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">إلى *</label>
+                    <input type="time" name="heure_fin_2" class="form-control mt-1" value="{{ creneau.heure_fin_2|time:'H:i' }}" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-3 mt-4">
+            <button type="submit"
+                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                حفظ التعديلات ✅
+            </button>
+            <a href="{% url 'admin_creneaux' %}" 
+               style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

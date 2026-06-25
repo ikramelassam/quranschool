@@ -1,0 +1,40 @@
+{% extends 'dashboard/base_admin.html' %}
+
+{% block title %}طلبات المعلمين{% endblock %}
+
+{% block content %}
+<div class="page-title">طلبات تسجيل المعلمين</div>
+<div class="page-subtitle">الطلبات المعلقة: {{ inscriptions|length }}</div>
+
+{% if inscriptions %}
+    {% for ins in inscriptions %}
+    <div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div style="font-weight:700; font-size:1.1rem;">{{ ins.nom }} {{ ins.prenom }}</div>
+                <div style="color:#888; font-size:0.9rem;">{{ ins.email }}</div>
+                <div style="color:#888; font-size:0.85rem; margin-top:4px;">
+                    تاريخ التقديم: {{ ins.date_soumission|date:"d-m-Y" }}
+                </div>
+            </div>
+            <div class="col-md-6 d-flex gap-2 justify-content-end mt-3 mt-md-0">
+                <a href="{% url 'admin_inscription_prof_detail' ins.id %}" 
+                   style="background:white; color:#2d5a1b; border:2px solid #2d5a1b; border-radius:8px; padding:8px 16px; text-decoration:none;">
+                   👁 عرض
+                </a>
+                <a href="{% url 'admin_valider_prof' ins.id %}" 
+                   style="background:#2d5a1b; color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
+                   ✅ قبول
+                </a>
+                <a href="{% url 'admin_rejeter_prof' ins.id %}" 
+                   style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
+                   ❌ رفض
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div style="text-align:center; padding:60px; color:#aaa;">🎉 لا توجد طلبات معلقة</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends 'dashboard/base_eleve.html' %}
+{% block title %}حصصي{% endblock %}
+{% block content %}
+<div class="page-title">حصصي وتقييماتي</div>
+<div class="page-subtitle">سجل جميع حصصك</div>
+
+{% if presences %}
+    {% for presence in presences %}
+    <div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div>
+                <div style="font-weight:700;">{{ presence.seance.groupe.nom }}</div>
+                <div style="color:#888; font-size:0.85rem;">{{ presence.seance.date }} — {{ presence.seance.heure }}</div>
+            </div>
+            <span style="background:{% if presence.statut == 'present' %}#e8f5e9; color:#2d5a1b{% elif presence.statut == 'absent_excuse' %}#fff3cd; color:#856404{% else %}#fce4e4; color:#dc3545{% endif %}; border-radius:20px; padding:4px 12px; font-size:0.8rem;">
+                {% if presence.statut == 'present' %}حاضر ✅
+                {% elif presence.statut == 'absent_excuse' %}غائب بعذر
+                {% else %}غائب ❌{% endif %}
+            </span>
+        </div>
+
+        <div class="row g-2">
+            {% if presence.quantite_memorisee %}
+            <div class="col-md-6">
+                <div style="background:#f9f9f9; border-radius:8px; padding:10px;">
+                    <div style="color:#888; font-size:0.8rem;">الحفظ</div>
+                    <div style="font-weight:600; font-size:0.9rem;">{{ presence.quantite_memorisee }}</div>
+                    {% if presence.note_memorisation %}
+                    <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ presence.note_memorisation }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% if presence.quantite_revisee %}
+            <div class="col-md-6">
+                <div style="background:#f9f9f9; border-radius:8px; padding:10px;">
+                    <div style="color:#888; font-size:0.8rem;">المراجعة</div>
+                    <div style="font-weight:600; font-size:0.9rem;">{{ presence.quantite_revisee }}</div>
+                    {% if presence.note_revision %}
+                    <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ presence.note_revision }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if presence.remarque %}
+        <div style="color:#555; font-size:0.85rem; margin-top:10px; background:#f0f7ed; padding:10px; border-radius:8px; border-right:3px solid #2d5a1b;">
+            💬 {{ presence.remarque }}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+{% else %}
+<div style="text-align:center; padding:60px; color:#aaa;">لا توجد حصص بعد</div>
+{% endif %}
+{% endblock %}

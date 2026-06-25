@@ -1,0 +1,103 @@
+{% extends 'dashboard/base_admin.html' %}
+
+{% block title %}تفاصيل طلب المعلم{% endblock %}
+
+{% block content %}
+<div class="page-title">📋 تفاصيل طلب المعلم</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+
+    <!-- Infos personnelles -->
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin-bottom:12px;">المعلومات الشخصية</div>
+
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الاسم الكامل</span>
+        <span style="font-weight:600;">{{ inscription.nom }} {{ inscription.prenom }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">البريد الإلكتروني</span>
+        <span style="font-weight:600;">{{ inscription.email }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">تاريخ الميلاد</span>
+        <span style="font-weight:600;">{{ inscription.date_naissance }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">المدينة</span>
+        <span style="font-weight:600;">{{ inscription.ville }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الحالة الاجتماعية</span>
+        <span style="font-weight:600;">{{ inscription.statut_familial }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الوظيفة الحالية</span>
+        <span style="font-weight:600;">{{ inscription.job_actuel }}</span>
+    </div>
+
+    <!-- Qualifications -->
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin:20px 0 12px;">المؤهلات</div>
+
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">مستوى الحفظ</span>
+        <span style="font-weight:600;">{{ inscription.niveau_memorisation }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الشهادات</span>
+        <span style="font-weight:600;">{{ inscription.certifications }}</span>
+    </div>
+
+    <!-- Parcours -->
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin:20px 0 12px;">المسار والخبرة</div>
+
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">المسار الدراسي</div>
+        <div style="font-weight:600;">{{ inscription.parcours_scolaire }}</div>
+    </div>
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">مسار التدريس</div>
+        <div style="font-weight:600;">{{ inscription.parcours_enseignant }}</div>
+    </div>
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">التعامل مع الطالب الضعيف</div>
+        <div style="font-weight:600;">{{ inscription.gestion_eleve_faible }}</div>
+    </div>
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">التعامل مع الطالب الغائب</div>
+        <div style="font-weight:600;">{{ inscription.gestion_eleve_absent }}</div>
+    </div>
+
+    <!-- Tafaصيل إضافية -->
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin:20px 0 12px;">معلومات إضافية</div>
+
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">اللغات</span>
+        <span style="font-weight:600;">{{ inscription.langues|join:", " }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الأدوات</span>
+        <span style="font-weight:600;">{{ inscription.outils_maitrises|join:", " }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">تاريخ التقديم</span>
+        <span style="font-weight:600;">{{ inscription.date_soumission|date:"d-m-Y H:i" }}</span>
+    </div>
+
+    {% if inscription.audio_enregistrement %}
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">التسجيل الصوتي</div>
+        <audio controls src="{{ inscription.audio_enregistrement.url }}"></audio>
+    </div>
+    {% endif %}
+
+    <!-- Boutons -->
+    <div class="d-flex gap-3 mt-4">
+        <a href="{% url 'admin_valider_prof' inscription.id %}" 
+           style="background:#2d5a1b; color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">✅ قبول</a>
+        <a href="{% url 'admin_rejeter_prof' inscription.id %}" 
+           style="background:#dc3545; color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">❌ رفض</a>
+        <a href="{% url 'admin_inscriptions_profs' %}" 
+           style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+    </div>
+</div>
+{% endblock %}

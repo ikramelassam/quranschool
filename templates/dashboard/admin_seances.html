@@ -1,0 +1,76 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}الحصص{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <div class="page-title">إدارة الحصص</div>
+        <div class="page-subtitle">جميع الحصص</div>
+    </div>
+</div>
+
+<!-- Formulaire ajouter séance -->
+<div style="background:white; border-radius:12px; padding:24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="font-weight:700; color:#2d5a1b; margin-bottom:16px;">إضافة حصة جديدة</div>
+    <form method="POST" class="row g-3">
+        {% csrf_token %}
+        <div class="col-md-3">
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">المجموعة</label>
+            <select name="groupe" class="form-select mt-1" required>
+                <option value="">اختر</option>
+                {% for groupe in groupes %}
+                <option value="{{ groupe.id }}">{{ groupe.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">التاريخ</label>
+            <input type="date" name="date" class="form-control mt-1" required>
+        </div>
+        <div class="col-md-2">
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">الوقت</label>
+            <input type="time" name="heure" class="form-control mt-1" required>
+        </div>
+        <div class="col-md-2">
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">النوع</label>
+            <select name="type" class="form-select mt-1">
+                <option value="normal">عادية</option>
+                <option value="rattrapage">تعويضية</option>
+                <option value="revision">مراجعة</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit"
+                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:10px 20px; font-family:'Tajawal',sans-serif; cursor:pointer; width:100%;">
+                إضافة +
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Liste séances -->
+{% for seance in seances %}
+<div style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row align-items-center">
+        <div class="col-md-6">
+            <div style="font-weight:700;">{{ seance.groupe.nom }}</div>
+            <div style="color:#888; font-size:0.85rem;">{{ seance.date }} — {{ seance.heure }} — {{ seance.get_type_display }}</div>
+        </div>
+        <div class="col-md-6 d-flex gap-2 justify-content-end">
+            {% if seance.statut == 'terminee' %}
+                <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:4px 12px; font-size:0.8rem;">منتهية ✅</span>
+            {% elif seance.statut == 'planifiee' %}
+                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:4px 12px; font-size:0.8rem;">مخططة 📅</span>
+                <a href="{% url 'admin_seance_annuler' seance.id %}"
+                   style="background:#dc3545; color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+                   إلغاء
+                </a>
+            {% else %}
+                <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:4px 12px; font-size:0.8rem;">ملغاة ❌</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% empty %}
+<div style="text-align:center; padding:60px; color:#aaa;">لا توجد حصص بعد</div>
+{% endfor %}
+{% endblock %}

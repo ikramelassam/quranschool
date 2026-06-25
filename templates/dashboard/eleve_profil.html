@@ -1,0 +1,36 @@
+{% extends 'dashboard/base_eleve.html' %}
+{% block title %}ملفي الشخصي{% endblock %}
+{% block content %}
+<div class="page-title">ملفي الشخصي</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الاسم الكامل</span>
+        <span style="font-weight:600;">{{ eleve.user.get_full_name }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">البريد الإلكتروني</span>
+        <span style="font-weight:600;">{{ eleve.user.email }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الجنس</span>
+        <span style="font-weight:600;">{{ eleve.sexe }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0;">
+        <span style="color:#888;">الحالة</span>
+        <span style="font-weight:600; color:#2d5a1b;">{{ eleve.statut }}</span>
+    </div>
+
+    <div style="margin-top:20px; font-weight:700; color:#2d5a1b; margin-bottom:12px;">مجموعاتي</div>
+    {% for groupe in eleve.groupes.all %}
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="font-weight:600;">{{ groupe.nom }}</span>
+        {% if groupe.creneau %}
+        <span style="color:#888; font-size:0.85rem; margin-right:8px;">— {{ groupe.creneau }}</span>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div style="color:#aaa;">لم يتم تعيينك في مجموعة بعد</div>
+    {% endfor %}
+</div>
+{% endblock %}

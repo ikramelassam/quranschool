@@ -1,0 +1,88 @@
+{% extends 'dashboard/base_admin.html' %}
+
+{% block title %}لوحة التحكم{% endblock %}
+
+{% block content %}
+<div class="page-title">لوحة التحكم</div>
+<div class="page-subtitle">نظرة شاملة على المنصة</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="color:#888; font-size:0.85rem;">إجمالي الطلاب</div>
+            <div style="color:#2d5a1b; font-size:2rem; font-weight:700;">{{ total_eleves }}</div>
+            <div style="color:#888; font-size:0.8rem;">👤</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="color:#888; font-size:0.85rem;">إجمالي المعلمين</div>
+            <div style="color:#C9A84C; font-size:2rem; font-weight:700;">{{ total_profs }}</div>
+            <div style="color:#888; font-size:0.8rem;">🎓</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="color:#888; font-size:0.85rem;">المجموعات النشطة</div>
+            <div style="color:#2d5a1b; font-size:2rem; font-weight:700;">{{ total_groupes }}</div>
+            <div style="color:#888; font-size:0.8rem;">👥</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="color:#888; font-size:0.85rem;">طلبات معلقة</div>
+            <div style="color:#dc3545; font-size:2rem; font-weight:700;">{{ total_pending }}</div>
+            <div style="color:#888; font-size:0.8rem;">📋</div>
+        </div>
+    </div>
+</div>
+
+<div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="font-weight:700; font-size:1.1rem; color:#222; margin-bottom:16px;">طلبات التسجيل الأخيرة</div>
+
+    <!-- Élèves -->
+    <div style="font-weight:600; color:#2d5a1b; margin-bottom:8px;">الطلاب</div>
+    {% if dernieres_eleves %}
+        {% for ins in dernieres_eleves %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0;">
+            <div>
+                <div style="font-weight:600;">{{ ins.nom }}</div>
+                <div style="color:#888; font-size:0.85rem;">{{ ins.date_soumission|date:"d-m-Y" }}</div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">قيد المراجعة</span>
+                <a href="{% url 'admin_inscription_eleve_detail' ins.id %}" 
+                   style="color:#2d5a1b; text-decoration:none; font-size:0.85rem;">عرض ←</a>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div style="color:#aaa; font-size:0.9rem; padding:8px 0;">لا توجد طلبات طلاب</div>
+    {% endif %}
+
+    <!-- Profs -->
+    <div style="font-weight:600; color:#C9A84C; margin:16px 0 8px;">المعلمون</div>
+    {% if dernieres_profs %}
+        {% for ins in dernieres_profs %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0;">
+            <div>
+                <div style="font-weight:600;">{{ ins.nom }} {{ ins.prenom }}</div>
+                <div style="color:#888; font-size:0.85rem;">{{ ins.date_soumission|date:"d-m-Y" }}</div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">قيد المراجعة</span>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div style="color:#aaa; font-size:0.9rem; padding:8px 0;">لا توجد طلبات معلمين</div>
+    {% endif %}
+
+    <div class="mt-3">
+        <a href="{% url 'admin_inscriptions' %}" style="color:#2d5a1b; text-decoration:none; font-size:0.9rem;">
+            عرض جميع الطلبات ←
+        </a>
+    </div>
+</div>
+{% endblock %}

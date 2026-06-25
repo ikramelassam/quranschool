@@ -1,0 +1,454 @@
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from inscriptions.models import InscriptionEleve
+
+
+@login_required
+def dashboard_eleve(request):
+    return render(request, 'dashboard/eleve.html')
+
+
+
+@login_required
+def dashboard_prof(request):
+    from accounts.models import Prof
+    from courses.models import Groupe, Seance
+
+    try:
+        prof = Prof.objects.get(user=request.user)
+    except Prof.DoesNotExist:
+        return redirect('login')
+
+    groupes = Groupe.objects.filter(prof=prof)
+    seances = Seance.objects.filter(
+        groupe__prof=prof
+    ).order_by('-date')[:5]
+
+    context = {
+        'prof': prof,
+        'groupes': groupes,
+        'seances': seances,
+        'total_eleves': sum(g.eleves.count() for g in groupes),
+        'total_groupes': groupes.count(),
+    }
+    return render(request, 'dashboard/prof.html', context)
+
+
+@login_required
+def prof_groupes(request):
+    from accounts.models import Prof
+    from courses.models import Groupe
+
+    prof = get_object_or_404(Prof, user=request.user)
+    groupes = Groupe.objects.filter(prof=prof)
+
+    return render(request, 'dashboard/prof_groupes.html', {
+        'prof': prof,
+        'groupes': groupes,
+    })
+
+
+@login_required
+def prof_groupe_detail(request, groupe_id):
+    from accounts.models import Prof
+    from courses.models import Groupe
+
+    prof = get_object_or_404(Prof, user=request.user)
+    groupe = get_object_or_404(Groupe, id=groupe_id, prof=prof)
+
+    return render(request, 'dashboard/prof_groupe_detail.html', {
+        'prof': prof,
+        'groupe': groupe,
+        'eleves': groupe.eleves.all(),
+    })
+
+
+@login_required
+def prof_seances(request):
+    from accounts.models import Prof
+    from courses.models import Seance
+
+    prof = get_object_or_404(Prof, user=request.user)
+    seances = Seance.objects.filter(
+        groupe__prof=prof
+    ).order_by('-date')
+
+    return render(request, 'dashboard/prof_seances.html', {
+        'prof': prof,
+        'seances': seances,
+    })
+
+
+@login_required
+def prof_seance_detail(request, seance_id):
+    from accounts.models import Prof
+    from courses.models import Seance, Presence
+
+    prof = get_object_or_404(Prof, user=request.user)
+    seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
+    eleves = seance.groupe.eleves.all()
+
+    # Récupère les présences existantes
+    presences = {}
+    for p in Presence.objects.filter(seance=seance):
+        presences[p.eleve.id] = p
+
+    return render(request, 'dashboard/prof_seance_detail.html', {
+        'prof': prof,
+        'seance': seance,
+        'eleves': eleves,
+        'presences': presences,
+    })
+
+
+@login_required
+def prof_presence_sauvegarder(request, seance_id):
+    from accounts.models import Prof, Eleve
+    from courses.models import Seance, Presence
+
+    prof = get_object_or_404(Prof, user=request.user)
+    seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
+
+    if request.method == 'POST':
+        eleves = seance.groupe.eleves.all()
+        for eleve in eleves:
+            statut = request.POST.get(f'statut_{eleve.id}', 'absent')
+            quantite_memorisee = request.POST.get(f'memorisee_{eleve.id}', '')
+            quantite_revisee = request.POST.get(f'revisee_{eleve.id}', '')
+            note_memorisation = request.POST.get(f'note_memo_{eleve.id}', '')
+            note_revision = request.POST.get(f'note_rev_{eleve.id}', '')
+            remarque = request.POST.get(f'remarque_{eleve.id}', '')
+
+            Presence.objects.update_or_create(
+                seance=seance,
+                eleve=eleve,
+                defaults={
+                    'statut': statut,
+                    'quantite_memorisee': quantite_memorisee,
+                    'quantite_revisee': quantite_revisee,
+                    'note_memorisation': note_memorisation,
+                    'note_revision': note_revision,
+                    'remarque': remarque,
+                }
+            )
+
+        seance.statut = 'terminee'
+        seance.save()
+        return redirect('prof_seances')
+
+    return redirect('prof_seance_detail', seance_id=seance_id)
+
+
+@login_required
+def prof_emploi(request):
+    from accounts.models import Prof
+    from courses.models import Groupe
+
+    prof = get_object_or_404(Prof, user=request.user)
+    groupes = Groupe.objects.filter(prof=prof, statut='actif')
+
+    return render(request, 'dashboard/prof_emploi.html', {
+        'prof': prof,
+        'groupes': groupes,
+    })
+
+
+@login_required
+def dashboard_superviseur(request):
+    return render(request, 'dashboard/superviseur.html')
+
+
+@login_required
+
+@login_required
+def dashboard_admin(request):
+    from inscriptions.models import InscriptionEleve, InscriptionProf
+    from accounts.models import Eleve, Prof
+    from courses.models import Groupe
+
+    dernieres_eleves = InscriptionEleve.objects.filter(
+        statut='en_attente'
+    ).order_by('-date_soumission')[:3]
+
+    dernieres_profs = InscriptionProf.objects.filter(
+        statut='en_attente'
+    ).order_by('-date_soumission')[:3]
+
+    context = {
+        'total_eleves': Eleve.objects.count(),
+        'total_profs': Prof.objects.count(),
+        'total_groupes': Groupe.objects.count(),
+        'total_pending': InscriptionEleve.objects.filter(statut='en_attente').count() +
+                         InscriptionProf.objects.filter(statut='en_attente').count(),
+        'dernieres_eleves': dernieres_eleves,
+        'dernieres_profs': dernieres_profs,
+    }
+    return render(request, 'dashboard/admin.html', context)
+@login_required
+def admin_inscriptions(request):
+    inscriptions = InscriptionEleve.objects.filter(
+        statut='en_attente'
+    ).order_by('-date_soumission')
+
+    return render(request, 'dashboard/admin_inscriptions.html', {
+        'inscriptions': inscriptions,
+    })
+
+
+
+@login_required
+def admin_valider_eleve(request, inscription_id):
+    from inscriptions.models import InscriptionEleve
+    from accounts.models import Eleve
+    from django.contrib.auth import get_user_model
+    import random, string
+
+    User = get_user_model()
+    inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
+
+    # Crée le User seulement s'il n'existe pas déjà
+    if not User.objects.filter(email=inscription.email).exists():
+        
+        # Génère mot de passe temporaire
+        password_temp = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+        
+        # Crée le User
+        user = User.objects.create_user(
+            username=inscription.email,
+            email=inscription.email,
+            password=password_temp,
+            first_name=inscription.nom,
+            role='eleve'
+        )
+
+        # Crée le profil Eleve
+        Eleve.objects.create(
+            user=user,
+            sexe=inscription.sexe,
+            statut='actif'
+        )
+
+    # Change le statut
+    inscription.statut = 'valide'
+    inscription.save()
+
+    return redirect('admin_inscriptions')
+
+@login_required
+def admin_rejeter_eleve(request, inscription_id):
+    inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
+    inscription.statut = 'rejete'
+    inscription.save()
+    return redirect('admin_inscriptions')
+
+
+@login_required
+def admin_inscription_eleve_detail(request, inscription_id):
+    inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
+    return render(request, 'dashboard/admin_inscription_detail.html', {
+        'inscription': inscription,
+    })
+
+@login_required
+def admin_inscription_prof_detail(request, inscription_id):
+    from inscriptions.models import InscriptionProf
+    inscription = get_object_or_404(InscriptionProf, id=inscription_id)
+    return render(request, 'dashboard/admin_inscription_prof_detail.html', {
+        'inscription': inscription,
+    })
+
+@login_required
+def admin_valider_prof(request, inscription_id):
+    from inscriptions.models import InscriptionProf
+    from accounts.models import Prof
+    from django.contrib.auth import get_user_model
+    import random, string
+
+    User = get_user_model()
+    inscription = get_object_or_404(InscriptionProf, id=inscription_id)
+
+    if not User.objects.filter(email=inscription.email).exists():
+        password_temp = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+        user = User.objects.create_user(
+            username=inscription.email,
+            email=inscription.email,
+            password=password_temp,
+            first_name=inscription.nom,
+            last_name=inscription.prenom,
+            role='prof'
+        )
+        Prof.objects.create(
+            user=user,
+            ville=inscription.ville,
+            certifications=inscription.certifications,
+            niveau_memorisation=inscription.niveau_memorisation,
+            parcours_scolaire=inscription.parcours_scolaire,
+            parcours_enseignant=inscription.parcours_enseignant,
+            gestion_eleve_faible=inscription.gestion_eleve_faible,
+            gestion_eleve_absent=inscription.gestion_eleve_absent,
+            type_eleve_preference=inscription.type_eleve_preference,
+            contrainte_genre=inscription.contrainte_genre,
+            langues=inscription.langues,
+            outils_maitrises=inscription.outils_maitrises,
+            compte_bancaire=inscription.compte_bancaire,
+            rib=inscription.rib,
+)
+
+    inscription.statut = 'valide'
+    inscription.save()
+    return redirect('admin_inscriptions_profs')
+
+@login_required
+def admin_rejeter_prof(request, inscription_id):
+    from inscriptions.models import InscriptionProf
+    inscription = get_object_or_404(InscriptionProf, id=inscription_id)
+    inscription.statut = 'rejete'
+    inscription.save()
+    return redirect('admin_inscriptions_profs')
+
+@login_required
+def admin_inscriptions_profs(request):
+    from inscriptions.models import InscriptionProf
+    inscriptions = InscriptionProf.objects.filter(
+        statut='en_attente'
+    ).order_by('-date_soumission')
+
+    return render(request, 'dashboard/admin_inscriptions_profs.html', {
+        'inscriptions': inscriptions,
+    })
+
+
+# ==================== DASHBOARD ÉLÈVE ====================
+
+@login_required
+def dashboard_eleve(request):
+    from accounts.models import Eleve
+    from courses.models import Seance, Presence
+
+    try:
+        eleve = Eleve.objects.get(user=request.user)
+    except Eleve.DoesNotExist:
+        return redirect('login')
+
+    groupes = eleve.groupes.all()
+    presences = Presence.objects.filter(
+        eleve=eleve
+    ).order_by('-seance__date')[:10]
+
+    context = {
+        'eleve': eleve,
+        'groupes': groupes,
+        'presences': presences,
+        'total_seances': Presence.objects.filter(eleve=eleve).count(),
+        'total_present': Presence.objects.filter(eleve=eleve, statut='present').count(),
+    }
+    return render(request, 'dashboard/eleve.html', context)
+
+
+@login_required
+def eleve_seances(request):
+    from accounts.models import Eleve
+    from courses.models import Presence
+
+    eleve = get_object_or_404(Eleve, user=request.user)
+    presences = Presence.objects.filter(
+        eleve=eleve
+    ).order_by('-seance__date')
+
+    return render(request, 'dashboard/eleve_seances.html', {
+        'eleve': eleve,
+        'presences': presences,
+    })
+
+
+@login_required
+def eleve_profil(request):
+    from accounts.models import Eleve
+    eleve = get_object_or_404(Eleve, user=request.user)
+    return render(request, 'dashboard/eleve_profil.html', {
+        'eleve': eleve,
+    })
+
+
+# ==================== DASHBOARD SUPERVISEUR ====================
+
+@login_required
+def dashboard_superviseur(request):
+    from courses.models import Seance
+    seances = Seance.objects.filter(
+        statut='terminee'
+    ).order_by('-date')[:10]
+
+    return render(request, 'dashboard/superviseur.html', {
+        'seances': seances,
+    })
+
+
+@login_required
+def superviseur_seance_detail(request, seance_id):
+    from courses.models import Seance, Presence
+    from evaluations.models import Evaluation
+
+    seance = get_object_or_404(Seance, id=seance_id)
+    presences = Presence.objects.filter(seance=seance)
+
+    return render(request, 'dashboard/superviseur_seance_detail.html', {
+        'seance': seance,
+        'presences': presences,
+    })
+
+
+# ==================== ADMIN — SÉANCES ====================
+
+@login_required
+def admin_seances(request):
+    from courses.models import Seance, Groupe
+    groupes = Groupe.objects.filter(statut='actif')
+
+    if request.method == 'POST':
+        from courses.models import Seance
+        Seance.objects.create(
+            groupe_id=request.POST.get('groupe'),
+            date=request.POST.get('date'),
+            heure=request.POST.get('heure'),
+            type=request.POST.get('type', 'normal'),
+            statut='planifiee',
+        )
+        return redirect('admin_seances')
+
+    seances = Seance.objects.all().order_by('-date')
+    return render(request, 'dashboard/admin_seances.html', {
+        'seances': seances,
+        'groupes': groupes,
+    })
+
+
+@login_required
+def admin_seance_annuler(request, seance_id):
+    from courses.models import Seance
+    seance = get_object_or_404(Seance, id=seance_id)
+    seance.statut = 'annulee'
+    seance.save()
+    return redirect('admin_seances')
+
+
+# ==================== ADMIN — ÉLÈVES VALIDÉS ====================
+
+@login_required
+def admin_eleves(request):
+    from accounts.models import Eleve
+    eleves = Eleve.objects.all().select_related('user')
+    return render(request, 'dashboard/admin_eleves.html', {
+        'eleves': eleves,
+    })
+
+
+# ==================== ADMIN — PROFS VALIDÉS ====================
+
+@login_required
+def admin_profs(request):
+    from accounts.models import Prof
+    profs = Prof.objects.all().select_related('user')
+    return render(request, 'dashboard/admin_profs.html', {
+        'profs': profs,
+    })
