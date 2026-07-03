@@ -1,10 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
+from accounts.decorators import role_required
 from .models import Groupe, Creneau
 from accounts.models import Prof, Eleve
 
 
-@login_required
+@role_required('admin')
 def groupes_list(request):
     groupes = Groupe.objects.all()
     return render(request, 'courses/admin_groupes.html', {
@@ -12,7 +12,7 @@ def groupes_list(request):
     })
 
 
-@login_required
+@role_required('admin')
 def groupe_ajouter(request):
     if request.method == 'POST':
         Groupe.objects.create(
@@ -32,7 +32,7 @@ def groupe_ajouter(request):
     })
 
 
-@login_required
+@role_required('admin')
 def groupe_detail(request, groupe_id):
     groupe = get_object_or_404(Groupe, id=groupe_id)
     eleves_disponibles = Eleve.objects.exclude(groupes=groupe)
@@ -42,7 +42,7 @@ def groupe_detail(request, groupe_id):
     })
 
 
-@login_required
+@role_required('admin')
 def groupe_ajouter_eleve(request, groupe_id):
     groupe = get_object_or_404(Groupe, id=groupe_id)
     eleve_id = request.POST.get('eleve_id')
@@ -50,7 +50,7 @@ def groupe_ajouter_eleve(request, groupe_id):
         groupe.eleves.add(eleve_id)
     return redirect('admin_groupe_detail', groupe_id=groupe_id)
 
-@login_required
+@role_required('admin')
 def groupe_modifier(request, groupe_id):
     groupe = get_object_or_404(Groupe, id=groupe_id)
     creneaux = Creneau.objects.filter(est_actif=True)
@@ -73,7 +73,7 @@ def groupe_modifier(request, groupe_id):
     })
 
 
-@login_required
+@role_required('admin')
 def creneaux_list(request):
     creneaux = Creneau.objects.all()
     return render(request, 'courses/admin_creneaux.html', {
@@ -81,7 +81,7 @@ def creneaux_list(request):
     })
 
 
-@login_required
+@role_required('admin')
 def creneau_ajouter(request):
     if request.method == 'POST':
         Creneau.objects.create(
@@ -100,7 +100,7 @@ def creneau_ajouter(request):
     return render(request, 'courses/admin_creneau_ajouter.html')
 
 
-@login_required
+@role_required('admin')
 def creneau_modifier(request, creneau_id):
     creneau = get_object_or_404(Creneau, id=creneau_id)
 
@@ -122,7 +122,7 @@ def creneau_modifier(request, creneau_id):
     })
 
 
-@login_required
+@role_required('admin')
 def creneau_toggle(request, creneau_id):
     creneau = get_object_or_404(Creneau, id=creneau_id)
     creneau.est_actif = not creneau.est_actif

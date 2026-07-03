@@ -1,15 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
+from accounts.decorators import role_required
 from inscriptions.models import InscriptionEleve
 
 
-@login_required
-def dashboard_eleve(request):
-    return render(request, 'dashboard/eleve.html')
-
-
-
-@login_required
+@role_required('prof')
 def dashboard_prof(request):
     from accounts.models import Prof
     from courses.models import Groupe, Seance
@@ -34,7 +28,7 @@ def dashboard_prof(request):
     return render(request, 'dashboard/prof.html', context)
 
 
-@login_required
+@role_required('prof')
 def prof_groupes(request):
     from accounts.models import Prof
     from courses.models import Groupe
@@ -48,7 +42,7 @@ def prof_groupes(request):
     })
 
 
-@login_required
+@role_required('prof')
 def prof_groupe_detail(request, groupe_id):
     from accounts.models import Prof
     from courses.models import Groupe
@@ -63,7 +57,7 @@ def prof_groupe_detail(request, groupe_id):
     })
 
 
-@login_required
+@role_required('prof')
 def prof_seances(request):
     from accounts.models import Prof
     from courses.models import Seance
@@ -79,7 +73,7 @@ def prof_seances(request):
     })
 
 
-@login_required
+@role_required('prof')
 def prof_seance_detail(request, seance_id):
     from accounts.models import Prof
     from courses.models import Seance, Presence
@@ -103,7 +97,7 @@ def prof_seance_detail(request, seance_id):
     })
 
 
-@login_required
+@role_required('prof')
 def prof_presence_sauvegarder(request, seance_id):
     from accounts.models import Prof, Eleve
     from courses.models import Seance, Presence
@@ -141,7 +135,7 @@ def prof_presence_sauvegarder(request, seance_id):
     return redirect('prof_seance_detail', seance_id=seance_id)
 
 
-@login_required
+@role_required('prof')
 def prof_emploi(request):
     from accounts.models import Prof
     from courses.models import Groupe
@@ -155,14 +149,7 @@ def prof_emploi(request):
     })
 
 
-@login_required
-def dashboard_superviseur(request):
-    return render(request, 'dashboard/superviseur.html')
-
-
-@login_required
-
-@login_required
+@role_required('admin')
 def dashboard_admin(request):
     from inscriptions.models import InscriptionEleve, InscriptionProf
     from accounts.models import Eleve, Prof
@@ -186,7 +173,7 @@ def dashboard_admin(request):
         'dernieres_profs': dernieres_profs,
     }
     return render(request, 'dashboard/admin.html', context)
-@login_required
+@role_required('admin')
 def admin_inscriptions(request):
     inscriptions = InscriptionEleve.objects.filter(
         statut='en_attente'
@@ -198,7 +185,7 @@ def admin_inscriptions(request):
 
 
 
-@login_required
+@role_required('admin')
 def admin_valider_eleve(request, inscription_id):
     from inscriptions.models import InscriptionEleve
     from accounts.models import Eleve
@@ -236,7 +223,7 @@ def admin_valider_eleve(request, inscription_id):
 
     return redirect('admin_inscriptions')
 
-@login_required
+@role_required('admin')
 def admin_rejeter_eleve(request, inscription_id):
     inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
     inscription.statut = 'rejete'
@@ -244,14 +231,14 @@ def admin_rejeter_eleve(request, inscription_id):
     return redirect('admin_inscriptions')
 
 
-@login_required
+@role_required('admin')
 def admin_inscription_eleve_detail(request, inscription_id):
     inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
     return render(request, 'dashboard/admin_inscription_detail.html', {
         'inscription': inscription,
     })
 
-@login_required
+@role_required('admin')
 def admin_inscription_prof_detail(request, inscription_id):
     from inscriptions.models import InscriptionProf
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
@@ -259,7 +246,7 @@ def admin_inscription_prof_detail(request, inscription_id):
         'inscription': inscription,
     })
 
-@login_required
+@role_required('admin')
 def admin_valider_prof(request, inscription_id):
     from inscriptions.models import InscriptionProf
     from accounts.models import Prof
@@ -300,7 +287,7 @@ def admin_valider_prof(request, inscription_id):
     inscription.save()
     return redirect('admin_inscriptions_profs')
 
-@login_required
+@role_required('admin')
 def admin_rejeter_prof(request, inscription_id):
     from inscriptions.models import InscriptionProf
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
@@ -308,7 +295,7 @@ def admin_rejeter_prof(request, inscription_id):
     inscription.save()
     return redirect('admin_inscriptions_profs')
 
-@login_required
+@role_required('admin')
 def admin_inscriptions_profs(request):
     from inscriptions.models import InscriptionProf
     inscriptions = InscriptionProf.objects.filter(
@@ -322,7 +309,7 @@ def admin_inscriptions_profs(request):
 
 # ==================== DASHBOARD ÉLÈVE ====================
 
-@login_required
+@role_required('eleve')
 def dashboard_eleve(request):
     from accounts.models import Eleve
     from courses.models import Seance, Presence
@@ -347,7 +334,7 @@ def dashboard_eleve(request):
     return render(request, 'dashboard/eleve.html', context)
 
 
-@login_required
+@role_required('eleve')
 def eleve_seances(request):
     from accounts.models import Eleve
     from courses.models import Presence
@@ -363,7 +350,7 @@ def eleve_seances(request):
     })
 
 
-@login_required
+@role_required('eleve')
 def eleve_profil(request):
     from accounts.models import Eleve
     eleve = get_object_or_404(Eleve, user=request.user)
@@ -374,7 +361,7 @@ def eleve_profil(request):
 
 # ==================== DASHBOARD SUPERVISEUR ====================
 
-@login_required
+@role_required('superviseur')
 def dashboard_superviseur(request):
     from courses.models import Seance
     seances = Seance.objects.filter(
@@ -386,7 +373,7 @@ def dashboard_superviseur(request):
     })
 
 
-@login_required
+@role_required('superviseur')
 def superviseur_seance_detail(request, seance_id):
     from courses.models import Seance, Presence
     from evaluations.models import Evaluation
@@ -402,7 +389,7 @@ def superviseur_seance_detail(request, seance_id):
 
 # ==================== ADMIN — SÉANCES ====================
 
-@login_required
+@role_required('admin')
 def admin_seances(request):
     from courses.models import Seance, Groupe
     groupes = Groupe.objects.filter(statut='actif')
@@ -425,7 +412,7 @@ def admin_seances(request):
     })
 
 
-@login_required
+@role_required('admin')
 def admin_seance_annuler(request, seance_id):
     from courses.models import Seance
     seance = get_object_or_404(Seance, id=seance_id)
@@ -436,7 +423,7 @@ def admin_seance_annuler(request, seance_id):
 
 # ==================== ADMIN — ÉLÈVES VALIDÉS ====================
 
-@login_required
+@role_required('admin')
 def admin_eleves(request):
     from accounts.models import Eleve
     eleves = Eleve.objects.all().select_related('user')
@@ -447,7 +434,7 @@ def admin_eleves(request):
 
 # ==================== ADMIN — PROFS VALIDÉS ====================
 
-@login_required
+@role_required('admin')
 def admin_profs(request):
     from accounts.models import Prof
     profs = Prof.objects.all().select_related('user')
