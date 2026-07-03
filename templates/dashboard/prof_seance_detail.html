@@ -1,0 +1,72 @@
+{% extends 'dashboard/base_prof.html' %}
+{% block title %}تفاصيل الحصة{% endblock %}
+{% block content %}
+<div class="page-title">{{ seance.groupe.nom }}</div>
+<div class="page-subtitle">{{ seance.date }} — {{ seance.heure }} — {{ seance.get_type_display }}</div>
+
+<form method="POST" action="{% url 'prof_presence_sauvegarder' seance.id %}">
+    {% csrf_token %}
+
+    {% for item in eleves_presences %}
+    {% with eleve=item.eleve presence=item.presence %}
+    <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        <div style="font-weight:700; color:#1a3a5c; margin-bottom:12px;">{{ eleve.user.get_full_name }}</div>
+
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label style="color:#888; font-size:0.8rem;">الحضور</label>
+                <select name="statut_{{ eleve.id }}" class="form-select">
+                    <option value="present" {% if presence.statut == 'present' or not presence %}selected{% endif %}>حاضر</option>
+                    <option value="absent_excuse" {% if presence.statut == 'absent_excuse' %}selected{% endif %}>غائب بعذر</option>
+                    <option value="absent" {% if presence.statut == 'absent' %}selected{% endif %}>غائب بدون عذر</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label style="color:#888; font-size:0.8rem;">الكمية المحفوظة</label>
+                <input type="text" name="memorisee_{{ eleve.id }}" class="form-control"
+                       value="{{ presence.quantite_memorisee|default:'' }}" placeholder="مثال: البقرة 1-10">
+                <select name="note_memo_{{ eleve.id }}" class="form-select mt-1">
+                    <option value="">— تقييم —</option>
+                    <option value="mumtaz" {% if presence.note_memorisation == 'mumtaz' %}selected{% endif %}>ممتاز</option>
+                    <option value="hasan" {% if presence.note_memorisation == 'hasan' %}selected{% endif %}>حسن</option>
+                    <option value="mutawassit" {% if presence.note_memorisation == 'mutawassit' %}selected{% endif %}>متوسط</option>
+                    <option value="yuid" {% if presence.note_memorisation == 'yuid' %}selected{% endif %}>يعيد</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label style="color:#888; font-size:0.8rem;">الكمية المراجعة</label>
+                <input type="text" name="revisee_{{ eleve.id }}" class="form-control"
+                       value="{{ presence.quantite_revisee|default:'' }}" placeholder="مثال: البقرة 1-10">
+                <select name="note_rev_{{ eleve.id }}" class="form-select mt-1">
+                    <option value="">— تقييم —</option>
+                    <option value="mumtaz" {% if presence.note_revision == 'mumtaz' %}selected{% endif %}>ممتاز</option>
+                    <option value="hasan" {% if presence.note_revision == 'hasan' %}selected{% endif %}>حسن</option>
+                    <option value="mutawassit" {% if presence.note_revision == 'mutawassit' %}selected{% endif %}>متوسط</option>
+                    <option value="yuid" {% if presence.note_revision == 'yuid' %}selected{% endif %}>يعيد</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label style="color:#888; font-size:0.8rem;">ملاحظة</label>
+                <textarea name="remarque_{{ eleve.id }}" class="form-control" rows="3">{{ presence.remarque|default:'' }}</textarea>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% empty %}
+    <div style="text-align:center; color:#aaa; padding:30px;">لا يوجد طلاب في هذه المجموعة</div>
+    {% endfor %}
+
+    {% if eleves_presences %}
+    <button type="submit" class="btn" style="background:#1a3a5c; color:white; font-weight:600; padding:10px 24px; border-radius:8px;">
+        حفظ الحضور والتقييمات
+    </button>
+    {% endif %}
+</form>
+
+<div class="mt-3">
+    <a href="{% url 'prof_seances' %}" style="color:#1a3a5c; text-decoration:none;">← رجوع إلى سجل الحصص</a>
+</div>
+{% endblock %}

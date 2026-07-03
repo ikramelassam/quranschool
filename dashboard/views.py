@@ -88,16 +88,18 @@ def prof_seance_detail(request, seance_id):
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
     eleves = seance.groupe.eleves.all()
 
-    # Récupère les présences existantes
-    presences = {}
-    for p in Presence.objects.filter(seance=seance):
-        presences[p.eleve.id] = p
+    # Django templates ne peuvent pas faire presences[eleve.id] (lookup par variable).
+    # On construit donc directement la liste (élève, présence) dans la vue.
+    presences_par_eleve = {p.eleve_id: p for p in Presence.objects.filter(seance=seance)}
+    eleves_presences = [
+        {'eleve': eleve, 'presence': presences_par_eleve.get(eleve.id)}
+        for eleve in eleves
+    ]
 
     return render(request, 'dashboard/prof_seance_detail.html', {
         'prof': prof,
         'seance': seance,
-        'eleves': eleves,
-        'presences': presences,
+        'eleves_presences': eleves_presences,
     })
 
 

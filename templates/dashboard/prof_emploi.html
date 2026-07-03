@@ -1,0 +1,36 @@
+{% extends 'dashboard/base_prof.html' %}
+{% block title %}جدولي{% endblock %}
+{% block content %}
+<div class="page-title">جدولي</div>
+<div class="page-subtitle">مواعيد المجموعات النشطة</div>
+
+{% if groupes %}
+<div class="row g-3">
+    {% for groupe in groupes %}
+    <div class="col-md-6">
+        <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="font-weight:700; font-size:1.1rem; color:#222; margin-bottom:12px;">{{ groupe.nom }}</div>
+            {% if groupe.creneau %}
+                <div style="display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+                    <span style="background:#f0f4f8; color:#1a3a5c; border-radius:8px; padding:4px 10px; font-size:0.85rem; font-weight:600;">
+                        {{ groupe.creneau.get_jour_1_display }}
+                    </span>
+                    <span style="color:#888; font-size:0.9rem;">{{ groupe.creneau.heure_debut_1 }} — {{ groupe.creneau.heure_fin_1 }}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; padding:8px 0;">
+                    <span style="background:#f0f4f8; color:#1a3a5c; border-radius:8px; padding:4px 10px; font-size:0.85rem; font-weight:600;">
+                        {{ groupe.creneau.get_jour_2_display }}
+                    </span>
+                    <span style="color:#888; font-size:0.9rem;">{{ groupe.creneau.heure_debut_2 }} — {{ groupe.creneau.heure_fin_2 }}</span>
+                </div>
+            {% else %}
+                <div style="color:#aaa; padding:8px 0;">لا يوجد جدول محدد لهذه المجموعة</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div style="text-align:center; padding:60px; color:#aaa;">لا توجد مجموعات نشطة</div>
+{% endif %}
+{% endblock %}
