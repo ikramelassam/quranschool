@@ -1,8 +1,17 @@
 {% extends 'dashboard/base_superviseur.html' %}
 {% block title %}تفاصيل الحصة{% endblock %}
 {% block content %}
-<div class="page-title">{{ seance.groupe.nom }}</div>
-<div class="page-subtitle">{{ seance.date }} — {{ seance.heure }}</div>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <div class="page-title" style="margin-bottom:0;">{{ seance.groupe.nom }}</div>
+        <div class="page-subtitle" style="margin-bottom:0;">{{ seance.date }} — {{ seance.heure }}</div>
+    </div>
+    <a href="{% url 'superviseur_evaluer' seance.id %}"
+       style="background:#6b3a2a; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+        {% if seance.evaluation %}تعديل تقييم المعلم{% else %}تقييم المعلم{% endif %} 📝
+    </a>
+</div>
+<div class="mb-4"></div>
 
 {% for presence in presences %}
 <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">

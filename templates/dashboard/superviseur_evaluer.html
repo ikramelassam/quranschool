@@ -1,0 +1,45 @@
+{% extends 'dashboard/base_superviseur.html' %}
+{% block title %}تقييم الحصة{% endblock %}
+{% block content %}
+<div class="page-title">تقييم المعلم</div>
+<div class="page-subtitle">{{ seance.groupe.nom }} — {{ seance.date }}</div>
+
+<div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    {% if not criteres_notes %}
+        <div style="text-align:center; color:#aaa; padding:30px;">
+            لا توجد معايير تقييم بعد. يجب على الإدارة إضافتها أولاً من لوحة الإدارة (Django admin).
+        </div>
+    {% else %}
+    <form method="POST">
+        {% csrf_token %}
+
+        {% for item in criteres_notes %}
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">{{ item.critere.nom_ar }}</label>
+            <select name="note_{{ item.critere.id }}" class="form-select mt-1" required>
+                <option value="">— اختر —</option>
+                <option value="0" {% if item.note == 0 %}selected{% endif %}>منعدم</option>
+                <option value="1" {% if item.note == 1 %}selected{% endif %}>ضعيف</option>
+                <option value="2" {% if item.note == 2 %}selected{% endif %}>متوسط</option>
+                <option value="3" {% if item.note == 3 %}selected{% endif %}>حسن</option>
+                <option value="4" {% if item.note == 4 %}selected{% endif %}>حسن جدا</option>
+            </select>
+        </div>
+        {% endfor %}
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">ملاحظات عامة</label>
+            <textarea name="commentaire" class="form-control mt-1" rows="4">{{ evaluation.commentaire|default:'' }}</textarea>
+        </div>
+
+        <button type="submit" style="background:#6b3a2a; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
+            حفظ التقييم
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'superviseur_seance_detail' seance.id %}" style="color:#6b3a2a; text-decoration:none;">← رجوع إلى تفاصيل الحصة</a>
+</div>
+{% endblock %}
