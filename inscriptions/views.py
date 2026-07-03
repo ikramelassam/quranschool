@@ -65,6 +65,7 @@ def inscription_prof(request):
             outils_maitrises=request.POST.getlist('outils'),
             type_eleve_preference=request.POST.getlist('type_eleve'),
             contrainte_genre=request.POST.getlist('contrainte_genre'),
+            audio_enregistrement=request.FILES.get('audio_enregistrement'),
         )
         return redirect('inscription_confirmation')
 
