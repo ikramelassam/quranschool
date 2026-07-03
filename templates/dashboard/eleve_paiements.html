@@ -1,0 +1,53 @@
+{% extends 'dashboard/base_eleve.html' %}
+{% block title %}مدفوعاتي{% endblock %}
+{% block content %}
+<div class="page-title">مدفوعاتي</div>
+<div class="page-subtitle">أرسل إثبات الدفع الشهري</div>
+
+<div style="background:white; border-radius:12px; padding:24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="font-weight:700; color:#2d5a1b; margin-bottom:16px;">إرسال دفعة جديدة</div>
+    <form method="POST" enctype="multipart/form-data" class="row g-3">
+        {% csrf_token %}
+        <div class="col-md-3">
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">الشهر المعني</label>
+            <input type="date" name="mois_reference" class="form-control mt-1" required>
+        </div>
+        <div class="col-md-3">
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">المبلغ (درهم)</label>
+            <input type="number" step="0.01" name="montant" class="form-control mt-1" required>
+        </div>
+        <div class="col-md-4">
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">صورة إثبات الدفع</label>
+            <input type="file" name="screenshot" class="form-control mt-1" accept="image/*" required>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit"
+                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:10px 20px; font-family:'Tajawal',sans-serif; cursor:pointer; width:100%;">
+                إرسال
+            </button>
+        </div>
+    </form>
+</div>
+
+<div style="font-weight:700; font-size:1.1rem; color:#222; margin-bottom:16px;">سجل المدفوعات</div>
+
+{% for paiement in paiements %}
+<div style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <div style="font-weight:700;">{{ paiement.mois_reference|date:"F Y" }}</div>
+            <div style="color:#888; font-size:0.85rem;">{{ paiement.montant }} درهم — أُرسل في {{ paiement.date|date:"Y-m-d" }}</div>
+        </div>
+        {% if paiement.statut == 'valide' %}
+            <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:4px 12px; font-size:0.8rem;">مقبول ✅</span>
+        {% elif paiement.statut == 'rejete' %}
+            <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:4px 12px; font-size:0.8rem;">مرفوض ❌</span>
+        {% else %}
+            <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:4px 12px; font-size:0.8rem;">قيد المراجعة ⏳</span>
+        {% endif %}
+    </div>
+</div>
+{% empty %}
+<div style="text-align:center; padding:60px; color:#aaa;">لا توجد مدفوعات بعد</div>
+{% endfor %}
+{% endblock %}

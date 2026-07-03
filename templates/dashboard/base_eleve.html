@@ -62,6 +62,10 @@
            class="menu-item {% if request.resolver_match.url_name == 'eleve_profil' %}active{% endif %}">
             <span class="icon">👤</span> ملفي الشخصي
         </a>
+        <a href="{% url 'eleve_paiements' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'eleve_paiements' %}active{% endif %}">
+            <span class="icon">💰</span> مدفوعاتي
+        </a>
         <a href="#" class="menu-item">
             <span class="icon">⚙️</span> الإعدادات
         </a>

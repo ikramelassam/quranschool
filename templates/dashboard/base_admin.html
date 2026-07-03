@@ -151,7 +151,8 @@
         class="menu-item {% if request.resolver_match.url_name == 'admin_creneaux' %}active{% endif %}">
         <span class="icon">🕐</span> الحلقات
         </a>
-        <a href="#" class="menu-item">
+        <a href="{% url 'admin_paiements' %}"
+        class="menu-item {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' %}active{% endif %}">
             <span class="icon">💰</span> المدفوعات
         </a>
         <a href="#" class="menu-item">
