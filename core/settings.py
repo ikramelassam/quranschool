@@ -133,3 +133,11 @@ STATIC_URL = 'static/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+
+# Email (mot de passe temporaire envoyé aux users validés)
+# En dev: les emails s'affichent dans la console au lieu d'être vraiment envoyés.
+# TODO avant la mise en production: remplacer par un vrai backend SMTP
+# (EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD via variables d'environnement).
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'noreply@zidni-ilman.local'

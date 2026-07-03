@@ -1,6 +1,25 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.core.mail import send_mail
+from django.conf import settings
 from accounts.decorators import role_required
 from inscriptions.models import InscriptionEleve
+
+
+def envoyer_email_bienvenue(email, password_temp, prenom_nom):
+    """Envoie le mot de passe temporaire au nouvel utilisateur (élève ou prof)."""
+    send_mail(
+        subject='مرحباً بك في منصة زدني علماً - معلومات الدخول',
+        message=(
+            f'مرحباً {prenom_nom},\n\n'
+            f'تم قبول ملفك. يمكنك الآن تسجيل الدخول باستخدام:\n'
+            f'البريد الإلكتروني: {email}\n'
+            f'كلمة المرور المؤقتة: {password_temp}\n\n'
+            f'ننصحك بتغيير كلمة المرور بعد أول تسجيل دخول.'
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[email],
+        fail_silently=False,
+    )
 
 
 @role_required('prof')
@@ -217,6 +236,8 @@ def admin_valider_eleve(request, inscription_id):
             statut='actif'
         )
 
+        envoyer_email_bienvenue(inscription.email, password_temp, inscription.nom)
+
     # Change le statut
     inscription.statut = 'valide'
     inscription.save()
@@ -282,6 +303,8 @@ def admin_valider_prof(request, inscription_id):
             compte_bancaire=inscription.compte_bancaire,
             rib=inscription.rib,
 )
+
+        envoyer_email_bienvenue(inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
 
     inscription.statut = 'valide'
     inscription.save()
