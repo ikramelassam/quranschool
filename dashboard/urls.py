@@ -38,5 +38,6 @@ urlpatterns = [
     path('admin/profs/', views.admin_profs, name='admin_profs'),
     path('admin/seances/', views.admin_seances, name='admin_seances'),
     path('admin/seances/<int:seance_id>/annuler/', views.admin_seance_annuler, name='admin_seance_annuler'),
+    path('admin/seances/<int:seance_id>/deplacer/', views.admin_seance_deplacer, name='admin_seance_deplacer'),
     path('admin/calendrier/', views.admin_calendrier, name='admin_calendrier'),
 ]

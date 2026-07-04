@@ -425,28 +425,17 @@ def superviseur_seance_detail(request, seance_id):
 
 @role_required('admin')
 def admin_seances(request):
-    from courses.models import Seance, Groupe
+    """Page d'exceptions: les séances normales sont générées automatiquement
+    (voir courses.utils). Ici, l'admin peut seulement annuler ou déplacer
+    une séance précise (prof malade, vacances...)."""
+    from courses.models import Seance
     from courses.utils import etendre_toutes_les_seances
 
     etendre_toutes_les_seances()
-    groupes = Groupe.objects.filter(statut='actif')
-
-    if request.method == 'POST':
-        from courses.models import Seance
-        Seance.objects.create(
-            groupe_id=request.POST.get('groupe'),
-            date=request.POST.get('date'),
-            heure=request.POST.get('heure'),
-            type=request.POST.get('type', 'normal'),
-            statut='planifiee',
-        )
-        messages.success(request, 'تمت إضافة الحصة بنجاح.')
-        return redirect('admin_seances')
 
     seances = Seance.objects.all().order_by('-date')
     return render(request, 'dashboard/admin_seances.html', {
         'seances': paginer(request, seances, 10),
-        'groupes': groupes,
     })
 
 
@@ -458,6 +447,24 @@ def admin_seance_annuler(request, seance_id):
     seance.save()
     messages.info(request, 'تم إلغاء الحصة.')
     return redirect('admin_seances')
+
+
+@role_required('admin')
+def admin_seance_deplacer(request, seance_id):
+    from courses.models import Seance
+    seance = get_object_or_404(Seance, id=seance_id)
+
+    if request.method == 'POST':
+        seance.date = request.POST.get('date')
+        seance.heure = request.POST.get('heure')
+        seance.remarque = request.POST.get('remarque', '')
+        seance.save()
+        messages.success(request, 'تم تأجيل الحصة إلى الموعد الجديد.')
+        return redirect('admin_seances')
+
+    return render(request, 'dashboard/admin_seance_deplacer.html', {
+        'seance': seance,
+    })
 
 
 # ==================== ADMIN — ÉLÈVES VALIDÉS ====================

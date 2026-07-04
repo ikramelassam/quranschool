@@ -1,0 +1,32 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}تأجيل الحصة{% endblock %}
+{% block content %}
+<div class="page-title">تأجيل الحصة</div>
+<div class="page-subtitle">{{ seance.groupe.nom }} — الموعد الحالي: {{ seance.date }} — {{ seance.heure }}</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">التاريخ الجديد *</label>
+            <input type="date" name="date" class="form-control mt-1" value="{{ seance.date|date:'Y-m-d' }}" required>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الوقت الجديد *</label>
+            <input type="time" name="heure" class="form-control mt-1" value="{{ seance.heure|time:'H:i' }}" required>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">سبب التأجيل (اختياري)</label>
+            <textarea name="remarque" class="form-control mt-1" rows="3"
+                      placeholder="مثال: غياب المعلم، عطلة...">{{ seance.remarque }}</textarea>
+        </div>
+        <div class="d-flex gap-3 mt-4">
+            <button type="submit"
+                style="background:#C9A84C; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                تأكيد التأجيل ✅
+            </button>
+            <a href="{% url 'admin_seances' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
