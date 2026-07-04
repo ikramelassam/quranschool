@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.mail import send_mail
 from django.conf import settings
+from django.contrib import messages
 from accounts.decorators import role_required
 from inscriptions.models import InscriptionEleve
 
@@ -149,6 +150,7 @@ def prof_presence_sauvegarder(request, seance_id):
 
         seance.statut = 'terminee'
         seance.save()
+        messages.success(request, 'تم حفظ الحضور والتقييمات بنجاح.')
         return redirect('prof_seances')
 
     return redirect('prof_seance_detail', seance_id=seance_id)
@@ -242,6 +244,7 @@ def admin_valider_eleve(request, inscription_id):
     inscription.statut = 'valide'
     inscription.save()
 
+    messages.success(request, f'تم قبول الطالب {inscription.nom} وإرسال معلومات الدخول له.')
     return redirect('admin_inscriptions')
 
 @role_required('admin')
@@ -249,6 +252,7 @@ def admin_rejeter_eleve(request, inscription_id):
     inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
     inscription.statut = 'rejete'
     inscription.save()
+    messages.info(request, f'تم رفض طلب {inscription.nom}.')
     return redirect('admin_inscriptions')
 
 
@@ -308,6 +312,7 @@ def admin_valider_prof(request, inscription_id):
 
     inscription.statut = 'valide'
     inscription.save()
+    messages.success(request, f'تم قبول المعلم {inscription.nom} وإرسال معلومات الدخول له.')
     return redirect('admin_inscriptions_profs')
 
 @role_required('admin')
@@ -316,6 +321,7 @@ def admin_rejeter_prof(request, inscription_id):
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
     inscription.statut = 'rejete'
     inscription.save()
+    messages.info(request, f'تم رفض طلب {inscription.nom}.')
     return redirect('admin_inscriptions_profs')
 
 @role_required('admin')
@@ -426,6 +432,7 @@ def admin_seances(request):
             type=request.POST.get('type', 'normal'),
             statut='planifiee',
         )
+        messages.success(request, 'تمت إضافة الحصة بنجاح.')
         return redirect('admin_seances')
 
     seances = Seance.objects.all().order_by('-date')
@@ -441,6 +448,7 @@ def admin_seance_annuler(request, seance_id):
     seance = get_object_or_404(Seance, id=seance_id)
     seance.statut = 'annulee'
     seance.save()
+    messages.info(request, 'تم إلغاء الحصة.')
     return redirect('admin_seances')
 
 

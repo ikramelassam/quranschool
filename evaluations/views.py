@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from accounts.decorators import role_required
 from accounts.models import Superviseur
 from courses.models import Seance
@@ -32,6 +33,7 @@ def superviseur_evaluer(request, seance_id):
                     critere=critere,
                     defaults={'note': note},
                 )
+        messages.success(request, 'تم حفظ تقييم المعلم بنجاح.')
         return redirect('superviseur_seance_detail', seance_id=seance.id)
 
     criteres_notes = [

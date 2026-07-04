@@ -1,0 +1,12 @@
+{% if messages %}
+<div style="margin-bottom:20px;">
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}" role="alert"
+         style="display:flex; justify-content:space-between; align-items:center;">
+        <span>{{ message }}</span>
+        <button type="button" onclick="this.parentElement.remove()" aria-label="إغلاق"
+                style="background:none; border:none; font-size:1.1rem; line-height:1; cursor:pointer; color:inherit;">×</button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}

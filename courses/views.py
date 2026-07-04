@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from accounts.decorators import role_required
 from .models import Groupe, Creneau
 from accounts.models import Prof, Eleve
@@ -22,6 +23,7 @@ def groupe_ajouter(request):
             description=request.POST.get('description', ''), 
             capacite_max=request.POST.get('max_eleves', 10),
         )
+        messages.success(request, 'تمت إضافة المجموعة بنجاح.')
         return redirect('admin_groupes')
 
     creneaux = Creneau.objects.filter(est_actif=True)
@@ -48,6 +50,7 @@ def groupe_ajouter_eleve(request, groupe_id):
     eleve_id = request.POST.get('eleve_id')
     if eleve_id:
         groupe.eleves.add(eleve_id)
+        messages.success(request, 'تمت إضافة الطالب إلى المجموعة.')
     return redirect('admin_groupe_detail', groupe_id=groupe_id)
 
 @role_required('admin')
@@ -64,6 +67,7 @@ def groupe_modifier(request, groupe_id):
         groupe.prof_id = request.POST.get('prof') or None
         groupe.creneau_id = request.POST.get('creneau') or None
         groupe.save()
+        messages.success(request, 'تم تعديل المجموعة بنجاح.')
         return redirect('admin_groupe_detail', groupe_id=groupe.id)
 
     return render(request, 'courses/admin_groupe_modifier.html', {
@@ -95,6 +99,7 @@ def creneau_ajouter(request):
             heure_debut_2=request.POST.get('heure_debut_2'),
             heure_fin_2=request.POST.get('heure_fin_2'),
         )
+        messages.success(request, 'تمت إضافة الحلقة بنجاح.')
         return redirect('admin_creneaux')
 
     return render(request, 'courses/admin_creneau_ajouter.html')
@@ -115,6 +120,7 @@ def creneau_modifier(request, creneau_id):
         creneau.heure_debut_2 = request.POST.get('heure_debut_2')
         creneau.heure_fin_2 = request.POST.get('heure_fin_2')
         creneau.save()
+        messages.success(request, 'تم تعديل الحلقة بنجاح.')
         return redirect('admin_creneaux')
 
     return render(request, 'courses/admin_creneau_modifier.html', {
@@ -127,4 +133,5 @@ def creneau_toggle(request, creneau_id):
     creneau = get_object_or_404(Creneau, id=creneau_id)
     creneau.est_actif = not creneau.est_actif
     creneau.save()
+    messages.info(request, 'تم تفعيل الحلقة.' if creneau.est_actif else 'تم تعطيل الحلقة.')
     return redirect('admin_creneaux')

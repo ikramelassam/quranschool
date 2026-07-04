@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from accounts.decorators import role_required
 from accounts.models import Eleve
 from .models import Paiement
@@ -15,6 +16,7 @@ def eleve_paiements(request):
             mois_reference=request.POST.get('mois_reference'),
             screenshot=request.FILES.get('screenshot'),
         )
+        messages.success(request, 'تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة.')
         return redirect('eleve_paiements')
 
     paiements = Paiement.objects.filter(eleve=eleve).order_by('-mois_reference')
@@ -46,6 +48,7 @@ def admin_paiement_valider(request, paiement_id):
     paiement.statut = 'valide'
     paiement.valide_par = request.user
     paiement.save()
+    messages.success(request, 'تم قبول الدفعة.')
     return redirect('admin_paiement_detail', paiement_id=paiement.id)
 
 
@@ -55,4 +58,5 @@ def admin_paiement_rejeter(request, paiement_id):
     paiement.statut = 'rejete'
     paiement.valide_par = request.user
     paiement.save()
+    messages.info(request, 'تم رفض الدفعة.')
     return redirect('admin_paiement_detail', paiement_id=paiement.id)
