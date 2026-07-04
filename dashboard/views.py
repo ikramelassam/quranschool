@@ -1,3 +1,5 @@
+import datetime
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.mail import send_mail
 from django.conf import settings
@@ -5,6 +7,8 @@ from django.contrib import messages
 from accounts.decorators import role_required
 from core.utils import paginer
 from inscriptions.models import InscriptionEleve
+
+JOURS_SEMAINE_AR = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد']
 
 
 def envoyer_email_bienvenue(email, password_temp, prenom_nom):
@@ -472,4 +476,39 @@ def admin_profs(request):
     profs = Prof.objects.all().select_related('user').order_by('id')
     return render(request, 'dashboard/admin_profs.html', {
         'profs': paginer(request, profs, 10),
+    })
+
+
+# ==================== ADMIN — CALENDRIER ====================
+
+@role_required('admin')
+def admin_calendrier(request):
+    from courses.models import Seance
+
+    semaine_param = request.GET.get('semaine')
+    try:
+        reference = datetime.date.fromisoformat(semaine_param) if semaine_param else datetime.date.today()
+    except ValueError:
+        reference = datetime.date.today()
+
+    lundi = reference - datetime.timedelta(days=reference.weekday())
+    jours_dates = [lundi + datetime.timedelta(days=i) for i in range(7)]
+
+    seances = Seance.objects.filter(
+        date__gte=jours_dates[0], date__lte=jours_dates[-1]
+    ).select_related('groupe', 'groupe__prof__user').order_by('date', 'heure')
+
+    seances_par_jour = {jour: [] for jour in jours_dates}
+    for seance in seances:
+        seances_par_jour[seance.date].append(seance)
+
+    return render(request, 'dashboard/admin_calendrier.html', {
+        'jours': [
+            {'date': jour, 'nom': JOURS_SEMAINE_AR[jour.weekday()], 'seances': seances_par_jour[jour]}
+            for jour in jours_dates
+        ],
+        'lundi': lundi,
+        'dimanche': jours_dates[-1],
+        'semaine_precedente': (lundi - datetime.timedelta(days=7)).isoformat(),
+        'semaine_suivante': (lundi + datetime.timedelta(days=7)).isoformat(),
     })

@@ -1,0 +1,49 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}التقويم الأسبوعي{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <div class="page-title">التقويم الأسبوعي</div>
+        <div class="page-subtitle">{{ lundi|date:"d-m-Y" }} → {{ dimanche|date:"d-m-Y" }}</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="?semaine={{ semaine_precedente }}"
+           style="background:white; color:#2d5a1b; border:2px solid #2d5a1b; border-radius:8px; padding:8px 16px; text-decoration:none;">
+           → الأسبوع السابق
+        </a>
+        <a href="?semaine={{ semaine_suivante }}"
+           style="background:white; color:#2d5a1b; border:2px solid #2d5a1b; border-radius:8px; padding:8px 16px; text-decoration:none;">
+           الأسبوع التالي ←
+        </a>
+    </div>
+</div>
+
+{% for jour in jours %}
+<div style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="font-weight:700; color:#2d5a1b; margin-bottom:12px;">{{ jour.nom }} — {{ jour.date|date:"d-m-Y" }}</div>
+
+    {% if jour.seances %}
+        {% for seance in jour.seances %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0;">
+            <div>
+                <div style="font-weight:600;">{{ seance.groupe.nom }}</div>
+                <div style="color:#888; font-size:0.85rem;">
+                    {{ seance.heure }} —
+                    {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}بدون معلم{% endif %}
+                </div>
+            </div>
+            {% if seance.statut == 'terminee' %}
+                <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:3px 12px; font-size:0.8rem;">منتهية ✅</span>
+            {% elif seance.statut == 'planifiee' %}
+                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">مخططة 📅</span>
+            {% else %}
+                <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:3px 12px; font-size:0.8rem;">ملغاة ❌</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <div style="color:#ccc; padding:8px 0;">لا توجد حصص</div>
+    {% endif %}
+</div>
+{% endfor %}
+{% endblock %}
