@@ -155,7 +155,8 @@
         class="menu-item {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' %}active{% endif %}">
             <span class="icon">💰</span> المدفوعات
         </a>
-        <a href="#" class="menu-item">
+        <a href="{% url 'password_change' %}"
+        class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
             <span class="icon">⚙️</span> الإعدادات
         </a>
     </div>

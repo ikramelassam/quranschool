@@ -45,8 +45,13 @@
         <div class="subtitle">لوحة المشرف</div>
     </div>
     <div class="sidebar-menu">
-        <a href="{% url 'dashboard_superviseur' %}" class="menu-item active">
+        <a href="{% url 'dashboard_superviseur' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'dashboard_superviseur' %}active{% endif %}">
             <span class="icon">📊</span> لوحة التحكم
+        </a>
+        <a href="{% url 'password_change' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
+            <span class="icon">⚙️</span> الإعدادات
         </a>
     </div>
     <div class="sidebar-footer">
