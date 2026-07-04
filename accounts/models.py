@@ -33,13 +33,20 @@ class Eleve(models.Model):
         User,
         on_delete=models.CASCADE
     )
-    
+
     sexe = models.CharField(max_length=10)
-    
+
     statut = models.CharField(
         max_length=20,
         choices=STATUT_CHOICES,
         default='actif'
+    )
+    inscription = models.ForeignKey(
+        'inscriptions.InscriptionEleve',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='eleve_valide'
     )
 
     def __str__(self):
@@ -68,6 +75,13 @@ class Prof(models.Model):
     gestion_eleve_absent = models.TextField(blank=True)
     compte_bancaire = models.CharField(max_length=50)
     rib = models.CharField(max_length=50)
+    inscription = models.ForeignKey(
+        'inscriptions.InscriptionProf',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='prof_valide'
+    )
 
     def __str__(self):
         return str(self.user)

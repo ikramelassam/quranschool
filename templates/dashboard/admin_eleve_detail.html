@@ -1,0 +1,104 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}{{ eleve.user.get_full_name }}{% endblock %}
+{% block content %}
+<div class="page-title">{{ eleve.user.get_full_name }}</div>
+<div class="page-subtitle">{{ eleve.user.email }}</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin-bottom:12px;">الحساب</div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الجنس</span>
+        <span style="font-weight:600;">{{ eleve.sexe }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الحالة</span>
+        <span style="font-weight:600;">{{ eleve.get_statut_display }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الهاتف</span>
+        <span style="font-weight:600;">{{ eleve.user.telephone|default:"—" }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">تاريخ الميلاد</span>
+        <span style="font-weight:600;">{{ eleve.user.date_naissance|default:"—" }}</span>
+    </div>
+
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin:20px 0 12px;">المجموعات</div>
+    {% if eleve.groupes.all %}
+        {% for groupe in eleve.groupes.all %}
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+            <span style="font-weight:600;">{{ groupe.nom }}</span>
+            <span style="color:#888;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}—{% endif %}</span>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
+    {% endif %}
+
+    {% if inscription %}
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin:20px 0 12px;">معلومات استمارة التسجيل</div>
+
+    {% if inscription.nom_parent %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">ولي الأمر</span>
+        <span style="font-weight:600;">{{ inscription.nom_parent }}</span>
+    </div>
+    {% endif %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">تاريخ الميلاد (عند التسجيل)</span>
+        <span style="font-weight:600;">{{ inscription.date_naissance }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الهاتف (عند التسجيل)</span>
+        <span style="font-weight:600;">{{ inscription.telephone }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الحلقة المطلوبة</span>
+        <span style="font-weight:600;">{% if inscription.creneau_souhaite %}{{ inscription.creneau_souhaite }}{% else %}غير محدد{% endif %}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">البرنامج</span>
+        <span style="font-weight:600;">{{ inscription.get_programme_display }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الرواية</span>
+        <span style="font-weight:600;">{{ inscription.get_riwaya_display }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">وسيلة الحضور</span>
+        <span style="font-weight:600;">{{ inscription.get_outil_display }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الاشتراك</span>
+        <span style="font-weight:600;">{{ inscription.get_abonnement_display }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">قبول الشروط</span>
+        <span style="font-weight:600;">{% if inscription.accepte_conditions %}✅ نعم{% else %}❌ لا{% endif %}</span>
+    </div>
+    {% if inscription.remarques %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">ملاحظات</span>
+        <span style="font-weight:600;">{{ inscription.remarques }}</span>
+    </div>
+    {% endif %}
+    {% if inscription.disponibilites_libres %}
+    <div style="background:#fff3cd; border-radius:8px; padding:12px 16px; margin:8px 0; color:#856404;">
+        <div style="font-weight:700; margin-bottom:4px;">⚠️ لم يجد حلقة مناسبة عند التسجيل — أوقاته المتاحة:</div>
+        <div>{{ inscription.disponibilites_libres }}</div>
+    </div>
+    {% endif %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0;">
+        <span style="color:#888;">تاريخ التقديم</span>
+        <span style="font-weight:600;">{{ inscription.date_soumission|date:"d-m-Y H:i" }}</span>
+    </div>
+    {% else %}
+    <div style="color:#aaa; padding:12px 0;">لا توجد استمارة تسجيل مرتبطة بهذا الطالب.</div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none;">← رجوع</a>
+    </div>
+</div>
+{% endblock %}

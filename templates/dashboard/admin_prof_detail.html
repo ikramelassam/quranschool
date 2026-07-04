@@ -1,0 +1,117 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}{{ prof.user.get_full_name }}{% endblock %}
+{% block content %}
+<div class="page-title">{{ prof.user.get_full_name }}</div>
+<div class="page-subtitle">{{ prof.user.email }}</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+
+    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">المدينة</span>
+        <span style="font-weight:600;">{{ prof.ville }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">مستوى الحفظ</span>
+        <span style="font-weight:600;">{{ prof.niveau_memorisation }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الشهادات</span>
+        <span style="font-weight:600;">{{ prof.certifications|default:"—" }}</span>
+    </div>
+
+    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">التفضيلات</div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">اللغات</span>
+        <span style="font-weight:600;">{{ prof.langues|join:"، " }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">أدوات التواصل</span>
+        <span style="font-weight:600;">{{ prof.outils_maitrises|join:"، " }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الفئة المفضلة</span>
+        <span style="font-weight:600;">{{ prof.type_eleve_preference|join:"، " }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">قيود الجنس</span>
+        <span style="font-weight:600;">{{ prof.contrainte_genre|join:"، " }}</span>
+    </div>
+
+    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">المسار</div>
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">المسار الدراسي</div>
+        <div style="font-weight:600;">{{ prof.parcours_scolaire }}</div>
+    </div>
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">المسار التعليمي</div>
+        <div style="font-weight:600;">{{ prof.parcours_enseignant }}</div>
+    </div>
+    {% if prof.gestion_eleve_faible %}
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">التعامل مع الطالب الضعيف</div>
+        <div style="font-weight:600;">{{ prof.gestion_eleve_faible }}</div>
+    </div>
+    {% endif %}
+    {% if prof.gestion_eleve_absent %}
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">التعامل مع الطالب الغائب</div>
+        <div style="font-weight:600;">{{ prof.gestion_eleve_absent }}</div>
+    </div>
+    {% endif %}
+
+    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">معلومات بنكية</div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الحساب البنكي</span>
+        <span style="font-weight:600;">{{ prof.compte_bancaire }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">RIB</span>
+        <span style="font-weight:600;">{{ prof.rib }}</span>
+    </div>
+
+    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">المجموعات</div>
+    {% if prof.groupes.all %}
+        {% for groupe in prof.groupes.all %}
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+            <span style="font-weight:600;">{{ groupe.nom }}</span>
+            <span style="color:#888;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}—{% endif %}</span>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
+    {% endif %}
+
+    {% if inscription %}
+    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">معلومات إضافية من استمارة التسجيل</div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">تاريخ الميلاد</span>
+        <span style="font-weight:600;">{{ inscription.date_naissance }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الحالة العائلية</span>
+        <span style="font-weight:600;">{{ inscription.statut_familial }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">العمل الحالي</span>
+        <span style="font-weight:600;">{{ inscription.job_actuel }}</span>
+    </div>
+    {% if inscription.audio_enregistrement %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">تسجيل صوتي</span>
+        <a href="{{ inscription.audio_enregistrement.url }}" target="_blank" style="font-weight:600; color:#1a3a5c;">🎧 استماع</a>
+    </div>
+    {% endif %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0;">
+        <span style="color:#888;">تاريخ التقديم</span>
+        <span style="font-weight:600;">{{ inscription.date_soumission|date:"d-m-Y H:i" }}</span>
+    </div>
+    {% else %}
+    <div style="color:#aaa; padding:12px 0;">لا توجد استمارة تسجيل مرتبطة بهذا المعلم.</div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{% url 'admin_profs' %}" style="color:#888; text-decoration:none;">← رجوع</a>
+    </div>
+</div>
+{% endblock %}

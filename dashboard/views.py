@@ -240,7 +240,8 @@ def admin_valider_eleve(request, inscription_id):
         Eleve.objects.create(
             user=user,
             sexe=inscription.sexe,
-            statut='actif'
+            statut='actif',
+            inscription=inscription
         )
 
         envoyer_email_bienvenue(inscription.email, password_temp, inscription.nom)
@@ -311,6 +312,7 @@ def admin_valider_prof(request, inscription_id):
             outils_maitrises=inscription.outils_maitrises,
             compte_bancaire=inscription.compte_bancaire,
             rib=inscription.rib,
+            inscription=inscription,
 )
 
         envoyer_email_bienvenue(inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
@@ -478,6 +480,16 @@ def admin_eleves(request):
     })
 
 
+@role_required('admin')
+def admin_eleve_detail(request, eleve_id):
+    from accounts.models import Eleve
+    eleve = get_object_or_404(Eleve, id=eleve_id)
+    return render(request, 'dashboard/admin_eleve_detail.html', {
+        'eleve': eleve,
+        'inscription': eleve.inscription,
+    })
+
+
 # ==================== ADMIN — PROFS VALIDÉS ====================
 
 @role_required('admin')
@@ -486,6 +498,16 @@ def admin_profs(request):
     profs = Prof.objects.all().select_related('user').order_by('id')
     return render(request, 'dashboard/admin_profs.html', {
         'profs': paginer(request, profs, 10),
+    })
+
+
+@role_required('admin')
+def admin_prof_detail(request, prof_id):
+    from accounts.models import Prof
+    prof = get_object_or_404(Prof, id=prof_id)
+    return render(request, 'dashboard/admin_prof_detail.html', {
+        'prof': prof,
+        'inscription': prof.inscription,
     })
 
 
