@@ -42,4 +42,10 @@ urlpatterns = [
     path('admin/seances/<int:seance_id>/annuler/', views.admin_seance_annuler, name='admin_seance_annuler'),
     path('admin/seances/<int:seance_id>/deplacer/', views.admin_seance_deplacer, name='admin_seance_deplacer'),
     path('admin/calendrier/', views.admin_calendrier, name='admin_calendrier'),
+
+    # Admin — paramètres (tarifs)
+    path('admin/parametres/abonnements/', views.admin_parametres_abonnements, name='admin_parametres_abonnements'),
+    path('admin/parametres/abonnements/ajouter/', views.admin_abonnement_ajouter, name='admin_abonnement_ajouter'),
+    path('admin/parametres/abonnements/<int:abonnement_id>/modifier/', views.admin_abonnement_modifier, name='admin_abonnement_modifier'),
+    path('admin/parametres/abonnements/<int:abonnement_id>/toggle/', views.admin_abonnement_toggle, name='admin_abonnement_toggle'),
 ]

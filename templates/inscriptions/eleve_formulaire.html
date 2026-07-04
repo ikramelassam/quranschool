@@ -236,31 +236,10 @@
             <input type="hidden" name="riwaya" id="riwaya_value">
         </div>
 
-        <!-- Abonnement -->
+        <!-- Abonnement (chargé dynamiquement depuis les paramètres admin) -->
         <div class="section-title">مدة الاشتراك</div>
         <div class="mb-3">
-            <div class="row g-2">
-                <div class="col-6">
-                    <div class="select-btn" onclick="selectOption('abonnement', 'groupe_1mois', this)">
-                        جماعي - شهر<br><small>80 درهم</small>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="select-btn" onclick="selectOption('abonnement', 'groupe_3mois', this)">
-                        جماعي - 3 أشهر<br><small>220 درهم</small>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="select-btn" onclick="selectOption('abonnement', 'individuel_1mois', this)">
-                        فردي - شهر<br><small>400 درهم</small>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="select-btn" onclick="selectOption('abonnement', 'individuel_3mois', this)">
-                        فردي - 3 أشهر<br><small>1100 درهم</small>
-                    </div>
-                </div>
-            </div>
+            <div class="row g-2" id="abonnements_container"></div>
             <input type="hidden" name="abonnement" id="abonnement_value">
         </div>
 
@@ -318,8 +297,25 @@
 </div>
 
 <script>
-    // Créneaux depuis Django
+    // Créneaux et types d'abonnement depuis Django (paramétrables par l'admin)
     const creneaux = {{ creneaux_json|safe }};
+    const typesAbonnement = {{ types_abonnement_json|safe }};
+
+    function afficherAbonnements() {
+        const container = document.getElementById('abonnements_container');
+        container.innerHTML = '';
+        typesAbonnement.forEach(t => {
+            const col = document.createElement('div');
+            col.className = 'col-6';
+            const btn = document.createElement('div');
+            btn.className = 'select-btn';
+            btn.innerHTML = `${t.label}<br><small>${t.prix} درهم</small>`;
+            btn.onclick = function() { selectOption('abonnement', t.code, this); };
+            col.appendChild(btn);
+            container.appendChild(col);
+        });
+    }
+    document.addEventListener('DOMContentLoaded', afficherAbonnements);
 
     function calculerAge() {
         const dateNaissance = document.getElementById('date_naissance').value;

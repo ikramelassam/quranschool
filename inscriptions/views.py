@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from .models import InscriptionEleve, InscriptionProf
+from .models import InscriptionEleve, InscriptionProf, TypeAbonnement
 from courses.models import Creneau
 import json
 
@@ -9,7 +9,7 @@ def inscription_eleve_choix(request):
 
 def inscription_eleve_formulaire(request, type_age):
     creneaux = Creneau.objects.filter(est_actif=True)
-    
+
     creneaux_json = json.dumps([{
         'id': c.id,
         'label': str(c),
@@ -17,6 +17,12 @@ def inscription_eleve_formulaire(request, type_age):
         'age_max': c.age_max,
         'sexe_cible': c.sexe_cible,
     } for c in creneaux])
+
+    types_abonnement_json = json.dumps([{
+        'code': t.code,
+        'label': t.label,
+        'prix': str(t.prix),
+    } for t in TypeAbonnement.objects.filter(est_actif=True).order_by('ordre')])
 
     if request.method == 'POST':
         InscriptionEleve.objects.create(
@@ -40,6 +46,7 @@ def inscription_eleve_formulaire(request, type_age):
     return render(request, 'inscriptions/eleve_formulaire.html', {
         'type_age': type_age,
         'creneaux_json': creneaux_json,
+        'types_abonnement_json': types_abonnement_json,
     })
 
 

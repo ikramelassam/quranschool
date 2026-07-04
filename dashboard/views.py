@@ -547,3 +547,59 @@ def admin_calendrier(request):
         'semaine_precedente': (lundi - datetime.timedelta(days=7)).isoformat(),
         'semaine_suivante': (lundi + datetime.timedelta(days=7)).isoformat(),
     })
+
+
+# ==================== ADMIN — PARAMÈTRES (TARIFS) ====================
+
+@role_required('admin')
+def admin_parametres_abonnements(request):
+    from inscriptions.models import TypeAbonnement
+    types_abonnement = TypeAbonnement.objects.all().order_by('ordre')
+    return render(request, 'dashboard/admin_parametres_abonnements.html', {
+        'types_abonnement': types_abonnement,
+    })
+
+
+@role_required('admin')
+def admin_abonnement_ajouter(request):
+    from inscriptions.models import TypeAbonnement
+
+    if request.method == 'POST':
+        TypeAbonnement.objects.create(
+            code=request.POST.get('code'),
+            label=request.POST.get('label'),
+            prix=request.POST.get('prix'),
+            ordre=request.POST.get('ordre', 0),
+        )
+        messages.success(request, 'تمت إضافة نوع الاشتراك بنجاح.')
+        return redirect('admin_parametres_abonnements')
+
+    return render(request, 'dashboard/admin_abonnement_ajouter.html')
+
+
+@role_required('admin')
+def admin_abonnement_modifier(request, abonnement_id):
+    from inscriptions.models import TypeAbonnement
+    type_abonnement = get_object_or_404(TypeAbonnement, id=abonnement_id)
+
+    if request.method == 'POST':
+        type_abonnement.label = request.POST.get('label')
+        type_abonnement.prix = request.POST.get('prix')
+        type_abonnement.ordre = request.POST.get('ordre', 0)
+        type_abonnement.save()
+        messages.success(request, 'تم تعديل نوع الاشتراك بنجاح.')
+        return redirect('admin_parametres_abonnements')
+
+    return render(request, 'dashboard/admin_abonnement_modifier.html', {
+        'type_abonnement': type_abonnement,
+    })
+
+
+@role_required('admin')
+def admin_abonnement_toggle(request, abonnement_id):
+    from inscriptions.models import TypeAbonnement
+    type_abonnement = get_object_or_404(TypeAbonnement, id=abonnement_id)
+    type_abonnement.est_actif = not type_abonnement.est_actif
+    type_abonnement.save()
+    messages.info(request, 'تم تفعيل نوع الاشتراك.' if type_abonnement.est_actif else 'تم تعطيل نوع الاشتراك.')
+    return redirect('admin_parametres_abonnements')

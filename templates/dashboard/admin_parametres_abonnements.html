@@ -1,0 +1,42 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}أنواع الاشتراك{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <div class="page-title">أنواع الاشتراك والتعرفات</div>
+        <div class="page-subtitle">تظهر هذه الخيارات في استمارة تسجيل الطلاب</div>
+    </div>
+    <a href="{% url 'admin_abonnement_ajouter' %}"
+       style="background:#2d5a1b; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+       + إضافة نوع اشتراك
+    </a>
+</div>
+
+<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+    {% for type_abo in types_abonnement %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid #f0f0f0;">
+        <div>
+            <div style="font-weight:700;">{{ type_abo.label }}</div>
+            <div style="color:#888; font-size:0.85rem;">{{ type_abo.prix }} درهم — الرمز: {{ type_abo.code }}</div>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            {% if type_abo.est_actif %}
+                <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:4px 12px; font-size:0.8rem;">نشط ✅</span>
+            {% else %}
+                <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:4px 12px; font-size:0.8rem;">غير نشط ❌</span>
+            {% endif %}
+            <a href="{% url 'admin_abonnement_modifier' type_abo.id %}"
+               style="background:#C9A84C; color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+               تعديل ✏️
+            </a>
+            <a href="{% url 'admin_abonnement_toggle' type_abo.id %}"
+               style="background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+               {% if type_abo.est_actif %}تعطيل{% else %}تفعيل{% endif %}
+            </a>
+        </div>
+    </div>
+    {% empty %}
+    <div style="text-align:center; padding:60px; color:#aaa;">لا توجد أنواع اشتراك بعد</div>
+    {% endfor %}
+</div>
+{% endblock %}

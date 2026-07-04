@@ -1,6 +1,22 @@
 from django.db import models
 
 
+class TypeAbonnement(models.Model):
+    """Option de tarif/abonnement proposée à l'inscription, modifiable par l'admin
+    (remplace l'ancienne liste codée en dur dans InscriptionEleve.ABONNEMENT_CHOICES)."""
+    code = models.SlugField(max_length=30, unique=True)
+    label = models.CharField(max_length=100)
+    prix = models.DecimalField(max_digits=8, decimal_places=2)
+    est_actif = models.BooleanField(default=True)
+    ordre = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.label} ({self.prix} درهم)"
+
+    class Meta:
+        ordering = ['ordre']
+        verbose_name = "Type d'abonnement"
+        verbose_name_plural = "Types d'abonnement"
 
 
 class InscriptionEleve(models.Model):
@@ -22,13 +38,6 @@ class InscriptionEleve(models.Model):
         ('meet', 'Google Meet'),
         ('les_deux', 'كلاهما'),
     ]
-    ABONNEMENT_CHOICES = [
-        ('groupe_1mois', 'جماعي - شهر (80 درهم)'),
-        ('groupe_3mois', 'جماعي - 3 أشهر (220 درهم)'),
-        ('individuel_1mois', 'فردي - شهر (400 درهم)'),
-        ('individuel_3mois', 'فردي - 3 أشهر (1100 درهم)'),
-    ]
-
     # Infos personnelles
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100, blank=True)
@@ -49,7 +58,7 @@ class InscriptionEleve(models.Model):
     programme = models.CharField(max_length=20, choices=PROGRAMME_CHOICES)
     riwaya = models.CharField(max_length=10, choices=RIWAYA_CHOICES)
     outil = models.CharField(max_length=20, choices=OUTIL_CHOICES)
-    abonnement = models.CharField(max_length=30, choices=ABONNEMENT_CHOICES)
+    abonnement = models.CharField(max_length=30)
 
     # Extras
     accepte_conditions = models.BooleanField(default=False)
@@ -66,6 +75,12 @@ class InscriptionEleve(models.Model):
 
     def __str__(self):
         return f"{self.nom} {self.prenom}"
+
+    def abonnement_label(self):
+        """Libellé lisible de l'abonnement, lu depuis TypeAbonnement (dynamique).
+        Retombe sur le code brut si le type a été supprimé depuis."""
+        type_abo = TypeAbonnement.objects.filter(code=self.abonnement).first()
+        return type_abo.label if type_abo else self.abonnement
 
     class Meta:
         verbose_name = "Inscription Élève"
