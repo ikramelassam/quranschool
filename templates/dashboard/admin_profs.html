@@ -2,7 +2,7 @@
 {% block title %}المعلمون{% endblock %}
 {% block content %}
 <div class="page-title">إدارة المعلمين</div>
-<div class="page-subtitle">إجمالي المعلمين: {{ profs|length }}</div>
+<div class="page-subtitle">إجمالي المعلمين: {{ profs.paginator.count }}</div>
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
     {% for prof in profs %}
@@ -20,4 +20,5 @@
     <div style="text-align:center; padding:60px; color:#aaa;">لا يوجد معلمون بعد</div>
     {% endfor %}
 </div>
+{% include 'dashboard/_pagination.html' with page_obj=profs %}
 {% endblock %}

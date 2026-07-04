@@ -50,4 +50,5 @@
 {% empty %}
 <div style="text-align:center; padding:60px; color:#aaa;">لا توجد مدفوعات بعد</div>
 {% endfor %}
+{% include 'dashboard/_pagination.html' with page_obj=paiements %}
 {% endblock %}

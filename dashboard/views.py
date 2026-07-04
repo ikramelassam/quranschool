@@ -3,6 +3,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib import messages
 from accounts.decorators import role_required
+from core.utils import paginer
 from inscriptions.models import InscriptionEleve
 
 
@@ -89,7 +90,7 @@ def prof_seances(request):
 
     return render(request, 'dashboard/prof_seances.html', {
         'prof': prof,
-        'seances': seances,
+        'seances': paginer(request, seances, 10),
     })
 
 
@@ -201,7 +202,7 @@ def admin_inscriptions(request):
     ).order_by('-date_soumission')
 
     return render(request, 'dashboard/admin_inscriptions.html', {
-        'inscriptions': inscriptions,
+        'inscriptions': paginer(request, inscriptions, 10),
     })
 
 
@@ -332,7 +333,7 @@ def admin_inscriptions_profs(request):
     ).order_by('-date_soumission')
 
     return render(request, 'dashboard/admin_inscriptions_profs.html', {
-        'inscriptions': inscriptions,
+        'inscriptions': paginer(request, inscriptions, 10),
     })
 
 
@@ -375,7 +376,7 @@ def eleve_seances(request):
 
     return render(request, 'dashboard/eleve_seances.html', {
         'eleve': eleve,
-        'presences': presences,
+        'presences': paginer(request, presences, 10),
     })
 
 
@@ -437,7 +438,7 @@ def admin_seances(request):
 
     seances = Seance.objects.all().order_by('-date')
     return render(request, 'dashboard/admin_seances.html', {
-        'seances': seances,
+        'seances': paginer(request, seances, 10),
         'groupes': groupes,
     })
 
@@ -457,9 +458,9 @@ def admin_seance_annuler(request, seance_id):
 @role_required('admin')
 def admin_eleves(request):
     from accounts.models import Eleve
-    eleves = Eleve.objects.all().select_related('user')
+    eleves = Eleve.objects.all().select_related('user').order_by('id')
     return render(request, 'dashboard/admin_eleves.html', {
-        'eleves': eleves,
+        'eleves': paginer(request, eleves, 10),
     })
 
 
@@ -468,7 +469,7 @@ def admin_eleves(request):
 @role_required('admin')
 def admin_profs(request):
     from accounts.models import Prof
-    profs = Prof.objects.all().select_related('user')
+    profs = Prof.objects.all().select_related('user').order_by('id')
     return render(request, 'dashboard/admin_profs.html', {
-        'profs': profs,
+        'profs': paginer(request, profs, 10),
     })

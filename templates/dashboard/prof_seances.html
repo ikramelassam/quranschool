@@ -2,7 +2,7 @@
 {% block title %}سجل الحصص{% endblock %}
 {% block content %}
 <div class="page-title">سجل الحصص</div>
-<div class="page-subtitle">إجمالي الحصص: {{ seances|length }}</div>
+<div class="page-subtitle">إجمالي الحصص: {{ seances.paginator.count }}</div>
 
 {% if seances %}
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
@@ -29,4 +29,5 @@
 {% else %}
 <div style="text-align:center; padding:60px; color:#aaa;">لا توجد حصص بعد</div>
 {% endif %}
+{% include 'dashboard/_pagination.html' with page_obj=seances %}
 {% endblock %}

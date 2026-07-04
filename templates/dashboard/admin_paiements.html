@@ -2,7 +2,7 @@
 {% block title %}المدفوعات{% endblock %}
 {% block content %}
 <div class="page-title">إدارة المدفوعات</div>
-<div class="page-subtitle">إجمالي المدفوعات: {{ paiements|length }}</div>
+<div class="page-subtitle">إجمالي المدفوعات: {{ paiements.paginator.count }}</div>
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
     {% for paiement in paiements %}
@@ -27,4 +27,5 @@
     <div style="text-align:center; padding:60px; color:#aaa;">لا توجد مدفوعات بعد</div>
     {% endfor %}
 </div>
+{% include 'dashboard/_pagination.html' with page_obj=paiements %}
 {% endblock %}

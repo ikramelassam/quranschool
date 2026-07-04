@@ -2,7 +2,7 @@
 {% block title %}الطلاب{% endblock %}
 {% block content %}
 <div class="page-title">إدارة الطلاب</div>
-<div class="page-subtitle">إجمالي الطلاب: {{ eleves|length }}</div>
+<div class="page-subtitle">إجمالي الطلاب: {{ eleves.paginator.count }}</div>
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
     {% for eleve in eleves %}
@@ -22,4 +22,5 @@
     <div style="text-align:center; padding:60px; color:#aaa;">لا يوجد طلاب بعد</div>
     {% endfor %}
 </div>
+{% include 'dashboard/_pagination.html' with page_obj=eleves %}
 {% endblock %}

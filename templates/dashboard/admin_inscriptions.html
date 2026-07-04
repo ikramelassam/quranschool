@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="page-title">طلبات تسجيل الطلاب</div>
-<div class="page-subtitle">الطلبات المعلقة: {{ inscriptions|length }}</div>
+<div class="page-subtitle">الطلبات المعلقة: {{ inscriptions.paginator.count }}</div>
 
 {% if inscriptions %}
     {% for ins in inscriptions %}
@@ -37,4 +37,5 @@
 {% else %}
     <div style="text-align:center; padding:60px; color:#aaa;">🎉 لا توجد طلبات معلقة</div>
 {% endif %}
+{% include 'dashboard/_pagination.html' with page_obj=inscriptions %}
 {% endblock %}

@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from accounts.decorators import role_required
+from core.utils import paginer
 from accounts.models import Eleve
 from .models import Paiement
 
@@ -22,7 +23,7 @@ def eleve_paiements(request):
     paiements = Paiement.objects.filter(eleve=eleve).order_by('-mois_reference')
     return render(request, 'dashboard/eleve_paiements.html', {
         'eleve': eleve,
-        'paiements': paiements,
+        'paiements': paginer(request, paiements, 10),
     })
 
 
@@ -30,7 +31,7 @@ def eleve_paiements(request):
 def admin_paiements(request):
     paiements = Paiement.objects.select_related('eleve__user').order_by('-date')
     return render(request, 'dashboard/admin_paiements.html', {
-        'paiements': paiements,
+        'paiements': paginer(request, paiements, 10),
     })
 
 

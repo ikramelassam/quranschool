@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <div class="page-title">إدارة الحلقات</div>
-        <div class="page-subtitle">إجمالي الحلقات: {{ creneaux|length }}</div>
+        <div class="page-subtitle">إجمالي الحلقات: {{ creneaux.paginator.count }}</div>
     </div>
     <a href="{% url 'admin_creneau_ajouter' %}" 
        style="background:#2d5a1b; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
@@ -56,4 +56,5 @@
     لا توجد حلقات بعد — أضف حلقة جديدة !
 </div>
 {% endif %}
+{% include 'dashboard/_pagination.html' with page_obj=creneaux %}
 {% endblock %}

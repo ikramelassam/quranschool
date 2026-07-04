@@ -54,4 +54,5 @@
 {% else %}
 <div style="text-align:center; padding:60px; color:#aaa;">لا توجد حصص بعد</div>
 {% endif %}
+{% include 'dashboard/_pagination.html' with page_obj=presences %}
 {% endblock %}

@@ -1,15 +1,16 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from accounts.decorators import role_required
+from core.utils import paginer
 from .models import Groupe, Creneau
 from accounts.models import Prof, Eleve
 
 
 @role_required('admin')
 def groupes_list(request):
-    groupes = Groupe.objects.all()
+    groupes = Groupe.objects.all().order_by('id')
     return render(request, 'courses/admin_groupes.html', {
-        'groupes': groupes,
+        'groupes': paginer(request, groupes, 10),
     })
 
 
@@ -79,9 +80,9 @@ def groupe_modifier(request, groupe_id):
 
 @role_required('admin')
 def creneaux_list(request):
-    creneaux = Creneau.objects.all()
+    creneaux = Creneau.objects.all().order_by('id')
     return render(request, 'courses/admin_creneaux.html', {
-        'creneaux': creneaux,
+        'creneaux': paginer(request, creneaux, 10),
     })
 
 
