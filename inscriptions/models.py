@@ -55,6 +55,10 @@ class InscriptionEleve(models.Model):
     accepte_conditions = models.BooleanField(default=False)
     veut_contribuer = models.BooleanField(default=False)
     remarques = models.TextField(blank=True)
+    disponibilites_libres = models.TextField(
+        blank=True,
+        help_text="Rempli par l'élève quand aucun créneau actif ne correspond à son profil (âge/sexe)."
+    )
 
     # Statut
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente')

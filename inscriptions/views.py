@@ -33,6 +33,7 @@ def inscription_eleve_formulaire(request, type_age):
             abonnement=request.POST.get('abonnement'),
             accepte_conditions=request.POST.get('accepte_conditions') == 'oui',
             remarques=request.POST.get('remarques', ''),
+            disponibilites_libres=request.POST.get('disponibilites_libres', ''),
         )
         return redirect('inscription_confirmation')
 
