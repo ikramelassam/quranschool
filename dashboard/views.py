@@ -426,6 +426,9 @@ def superviseur_seance_detail(request, seance_id):
 @role_required('admin')
 def admin_seances(request):
     from courses.models import Seance, Groupe
+    from courses.utils import etendre_toutes_les_seances
+
+    etendre_toutes_les_seances()
     groupes = Groupe.objects.filter(statut='actif')
 
     if request.method == 'POST':
@@ -484,6 +487,9 @@ def admin_profs(request):
 @role_required('admin')
 def admin_calendrier(request):
     from courses.models import Seance
+    from courses.utils import etendre_toutes_les_seances
+
+    etendre_toutes_les_seances()
 
     semaine_param = request.GET.get('semaine')
     try:

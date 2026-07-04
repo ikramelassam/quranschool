@@ -3,6 +3,7 @@ from django.contrib import messages
 from accounts.decorators import role_required
 from core.utils import paginer
 from .models import Groupe, Creneau
+from .utils import regenerer_pour_nouveau_creneau
 from accounts.models import Prof, Eleve
 
 
@@ -11,23 +12,34 @@ def groupes_list(request):
     groupes = Groupe.objects.all().order_by('id')
     return render(request, 'courses/admin_groupes.html', {
         'groupes': paginer(request, groupes, 10),
+        'aucun_creneau': not Creneau.objects.filter(est_actif=True).exists(),
     })
 
 
 @role_required('admin')
 def groupe_ajouter(request):
+    creneaux = Creneau.objects.filter(est_actif=True)
+
     if request.method == 'POST':
-        Groupe.objects.create(
+        creneau_id = request.POST.get('creneau')
+        if not creneau_id:
+            messages.error(request, 'يجب اختيار حلقة قبل إنشاء المجموعة. أنشئ حلقة أولاً إذا لم تتوفر أي حلقة.')
+            return render(request, 'courses/admin_groupe_ajouter.html', {
+                'creneaux': creneaux,
+                'profs': Prof.objects.all(),
+            })
+
+        groupe = Groupe.objects.create(
             nom=request.POST.get('nom'),
             prof_id=request.POST.get('prof') or None,
-            creneau_id=request.POST.get('creneau') or None,
-            description=request.POST.get('description', ''), 
+            creneau_id=creneau_id,
+            description=request.POST.get('description', ''),
             capacite_max=request.POST.get('max_eleves', 10),
         )
-        messages.success(request, 'تمت إضافة المجموعة بنجاح.')
+        regenerer_pour_nouveau_creneau(groupe)
+        messages.success(request, 'تمت إضافة المجموعة وتوليد حصصها تلقائياً بنجاح.')
         return redirect('admin_groupes')
 
-    creneaux = Creneau.objects.filter(est_actif=True)
     profs = Prof.objects.all()
     return render(request, 'courses/admin_groupe_ajouter.html', {
         'creneaux': creneaux,
@@ -61,14 +73,30 @@ def groupe_modifier(request, groupe_id):
     profs = Prof.objects.all()
 
     if request.method == 'POST':
+        nouveau_creneau_id = request.POST.get('creneau')
+        if not nouveau_creneau_id:
+            messages.error(request, 'يجب اختيار حلقة للمجموعة.')
+            return render(request, 'courses/admin_groupe_modifier.html', {
+                'groupe': groupe,
+                'creneaux': creneaux,
+                'profs': profs,
+            })
+
+        creneau_a_change = str(groupe.creneau_id) != str(nouveau_creneau_id)
+
         groupe.nom = request.POST.get('nom')
         groupe.description = request.POST.get('description', '')
         groupe.capacite_max = request.POST.get('capacite_max', 10)
         groupe.statut = request.POST.get('statut')
         groupe.prof_id = request.POST.get('prof') or None
-        groupe.creneau_id = request.POST.get('creneau') or None
+        groupe.creneau_id = nouveau_creneau_id
         groupe.save()
-        messages.success(request, 'تم تعديل المجموعة بنجاح.')
+
+        if creneau_a_change:
+            regenerer_pour_nouveau_creneau(groupe)
+            messages.success(request, 'تم تعديل المجموعة وإعادة توليد حصصها حسب الحلقة الجديدة.')
+        else:
+            messages.success(request, 'تم تعديل المجموعة بنجاح.')
         return redirect('admin_groupe_detail', groupe_id=groupe.id)
 
     return render(request, 'courses/admin_groupe_modifier.html', {

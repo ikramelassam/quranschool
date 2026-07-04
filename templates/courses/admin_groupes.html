@@ -8,11 +8,23 @@
         <div class="page-title">إدارة المجموعات</div>
         <div class="page-subtitle">إجمالي المجموعات: {{ groupes.paginator.count }}</div>
     </div>
-    <a href="{% url 'admin_groupe_ajouter' %}" 
+    {% if aucun_creneau %}
+    <span style="background:#eee; color:#999; border-radius:8px; padding:10px 20px; font-weight:600;" title="أنشئ حلقة أولاً">
+       + إنشاء مجموعة جديدة
+    </span>
+    {% else %}
+    <a href="{% url 'admin_groupe_ajouter' %}"
        style="background:#2d5a1b; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
        + إنشاء مجموعة جديدة
     </a>
+    {% endif %}
 </div>
+
+{% if aucun_creneau %}
+<div style="background:#fff3cd; color:#856404; border-radius:8px; padding:14px 20px; margin-bottom:20px;">
+    ⚠️ لا توجد أي حلقة نشطة بعد. يجب <a href="{% url 'admin_creneau_ajouter' %}" style="color:#856404; font-weight:700;">إنشاء حلقة</a> قبل أن تتمكن من إنشاء مجموعة.
+</div>
+{% endif %}
 
 {% if groupes %}
 <div class="row g-3">

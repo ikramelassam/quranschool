@@ -32,15 +32,16 @@
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الحلقة (الجدول)</label>
-            <select name="creneau" class="form-select mt-1">
-                <option value="">بدون جدول</option>
+            <label style="font-weight:600; color:#333;">الحلقة (الجدول) *</label>
+            <select name="creneau" class="form-select mt-1" required>
+                <option value="">اختر حلقة</option>
                 {% for creneau in creneaux %}
                 <option value="{{ creneau.id }}" {% if groupe.creneau == creneau %}selected{% endif %}>
                     {{ creneau }}
                 </option>
                 {% endfor %}
             </select>
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">تغيير الحلقة يعيد توليد حصص المجموعة القادمة تلقائياً.</div>
         </div>
 
         <div class="mb-3">
