@@ -11,8 +11,11 @@ from inscriptions.models import InscriptionEleve
 JOURS_SEMAINE_AR = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد']
 
 
-def envoyer_email_bienvenue(email, password_temp, prenom_nom):
-    """Envoie le mot de passe temporaire au nouvel utilisateur (élève ou prof)."""
+def envoyer_email_bienvenue(request, email, password_temp, prenom_nom):
+    """Envoie le mot de passe temporaire + le lien de connexion au nouvel utilisateur (élève ou prof)."""
+    from django.urls import reverse
+
+    lien_connexion = request.build_absolute_uri(reverse('login'))
     send_mail(
         subject='مرحباً بك في منصة زدني علماً - معلومات الدخول',
         message=(
@@ -20,6 +23,7 @@ def envoyer_email_bienvenue(email, password_temp, prenom_nom):
             f'تم قبول ملفك. يمكنك الآن تسجيل الدخول باستخدام:\n'
             f'البريد الإلكتروني: {email}\n'
             f'كلمة المرور المؤقتة: {password_temp}\n\n'
+            f'رابط تسجيل الدخول: {lien_connexion}\n\n'
             f'ننصحك بتغيير كلمة المرور بعد أول تسجيل دخول.'
         ),
         from_email=settings.DEFAULT_FROM_EMAIL,
@@ -244,7 +248,7 @@ def admin_valider_eleve(request, inscription_id):
             inscription=inscription
         )
 
-        envoyer_email_bienvenue(inscription.email, password_temp, inscription.nom)
+        envoyer_email_bienvenue(request, inscription.email, password_temp, inscription.nom)
 
     # Change le statut
     inscription.statut = 'valide'
@@ -315,7 +319,7 @@ def admin_valider_prof(request, inscription_id):
             inscription=inscription,
 )
 
-        envoyer_email_bienvenue(inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
+        envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
 
     inscription.statut = 'valide'
     inscription.save()
