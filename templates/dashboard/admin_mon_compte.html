@@ -1,0 +1,60 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}حسابي{% endblock %}
+{% block content %}
+<div class="page-title">حسابي</div>
+<div class="page-subtitle">البريد الحالي: {{ request.user.email }}</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="font-weight:700; color:#2d5a1b; margin-bottom:16px;">✉️ تغيير البريد الإلكتروني</div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="email">
+                <div class="mb-3">
+                    <label style="font-weight:600; color:#333;">البريد الإلكتروني الجديد *</label>
+                    <input type="email" name="nouvel_email" class="form-control mt-1" required>
+                </div>
+                <div class="mb-3">
+                    <label style="font-weight:600; color:#333;">تأكيد البريد الإلكتروني *</label>
+                    <input type="email" name="confirmation_email" class="form-control mt-1" required>
+                </div>
+                <div class="mb-3">
+                    <label style="font-weight:600; color:#333;">كلمة المرور الحالية *</label>
+                    <input type="password" name="mot_de_passe_email" class="form-control mt-1" required>
+                </div>
+                <button type="submit"
+                    style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
+                    حفظ البريد الجديد ✅
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="font-weight:700; color:#2d5a1b; margin-bottom:16px;">🔒 تغيير كلمة المرور</div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="password">
+                <div class="mb-3">
+                    <label style="font-weight:600; color:#333;">كلمة المرور الحالية *</label>
+                    <input type="password" name="ancien_mot_de_passe" class="form-control mt-1" required>
+                </div>
+                <div class="mb-3">
+                    <label style="font-weight:600; color:#333;">كلمة المرور الجديدة *</label>
+                    <input type="password" name="nouveau_mot_de_passe" class="form-control mt-1" required minlength="8">
+                </div>
+                <div class="mb-3">
+                    <label style="font-weight:600; color:#333;">تأكيد كلمة المرور الجديدة *</label>
+                    <input type="password" name="confirmation" class="form-control mt-1" required minlength="8">
+                </div>
+                <button type="submit"
+                    style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
+                    حفظ كلمة المرور ✅
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

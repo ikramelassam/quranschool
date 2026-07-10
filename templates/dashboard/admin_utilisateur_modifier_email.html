@@ -1,0 +1,31 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}تغيير البريد الإلكتروني{% endblock %}
+{% block content %}
+<div class="page-title">تغيير البريد الإلكتروني</div>
+<div class="page-subtitle">{{ utilisateur.get_full_name }} — البريد الحالي: {{ utilisateur.email }}</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">البريد الإلكتروني الجديد *</label>
+            <input type="email" name="nouvel_email" class="form-control mt-1" required>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">تأكيد البريد الإلكتروني *</label>
+            <input type="email" name="confirmation_email" class="form-control mt-1" required>
+        </div>
+        <div style="background:#fff3cd; color:#856404; border-radius:8px; padding:10px 14px; font-size:0.85rem; margin-bottom:16px;">
+            ⚠️ سيتم تسجيل خروج هذا المستخدم تلقائياً من جميع الأجهزة، وسيصله إشعار على بريده الجديد.
+        </div>
+        <div class="d-flex gap-3">
+            <button type="submit"
+                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                حفظ التغيير ✅
+            </button>
+            <a href="{{ next }}" style="color:#888; text-decoration:none; padding:10px;">← إلغاء</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -10,14 +10,19 @@ MESSAGE_EMAIL_DEJA_UTILISE = (
 )
 
 
-def _email_deja_utilise(email):
+def _email_deja_utilise(email, exclure_user_id=None):
     """Vérifie si cet email est déjà pris par un compte User existant, ou par
     une InscriptionEleve/InscriptionProf encore en attente de validation.
     Empêche les doublons de candidature avant même la création d'un User
     (voir bug connu #5 du CLAUDE.md, corrigé au niveau de la validation admin,
-    mais qu'il vaut mieux éviter dès la soumission du formulaire)."""
+    mais qu'il vaut mieux éviter dès la soumission du formulaire).
+    exclure_user_id: permet de vérifier un changement d'email sur un compte
+    existant sans que ce compte se bloque lui-même (même email, même user)."""
     User = get_user_model()
-    if User.objects.filter(email=email).exists():
+    users_qs = User.objects.filter(email=email)
+    if exclure_user_id is not None:
+        users_qs = users_qs.exclude(id=exclure_user_id)
+    if users_qs.exists():
         return True
     if InscriptionEleve.objects.filter(email=email, statut='en_attente').exists():
         return True

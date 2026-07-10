@@ -64,4 +64,8 @@ urlpatterns = [
     # Admin — assignation superviseurs ↔ profs
     path('admin/superviseurs/', views.admin_superviseurs, name='admin_superviseurs'),
     path('admin/superviseurs/<int:superviseur_id>/assignations/', views.admin_superviseur_assignations, name='admin_superviseur_assignations'),
+
+    # Admin — modification d'email (n'importe quel utilisateur) et compte admin
+    path('admin/utilisateurs/<int:user_id>/modifier-email/', views.admin_utilisateur_modifier_email, name='admin_utilisateur_modifier_email'),
+    path('admin/mon-compte/', views.admin_mon_compte, name='admin_mon_compte'),
 ]

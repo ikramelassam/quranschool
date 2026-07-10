@@ -97,8 +97,12 @@
     <div style="color:#aaa; padding:12px 0;">لا توجد استمارة تسجيل مرتبطة بهذا الطالب.</div>
     {% endif %}
 
-    <div class="mt-4">
+    <div class="mt-4 d-flex gap-3 align-items-center">
         <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none;">← رجوع</a>
+        <a href="{% url 'admin_utilisateur_modifier_email' eleve.user.id %}?next={% url 'admin_eleve_detail' eleve.id %}"
+           style="background:#C9A84C; color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
+           ✉️ تغيير البريد الإلكتروني
+        </a>
     </div>
 </div>
 {% endblock %}

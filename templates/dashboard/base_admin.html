@@ -175,9 +175,9 @@
         class="menu-item {% if request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}active{% endif %}">
             <span class="icon">🧭</span> إسناد المشرفين
         </a>
-        <a href="{% url 'password_change' %}"
-        class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
-            <span class="icon">⚙️</span> الإعدادات
+        <a href="{% url 'admin_mon_compte' %}"
+        class="menu-item {% if request.resolver_match.url_name == 'admin_mon_compte' %}active{% endif %}">
+            <span class="icon">⚙️</span> حسابي
         </a>
     </div>
 

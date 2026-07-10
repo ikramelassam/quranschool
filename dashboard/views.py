@@ -32,6 +32,60 @@ def envoyer_email_bienvenue(request, email, password_temp, prenom_nom):
     )
 
 
+def envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, prenom_nom):
+    """Notifie le NOUVEL email qu'il vient d'être associé à ce compte suite à un changement."""
+    from django.urls import reverse
+
+    lien_connexion = request.build_absolute_uri(reverse('login'))
+    send_mail(
+        subject='تم تغيير البريد الإلكتروني لحسابك - زدني علماً',
+        message=(
+            f'مرحباً {prenom_nom},\n\n'
+            f'نُعلمك بأنه تم تغيير البريد الإلكتروني المرتبط بحسابك على منصة زدني علماً '
+            f'من {ancien_email} إلى {nouvel_email}.\n\n'
+            f'يمكنك الآن تسجيل الدخول بهذا البريد الجديد:\n{lien_connexion}\n\n'
+            f'إذا لم تطلب هذا التغيير، يرجى التواصل فوراً مع إدارة المنصة.'
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[nouvel_email],
+        fail_silently=False,
+    )
+
+
+def _invalider_sessions_utilisateur(utilisateur, request=None):
+    """Supprime toutes les sessions actives de cet utilisateur (déconnexion forcée
+    sur tous les appareils), suite à un changement d'email par exemple.
+    Si la requête courante appartient à ce même utilisateur (auto-modification),
+    on fait tourner la clé de SA session courante d'abord (cycle_key: opération
+    native Django qui recrée la ligne sous une nouvelle clé et supprime l'ancienne
+    proprement) et on l'exclut de la suppression en masse, pour ne pas le
+    déconnecter lui-même en plein milieu de son action."""
+    from django.contrib.sessions.models import Session
+    from django.utils import timezone
+
+    session_courante_a_garder = None
+    if request is not None and request.user.is_authenticated and request.user.pk == utilisateur.pk:
+        request.session.cycle_key()
+        session_courante_a_garder = request.session.session_key
+
+    for session in Session.objects.filter(expire_date__gte=timezone.now()):
+        if session.session_key == session_courante_a_garder:
+            continue
+        data = session.get_decoded()
+        if str(data.get('_auth_user_id')) == str(utilisateur.pk):
+            session.delete()
+
+
+def _next_valide(request, defaut='admin_eleves'):
+    """Récupère un ?next= sûr (chemin interne au dashboard admin uniquement),
+    sinon retombe sur une page par défaut."""
+    from django.urls import reverse
+    next_url = request.POST.get('next') or request.GET.get('next') or ''
+    if next_url.startswith('/dashboard/admin/'):
+        return next_url
+    return reverse(defaut)
+
+
 def _verifier_conflit_email(email):
     """Vérifie si un User existe déjà pour cet email et s'il a un profil Eleve/Prof.
     Utilisé pour bloquer la validation d'une inscription en cas de conflit
@@ -871,3 +925,108 @@ def admin_superviseur_assignations(request, superviseur_id):
         'profs': tous_les_profs,
         'profs_assignes_ids': profs_assignes_ids,
     })
+
+
+# ==================== ADMIN — MODIFIER L'EMAIL D'UN UTILISATEUR ====================
+
+@role_required('admin')
+def admin_utilisateur_modifier_email(request, user_id):
+    from django.contrib.auth import get_user_model
+    from inscriptions.views import _email_deja_utilise
+
+    User = get_user_model()
+    utilisateur = get_object_or_404(User, id=user_id)
+    next_url = _next_valide(request)
+
+    if request.method == 'POST':
+        nouvel_email = request.POST.get('nouvel_email', '').strip()
+        confirmation_email = request.POST.get('confirmation_email', '').strip()
+
+        if not nouvel_email or nouvel_email != confirmation_email:
+            messages.error(request, 'البريدان الإلكترونيان غير متطابقين.')
+            return render(request, 'dashboard/admin_utilisateur_modifier_email.html', {
+                'utilisateur': utilisateur,
+                'next': next_url,
+            })
+
+        if nouvel_email == utilisateur.email:
+            messages.info(request, 'لم يتغير البريد الإلكتروني.')
+            return redirect(next_url)
+
+        if _email_deja_utilise(nouvel_email, exclure_user_id=utilisateur.id):
+            messages.error(
+                request,
+                f'تعذر التغيير: البريد الإلكتروني {nouvel_email} مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد الدراسة.'
+            )
+            return render(request, 'dashboard/admin_utilisateur_modifier_email.html', {
+                'utilisateur': utilisateur,
+                'next': next_url,
+            })
+
+        ancien_email = utilisateur.email
+        utilisateur.email = nouvel_email
+        utilisateur.username = nouvel_email
+        utilisateur.save()
+
+        _invalider_sessions_utilisateur(utilisateur, request=request)
+        envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, utilisateur.get_full_name())
+
+        messages.success(request, f'تم تغيير البريد الإلكتروني إلى {nouvel_email} بنجاح. تم إشعار المستخدم على بريده الجديد.')
+        return redirect(next_url)
+
+    return render(request, 'dashboard/admin_utilisateur_modifier_email.html', {
+        'utilisateur': utilisateur,
+        'next': next_url,
+    })
+
+
+# ==================== ADMIN — MON COMPTE ====================
+
+@role_required('admin')
+def admin_mon_compte(request):
+    from inscriptions.views import _email_deja_utilise
+
+    if request.method == 'POST' and request.POST.get('action') == 'email':
+        mot_de_passe = request.POST.get('mot_de_passe_email', '')
+        nouvel_email = request.POST.get('nouvel_email', '').strip()
+        confirmation_email = request.POST.get('confirmation_email', '').strip()
+
+        if not request.user.check_password(mot_de_passe):
+            messages.error(request, 'كلمة المرور غير صحيحة.')
+        elif not nouvel_email or nouvel_email != confirmation_email:
+            messages.error(request, 'البريدان الإلكترونيان غير متطابقين.')
+        elif nouvel_email == request.user.email:
+            messages.info(request, 'لم يتغير البريد الإلكتروني.')
+        elif _email_deja_utilise(nouvel_email, exclure_user_id=request.user.id):
+            messages.error(request, f'تعذر التغيير: البريد الإلكتروني {nouvel_email} مستخدم بالفعل.')
+        else:
+            ancien_email = request.user.email
+            request.user.email = nouvel_email
+            request.user.username = nouvel_email
+            request.user.save()
+            _invalider_sessions_utilisateur(request.user, request=request)
+            envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, request.user.get_full_name())
+            messages.success(request, f'تم تغيير بريدك الإلكتروني إلى {nouvel_email} بنجاح.')
+        return redirect('admin_mon_compte')
+
+    if request.method == 'POST' and request.POST.get('action') == 'password':
+        from django.contrib.auth import update_session_auth_hash
+
+        ancien = request.POST.get('ancien_mot_de_passe')
+        nouveau = request.POST.get('nouveau_mot_de_passe')
+        confirmation = request.POST.get('confirmation')
+
+        if not request.user.check_password(ancien):
+            messages.error(request, 'كلمة المرور الحالية غير صحيحة.')
+        elif nouveau != confirmation:
+            messages.error(request, 'كلمتا المرور الجديدتان غير متطابقتين.')
+        elif len(nouveau) < 8:
+            messages.error(request, 'يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل.')
+        else:
+            request.user.set_password(nouveau)
+            request.user.save()
+            update_session_auth_hash(request, request.user)
+            messages.success(request, 'تم تغيير كلمة المرور بنجاح.')
+        return redirect('admin_mon_compte')
+
+    return render(request, 'dashboard/admin_mon_compte.html')
