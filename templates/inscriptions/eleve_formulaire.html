@@ -127,6 +127,12 @@
         {% endif %}
     </div>
 
+    {% if erreur_email %}
+    <div style="background:#f8d7da; border-radius:8px; padding:14px 18px; margin-bottom:20px; color:#721c24;">
+        ⚠️ {{ erreur_email }}
+    </div>
+    {% endif %}
+
     <form method="POST" action="">
         {% csrf_token %}
         <input type="hidden" name="type_age" value="{{ type_age }}">
@@ -156,7 +162,7 @@
         <div class="mb-3">
             <label class="form-label">البريد الإلكتروني *</label>
             <input type="email" name="email" class="form-control"
-                   placeholder="البريد الإلكتروني" required>
+                   placeholder="البريد الإلكتروني" value="{{ old_email|default:'' }}" required>
         </div>
 
         <div class="mb-3">

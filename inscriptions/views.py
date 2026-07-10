@@ -1,7 +1,30 @@
 from django.shortcuts import render, redirect
+from django.contrib.auth import get_user_model
 from .models import InscriptionEleve, InscriptionProf, TypeAbonnement
 from courses.models import Creneau
 import json
+
+MESSAGE_EMAIL_DEJA_UTILISE = (
+    'هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد '
+    'الدراسة. يرجى استخدام بريد إلكتروني آخر أو التواصل مع المدرسة.'
+)
+
+
+def _email_deja_utilise(email):
+    """Vérifie si cet email est déjà pris par un compte User existant, ou par
+    une InscriptionEleve/InscriptionProf encore en attente de validation.
+    Empêche les doublons de candidature avant même la création d'un User
+    (voir bug connu #5 du CLAUDE.md, corrigé au niveau de la validation admin,
+    mais qu'il vaut mieux éviter dès la soumission du formulaire)."""
+    User = get_user_model()
+    if User.objects.filter(email=email).exists():
+        return True
+    if InscriptionEleve.objects.filter(email=email, statut='en_attente').exists():
+        return True
+    if InscriptionProf.objects.filter(email=email, statut='en_attente').exists():
+        return True
+    return False
+
 
 def inscription_eleve_choix(request):
     return render(request, 'inscriptions/eleve_choix.html')
@@ -25,13 +48,24 @@ def inscription_eleve_formulaire(request, type_age):
     } for t in TypeAbonnement.objects.filter(est_actif=True).order_by('ordre')])
 
     if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+
+        if _email_deja_utilise(email):
+            return render(request, 'inscriptions/eleve_formulaire.html', {
+                'type_age': type_age,
+                'creneaux_json': creneaux_json,
+                'types_abonnement_json': types_abonnement_json,
+                'erreur_email': MESSAGE_EMAIL_DEJA_UTILISE,
+                'old_email': email,
+            })
+
         InscriptionEleve.objects.create(
             nom=request.POST.get('nom'),
             nom_parent=request.POST.get('nom_parent', ''),
             date_naissance=request.POST.get('date_naissance'),
             sexe=request.POST.get('sexe'),
             telephone=request.POST.get('telephone'),
-            email=request.POST.get('email'),
+            email=email,
             creneau_souhaite_id=request.POST.get('creneau_souhaite') or None,
             programme=request.POST.get('programme'),
             riwaya=request.POST.get('riwaya'),
@@ -55,6 +89,14 @@ def inscription_confirmation(request):
 
 def inscription_prof(request):
     if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+
+        if _email_deja_utilise(email):
+            return render(request, 'inscriptions/prof_formulaire.html', {
+                'erreur_email': MESSAGE_EMAIL_DEJA_UTILISE,
+                'old_email': email,
+            })
+
         InscriptionProf.objects.create(
             nom=request.POST.get('nom'),
             prenom=request.POST.get('prenom'),
@@ -68,7 +110,7 @@ def inscription_prof(request):
             parcours_enseignant=request.POST.get('parcours_enseignant'),
             gestion_eleve_faible=request.POST.get('gestion_eleve_faible'),
             gestion_eleve_absent=request.POST.get('gestion_eleve_absent'),
-            email=request.POST.get('email'),
+            email=email,
             langues=request.POST.getlist('langues'),
             outils_maitrises=request.POST.getlist('outils'),
             type_eleve_preference=request.POST.getlist('type_eleve'),
