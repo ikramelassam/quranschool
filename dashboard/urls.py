@@ -60,4 +60,8 @@ urlpatterns = [
     # Admin — vue centralisée des évaluations
     path('admin/evaluations/', views.admin_evaluations, name='admin_evaluations'),
     path('admin/evaluations/seance/<int:seance_id>/', views.admin_evaluation_detail, name='admin_evaluation_detail'),
+
+    # Admin — assignation superviseurs ↔ profs
+    path('admin/superviseurs/', views.admin_superviseurs, name='admin_superviseurs'),
+    path('admin/superviseurs/<int:superviseur_id>/assignations/', views.admin_superviseur_assignations, name='admin_superviseur_assignations'),
 ]

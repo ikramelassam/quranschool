@@ -480,9 +480,13 @@ def eleve_profil(request):
 
 @role_required('superviseur')
 def dashboard_superviseur(request):
+    from accounts.models import Superviseur
     from courses.models import Seance
+
+    superviseur = get_object_or_404(Superviseur, user=request.user)
     seances = Seance.objects.filter(
-        statut='terminee'
+        statut='terminee',
+        groupe__prof__in=superviseur.profs_assignes.all(),
     ).order_by('-date')[:10]
 
     return render(request, 'dashboard/superviseur.html', {
@@ -492,10 +496,11 @@ def dashboard_superviseur(request):
 
 @role_required('superviseur')
 def superviseur_seance_detail(request, seance_id):
+    from accounts.models import Superviseur
     from courses.models import Seance, Presence
-    from evaluations.models import Evaluation
 
-    seance = get_object_or_404(Seance, id=seance_id)
+    superviseur = get_object_or_404(Superviseur, user=request.user)
+    seance = get_object_or_404(Seance, id=seance_id, groupe__prof__in=superviseur.profs_assignes.all())
     presences = Presence.objects.filter(seance=seance)
 
     return render(request, 'dashboard/superviseur_seance_detail.html', {
@@ -833,4 +838,36 @@ def admin_evaluation_detail(request, seance_id):
         'seance': seance,
         'presences': presences,
         'evaluation': evaluation,
+    })
+
+
+# ==================== ADMIN — ASSIGNATION SUPERVISEURS ↔ PROFS ====================
+
+@role_required('admin')
+def admin_superviseurs(request):
+    from accounts.models import Superviseur
+    superviseurs = Superviseur.objects.select_related('user').prefetch_related('profs_assignes').order_by('user__first_name')
+    return render(request, 'dashboard/admin_superviseurs.html', {
+        'superviseurs': superviseurs,
+    })
+
+
+@role_required('admin')
+def admin_superviseur_assignations(request, superviseur_id):
+    from accounts.models import Superviseur, Prof
+    superviseur = get_object_or_404(Superviseur, id=superviseur_id)
+    tous_les_profs = Prof.objects.select_related('user').order_by('user__first_name')
+
+    if request.method == 'POST':
+        profs_selectionnes = request.POST.getlist('profs')
+        superviseur.profs_assignes.set(profs_selectionnes)
+        messages.success(request, f'تم تحديث المعلمين المُسندين إلى {superviseur.user.get_full_name}.')
+        return redirect('admin_superviseurs')
+
+    profs_assignes_ids = set(superviseur.profs_assignes.values_list('id', flat=True))
+
+    return render(request, 'dashboard/admin_superviseur_assignations.html', {
+        'superviseur': superviseur,
+        'profs': tous_les_profs,
+        'profs_assignes_ids': profs_assignes_ids,
     })

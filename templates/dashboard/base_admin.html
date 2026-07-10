@@ -171,6 +171,10 @@
         class="menu-item {% if request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' %}active{% endif %}">
             <span class="icon">📊</span> التقييمات
         </a>
+        <a href="{% url 'admin_superviseurs' %}"
+        class="menu-item {% if request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}active{% endif %}">
+            <span class="icon">🧭</span> إسناد المشرفين
+        </a>
         <a href="{% url 'password_change' %}"
         class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
             <span class="icon">⚙️</span> الإعدادات

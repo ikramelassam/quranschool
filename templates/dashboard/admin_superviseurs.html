@@ -1,0 +1,23 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}إسناد المشرفين{% endblock %}
+{% block content %}
+<div class="page-title">إسناد المشرفين إلى المعلمين</div>
+<div class="page-subtitle">كل مشرف لا يرى ولا يمكنه تقييم إلا المعلمين المُسندين إليه</div>
+
+<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+    {% for s in superviseurs %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid #f0f0f0;">
+        <div>
+            <div style="font-weight:700;">{{ s.user.get_full_name }}</div>
+            <div style="color:#888; font-size:0.85rem;">{{ s.user.email }} — {{ s.profs_assignes.count }} معلم مُسند</div>
+        </div>
+        <a href="{% url 'admin_superviseur_assignations' s.id %}"
+           style="background:#6b3a2a; color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
+           إدارة الإسناد ✏️
+        </a>
+    </div>
+    {% empty %}
+    <div style="text-align:center; padding:60px; color:#aaa;">لا يوجد مشرفون بعد</div>
+    {% endfor %}
+</div>
+{% endblock %}

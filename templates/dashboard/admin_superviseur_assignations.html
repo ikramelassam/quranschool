@@ -1,0 +1,32 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}إسناد {{ superviseur.user.get_full_name }}{% endblock %}
+{% block content %}
+<div class="page-title">المعلمون المُسندون إلى {{ superviseur.user.get_full_name }}</div>
+<div class="page-subtitle">حدد المعلمين الذين يمكن لهذا المشرف رؤيتهم وتقييمهم</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+        {% for prof in profs %}
+        <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input" name="profs" value="{{ prof.id }}" id="prof_{{ prof.id }}"
+                   {% if prof.id in profs_assignes_ids %}checked{% endif %}>
+            <label class="form-check-label" for="prof_{{ prof.id }}">
+                {{ prof.user.get_full_name }}
+                <span style="color:#888; font-size:0.85rem;">— {{ prof.ville }}</span>
+            </label>
+        </div>
+        {% empty %}
+        <div style="text-align:center; color:#aaa; padding:20px;">لا يوجد معلمون بعد</div>
+        {% endfor %}
+
+        <div class="d-flex gap-3 mt-4">
+            <button type="submit"
+                style="background:#6b3a2a; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                حفظ الإسناد ✅
+            </button>
+            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

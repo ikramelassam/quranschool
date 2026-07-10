@@ -96,6 +96,11 @@ class Superviseur(models.Model):
         User,
         on_delete=models.CASCADE
     )
+    profs_assignes = models.ManyToManyField(
+        Prof,
+        related_name='superviseurs',
+        blank=True
+    )
 
     def __str__(self):
         return str(self.user)

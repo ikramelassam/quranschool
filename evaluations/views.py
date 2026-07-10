@@ -20,7 +20,7 @@ def _metadonnees_seance(seance):
 @role_required('superviseur')
 def superviseur_evaluer(request, seance_id):
     superviseur = get_object_or_404(Superviseur, user=request.user)
-    seance = get_object_or_404(Seance, id=seance_id)
+    seance = get_object_or_404(Seance, id=seance_id, groupe__prof__in=superviseur.profs_assignes.all())
     criteres = Critere.objects.filter(est_actif=True)
 
     evaluation = Evaluation.objects.filter(seance=seance).first()
