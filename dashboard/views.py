@@ -684,3 +684,75 @@ def admin_abonnement_toggle(request, abonnement_id):
     type_abonnement.save()
     messages.info(request, 'تم تفعيل نوع الاشتراك.' if type_abonnement.est_actif else 'تم تعطيل نوع الاشتراك.')
     return redirect('admin_parametres_abonnements')
+
+
+# ==================== ADMIN — CRITÈRES D'ÉVALUATION (SUPERVISEUR) ====================
+
+@role_required('admin')
+def admin_criteres(request):
+    from evaluations.models import Critere
+    criteres = Critere.objects.all().order_by('ordre')
+    return render(request, 'dashboard/admin_criteres.html', {
+        'criteres': criteres,
+    })
+
+
+@role_required('admin')
+def admin_critere_ajouter(request):
+    from evaluations.models import Critere
+
+    if request.method == 'POST':
+        Critere.objects.create(
+            nom_ar=request.POST.get('nom_ar'),
+            ordre=request.POST.get('ordre', 0),
+        )
+        messages.success(request, 'تمت إضافة المعيار بنجاح.')
+        return redirect('admin_criteres')
+
+    return render(request, 'dashboard/admin_critere_ajouter.html')
+
+
+@role_required('admin')
+def admin_critere_modifier(request, critere_id):
+    from evaluations.models import Critere
+    critere = get_object_or_404(Critere, id=critere_id)
+
+    if request.method == 'POST':
+        critere.nom_ar = request.POST.get('nom_ar')
+        critere.ordre = request.POST.get('ordre', 0)
+        critere.save()
+        messages.success(request, 'تم تعديل المعيار بنجاح.')
+        return redirect('admin_criteres')
+
+    return render(request, 'dashboard/admin_critere_modifier.html', {
+        'critere': critere,
+    })
+
+
+@role_required('admin')
+def admin_critere_toggle(request, critere_id):
+    from evaluations.models import Critere
+    critere = get_object_or_404(Critere, id=critere_id)
+    critere.est_actif = not critere.est_actif
+    critere.save()
+    messages.info(request, 'تم تفعيل المعيار.' if critere.est_actif else 'تم تعطيل المعيار.')
+    return redirect('admin_criteres')
+
+
+@role_required('admin')
+def admin_critere_supprimer(request, critere_id):
+    from evaluations.models import Critere, NoteEvaluation
+    critere = get_object_or_404(Critere, id=critere_id)
+
+    if NoteEvaluation.objects.filter(critere=critere).exists():
+        messages.error(
+            request,
+            f'تعذر حذف "{critere.nom_ar}": هذا المعيار استُخدم في تقييمات سابقة. '
+            f'يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.'
+        )
+    else:
+        nom = critere.nom_ar
+        critere.delete()
+        messages.success(request, f'تم حذف المعيار "{nom}".')
+
+    return redirect('admin_criteres')

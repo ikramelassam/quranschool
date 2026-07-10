@@ -4,10 +4,31 @@
 <div class="page-title">تقييم المعلم</div>
 <div class="page-subtitle">{{ seance.groupe.nom }} — {{ seance.date }}</div>
 
+<div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3">
+        <div class="col-md-3">
+            <div style="color:#888; font-size:0.8rem;">تاريخ المراقبة</div>
+            <div style="font-weight:700;">{{ metadonnees.date }}</div>
+        </div>
+        <div class="col-md-3">
+            <div style="color:#888; font-size:0.8rem;">اسم الحلقة</div>
+            <div style="font-weight:700;">{{ metadonnees.halqa }}</div>
+        </div>
+        <div class="col-md-3">
+            <div style="color:#888; font-size:0.8rem;">اسم المعلم المُقيَّم</div>
+            <div style="font-weight:700;">{{ metadonnees.prof|default:"—" }}</div>
+        </div>
+        <div class="col-md-3">
+            <div style="color:#888; font-size:0.8rem;">عدد المتعلمين الحاضرين</div>
+            <div style="font-weight:700;">{{ metadonnees.nb_apprenants_presents }}</div>
+        </div>
+    </div>
+</div>
+
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     {% if not criteres_notes %}
         <div style="text-align:center; color:#aaa; padding:30px;">
-            لا توجد معايير تقييم بعد. يجب على الإدارة إضافتها أولاً من لوحة الإدارة (Django admin).
+            لا توجد معايير تقييم بعد. يجب على الإدارة إضافتها أولاً من لوحة الإدارة.
         </div>
     {% else %}
     <form method="POST">
@@ -28,8 +49,8 @@
         {% endfor %}
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">ملاحظات عامة</label>
-            <textarea name="commentaire" class="form-control mt-1" rows="4">{{ evaluation.commentaire|default:'' }}</textarea>
+            <label style="font-weight:600; color:#333;">ملاحظات وتوجيهات *</label>
+            <textarea name="commentaire" class="form-control mt-1" rows="4" required>{{ commentaire_initial }}</textarea>
         </div>
 
         <button type="submit" style="background:#6b3a2a; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">

@@ -6,6 +6,7 @@ from courses.models import Seance
 class Critere(models.Model):
     nom_ar = models.CharField(max_length=200)
     ordre = models.IntegerField(default=0)
+    est_actif = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nom_ar
@@ -27,7 +28,7 @@ class Evaluation(models.Model):
         on_delete=models.CASCADE,
         related_name='evaluation'
     )
-    commentaire = models.TextField(blank=True)
+    commentaire = models.TextField()
     date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

@@ -49,4 +49,11 @@ urlpatterns = [
     path('admin/parametres/abonnements/ajouter/', views.admin_abonnement_ajouter, name='admin_abonnement_ajouter'),
     path('admin/parametres/abonnements/<int:abonnement_id>/modifier/', views.admin_abonnement_modifier, name='admin_abonnement_modifier'),
     path('admin/parametres/abonnements/<int:abonnement_id>/toggle/', views.admin_abonnement_toggle, name='admin_abonnement_toggle'),
+
+    # Admin — critères d'évaluation (superviseur)
+    path('admin/criteres/', views.admin_criteres, name='admin_criteres'),
+    path('admin/criteres/ajouter/', views.admin_critere_ajouter, name='admin_critere_ajouter'),
+    path('admin/criteres/<int:critere_id>/modifier/', views.admin_critere_modifier, name='admin_critere_modifier'),
+    path('admin/criteres/<int:critere_id>/toggle/', views.admin_critere_toggle, name='admin_critere_toggle'),
+    path('admin/criteres/<int:critere_id>/supprimer/', views.admin_critere_supprimer, name='admin_critere_supprimer'),
 ]
