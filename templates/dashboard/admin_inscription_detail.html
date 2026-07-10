@@ -91,13 +91,36 @@
         <span style="font-weight:600;">{{ inscription.date_soumission|date:"d-m-Y H:i" }}</span>
     </div>
 
+    {% if conflit.conflit %}
+    <div style="background:#f8d7da; border-radius:8px; padding:16px; margin:20px 0; color:#721c24;">
+        <div style="font-weight:700; margin-bottom:8px;">⚠️ تعذر القبول — تعارض في البريد الإلكتروني</div>
+        {% if conflit.orphelin %}
+        <div style="margin-bottom:12px;">
+            يوجد حساب بهذا البريد الإلكتروني ({{ inscription.email }}) بدون ملف شخصي مرتبط
+            (على الأرجح من اختبار سابق). يمكنك حذف هذا الحساب اليتيم ثم إعادة محاولة القبول.
+        </div>
+        <a href="{% url 'admin_supprimer_user_orphelin' conflit.user.id %}?next={{ request.path }}"
+           onclick="return confirm('هل أنت متأكد من حذف هذا الحساب اليتيم ({{ conflit.user.email }})؟');"
+           style="background:#dc3545; color:white; border-radius:8px; padding:8px 20px; text-decoration:none; display:inline-block;">🗑️ حذف الحساب اليتيم</a>
+        {% else %}
+        <div>
+            يوجد حساب نشط بهذا البريد الإلكتروني ({{ inscription.email }}) مرتبط بملف شخصي آخر
+            (دور الحساب: {{ conflit.user.get_role_display }}). راجع هذا الحساب يدوياً — لا يمكن
+            قبول هذا الطلب تلقائياً.
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Boutons -->
     <div class="d-flex gap-3 mt-4">
-        <a href="{% url 'admin_valider_eleve' inscription.id %}" 
+        {% if not conflit.conflit %}
+        <a href="{% url 'admin_valider_eleve' inscription.id %}"
            style="background:#2d5a1b; color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">✅ قبول</a>
-        <a href="{% url 'admin_rejeter_eleve' inscription.id %}" 
+        {% endif %}
+        <a href="{% url 'admin_rejeter_eleve' inscription.id %}"
            style="background:#dc3545; color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">❌ رفض</a>
-        <a href="{% url 'admin_inscriptions' %}" 
+        <a href="{% url 'admin_inscriptions' %}"
            style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
     </div>
 </div>

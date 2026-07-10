@@ -32,6 +32,22 @@ def envoyer_email_bienvenue(request, email, password_temp, prenom_nom):
     )
 
 
+def _verifier_conflit_email(email):
+    """Vérifie si un User existe déjà pour cet email et s'il a un profil Eleve/Prof.
+    Utilisé pour bloquer la validation d'une inscription en cas de conflit
+    (voir bug connu #5 du CLAUDE.md: validation silencieuse sans création de compte)."""
+    from accounts.models import Eleve, Prof
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    user_existant = User.objects.filter(email=email).first()
+    if not user_existant:
+        return {'conflit': False, 'user': None, 'orphelin': False}
+
+    a_un_profil = Eleve.objects.filter(user=user_existant).exists() or Prof.objects.filter(user=user_existant).exists()
+    return {'conflit': True, 'user': user_existant, 'orphelin': not a_un_profil}
+
+
 @role_required('prof')
 def dashboard_prof(request):
     from accounts.models import Prof
@@ -225,30 +241,44 @@ def admin_valider_eleve(request, inscription_id):
     User = get_user_model()
     inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
 
-    # Crée le User seulement s'il n'existe pas déjà
-    if not User.objects.filter(email=inscription.email).exists():
-        
-        # Génère mot de passe temporaire
-        password_temp = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-        
-        # Crée le User
-        user = User.objects.create_user(
-            username=inscription.email,
-            email=inscription.email,
-            password=password_temp,
-            first_name=inscription.nom,
-            role='eleve'
-        )
+    conflit = _verifier_conflit_email(inscription.email)
+    if conflit['conflit']:
+        if conflit['orphelin']:
+            messages.error(
+                request,
+                f'تعذر القبول: يوجد حساب بهذا البريد الإلكتروني ({inscription.email}) '
+                f'بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). '
+                f'احذف الحساب اليتيم أولاً ثم أعد المحاولة.'
+            )
+        else:
+            messages.error(
+                request,
+                f'تعذر القبول: يوجد حساب نشط بهذا البريد الإلكتروني ({inscription.email}) '
+                f'مرتبط بملف شخصي آخر — التعارض يجب حله يدوياً قبل المتابعة.'
+            )
+        return redirect('admin_inscription_eleve_detail', inscription_id=inscription.id)
 
-        # Crée le profil Eleve
-        Eleve.objects.create(
-            user=user,
-            sexe=inscription.sexe,
-            statut='actif',
-            inscription=inscription
-        )
+    # Génère mot de passe temporaire
+    password_temp = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
 
-        envoyer_email_bienvenue(request, inscription.email, password_temp, inscription.nom)
+    # Crée le User
+    user = User.objects.create_user(
+        username=inscription.email,
+        email=inscription.email,
+        password=password_temp,
+        first_name=inscription.nom,
+        role='eleve'
+    )
+
+    # Crée le profil Eleve
+    Eleve.objects.create(
+        user=user,
+        sexe=inscription.sexe,
+        statut='actif',
+        inscription=inscription
+    )
+
+    envoyer_email_bienvenue(request, inscription.email, password_temp, inscription.nom)
 
     # Change le statut
     inscription.statut = 'valide'
@@ -269,17 +299,48 @@ def admin_rejeter_eleve(request, inscription_id):
 @role_required('admin')
 def admin_inscription_eleve_detail(request, inscription_id):
     inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
+    if inscription.statut == 'valide':
+        conflit = {'conflit': False, 'user': None, 'orphelin': False}
+    else:
+        conflit = _verifier_conflit_email(inscription.email)
     return render(request, 'dashboard/admin_inscription_detail.html', {
         'inscription': inscription,
+        'conflit': conflit,
     })
 
 @role_required('admin')
 def admin_inscription_prof_detail(request, inscription_id):
     from inscriptions.models import InscriptionProf
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
+    if inscription.statut == 'valide':
+        conflit = {'conflit': False, 'user': None, 'orphelin': False}
+    else:
+        conflit = _verifier_conflit_email(inscription.email)
     return render(request, 'dashboard/admin_inscription_prof_detail.html', {
         'inscription': inscription,
+        'conflit': conflit,
     })
+
+@role_required('admin')
+def admin_supprimer_user_orphelin(request, user_id):
+    """Supprime un compte User sans profil Eleve/Prof (compte orphelin, généralement issu
+    d'un test), pour débloquer une validation d'inscription bloquée par un conflit d'email."""
+    from accounts.models import Eleve, Prof
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    user = get_object_or_404(User, id=user_id)
+    a_un_profil = Eleve.objects.filter(user=user).exists() or Prof.objects.filter(user=user).exists()
+
+    if a_un_profil:
+        messages.error(request, 'تعذر الحذف: هذا الحساب مرتبط بملف شخصي نشط.')
+    else:
+        email = user.email
+        user.delete()
+        messages.success(request, f'تم حذف الحساب اليتيم ({email}). يمكنك الآن إعادة محاولة القبول.')
+
+    next_url = request.GET.get('next') or 'admin_inscriptions'
+    return redirect(next_url)
 
 @role_required('admin')
 def admin_valider_prof(request, inscription_id):
@@ -291,35 +352,51 @@ def admin_valider_prof(request, inscription_id):
     User = get_user_model()
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
 
-    if not User.objects.filter(email=inscription.email).exists():
-        password_temp = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-        user = User.objects.create_user(
-            username=inscription.email,
-            email=inscription.email,
-            password=password_temp,
-            first_name=inscription.nom,
-            last_name=inscription.prenom,
-            role='prof'
-        )
-        Prof.objects.create(
-            user=user,
-            ville=inscription.ville,
-            certifications=inscription.certifications,
-            niveau_memorisation=inscription.niveau_memorisation,
-            parcours_scolaire=inscription.parcours_scolaire,
-            parcours_enseignant=inscription.parcours_enseignant,
-            gestion_eleve_faible=inscription.gestion_eleve_faible,
-            gestion_eleve_absent=inscription.gestion_eleve_absent,
-            type_eleve_preference=inscription.type_eleve_preference,
-            contrainte_genre=inscription.contrainte_genre,
-            langues=inscription.langues,
-            outils_maitrises=inscription.outils_maitrises,
-            compte_bancaire=inscription.compte_bancaire,
-            rib=inscription.rib,
-            inscription=inscription,
-)
+    conflit = _verifier_conflit_email(inscription.email)
+    if conflit['conflit']:
+        if conflit['orphelin']:
+            messages.error(
+                request,
+                f'تعذر القبول: يوجد حساب بهذا البريد الإلكتروني ({inscription.email}) '
+                f'بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). '
+                f'احذف الحساب اليتيم أولاً ثم أعد المحاولة.'
+            )
+        else:
+            messages.error(
+                request,
+                f'تعذر القبول: يوجد حساب نشط بهذا البريد الإلكتروني ({inscription.email}) '
+                f'مرتبط بملف شخصي آخر — التعارض يجب حله يدوياً قبل المتابعة.'
+            )
+        return redirect('admin_inscription_prof_detail', inscription_id=inscription.id)
 
-        envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
+    password_temp = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+    user = User.objects.create_user(
+        username=inscription.email,
+        email=inscription.email,
+        password=password_temp,
+        first_name=inscription.nom,
+        last_name=inscription.prenom,
+        role='prof'
+    )
+    Prof.objects.create(
+        user=user,
+        ville=inscription.ville,
+        certifications=inscription.certifications,
+        niveau_memorisation=inscription.niveau_memorisation,
+        parcours_scolaire=inscription.parcours_scolaire,
+        parcours_enseignant=inscription.parcours_enseignant,
+        gestion_eleve_faible=inscription.gestion_eleve_faible,
+        gestion_eleve_absent=inscription.gestion_eleve_absent,
+        type_eleve_preference=inscription.type_eleve_preference,
+        contrainte_genre=inscription.contrainte_genre,
+        langues=inscription.langues,
+        outils_maitrises=inscription.outils_maitrises,
+        compte_bancaire=inscription.compte_bancaire,
+        rib=inscription.rib,
+        inscription=inscription,
+    )
+
+    envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
 
     inscription.statut = 'valide'
     inscription.save()

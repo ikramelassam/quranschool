@@ -32,6 +32,7 @@ urlpatterns = [
     path('admin/inscriptions/prof/<int:inscription_id>/', views.admin_inscription_prof_detail, name='admin_inscription_prof_detail'),
     path('admin/inscriptions/prof/<int:inscription_id>/valider/', views.admin_valider_prof, name='admin_valider_prof'),
     path('admin/inscriptions/prof/<int:inscription_id>/rejeter/', views.admin_rejeter_prof, name='admin_rejeter_prof'),
+    path('admin/users/<int:user_id>/supprimer-orphelin/', views.admin_supprimer_user_orphelin, name='admin_supprimer_user_orphelin'),
 
     # Admin — gestion
     path('admin/eleves/', views.admin_eleves, name='admin_eleves'),
