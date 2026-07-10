@@ -1,0 +1,108 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}التقييمات{% endblock %}
+{% block content %}
+<div class="page-title">التقييمات</div>
+<div class="page-subtitle">نظرة شاملة على تقييمات الطلاب وتقييمات المعلمين</div>
+
+<form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-2">
+            <label style="color:#888; font-size:0.8rem;">المجموعة</label>
+            <select name="groupe" class="form-select">
+                <option value="">الكل</option>
+                {% for g in groupes %}
+                <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label style="color:#888; font-size:0.8rem;">المعلم</label>
+            <select name="prof" class="form-select">
+                <option value="">الكل</option>
+                {% for p in profs %}
+                <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label style="color:#888; font-size:0.8rem;">الطالب</label>
+            <select name="eleve" class="form-select">
+                <option value="">الكل</option>
+                {% for e in eleves %}
+                <option value="{{ e.id }}" {% if filtres.eleve == e.id|stringformat:"s" %}selected{% endif %}>{{ e.user.get_full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label style="color:#888; font-size:0.8rem;">من تاريخ</label>
+            <input type="date" name="date_debut" class="form-control" value="{{ filtres.date_debut }}">
+        </div>
+        <div class="col-md-2">
+            <label style="color:#888; font-size:0.8rem;">إلى تاريخ</label>
+            <input type="date" name="date_fin" class="form-control" value="{{ filtres.date_fin }}">
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <a href="{% url 'admin_evaluations' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+        </div>
+    </div>
+</form>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div style="font-weight:700; color:#2d5a1b; margin-bottom:12px;">📚 تقييمات الطلاب ({{ nb_presences_total }})</div>
+        <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+            {% for p in presences %}
+            <a href="{% url 'admin_evaluation_detail' p.seance.id %}" style="display:block; padding:14px 20px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:inherit;">
+                <div style="display:flex; justify-content:space-between;">
+                    <div style="font-weight:700;">{{ p.eleve.user.get_full_name }}</div>
+                    <span style="background:{% if p.statut == 'present' %}#e8f5e9; color:#2d5a1b{% elif p.statut == 'absent_excuse' %}#fff3cd; color:#856404{% else %}#fce4e4; color:#dc3545{% endif %}; border-radius:20px; padding:2px 10px; font-size:0.75rem;">{{ p.get_statut_display }}</span>
+                </div>
+                <div style="color:#888; font-size:0.85rem;">
+                    {{ p.seance.groupe.nom }}
+                    {% if p.seance.groupe.prof %} — {{ p.seance.groupe.prof.user.get_full_name }}{% endif %}
+                    — {{ p.seance.date }}
+                </div>
+                {% if p.note_memorisation or p.note_revision %}
+                <div style="font-size:0.8rem; color:#555; margin-top:4px;">
+                    {% if p.note_memorisation %}الحفظ: {{ p.get_note_memorisation_display }}{% endif %}
+                    {% if p.note_revision %} — المراجعة: {{ p.get_note_revision_display }}{% endif %}
+                </div>
+                {% endif %}
+            </a>
+            {% empty %}
+            <div style="text-align:center; padding:40px; color:#aaa;">لا توجد تقييمات طلاب مطابقة</div>
+            {% endfor %}
+        </div>
+        {% if nb_presences_total > limite %}
+        <div style="text-align:center; color:#888; font-size:0.85rem; padding:10px;">
+            معروضة أحدث {{ limite }} من أصل {{ nb_presences_total }} — استخدم الفلاتر لتضييق البحث
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-6">
+        <div style="font-weight:700; color:#6b3a2a; margin-bottom:12px;">🧑‍🏫 تقييمات المعلمين ({{ nb_evaluations_profs_total }})</div>
+        <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+            {% for ev in evaluations_profs %}
+            <a href="{% url 'admin_evaluation_detail' ev.seance.id %}" style="display:block; padding:14px 20px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:inherit;">
+                <div style="font-weight:700;">
+                    {% if ev.seance.groupe.prof %}{{ ev.seance.groupe.prof.user.get_full_name }}{% else %}معلم غير محدد{% endif %}
+                </div>
+                <div style="color:#888; font-size:0.85rem;">
+                    {{ ev.seance.groupe.nom }} — {{ ev.seance.date }} — بواسطة {{ ev.superviseur.user.get_full_name }}
+                </div>
+                <div style="font-size:0.8rem; color:#555; margin-top:4px;">{{ ev.notes.count }} معيار مُقيَّم</div>
+            </a>
+            {% empty %}
+            <div style="text-align:center; padding:40px; color:#aaa;">لا توجد تقييمات معلمين مطابقة</div>
+            {% endfor %}
+        </div>
+        {% if nb_evaluations_profs_total > limite %}
+        <div style="text-align:center; color:#888; font-size:0.85rem; padding:10px;">
+            معروضة أحدث {{ limite }} من أصل {{ nb_evaluations_profs_total }} — استخدم الفلاتر لتضييق البحث
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

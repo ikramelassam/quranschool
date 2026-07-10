@@ -56,4 +56,8 @@ urlpatterns = [
     path('admin/criteres/<int:critere_id>/modifier/', views.admin_critere_modifier, name='admin_critere_modifier'),
     path('admin/criteres/<int:critere_id>/toggle/', views.admin_critere_toggle, name='admin_critere_toggle'),
     path('admin/criteres/<int:critere_id>/supprimer/', views.admin_critere_supprimer, name='admin_critere_supprimer'),
+
+    # Admin — vue centralisée des évaluations
+    path('admin/evaluations/', views.admin_evaluations, name='admin_evaluations'),
+    path('admin/evaluations/seance/<int:seance_id>/', views.admin_evaluation_detail, name='admin_evaluation_detail'),
 ]

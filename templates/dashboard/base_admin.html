@@ -167,6 +167,10 @@
         class="menu-item {% if request.resolver_match.url_name == 'admin_criteres' or request.resolver_match.url_name == 'admin_critere_ajouter' or request.resolver_match.url_name == 'admin_critere_modifier' %}active{% endif %}">
             <span class="icon">📝</span> معايير تقييم المعلمين
         </a>
+        <a href="{% url 'admin_evaluations' %}"
+        class="menu-item {% if request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' %}active{% endif %}">
+            <span class="icon">📊</span> التقييمات
+        </a>
         <a href="{% url 'password_change' %}"
         class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
             <span class="icon">⚙️</span> الإعدادات

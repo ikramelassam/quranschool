@@ -756,3 +756,81 @@ def admin_critere_supprimer(request, critere_id):
         messages.success(request, f'تم حذف المعيار "{nom}".')
 
     return redirect('admin_criteres')
+
+
+# ==================== ADMIN — VUE CENTRALISÉE DES ÉVALUATIONS ====================
+
+LIMITE_EVALUATIONS_LISTE = 30
+
+
+@role_required('admin')
+def admin_evaluations(request):
+    from courses.models import Presence, Groupe
+    from accounts.models import Prof, Eleve
+    from evaluations.models import Evaluation
+
+    groupe_id = request.GET.get('groupe', '')
+    prof_id = request.GET.get('prof', '')
+    eleve_id = request.GET.get('eleve', '')
+    date_debut = request.GET.get('date_debut', '')
+    date_fin = request.GET.get('date_fin', '')
+
+    presences = Presence.objects.filter(seance__statut='terminee').select_related(
+        'seance__groupe__prof__user', 'eleve__user'
+    ).order_by('-seance__date', '-seance__heure')
+
+    evaluations_profs = Evaluation.objects.select_related(
+        'seance__groupe__prof__user', 'superviseur__user'
+    ).prefetch_related('notes__critere').order_by('-seance__date')
+
+    if groupe_id:
+        presences = presences.filter(seance__groupe_id=groupe_id)
+        evaluations_profs = evaluations_profs.filter(seance__groupe_id=groupe_id)
+    if prof_id:
+        presences = presences.filter(seance__groupe__prof_id=prof_id)
+        evaluations_profs = evaluations_profs.filter(seance__groupe__prof_id=prof_id)
+    if eleve_id:
+        presences = presences.filter(eleve_id=eleve_id)
+    if date_debut:
+        presences = presences.filter(seance__date__gte=date_debut)
+        evaluations_profs = evaluations_profs.filter(seance__date__gte=date_debut)
+    if date_fin:
+        presences = presences.filter(seance__date__lte=date_fin)
+        evaluations_profs = evaluations_profs.filter(seance__date__lte=date_fin)
+
+    nb_presences_total = presences.count()
+    nb_evaluations_profs_total = evaluations_profs.count()
+
+    return render(request, 'dashboard/admin_evaluations.html', {
+        'presences': presences[:LIMITE_EVALUATIONS_LISTE],
+        'nb_presences_total': nb_presences_total,
+        'evaluations_profs': evaluations_profs[:LIMITE_EVALUATIONS_LISTE],
+        'nb_evaluations_profs_total': nb_evaluations_profs_total,
+        'limite': LIMITE_EVALUATIONS_LISTE,
+        'groupes': Groupe.objects.all().order_by('nom'),
+        'profs': Prof.objects.select_related('user').order_by('user__first_name'),
+        'eleves': Eleve.objects.select_related('user').order_by('user__first_name'),
+        'filtres': {
+            'groupe': groupe_id,
+            'prof': prof_id,
+            'eleve': eleve_id,
+            'date_debut': date_debut,
+            'date_fin': date_fin,
+        },
+    })
+
+
+@role_required('admin')
+def admin_evaluation_detail(request, seance_id):
+    from courses.models import Seance, Presence
+    from evaluations.models import Evaluation
+
+    seance = get_object_or_404(Seance, id=seance_id)
+    presences = Presence.objects.filter(seance=seance).select_related('eleve__user').order_by('eleve__user__first_name')
+    evaluation = Evaluation.objects.filter(seance=seance).select_related('superviseur__user').prefetch_related('notes__critere').first()
+
+    return render(request, 'dashboard/admin_evaluation_detail.html', {
+        'seance': seance,
+        'presences': presences,
+        'evaluation': evaluation,
+    })

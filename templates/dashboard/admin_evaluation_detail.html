@@ -1,0 +1,68 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}تفاصيل تقييمات الحصة{% endblock %}
+{% block content %}
+<div class="page-title">{{ seance.groupe.nom }}</div>
+<div class="page-subtitle">
+    {{ seance.date }} — {{ seance.heure }}
+    {% if seance.groupe.prof %} — المعلم: {{ seance.groupe.prof.user.get_full_name }}{% endif %}
+</div>
+
+<div style="font-weight:700; color:#2d5a1b; margin:20px 0 12px;">📚 تقييمات الطلاب</div>
+{% for p in presences %}
+<div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div style="font-weight:700;">{{ p.eleve.user.get_full_name }}</div>
+        <span style="background:{% if p.statut == 'present' %}#e8f5e9; color:#2d5a1b{% elif p.statut == 'absent_excuse' %}#fff3cd; color:#856404{% else %}#fce4e4; color:#dc3545{% endif %}; border-radius:20px; padding:4px 12px; font-size:0.8rem;">{{ p.get_statut_display }}</span>
+    </div>
+    <div class="row g-2">
+        <div class="col-md-6">
+            <div style="color:#888; font-size:0.8rem;">الحفظ</div>
+            <div style="font-weight:600;">{{ p.quantite_memorisee|default:"—" }}
+                {% if p.note_memorisation %}<span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ p.get_note_memorisation_display }}</span>{% endif %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div style="color:#888; font-size:0.8rem;">المراجعة</div>
+            <div style="font-weight:600;">{{ p.quantite_revisee|default:"—" }}
+                {% if p.note_revision %}<span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ p.get_note_revision_display }}</span>{% endif %}
+            </div>
+        </div>
+        {% if p.remarque %}
+        <div class="col-md-12">
+            <div style="color:#888; font-size:0.8rem;">ملاحظة المعلم</div>
+            <div style="background:#f9f9f9; padding:8px; border-radius:6px; font-size:0.9rem;">{{ p.remarque }}</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% empty %}
+<div style="text-align:center; color:#aaa; padding:30px; background:white; border-radius:12px; margin-bottom:16px;">لا يوجد طلاب مسجَّلين لهذه الحصة</div>
+{% endfor %}
+
+<div style="font-weight:700; color:#6b3a2a; margin:28px 0 12px;">🧑‍🏫 تقييم المعلم (من طرف المشرف)</div>
+{% if evaluation %}
+<div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="color:#888; font-size:0.85rem; margin-bottom:12px;">
+        بواسطة {{ evaluation.superviseur.user.get_full_name }} — {{ evaluation.date|date:"d-m-Y H:i" }}
+    </div>
+    {% for note in evaluation.notes.all %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span>{{ note.critere.nom_ar }}</span>
+        <span style="font-weight:600;">{{ note.get_note_display }}</span>
+    </div>
+    {% endfor %}
+    {% if evaluation.commentaire %}
+    <div style="margin-top:16px;">
+        <div style="color:#888; font-size:0.8rem;">ملاحظات وتوجيهات</div>
+        <div style="background:#f9f9f9; padding:10px; border-radius:6px; margin-top:4px;">{{ evaluation.commentaire }}</div>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div style="text-align:center; color:#aaa; padding:30px; background:white; border-radius:12px;">لم يتم تقييم هذا المعلم لهذه الحصة بعد</div>
+{% endif %}
+
+<div class="mt-4">
+    <a href="{% url 'admin_evaluations' %}" style="color:#888; text-decoration:none;">← رجوع إلى قائمة التقييمات</a>
+</div>
+{% endblock %}
