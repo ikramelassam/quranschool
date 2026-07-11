@@ -97,7 +97,13 @@
     {% endfor %}
 
     {% if eleves_presences %}
-    <button type="submit" class="btn" style="background:#1a3a5c; color:white; font-weight:600; padding:10px 24px; border-radius:8px;">
+    <button type="submit" class="btn"
+            {% if seance.statut == 'terminee' %}
+            onclick="return confirm('سيتم تحديث الحضور والتقييمات لهذه الحصة المنتهية. هل أنت متأكد؟');"
+            {% else %}
+            onclick="return confirm('هل أنت متأكد من حفظ الحضور والتقييمات؟ سيتم اعتبار هذه الحصة منتهية نهائياً.');"
+            {% endif %}
+            style="background:#1a3a5c; color:white; font-weight:600; padding:10px 24px; border-radius:8px;">
         حفظ الحضور والتقييمات
     </button>
     {% endif %}

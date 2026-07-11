@@ -22,11 +22,13 @@
                    style="background:white; color:#2d5a1b; border:2px solid #2d5a1b; border-radius:8px; padding:8px 16px; text-decoration:none;">
                    👁 عرض
                 </a>
-                <a href="{% url 'admin_valider_eleve' ins.id %}" 
+                <a href="{% url 'admin_valider_eleve' ins.id %}"
+                   onclick="return confirm('هل أنت متأكد من قبول طلب {{ ins.nom|escapejs }}؟ سيتم إنشاء حساب مستخدم فعلي له.');"
                    style="background:#2d5a1b; color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
                    ✅ قبول
                 </a>
-                <a href="{% url 'admin_rejeter_eleve' ins.id %}" 
+                <a href="{% url 'admin_rejeter_eleve' ins.id %}"
+                   onclick="return confirm('هل أنت متأكد من رفض طلب {{ ins.nom|escapejs }}؟ لا يمكن التراجع عن هذا الإجراء.');"
                    style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
                    ❌ رفض
                 </a>

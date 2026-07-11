@@ -29,9 +29,27 @@ def eleve_paiements(request):
 
 @role_required('admin')
 def admin_paiements(request):
+    statut = request.GET.get('statut', '')
+    eleve_id = request.GET.get('eleve', '')
+    mois = request.GET.get('mois', '')
+
     paiements = Paiement.objects.select_related('eleve__user').order_by('-date')
+    if statut:
+        paiements = paiements.filter(statut=statut)
+    if eleve_id:
+        paiements = paiements.filter(eleve_id=eleve_id)
+    if mois:
+        annee, _, num_mois = mois.partition('-')
+        paiements = paiements.filter(mois_reference__year=annee, mois_reference__month=num_mois)
+
     return render(request, 'dashboard/admin_paiements.html', {
         'paiements': paginer(request, paiements, 10),
+        'eleves': Eleve.objects.select_related('user').order_by('user__first_name'),
+        'filtres': {
+            'statut': statut,
+            'eleve': eleve_id,
+            'mois': mois,
+        },
     })
 
 

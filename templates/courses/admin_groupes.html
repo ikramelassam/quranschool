@@ -26,6 +26,41 @@
 </div>
 {% endif %}
 
+<form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label style="color:#888; font-size:0.8rem;">الحالة</label>
+            <select name="statut" class="form-select">
+                <option value="">الكل</option>
+                <option value="actif" {% if filtres.statut == 'actif' %}selected{% endif %}>نشطة</option>
+                <option value="archive" {% if filtres.statut == 'archive' %}selected{% endif %}>مؤرشفة</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label style="color:#888; font-size:0.8rem;">المعلم</label>
+            <select name="prof" class="form-select">
+                <option value="">الكل</option>
+                {% for p in profs %}
+                <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label style="color:#888; font-size:0.8rem;">الحلقة</label>
+            <select name="creneau" class="form-select">
+                <option value="">الكل</option>
+                {% for c in creneaux %}
+                <option value="{{ c.id }}" {% if filtres.creneau == c.id|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <a href="{% url 'admin_groupes' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+        </div>
+    </div>
+</form>
+
 {% if groupes %}
 <div class="row g-3">
     {% for groupe in groupes %}
@@ -58,7 +93,11 @@
 </div>
 {% else %}
 <div style="text-align:center; padding:60px; color:#aaa;">
+    {% if filtres.statut or filtres.prof or filtres.creneau %}
+    لا توجد مجموعات مطابقة لهذه التصفية
+    {% else %}
     لا توجد مجموعات بعد — أنشئ مجموعة جديدة !
+    {% endif %}
 </div>
 {% endif %}
 {% include 'dashboard/_pagination.html' with page_obj=groupes %}

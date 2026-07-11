@@ -8,6 +8,37 @@
     </div>
 </div>
 
+<form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label style="color:#888; font-size:0.8rem;">المجموعة</label>
+            <select name="groupe" class="form-select">
+                <option value="">الكل</option>
+                {% for g in groupes %}
+                <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label style="color:#888; font-size:0.8rem;">التاريخ</label>
+            <input type="date" name="date" class="form-control" value="{{ filtres.date }}">
+        </div>
+        <div class="col-md-3">
+            <label style="color:#888; font-size:0.8rem;">الحالة</label>
+            <select name="statut" class="form-select">
+                <option value="">الكل</option>
+                <option value="planifiee" {% if filtres.statut == 'planifiee' %}selected{% endif %}>مخططة</option>
+                <option value="terminee" {% if filtres.statut == 'terminee' %}selected{% endif %}>منتهية</option>
+                <option value="annulee" {% if filtres.statut == 'annulee' %}selected{% endif %}>ملغاة</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <a href="{% url 'admin_seances' %}" style="color:#888; text-decoration:none; padding:8px;">مسح التصفية</a>
+        </div>
+    </div>
+</form>
+
 <!-- Liste séances -->
 {% for seance in seances %}
 <div style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
@@ -29,6 +60,7 @@
                    تأجيل
                 </a>
                 <a href="{% url 'admin_seance_annuler' seance.id %}"
+                   onclick="return confirm('هل أنت متأكد من إلغاء حصة {{ seance.groupe.nom|escapejs }} بتاريخ {{ seance.date|date:"d-m-Y" }}؟ لا يمكن التراجع عن هذا الإجراء.');"
                    style="background:#dc3545; color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
                    إلغاء
                 </a>
@@ -39,7 +71,9 @@
     </div>
 </div>
 {% empty %}
-<div style="text-align:center; padding:60px; color:#aaa;">لا توجد حصص بعد</div>
+<div style="text-align:center; padding:60px; color:#aaa;">
+    {% if filtres.groupe or filtres.date or filtres.statut %}لا توجد حصص مطابقة لهذه التصفية{% else %}لا توجد حصص بعد{% endif %}
+</div>
 {% endfor %}
 {% include 'dashboard/_pagination.html' with page_obj=seances %}
 {% endblock %}

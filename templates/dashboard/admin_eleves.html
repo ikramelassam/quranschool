@@ -4,6 +4,19 @@
 <div class="page-title">إدارة الطلاب</div>
 <div class="page-subtitle">إجمالي الطلاب: {{ eleves.paginator.count }}</div>
 
+<form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-8">
+            <label style="color:#888; font-size:0.8rem;">بحث بالاسم أو البريد الإلكتروني</label>
+            <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="اكتب اسم الطالب أو بريده الإلكتروني...">
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button type="submit" style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">بحث</button>
+            <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+        </div>
+    </div>
+</form>
+
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
     {% for eleve in eleves %}
     <a href="{% url 'admin_eleve_detail' eleve.id %}" style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:inherit;">
@@ -19,7 +32,9 @@
         </div>
     </a>
     {% empty %}
-    <div style="text-align:center; padding:60px; color:#aaa;">لا يوجد طلاب بعد</div>
+    <div style="text-align:center; padding:60px; color:#aaa;">
+        {% if q %}لا توجد نتائج لـ « {{ q }} »{% else %}لا يوجد طلاب بعد{% endif %}
+    </div>
     {% endfor %}
 </div>
 {% include 'dashboard/_pagination.html' with page_obj=eleves %}

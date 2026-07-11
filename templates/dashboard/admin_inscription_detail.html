@@ -116,9 +116,11 @@
     <div class="d-flex gap-3 mt-4">
         {% if not conflit.conflit %}
         <a href="{% url 'admin_valider_eleve' inscription.id %}"
+           onclick="return confirm('هل أنت متأكد من قبول طلب {{ inscription.nom|escapejs }}؟ سيتم إنشاء حساب مستخدم فعلي له.');"
            style="background:#2d5a1b; color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">✅ قبول</a>
         {% endif %}
         <a href="{% url 'admin_rejeter_eleve' inscription.id %}"
+           onclick="return confirm('هل أنت متأكد من رفض طلب {{ inscription.nom|escapejs }}؟ لا يمكن التراجع عن هذا الإجراء.');"
            style="background:#dc3545; color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">❌ رفض</a>
         <a href="{% url 'admin_inscriptions' %}"
            style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>

@@ -426,6 +426,8 @@ def admin_inscription_eleve_detail(request, inscription_id):
 @role_required('admin')
 def admin_inscription_prof_detail(request, inscription_id):
     from inscriptions.models import InscriptionProf
+    from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
+
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
     if inscription.statut == 'valide':
         conflit = {'conflit': False, 'user': None, 'orphelin': False}
@@ -442,6 +444,9 @@ def admin_inscription_prof_detail(request, inscription_id):
         'inscription': inscription,
         'conflit': conflit,
         'audio_fichier_manquant': audio_fichier_manquant,
+        'jours': JOURS_SEMAINE_DISPO,
+        'heures': generer_heures_grille(),
+        'valeurs_dispo': set(inscription.disponibilites),
     })
 
 @role_required('admin')
@@ -700,14 +705,31 @@ def admin_seances(request):
     """Page d'exceptions: les séances normales sont générées automatiquement
     (voir courses.utils). Ici, l'admin peut seulement annuler ou déplacer
     une séance précise (prof malade, vacances...)."""
-    from courses.models import Seance
+    from courses.models import Seance, Groupe
     from courses.utils import etendre_toutes_les_seances
 
     etendre_toutes_les_seances()
 
-    seances = Seance.objects.all().order_by('-date')
+    groupe_id = request.GET.get('groupe', '')
+    date = request.GET.get('date', '')
+    statut = request.GET.get('statut', '')
+
+    seances = Seance.objects.select_related('groupe').order_by('-date')
+    if groupe_id:
+        seances = seances.filter(groupe_id=groupe_id)
+    if date:
+        seances = seances.filter(date=date)
+    if statut:
+        seances = seances.filter(statut=statut)
+
     return render(request, 'dashboard/admin_seances.html', {
         'seances': paginer(request, seances, 10),
+        'groupes': Groupe.objects.order_by('nom'),
+        'filtres': {
+            'groupe': groupe_id,
+            'date': date,
+            'statut': statut,
+        },
     })
 
 
@@ -743,10 +765,21 @@ def admin_seance_deplacer(request, seance_id):
 
 @role_required('admin')
 def admin_eleves(request):
+    from django.db.models import Q
     from accounts.models import Eleve
+
+    q = request.GET.get('q', '').strip()
     eleves = Eleve.objects.all().select_related('user').order_by('id')
+    if q:
+        eleves = eleves.filter(
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q) |
+            Q(user__email__icontains=q)
+        )
+
     return render(request, 'dashboard/admin_eleves.html', {
         'eleves': paginer(request, eleves, 10),
+        'q': q,
     })
 
 
@@ -769,10 +802,21 @@ def admin_eleve_detail(request, eleve_id):
 
 @role_required('admin')
 def admin_profs(request):
+    from django.db.models import Q
     from accounts.models import Prof
+
+    q = request.GET.get('q', '').strip()
     profs = Prof.objects.all().select_related('user').order_by('id')
+    if q:
+        profs = profs.filter(
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q) |
+            Q(ville__icontains=q)
+        )
+
     return render(request, 'dashboard/admin_profs.html', {
         'profs': paginer(request, profs, 10),
+        'q': q,
     })
 
 

@@ -14,6 +14,32 @@
     </a>
 </div>
 
+<form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label style="color:#888; font-size:0.8rem;">الفئة المستهدفة</label>
+            <select name="sexe_cible" class="form-select">
+                <option value="">الكل</option>
+                <option value="homme" {% if filtres.sexe_cible == 'homme' %}selected{% endif %}>ذكر</option>
+                <option value="femme" {% if filtres.sexe_cible == 'femme' %}selected{% endif %}>أنثى</option>
+                <option value="mixte" {% if filtres.sexe_cible == 'mixte' %}selected{% endif %}>مختلط</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label style="color:#888; font-size:0.8rem;">الحالة</label>
+            <select name="actif" class="form-select">
+                <option value="">الكل</option>
+                <option value="1" {% if filtres.actif == '1' %}selected{% endif %}>نشط</option>
+                <option value="0" {% if filtres.actif == '0' %}selected{% endif %}>غير نشط</option>
+            </select>
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button type="submit" style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <a href="{% url 'admin_creneaux' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+        </div>
+    </div>
+</form>
+
 {% if creneaux %}
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
     {% for creneau in creneaux %}
@@ -53,7 +79,11 @@
 </div>
 {% else %}
 <div style="text-align:center; padding:60px; color:#aaa;">
+    {% if filtres.sexe_cible or filtres.actif %}
+    لا توجد حلقات مطابقة لهذه التصفية
+    {% else %}
     لا توجد حلقات بعد — أضف حلقة جديدة !
+    {% endif %}
 </div>
 {% endif %}
 {% include 'dashboard/_pagination.html' with page_obj=creneaux %}

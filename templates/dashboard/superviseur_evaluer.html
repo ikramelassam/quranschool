@@ -53,7 +53,13 @@
             <textarea name="commentaire" class="form-control mt-1" rows="4" required>{{ commentaire_initial }}</textarea>
         </div>
 
-        <button type="submit" style="background:#6b3a2a; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
+        <button type="submit"
+                {% if evaluation %}
+                onclick="return confirm('يوجد تقييم سابق لهذه الحصة. هل أنت متأكد من حفظ هذا التقييم؟ سيتم استبدال التقييم الحالي نهائياً.');"
+                {% else %}
+                onclick="return confirm('هل أنت متأكد من حفظ هذا التقييم؟');"
+                {% endif %}
+                style="background:#6b3a2a; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
             حفظ التقييم
         </button>
     </form>

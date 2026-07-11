@@ -18,10 +18,28 @@ def _message_incompatibilite(prof, manquants):
 
 @role_required('admin')
 def groupes_list(request):
-    groupes = Groupe.objects.all().order_by('id')
+    statut = request.GET.get('statut', '')
+    prof_id = request.GET.get('prof', '')
+    creneau_id = request.GET.get('creneau', '')
+
+    groupes = Groupe.objects.select_related('prof__user', 'creneau').order_by('id')
+    if statut:
+        groupes = groupes.filter(statut=statut)
+    if prof_id:
+        groupes = groupes.filter(prof_id=prof_id)
+    if creneau_id:
+        groupes = groupes.filter(creneau_id=creneau_id)
+
     return render(request, 'courses/admin_groupes.html', {
         'groupes': paginer(request, groupes, 10),
         'aucun_creneau': not Creneau.objects.filter(est_actif=True).exists(),
+        'profs': Prof.objects.select_related('user').order_by('user__first_name'),
+        'creneaux': Creneau.objects.order_by('id'),
+        'filtres': {
+            'statut': statut,
+            'prof': prof_id,
+            'creneau': creneau_id,
+        },
     })
 
 
@@ -142,9 +160,21 @@ def groupe_modifier(request, groupe_id):
 
 @role_required('admin')
 def creneaux_list(request):
+    sexe_cible = request.GET.get('sexe_cible', '')
+    actif = request.GET.get('actif', '')
+
     creneaux = Creneau.objects.all().order_by('id')
+    if sexe_cible:
+        creneaux = creneaux.filter(sexe_cible=sexe_cible)
+    if actif:
+        creneaux = creneaux.filter(est_actif=(actif == '1'))
+
     return render(request, 'courses/admin_creneaux.html', {
         'creneaux': paginer(request, creneaux, 10),
+        'filtres': {
+            'sexe_cible': sexe_cible,
+            'actif': actif,
+        },
     })
 
 

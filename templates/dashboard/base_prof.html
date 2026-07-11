@@ -61,10 +61,53 @@
         .main-content { margin-right: 240px; min-height: 100vh; padding: 32px; }
         .page-title { color: #1a3a5c; font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
         .page-subtitle { color: #888; margin-bottom: 30px; }
+
+        /* Menu mobile */
+        .sidebar-toggle {
+            display: none;
+            position: fixed;
+            top: 14px;
+            left: 14px;
+            z-index: 210;
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 10px;
+            background: #1a3a5c;
+            color: white;
+            font-size: 1.3rem;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 90;
+        }
+        @media (max-width: 768px) {
+            .sidebar-toggle { display: flex; }
+            .sidebar {
+                transform: translateX(100%);
+                transition: transform 0.25s ease;
+            }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-overlay.open { display: block; }
+            .main-content {
+                margin-right: 0;
+                padding: 20px 16px 32px;
+            }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+
+<button type="button" class="sidebar-toggle" onclick="toggleSidebar()" aria-label="فتح القائمة">☰</button>
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
 <div class="sidebar">
     <div class="sidebar-logo">
@@ -113,6 +156,13 @@
     {% include 'dashboard/_messages.html' %}
     {% block content %}{% endblock %}
 </div>
+
+<script>
+function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open');
+    document.querySelector('.sidebar-overlay').classList.toggle('open');
+}
+</script>
 
 {% block extra_js %}{% endblock %}
 </body>
