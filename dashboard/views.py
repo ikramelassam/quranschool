@@ -431,9 +431,17 @@ def admin_inscription_prof_detail(request, inscription_id):
         conflit = {'conflit': False, 'user': None, 'orphelin': False}
     else:
         conflit = _verifier_conflit_email(inscription.email)
+
+    # Le champ peut référencer un fichier qui n'existe plus (ou jamais existé) sur
+    # le disque — évite d'afficher silencieusement un lecteur audio cassé.
+    audio_fichier_manquant = bool(
+        inscription.audio_enregistrement and not inscription.audio_enregistrement.storage.exists(inscription.audio_enregistrement.name)
+    )
+
     return render(request, 'dashboard/admin_inscription_prof_detail.html', {
         'inscription': inscription,
         'conflit': conflit,
+        'audio_fichier_manquant': audio_fichier_manquant,
     })
 
 @role_required('admin')

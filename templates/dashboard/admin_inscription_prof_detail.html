@@ -86,7 +86,13 @@
     {% if inscription.audio_enregistrement %}
     <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <div style="color:#888; margin-bottom:4px;">التسجيل الصوتي</div>
+        {% if audio_fichier_manquant %}
+        <div style="background:#f8d7da; color:#721c24; border-radius:8px; padding:10px 14px; font-size:0.9rem;">
+            ⚠️ الملف الصوتي غير موجود على الخادم (فشل الرفع على الأرجح). يرجى التواصل مع المترشح لإعادة إرساله.
+        </div>
+        {% else %}
         <audio controls src="{{ inscription.audio_enregistrement.url }}"></audio>
+        {% endif %}
     </div>
     {% endif %}
 
