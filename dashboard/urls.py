@@ -24,6 +24,7 @@ urlpatterns = [
     path('prof/disponibilites/', views.prof_disponibilites, name='prof_disponibilites'),
     path('prof/profil/', views.prof_profil, name='prof_profil'),
     path('prof/evaluations/', views.prof_evaluations, name='prof_evaluations'),
+    path('prof/evaluations/<int:evaluation_id>/', views.prof_evaluation_detail, name='prof_evaluation_detail'),
 
     # Superviseur
     path('superviseur/seance/<int:seance_id>/', views.superviseur_seance_detail, name='superviseur_seance_detail'),
