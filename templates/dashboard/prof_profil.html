@@ -1,0 +1,71 @@
+{% extends 'dashboard/base_prof.html' %}
+{% block title %}ملفي الشخصي{% endblock %}
+{% block content %}
+<div class="page-title">ملفي الشخصي</div>
+<div class="page-subtitle">{{ prof.user.email }}</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px;">
+    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">المدينة</span>
+        <span style="font-weight:600;">{{ prof.ville }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">مستوى الحفظ</span>
+        <span style="font-weight:600;">{{ prof.niveau_memorisation }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الشهادات</span>
+        <span style="font-weight:600;">{{ prof.certifications|default:"—" }}</span>
+    </div>
+
+    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">التفضيلات</div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">اللغات</span>
+        <span style="font-weight:600;">{{ prof.langues|join:"، " }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">أدوات التواصل</span>
+        <span style="font-weight:600;">{{ prof.outils_maitrises|join:"، " }}</span>
+    </div>
+
+    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">المجموعات</div>
+    {% if prof.groupes.all %}
+        {% for groupe in prof.groupes.all %}
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+            <span style="font-weight:600;">{{ groupe.nom }}</span>
+            <span style="color:#888;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}—{% endif %}</span>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
+    {% endif %}
+</div>
+
+<div class="page-title" style="font-size:1.2rem;">تقييماتي المستلمة من المشرفين</div>
+<div style="background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:700px; overflow:hidden;">
+    {% for evaluation in evaluations %}
+    <div style="padding:20px 24px; border-bottom:1px solid #f0f0f0;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <div>
+                <div style="font-weight:700;">{{ evaluation.seance.groupe.nom }}</div>
+                <div style="color:#888; font-size:0.85rem;">{{ evaluation.seance.date }} — بواسطة {{ evaluation.superviseur.user.get_full_name }}</div>
+            </div>
+        </div>
+        {% for note in evaluation.notes.all %}
+        <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:0.9rem;">
+            <span style="color:#666;">{{ note.critere.nom_ar }}</span>
+            <span style="font-weight:600;">{{ note.get_note_display }}</span>
+        </div>
+        {% endfor %}
+        {% if evaluation.commentaire %}
+        <div style="background:#f9f9f9; padding:10px; border-radius:6px; margin-top:10px; font-size:0.9rem;">
+            💬 {{ evaluation.commentaire }}
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div style="text-align:center; padding:40px; color:#aaa;">لا توجد تقييمات بعد</div>
+    {% endfor %}
+</div>
+{% endblock %}

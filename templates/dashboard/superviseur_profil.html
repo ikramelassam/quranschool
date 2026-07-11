@@ -1,0 +1,34 @@
+{% extends 'dashboard/base_superviseur.html' %}
+{% block title %}ملفي الشخصي{% endblock %}
+{% block content %}
+<div class="page-title">ملفي الشخصي</div>
+<div class="page-subtitle">{{ superviseur.user.email }}</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px;">
+    <div style="color:#6b3a2a; font-weight:700; border-bottom:2px solid #6b3a2a; padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الاسم الكامل</span>
+        <span style="font-weight:600;">{{ superviseur.user.get_full_name }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">البريد الإلكتروني</span>
+        <span style="font-weight:600;">{{ superviseur.user.email }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0;">
+        <span style="color:#888;">الهاتف</span>
+        <span style="font-weight:600;">{{ superviseur.user.telephone|default:"—" }}</span>
+    </div>
+</div>
+
+<div class="page-title" style="font-size:1.2rem;">المعلمون المُسندون إليّ ({{ profs.count }})</div>
+<div style="background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:700px; overflow:hidden;">
+    {% for prof in profs %}
+    <div style="display:flex; justify-content:space-between; padding:16px 24px; border-bottom:1px solid #f0f0f0;">
+        <span style="font-weight:600;">{{ prof.user.get_full_name }}</span>
+        <span style="color:#888;">{{ prof.ville }}</span>
+    </div>
+    {% empty %}
+    <div style="text-align:center; padding:40px; color:#aaa;">لا يوجد أي معلم مُسند إليك بعد</div>
+    {% endfor %}
+</div>
+{% endblock %}

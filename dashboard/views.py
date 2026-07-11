@@ -294,6 +294,22 @@ def prof_disponibilites(request):
     })
 
 
+@role_required('prof')
+def prof_profil(request):
+    from accounts.models import Prof
+    from evaluations.models import Evaluation
+
+    prof = get_object_or_404(Prof, user=request.user)
+    evaluations = Evaluation.objects.filter(
+        seance__groupe__prof=prof
+    ).select_related('seance__groupe', 'superviseur__user').prefetch_related('notes__critere').order_by('-date')
+
+    return render(request, 'dashboard/prof_profil.html', {
+        'prof': prof,
+        'evaluations': evaluations,
+    })
+
+
 @role_required('admin')
 def dashboard_admin(request):
     from inscriptions.models import InscriptionEleve, InscriptionProf
@@ -622,6 +638,19 @@ def superviseur_seance_detail(request, seance_id):
     return render(request, 'dashboard/superviseur_seance_detail.html', {
         'seance': seance,
         'presences': presences,
+    })
+
+
+@role_required('superviseur')
+def superviseur_profil(request):
+    from accounts.models import Superviseur
+
+    superviseur = get_object_or_404(Superviseur, user=request.user)
+    profs = superviseur.profs_assignes.select_related('user').order_by('user__first_name')
+
+    return render(request, 'dashboard/superviseur_profil.html', {
+        'superviseur': superviseur,
+        'profs': profs,
     })
 
 

@@ -49,6 +49,10 @@
            class="menu-item {% if request.resolver_match.url_name == 'dashboard_superviseur' %}active{% endif %}">
             <span class="icon">📊</span> لوحة التحكم
         </a>
+        <a href="{% url 'superviseur_profil' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'superviseur_profil' %}active{% endif %}">
+            <span class="icon">👤</span> ملفي الشخصي
+        </a>
         <a href="{% url 'password_change' %}"
            class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
             <span class="icon">⚙️</span> الإعدادات

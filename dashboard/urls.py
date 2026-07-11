@@ -21,9 +21,11 @@ urlpatterns = [
     path('prof/seances/<int:seance_id>/presence/', views.prof_presence_sauvegarder, name='prof_presence_sauvegarder'),
     path('prof/emploi/', views.prof_emploi, name='prof_emploi'),
     path('prof/disponibilites/', views.prof_disponibilites, name='prof_disponibilites'),
+    path('prof/profil/', views.prof_profil, name='prof_profil'),
 
     # Superviseur
     path('superviseur/seance/<int:seance_id>/', views.superviseur_seance_detail, name='superviseur_seance_detail'),
+    path('superviseur/profil/', views.superviseur_profil, name='superviseur_profil'),
 
     # Admin — inscriptions
     path('admin/inscriptions/', views.admin_inscriptions, name='admin_inscriptions'),
