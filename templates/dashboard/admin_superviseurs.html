@@ -1,8 +1,16 @@
 {% extends 'dashboard/base_admin.html' %}
 {% block title %}إسناد المشرفين{% endblock %}
 {% block content %}
-<div class="page-title">إسناد المشرفين إلى المعلمين</div>
-<div class="page-subtitle">كل مشرف لا يرى ولا يمكنه تقييم إلا المعلمين المُسندين إليه</div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <div class="page-title">إسناد المشرفين إلى المعلمين</div>
+        <div class="page-subtitle">كل مشرف لا يرى ولا يمكنه تقييم إلا المعلمين المُسندين إليه</div>
+    </div>
+    <a href="{% url 'admin_superviseur_ajouter' %}"
+       style="background:#6b3a2a; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+       + إضافة مشرف
+    </a>
+</div>
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
     {% for s in superviseurs %}

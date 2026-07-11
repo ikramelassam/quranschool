@@ -748,27 +748,22 @@ def admin_prof_disponibilites(request, prof_id):
 
 @role_required('admin')
 def admin_demandes_disponibilite(request):
-    from courses.models import DemandeModificationDisponibilite, Creneau
+    from courses.models import DemandeModificationDisponibilite
+    from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
 
     demandes = DemandeModificationDisponibilite.objects.filter(
         statut='en_attente'
     ).select_related('prof__user').order_by('date_demande')
 
-    jours_dict = dict(Creneau.JOUR_CHOICES)
-    demandes_avec_resume = []
-    for d in demandes:
-        par_jour = {}
-        for entree in d.nouvelle_matrice:
-            jour, heure = entree.split('_')
-            par_jour.setdefault(jour, []).append(heure)
-        resume = ' — '.join(
-            f"{jours_dict.get(j, j)}: {', '.join(sorted(heures))}"
-            for j, heures in par_jour.items()
-        ) or 'لا توجد أي ساعة محددة'
-        demandes_avec_resume.append({'demande': d, 'resume': resume})
+    demandes_avec_matrice = [
+        {'demande': d, 'valeurs': set(d.nouvelle_matrice)}
+        for d in demandes
+    ]
 
     return render(request, 'dashboard/admin_demandes_disponibilite.html', {
-        'demandes': demandes_avec_resume,
+        'demandes': demandes_avec_matrice,
+        'jours': JOURS_SEMAINE_DISPO,
+        'heures': generer_heures_grille(),
     })
 
 
@@ -1053,6 +1048,48 @@ def admin_superviseurs(request):
     return render(request, 'dashboard/admin_superviseurs.html', {
         'superviseurs': superviseurs,
     })
+
+
+@role_required('admin')
+def admin_superviseur_ajouter(request):
+    from django.contrib.auth import get_user_model
+    from accounts.models import Superviseur
+    from inscriptions.views import _email_deja_utilise
+    import random, string
+
+    User = get_user_model()
+
+    if request.method == 'POST':
+        nom = request.POST.get('nom', '').strip()
+        email = request.POST.get('email', '').strip()
+        telephone = request.POST.get('telephone', '').strip()
+
+        if _email_deja_utilise(email):
+            messages.error(
+                request,
+                f'تعذر الإضافة: البريد الإلكتروني {email} مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد الدراسة.'
+            )
+            return render(request, 'dashboard/admin_superviseur_ajouter.html', {
+                'old_nom': nom, 'old_email': email, 'old_telephone': telephone,
+            })
+
+        password_temp = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=password_temp,
+            first_name=nom,
+            telephone=telephone,
+            role='superviseur'
+        )
+        Superviseur.objects.create(user=user)
+
+        envoyer_email_bienvenue(request, email, password_temp, nom)
+
+        messages.success(request, f'تمت إضافة المشرف {nom} وإرسال معلومات الدخول له.')
+        return redirect('admin_superviseurs')
+
+    return render(request, 'dashboard/admin_superviseur_ajouter.html')
 
 
 @role_required('admin')

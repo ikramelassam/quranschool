@@ -1,0 +1,31 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}إضافة مشرف{% endblock %}
+{% block content %}
+<div class="page-title">إضافة مشرف جديد</div>
+<div class="page-subtitle">سيتم إنشاء حساب له تلقائياً وإرسال معلومات الدخول عبر البريد الإلكتروني</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الاسم الكامل *</label>
+            <input type="text" name="nom" class="form-control mt-1" value="{{ old_nom|default:'' }}" required>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">البريد الإلكتروني *</label>
+            <input type="email" name="email" class="form-control mt-1" value="{{ old_email|default:'' }}" required>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">رقم الهاتف</label>
+            <input type="tel" name="telephone" class="form-control mt-1" value="{{ old_telephone|default:'' }}">
+        </div>
+        <div class="d-flex gap-3 mt-4">
+            <button type="submit"
+                style="background:#6b3a2a; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                إضافة ✅
+            </button>
+            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
