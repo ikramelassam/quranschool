@@ -31,7 +31,7 @@
             <div class="col-md-6">
                 <div style="background:#f9f9f9; border-radius:8px; padding:12px;">
                     <div style="font-weight:600; color:#1a3a5c; font-size:0.85rem; margin-bottom:8px;">الحفظ</div>
-                    <div class="row g-2">
+                    <div class="row g-2 ayah-pair">
                         <div class="col-6">
                             <select name="sourate_memo_{{ eleve.id }}" class="form-select form-select-sm">
                                 <option value="">— السورة —</option>
@@ -41,11 +41,11 @@
                             </select>
                         </div>
                         <div class="col-3">
-                            <input type="number" min="1" name="ayah_debut_memo_{{ eleve.id }}" class="form-control form-control-sm"
+                            <input type="number" min="1" name="ayah_debut_memo_{{ eleve.id }}" class="form-control form-control-sm ayah-debut"
                                    value="{{ presence.ayah_debut_memorisation|default:'' }}" placeholder="من">
                         </div>
                         <div class="col-3">
-                            <input type="number" min="1" name="ayah_fin_memo_{{ eleve.id }}" class="form-control form-control-sm"
+                            <input type="number" min="1" name="ayah_fin_memo_{{ eleve.id }}" class="form-control form-control-sm ayah-fin"
                                    value="{{ presence.ayah_fin_memorisation|default:'' }}" placeholder="إلى">
                         </div>
                     </div>
@@ -62,7 +62,7 @@
             <div class="col-md-6">
                 <div style="background:#f9f9f9; border-radius:8px; padding:12px;">
                     <div style="font-weight:600; color:#1a3a5c; font-size:0.85rem; margin-bottom:8px;">المراجعة</div>
-                    <div class="row g-2">
+                    <div class="row g-2 ayah-pair">
                         <div class="col-6">
                             <select name="sourate_rev_{{ eleve.id }}" class="form-select form-select-sm">
                                 <option value="">— السورة —</option>
@@ -72,11 +72,11 @@
                             </select>
                         </div>
                         <div class="col-3">
-                            <input type="number" min="1" name="ayah_debut_rev_{{ eleve.id }}" class="form-control form-control-sm"
+                            <input type="number" min="1" name="ayah_debut_rev_{{ eleve.id }}" class="form-control form-control-sm ayah-debut"
                                    value="{{ presence.ayah_debut_revision|default:'' }}" placeholder="من">
                         </div>
                         <div class="col-3">
-                            <input type="number" min="1" name="ayah_fin_rev_{{ eleve.id }}" class="form-control form-control-sm"
+                            <input type="number" min="1" name="ayah_fin_rev_{{ eleve.id }}" class="form-control form-control-sm ayah-fin"
                                    value="{{ presence.ayah_fin_revision|default:'' }}" placeholder="إلى">
                         </div>
                     </div>
@@ -112,4 +112,22 @@
 <div class="mt-3">
     <a href="{% url 'prof_seances' %}" style="color:#1a3a5c; text-decoration:none;">← رجوع إلى سجل الحصص</a>
 </div>
+
+<script>
+function verifierPlageAyat(paire) {
+    const debut = paire.querySelector('.ayah-debut');
+    const fin = paire.querySelector('.ayah-fin');
+    if (!debut || !fin) return;
+    if (debut.value && fin.value && parseInt(fin.value, 10) < parseInt(debut.value, 10)) {
+        fin.setCustomValidity('يجب أن تكون آية النهاية أكبر من أو تساوي آية البداية');
+    } else {
+        fin.setCustomValidity('');
+    }
+}
+document.querySelectorAll('.ayah-pair').forEach(function (paire) {
+    paire.querySelectorAll('.ayah-debut, .ayah-fin').forEach(function (champ) {
+        champ.addEventListener('input', function () { verifierPlageAyat(paire); });
+    });
+});
+</script>
 {% endblock %}

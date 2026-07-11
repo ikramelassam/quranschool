@@ -208,6 +208,7 @@ def prof_presence_sauvegarder(request, seance_id):
 
     if request.method == 'POST':
         eleves = seance.groupe.eleves.all()
+        erreurs = []
         for eleve in eleves:
             statut = request.POST.get(f'statut_{eleve.id}', 'absent')
             sourate_memorisee = request.POST.get(f'sourate_memo_{eleve.id}') or None
@@ -219,6 +220,25 @@ def prof_presence_sauvegarder(request, seance_id):
             ayah_fin_revision = request.POST.get(f'ayah_fin_rev_{eleve.id}') or None
             note_revision = request.POST.get(f'note_rev_{eleve.id}', '')
             remarque = request.POST.get(f'remarque_{eleve.id}', '')
+
+            # Une plage d'ayat inversée (fin < début) donnerait un nombre d'ayat
+            # mémorisés/révisés négatif ou nul silencieusement (voir Presence.nb_ayat_memorises) —
+            # on refuse d'enregistrer cette ligne plutôt que d'accepter une valeur incohérente.
+            ligne_invalide = False
+            if _ayah_incoherentes(ayah_debut_memorisation, ayah_fin_memorisation):
+                erreurs.append(
+                    f'{eleve.user.get_full_name()}: آية نهاية الحفظ ({ayah_fin_memorisation}) '
+                    f'يجب أن تكون أكبر من أو تساوي آية البداية ({ayah_debut_memorisation}).'
+                )
+                ligne_invalide = True
+            if _ayah_incoherentes(ayah_debut_revision, ayah_fin_revision):
+                erreurs.append(
+                    f'{eleve.user.get_full_name()}: آية نهاية المراجعة ({ayah_fin_revision}) '
+                    f'يجب أن تكون أكبر من أو تساوي آية البداية ({ayah_debut_revision}).'
+                )
+                ligne_invalide = True
+            if ligne_invalide:
+                continue
 
             Presence.objects.update_or_create(
                 seance=seance,
@@ -237,12 +257,28 @@ def prof_presence_sauvegarder(request, seance_id):
                 }
             )
 
+        if erreurs:
+            for erreur in erreurs:
+                messages.error(request, erreur)
+            messages.warning(request, 'تم حفظ باقي الطلاب. صحّح الآيات أعلاه ثم احفظ مجدداً لإتمام حصة الطلاب المذكورين.')
+            return redirect('prof_seance_detail', seance_id=seance.id)
+
         seance.statut = 'terminee'
         seance.save()
         messages.success(request, 'تم حفظ الحضور والتقييمات بنجاح.')
         return redirect('prof_seances')
 
     return redirect('prof_seance_detail', seance_id=seance_id)
+
+
+def _ayah_incoherentes(debut, fin):
+    """True si les deux valeurs sont fournies et que fin < début (plage inversée)."""
+    if not debut or not fin:
+        return False
+    try:
+        return int(fin) < int(debut)
+    except ValueError:
+        return False
 
 
 @role_required('prof')
