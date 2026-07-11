@@ -141,3 +141,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # (EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD via variables d'environnement).
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'noreply@zidni-ilman.local'
+
+
+# Plage horaire de l'école (utilisée pour générer la grille de disponibilités des profs)
+import datetime
+HEURE_OUVERTURE_ECOLE = datetime.time(7, 0)
+HEURE_FERMETURE_ECOLE = datetime.time(22, 0)

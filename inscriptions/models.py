@@ -117,6 +117,11 @@ class InscriptionProf(models.Model):
     gestion_eleve_faible = models.TextField()
     gestion_eleve_absent = models.TextField()
     email = models.EmailField()
+    disponibilites = models.JSONField(
+        default=list,
+        help_text="Stockage temporaire de la matrice de disponibilités saisie à la candidature "
+                   "(ex: ['lun_14:00', 'mar_15:00']), copiée vers DisponibiliteProf à la validation."
+    )
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente')
     date_soumission = models.DateTimeField(auto_now_add=True)
 
@@ -126,32 +131,3 @@ class InscriptionProf(models.Model):
     class Meta:
         verbose_name = "Inscription Professeur"
         verbose_name_plural = "Inscriptions Professeurs"
-
-
-class DisponibiliteInscription(models.Model):
-    JOUR_CHOICES = [
-        ('lun', 'Lundi'), ('mar', 'Mardi'),
-        ('mer', 'Mercredi'), ('jeu', 'Jeudi'),
-        ('ven', 'Vendredi'), ('sam', 'Samedi'),
-        ('dim', 'Dimanche'),
-    ]
-    HEURE_CHOICES = [
-        ('07h', '07:00'), ('09h', '09:00'),
-        ('11h', '11:00'), ('13h', '13:00'),
-        ('15h', '15:00'), ('17h', '17:00'),
-        ('19h', '19:00'), ('21h', '21:00'),
-    ]
-    inscription_prof = models.ForeignKey(
-        InscriptionProf,
-        on_delete=models.CASCADE,
-        related_name='disponibilites'
-    )
-    jour = models.CharField(max_length=10, choices=JOUR_CHOICES)
-    heure = models.CharField(max_length=5, choices=HEURE_CHOICES)
-
-    def __str__(self):
-        return f"{self.inscription_prof} - {self.jour} {self.heure}"
-
-    class Meta:
-        verbose_name = "Disponibilité Inscription"
-        unique_together = ('inscription_prof', 'jour', 'heure')

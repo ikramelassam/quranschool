@@ -259,6 +259,41 @@ def prof_emploi(request):
     })
 
 
+@role_required('prof')
+def prof_disponibilites(request):
+    from accounts.models import Prof
+    from courses.models import DisponibiliteProf, DemandeModificationDisponibilite
+    from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
+
+    prof = get_object_or_404(Prof, user=request.user)
+    demande_en_attente = DemandeModificationDisponibilite.objects.filter(prof=prof, statut='en_attente').first()
+
+    matrice_active = set(
+        f'{j}_{h.strftime("%H:%M")}'
+        for j, h in DisponibiliteProf.objects.filter(prof=prof).values_list('jour_semaine', 'heure_debut')
+    )
+
+    if request.method == 'POST':
+        nouvelle_matrice = request.POST.getlist('dispo')
+        if demande_en_attente:
+            demande_en_attente.nouvelle_matrice = nouvelle_matrice
+            demande_en_attente.save()
+        else:
+            DemandeModificationDisponibilite.objects.create(prof=prof, nouvelle_matrice=nouvelle_matrice)
+        messages.success(request, 'تم إرسال طلب تعديل جدول التفرغ، بانتظار موافقة الإدارة.')
+        return redirect('prof_disponibilites')
+
+    valeurs_form = set(demande_en_attente.nouvelle_matrice) if demande_en_attente else matrice_active
+
+    return render(request, 'dashboard/prof_disponibilites.html', {
+        'demande_en_attente': demande_en_attente,
+        'valeurs_actuelles': matrice_active,
+        'valeurs_form': valeurs_form,
+        'jours': JOURS_SEMAINE_DISPO,
+        'heures': generer_heures_grille(),
+    })
+
+
 @role_required('admin')
 def dashboard_admin(request):
     from inscriptions.models import InscriptionEleve, InscriptionProf
@@ -442,7 +477,7 @@ def admin_valider_prof(request, inscription_id):
         last_name=inscription.prenom,
         role='prof'
     )
-    Prof.objects.create(
+    prof = Prof.objects.create(
         user=user,
         ville=inscription.ville,
         certifications=inscription.certifications,
@@ -459,6 +494,9 @@ def admin_valider_prof(request, inscription_id):
         rib=inscription.rib,
         inscription=inscription,
     )
+
+    from courses.utils import matrice_vers_lignes
+    matrice_vers_lignes(prof, inscription.disponibilites)
 
     envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
 
@@ -678,6 +716,88 @@ def admin_prof_detail(request, prof_id):
         'prof': prof,
         'inscription': prof.inscription,
     })
+
+
+# ==================== ADMIN — DISPONIBILITÉS DES PROFS ====================
+
+@role_required('admin')
+def admin_prof_disponibilites(request, prof_id):
+    from accounts.models import Prof
+    from courses.models import DisponibiliteProf
+    from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO, matrice_vers_lignes
+
+    prof = get_object_or_404(Prof, id=prof_id)
+
+    if request.method == 'POST':
+        matrice_vers_lignes(prof, request.POST.getlist('dispo'))
+        messages.success(request, f'تم تحديث جدول تفرغ {prof.user.get_full_name}.')
+        return redirect('admin_prof_detail', prof_id=prof.id)
+
+    valeurs_form = set(
+        f'{j}_{h.strftime("%H:%M")}'
+        for j, h in DisponibiliteProf.objects.filter(prof=prof).values_list('jour_semaine', 'heure_debut')
+    )
+
+    return render(request, 'dashboard/admin_prof_disponibilites.html', {
+        'prof': prof,
+        'valeurs_form': valeurs_form,
+        'jours': JOURS_SEMAINE_DISPO,
+        'heures': generer_heures_grille(),
+    })
+
+
+@role_required('admin')
+def admin_demandes_disponibilite(request):
+    from courses.models import DemandeModificationDisponibilite, Creneau
+
+    demandes = DemandeModificationDisponibilite.objects.filter(
+        statut='en_attente'
+    ).select_related('prof__user').order_by('date_demande')
+
+    jours_dict = dict(Creneau.JOUR_CHOICES)
+    demandes_avec_resume = []
+    for d in demandes:
+        par_jour = {}
+        for entree in d.nouvelle_matrice:
+            jour, heure = entree.split('_')
+            par_jour.setdefault(jour, []).append(heure)
+        resume = ' — '.join(
+            f"{jours_dict.get(j, j)}: {', '.join(sorted(heures))}"
+            for j, heures in par_jour.items()
+        ) or 'لا توجد أي ساعة محددة'
+        demandes_avec_resume.append({'demande': d, 'resume': resume})
+
+    return render(request, 'dashboard/admin_demandes_disponibilite.html', {
+        'demandes': demandes_avec_resume,
+    })
+
+
+@role_required('admin')
+def admin_demande_disponibilite_approuver(request, demande_id):
+    from courses.models import DemandeModificationDisponibilite
+    from courses.utils import matrice_vers_lignes
+    from django.utils import timezone
+
+    demande = get_object_or_404(DemandeModificationDisponibilite, id=demande_id, statut='en_attente')
+    matrice_vers_lignes(demande.prof, demande.nouvelle_matrice)
+    demande.statut = 'approuvee'
+    demande.date_traitement = timezone.now()
+    demande.save()
+    messages.success(request, f'تم قبول تعديل جدول تفرغ {demande.prof.user.get_full_name}.')
+    return redirect('admin_demandes_disponibilite')
+
+
+@role_required('admin')
+def admin_demande_disponibilite_rejeter(request, demande_id):
+    from courses.models import DemandeModificationDisponibilite
+    from django.utils import timezone
+
+    demande = get_object_or_404(DemandeModificationDisponibilite, id=demande_id, statut='en_attente')
+    demande.statut = 'rejetee'
+    demande.date_traitement = timezone.now()
+    demande.save()
+    messages.info(request, f'تم رفض طلب تعديل جدول تفرغ {demande.prof.user.get_full_name}.')
+    return redirect('admin_demandes_disponibilite')
 
 
 # ==================== ADMIN — CALENDRIER ====================

@@ -3,8 +3,17 @@ from django.contrib import messages
 from accounts.decorators import role_required
 from core.utils import paginer
 from .models import Groupe, Creneau
-from .utils import regenerer_pour_nouveau_creneau
+from .utils import regenerer_pour_nouveau_creneau, creneaux_manquants_pour_prof
 from accounts.models import Prof, Eleve
+
+
+def _message_incompatibilite(prof, manquants):
+    jours_dict = dict(Creneau.JOUR_CHOICES)
+    details = '، '.join(f'{jours_dict.get(j, j)} {h.strftime("%H:%M")}' for j, h in manquants)
+    return (
+        f'لا يمكن إسناد {prof.user.get_full_name} لهذه الحلقة: '
+        f'هذا المعلم غير متفرغ في الأوقات التالية حسب جدول تفرغه المعتمد: {details}.'
+    )
 
 
 @role_required('admin')
@@ -29,9 +38,21 @@ def groupe_ajouter(request):
                 'profs': Prof.objects.all(),
             })
 
+        prof_id = request.POST.get('prof') or None
+        if prof_id:
+            prof_obj = get_object_or_404(Prof, id=prof_id)
+            creneau_obj = get_object_or_404(Creneau, id=creneau_id)
+            manquants = creneaux_manquants_pour_prof(prof_obj, creneau_obj)
+            if manquants:
+                messages.error(request, _message_incompatibilite(prof_obj, manquants))
+                return render(request, 'courses/admin_groupe_ajouter.html', {
+                    'creneaux': creneaux,
+                    'profs': Prof.objects.all(),
+                })
+
         groupe = Groupe.objects.create(
             nom=request.POST.get('nom'),
-            prof_id=request.POST.get('prof') or None,
+            prof_id=prof_id,
             creneau_id=creneau_id,
             description=request.POST.get('description', ''),
             capacite_max=request.POST.get('max_eleves', 10),
@@ -84,11 +105,24 @@ def groupe_modifier(request, groupe_id):
 
         creneau_a_change = str(groupe.creneau_id) != str(nouveau_creneau_id)
 
+        nouveau_prof_id = request.POST.get('prof') or None
+        if nouveau_prof_id:
+            prof_obj = get_object_or_404(Prof, id=nouveau_prof_id)
+            creneau_obj = get_object_or_404(Creneau, id=nouveau_creneau_id)
+            manquants = creneaux_manquants_pour_prof(prof_obj, creneau_obj)
+            if manquants:
+                messages.error(request, _message_incompatibilite(prof_obj, manquants))
+                return render(request, 'courses/admin_groupe_modifier.html', {
+                    'groupe': groupe,
+                    'creneaux': creneaux,
+                    'profs': profs,
+                })
+
         groupe.nom = request.POST.get('nom')
         groupe.description = request.POST.get('description', '')
         groupe.capacite_max = request.POST.get('capacite_max', 10)
         groupe.statut = request.POST.get('statut')
-        groupe.prof_id = request.POST.get('prof') or None
+        groupe.prof_id = nouveau_prof_id
         groupe.creneau_id = nouveau_creneau_id
         groupe.save()
 

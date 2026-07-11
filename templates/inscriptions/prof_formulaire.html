@@ -211,42 +211,8 @@
         <!-- Section 4 : Disponibilités -->
         <div class="card">
             <div class="section-title">4. أوقات التفرغ</div>
-            <div class="row g-3">
-                <div class="col-6">
-                    <label class="form-label">اليوم الأول</label>
-                    <select name="dispo_jour_1" class="form-select">
-                        <option value="">اختر اليوم</option>
-                        <option value="lun">الاثنين</option>
-                        <option value="mar">الثلاثاء</option>
-                        <option value="mer">الأربعاء</option>
-                        <option value="jeu">الخميس</option>
-                        <option value="ven">الجمعة</option>
-                        <option value="sam">السبت</option>
-                        <option value="dim">الأحد</option>
-                    </select>
-                </div>
-                <div class="col-6">
-                    <label class="form-label">الوقت</label>
-                    <input type="time" name="dispo_heure_1" class="form-control">
-                </div>
-                <div class="col-6">
-                    <label class="form-label">اليوم الثاني</label>
-                    <select name="dispo_jour_2" class="form-select">
-                        <option value="">اختر اليوم</option>
-                        <option value="lun">الاثنين</option>
-                        <option value="mar">الثلاثاء</option>
-                        <option value="mer">الأربعاء</option>
-                        <option value="jeu">الخميس</option>
-                        <option value="ven">الجمعة</option>
-                        <option value="sam">السبت</option>
-                        <option value="dim">الأحد</option>
-                    </select>
-                </div>
-                <div class="col-6">
-                    <label class="form-label">الوقت</label>
-                    <input type="time" name="dispo_heure_2" class="form-control">
-                </div>
-            </div>
+            <p style="color:#888; font-size:0.85rem; margin-bottom:12px;">اختر كل الساعات التي تكون فيها متاحاً للتدريس (يمكن اختيار أكثر من ساعتين).</p>
+            {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form %}
         </div>
 
         <!-- Section 5 : Outils -->

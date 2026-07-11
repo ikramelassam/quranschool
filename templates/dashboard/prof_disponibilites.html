@@ -1,0 +1,32 @@
+{% extends 'dashboard/base_prof.html' %}
+{% block title %}أوقات التفرغ{% endblock %}
+{% block content %}
+<div class="page-title">جدول تفرغي</div>
+<div class="page-subtitle">حدد الساعات التي تكون فيها متاحاً للتدريس</div>
+
+{% if demande_en_attente %}
+<div style="background:#fff3cd; color:#856404; border-radius:8px; padding:14px 20px; margin-bottom:20px;">
+    ⏳ لديك طلب تعديل معلّق منذ {{ demande_en_attente.date_demande|date:"d-m-Y H:i" }} بانتظار موافقة الإدارة.
+    جدولك الحالي (أدناه) يبقى سارياً حتى تتم الموافقة. يمكنك تعديل اقتراحك وإعادة إرساله في أي وقت.
+</div>
+{% endif %}
+
+<div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="font-weight:700; color:#1a3a5c; margin-bottom:12px;">الجدول الحالي (الساري فعلياً)</div>
+    {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo_lecture' valeurs_form=valeurs_actuelles lecture_seule=True %}
+</div>
+
+<div style="background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="font-weight:700; color:#1a3a5c; margin-bottom:6px;">
+        {% if demande_en_attente %}تعديل الاقتراح المعلّق{% else %}اقتراح جدول جديد{% endif %}
+    </div>
+    <p style="color:#888; font-size:0.85rem; margin-bottom:12px;">لن يصبح هذا الجدول سارياً إلا بعد موافقة الإدارة.</p>
+    <form method="POST">
+        {% csrf_token %}
+        {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form %}
+        <button type="submit" class="btn mt-3" style="background:#1a3a5c; color:white; font-weight:600; padding:10px 24px; border-radius:8px; border:none;">
+            {% if demande_en_attente %}تحديث الطلب المعلّق{% else %}إرسال للموافقة{% endif %}
+        </button>
+    </form>
+</div>
+{% endblock %}

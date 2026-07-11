@@ -1,0 +1,30 @@
+<div style="overflow-x:auto;">
+<table class="table table-bordered text-center align-middle" style="font-size:0.82rem; min-width:600px;">
+    <thead>
+        <tr style="background:#f9f9f9;">
+            <th></th>
+            {% for jour_code, jour_label in jours %}
+            <th>{{ jour_label }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for heure in heures %}
+        <tr>
+            <td style="font-weight:600; white-space:nowrap; background:#f9f9f9;">{{ heure|time:"H:i" }}</td>
+            {% for jour_code, jour_label in jours %}
+            {% with heure_str=heure|time:"H:i" %}
+            {% with cle=jour_code|add:"_"|add:heure_str %}
+            <td>
+                <input type="checkbox" name="{{ champ_nom }}" value="{{ cle }}"
+                       {% if cle in valeurs_form %}checked{% endif %}
+                       {% if lecture_seule %}disabled{% endif %}>
+            </td>
+            {% endwith %}
+            {% endwith %}
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>

@@ -2,32 +2,49 @@ from django.db import models
 from accounts.models import Prof, Eleve, Superviseur
 
 
-class Disponibilite(models.Model):
-    JOUR_CHOICES = [
-        ('lun', 'Lundi'), ('mar', 'Mardi'),
-        ('mer', 'Mercredi'), ('jeu', 'Jeudi'),
-        ('ven', 'Vendredi'), ('sam', 'Samedi'),
-        ('dim', 'Dimanche'),
-    ]
-    HEURE_CHOICES = [
-        ('07h', '07:00'), ('09h', '09:00'),
-        ('11h', '11:00'), ('13h', '13:00'),
-        ('15h', '15:00'), ('17h', '17:00'),
-        ('19h', '19:00'), ('21h', '21:00'),
-    ]
+class DisponibiliteProf(models.Model):
+    """Une case de la matrice de disponibilités d'un prof: ce jour, à partir de
+    cette heure pleine, pour 1h (ex: lun 14:00 = disponible de 14h à 15h)."""
     prof = models.ForeignKey(
         Prof,
         on_delete=models.CASCADE,
         related_name='disponibilites'
     )
-    jour = models.CharField(max_length=10, choices=JOUR_CHOICES)
-    heure = models.CharField(max_length=5, choices=HEURE_CHOICES)
-
-    def __str__(self):
-        return f"{self.prof} - {self.jour} {self.heure}"
+    jour_semaine = models.CharField(max_length=3, choices=[
+        ('lun', 'الاثنين'), ('mar', 'الثلاثاء'), ('mer', 'الأربعاء'),
+        ('jeu', 'الخميس'), ('ven', 'الجمعة'), ('sam', 'السبت'), ('dim', 'الأحد'),
+    ])
+    heure_debut = models.TimeField()
 
     class Meta:
-        unique_together = ('prof', 'jour', 'heure')
+        unique_together = ('prof', 'jour_semaine', 'heure_debut')
+        verbose_name = "Disponibilité du professeur"
+        verbose_name_plural = "Disponibilités des professeurs"
+
+    def __str__(self):
+        return f"{self.prof} - {self.get_jour_semaine_display()} {self.heure_debut.strftime('%H:%M')}"
+
+
+class DemandeModificationDisponibilite(models.Model):
+    """Proposition de nouvelle matrice de disponibilités par un prof, en attente
+    d'approbation admin. Tant que non approuvée, DisponibiliteProf reste inchangé."""
+    STATUT_CHOICES = [
+        ('en_attente', 'En attente'),
+        ('approuvee', 'Approuvée'),
+        ('rejetee', 'Rejetée'),
+    ]
+    prof = models.ForeignKey(
+        Prof,
+        on_delete=models.CASCADE,
+        related_name='demandes_disponibilite'
+    )
+    nouvelle_matrice = models.JSONField(default=list)  # ex: ["lun_14:00", "mar_15:00"]
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente')
+    date_demande = models.DateTimeField(auto_now_add=True)
+    date_traitement = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Demande de {self.prof} - {self.get_statut_display()}"
 
 
 class Creneau(models.Model):

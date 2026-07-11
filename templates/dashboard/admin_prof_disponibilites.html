@@ -1,0 +1,19 @@
+{% extends 'dashboard/base_admin.html' %}
+{% block title %}جدول تفرغ {{ prof.user.get_full_name }}{% endblock %}
+{% block content %}
+<div class="page-title">جدول تفرغ {{ prof.user.get_full_name }}</div>
+<div class="page-subtitle">تعديل مباشر — يسري فوراً بدون حاجة لموافقة (أنت الإدارة)</div>
+
+<div style="background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+        {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form %}
+        <div class="d-flex gap-3 mt-3">
+            <button type="submit" style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
+                حفظ الجدول ✅
+            </button>
+            <a href="{% url 'admin_prof_detail' prof.id %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

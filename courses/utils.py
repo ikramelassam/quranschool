@@ -4,6 +4,66 @@ JOUR_INDEX = {'lun': 0, 'mar': 1, 'mer': 2, 'jeu': 3, 'ven': 4, 'sam': 5, 'dim':
 
 HORIZON_SEMAINES = 8
 
+JOURS_SEMAINE_DISPO = [
+    ('lun', 'الاثنين'), ('mar', 'الثلاثاء'), ('mer', 'الأربعاء'),
+    ('jeu', 'الخميس'), ('ven', 'الجمعة'), ('sam', 'السبت'), ('dim', 'الأحد'),
+]
+
+
+def generer_heures_grille():
+    """Liste des heures pleines de la grille de disponibilités, de l'ouverture
+    à la fermeture de l'école (settings.HEURE_OUVERTURE_ECOLE / _FERMETURE_ECOLE)."""
+    from django.conf import settings
+
+    heures = []
+    h = settings.HEURE_OUVERTURE_ECOLE
+    while h < settings.HEURE_FERMETURE_ECOLE:
+        heures.append(h)
+        h = (datetime.datetime.combine(datetime.date.today(), h) + datetime.timedelta(hours=1)).time()
+    return heures
+
+
+def _heures_couvertes(heure_debut, heure_fin):
+    """Liste des heures pleines couvertes par un intervalle [heure_debut, heure_fin)."""
+    heures = []
+    h = heure_debut
+    while h < heure_fin:
+        heures.append(h)
+        h = (datetime.datetime.combine(datetime.date.today(), h) + datetime.timedelta(hours=1)).time()
+    return heures
+
+
+def creneaux_manquants_pour_prof(prof, creneau):
+    """Vérifie que le prof est disponible sur toutes les heures couvertes par
+    les 2 blocs du créneau. Retourne la liste des (jour, heure) manquants
+    (liste vide = compatible)."""
+    from .models import DisponibiliteProf
+
+    dispo_prof = set(DisponibiliteProf.objects.filter(prof=prof).values_list('jour_semaine', 'heure_debut'))
+    manquants = []
+    for jour, debut, fin in [
+        (creneau.jour_1, creneau.heure_debut_1, creneau.heure_fin_1),
+        (creneau.jour_2, creneau.heure_debut_2, creneau.heure_fin_2),
+    ]:
+        for h in _heures_couvertes(debut, fin):
+            if (jour, h) not in dispo_prof:
+                manquants.append((jour, h))
+    return manquants
+
+
+def matrice_vers_lignes(prof, valeurs):
+    """Remplace les DisponibiliteProf d'un prof par les valeurs de la matrice
+    (liste de chaînes 'jour_HH:MM'). Utilisé à la fois pour la copie initiale
+    depuis une candidature et pour l'approbation d'une demande de modification."""
+    from .models import DisponibiliteProf
+
+    DisponibiliteProf.objects.filter(prof=prof).delete()
+    lignes = []
+    for entree in valeurs:
+        jour, heure_str = entree.split('_')
+        lignes.append(DisponibiliteProf(prof=prof, jour_semaine=jour, heure_debut=heure_str))
+    DisponibiliteProf.objects.bulk_create(lignes)
+
 
 def etendre_seances(groupe, horizon_semaines=HORIZON_SEMAINES):
     """Complète les séances d'un groupe jusqu'à horizon_semaines à partir d'aujourd'hui.

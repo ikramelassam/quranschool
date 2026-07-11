@@ -20,6 +20,7 @@ urlpatterns = [
     path('prof/seances/<int:seance_id>/', views.prof_seance_detail, name='prof_seance_detail'),
     path('prof/seances/<int:seance_id>/presence/', views.prof_presence_sauvegarder, name='prof_presence_sauvegarder'),
     path('prof/emploi/', views.prof_emploi, name='prof_emploi'),
+    path('prof/disponibilites/', views.prof_disponibilites, name='prof_disponibilites'),
 
     # Superviseur
     path('superviseur/seance/<int:seance_id>/', views.superviseur_seance_detail, name='superviseur_seance_detail'),
@@ -40,6 +41,10 @@ urlpatterns = [
     path('admin/eleves/<int:eleve_id>/', views.admin_eleve_detail, name='admin_eleve_detail'),
     path('admin/profs/', views.admin_profs, name='admin_profs'),
     path('admin/profs/<int:prof_id>/', views.admin_prof_detail, name='admin_prof_detail'),
+    path('admin/profs/<int:prof_id>/disponibilites/', views.admin_prof_disponibilites, name='admin_prof_disponibilites'),
+    path('admin/demandes-disponibilite/', views.admin_demandes_disponibilite, name='admin_demandes_disponibilite'),
+    path('admin/demandes-disponibilite/<int:demande_id>/approuver/', views.admin_demande_disponibilite_approuver, name='admin_demande_disponibilite_approuver'),
+    path('admin/demandes-disponibilite/<int:demande_id>/rejeter/', views.admin_demande_disponibilite_rejeter, name='admin_demande_disponibilite_rejeter'),
     path('admin/seances/', views.admin_seances, name='admin_seances'),
     path('admin/seances/<int:seance_id>/annuler/', views.admin_seance_annuler, name='admin_seance_annuler'),
     path('admin/seances/<int:seance_id>/deplacer/', views.admin_seance_deplacer, name='admin_seance_deplacer'),

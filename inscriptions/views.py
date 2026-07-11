@@ -93,13 +93,23 @@ def inscription_confirmation(request):
     return render(request, 'inscriptions/confirmation.html')
 
 def inscription_prof(request):
+    from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
+
+    contexte_grille = {
+        'jours': JOURS_SEMAINE_DISPO,
+        'heures': generer_heures_grille(),
+    }
+
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
+        disponibilites = request.POST.getlist('dispo')
 
         if _email_deja_utilise(email):
             return render(request, 'inscriptions/prof_formulaire.html', {
                 'erreur_email': MESSAGE_EMAIL_DEJA_UTILISE,
                 'old_email': email,
+                'valeurs_form': set(disponibilites),
+                **contexte_grille,
             })
 
         InscriptionProf.objects.create(
@@ -121,7 +131,11 @@ def inscription_prof(request):
             type_eleve_preference=request.POST.getlist('type_eleve'),
             contrainte_genre=request.POST.getlist('contrainte_genre'),
             audio_enregistrement=request.FILES.get('audio_enregistrement'),
+            disponibilites=disponibilites,
         )
         return redirect('inscription_confirmation')
 
-    return render(request, 'inscriptions/prof_formulaire.html')
+    return render(request, 'inscriptions/prof_formulaire.html', {
+        'valeurs_form': set(),
+        **contexte_grille,
+    })

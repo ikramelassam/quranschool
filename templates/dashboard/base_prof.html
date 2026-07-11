@@ -90,6 +90,10 @@
            class="menu-item {% if request.resolver_match.url_name == 'prof_emploi' %}active{% endif %}">
             <span class="icon">📅</span> جدولي
         </a>
+        <a href="{% url 'prof_disponibilites' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'prof_disponibilites' %}active{% endif %}">
+            <span class="icon">🕐</span> أوقات التفرغ
+        </a>
         <a href="{% url 'password_change' %}"
            class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
             <span class="icon">⚙️</span> الإعدادات
