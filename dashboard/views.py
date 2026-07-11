@@ -612,17 +612,48 @@ def eleve_progression(request):
 
 @role_required('superviseur')
 def dashboard_superviseur(request):
+    from django.db.models import Exists, OuterRef
     from accounts.models import Superviseur
-    from courses.models import Seance
+    from courses.models import Seance, Groupe
+    from evaluations.models import Evaluation
 
     superviseur = get_object_or_404(Superviseur, user=request.user)
+    profs_assignes = superviseur.profs_assignes.all()
+
+    prof_id = request.GET.get('prof', '')
+    groupe_id = request.GET.get('groupe', '')
+    date_debut = request.GET.get('date_debut', '')
+    date_fin = request.GET.get('date_fin', '')
+
     seances = Seance.objects.filter(
         statut='terminee',
-        groupe__prof__in=superviseur.profs_assignes.all(),
-    ).order_by('-date')[:10]
+        groupe__prof__in=profs_assignes,
+    ).select_related('groupe__prof__user').annotate(
+        est_evaluee=Exists(Evaluation.objects.filter(seance=OuterRef('pk')))
+    )
+
+    if prof_id:
+        seances = seances.filter(groupe__prof_id=prof_id)
+    if groupe_id:
+        seances = seances.filter(groupe_id=groupe_id)
+    if date_debut:
+        seances = seances.filter(date__gte=date_debut)
+    if date_fin:
+        seances = seances.filter(date__lte=date_fin)
+
+    # Les séances non évaluées d'abord (ce qui nécessite une action), puis les plus récentes.
+    seances = seances.order_by('est_evaluee', '-date')[:30]
 
     return render(request, 'dashboard/superviseur.html', {
         'seances': seances,
+        'profs': profs_assignes.select_related('user').order_by('user__first_name'),
+        'groupes': Groupe.objects.filter(prof__in=profs_assignes).order_by('nom'),
+        'filtres': {
+            'prof': prof_id,
+            'groupe': groupe_id,
+            'date_debut': date_debut,
+            'date_fin': date_fin,
+        },
     })
 
 
