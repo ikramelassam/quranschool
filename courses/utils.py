@@ -76,3 +76,72 @@ def regenerer_pour_nouveau_creneau(groupe):
     ).exclude(statut='terminee').delete()
 
     etendre_seances(groupe)
+
+
+def calculer_progression_eleve(eleve):
+    """Suivi de progression cumulé d'un élève, basé sur les ayats mémorisés
+    (nb_ayat_memorises de chaque Presence). Compté en ayats, pas en pages
+    (la pagination du mushaf varie selon l'édition/riwaya, l'ayah est universel).
+
+    Pour chaque sourate touchée, la couverture affichée est l'étendue
+    (ayah_debut le plus bas -> ayah_fin le plus haut vus sur toutes les
+    séances) plutôt qu'une fusion exacte d'intervalles: en pratique la
+    mémorisation progresse de façon linéaire dans une sourate, donc cette
+    étendue reflète correctement l'avancement sans complexité inutile.
+    """
+    from .models import Presence
+    from .quran_data import SOURATES_NOMS, SOURATES_NB_AYAT
+
+    presences = Presence.objects.filter(
+        eleve=eleve, sourate_memorisee__isnull=False
+    ).select_related('seance').order_by('seance__date', 'seance__heure')
+
+    total_ayat = 0
+    par_sourate = {}
+    historique = []
+
+    for p in presences:
+        nb = p.nb_ayat_memorises
+        total_ayat += nb
+
+        historique.append({
+            'date': p.seance.date,
+            'groupe': p.seance.groupe.nom,
+            'sourate': p.nom_sourate_memorisee,
+            'ayah_debut': p.ayah_debut_memorisation,
+            'ayah_fin': p.ayah_fin_memorisation,
+            'nb_ayat': nb,
+            'note_display': p.get_note_memorisation_display() if p.note_memorisation else None,
+        })
+
+        numero = p.sourate_memorisee
+        if numero not in par_sourate:
+            par_sourate[numero] = {
+                'debut': p.ayah_debut_memorisation,
+                'fin': p.ayah_fin_memorisation,
+            }
+        else:
+            par_sourate[numero]['debut'] = min(par_sourate[numero]['debut'], p.ayah_debut_memorisation)
+            par_sourate[numero]['fin'] = max(par_sourate[numero]['fin'], p.ayah_fin_memorisation)
+
+    par_sourate_liste = []
+    for numero, bornes in par_sourate.items():
+        total_ayat_sourate = SOURATES_NB_AYAT.get(numero, 0)
+        couverts = bornes['fin'] - bornes['debut'] + 1
+        pourcentage = round((couverts / total_ayat_sourate) * 100) if total_ayat_sourate else 0
+        par_sourate_liste.append({
+            'numero': numero,
+            'nom': SOURATES_NOMS.get(numero),
+            'ayah_debut': bornes['debut'],
+            'ayah_fin': bornes['fin'],
+            'total_ayat_sourate': total_ayat_sourate,
+            'pourcentage': min(pourcentage, 100),
+        })
+    par_sourate_liste.sort(key=lambda item: item['numero'])
+
+    return {
+        'total_ayat_memorises': total_ayat,
+        'nb_sourates_distinctes': len(par_sourate),
+        'par_sourate': par_sourate_liste,
+        'historique': list(reversed(historique)),
+    }

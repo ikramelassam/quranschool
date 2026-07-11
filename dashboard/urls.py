@@ -11,6 +11,7 @@ urlpatterns = [
     # Élève
     path('eleve/seances/', views.eleve_seances, name='eleve_seances'),
     path('eleve/profil/', views.eleve_profil, name='eleve_profil'),
+    path('eleve/progression/', views.eleve_progression, name='eleve_progression'),
 
     # Prof
     path('prof/groupes/', views.prof_groupes, name='prof_groupes'),

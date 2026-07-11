@@ -540,6 +540,20 @@ def eleve_profil(request):
     })
 
 
+@role_required('eleve')
+def eleve_progression(request):
+    from accounts.models import Eleve
+    from courses.utils import calculer_progression_eleve
+
+    eleve = get_object_or_404(Eleve, user=request.user)
+    progression = calculer_progression_eleve(eleve)
+
+    return render(request, 'dashboard/eleve_progression.html', {
+        'eleve': eleve,
+        'progression': progression,
+    })
+
+
 # ==================== DASHBOARD SUPERVISEUR ====================
 
 @role_required('superviseur')
@@ -633,10 +647,15 @@ def admin_eleves(request):
 @role_required('admin')
 def admin_eleve_detail(request, eleve_id):
     from accounts.models import Eleve
+    from courses.utils import calculer_progression_eleve
+
     eleve = get_object_or_404(Eleve, id=eleve_id)
+    progression = calculer_progression_eleve(eleve)
+
     return render(request, 'dashboard/admin_eleve_detail.html', {
         'eleve': eleve,
         'inscription': eleve.inscription,
+        'progression': progression,
     })
 
 
