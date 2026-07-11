@@ -333,16 +333,44 @@ def prof_disponibilites(request):
 @role_required('prof')
 def prof_profil(request):
     from accounts.models import Prof
+    prof = get_object_or_404(Prof, user=request.user)
+    return render(request, 'dashboard/prof_profil.html', {
+        'prof': prof,
+    })
+
+
+@role_required('prof')
+def prof_evaluations(request):
+    from accounts.models import Prof
+    from courses.models import Groupe
     from evaluations.models import Evaluation
 
     prof = get_object_or_404(Prof, user=request.user)
+
+    groupe_id = request.GET.get('groupe', '')
+    date_debut = request.GET.get('date_debut', '')
+    date_fin = request.GET.get('date_fin', '')
+
     evaluations = Evaluation.objects.filter(
         seance__groupe__prof=prof
-    ).select_related('seance__groupe', 'superviseur__user').prefetch_related('notes__critere').order_by('-date')
+    ).select_related('seance__groupe', 'superviseur__user').prefetch_related('notes__critere').order_by('-seance__date')
 
-    return render(request, 'dashboard/prof_profil.html', {
+    if groupe_id:
+        evaluations = evaluations.filter(seance__groupe_id=groupe_id)
+    if date_debut:
+        evaluations = evaluations.filter(seance__date__gte=date_debut)
+    if date_fin:
+        evaluations = evaluations.filter(seance__date__lte=date_fin)
+
+    return render(request, 'dashboard/prof_evaluations.html', {
         'prof': prof,
-        'evaluations': evaluations,
+        'evaluations': paginer(request, evaluations, 10),
+        'groupes': Groupe.objects.filter(prof=prof).order_by('nom'),
+        'filtres': {
+            'groupe': groupe_id,
+            'date_debut': date_debut,
+            'date_fin': date_fin,
+        },
     })
 
 
@@ -631,6 +659,21 @@ def eleve_seances(request):
     return render(request, 'dashboard/eleve_seances.html', {
         'eleve': eleve,
         'presences': paginer(request, presences, 10),
+    })
+
+
+@role_required('eleve')
+def eleve_seance_detail(request, presence_id):
+    from accounts.models import Eleve
+    from courses.models import Presence
+
+    eleve = get_object_or_404(Eleve, user=request.user)
+    # Filtrer par eleve=eleve directement dans la requête (pas juste comparer après coup):
+    # si l'ID appartient à un autre élève, la ligne ne matche pas -> 404, jamais de fuite de données.
+    presence = get_object_or_404(Presence, id=presence_id, eleve=eleve)
+
+    return render(request, 'dashboard/eleve_seance_detail.html', {
+        'presence': presence,
     })
 
 

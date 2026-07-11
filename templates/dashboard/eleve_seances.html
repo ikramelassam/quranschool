@@ -6,7 +6,7 @@
 
 {% if presences %}
     {% for presence in presences %}
-    <div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <a href="{% url 'eleve_seance_detail' presence.id %}" style="display:block; color:inherit; text-decoration:none; background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12)'" onmouseout="this.style.boxShadow='0 2px 12px rgba(0,0,0,0.06)'">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <div>
                 <div style="font-weight:700;">{{ presence.seance.groupe.nom }}</div>
@@ -49,7 +49,7 @@
             💬 {{ presence.remarque }}
         </div>
         {% endif %}
-    </div>
+    </a>
     {% endfor %}
 {% else %}
 <div style="text-align:center; padding:60px; color:#aaa;">لا توجد حصص بعد</div>

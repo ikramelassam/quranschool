@@ -1,0 +1,67 @@
+{% extends 'dashboard/base_prof.html' %}
+{% block title %}تقييماتي{% endblock %}
+{% block content %}
+<div class="page-title">تقييماتي المستلمة من المشرفين</div>
+<div class="page-subtitle">إجمالي التقييمات: {{ evaluations.paginator.count }}</div>
+
+<form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label style="color:#888; font-size:0.8rem;">المجموعة</label>
+            <select name="groupe" class="form-select">
+                <option value="">الكل</option>
+                {% for g in groupes %}
+                <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label style="color:#888; font-size:0.8rem;">من تاريخ</label>
+            <input type="date" name="date_debut" class="form-control" value="{{ filtres.date_debut }}">
+        </div>
+        <div class="col-md-3">
+            <label style="color:#888; font-size:0.8rem;">إلى تاريخ</label>
+            <input type="date" name="date_fin" class="form-control" value="{{ filtres.date_fin }}">
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" style="background:#1a3a5c; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <a href="{% url 'prof_evaluations' %}" style="color:#888; text-decoration:none; padding:8px;">مسح</a>
+        </div>
+    </div>
+</form>
+
+{% for evaluation in evaluations %}
+<div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #f0f0f0;">
+        <div>
+            <div style="font-weight:700; color:#1a3a5c;">{{ evaluation.seance.groupe.nom }}</div>
+            <div style="color:#888; font-size:0.85rem;">{{ evaluation.seance.date }}</div>
+        </div>
+        <div style="text-align:left; color:#888; font-size:0.85rem;">
+            بواسطة<br>
+            <span style="font-weight:600; color:#333;">{{ evaluation.superviseur.user.get_full_name }}</span>
+        </div>
+    </div>
+
+    {% for note in evaluation.notes.all %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0;">
+        <span style="color:#555; font-size:0.9rem;">{{ note.critere.nom_ar }}</span>
+        <span style="background:{% if note.note <= 1 %}#fce4e4; color:#dc3545{% elif note.note == 2 %}#fff3cd; color:#856404{% else %}#e8f5e9; color:#2d5a1b{% endif %}; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600;">
+            {{ note.get_note_display }}
+        </span>
+    </div>
+    {% endfor %}
+
+    {% if evaluation.commentaire %}
+    <div style="background:#f9f9f9; padding:12px; border-radius:8px; margin-top:12px; font-size:0.9rem; color:#333; white-space:pre-wrap;">
+        💬 {{ evaluation.commentaire }}
+    </div>
+    {% endif %}
+</div>
+{% empty %}
+<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px;">
+    {% if filtres.groupe or filtres.date_debut or filtres.date_fin %}لا توجد تقييمات مطابقة لهذه التصفية{% else %}لا توجد تقييمات مستلمة بعد{% endif %}
+</div>
+{% endfor %}
+{% include 'dashboard/_pagination.html' with page_obj=evaluations %}
+{% endblock %}

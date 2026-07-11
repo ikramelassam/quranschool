@@ -10,6 +10,7 @@ urlpatterns = [
 
     # Élève
     path('eleve/seances/', views.eleve_seances, name='eleve_seances'),
+    path('eleve/seances/<int:presence_id>/', views.eleve_seance_detail, name='eleve_seance_detail'),
     path('eleve/profil/', views.eleve_profil, name='eleve_profil'),
     path('eleve/progression/', views.eleve_progression, name='eleve_progression'),
 
@@ -22,6 +23,7 @@ urlpatterns = [
     path('prof/emploi/', views.prof_emploi, name='prof_emploi'),
     path('prof/disponibilites/', views.prof_disponibilites, name='prof_disponibilites'),
     path('prof/profil/', views.prof_profil, name='prof_profil'),
+    path('prof/evaluations/', views.prof_evaluations, name='prof_evaluations'),
 
     # Superviseur
     path('superviseur/seance/<int:seance_id>/', views.superviseur_seance_detail, name='superviseur_seance_detail'),

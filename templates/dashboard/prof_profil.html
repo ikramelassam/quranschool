@@ -41,31 +41,4 @@
         <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
     {% endif %}
 </div>
-
-<div class="page-title" style="font-size:1.2rem;">تقييماتي المستلمة من المشرفين</div>
-<div style="background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:700px; overflow:hidden;">
-    {% for evaluation in evaluations %}
-    <div style="padding:20px 24px; border-bottom:1px solid #f0f0f0;">
-        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <div>
-                <div style="font-weight:700;">{{ evaluation.seance.groupe.nom }}</div>
-                <div style="color:#888; font-size:0.85rem;">{{ evaluation.seance.date }} — بواسطة {{ evaluation.superviseur.user.get_full_name }}</div>
-            </div>
-        </div>
-        {% for note in evaluation.notes.all %}
-        <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:0.9rem;">
-            <span style="color:#666;">{{ note.critere.nom_ar }}</span>
-            <span style="font-weight:600;">{{ note.get_note_display }}</span>
-        </div>
-        {% endfor %}
-        {% if evaluation.commentaire %}
-        <div style="background:#f9f9f9; padding:10px; border-radius:6px; margin-top:10px; font-size:0.9rem;">
-            💬 {{ evaluation.commentaire }}
-        </div>
-        {% endif %}
-    </div>
-    {% empty %}
-    <div style="text-align:center; padding:40px; color:#aaa;">لا توجد تقييمات بعد</div>
-    {% endfor %}
-</div>
 {% endblock %}

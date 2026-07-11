@@ -1,0 +1,76 @@
+{% extends 'dashboard/base_eleve.html' %}
+{% block title %}تفاصيل الحصة{% endblock %}
+{% block content %}
+<div class="page-title">{{ presence.seance.groupe.nom }}</div>
+<div class="page-subtitle">{{ presence.seance.date }} — {{ presence.seance.heure }} — {{ presence.seance.get_type_display }}</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0; margin-bottom:16px;">
+        <span style="color:#888;">الحضور</span>
+        <span style="background:{% if presence.statut == 'present' %}#e8f5e9; color:#2d5a1b{% elif presence.statut == 'absent_excuse' %}#fff3cd; color:#856404{% else %}#fce4e4; color:#dc3545{% endif %}; border-radius:20px; padding:4px 14px; font-weight:600; font-size:0.9rem;">
+            {% if presence.statut == 'present' %}حاضر ✅
+            {% elif presence.statut == 'absent_excuse' %}غائب بعذر
+            {% else %}غائب ❌{% endif %}
+        </span>
+    </div>
+
+    <!-- Mémorisation -->
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin-bottom:12px;">الحفظ</div>
+    {% if presence.sourate_memorisee %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">السورة</span>
+        <span style="font-weight:600;">{{ presence.nom_sourate_memorisee }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">من آية — إلى آية</span>
+        <span style="font-weight:600;">{{ presence.ayah_debut_memorisation }} — {{ presence.ayah_fin_memorisation }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">التقييم</span>
+        <span style="font-weight:600;">
+            {% if presence.note_memorisation %}
+            <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:3px 12px; font-size:0.85rem;">{{ presence.get_note_memorisation_display }}</span>
+            {% else %}—{% endif %}
+        </span>
+    </div>
+    {% else %}
+    <div style="color:#aaa; padding:8px 0 16px;">لم يسجَّل المعلم أي حفظ لهذه الحصة.</div>
+    {% endif %}
+
+    <!-- Révision -->
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin:20px 0 12px;">المراجعة</div>
+    {% if presence.sourate_revisee %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">السورة</span>
+        <span style="font-weight:600;">{{ presence.nom_sourate_revisee }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">من آية — إلى آية</span>
+        <span style="font-weight:600;">{{ presence.ayah_debut_revision }} — {{ presence.ayah_fin_revision }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">التقييم</span>
+        <span style="font-weight:600;">
+            {% if presence.note_revision %}
+            <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:3px 12px; font-size:0.85rem;">{{ presence.get_note_revision_display }}</span>
+            {% else %}—{% endif %}
+        </span>
+    </div>
+    {% else %}
+    <div style="color:#aaa; padding:8px 0 16px;">لم تسجَّل أي مراجعة لهذه الحصة.</div>
+    {% endif %}
+
+    <!-- Remarque -->
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin:20px 0 12px;">ملاحظة المعلم</div>
+    {% if presence.remarque %}
+    <div style="background:#f0f7ed; padding:14px; border-radius:8px; border-right:3px solid #2d5a1b; white-space:pre-wrap;">{{ presence.remarque }}</div>
+    {% else %}
+    <div style="color:#aaa;">لا توجد ملاحظة من المعلم لهذه الحصة.</div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{% url 'eleve_seances' %}" style="color:#2d5a1b; text-decoration:none;">← رجوع إلى حصصي</a>
+    </div>
+</div>
+{% endblock %}
