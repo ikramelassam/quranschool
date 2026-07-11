@@ -176,6 +176,7 @@ def prof_seances(request):
 def prof_seance_detail(request, seance_id):
     from accounts.models import Prof
     from courses.models import Seance, Presence
+    from courses.quran_data import SOURATES
 
     prof = get_object_or_404(Prof, user=request.user)
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
@@ -193,6 +194,7 @@ def prof_seance_detail(request, seance_id):
         'prof': prof,
         'seance': seance,
         'eleves_presences': eleves_presences,
+        'sourates': SOURATES,
     })
 
 
@@ -208,9 +210,13 @@ def prof_presence_sauvegarder(request, seance_id):
         eleves = seance.groupe.eleves.all()
         for eleve in eleves:
             statut = request.POST.get(f'statut_{eleve.id}', 'absent')
-            quantite_memorisee = request.POST.get(f'memorisee_{eleve.id}', '')
-            quantite_revisee = request.POST.get(f'revisee_{eleve.id}', '')
+            sourate_memorisee = request.POST.get(f'sourate_memo_{eleve.id}') or None
+            ayah_debut_memorisation = request.POST.get(f'ayah_debut_memo_{eleve.id}') or None
+            ayah_fin_memorisation = request.POST.get(f'ayah_fin_memo_{eleve.id}') or None
             note_memorisation = request.POST.get(f'note_memo_{eleve.id}', '')
+            sourate_revisee = request.POST.get(f'sourate_rev_{eleve.id}') or None
+            ayah_debut_revision = request.POST.get(f'ayah_debut_rev_{eleve.id}') or None
+            ayah_fin_revision = request.POST.get(f'ayah_fin_rev_{eleve.id}') or None
             note_revision = request.POST.get(f'note_rev_{eleve.id}', '')
             remarque = request.POST.get(f'remarque_{eleve.id}', '')
 
@@ -219,9 +225,13 @@ def prof_presence_sauvegarder(request, seance_id):
                 eleve=eleve,
                 defaults={
                     'statut': statut,
-                    'quantite_memorisee': quantite_memorisee,
-                    'quantite_revisee': quantite_revisee,
+                    'sourate_memorisee': sourate_memorisee,
+                    'ayah_debut_memorisation': ayah_debut_memorisation,
+                    'ayah_fin_memorisation': ayah_fin_memorisation,
                     'note_memorisation': note_memorisation,
+                    'sourate_revisee': sourate_revisee,
+                    'ayah_debut_revision': ayah_debut_revision,
+                    'ayah_fin_revision': ayah_fin_revision,
                     'note_revision': note_revision,
                     'remarque': remarque,
                 }

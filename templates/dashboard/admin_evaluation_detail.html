@@ -17,13 +17,13 @@
     <div class="row g-2">
         <div class="col-md-6">
             <div style="color:#888; font-size:0.8rem;">الحفظ</div>
-            <div style="font-weight:600;">{{ p.quantite_memorisee|default:"—" }}
+            <div style="font-weight:600;">{% if p.sourate_memorisee %}{{ p.nom_sourate_memorisee }} ({{ p.ayah_debut_memorisation }}-{{ p.ayah_fin_memorisation }}){% else %}—{% endif %}
                 {% if p.note_memorisation %}<span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ p.get_note_memorisation_display }}</span>{% endif %}
             </div>
         </div>
         <div class="col-md-6">
             <div style="color:#888; font-size:0.8rem;">المراجعة</div>
-            <div style="font-weight:600;">{{ p.quantite_revisee|default:"—" }}
+            <div style="font-weight:600;">{% if p.sourate_revisee %}{{ p.nom_sourate_revisee }} ({{ p.ayah_debut_revision }}-{{ p.ayah_fin_revision }}){% else %}—{% endif %}
                 {% if p.note_revision %}<span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ p.get_note_revision_display }}</span>{% endif %}
             </div>
         </div>

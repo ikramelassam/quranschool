@@ -21,36 +21,73 @@
                     <option value="absent" {% if presence.statut == 'absent' %}selected{% endif %}>غائب بدون عذر</option>
                 </select>
             </div>
-
-            <div class="col-md-3">
-                <label style="color:#888; font-size:0.8rem;">الكمية المحفوظة</label>
-                <input type="text" name="memorisee_{{ eleve.id }}" class="form-control"
-                       value="{{ presence.quantite_memorisee|default:'' }}" placeholder="مثال: البقرة 1-10">
-                <select name="note_memo_{{ eleve.id }}" class="form-select mt-1">
-                    <option value="">— تقييم —</option>
-                    <option value="mumtaz" {% if presence.note_memorisation == 'mumtaz' %}selected{% endif %}>ممتاز</option>
-                    <option value="hasan" {% if presence.note_memorisation == 'hasan' %}selected{% endif %}>حسن</option>
-                    <option value="mutawassit" {% if presence.note_memorisation == 'mutawassit' %}selected{% endif %}>متوسط</option>
-                    <option value="yuid" {% if presence.note_memorisation == 'yuid' %}selected{% endif %}>يعيد</option>
-                </select>
-            </div>
-
-            <div class="col-md-3">
-                <label style="color:#888; font-size:0.8rem;">الكمية المراجعة</label>
-                <input type="text" name="revisee_{{ eleve.id }}" class="form-control"
-                       value="{{ presence.quantite_revisee|default:'' }}" placeholder="مثال: البقرة 1-10">
-                <select name="note_rev_{{ eleve.id }}" class="form-select mt-1">
-                    <option value="">— تقييم —</option>
-                    <option value="mumtaz" {% if presence.note_revision == 'mumtaz' %}selected{% endif %}>ممتاز</option>
-                    <option value="hasan" {% if presence.note_revision == 'hasan' %}selected{% endif %}>حسن</option>
-                    <option value="mutawassit" {% if presence.note_revision == 'mutawassit' %}selected{% endif %}>متوسط</option>
-                    <option value="yuid" {% if presence.note_revision == 'yuid' %}selected{% endif %}>يعيد</option>
-                </select>
-            </div>
-
-            <div class="col-md-3">
+            <div class="col-md-9">
                 <label style="color:#888; font-size:0.8rem;">ملاحظة</label>
-                <textarea name="remarque_{{ eleve.id }}" class="form-control" rows="3">{{ presence.remarque|default:'' }}</textarea>
+                <textarea name="remarque_{{ eleve.id }}" class="form-control" rows="1">{{ presence.remarque|default:'' }}</textarea>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-md-6">
+                <div style="background:#f9f9f9; border-radius:8px; padding:12px;">
+                    <div style="font-weight:600; color:#1a3a5c; font-size:0.85rem; margin-bottom:8px;">الحفظ</div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <select name="sourate_memo_{{ eleve.id }}" class="form-select form-select-sm">
+                                <option value="">— السورة —</option>
+                                {% for numero, nom, nb_ayat in sourates %}
+                                <option value="{{ numero }}" {% if presence.sourate_memorisee == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-3">
+                            <input type="number" min="1" name="ayah_debut_memo_{{ eleve.id }}" class="form-control form-control-sm"
+                                   value="{{ presence.ayah_debut_memorisation|default:'' }}" placeholder="من">
+                        </div>
+                        <div class="col-3">
+                            <input type="number" min="1" name="ayah_fin_memo_{{ eleve.id }}" class="form-control form-control-sm"
+                                   value="{{ presence.ayah_fin_memorisation|default:'' }}" placeholder="إلى">
+                        </div>
+                    </div>
+                    <select name="note_memo_{{ eleve.id }}" class="form-select form-select-sm mt-2">
+                        <option value="">— تقييم —</option>
+                        <option value="mumtaz" {% if presence.note_memorisation == 'mumtaz' %}selected{% endif %}>ممتاز</option>
+                        <option value="hasan" {% if presence.note_memorisation == 'hasan' %}selected{% endif %}>حسن</option>
+                        <option value="mutawassit" {% if presence.note_memorisation == 'mutawassit' %}selected{% endif %}>متوسط</option>
+                        <option value="yuid" {% if presence.note_memorisation == 'yuid' %}selected{% endif %}>يعيد</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div style="background:#f9f9f9; border-radius:8px; padding:12px;">
+                    <div style="font-weight:600; color:#1a3a5c; font-size:0.85rem; margin-bottom:8px;">المراجعة</div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <select name="sourate_rev_{{ eleve.id }}" class="form-select form-select-sm">
+                                <option value="">— السورة —</option>
+                                {% for numero, nom, nb_ayat in sourates %}
+                                <option value="{{ numero }}" {% if presence.sourate_revisee == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-3">
+                            <input type="number" min="1" name="ayah_debut_rev_{{ eleve.id }}" class="form-control form-control-sm"
+                                   value="{{ presence.ayah_debut_revision|default:'' }}" placeholder="من">
+                        </div>
+                        <div class="col-3">
+                            <input type="number" min="1" name="ayah_fin_rev_{{ eleve.id }}" class="form-control form-control-sm"
+                                   value="{{ presence.ayah_fin_revision|default:'' }}" placeholder="إلى">
+                        </div>
+                    </div>
+                    <select name="note_rev_{{ eleve.id }}" class="form-select form-select-sm mt-2">
+                        <option value="">— تقييم —</option>
+                        <option value="mumtaz" {% if presence.note_revision == 'mumtaz' %}selected{% endif %}>ممتاز</option>
+                        <option value="hasan" {% if presence.note_revision == 'hasan' %}selected{% endif %}>حسن</option>
+                        <option value="mutawassit" {% if presence.note_revision == 'mutawassit' %}selected{% endif %}>متوسط</option>
+                        <option value="yuid" {% if presence.note_revision == 'yuid' %}selected{% endif %}>يعيد</option>
+                    </select>
+                </div>
             </div>
         </div>
     </div>

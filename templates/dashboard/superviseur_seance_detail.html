@@ -24,16 +24,16 @@
         </div>
         <div class="col-md-3">
             <div style="color:#888; font-size:0.8rem;">الحفظ</div>
-            <div style="font-weight:600;">{{ presence.quantite_memorisee|default:"—" }}</div>
+            <div style="font-weight:600;">{% if presence.sourate_memorisee %}{{ presence.nom_sourate_memorisee }} ({{ presence.ayah_debut_memorisation }}-{{ presence.ayah_fin_memorisation }}){% else %}—{% endif %}</div>
             {% if presence.note_memorisation %}
-            <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ presence.note_memorisation }}</span>
+            <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ presence.get_note_memorisation_display }}</span>
             {% endif %}
         </div>
         <div class="col-md-3">
             <div style="color:#888; font-size:0.8rem;">المراجعة</div>
-            <div style="font-weight:600;">{{ presence.quantite_revisee|default:"—" }}</div>
+            <div style="font-weight:600;">{% if presence.sourate_revisee %}{{ presence.nom_sourate_revisee }} ({{ presence.ayah_debut_revision }}-{{ presence.ayah_fin_revision }}){% else %}—{% endif %}</div>
             {% if presence.note_revision %}
-            <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ presence.note_revision }}</span>
+            <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ presence.get_note_revision_display }}</span>
             {% endif %}
         </div>
         {% if presence.remarque %}

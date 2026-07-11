@@ -172,13 +172,17 @@ class Presence(models.Model):
         choices=STATUT_CHOICES,
         default='present'
     )
-    quantite_memorisee = models.CharField(max_length=200, blank=True)
-    quantite_revisee = models.CharField(max_length=200, blank=True)
+    sourate_memorisee = models.PositiveSmallIntegerField(null=True, blank=True)
+    ayah_debut_memorisation = models.PositiveSmallIntegerField(null=True, blank=True)
+    ayah_fin_memorisation = models.PositiveSmallIntegerField(null=True, blank=True)
     note_memorisation = models.CharField(
         max_length=20,
         choices=NOTE_CHOICES,
         blank=True
     )
+    sourate_revisee = models.PositiveSmallIntegerField(null=True, blank=True)
+    ayah_debut_revision = models.PositiveSmallIntegerField(null=True, blank=True)
+    ayah_fin_revision = models.PositiveSmallIntegerField(null=True, blank=True)
     note_revision = models.CharField(
         max_length=20,
         choices=NOTE_CHOICES,
@@ -188,6 +192,28 @@ class Presence(models.Model):
 
     def __str__(self):
         return f"{self.eleve} - {self.seance}"
+
+    @property
+    def nom_sourate_memorisee(self):
+        from courses.quran_data import SOURATES_NOMS
+        return SOURATES_NOMS.get(self.sourate_memorisee)
+
+    @property
+    def nom_sourate_revisee(self):
+        from courses.quran_data import SOURATES_NOMS
+        return SOURATES_NOMS.get(self.sourate_revisee)
+
+    @property
+    def nb_ayat_memorises(self):
+        if self.ayah_debut_memorisation is not None and self.ayah_fin_memorisation is not None:
+            return self.ayah_fin_memorisation - self.ayah_debut_memorisation + 1
+        return 0
+
+    @property
+    def nb_ayat_revises(self):
+        if self.ayah_debut_revision is not None and self.ayah_fin_revision is not None:
+            return self.ayah_fin_revision - self.ayah_debut_revision + 1
+        return 0
 
     class Meta:
         unique_together = ('seance', 'eleve')
