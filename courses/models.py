@@ -25,6 +25,30 @@ class DisponibiliteProf(models.Model):
         return f"{self.prof} - {self.get_jour_semaine_display()} {self.heure_debut.strftime('%H:%M')}"
 
 
+class DisponibiliteEleve(models.Model):
+    """Une case de la matrice de disponibilités d'un élève, même principe que
+    DisponibiliteProf. Contrairement au prof, l'élève ne peut pas la modifier
+    lui-même après la validation de son inscription — seul l'admin l'édite."""
+    eleve = models.ForeignKey(
+        Eleve,
+        on_delete=models.CASCADE,
+        related_name='disponibilites'
+    )
+    jour_semaine = models.CharField(max_length=3, choices=[
+        ('lun', 'الاثنين'), ('mar', 'الثلاثاء'), ('mer', 'الأربعاء'),
+        ('jeu', 'الخميس'), ('ven', 'الجمعة'), ('sam', 'السبت'), ('dim', 'الأحد'),
+    ])
+    heure_debut = models.TimeField()
+
+    class Meta:
+        unique_together = ('eleve', 'jour_semaine', 'heure_debut')
+        verbose_name = "Disponibilité de l'élève"
+        verbose_name_plural = "Disponibilités des élèves"
+
+    def __str__(self):
+        return f"{self.eleve} - {self.get_jour_semaine_display()} {self.heure_debut.strftime('%H:%M')}"
+
+
 class DemandeModificationDisponibilite(models.Model):
     """Proposition de nouvelle matrice de disponibilités par un prof, en attente
     d'approbation admin. Tant que non approuvée, DisponibiliteProf reste inchangé."""

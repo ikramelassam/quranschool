@@ -68,6 +68,11 @@ class InscriptionEleve(models.Model):
         blank=True,
         help_text="Rempli par l'élève quand aucun créneau actif ne correspond à son profil (âge/sexe)."
     )
+    disponibilites = models.JSONField(
+        default=list,
+        help_text="Stockage temporaire de la matrice de disponibilités saisie à la candidature "
+                   "(ex: ['lun_14:00', 'mar_15:00']), copiée vers DisponibiliteEleve à la validation."
+    )
 
     # Statut
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente')

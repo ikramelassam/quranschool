@@ -65,6 +65,20 @@ def matrice_vers_lignes(prof, valeurs):
     DisponibiliteProf.objects.bulk_create(lignes)
 
 
+def matrice_vers_lignes_eleve(eleve, valeurs):
+    """Équivalent de matrice_vers_lignes pour un élève. Contrairement au prof,
+    l'élève n'a pas de workflow de demande — seul l'admin appelle ceci
+    (copie initiale à la validation, ou édition directe depuis sa fiche)."""
+    from .models import DisponibiliteEleve
+
+    DisponibiliteEleve.objects.filter(eleve=eleve).delete()
+    lignes = []
+    for entree in valeurs:
+        jour, heure_str = entree.split('_')
+        lignes.append(DisponibiliteEleve(eleve=eleve, jour_semaine=jour, heure_debut=heure_str))
+    DisponibiliteEleve.objects.bulk_create(lignes)
+
+
 def etendre_seances(groupe, horizon_semaines=HORIZON_SEMAINES):
     """Complète les séances d'un groupe jusqu'à horizon_semaines à partir d'aujourd'hui.
 

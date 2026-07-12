@@ -44,6 +44,7 @@ urlpatterns = [
     # Admin — gestion
     path('admin/eleves/', views.admin_eleves, name='admin_eleves'),
     path('admin/eleves/<int:eleve_id>/', views.admin_eleve_detail, name='admin_eleve_detail'),
+    path('admin/eleves/<int:eleve_id>/disponibilites/', views.admin_eleve_disponibilites, name='admin_eleve_disponibilites'),
     path('admin/profs/', views.admin_profs, name='admin_profs'),
     path('admin/profs/<int:prof_id>/', views.admin_prof_detail, name='admin_prof_detail'),
     path('admin/profs/<int:prof_id>/disponibilites/', views.admin_prof_disponibilites, name='admin_prof_disponibilites'),

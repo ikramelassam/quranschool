@@ -468,12 +468,15 @@ def admin_valider_eleve(request, inscription_id):
     )
 
     # Crée le profil Eleve
-    Eleve.objects.create(
+    eleve = Eleve.objects.create(
         user=user,
         sexe=inscription.sexe,
         statut='actif',
         inscription=inscription
     )
+
+    from courses.utils import matrice_vers_lignes_eleve
+    matrice_vers_lignes_eleve(eleve, inscription.disponibilites)
 
     envoyer_email_bienvenue(request, inscription.email, password_temp, inscription.nom)
 
@@ -892,6 +895,32 @@ def admin_eleve_detail(request, eleve_id):
         'eleve': eleve,
         'inscription': eleve.inscription,
         'progression': progression,
+    })
+
+
+@role_required('admin')
+def admin_eleve_disponibilites(request, eleve_id):
+    from accounts.models import Eleve
+    from courses.models import DisponibiliteEleve
+    from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO, matrice_vers_lignes_eleve
+
+    eleve = get_object_or_404(Eleve, id=eleve_id)
+
+    if request.method == 'POST':
+        matrice_vers_lignes_eleve(eleve, request.POST.getlist('dispo'))
+        messages.success(request, f'تم تحديث جدول تفرغ {eleve.user.get_full_name}.')
+        return redirect('admin_eleve_detail', eleve_id=eleve.id)
+
+    valeurs_form = set(
+        f'{j}_{h.strftime("%H:%M")}'
+        for j, h in DisponibiliteEleve.objects.filter(eleve=eleve).values_list('jour_semaine', 'heure_debut')
+    )
+
+    return render(request, 'dashboard/admin_eleve_disponibilites.html', {
+        'eleve': eleve,
+        'valeurs_form': valeurs_form,
+        'jours': JOURS_SEMAINE_DISPO,
+        'heures': generer_heures_grille(),
     })
 
 
