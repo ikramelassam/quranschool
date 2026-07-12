@@ -3,7 +3,7 @@ from django.contrib import messages
 from accounts.decorators import role_required
 from core.utils import paginer
 from .models import Groupe, Creneau
-from .utils import regenerer_pour_nouveau_creneau, creneaux_manquants_pour_prof
+from .utils import regenerer_pour_nouveau_creneau, creneaux_manquants_pour_prof, raison_incompatibilite_groupe
 from accounts.models import Prof, Eleve
 
 
@@ -101,8 +101,13 @@ def groupe_ajouter_eleve(request, groupe_id):
     groupe = get_object_or_404(Groupe, id=groupe_id)
     eleve_id = request.POST.get('eleve_id')
     if eleve_id:
-        groupe.eleves.add(eleve_id)
-        messages.success(request, 'تمت إضافة الطالب إلى المجموعة.')
+        eleve = get_object_or_404(Eleve, id=eleve_id)
+        raison = raison_incompatibilite_groupe(eleve, groupe)
+        if raison:
+            messages.error(request, f'تعذّرت إضافة الطالب إلى المجموعة: {raison}')
+        else:
+            groupe.eleves.add(eleve)
+            messages.success(request, 'تمت إضافة الطالب إلى المجموعة.')
     return redirect('admin_groupe_detail', groupe_id=groupe_id)
 
 @role_required('admin')

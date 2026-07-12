@@ -886,15 +886,25 @@ def admin_eleves(request):
 @role_required('admin')
 def admin_eleve_detail(request, eleve_id):
     from accounts.models import Eleve
-    from courses.utils import calculer_progression_eleve
+    from courses.models import DisponibiliteEleve
+    from courses.utils import calculer_progression_eleve, groupes_compatibles_pour_eleve, JOURS_SEMAINE_DISPO, generer_heures_grille
 
     eleve = get_object_or_404(Eleve, id=eleve_id)
     progression = calculer_progression_eleve(eleve)
+
+    valeurs_form = set(
+        f'{j}_{h.strftime("%H:%M")}'
+        for j, h in DisponibiliteEleve.objects.filter(eleve=eleve).values_list('jour_semaine', 'heure_debut')
+    )
 
     return render(request, 'dashboard/admin_eleve_detail.html', {
         'eleve': eleve,
         'inscription': eleve.inscription,
         'progression': progression,
+        'groupes_suggeres': groupes_compatibles_pour_eleve(eleve),
+        'valeurs_form': valeurs_form,
+        'jours': JOURS_SEMAINE_DISPO,
+        'heures': generer_heures_grille(),
     })
 
 

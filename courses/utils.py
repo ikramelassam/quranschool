@@ -51,6 +51,75 @@ def creneaux_manquants_pour_prof(prof, creneau):
     return manquants
 
 
+def creneaux_manquants_pour_eleve(eleve, creneau):
+    """Équivalent de creneaux_manquants_pour_prof pour un élève: vérifie que
+    l'élève est disponible sur toutes les heures couvertes par les 2 blocs
+    du créneau. Retourne la liste des (jour, heure) manquants (liste vide =
+    compatible)."""
+    from .models import DisponibiliteEleve
+
+    dispo_eleve = set(DisponibiliteEleve.objects.filter(eleve=eleve).values_list('jour_semaine', 'heure_debut'))
+    manquants = []
+    for jour, debut, fin in [
+        (creneau.jour_1, creneau.heure_debut_1, creneau.heure_fin_1),
+        (creneau.jour_2, creneau.heure_debut_2, creneau.heure_fin_2),
+    ]:
+        for h in _heures_couvertes(debut, fin):
+            if (jour, h) not in dispo_eleve:
+                manquants.append((jour, h))
+    return manquants
+
+
+def raison_incompatibilite_groupe(eleve, groupe):
+    """Vérifie qu'un élève peut être assigné à un groupe donné, selon TOUS les
+    critères métier (place restante, horaire, type de programme, âge, sexe).
+    Retourne une chaîne expliquant le premier critère non respecté, ou None
+    si le groupe est compatible. Utilisée à la fois pour la suggestion
+    automatique (affichage) et comme garde-fou serveur avant toute
+    assignation (sécurité), afin qu'aucune des deux voies ne puisse être
+    contournée par l'autre."""
+    if groupe.eleves.filter(id=eleve.id).exists():
+        return "الطالب منضم بالفعل إلى هذه المجموعة."
+
+    if groupe.eleves.count() >= groupe.capacite_max:
+        return "المجموعة مكتملة العدد."
+
+    creneau = groupe.creneau
+    if not creneau:
+        return "لا يوجد جدول زمني محدد لهذه المجموعة."
+
+    inscription = eleve.inscription
+    if not inscription:
+        return "لا يوجد ملف تسجيل مرتبط بهذا الطالب لمقارنة المعايير."
+
+    if inscription.programme != creneau.type_seance:
+        return "نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب."
+
+    aujourd_hui = datetime.date.today()
+    naissance = inscription.date_naissance
+    age = aujourd_hui.year - naissance.year - ((aujourd_hui.month, aujourd_hui.day) < (naissance.month, naissance.day))
+    if age < creneau.age_min or age > creneau.age_max:
+        return "عمر الطالب لا يقع ضمن الفئة العمرية لهذه الحلقة."
+
+    if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
+        return "جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة."
+
+    manquants = creneaux_manquants_pour_eleve(eleve, creneau)
+    if manquants:
+        return "جدول تفرغ الطالب لا يغطي كامل مواعيد هذه الحلقة."
+
+    return None
+
+
+def groupes_compatibles_pour_eleve(eleve):
+    """Liste des groupes actifs compatibles avec un élève, selon tous les
+    critères vérifiés par raison_incompatibilite_groupe."""
+    from .models import Groupe
+
+    candidats = Groupe.objects.filter(statut='actif').exclude(eleves=eleve).select_related('creneau', 'prof__user')
+    return [g for g in candidats if raison_incompatibilite_groupe(eleve, g) is None]
+
+
 def matrice_vers_lignes(prof, valeurs):
     """Remplace les DisponibiliteProf d'un prof par les valeurs de la matrice
     (liste de chaînes 'jour_HH:MM'). Utilisé à la fois pour la copie initiale

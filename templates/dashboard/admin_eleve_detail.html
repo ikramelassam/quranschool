@@ -36,6 +36,25 @@
         <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
     {% endif %}
 
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin:20px 0 12px;">مجموعات مقترحة</div>
+    {% if groupes_suggeres %}
+        {% for groupe in groupes_suggeres %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+            <div>
+                <span style="font-weight:600;">{{ groupe.nom }}</span>
+                <span style="color:#888; font-size:0.85rem;"> — {{ groupe.creneau }} ({{ groupe.eleves.count }}/{{ groupe.capacite_max }})</span>
+            </div>
+            <form method="POST" action="{% url 'admin_groupe_ajouter_eleve' groupe.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="eleve_id" value="{{ eleve.id }}">
+                <button type="submit" style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:6px 14px; font-size:0.85rem;">إضافة ✅</button>
+            </form>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div style="color:#aaa; padding:8px 0;">لا توجد مجموعة متوافقة حالياً مع معايير هذا الطالب (العمر، الجنس، البرنامج، الجدول الزمني، الأماكن المتاحة).</div>
+    {% endif %}
+
     {% if inscription %}
     <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin:20px 0 12px;">معلومات استمارة التسجيل</div>
 
@@ -96,6 +115,9 @@
     {% else %}
     <div style="color:#aaa; padding:12px 0;">لا توجد استمارة تسجيل مرتبطة بهذا الطالب.</div>
     {% endif %}
+
+    <div style="color:#2d5a1b; font-weight:700; border-bottom:2px solid #2d5a1b; padding-bottom:6px; margin:20px 0 12px;">جدول التفرغ</div>
+    {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form lecture_seule=True %}
 
     <div class="mt-4 d-flex gap-3 align-items-center">
         <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none;">← رجوع</a>
