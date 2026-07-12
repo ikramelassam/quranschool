@@ -33,6 +33,14 @@
                 <option value="0" {% if filtres.actif == '0' %}selected{% endif %}>غير نشط</option>
             </select>
         </div>
+        <div class="col-md-4">
+            <label style="color:#888; font-size:0.8rem;">نوع الحلقة</label>
+            <select name="type_seance" class="form-select">
+                <option value="">الكل</option>
+                <option value="hifz" {% if filtres.type_seance == 'hifz' %}selected{% endif %}>الحفظ والمراجعة</option>
+                <option value="tathbit" {% if filtres.type_seance == 'tathbit' %}selected{% endif %}>التثبيت</option>
+            </select>
+        </div>
         <div class="col-md-4 d-flex gap-2">
             <button type="submit" style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
             <a href="{% url 'admin_creneaux' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
@@ -48,7 +56,8 @@
         <div>
             <div style="font-weight:700; color:#222;">{{ creneau }}</div>
             <div style="color:#888; font-size:0.85rem; margin-top:4px;">
-                {{ creneau.get_sexe_cible_display }} · 
+                {{ creneau.get_sexe_cible_display }} ·
+                {{ creneau.get_type_seance_display }} ·
                 {{ creneau.age_min }} - {{ creneau.age_max }} سنة
             </div>
         </div>
@@ -79,7 +88,7 @@
 </div>
 {% else %}
 <div style="text-align:center; padding:60px; color:#aaa;">
-    {% if filtres.sexe_cible or filtres.actif %}
+    {% if filtres.sexe_cible or filtres.actif or filtres.type_seance %}
     لا توجد حلقات مطابقة لهذه التصفية
     {% else %}
     لا توجد حلقات بعد — أضف حلقة جديدة !

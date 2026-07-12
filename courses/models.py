@@ -86,8 +86,15 @@ class Creneau(models.Model):
         ('femme', 'أنثى'),
         ('mixte', 'مختلط'),
     ]
+    # Mêmes codes que InscriptionEleve.PROGRAMME_CHOICES — un élève ayant choisi
+    # "hifz"/"tathbit" à l'inscription est mis en correspondance avec ce même champ.
+    TYPE_SEANCE_CHOICES = [
+        ('hifz', 'الحفظ والمراجعة وتعلم أحكام التجويد'),
+        ('tathbit', 'التثبيت وتعلم أحكام التجويد'),
+    ]
 
     sexe_cible = models.CharField(max_length=10, choices=SEXE_CHOICES, default='mixte')
+    type_seance = models.CharField(max_length=20, choices=TYPE_SEANCE_CHOICES, default='hifz')
     age_min = models.IntegerField()
     age_max = models.IntegerField()
     jour_1 = models.CharField(max_length=5, choices=JOUR_CHOICES)
