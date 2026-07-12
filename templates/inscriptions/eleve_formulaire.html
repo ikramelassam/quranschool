@@ -210,6 +210,11 @@
             </div>
         </div>
 
+        <!-- Disponibilites -->
+        <div class="section-title">جدول التفرغ الأسبوعي</div>
+        <p class="text-muted" style="font-size:0.85rem;">حدد الأوقات التي تناسبك أسبوعياً، ليتسنى لنا اقتراح أفضل مجموعة لك.</p>
+        {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form %}
+
         <!-- Programme -->
         <div class="section-title">اختيار البرنامج</div>
         <div class="mb-3">

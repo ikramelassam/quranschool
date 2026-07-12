@@ -36,6 +36,8 @@ def inscription_eleve_choix(request):
 
 
 def inscription_eleve_formulaire(request, type_age):
+    from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
+
     creneaux = Creneau.objects.filter(est_actif=True)
 
     creneaux_json = json.dumps([{
@@ -52,8 +54,14 @@ def inscription_eleve_formulaire(request, type_age):
         'prix': str(t.prix),
     } for t in TypeAbonnement.objects.filter(est_actif=True).order_by('ordre')])
 
+    contexte_grille = {
+        'jours': JOURS_SEMAINE_DISPO,
+        'heures': generer_heures_grille(),
+    }
+
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
+        disponibilites = request.POST.getlist('dispo')
 
         if _email_deja_utilise(email):
             return render(request, 'inscriptions/eleve_formulaire.html', {
@@ -62,6 +70,8 @@ def inscription_eleve_formulaire(request, type_age):
                 'types_abonnement_json': types_abonnement_json,
                 'erreur_email': MESSAGE_EMAIL_DEJA_UTILISE,
                 'old_email': email,
+                'valeurs_form': set(disponibilites),
+                **contexte_grille,
             })
 
         InscriptionEleve.objects.create(
@@ -79,6 +89,7 @@ def inscription_eleve_formulaire(request, type_age):
             accepte_conditions=request.POST.get('accepte_conditions') == 'oui',
             remarques=request.POST.get('remarques', ''),
             disponibilites_libres=request.POST.get('disponibilites_libres', ''),
+            disponibilites=disponibilites,
         )
         return redirect('inscription_confirmation')
 
@@ -86,6 +97,8 @@ def inscription_eleve_formulaire(request, type_age):
         'type_age': type_age,
         'creneaux_json': creneaux_json,
         'types_abonnement_json': types_abonnement_json,
+        'valeurs_form': set(),
+        **contexte_grille,
     })
 
 
