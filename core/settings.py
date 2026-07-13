@@ -11,20 +11,24 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 AUTH_USER_MODEL = 'accounts.User'
+
+env = environ.Env()
+environ.Env.read_env(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-+kz#n&by86uq_gwt=y$=)0#ovv40i!+t+nob8%+einugl9d)z4'
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool('DEBUG', default=False)
 AUTHENTICATION_BACKENDS = ['accounts.backend.EmailBackend']
 LOGIN_URL = '/accounts/login/'
 ALLOWED_HOSTS = []
@@ -81,14 +85,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',  # On utilise PostgreSQL
-        'NAME': 'quran_school_db',                  # Nom de la base que tu as créé
-        'USER': 'postgres',                         # Ton utilisateur PostgreSQL
-        'PASSWORD': 'root',            # Le mot de passe que tu as choisi à l’installation
-        'HOST': 'localhost',                        # La base est sur ton ordinateur
-        'PORT': '5432',                             # Port par défaut PostgreSQL
-    }
+    'default': env.db('DATABASE_URL')
 }
 
 
