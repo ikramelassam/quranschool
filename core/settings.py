@@ -159,7 +159,10 @@ if CLOUDINARY_CLOUD_NAME:
         'API_KEY': env('CLOUDINARY_API_KEY', default=''),
         'API_SECRET': env('CLOUDINARY_API_SECRET', default=''),
     }
-    STORAGES['default'] = {'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage'}
+    # RawMediaCloudinaryStorage (pas MediaCloudinaryStorage) : ce dernier suppose
+    # que tout fichier est une image (resource_type='image'), ce qui casse les
+    # uploads audio des candidatures prof. 'raw' accepte n'importe quel type.
+    STORAGES['default'] = {'BACKEND': 'cloudinary_storage.storage.RawMediaCloudinaryStorage'}
 
 
 # Email (mot de passe temporaire envoyé aux users validés)
