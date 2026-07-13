@@ -31,7 +31,11 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=False)
 AUTHENTICATION_BACKENDS = ['accounts.backend.EmailBackend']
 LOGIN_URL = '/accounts/login/'
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
+
+# Render place le service derrière un proxy HTTPS : la requête arrive en HTTP
+# en interne avec un header indiquant le protocole d'origine.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
@@ -43,6 +47,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'cloudinary_storage',
+    'cloudinary',
     'accounts',
     'inscriptions',
     'courses',
@@ -53,6 +59,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -124,6 +131,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']  # dossier static/ du projet (logo, etc.)
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # rempli par collectstatic, servi par whitenoise
 
 # Media files (fichiers uploadés par les utilisateurs, ex: audio des inscriptions prof)
 # https://docs.djangoproject.com/en/6.0/topics/files/
@@ -131,13 +140,38 @@ STATIC_URL = 'static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
+# Stockage des médias sur Cloudinary (survit aux redéploiements, contrairement
+# au disque de Render qui est éphémère). Tant que les identifiants ne sont pas
+# fournis via l'environnement, on reste sur le stockage local (dev, tests).
+CLOUDINARY_CLOUD_NAME = env('CLOUDINARY_CLOUD_NAME', default='')
+if CLOUDINARY_CLOUD_NAME:
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
+        'API_KEY': env('CLOUDINARY_API_KEY', default=''),
+        'API_SECRET': env('CLOUDINARY_API_SECRET', default=''),
+    }
+    STORAGES['default'] = {'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage'}
+
 
 # Email (mot de passe temporaire envoyé aux users validés)
-# En dev: les emails s'affichent dans la console au lieu d'être vraiment envoyés.
-# TODO avant la mise en production: remplacer par un vrai backend SMTP
-# (EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD via variables d'environnement).
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'noreply@zidni-ilman.local'
+# Par défaut: console (dev). En prod, définir EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# + EMAIL_HOST/EMAIL_HOST_USER/EMAIL_HOST_PASSWORD (ex: identifiants SMTP Brevo) via variables d'environnement.
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = env('EMAIL_HOST', default='')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@zidni-ilman.local')
 
 
 # Plage horaire de l'école (utilisée pour générer la grille de disponibilités des profs)
