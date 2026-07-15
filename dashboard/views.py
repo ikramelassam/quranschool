@@ -185,16 +185,28 @@ def prof_seance_detail(request, seance_id):
     # Django templates ne peuvent pas faire presences[eleve.id] (lookup par variable).
     # On construit donc directement la liste (élève, présence) dans la vue.
     presences_par_eleve = {p.eleve_id: p for p in Presence.objects.filter(seance=seance)}
-    eleves_presences = [
-        {'eleve': eleve, 'presence': presences_par_eleve.get(eleve.id)}
-        for eleve in eleves
-    ]
+    eleves_presences = []
+    premiere_non_remplie_trouvee = False
+    for eleve in eleves:
+        presence = presences_par_eleve.get(eleve.id)
+        # Seule la première carte non encore remplie s'ouvre automatiquement —
+        # les autres restent repliées pour garder le formulaire rapide sur mobile.
+        ouvrir_par_defaut = not presence and not premiere_non_remplie_trouvee
+        if not presence:
+            premiere_non_remplie_trouvee = True
+        eleves_presences.append({
+            'eleve': eleve,
+            'presence': presence,
+            'ouvrir_par_defaut': ouvrir_par_defaut,
+        })
 
     return render(request, 'dashboard/prof_seance_detail.html', {
         'prof': prof,
         'seance': seance,
         'eleves_presences': eleves_presences,
         'sourates': SOURATES,
+        'statut_choices': Presence.STATUT_CHOICES,
+        'note_choices': Presence.NOTE_CHOICES,
     })
 
 
@@ -263,6 +275,7 @@ def prof_presence_sauvegarder(request, seance_id):
             messages.warning(request, 'تم حفظ باقي الطلاب. صحّح الآيات أعلاه ثم احفظ مجدداً لإتمام حصة الطلاب المذكورين.')
             return redirect('prof_seance_detail', seance_id=seance.id)
 
+        seance.remarque_generale = request.POST.get('remarque_generale', '')
         seance.statut = 'terminee'
         seance.save()
         messages.success(request, 'تم حفظ الحضور والتقييمات بنجاح.')

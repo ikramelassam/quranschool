@@ -185,6 +185,10 @@ class Seance(models.Model):
         blank=True,
         help_text="Raison d'une exception: annulation ou déplacement (prof malade, vacances...)."
     )
+    remarque_generale = models.TextField(
+        blank=True,
+        help_text="Remarque du prof sur la séance dans son ensemble (distincte des remarques par élève)."
+    )
 
     def __str__(self):
         return f"{self.groupe} - {self.date}"

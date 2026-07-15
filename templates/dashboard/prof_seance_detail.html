@@ -1,5 +1,85 @@
 {% extends 'dashboard/base_prof.html' %}
 {% block title %}تفاصيل الحصة{% endblock %}
+
+{% block extra_css %}
+<style>
+    .eleve-card {
+        background: white;
+        border-radius: 12px;
+        margin-bottom: 14px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        overflow: hidden;
+    }
+    .eleve-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 14px 18px;
+        flex-wrap: wrap;
+    }
+    .eleve-toggle-zone {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        flex: 0 0 auto;
+    }
+    .eleve-nom { font-weight: 700; color: #1a3a5c; }
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pill {
+        border: 2px solid #ddd;
+        border-radius: 20px;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        font-family: 'Tajawal', sans-serif;
+        background: white;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.15s;
+    }
+    .pill:hover { border-color: #1a3a5c; }
+    .pill.active.statut-present { border-color: #2d5a1b; background: #e8f5e9; color: #2d5a1b; font-weight: 700; }
+    .pill.active.statut-absent_excuse { border-color: #856404; background: #fff3cd; color: #856404; font-weight: 700; }
+    .pill.active.statut-absent { border-color: #dc3545; background: #fce4e4; color: #dc3545; font-weight: 700; }
+    .pill.active.note-mumtaz { border-color: #1b5e20; background: #e8f5e9; color: #1b5e20; font-weight: 700; }
+    .pill.active.note-hasan_jiddan { border-color: #2d5a1b; background: #eef7e5; color: #2d5a1b; font-weight: 700; }
+    .pill.active.note-hasan { border-color: #6b7a1f; background: #f3f7d8; color: #6b7a1f; font-weight: 700; }
+    .pill.active.note-mustahsan { border-color: #8a6d00; background: #fff3cd; color: #8a6d00; font-weight: 700; }
+    .pill.active.note-mutawassit { border-color: #b35900; background: #ffe4c4; color: #b35900; font-weight: 700; }
+    .pill.active.note-doun_mutawassit { border-color: #dc3545; background: #fce4e4; color: #dc3545; font-weight: 700; }
+    .chevron { color: #aaa; font-size: 1.1rem; transition: transform 0.2s; flex: 0 0 auto; }
+    .eleve-card.open .chevron { transform: rotate(180deg); }
+    .eleve-card-body {
+        display: none;
+        padding: 0 18px 18px;
+        border-top: 1px solid #f0f0f0;
+    }
+    .eleve-card.open .eleve-card-body { display: block; }
+    .notation-groupe { background: #f9f9f9; border-radius: 8px; padding: 12px; margin-top: 14px; }
+    .notation-titre { font-weight: 600; color: #1a3a5c; font-size: 0.85rem; margin-bottom: 8px; }
+    .notation-bloc.masquee { display: none; }
+    .remarque-eleve { margin-top: 14px; }
+    .remarque-eleve label { color: #888; font-size: 0.8rem; }
+
+    /* Bloc remarque générale — volontairement distinct visuellement */
+    .remarque-generale-bloc {
+        background: #fff8e6;
+        border: 2px dashed #C9A84C;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 24px 0;
+    }
+    .remarque-generale-bloc label {
+        display: block;
+        font-weight: 700;
+        color: #7a5c00;
+        margin-bottom: 8px;
+    }
+    .remarque-generale-bloc .hint { color: #9a8557; font-size: 0.8rem; margin-bottom: 10px; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-title">{{ seance.groupe.nom }}</div>
 <div class="page-subtitle">{{ seance.date }} — {{ seance.heure }} — {{ seance.get_type_display }}</div>
@@ -9,85 +89,94 @@
 
     {% for item in eleves_presences %}
     {% with eleve=item.eleve presence=item.presence %}
-    <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-        <div style="font-weight:700; color:#1a3a5c; margin-bottom:12px;">{{ eleve.user.get_full_name }}</div>
-
-        <div class="row g-3">
-            <div class="col-md-3">
-                <label style="color:#888; font-size:0.8rem;">الحضور</label>
-                <select name="statut_{{ eleve.id }}" class="form-select">
-                    <option value="present" {% if presence.statut == 'present' or not presence %}selected{% endif %}>حاضر</option>
-                    <option value="absent_excuse" {% if presence.statut == 'absent_excuse' %}selected{% endif %}>غائب بعذر</option>
-                    <option value="absent" {% if presence.statut == 'absent' %}selected{% endif %}>غائب بدون عذر</option>
-                </select>
+    <div class="eleve-card{% if item.ouvrir_par_defaut %} open{% endif %}" id="carte_{{ eleve.id }}">
+        <div class="eleve-card-header">
+            <div class="eleve-toggle-zone" onclick="toggleCarte({{ eleve.id }})">
+                <span class="chevron">▾</span>
+                <div class="eleve-nom">{{ eleve.user.get_full_name }}</div>
             </div>
-            <div class="col-md-9">
-                <label style="color:#888; font-size:0.8rem;">ملاحظة</label>
-                <textarea name="remarque_{{ eleve.id }}" class="form-control" rows="1">{{ presence.remarque|default:'' }}</textarea>
+            <div class="pills">
+                {% for value, label in statut_choices %}
+                <button type="button" class="pill statut-pill statut-{{ value }}"
+                        onclick="selectStatut({{ eleve.id }}, '{{ value }}', this)">{{ label }}</button>
+                {% endfor %}
             </div>
         </div>
+        <input type="hidden" name="statut_{{ eleve.id }}" id="statut_input_{{ eleve.id }}"
+               value="{{ presence.statut|default:'present' }}">
 
-        <div class="row g-3 mt-1">
-            <div class="col-md-6">
-                <div style="background:#f9f9f9; border-radius:8px; padding:12px;">
-                    <div style="font-weight:600; color:#1a3a5c; font-size:0.85rem; margin-bottom:8px;">الحفظ</div>
-                    <div class="row g-2 ayah-pair">
-                        <div class="col-6">
-                            <select name="sourate_memo_{{ eleve.id }}" class="form-select form-select-sm">
-                                <option value="">— السورة —</option>
-                                {% for numero, nom, nb_ayat in sourates %}
-                                <option value="{{ numero }}" {% if presence.sourate_memorisee == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
+        <div class="eleve-card-body">
+            <div class="notation-bloc" id="notation_{{ eleve.id }}">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="notation-groupe">
+                            <div class="notation-titre">الحفظ</div>
+                            <div class="row g-2 ayah-pair">
+                                <div class="col-6">
+                                    <select name="sourate_memo_{{ eleve.id }}" class="form-select form-select-sm">
+                                        <option value="">— السورة —</option>
+                                        {% for numero, nom, nb_ayat in sourates %}
+                                        <option value="{{ numero }}" {% if presence.sourate_memorisee == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-3">
+                                    <input type="number" min="1" name="ayah_debut_memo_{{ eleve.id }}" class="form-control form-control-sm ayah-debut"
+                                           value="{{ presence.ayah_debut_memorisation|default:'' }}" placeholder="من">
+                                </div>
+                                <div class="col-3">
+                                    <input type="number" min="1" name="ayah_fin_memo_{{ eleve.id }}" class="form-control form-control-sm ayah-fin"
+                                           value="{{ presence.ayah_fin_memorisation|default:'' }}" placeholder="إلى">
+                                </div>
+                            </div>
+                            <div class="pills mt-2">
+                                {% for value, label in note_choices %}
+                                <button type="button" class="pill note-pill note-{{ value }}"
+                                        onclick="selectNote({{ eleve.id }}, 'memo', '{{ value }}', this)">{{ label }}</button>
                                 {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-3">
-                            <input type="number" min="1" name="ayah_debut_memo_{{ eleve.id }}" class="form-control form-control-sm ayah-debut"
-                                   value="{{ presence.ayah_debut_memorisation|default:'' }}" placeholder="من">
-                        </div>
-                        <div class="col-3">
-                            <input type="number" min="1" name="ayah_fin_memo_{{ eleve.id }}" class="form-control form-control-sm ayah-fin"
-                                   value="{{ presence.ayah_fin_memorisation|default:'' }}" placeholder="إلى">
+                            </div>
+                            <input type="hidden" name="note_memo_{{ eleve.id }}" id="note_memo_input_{{ eleve.id }}"
+                                   value="{{ presence.note_memorisation|default:'' }}">
                         </div>
                     </div>
-                    <select name="note_memo_{{ eleve.id }}" class="form-select form-select-sm mt-2">
-                        <option value="">— تقييم —</option>
-                        <option value="mumtaz" {% if presence.note_memorisation == 'mumtaz' %}selected{% endif %}>ممتاز</option>
-                        <option value="hasan" {% if presence.note_memorisation == 'hasan' %}selected{% endif %}>حسن</option>
-                        <option value="mutawassit" {% if presence.note_memorisation == 'mutawassit' %}selected{% endif %}>متوسط</option>
-                        <option value="yuid" {% if presence.note_memorisation == 'yuid' %}selected{% endif %}>يعيد</option>
-                    </select>
+
+                    <div class="col-md-6">
+                        <div class="notation-groupe">
+                            <div class="notation-titre">المراجعة</div>
+                            <div class="row g-2 ayah-pair">
+                                <div class="col-6">
+                                    <select name="sourate_rev_{{ eleve.id }}" class="form-select form-select-sm">
+                                        <option value="">— السورة —</option>
+                                        {% for numero, nom, nb_ayat in sourates %}
+                                        <option value="{{ numero }}" {% if presence.sourate_revisee == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-3">
+                                    <input type="number" min="1" name="ayah_debut_rev_{{ eleve.id }}" class="form-control form-control-sm ayah-debut"
+                                           value="{{ presence.ayah_debut_revision|default:'' }}" placeholder="من">
+                                </div>
+                                <div class="col-3">
+                                    <input type="number" min="1" name="ayah_fin_rev_{{ eleve.id }}" class="form-control form-control-sm ayah-fin"
+                                           value="{{ presence.ayah_fin_revision|default:'' }}" placeholder="إلى">
+                                </div>
+                            </div>
+                            <div class="pills mt-2">
+                                {% for value, label in note_choices %}
+                                <button type="button" class="pill note-pill note-{{ value }}"
+                                        onclick="selectNote({{ eleve.id }}, 'rev', '{{ value }}', this)">{{ label }}</button>
+                                {% endfor %}
+                            </div>
+                            <input type="hidden" name="note_rev_{{ eleve.id }}" id="note_rev_input_{{ eleve.id }}"
+                                   value="{{ presence.note_revision|default:'' }}">
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="col-md-6">
-                <div style="background:#f9f9f9; border-radius:8px; padding:12px;">
-                    <div style="font-weight:600; color:#1a3a5c; font-size:0.85rem; margin-bottom:8px;">المراجعة</div>
-                    <div class="row g-2 ayah-pair">
-                        <div class="col-6">
-                            <select name="sourate_rev_{{ eleve.id }}" class="form-select form-select-sm">
-                                <option value="">— السورة —</option>
-                                {% for numero, nom, nb_ayat in sourates %}
-                                <option value="{{ numero }}" {% if presence.sourate_revisee == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-3">
-                            <input type="number" min="1" name="ayah_debut_rev_{{ eleve.id }}" class="form-control form-control-sm ayah-debut"
-                                   value="{{ presence.ayah_debut_revision|default:'' }}" placeholder="من">
-                        </div>
-                        <div class="col-3">
-                            <input type="number" min="1" name="ayah_fin_rev_{{ eleve.id }}" class="form-control form-control-sm ayah-fin"
-                                   value="{{ presence.ayah_fin_revision|default:'' }}" placeholder="إلى">
-                        </div>
-                    </div>
-                    <select name="note_rev_{{ eleve.id }}" class="form-select form-select-sm mt-2">
-                        <option value="">— تقييم —</option>
-                        <option value="mumtaz" {% if presence.note_revision == 'mumtaz' %}selected{% endif %}>ممتاز</option>
-                        <option value="hasan" {% if presence.note_revision == 'hasan' %}selected{% endif %}>حسن</option>
-                        <option value="mutawassit" {% if presence.note_revision == 'mutawassit' %}selected{% endif %}>متوسط</option>
-                        <option value="yuid" {% if presence.note_revision == 'yuid' %}selected{% endif %}>يعيد</option>
-                    </select>
-                </div>
+            <div class="remarque-eleve">
+                <label>ملاحظة عن الطالب</label>
+                <textarea name="remarque_{{ eleve.id }}" class="form-control" rows="1">{{ presence.remarque|default:'' }}</textarea>
             </div>
         </div>
     </div>
@@ -97,6 +186,12 @@
     {% endfor %}
 
     {% if eleves_presences %}
+    <div class="remarque-generale-bloc">
+        <label>📝 ملاحظات عامة عن الحصة</label>
+        <div class="hint">ملاحظة واحدة لكامل الحصة (منفصلة عن ملاحظات كل طالب على حدة).</div>
+        <textarea name="remarque_generale" class="form-control" rows="3">{{ seance.remarque_generale }}</textarea>
+    </div>
+
     <button type="submit" class="btn"
             {% if seance.statut == 'terminee' %}
             onclick="return confirm('سيتم تحديث الحضور والتقييمات لهذه الحصة المنتهية. هل أنت متأكد؟');"
@@ -114,6 +209,58 @@
 </div>
 
 <script>
+function toggleCarte(eleveId) {
+    document.getElementById('carte_' + eleveId).classList.toggle('open');
+}
+
+function selectStatut(eleveId, value, btn) {
+    document.getElementById('statut_input_' + eleveId).value = value;
+    btn.closest('.pills').querySelectorAll('.statut-pill').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+
+    const notation = document.getElementById('notation_' + eleveId);
+    if (value === 'present') {
+        notation.classList.remove('masquee');
+    } else {
+        notation.classList.add('masquee');
+        // On efface les notes déjà choisies pour ne pas garder une note
+        // cachée incohérente avec un statut d'absence.
+        ['memo', 'rev'].forEach(function (champ) {
+            const input = document.getElementById('note_' + champ + '_input_' + eleveId);
+            if (input) input.value = '';
+            notation.querySelectorAll('.note-pill').forEach(function (b) { b.classList.remove('active'); });
+        });
+    }
+}
+
+function selectNote(eleveId, champ, value, btn) {
+    document.getElementById('note_' + champ + '_input_' + eleveId).value = value;
+    btn.closest('.pills').querySelectorAll('.note-pill').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+}
+
+function initialiserPastilles() {
+    document.querySelectorAll('.eleve-card').forEach(function (carte) {
+        const eleveId = carte.id.replace('carte_', '');
+
+        const statutValue = document.getElementById('statut_input_' + eleveId).value;
+        const statutBtn = carte.querySelector('.statut-pill.statut-' + statutValue);
+        if (statutBtn) selectStatut(eleveId, statutValue, statutBtn);
+
+        ['memo', 'rev'].forEach(function (champ) {
+            const noteInput = document.getElementById('note_' + champ + '_input_' + eleveId);
+            if (noteInput && noteInput.value) {
+                const noteBtn = carte.querySelector('.notation-bloc').querySelectorAll(
+                    champ === 'memo' ? '.col-md-6:first-child .note-pill.note-' + noteInput.value
+                                     : '.col-md-6:last-child .note-pill.note-' + noteInput.value
+                )[0];
+                if (noteBtn) selectNote(eleveId, champ, noteInput.value, noteBtn);
+            }
+        });
+    });
+}
+initialiserPastilles();
+
 function verifierPlageAyat(paire) {
     const debut = paire.querySelector('.ayah-debut');
     const fin = paire.querySelector('.ayah-fin');
