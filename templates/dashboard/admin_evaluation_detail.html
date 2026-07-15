@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_admin.html' %}
+{% load presence_style %}
 {% block title %}تفاصيل تقييمات الحصة{% endblock %}
 {% block content %}
 <div class="page-title">{{ seance.groupe.nom }}</div>
@@ -12,19 +13,19 @@
 <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
         <div style="font-weight:700;">{{ p.eleve.user.get_full_name }}</div>
-        <span style="background:{% if p.statut == 'present' %}#e8f5e9; color:#2d5a1b{% elif p.statut == 'absent_excuse' %}#fff3cd; color:#856404{% else %}#fce4e4; color:#dc3545{% endif %}; border-radius:20px; padding:4px 12px; font-size:0.8rem;">{{ p.get_statut_display }}</span>
+        <span style="{{ p.statut|statut_style }} border-radius:20px; padding:4px 12px; font-size:0.8rem;">{{ p.get_statut_display }}</span>
     </div>
     <div class="row g-2">
         <div class="col-md-6">
             <div style="color:#888; font-size:0.8rem;">الحفظ</div>
             <div style="font-weight:600;">{% if p.sourate_memorisee %}{{ p.nom_sourate_memorisee }} ({{ p.ayah_debut_memorisation }}-{{ p.ayah_fin_memorisation }}){% else %}—{% endif %}
-                {% if p.note_memorisation %}<span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ p.get_note_memorisation_display }}</span>{% endif %}
+                {% if p.note_memorisation %}<span style="{{ p.note_memorisation|note_style }} border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ p.get_note_memorisation_display }}</span>{% endif %}
             </div>
         </div>
         <div class="col-md-6">
             <div style="color:#888; font-size:0.8rem;">المراجعة</div>
             <div style="font-weight:600;">{% if p.sourate_revisee %}{{ p.nom_sourate_revisee }} ({{ p.ayah_debut_revision }}-{{ p.ayah_fin_revision }}){% else %}—{% endif %}
-                {% if p.note_revision %}<span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ p.get_note_revision_display }}</span>{% endif %}
+                {% if p.note_revision %}<span style="{{ p.note_revision|note_style }} border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ p.get_note_revision_display }}</span>{% endif %}
             </div>
         </div>
         {% if p.remarque %}
@@ -38,6 +39,13 @@
 {% empty %}
 <div style="text-align:center; color:#aaa; padding:30px; background:white; border-radius:12px; margin-bottom:16px;">لا يوجد طلاب مسجَّلين لهذه الحصة</div>
 {% endfor %}
+
+{% if seance.remarque_generale %}
+<div style="background:#fff8e6; border:2px dashed #C9A84C; border-radius:12px; padding:20px; margin:20px 0;">
+    <div style="font-weight:700; color:#7a5c00; margin-bottom:8px;">📝 ملاحظات عامة عن الحصة</div>
+    <div style="white-space:pre-wrap;">{{ seance.remarque_generale }}</div>
+</div>
+{% endif %}
 
 <div style="font-weight:700; color:#6b3a2a; margin:28px 0 12px;">🧑‍🏫 تقييم المعلم (من طرف المشرف)</div>
 {% if evaluation %}

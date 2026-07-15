@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_eleve.html' %}
+{% load presence_style %}
 {% block title %}تفاصيل الحصة{% endblock %}
 {% block content %}
 <div class="page-title">{{ presence.seance.groupe.nom }}</div>
@@ -8,7 +9,7 @@
 
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0; margin-bottom:16px;">
         <span style="color:#888;">الحضور</span>
-        <span style="background:{% if presence.statut == 'present' %}#e8f5e9; color:#2d5a1b{% elif presence.statut == 'absent_excuse' %}#fff3cd; color:#856404{% else %}#fce4e4; color:#dc3545{% endif %}; border-radius:20px; padding:4px 14px; font-weight:600; font-size:0.9rem;">
+        <span style="{{ presence.statut|statut_style }} border-radius:20px; padding:4px 14px; font-weight:600; font-size:0.9rem;">
             {% if presence.statut == 'present' %}حاضر ✅
             {% elif presence.statut == 'absent_excuse' %}غائب بعذر
             {% else %}غائب ❌{% endif %}
@@ -30,7 +31,7 @@
         <span style="color:#888;">التقييم</span>
         <span style="font-weight:600;">
             {% if presence.note_memorisation %}
-            <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:3px 12px; font-size:0.85rem;">{{ presence.get_note_memorisation_display }}</span>
+            <span style="{{ presence.note_memorisation|note_style }} border-radius:20px; padding:3px 12px; font-size:0.85rem;">{{ presence.get_note_memorisation_display }}</span>
             {% else %}—{% endif %}
         </span>
     </div>
@@ -53,7 +54,7 @@
         <span style="color:#888;">التقييم</span>
         <span style="font-weight:600;">
             {% if presence.note_revision %}
-            <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:3px 12px; font-size:0.85rem;">{{ presence.get_note_revision_display }}</span>
+            <span style="{{ presence.note_revision|note_style }} border-radius:20px; padding:3px 12px; font-size:0.85rem;">{{ presence.get_note_revision_display }}</span>
             {% else %}—{% endif %}
         </span>
     </div>

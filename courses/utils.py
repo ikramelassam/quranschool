@@ -2,6 +2,35 @@ import datetime
 
 JOUR_INDEX = {'lun': 0, 'mar': 1, 'mer': 2, 'jeu': 3, 'ven': 4, 'sam': 5, 'dim': 6}
 
+# Couleurs (fond, texte) par code — source unique utilisée partout où une
+# Presence est affichée (admin, élève, superviseur), pour que la même note
+# ou le même statut ait toujours la même couleur.
+NOTE_COULEURS = {
+    'mumtaz': ('#e8f5e9', '#1b5e20'),
+    'hasan_jiddan': ('#eef7e5', '#2d5a1b'),
+    'hasan': ('#f3f7d8', '#6b7a1f'),
+    'mustahsan': ('#fff3cd', '#8a6d00'),
+    'mutawassit': ('#ffe4c4', '#b35900'),
+    'doun_mutawassit': ('#fce4e4', '#dc3545'),
+}
+STATUT_COULEURS = {
+    'present': ('#e8f5e9', '#2d5a1b'),
+    'absent_excuse': ('#fff3cd', '#856404'),
+    'absent': ('#fce4e4', '#dc3545'),
+}
+
+
+def style_note(code):
+    """Style inline (fond + texte) pour une pastille de note de Presence."""
+    fond, texte = NOTE_COULEURS.get(code, ('#f0f0f0', '#888'))
+    return f'background:{fond}; color:{texte};'
+
+
+def style_statut(code):
+    """Style inline (fond + texte) pour une pastille de statut de Presence."""
+    fond, texte = STATUT_COULEURS.get(code, ('#f0f0f0', '#888'))
+    return f'background:{fond}; color:{texte};'
+
 HORIZON_SEMAINES = 8
 
 JOURS_SEMAINE_DISPO = [
@@ -254,6 +283,7 @@ def calculer_progression_eleve(eleve):
             'ayah_debut': p.ayah_debut_memorisation,
             'ayah_fin': p.ayah_fin_memorisation,
             'nb_ayat': nb,
+            'note_code': p.note_memorisation,
             'note_display': p.get_note_memorisation_display() if p.note_memorisation else None,
         })
 
