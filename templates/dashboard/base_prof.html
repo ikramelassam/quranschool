@@ -141,10 +141,6 @@
            class="menu-item {% if request.resolver_match.url_name == 'prof_profil' %}active{% endif %}">
             <span class="icon">👤</span> ملفي الشخصي
         </a>
-        <a href="{% url 'prof_evaluations' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'prof_evaluations' %}active{% endif %}">
-            <span class="icon">📊</span> تقييماتي
-        </a>
         <a href="{% url 'password_change' %}"
            class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
             <span class="icon">⚙️</span> الإعدادات

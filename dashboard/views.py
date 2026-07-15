@@ -339,59 +339,6 @@ def prof_profil(request):
     })
 
 
-@role_required('prof')
-def prof_evaluations(request):
-    from accounts.models import Prof
-    from courses.models import Groupe
-    from evaluations.models import Evaluation
-
-    prof = get_object_or_404(Prof, user=request.user)
-
-    groupe_id = request.GET.get('groupe', '')
-    date_debut = request.GET.get('date_debut', '')
-    date_fin = request.GET.get('date_fin', '')
-
-    evaluations = Evaluation.objects.filter(
-        seance__groupe__prof=prof
-    ).select_related('seance__groupe', 'superviseur__user').order_by('-seance__date')
-
-    if groupe_id:
-        evaluations = evaluations.filter(seance__groupe_id=groupe_id)
-    if date_debut:
-        evaluations = evaluations.filter(seance__date__gte=date_debut)
-    if date_fin:
-        evaluations = evaluations.filter(seance__date__lte=date_fin)
-
-    return render(request, 'dashboard/prof_evaluations.html', {
-        'prof': prof,
-        'evaluations': paginer(request, evaluations, 10),
-        'groupes': Groupe.objects.filter(prof=prof).order_by('nom'),
-        'filtres': {
-            'groupe': groupe_id,
-            'date_debut': date_debut,
-            'date_fin': date_fin,
-        },
-    })
-
-
-@role_required('prof')
-def prof_evaluation_detail(request, evaluation_id):
-    from accounts.models import Prof
-    from evaluations.models import Evaluation
-
-    prof = get_object_or_404(Prof, user=request.user)
-    # Filtrer par seance__groupe__prof=prof directement dans la requête: une évaluation
-    # d'un autre prof ne matche jamais -> 404, jamais de fuite de données inter-profs.
-    evaluation = get_object_or_404(
-        Evaluation.objects.select_related('seance__groupe', 'superviseur__user').prefetch_related('notes__critere'),
-        id=evaluation_id, seance__groupe__prof=prof,
-    )
-
-    return render(request, 'dashboard/prof_evaluation_detail.html', {
-        'evaluation': evaluation,
-    })
-
-
 @role_required('admin')
 def dashboard_admin(request):
     from inscriptions.models import InscriptionEleve, InscriptionProf
