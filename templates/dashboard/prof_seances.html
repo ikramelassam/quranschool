@@ -37,35 +37,8 @@
     {% endif %}
 </div>
 
-{# ===== القادمة ===== #}
-<div style="margin-bottom:30px;">
-    <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">🔜 القادمة</div>
-    {% if seances_a_venir %}
-        <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-        {% for seance in seances_a_venir %}
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
-                <div>
-                    <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
-                    <div style="color:#999; font-size:0.85rem;">{{ seance.date }} — {{ seance.heure }} — {{ seance.get_type_display }}</div>
-                </div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                    {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
-                    <a href="{% url 'prof_seance_detail' seance.id %}"
-                       style="color:#1a3a5c; text-decoration:none; font-size:0.85rem;">عرض ←</a>
-                </div>
-            </div>
-        {% endfor %}
-        </div>
-        {% if nb_a_venir > 10 %}
-        <div style="text-align:center; color:#aaa; font-size:0.85rem; margin-top:8px;">+ {{ nb_a_venir|add:"-10" }} حصة أخرى قادمة لاحقاً</div>
-        {% endif %}
-    {% else %}
-        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص قادمة</div>
-    {% endif %}
-</div>
-
 {# ===== الماضية ===== #}
-<div id="section-passees">
+<div id="section-passees" style="margin-bottom:30px;">
     <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">📂 الماضية</div>
 
     {% if seances_retard %}
@@ -108,6 +81,33 @@
     {% include 'dashboard/_pagination.html' with page_obj=seances_passees_traitees %}
     {% elif not seances_retard %}
         <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص سابقة</div>
+    {% endif %}
+</div>
+
+{# ===== القادمة ===== #}
+<div>
+    <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">🔜 القادمة</div>
+    {% if seances_a_venir %}
+        <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        {% for seance in seances_a_venir %}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
+                <div>
+                    <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                    <div style="color:#999; font-size:0.85rem;">{{ seance.date }} — {{ seance.heure }} — {{ seance.get_type_display }}</div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                    <a href="{% url 'prof_seance_detail' seance.id %}"
+                       style="color:#1a3a5c; text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+        {% if nb_a_venir > 10 %}
+        <div style="text-align:center; color:#aaa; font-size:0.85rem; margin-top:8px;">+ {{ nb_a_venir|add:"-10" }} حصة أخرى قادمة لاحقاً</div>
+        {% endif %}
+    {% else %}
+        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص قادمة</div>
     {% endif %}
 </div>
 {% endblock %}
