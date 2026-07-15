@@ -7,10 +7,17 @@
         <div class="page-title" style="margin-bottom:0;">{{ seance.groupe.nom }}</div>
         <div class="page-subtitle" style="margin-bottom:0;">{{ seance.date }} — {{ seance.heure }}</div>
     </div>
+    {% if seance.evaluation %}
+    <a href="{% url 'superviseur_evaluation_detail' seance.id %}"
+       style="background:#6b3a2a; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+        عرض تقييم المعلم 👁
+    </a>
+    {% else %}
     <a href="{% url 'superviseur_evaluer' seance.id %}"
        style="background:#6b3a2a; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
-        {% if seance.evaluation %}تعديل تقييم المعلم{% else %}تقييم المعلم{% endif %} 📝
+        تقييم المعلم 📝
     </a>
+    {% endif %}
 </div>
 <div class="mb-4"></div>
 

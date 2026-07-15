@@ -18,6 +18,24 @@ def _metadonnees_seance(seance):
 
 
 @role_required('superviseur')
+def superviseur_evaluation_detail(request, seance_id):
+    """Consultation en lecture seule d'une évaluation déjà soumise. Séparée
+    du formulaire d'édition (superviseur_evaluer) pour que 'voir' et
+    'modifier' restent deux actions distinctes."""
+    superviseur = get_object_or_404(Superviseur, user=request.user)
+    seance = get_object_or_404(Seance, id=seance_id, groupe__prof__in=superviseur.profs_assignes.all())
+    evaluation = get_object_or_404(Evaluation, seance=seance)
+    notes = evaluation.notes.select_related('critere').order_by('critere__ordre')
+
+    return render(request, 'dashboard/superviseur_evaluation_detail.html', {
+        'seance': seance,
+        'evaluation': evaluation,
+        'notes': notes,
+        'metadonnees': _metadonnees_seance(seance),
+    })
+
+
+@role_required('superviseur')
 def superviseur_evaluer(request, seance_id):
     superviseur = get_object_or_404(Superviseur, user=request.user)
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof__in=superviseur.profs_assignes.all())
