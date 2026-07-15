@@ -658,15 +658,29 @@ def dashboard_eleve(request):
 @role_required('eleve')
 def eleve_seances(request):
     from accounts.models import Eleve
-    from courses.models import Presence
+    from courses.models import Presence, Seance
+    from django.utils import timezone
 
     eleve = get_object_or_404(Eleve, user=request.user)
+    aujourdhui = timezone.localdate()
+
+    # Cette page n'affichait auparavant que l'historique (via Presence, qui
+    # n'existe qu'une fois la séance remplie par le prof). Une séance à venir
+    # annulée ou déplacée par l'admin n'avait donc aucune vitrine pour
+    # l'élève. On ajoute ici ses prochaines séances (à partir des groupes
+    # auxquels il appartient), pour que ce changement lui soit visible.
+    seances_a_venir = Seance.objects.filter(
+        groupe__in=eleve.groupes.all(), date__gte=aujourdhui
+    ).exclude(statut='terminee').select_related('groupe').order_by('date', 'heure')[:10]
+
     presences = Presence.objects.filter(
         eleve=eleve
     ).order_by('-seance__date')
 
     return render(request, 'dashboard/eleve_seances.html', {
         'eleve': eleve,
+        'aujourdhui': aujourdhui,
+        'seances_a_venir': seances_a_venir,
         'presences': paginer(request, presences, 10),
     })
 
