@@ -160,15 +160,43 @@ def prof_groupe_detail(request, groupe_id):
 def prof_seances(request):
     from accounts.models import Prof
     from courses.models import Seance
+    from django.utils import timezone
 
     prof = get_object_or_404(Prof, user=request.user)
-    seances = Seance.objects.filter(
-        groupe__prof=prof
-    ).order_by('-date')
+    aujourdhui = timezone.localdate()
+
+    toutes_seances = Seance.objects.filter(groupe__prof=prof).select_related('groupe')
+
+    # Une séance "en retard" est une séance passée jamais remplie par le prof
+    # (statut resté à 'planifiee' au lieu de passer à 'terminee' via
+    # prof_presence_sauvegarder). Non paginée volontairement: le prof doit
+    # voir tout son retard d'un coup, sans avoir à changer de page.
+    seances_retard = toutes_seances.filter(
+        date__lt=aujourdhui, statut='planifiee'
+    ).order_by('-date', '-heure')
+
+    seances_aujourdhui = toutes_seances.filter(date=aujourdhui).order_by('heure')
+    seances_a_venir_qs = toutes_seances.filter(date__gt=aujourdhui).order_by('date', 'heure')
+    nb_a_venir = seances_a_venir_qs.count()
+    # On plafonne l'affichage des séances à venir: un emploi du temps récurrent
+    # peut en générer des dizaines à l'avance, ce qui recréerait le scroll
+    # qu'on cherche justement à éviter. Le prof les verra de toute façon
+    # apparaître ici au fur et à mesure qu'elles se rapprochent.
+    seances_a_venir = seances_a_venir_qs[:10]
+    seances_passees_traitees = toutes_seances.filter(date__lt=aujourdhui).exclude(
+        statut='planifiee'
+    ).order_by('-date', '-heure')
 
     return render(request, 'dashboard/prof_seances.html', {
         'prof': prof,
-        'seances': paginer(request, seances, 10),
+        'aujourdhui': aujourdhui,
+        'total_seances': toutes_seances.count(),
+        'nb_retard': seances_retard.count(),
+        'seances_retard': seances_retard,
+        'seances_aujourdhui': seances_aujourdhui,
+        'seances_a_venir': seances_a_venir,
+        'nb_a_venir': nb_a_venir,
+        'seances_passees_traitees': paginer(request, seances_passees_traitees, 15),
     })
 
 

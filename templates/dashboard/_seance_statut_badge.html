@@ -1,0 +1,11 @@
+{% if seance.statut == 'terminee' %}
+    <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">منتهية ✅</span>
+{% elif seance.statut == 'planifiee' %}
+    {% if seance.date < aujourdhui %}
+        <span style="background:#ff9800; color:white; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">لم تُقيّم بعد ⚠️</span>
+    {% else %}
+        <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">مخططة 📅</span>
+    {% endif %}
+{% else %}
+    <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">ملغاة ❌</span>
+{% endif %}

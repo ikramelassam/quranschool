@@ -2,32 +2,112 @@
 {% block title %}سجل الحصص{% endblock %}
 {% block content %}
 <div class="page-title">سجل الحصص</div>
-<div class="page-subtitle">إجمالي الحصص: {{ seances.paginator.count }}</div>
+<div class="page-subtitle">إجمالي الحصص: {{ total_seances }}</div>
 
-{% if seances %}
-<div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    {% for seance in seances %}
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 0; border-bottom:1px solid #f0f0f0;">
-        <div>
-            <div style="font-weight:600;">{{ seance.groupe.nom }}</div>
-            <div style="color:#888; font-size:0.85rem;">{{ seance.date }} — {{ seance.heure }} — {{ seance.get_type_display }}</div>
+{% if nb_retard > 0 %}
+<a href="#retard" style="text-decoration:none; display:block; margin-bottom:24px;">
+    <div style="background:#fff3e0; border:1px solid #ff9800; border-right:5px solid #ff9800; border-radius:10px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; color:#7a4a00;">
+        <span style="font-weight:700;">⚠️ {{ nb_retard }} حصص سابقة لم تُقيّم بعد</span>
+        <span style="font-size:0.85rem; white-space:nowrap;">عرض ↓</span>
+    </div>
+</a>
+{% endif %}
+
+{# ===== اليوم ===== #}
+<div style="margin-bottom:30px;">
+    <div style="font-weight:700; color:#1a3a5c; font-size:1.1rem; margin-bottom:12px;">📌 اليوم</div>
+    {% if seances_aujourdhui %}
+        <div style="display:flex; flex-direction:column; gap:10px;">
+        {% for seance in seances_aujourdhui %}
+            <div style="background:white; border-radius:12px; padding:16px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); border-right:4px solid #1a3a5c; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div>
+                    <div style="font-weight:700; font-size:1.05rem;">{{ seance.groupe.nom }}</div>
+                    <div style="color:#888; font-size:0.85rem;">{{ seance.heure }} — {{ seance.get_type_display }}</div>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                    <a href="{% url 'prof_seance_detail' seance.id %}"
+                       style="color:white; background:#1a3a5c; text-decoration:none; font-size:0.85rem; padding:6px 14px; border-radius:8px; font-weight:600;">فتح ←</a>
+                </div>
+            </div>
+        {% endfor %}
         </div>
-        <div style="display:flex; gap:8px; align-items:center;">
-            {% if seance.statut == 'terminee' %}
-                <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:3px 12px; font-size:0.8rem;">منتهية ✅</span>
-            {% elif seance.statut == 'planifiee' %}
-                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">مخططة 📅</span>
-            {% else %}
-                <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:3px 12px; font-size:0.8rem;">ملغاة ❌</span>
-            {% endif %}
-            <a href="{% url 'prof_seance_detail' seance.id %}"
-               style="color:#1a3a5c; text-decoration:none; font-size:0.85rem;">عرض ←</a>
+    {% else %}
+        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص اليوم</div>
+    {% endif %}
+</div>
+
+{# ===== القادمة ===== #}
+<div style="margin-bottom:30px;">
+    <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">🔜 القادمة</div>
+    {% if seances_a_venir %}
+        <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        {% for seance in seances_a_venir %}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
+                <div>
+                    <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                    <div style="color:#999; font-size:0.85rem;">{{ seance.date }} — {{ seance.heure }} — {{ seance.get_type_display }}</div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                    <a href="{% url 'prof_seance_detail' seance.id %}"
+                       style="color:#1a3a5c; text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+        {% if nb_a_venir > 10 %}
+        <div style="text-align:center; color:#aaa; font-size:0.85rem; margin-top:8px;">+ {{ nb_a_venir|add:"-10" }} حصة أخرى قادمة لاحقاً</div>
+        {% endif %}
+    {% else %}
+        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص قادمة</div>
+    {% endif %}
+</div>
+
+{# ===== الماضية ===== #}
+<div id="section-passees">
+    <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">📂 الماضية</div>
+
+    {% if seances_retard %}
+    <div id="retard" style="margin-bottom:22px;">
+        <div style="font-weight:600; color:#ff9800; font-size:0.95rem; margin-bottom:8px;">متأخرة — بانتظار التقييم</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+        {% for seance in seances_retard %}
+            <div style="background:#fff8ec; border-radius:12px; padding:14px 20px; border-right:4px solid #ff9800; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div>
+                    <div style="font-weight:600;">{{ seance.groupe.nom }}</div>
+                    <div style="color:#8a6d3b; font-size:0.85rem;">{{ seance.date }} — {{ seance.heure }} — {{ seance.get_type_display }}</div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                    <a href="{% url 'prof_seance_detail' seance.id %}"
+                       style="color:white; background:#ff9800; text-decoration:none; font-size:0.85rem; padding:6px 14px; border-radius:8px; font-weight:600;">تقييم الآن ←</a>
+                </div>
+            </div>
+        {% endfor %}
         </div>
     </div>
-    {% endfor %}
+    {% endif %}
+
+    {% if seances_passees_traitees %}
+    <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        {% for seance in seances_passees_traitees %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
+            <div>
+                <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                <div style="color:#999; font-size:0.85rem;">{{ seance.date }} — {{ seance.heure }} — {{ seance.get_type_display }}</div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                <a href="{% url 'prof_seance_detail' seance.id %}"
+                   style="color:#1a3a5c; text-decoration:none; font-size:0.85rem;">عرض ←</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% include 'dashboard/_pagination.html' with page_obj=seances_passees_traitees %}
+    {% elif not seances_retard %}
+        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص سابقة</div>
+    {% endif %}
 </div>
-{% else %}
-<div style="text-align:center; padding:60px; color:#aaa;">لا توجد حصص بعد</div>
-{% endif %}
-{% include 'dashboard/_pagination.html' with page_obj=seances %}
 {% endblock %}
