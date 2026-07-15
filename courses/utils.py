@@ -1,5 +1,7 @@
 import datetime
 
+from django.utils import timezone
+
 JOUR_INDEX = {'lun': 0, 'mar': 1, 'mer': 2, 'jeu': 3, 'ven': 4, 'sam': 5, 'dim': 6}
 
 # Couleurs (fond, texte) par code — source unique utilisée partout où une
@@ -48,7 +50,7 @@ def generer_heures_grille():
     h = settings.HEURE_OUVERTURE_ECOLE
     while h < settings.HEURE_FERMETURE_ECOLE:
         heures.append(h)
-        h = (datetime.datetime.combine(datetime.date.today(), h) + datetime.timedelta(hours=1)).time()
+        h = (datetime.datetime.combine(timezone.localdate(), h) + datetime.timedelta(hours=1)).time()
     return heures
 
 
@@ -58,7 +60,7 @@ def _heures_couvertes(heure_debut, heure_fin):
     h = heure_debut
     while h < heure_fin:
         heures.append(h)
-        h = (datetime.datetime.combine(datetime.date.today(), h) + datetime.timedelta(hours=1)).time()
+        h = (datetime.datetime.combine(timezone.localdate(), h) + datetime.timedelta(hours=1)).time()
     return heures
 
 
@@ -124,7 +126,7 @@ def raison_incompatibilite_groupe(eleve, groupe):
     if inscription.programme != creneau.type_seance:
         return "نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب."
 
-    aujourd_hui = datetime.date.today()
+    aujourd_hui = timezone.localdate()
     naissance = inscription.date_naissance
     age = aujourd_hui.year - naissance.year - ((aujourd_hui.month, aujourd_hui.day) < (naissance.month, naissance.day))
     if age < creneau.age_min or age > creneau.age_max:
@@ -191,7 +193,7 @@ def etendre_seances(groupe, horizon_semaines=HORIZON_SEMAINES):
     if not creneau:
         return
 
-    aujourd_hui = datetime.date.today()
+    aujourd_hui = timezone.localdate()
     limite = aujourd_hui + datetime.timedelta(weeks=horizon_semaines)
 
     derniere_seance = Seance.objects.filter(groupe=groupe).order_by('-date').first()
@@ -241,7 +243,7 @@ def regenerer_pour_nouveau_creneau(groupe):
     ne correspondent plus au nouvel horaire) puis régénère depuis aujourd'hui."""
     from .models import Seance
 
-    aujourd_hui = datetime.date.today()
+    aujourd_hui = timezone.localdate()
     Seance.objects.filter(
         groupe=groupe,
         date__gte=aujourd_hui,

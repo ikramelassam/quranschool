@@ -1062,14 +1062,15 @@ def admin_demande_disponibilite_rejeter(request, demande_id):
 def admin_calendrier(request):
     from courses.models import Seance
     from courses.utils import etendre_toutes_les_seances
+    from django.utils import timezone
 
     etendre_toutes_les_seances()
 
     semaine_param = request.GET.get('semaine')
     try:
-        reference = datetime.date.fromisoformat(semaine_param) if semaine_param else datetime.date.today()
+        reference = datetime.date.fromisoformat(semaine_param) if semaine_param else timezone.localdate()
     except ValueError:
-        reference = datetime.date.today()
+        reference = timezone.localdate()
 
     lundi = reference - datetime.timedelta(days=reference.weekday())
     jours_dates = [lundi + datetime.timedelta(days=i) for i in range(7)]
