@@ -717,36 +717,61 @@ def dashboard_superviseur(request):
     from accounts.models import Superviseur
     from courses.models import Seance, Groupe
     from evaluations.models import Evaluation
+    from django.utils import timezone
 
     superviseur = get_object_or_404(Superviseur, user=request.user)
     profs_assignes = superviseur.profs_assignes.all()
+    aujourdhui = timezone.localdate()
 
     prof_id = request.GET.get('prof', '')
     groupe_id = request.GET.get('groupe', '')
     date_debut = request.GET.get('date_debut', '')
     date_fin = request.GET.get('date_fin', '')
 
-    seances = Seance.objects.filter(
-        statut='terminee',
+    toutes_seances = Seance.objects.filter(
         groupe__prof__in=profs_assignes,
     ).select_related('groupe__prof__user').annotate(
         est_evaluee=Exists(Evaluation.objects.filter(seance=OuterRef('pk')))
     )
 
     if prof_id:
-        seances = seances.filter(groupe__prof_id=prof_id)
+        toutes_seances = toutes_seances.filter(groupe__prof_id=prof_id)
     if groupe_id:
-        seances = seances.filter(groupe_id=groupe_id)
+        toutes_seances = toutes_seances.filter(groupe_id=groupe_id)
     if date_debut:
-        seances = seances.filter(date__gte=date_debut)
+        toutes_seances = toutes_seances.filter(date__gte=date_debut)
     if date_fin:
-        seances = seances.filter(date__lte=date_fin)
+        toutes_seances = toutes_seances.filter(date__lte=date_fin)
 
-    # Les séances non évaluées d'abord (ce qui nécessite une action), puis les plus récentes.
-    seances = seances.order_by('est_evaluee', '-date')[:30]
+    # "En retard": le prof a bien terminé la séance mais ce superviseur ne
+    # l'a pas encore évaluée. Non paginé volontairement (même logique que
+    # le retard d'évaluation du prof): il doit tout voir d'un coup.
+    seances_retard = toutes_seances.filter(
+        statut='terminee', date__lt=aujourdhui, est_evaluee=False
+    ).order_by('-date', '-heure')
+
+    seances_aujourdhui = toutes_seances.filter(date=aujourdhui).order_by('heure')
+
+    # "À venir": la séance n'a pas encore été donnée par le prof, donc pas
+    # encore évaluable. En pratique correspond aux séances futures.
+    seances_a_venir_qs = toutes_seances.filter(date__gt=aujourdhui).order_by('date', 'heure')
+    nb_a_venir = seances_a_venir_qs.count()
+    seances_a_venir = seances_a_venir_qs[:10]
+
+    seances_passees_traitees = toutes_seances.filter(
+        date__lt=aujourdhui
+    ).exclude(statut='terminee', est_evaluee=False).order_by('-date', '-heure')
 
     return render(request, 'dashboard/superviseur.html', {
-        'seances': seances,
+        'superviseur': superviseur,
+        'aujourdhui': aujourdhui,
+        'total_seances': toutes_seances.count(),
+        'nb_retard': seances_retard.count(),
+        'seances_retard': seances_retard,
+        'seances_aujourdhui': seances_aujourdhui,
+        'seances_a_venir': seances_a_venir,
+        'nb_a_venir': nb_a_venir,
+        'seances_passees_traitees': paginer(request, seances_passees_traitees, 15),
         'profs': profs_assignes.select_related('user').order_by('user__first_name'),
         'groupes': Groupe.objects.filter(prof__in=profs_assignes).order_by('nom'),
         'filtres': {

@@ -2,7 +2,7 @@
 {% block title %}لوحة المشرف{% endblock %}
 {% block content %}
 <div class="page-title">لوحة المشرف</div>
-<div class="page-subtitle">مراقبة الحصص والتقييمات</div>
+<div class="page-subtitle">مراقبة الحصص والتقييمات — إجمالي الحصص: {{ total_seances }}</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
@@ -39,34 +39,122 @@
     </div>
 </form>
 
-{% if seances %}
-    {% for seance in seances %}
-    <div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-        <div class="row align-items-center">
-            <div class="col-md-6">
-                <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
-                    <div style="font-weight:700;">{{ seance.groupe.nom }}</div>
-                    {% if seance.est_evaluee %}
-                    <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 10px; font-size:0.75rem;">تم التقييم ✅</span>
-                    {% else %}
-                    <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:2px 10px; font-size:0.75rem;">بانتظار التقييم ⏳</span>
-                    {% endif %}
+{% if nb_retard > 0 %}
+<a href="#retard" style="text-decoration:none; display:block; margin-bottom:24px;">
+    <div style="background:#fff3e0; border:1px solid #ff9800; border-right:5px solid #ff9800; border-radius:10px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; color:#7a4a00;">
+        <span style="font-weight:700;">⚠️ {{ nb_retard }} حصص سابقة لم تُقيَّم بعد من طرفك</span>
+        <span style="font-size:0.85rem; white-space:nowrap;">عرض ↓</span>
+    </div>
+</a>
+{% endif %}
+
+{# ===== اليوم ===== #}
+<div style="margin-bottom:30px;">
+    <div style="font-weight:700; color:#6b3a2a; font-size:1.1rem; margin-bottom:12px;">📌 اليوم</div>
+    {% if seances_aujourdhui %}
+        <div style="display:flex; flex-direction:column; gap:10px;">
+        {% for seance in seances_aujourdhui %}
+            <div style="background:white; border-radius:12px; padding:16px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); border-right:4px solid #6b3a2a; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div>
+                    <div style="font-weight:700; font-size:1.05rem;">{{ seance.groupe.nom }}</div>
+                    <div style="color:#888; font-size:0.85rem;">
+                        المعلم: {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}غير محدد{% endif %}
+                        — {{ seance.heure }}
+                    </div>
                 </div>
-                <div style="color:#888; font-size:0.9rem;">
-                    المعلم: {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}غير محدد{% endif %}
+                <div style="display:flex; gap:10px; align-items:center;">
+                    {% include 'dashboard/_seance_evaluation_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                    <a href="{% url 'superviseur_seance_detail' seance.id %}"
+                       style="color:white; background:#6b3a2a; text-decoration:none; font-size:0.85rem; padding:6px 14px; border-radius:8px; font-weight:600;">فتح ←</a>
                 </div>
-                <div style="color:#888; font-size:0.85rem;">{{ seance.date }} — {{ seance.heure }}</div>
             </div>
-            <div class="col-md-6 d-flex justify-content-end">
-                <a href="{% url 'superviseur_seance_detail' seance.id %}"
-                   style="background:#6b3a2a; color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
-                   عرض التفاصيل ←
-                </a>
+        {% endfor %}
+        </div>
+    {% else %}
+        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص اليوم</div>
+    {% endif %}
+</div>
+
+{# ===== القادمة ===== #}
+<div style="margin-bottom:30px;">
+    <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">🔜 القادمة</div>
+    {% if seances_a_venir %}
+        <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        {% for seance in seances_a_venir %}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
+                <div>
+                    <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                    <div style="color:#999; font-size:0.85rem;">
+                        {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}غير محدد{% endif %}
+                        — {{ seance.date }} — {{ seance.heure }}
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    {% include 'dashboard/_seance_evaluation_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                    <a href="{% url 'superviseur_seance_detail' seance.id %}"
+                       style="color:#6b3a2a; text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                </div>
             </div>
+        {% endfor %}
+        </div>
+        {% if nb_a_venir > 10 %}
+        <div style="text-align:center; color:#aaa; font-size:0.85rem; margin-top:8px;">+ {{ nb_a_venir|add:"-10" }} حصة أخرى قادمة لاحقاً</div>
+        {% endif %}
+    {% else %}
+        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص قادمة</div>
+    {% endif %}
+</div>
+
+{# ===== الماضية ===== #}
+<div id="section-passees">
+    <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">📂 الماضية</div>
+
+    {% if seances_retard %}
+    <div id="retard" style="margin-bottom:22px;">
+        <div style="font-weight:600; color:#ff9800; font-size:0.95rem; margin-bottom:8px;">متأخرة — بانتظار التقييم منك</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+        {% for seance in seances_retard %}
+            <div style="background:#fff8ec; border-radius:12px; padding:14px 20px; border-right:4px solid #ff9800; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div>
+                    <div style="font-weight:600;">{{ seance.groupe.nom }}</div>
+                    <div style="color:#8a6d3b; font-size:0.85rem;">
+                        {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}غير محدد{% endif %}
+                        — {{ seance.date }} — {{ seance.heure }}
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    {% include 'dashboard/_seance_evaluation_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                    <a href="{% url 'superviseur_seance_detail' seance.id %}"
+                       style="color:white; background:#ff9800; text-decoration:none; font-size:0.85rem; padding:6px 14px; border-radius:8px; font-weight:600;">تقييم الآن ←</a>
+                </div>
+            </div>
+        {% endfor %}
         </div>
     </div>
-    {% endfor %}
-{% else %}
-<div style="text-align:center; padding:60px; color:#aaa;">لا توجد حصص مطابقة</div>
-{% endif %}
+    {% endif %}
+
+    {% if seances_passees_traitees %}
+    <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        {% for seance in seances_passees_traitees %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
+            <div>
+                <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                <div style="color:#999; font-size:0.85rem;">
+                    {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}غير محدد{% endif %}
+                    — {{ seance.date }} — {{ seance.heure }}
+                </div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                {% include 'dashboard/_seance_evaluation_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                <a href="{% url 'superviseur_seance_detail' seance.id %}"
+                   style="color:#6b3a2a; text-decoration:none; font-size:0.85rem;">عرض ←</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% include 'dashboard/_pagination.html' with page_obj=seances_passees_traitees %}
+    {% elif not seances_retard %}
+        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص سابقة</div>
+    {% endif %}
+</div>
 {% endblock %}
