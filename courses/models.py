@@ -201,9 +201,11 @@ class Presence(models.Model):
     ]
     NOTE_CHOICES = [
         ('mumtaz', 'ممتاز'),
+        ('hasan_jiddan', 'حسن جدا'),
         ('hasan', 'حسن'),
+        ('mustahsan', 'مستحسن'),
         ('mutawassit', 'متوسط'),
-        ('yuid', 'يعيد'),
+        ('doun_mutawassit', 'دون متوسط'),
     ]
     seance = models.ForeignKey(
         Seance,
