@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.mail import send_mail
@@ -10,26 +11,35 @@ from inscriptions.models import InscriptionEleve
 
 JOURS_SEMAINE_AR = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد']
 
+logger = logging.getLogger(__name__)
+
 
 def envoyer_email_bienvenue(request, email, password_temp, prenom_nom):
-    """Envoie le mot de passe temporaire + le lien de connexion au nouvel utilisateur (élève ou prof)."""
+    """Envoie le mot de passe temporaire + le lien de connexion au nouvel utilisateur (élève ou prof).
+    Retourne True si l'email est parti, False sinon — une panne SMTP (identifiants, réseau...) ne doit
+    jamais empêcher la création du compte, qui a déjà eu lieu au moment de l'appel."""
     from django.urls import reverse
 
     lien_connexion = request.build_absolute_uri(reverse('login'))
-    send_mail(
-        subject='مرحباً بك في منصة زدني علماً - معلومات الدخول',
-        message=(
-            f'مرحباً {prenom_nom},\n\n'
-            f'تم قبول ملفك. يمكنك الآن تسجيل الدخول باستخدام:\n'
-            f'البريد الإلكتروني: {email}\n'
-            f'كلمة المرور المؤقتة: {password_temp}\n\n'
-            f'رابط تسجيل الدخول: {lien_connexion}\n\n'
-            f'ننصحك بتغيير كلمة المرور بعد أول تسجيل دخول.'
-        ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[email],
-        fail_silently=False,
-    )
+    try:
+        send_mail(
+            subject='مرحباً بك في منصة زدني علماً - معلومات الدخول',
+            message=(
+                f'مرحباً {prenom_nom},\n\n'
+                f'تم قبول ملفك. يمكنك الآن تسجيل الدخول باستخدام:\n'
+                f'البريد الإلكتروني: {email}\n'
+                f'كلمة المرور المؤقتة: {password_temp}\n\n'
+                f'رابط تسجيل الدخول: {lien_connexion}\n\n'
+                f'ننصحك بتغيير كلمة المرور بعد أول تسجيل دخول.'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        return True
+    except Exception:
+        logger.exception("Échec de l'envoi de l'email de bienvenue à %s", email)
+        return False
 
 
 def envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, prenom_nom):
@@ -466,13 +476,20 @@ def admin_valider_eleve(request, inscription_id):
     from courses.utils import matrice_vers_lignes_eleve
     matrice_vers_lignes_eleve(eleve, inscription.disponibilites)
 
-    envoyer_email_bienvenue(request, inscription.email, password_temp, inscription.nom)
+    email_envoye = envoyer_email_bienvenue(request, inscription.email, password_temp, inscription.nom)
 
     # Change le statut
     inscription.statut = 'valide'
     inscription.save()
 
-    messages.success(request, f'تم قبول الطالب {inscription.nom} وإرسال معلومات الدخول له.')
+    if email_envoye:
+        messages.success(request, f'تم قبول الطالب {inscription.nom} وإرسال معلومات الدخول له.')
+    else:
+        messages.warning(
+            request,
+            f'تم قبول الطالب {inscription.nom}، لكن تعذر إرسال بريد تسجيل الدخول. '
+            f'كلمة المرور المؤقتة: {password_temp} (أرسلها للطالب يدوياً).'
+        )
     return redirect('admin_inscriptions')
 
 @role_required('admin')
@@ -600,11 +617,18 @@ def admin_valider_prof(request, inscription_id):
     from courses.utils import matrice_vers_lignes
     matrice_vers_lignes(prof, inscription.disponibilites)
 
-    envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
+    email_envoye = envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
 
     inscription.statut = 'valide'
     inscription.save()
-    messages.success(request, f'تم قبول المعلم {inscription.nom} وإرسال معلومات الدخول له.')
+    if email_envoye:
+        messages.success(request, f'تم قبول المعلم {inscription.nom} وإرسال معلومات الدخول له.')
+    else:
+        messages.warning(
+            request,
+            f'تم قبول المعلم {inscription.nom}، لكن تعذر إرسال بريد تسجيل الدخول. '
+            f'كلمة المرور المؤقتة: {password_temp} (أرسلها للمعلم يدوياً).'
+        )
     return redirect('admin_inscriptions_profs')
 
 @role_required('admin')
