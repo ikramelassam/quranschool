@@ -5,6 +5,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib import messages
+from django.db import transaction
 from accounts.decorators import role_required
 from core.utils import paginer
 from inscriptions.models import InscriptionEleve
@@ -456,31 +457,39 @@ def admin_valider_eleve(request, inscription_id):
     # Génère mot de passe temporaire
     password_temp = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
 
-    # Crée le User
-    user = User.objects.create_user(
-        username=inscription.email,
-        email=inscription.email,
-        password=password_temp,
-        first_name=inscription.nom,
-        role='eleve'
-    )
+    # Tout ou rien: si une étape échoue (ex: matrice de disponibilités malformée),
+    # aucun compte à moitié créé ne doit rester en base — voir l'incident où une
+    # exception après la création du compte (autrefois: échec d'envoi d'email non
+    # rattrapé) laissait un User+Eleve actifs mais l'inscription bloquée "en attente"
+    # pour toujours. L'envoi d'email reste hors transaction: il ne doit jamais faire
+    # échouer ni retenir la transaction (appel réseau lent), et ne peut de toute façon
+    # plus lever d'exception (voir envoyer_email_bienvenue).
+    with transaction.atomic():
+        # Crée le User
+        user = User.objects.create_user(
+            username=inscription.email,
+            email=inscription.email,
+            password=password_temp,
+            first_name=inscription.nom,
+            role='eleve'
+        )
 
-    # Crée le profil Eleve
-    eleve = Eleve.objects.create(
-        user=user,
-        sexe=inscription.sexe,
-        statut='actif',
-        inscription=inscription
-    )
+        # Crée le profil Eleve
+        eleve = Eleve.objects.create(
+            user=user,
+            sexe=inscription.sexe,
+            statut='actif',
+            inscription=inscription
+        )
 
-    from courses.utils import matrice_vers_lignes_eleve
-    matrice_vers_lignes_eleve(eleve, inscription.disponibilites)
+        from courses.utils import matrice_vers_lignes_eleve
+        matrice_vers_lignes_eleve(eleve, inscription.disponibilites)
+
+        # Change le statut
+        inscription.statut = 'valide'
+        inscription.save()
 
     email_envoye = envoyer_email_bienvenue(request, inscription.email, password_temp, inscription.nom)
-
-    # Change le statut
-    inscription.statut = 'valide'
-    inscription.save()
 
     if email_envoye:
         messages.success(request, f'تم قبول الطالب {inscription.nom} وإرسال معلومات الدخول له.')
@@ -594,39 +603,43 @@ def admin_valider_prof(request, inscription_id):
         return redirect('admin_inscription_prof_detail', inscription_id=inscription.id)
 
     password_temp = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-    user = User.objects.create_user(
-        username=inscription.email,
-        email=inscription.email,
-        password=password_temp,
-        first_name=inscription.nom,
-        last_name=inscription.prenom,
-        role='prof'
-    )
-    prof = Prof.objects.create(
-        user=user,
-        ville=inscription.ville,
-        certifications=inscription.certifications,
-        niveau_memorisation=inscription.niveau_memorisation,
-        parcours_scolaire=inscription.parcours_scolaire,
-        parcours_enseignant=inscription.parcours_enseignant,
-        gestion_eleve_faible=inscription.gestion_eleve_faible,
-        gestion_eleve_absent=inscription.gestion_eleve_absent,
-        type_eleve_preference=inscription.type_eleve_preference,
-        contrainte_genre=inscription.contrainte_genre,
-        langues=inscription.langues,
-        outils_maitrises=inscription.outils_maitrises,
-        compte_bancaire=inscription.compte_bancaire,
-        rib=inscription.rib,
-        inscription=inscription,
-    )
 
-    from courses.utils import matrice_vers_lignes
-    matrice_vers_lignes(prof, inscription.disponibilites)
+    # Tout ou rien — voir le commentaire équivalent dans admin_valider_eleve.
+    with transaction.atomic():
+        user = User.objects.create_user(
+            username=inscription.email,
+            email=inscription.email,
+            password=password_temp,
+            first_name=inscription.nom,
+            last_name=inscription.prenom,
+            role='prof'
+        )
+        prof = Prof.objects.create(
+            user=user,
+            ville=inscription.ville,
+            certifications=inscription.certifications,
+            niveau_memorisation=inscription.niveau_memorisation,
+            parcours_scolaire=inscription.parcours_scolaire,
+            parcours_enseignant=inscription.parcours_enseignant,
+            gestion_eleve_faible=inscription.gestion_eleve_faible,
+            gestion_eleve_absent=inscription.gestion_eleve_absent,
+            type_eleve_preference=inscription.type_eleve_preference,
+            contrainte_genre=inscription.contrainte_genre,
+            langues=inscription.langues,
+            outils_maitrises=inscription.outils_maitrises,
+            compte_bancaire=inscription.compte_bancaire,
+            rib=inscription.rib,
+            inscription=inscription,
+        )
+
+        from courses.utils import matrice_vers_lignes
+        matrice_vers_lignes(prof, inscription.disponibilites)
+
+        inscription.statut = 'valide'
+        inscription.save()
 
     email_envoye = envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
 
-    inscription.statut = 'valide'
-    inscription.save()
     if email_envoye:
         messages.success(request, f'تم قبول المعلم {inscription.nom} وإرسال معلومات الدخول له.')
     else:
