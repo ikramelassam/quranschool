@@ -51,23 +51,31 @@ def envoyer_email_bienvenue(request, email, password_temp, prenom_nom):
 
 
 def envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, prenom_nom):
-    """Notifie le NOUVEL email qu'il vient d'être associé à ce compte suite à un changement."""
+    """Notifie le NOUVEL email qu'il vient d'être associé à ce compte suite à un changement.
+    Retourne True si l'email est parti, False sinon — le changement d'email lui-même a déjà
+    été enregistré en base au moment de l'appel, une panne SMTP ne doit jamais transformer
+    ça en 500 (voir envoyer_email_bienvenue pour le même principe)."""
     from django.urls import reverse
 
     lien_connexion = request.build_absolute_uri(reverse('login'))
-    send_mail(
-        subject='تم تغيير البريد الإلكتروني لحسابك - زدني علماً',
-        message=(
-            f'مرحباً {prenom_nom},\n\n'
-            f'نُعلمك بأنه تم تغيير البريد الإلكتروني المرتبط بحسابك على منصة زدني علماً '
-            f'من {ancien_email} إلى {nouvel_email}.\n\n'
-            f'يمكنك الآن تسجيل الدخول بهذا البريد الجديد:\n{lien_connexion}\n\n'
-            f'إذا لم تطلب هذا التغيير، يرجى التواصل فوراً مع إدارة المنصة.'
-        ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[nouvel_email],
-        fail_silently=False,
-    )
+    try:
+        send_mail(
+            subject='تم تغيير البريد الإلكتروني لحسابك - زدني علماً',
+            message=(
+                f'مرحباً {prenom_nom},\n\n'
+                f'نُعلمك بأنه تم تغيير البريد الإلكتروني المرتبط بحسابك على منصة زدني علماً '
+                f'من {ancien_email} إلى {nouvel_email}.\n\n'
+                f'يمكنك الآن تسجيل الدخول بهذا البريد الجديد:\n{lien_connexion}\n\n'
+                f'إذا لم تطلب هذا التغيير، يرجى التواصل فوراً مع إدارة المنصة.'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[nouvel_email],
+            fail_silently=False,
+        )
+        return True
+    except Exception:
+        logger.exception("Échec de l'envoi de l'email de notification de changement à %s", nouvel_email)
+        return False
 
 
 def _invalider_sessions_utilisateur(utilisateur, request=None):
@@ -1492,9 +1500,12 @@ def admin_utilisateur_modifier_email(request, user_id):
         utilisateur.save()
 
         _invalider_sessions_utilisateur(utilisateur, request=request)
-        envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, utilisateur.get_full_name())
+        email_envoye = envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, utilisateur.get_full_name())
 
-        messages.success(request, f'تم تغيير البريد الإلكتروني إلى {nouvel_email} بنجاح. تم إشعار المستخدم على بريده الجديد.')
+        if email_envoye:
+            messages.success(request, f'تم تغيير البريد الإلكتروني إلى {nouvel_email} بنجاح. تم إشعار المستخدم على بريده الجديد.')
+        else:
+            messages.warning(request, f'تم تغيير البريد الإلكتروني إلى {nouvel_email} بنجاح، لكن تعذر إرسال بريد الإشعار. بلّغ المستخدم يدوياً.')
         return redirect(next_url)
 
     return render(request, 'dashboard/admin_utilisateur_modifier_email.html', {
@@ -1528,8 +1539,11 @@ def admin_mon_compte(request):
             request.user.username = nouvel_email
             request.user.save()
             _invalider_sessions_utilisateur(request.user, request=request)
-            envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, request.user.get_full_name())
-            messages.success(request, f'تم تغيير بريدك الإلكتروني إلى {nouvel_email} بنجاح.')
+            email_envoye = envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, request.user.get_full_name())
+            if email_envoye:
+                messages.success(request, f'تم تغيير بريدك الإلكتروني إلى {nouvel_email} بنجاح.')
+            else:
+                messages.warning(request, f'تم تغيير بريدك الإلكتروني إلى {nouvel_email} بنجاح، لكن تعذر إرسال بريد الإشعار.')
         return redirect('admin_mon_compte')
 
     if request.method == 'POST' and request.POST.get('action') == 'password':
