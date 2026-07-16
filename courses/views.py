@@ -74,6 +74,7 @@ def groupe_ajouter(request):
             creneau_id=creneau_id,
             description=request.POST.get('description', ''),
             capacite_max=request.POST.get('max_eleves', 10),
+            type_capacite=request.POST.get('type_capacite', 'groupe'),
         )
         regenerer_pour_nouveau_creneau(groupe)
         messages.success(request, 'تمت إضافة المجموعة وتوليد حصصها تلقائياً بنجاح.')
@@ -144,6 +145,7 @@ def groupe_modifier(request, groupe_id):
         groupe.nom = request.POST.get('nom')
         groupe.description = request.POST.get('description', '')
         groupe.capacite_max = request.POST.get('capacite_max', 10)
+        groupe.type_capacite = request.POST.get('type_capacite', 'groupe')
         groupe.statut = request.POST.get('statut')
         groupe.prof_id = nouveau_prof_id
         groupe.creneau_id = nouveau_creneau_id
@@ -168,6 +170,7 @@ def creneaux_list(request):
     sexe_cible = request.GET.get('sexe_cible', '')
     actif = request.GET.get('actif', '')
     type_seance = request.GET.get('type_seance', '')
+    riwaya = request.GET.get('riwaya', '')
 
     creneaux = Creneau.objects.all().order_by('id')
     if sexe_cible:
@@ -176,6 +179,8 @@ def creneaux_list(request):
         creneaux = creneaux.filter(est_actif=(actif == '1'))
     if type_seance:
         creneaux = creneaux.filter(type_seance=type_seance)
+    if riwaya:
+        creneaux = creneaux.filter(riwaya=riwaya)
 
     return render(request, 'courses/admin_creneaux.html', {
         'creneaux': paginer(request, creneaux, 10),
@@ -183,6 +188,7 @@ def creneaux_list(request):
             'sexe_cible': sexe_cible,
             'actif': actif,
             'type_seance': type_seance,
+            'riwaya': riwaya,
         },
     })
 
@@ -193,6 +199,7 @@ def creneau_ajouter(request):
         Creneau.objects.create(
             sexe_cible=request.POST.get('sexe_cible'),
             type_seance=request.POST.get('type_seance'),
+            riwaya=request.POST.get('riwaya'),
             age_min=request.POST.get('age_min'),
             age_max=request.POST.get('age_max'),
             jour_1=request.POST.get('jour_1'),
@@ -215,6 +222,7 @@ def creneau_modifier(request, creneau_id):
     if request.method == 'POST':
         creneau.sexe_cible = request.POST.get('sexe_cible')
         creneau.type_seance = request.POST.get('type_seance')
+        creneau.riwaya = request.POST.get('riwaya')
         creneau.age_min = request.POST.get('age_min')
         creneau.age_max = request.POST.get('age_max')
         creneau.jour_1 = request.POST.get('jour_1')

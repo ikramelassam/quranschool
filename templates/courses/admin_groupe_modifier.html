@@ -45,8 +45,16 @@
         </div>
 
         <div class="mb-3">
+            <label style="font-weight:600; color:#333;">نوع المجموعة *</label>
+            <select name="type_capacite" class="form-select mt-1" required>
+                <option value="groupe" {% if groupe.type_capacite == 'groupe' %}selected{% endif %}>جماعي</option>
+                <option value="individuel" {% if groupe.type_capacite == 'individuel' %}selected{% endif %}>فردي</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
             <label style="font-weight:600; color:#333;">الطاقة الاستيعابية القصوى</label>
-            <input type="number" name="capacite_max" class="form-control mt-1" 
+            <input type="number" name="capacite_max" class="form-control mt-1"
                    value="{{ groupe.capacite_max }}" min="1" max="50">
         </div>
 

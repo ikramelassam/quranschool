@@ -503,6 +503,8 @@ def admin_rejeter_eleve(request, inscription_id):
 
 @role_required('admin')
 def admin_inscription_eleve_detail(request, inscription_id):
+    from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO, groupes_compatibles_pour_inscription
+
     inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
     if inscription.statut == 'valide':
         conflit = {'conflit': False, 'user': None, 'orphelin': False}
@@ -511,6 +513,10 @@ def admin_inscription_eleve_detail(request, inscription_id):
     return render(request, 'dashboard/admin_inscription_detail.html', {
         'inscription': inscription,
         'conflit': conflit,
+        'jours': JOURS_SEMAINE_DISPO,
+        'heures': generer_heures_grille(),
+        'valeurs_dispo': set(inscription.disponibilites),
+        'groupes_suggeres': groupes_compatibles_pour_inscription(inscription),
     })
 
 @role_required('admin')

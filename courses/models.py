@@ -92,9 +92,15 @@ class Creneau(models.Model):
         ('hifz', 'الحفظ والمراجعة وتعلم أحكام التجويد'),
         ('tathbit', 'التثبيت وتعلم أحكام التجويد'),
     ]
+    # Mêmes codes que InscriptionEleve.RIWAYA_CHOICES.
+    RIWAYA_CHOICES = [
+        ('warsh', 'ورش'),
+        ('hafs', 'حفص'),
+    ]
 
     sexe_cible = models.CharField(max_length=10, choices=SEXE_CHOICES, default='mixte')
     type_seance = models.CharField(max_length=20, choices=TYPE_SEANCE_CHOICES, default='hifz')
+    riwaya = models.CharField(max_length=10, choices=RIWAYA_CHOICES, default='hafs')
     age_min = models.IntegerField()
     age_max = models.IntegerField()
     jour_1 = models.CharField(max_length=5, choices=JOUR_CHOICES)
@@ -116,8 +122,14 @@ class Creneau(models.Model):
         verbose_name_plural = "Créneaux"
 
 class Groupe(models.Model):
+    TYPE_CAPACITE_CHOICES = [
+        ('groupe', 'جماعي'),
+        ('individuel', 'فردي'),
+    ]
+
     nom = models.CharField(max_length=100)
     description = models.TextField(blank=True)
+    type_capacite = models.CharField(max_length=10, choices=TYPE_CAPACITE_CHOICES, default='groupe')
     eleves = models.ManyToManyField(
         'accounts.Eleve',
         blank=True,

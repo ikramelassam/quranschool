@@ -97,8 +97,6 @@
             transition: all 0.2s;
         }
         .btn-back:hover { border-color: #aaa; color: #555; }
-        .creneau-section { display: none; }
-        .creneau-section.visible { display: block; }
         .conditions-box {
             background: #f9f9f9;
             border: 1px solid #eee;
@@ -174,7 +172,7 @@
         <div class="mb-3">
             <label class="form-label">تاريخ الميلاد *</label>
             <input type="date" name="date_naissance" class="form-control"
-                   id="date_naissance" required onchange="calculerAge()">
+                   id="date_naissance" required>
         </div>
 
         <!-- Sexe -->
@@ -182,38 +180,25 @@
             <label class="form-label">الجنس *</label>
             <div class="row g-2">
                 <div class="col-6">
-                    <div class="select-btn" onclick="selectSexe('homme', this)">ذكر</div>
+                    <div class="select-btn" onclick="selectOption('sexe', 'homme', this)">ذكر</div>
                 </div>
                 <div class="col-6">
-                    <div class="select-btn" onclick="selectSexe('femme', this)">أنثى</div>
+                    <div class="select-btn" onclick="selectOption('sexe', 'femme', this)">أنثى</div>
                 </div>
             </div>
             <input type="hidden" name="sexe" id="sexe_value" required>
-        </div>
-
-        <!-- Créneaux (affichés dynamiquement) -->
-        <div class="section-title">الوقت المناسب</div>
-        <div id="creneaux_container">
-            <p class="text-muted text-center">يرجى إدخال تاريخ الميلاد واختيار الجنس أولاً</p>
-        </div>
-        <input type="hidden" name="creneau_souhaite" id="creneau_value">
-
-        <!-- Fallback: aucun créneau disponible pour ce profil -->
-        <div id="disponibilites_section" style="display:none;">
-            <div class="mb-3" style="background:#fff3cd; border-radius:8px; padding:12px 16px; color:#856404; font-size:0.9rem;">
-                لا توجد حلقة متاحة حالياً لهذا الملف (العمر/الجنس). يمكنك اقتراح أوقات تناسبك أدناه، وسنتواصل معك عند فتح حلقة جديدة.
-            </div>
-            <div class="mb-3">
-                <label class="form-label">أوقاتك المتاحة (اختياري)</label>
-                <textarea name="disponibilites_libres" class="form-control" rows="3"
-                          placeholder="مثال: الإثنين والأربعاء مساءً، أو أي يوم بعد الساعة 18:00"></textarea>
-            </div>
         </div>
 
         <!-- Disponibilites -->
         <div class="section-title">جدول التفرغ الأسبوعي</div>
         <p class="text-muted" style="font-size:0.85rem;">حدد الأوقات التي تناسبك أسبوعياً، ليتسنى لنا اقتراح أفضل مجموعة لك.</p>
         {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form %}
+
+        <div class="mb-3 mt-3">
+            <label class="form-label">ملاحظات إضافية حول التفرغ (اختياري)</label>
+            <textarea name="disponibilites_libres" class="form-control" rows="3"
+                      placeholder="مثال: تفرغي غير منتظم، أو أي توضيح تريد إضافته"></textarea>
+        </div>
 
         <!-- Programme -->
         <div class="section-title">اختيار البرنامج</div>
@@ -308,8 +293,7 @@
 </div>
 
 <script>
-    // Créneaux et types d'abonnement depuis Django (paramétrables par l'admin)
-    const creneaux = {{ creneaux_json|safe }};
+    // Types d'abonnement depuis Django (paramétrables par l'admin)
     const typesAbonnement = {{ types_abonnement_json|safe }};
 
     function afficherAbonnements() {
@@ -327,63 +311,6 @@
         });
     }
     document.addEventListener('DOMContentLoaded', afficherAbonnements);
-
-    function calculerAge() {
-        const dateNaissance = document.getElementById('date_naissance').value;
-        if (!dateNaissance) return;
-        const today = new Date();
-        const birthDate = new Date(dateNaissance);
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-        window.ageCalcule = age;
-        afficherCreneaux();
-    }
-
-    function selectSexe(sexe, el) {
-        document.getElementById('sexe_value').value = sexe;
-        document.querySelectorAll('[onclick^="selectSexe"]').forEach(b => b.classList.remove('active'));
-        el.classList.add('active');
-        window.sexeSelectionne = sexe;
-        afficherCreneaux();
-    }
-
-    function afficherCreneaux() {
-        const age = window.ageCalcule;
-        const sexe = window.sexeSelectionne;
-        if (!age || !sexe) return;
-
-        const container = document.getElementById('creneaux_container');
-        container.innerHTML = '';
-        const disponibilitesSection = document.getElementById('disponibilites_section');
-
-        const creneauxFiltres = creneaux.filter(c => {
-            const ageOk = age >= c.age_min && age <= c.age_max;
-            const sexeOk = c.sexe_cible === 'mixte' || c.sexe_cible === sexe;
-            return ageOk && sexeOk;
-        });
-
-        if (creneauxFiltres.length === 0) {
-            container.innerHTML = '<p class="text-muted text-center">لا توجد حلقات متاحة حالياً لهذا الملف</p>';
-            disponibilitesSection.style.display = 'block';
-            return;
-        }
-
-        disponibilitesSection.style.display = 'none';
-
-        creneauxFiltres.forEach(c => {
-            const btn = document.createElement('div');
-            btn.className = 'select-btn mb-2';
-            btn.innerHTML = c.label;
-            btn.onclick = function() {
-                document.getElementById('creneau_value').value = c.id;
-                document.querySelectorAll('#creneaux_container .select-btn')
-                    .forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-            };
-            container.appendChild(btn);
-        });
-    }
 
     function selectOption(type, value, el) {
         document.getElementById(type + '_value').value = value;

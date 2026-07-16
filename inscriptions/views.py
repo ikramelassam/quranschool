@@ -1,7 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model
 from .models import InscriptionEleve, InscriptionProf, TypeAbonnement
-from courses.models import Creneau
 import json
 
 MESSAGE_EMAIL_DEJA_UTILISE = (
@@ -38,16 +37,6 @@ def inscription_eleve_choix(request):
 def inscription_eleve_formulaire(request, type_age):
     from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
 
-    creneaux = Creneau.objects.filter(est_actif=True)
-
-    creneaux_json = json.dumps([{
-        'id': c.id,
-        'label': str(c),
-        'age_min': c.age_min,
-        'age_max': c.age_max,
-        'sexe_cible': c.sexe_cible,
-    } for c in creneaux])
-
     types_abonnement_json = json.dumps([{
         'code': t.code,
         'label': t.label,
@@ -66,7 +55,6 @@ def inscription_eleve_formulaire(request, type_age):
         if _email_deja_utilise(email):
             return render(request, 'inscriptions/eleve_formulaire.html', {
                 'type_age': type_age,
-                'creneaux_json': creneaux_json,
                 'types_abonnement_json': types_abonnement_json,
                 'erreur_email': MESSAGE_EMAIL_DEJA_UTILISE,
                 'old_email': email,
@@ -81,7 +69,6 @@ def inscription_eleve_formulaire(request, type_age):
             sexe=request.POST.get('sexe'),
             telephone=request.POST.get('telephone'),
             email=email,
-            creneau_souhaite_id=request.POST.get('creneau_souhaite') or None,
             programme=request.POST.get('programme'),
             riwaya=request.POST.get('riwaya'),
             outil=request.POST.get('outil'),
@@ -95,7 +82,6 @@ def inscription_eleve_formulaire(request, type_age):
 
     return render(request, 'inscriptions/eleve_formulaire.html', {
         'type_age': type_age,
-        'creneaux_json': creneaux_json,
         'types_abonnement_json': types_abonnement_json,
         'valeurs_form': set(),
         **contexte_grille,

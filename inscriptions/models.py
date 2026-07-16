@@ -4,9 +4,17 @@ from django.db import models
 class TypeAbonnement(models.Model):
     """Option de tarif/abonnement proposée à l'inscription, modifiable par l'admin
     (remplace l'ancienne liste codée en dur dans InscriptionEleve.ABONNEMENT_CHOICES)."""
+    TYPE_OFFRE_CHOICES = [
+        ('groupe', 'جماعي'),
+        ('individuel', 'فردي'),
+    ]
+
     code = models.SlugField(max_length=30, unique=True)
     label = models.CharField(max_length=100)
     prix = models.DecimalField(max_digits=8, decimal_places=2)
+    # Utilisé pour comparer un abonnement choisi à l'inscription au type_capacite
+    # d'un Groupe (courses.utils.raison_incompatibilite_groupe*).
+    type_offre = models.CharField(max_length=10, choices=TYPE_OFFRE_CHOICES, default='groupe')
     est_actif = models.BooleanField(default=True)
     ordre = models.IntegerField(default=0)
 
@@ -86,6 +94,12 @@ class InscriptionEleve(models.Model):
         Retombe sur le code brut si le type a été supprimé depuis."""
         type_abo = TypeAbonnement.objects.filter(code=self.abonnement).first()
         return type_abo.label if type_abo else self.abonnement
+
+    def abonnement_type_offre(self):
+        """'individuel' ou 'groupe', lu depuis TypeAbonnement. None si le type
+        a été supprimé depuis (empêche toute suggestion de groupe erronée)."""
+        type_abo = TypeAbonnement.objects.filter(code=self.abonnement).first()
+        return type_abo.type_offre if type_abo else None
 
     class Meta:
         verbose_name = "Inscription Élève"
