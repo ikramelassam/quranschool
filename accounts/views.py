@@ -60,6 +60,8 @@ COULEUR_PAR_ROLE = {
 
 @login_required
 def password_change_view(request):
+    changement_force = request.user.doit_changer_mot_de_passe
+
     if request.method == 'POST':
         ancien = request.POST.get('ancien_mot_de_passe')
         nouveau = request.POST.get('nouveau_mot_de_passe')
@@ -73,6 +75,7 @@ def password_change_view(request):
             messages.error(request, 'يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل.')
         else:
             request.user.set_password(nouveau)
+            request.user.doit_changer_mot_de_passe = False
             request.user.save()
             update_session_auth_hash(request, request.user)
             messages.success(request, 'تم تغيير كلمة المرور بنجاح.')
@@ -81,4 +84,5 @@ def password_change_view(request):
     return render(request, 'accounts/password_change.html', {
         'base_template': BASE_TEMPLATE_PAR_ROLE.get(request.user.role, 'dashboard/base_eleve.html'),
         'couleur': COULEUR_PAR_ROLE.get(request.user.role, '#2d5a1b'),
+        'changement_force': changement_force,
     })

@@ -17,6 +17,12 @@ class User(AbstractUser):
         choices=ROLE_CHOICES,
         default='eleve'
     )
+    # True tant que l'utilisateur n'a pas changé son mot de passe temporaire
+    # (voir dashboard.views.MOT_DE_PASSE_TEMPORAIRE). Le middleware
+    # accounts.middleware.ForcerChangementMotDePasseMiddleware redirige tout
+    # utilisateur avec ce champ à True vers le changement de mot de passe
+    # avant tout accès au reste du site.
+    doit_changer_mot_de_passe = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
