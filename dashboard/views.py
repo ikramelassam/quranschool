@@ -559,14 +559,22 @@ def admin_inscription_prof_detail(request, inscription_id):
 
     # Le champ peut référencer un fichier qui n'existe plus (ou jamais existé) sur
     # le disque — évite d'afficher silencieusement un lecteur audio cassé.
-    audio_fichier_manquant = bool(
-        inscription.audio_enregistrement and not inscription.audio_enregistrement.storage.exists(inscription.audio_enregistrement.name)
-    )
+    # .storage.exists() appelle Cloudinary en réseau (RawMediaCloudinaryStorage) :
+    # une panne/lenteur ne doit jamais empêcher l'admin de consulter la fiche.
+    audio_fichier_manquant = False
+    audio_verification_echouee = False
+    if inscription.audio_enregistrement:
+        try:
+            audio_fichier_manquant = not inscription.audio_enregistrement.storage.exists(inscription.audio_enregistrement.name)
+        except Exception:
+            logger.exception("Échec de la vérification Cloudinary pour l'audio de l'inscription %s", inscription.id)
+            audio_verification_echouee = True
 
     return render(request, 'dashboard/admin_inscription_prof_detail.html', {
         'inscription': inscription,
         'conflit': conflit,
         'audio_fichier_manquant': audio_fichier_manquant,
+        'audio_verification_echouee': audio_verification_echouee,
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
         'valeurs_dispo': set(inscription.disponibilites),
