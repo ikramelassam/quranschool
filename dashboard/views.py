@@ -432,12 +432,18 @@ def dashboard_admin(request):
     return render(request, 'dashboard/admin.html', context)
 @role_required('admin')
 def admin_inscriptions(request):
-    inscriptions = InscriptionEleve.objects.filter(
+    from inscriptions.models import InscriptionProf
+
+    inscriptions_eleves = InscriptionEleve.objects.filter(
+        statut='en_attente'
+    ).order_by('-date_soumission')
+    inscriptions_profs = InscriptionProf.objects.filter(
         statut='en_attente'
     ).order_by('-date_soumission')
 
     return render(request, 'dashboard/admin_inscriptions.html', {
-        'inscriptions': paginer(request, inscriptions, 10),
+        'inscriptions': paginer(request, inscriptions_eleves, 10, param='page_eleves'),
+        'inscriptions_profs': paginer(request, inscriptions_profs, 10, param='page_profs'),
     })
 
 

@@ -72,6 +72,8 @@
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
                 <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">قيد المراجعة</span>
+                <a href="{% url 'admin_inscription_prof_detail' ins.id %}"
+                   style="color:#C9A84C; text-decoration:none; font-size:0.85rem;">عرض ←</a>
             </div>
         </div>
         {% endfor %}
