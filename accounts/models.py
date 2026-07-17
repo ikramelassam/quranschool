@@ -5,10 +5,10 @@ from django.db import models
 
 class User(AbstractUser):
     ROLE_CHOICES = [
-        ('eleve', 'Élève'),
-        ('prof', 'Professeur'),
-        ('superviseur', 'Superviseur'),
-        ('admin', 'Administrateur'),
+        ('eleve', 'طالب'),
+        ('prof', 'معلم'),
+        ('superviseur', 'مشرف'),
+        ('admin', 'مدير'),
     ]
     telephone = models.CharField(max_length=20, blank=True)
     date_naissance = models.DateField(null=True, blank=True)
@@ -30,10 +30,10 @@ class User(AbstractUser):
 
 class Eleve(models.Model):
     STATUT_CHOICES = [
-        ('actif', 'Actif'),
-        ('suspendu', 'Suspendu'),
-        ('ancien', 'Ancien'),
-        ('nouveau','NOUVEAU'),
+        ('actif', 'نشط'),
+        ('suspendu', 'موقوف'),
+        ('ancien', 'قديم'),
+        ('nouveau', 'جديد'),
     ]
     user = models.OneToOneField(
         User,

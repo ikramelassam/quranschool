@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_prof.html' %}
+{% load libelles_arabes %}
 {% block title %}ملفي الشخصي{% endblock %}
 {% block content %}
 <div class="page-title">ملفي الشخصي</div>
@@ -22,11 +23,11 @@
     <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">التفضيلات</div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">اللغات</span>
-        <span style="font-weight:600;">{{ prof.langues|join:"، " }}</span>
+        <span style="font-weight:600;">{{ prof.langues|libelles_arabes_liste:"langues" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">أدوات التواصل</span>
-        <span style="font-weight:600;">{{ prof.outils_maitrises|join:"، " }}</span>
+        <span style="font-weight:600;">{{ prof.outils_maitrises|libelles_arabes_liste:"outils_maitrises" }}</span>
     </div>
 
     <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">المجموعات</div>

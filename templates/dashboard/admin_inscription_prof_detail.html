@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_admin.html' %}
+{% load libelles_arabes %}
 
 {% block title %}تفاصيل طلب المعلم{% endblock %}
 
@@ -28,7 +29,7 @@
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الحالة الاجتماعية</span>
-        <span style="font-weight:600;">{{ inscription.statut_familial }}</span>
+        <span style="font-weight:600;">{{ inscription.statut_familial|libelle_arabe:"statut_familial" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الوظيفة الحالية</span>
@@ -72,19 +73,19 @@
 
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الفئة المفضلة</span>
-        <span style="font-weight:600;">{{ inscription.type_eleve_preference|join:", " }}</span>
+        <span style="font-weight:600;">{{ inscription.type_eleve_preference|libelles_arabes_liste:"type_eleve_preference" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">قيود الجنس</span>
-        <span style="font-weight:600;">{{ inscription.contrainte_genre|join:", " }}</span>
+        <span style="font-weight:600;">{{ inscription.contrainte_genre|libelles_arabes_liste:"contrainte_genre" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">اللغات</span>
-        <span style="font-weight:600;">{{ inscription.langues|join:", " }}</span>
+        <span style="font-weight:600;">{{ inscription.langues|libelles_arabes_liste:"langues" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الأدوات</span>
-        <span style="font-weight:600;">{{ inscription.outils_maitrises|join:", " }}</span>
+        <span style="font-weight:600;">{{ inscription.outils_maitrises|libelles_arabes_liste:"outils_maitrises" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">تاريخ التقديم</span>

@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_eleve.html' %}
+{% load libelles_arabes %}
 {% block title %}ملفي الشخصي{% endblock %}
 {% block content %}
 <div class="page-title">ملفي الشخصي</div>
@@ -14,11 +15,11 @@
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الجنس</span>
-        <span style="font-weight:600;">{{ eleve.sexe }}</span>
+        <span style="font-weight:600;">{{ eleve.sexe|libelle_arabe:"sexe" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0;">
         <span style="color:#888;">الحالة</span>
-        <span style="font-weight:600; color:#2d5a1b;">{{ eleve.statut }}</span>
+        <span style="font-weight:600; color:#2d5a1b;">{{ eleve.get_statut_display }}</span>
     </div>
 
     <div style="margin-top:20px; font-weight:700; color:#2d5a1b; margin-bottom:12px;">مجموعاتي</div>

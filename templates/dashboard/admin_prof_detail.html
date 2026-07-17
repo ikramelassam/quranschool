@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_admin.html' %}
+{% load libelles_arabes %}
 {% block title %}{{ prof.user.get_full_name }}{% endblock %}
 {% block content %}
 <div class="page-title">{{ prof.user.get_full_name }}</div>
@@ -23,19 +24,19 @@
     <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">التفضيلات</div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">اللغات</span>
-        <span style="font-weight:600;">{{ prof.langues|join:"، " }}</span>
+        <span style="font-weight:600;">{{ prof.langues|libelles_arabes_liste:"langues" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">أدوات التواصل</span>
-        <span style="font-weight:600;">{{ prof.outils_maitrises|join:"، " }}</span>
+        <span style="font-weight:600;">{{ prof.outils_maitrises|libelles_arabes_liste:"outils_maitrises" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الفئة المفضلة</span>
-        <span style="font-weight:600;">{{ prof.type_eleve_preference|join:"، " }}</span>
+        <span style="font-weight:600;">{{ prof.type_eleve_preference|libelles_arabes_liste:"type_eleve_preference" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">قيود الجنس</span>
-        <span style="font-weight:600;">{{ prof.contrainte_genre|join:"، " }}</span>
+        <span style="font-weight:600;">{{ prof.contrainte_genre|libelles_arabes_liste:"contrainte_genre" }}</span>
     </div>
 
     <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">المسار</div>
@@ -90,7 +91,7 @@
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الحالة العائلية</span>
-        <span style="font-weight:600;">{{ inscription.statut_familial }}</span>
+        <span style="font-weight:600;">{{ inscription.statut_familial|libelle_arabe:"statut_familial" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">العمل الحالي</span>

@@ -27,7 +27,7 @@
         <div style="display:flex; gap:8px; align-items:center;">
             <span style="color:#888; font-size:0.85rem;">{{ eleve.groupes.count }} مجموعة</span>
             <span style="background:{% if eleve.statut == 'actif' %}#e8f5e9; color:#2d5a1b{% else %}#fce4e4; color:#dc3545{% endif %}; border-radius:20px; padding:3px 12px; font-size:0.8rem;">
-                {{ eleve.statut }}
+                {{ eleve.get_statut_display }}
             </span>
         </div>
     </a>
