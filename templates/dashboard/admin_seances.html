@@ -45,7 +45,7 @@
     <div class="row align-items-center">
         <div class="col-md-6">
             <div style="font-weight:700;">{{ seance.groupe.nom }}</div>
-            <div style="color:#888; font-size:0.85rem;">{{ seance.date }} — {{ seance.heure }} — {{ seance.get_type_display }}</div>
+            <div style="color:#888; font-size:0.85rem;">{{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }} — {{ seance.get_type_display }}</div>
             {% if seance.remarque %}
             <div style="color:#856404; font-size:0.8rem; margin-top:4px;">💬 {{ seance.remarque }}</div>
             {% endif %}

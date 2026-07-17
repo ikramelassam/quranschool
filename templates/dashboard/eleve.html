@@ -37,7 +37,7 @@
             <div style="display:flex; justify-content:space-between;">
                 <div>
                     <div style="font-weight:600;">{{ presence.seance.groupe.nom }}</div>
-                    <div style="color:#888; font-size:0.85rem;">{{ presence.seance.date }}</div>
+                    <div style="color:#888; font-size:0.85rem;">{{ presence.seance.date|date:"d-m-Y" }}</div>
                 </div>
                 <div style="text-align:left;">
                     {% if presence.note_memorisation %}

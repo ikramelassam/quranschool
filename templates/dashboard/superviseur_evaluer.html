@@ -2,7 +2,7 @@
 {% block title %}تقييم الحصة{% endblock %}
 {% block content %}
 <div class="page-title">تقييم المعلم</div>
-<div class="page-subtitle">{{ seance.groupe.nom }} — {{ seance.date }}</div>
+<div class="page-subtitle">{{ seance.groupe.nom }} — {{ seance.date|date:"d-m-Y" }}</div>
 
 <div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3">

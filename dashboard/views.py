@@ -743,18 +743,27 @@ def eleve_seances(request):
     # annulée ou déplacée par l'admin n'avait donc aucune vitrine pour
     # l'élève. On ajoute ici ses prochaines séances (à partir des groupes
     # auxquels il appartient), pour que ce changement lui soit visible.
-    seances_a_venir = Seance.objects.filter(
+    # Volontairement limité à 3 (contrairement aux 10 du prof/superviseur) :
+    # pour l'élève c'est juste informatif, pas une file de travail à traiter —
+    # nb_a_venir permet au template d'afficher un compteur du reste.
+    seances_a_venir_qs = Seance.objects.filter(
         groupe__in=eleve.groupes.all(), date__gte=aujourdhui
-    ).exclude(statut='terminee').select_related('groupe').order_by('date', 'heure')[:10]
+    ).exclude(statut='terminee').select_related('groupe').order_by('date', 'heure')
+    nb_a_venir = seances_a_venir_qs.count()
+    seances_a_venir = seances_a_venir_qs[:3]
 
+    # Le passé (évaluations à consulter) est plus prioritaire visuellement que
+    # le futur (juste informatif) — voir le template, cette section s'affiche
+    # en premier.
     presences = Presence.objects.filter(
         eleve=eleve
-    ).order_by('-seance__date')
+    ).order_by('-seance__date', '-seance__heure')
 
     return render(request, 'dashboard/eleve_seances.html', {
         'eleve': eleve,
         'aujourdhui': aujourdhui,
         'seances_a_venir': seances_a_venir,
+        'nb_a_venir': nb_a_venir,
         'presences': paginer(request, presences, 10),
     })
 

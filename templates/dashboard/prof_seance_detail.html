@@ -82,7 +82,7 @@
 
 {% block content %}
 <div class="page-title">{{ seance.groupe.nom }}</div>
-<div class="page-subtitle">{{ seance.date }} — {{ seance.heure }} — {{ seance.get_type_display }}</div>
+<div class="page-subtitle">{{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }} — {{ seance.get_type_display }}</div>
 
 <form method="POST" action="{% url 'prof_presence_sauvegarder' seance.id %}">
     {% csrf_token %}

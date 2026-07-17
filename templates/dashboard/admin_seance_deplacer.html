@@ -2,7 +2,7 @@
 {% block title %}تأجيل الحصة{% endblock %}
 {% block content %}
 <div class="page-title">تأجيل الحصة</div>
-<div class="page-subtitle">{{ seance.groupe.nom }} — الموعد الحالي: {{ seance.date }} — {{ seance.heure }}</div>
+<div class="page-subtitle">{{ seance.groupe.nom }} — الموعد الحالي: {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">

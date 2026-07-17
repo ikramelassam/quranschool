@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-title">{{ seance.groupe.nom }}</div>
 <div class="page-subtitle">
-    {{ seance.date }} — {{ seance.heure }}
+    {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
     {% if seance.groupe.prof %} — المعلم: {{ seance.groupe.prof.user.get_full_name }}{% endif %}
 </div>
 

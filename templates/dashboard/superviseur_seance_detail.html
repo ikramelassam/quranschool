@@ -5,7 +5,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <div class="page-title" style="margin-bottom:0;">{{ seance.groupe.nom }}</div>
-        <div class="page-subtitle" style="margin-bottom:0;">{{ seance.date }} — {{ seance.heure }}</div>
+        <div class="page-subtitle" style="margin-bottom:0;">{{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}</div>
     </div>
     {% if seance.evaluation %}
     <a href="{% url 'superviseur_evaluation_detail' seance.id %}"

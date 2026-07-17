@@ -3,7 +3,7 @@
 {% block title %}تفاصيل الحصة{% endblock %}
 {% block content %}
 <div class="page-title">{{ presence.seance.groupe.nom }}</div>
-<div class="page-subtitle">{{ presence.seance.date }} — {{ presence.seance.heure }} — {{ presence.seance.get_type_display }}</div>
+<div class="page-subtitle">{{ presence.seance.date|date:"d-m-Y" }} — {{ presence.seance.heure|time:"H:i" }} — {{ presence.seance.get_type_display }}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 

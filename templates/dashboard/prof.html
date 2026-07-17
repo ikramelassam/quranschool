@@ -40,7 +40,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f0f0f0;">
             <div>
                 <div style="font-weight:600;">{{ seance.groupe.nom }}</div>
-                <div style="color:#888; font-size:0.85rem;">{{ seance.date }} — {{ seance.heure }}</div>
+                <div style="color:#888; font-size:0.85rem;">{{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}</div>
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
                 {% if seance.statut == 'terminee' %}

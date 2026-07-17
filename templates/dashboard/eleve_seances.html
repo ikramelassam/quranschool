@@ -4,33 +4,17 @@
 <div class="page-title">حصصي وتقييماتي</div>
 <div class="page-subtitle">سجل جميع حصصك</div>
 
-{% if seances_a_venir %}
-<div style="margin-bottom:24px;">
-    <div style="font-weight:700; color:#2d5a1b; font-size:1.1rem; margin-bottom:12px;">🔜 حصصي القادمة</div>
-    <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    {% for seance in seances_a_venir %}
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
-            <div>
-                <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
-                <div style="color:#999; font-size:0.85rem;">{{ seance.date }} — {{ seance.heure }}</div>
-                {% if seance.statut == 'annulee' and seance.remarque %}
-                <div style="color:#dc3545; font-size:0.8rem; margin-top:4px;">السبب: {{ seance.remarque }}</div>
-                {% endif %}
-            </div>
-            {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
-        </div>
-    {% endfor %}
-    </div>
-</div>
-{% endif %}
+{# ===== الماضية (أولوية العرض: التقييمات التي يجب مراجعتها) ===== #}
+<div style="margin-bottom:30px;">
+    <div style="font-weight:700; color:#2d5a1b; font-size:1.1rem; margin-bottom:12px;">📂 الحصص الماضية</div>
 
-{% if presences %}
+    {% if presences %}
     {% for presence in presences %}
     <a href="{% url 'eleve_seance_detail' presence.id %}" style="display:block; color:inherit; text-decoration:none; background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12)'" onmouseout="this.style.boxShadow='0 2px 12px rgba(0,0,0,0.06)'">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
             <div>
                 <div style="font-weight:700;">{{ presence.seance.groupe.nom }}</div>
-                <div style="color:#888; font-size:0.85rem;">{{ presence.seance.date }} — {{ presence.seance.heure }}</div>
+                <div style="color:#888; font-size:0.85rem;">{{ presence.seance.date|date:"d-m-Y" }} — {{ presence.seance.heure|time:"H:i" }}</div>
             </div>
             <span style="background:{% if presence.statut == 'present' %}#e8f5e9; color:#2d5a1b{% elif presence.statut == 'absent_excuse' %}#fff3cd; color:#856404{% else %}#fce4e4; color:#dc3545{% endif %}; border-radius:20px; padding:4px 12px; font-size:0.8rem;">
                 {% if presence.statut == 'present' %}حاضر ✅
@@ -71,8 +55,35 @@
         {% endif %}
     </a>
     {% endfor %}
-{% else %}
-<div style="text-align:center; padding:60px; color:#aaa;">لا توجد حصص بعد</div>
-{% endif %}
-{% include 'dashboard/_pagination.html' with page_obj=presences %}
+    {% include 'dashboard/_pagination.html' with page_obj=presences %}
+    {% else %}
+    <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص سابقة بعد</div>
+    {% endif %}
+</div>
+
+{# ===== القادمة (معلوماتية فقط، أولوية أقل) ===== #}
+<div>
+    <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">🔜 الحصص القادمة</div>
+    {% if seances_a_venir %}
+        <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        {% for seance in seances_a_venir %}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
+                <div>
+                    <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                    <div style="color:#999; font-size:0.85rem;">{{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}</div>
+                    {% if seance.statut == 'annulee' and seance.remarque %}
+                    <div style="color:#dc3545; font-size:0.8rem; margin-top:4px;">السبب: {{ seance.remarque }}</div>
+                    {% endif %}
+                </div>
+                {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
+            </div>
+        {% endfor %}
+        </div>
+        {% if nb_a_venir > 3 %}
+        <div style="text-align:center; color:#aaa; font-size:0.85rem; margin-top:8px;">+ {{ nb_a_venir|add:"-3" }} حصة أخرى قادمة لاحقاً</div>
+        {% endif %}
+    {% else %}
+        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص قادمة</div>
+    {% endif %}
+</div>
 {% endblock %}

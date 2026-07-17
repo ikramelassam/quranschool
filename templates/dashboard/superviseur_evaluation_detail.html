@@ -5,7 +5,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3" style="flex-wrap:wrap; gap:12px;">
     <div>
         <div class="page-title" style="margin-bottom:0;">تقييم المعلم</div>
-        <div class="page-subtitle" style="margin-bottom:0;">{{ seance.groupe.nom }} — {{ seance.date }}</div>
+        <div class="page-subtitle" style="margin-bottom:0;">{{ seance.groupe.nom }} — {{ seance.date|date:"d-m-Y" }}</div>
     </div>
     <a href="{% url 'superviseur_evaluer' seance.id %}"
        style="background:#6b3a2a; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
