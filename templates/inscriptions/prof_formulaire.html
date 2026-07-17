@@ -115,6 +115,12 @@
     </div>
     {% endif %}
 
+    {% if erreur_champs %}
+    <div style="background:#f8d7da; border-radius:8px; padding:14px 18px; margin-bottom:20px; color:#721c24;">
+        ⚠️ {{ erreur_champs }}
+    </div>
+    {% endif %}
+
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
 
@@ -251,17 +257,17 @@
             <div class="section-title">7. المعلومات البنكية والتسجيل الصوتي</div>
             <div class="row g-3">
                 <div class="col-6">
-                    <label class="form-label">رقم الحساب البنكي</label>
-                    <input type="text" name="compte_bancaire" class="form-control">
+                    <label class="form-label">رقم الحساب البنكي *</label>
+                    <input type="text" name="compte_bancaire" class="form-control" required>
                 </div>
                 <div class="col-6">
-                    <label class="form-label">RIB</label>
-                    <input type="text" name="rib" class="form-control">
+                    <label class="form-label">RIB *</label>
+                    <input type="text" name="rib" class="form-control" required>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">تسجيل صوتي (اختياري)</label>
+                    <label class="form-label">تسجيل صوتي *</label>
                     <input type="file" name="audio_enregistrement" class="form-control"
-                           accept="audio/*">
+                           accept="audio/*" required>
                 </div>
             </div>
         </div>

@@ -102,10 +102,33 @@ def inscription_prof(request):
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
         disponibilites = request.POST.getlist('dispo')
+        compte_bancaire = request.POST.get('compte_bancaire', '').strip()
+        rib = request.POST.get('rib', '').strip()
+        audio_enregistrement = request.FILES.get('audio_enregistrement')
 
         if _email_deja_utilise(email):
             return render(request, 'inscriptions/prof_formulaire.html', {
                 'erreur_email': MESSAGE_EMAIL_DEJA_UTILISE,
+                'old_email': email,
+                'valeurs_form': set(disponibilites),
+                **contexte_grille,
+            })
+
+        # Pas de Django Forms dans ce projet (request.POST.get() brut) — le HTML5
+        # required peut être contourné, donc on revalide ces champs côté serveur
+        # avant toute création (voir bug RIB/compte bancaire vides malgré le
+        # champ obligatoire en apparence, et l'audio qui doit devenir obligatoire).
+        champs_manquants = []
+        if not compte_bancaire:
+            champs_manquants.append('رقم الحساب البنكي')
+        if not rib:
+            champs_manquants.append('RIB')
+        if not audio_enregistrement:
+            champs_manquants.append('التسجيل الصوتي')
+
+        if champs_manquants:
+            return render(request, 'inscriptions/prof_formulaire.html', {
+                'erreur_champs': 'الحقول التالية إلزامية ولم يتم تعبئتها: ' + '، '.join(champs_manquants),
                 'old_email': email,
                 'valeurs_form': set(disponibilites),
                 **contexte_grille,
@@ -129,7 +152,9 @@ def inscription_prof(request):
             outils_maitrises=request.POST.getlist('outils'),
             type_eleve_preference=request.POST.getlist('type_eleve'),
             contrainte_genre=request.POST.getlist('contrainte_genre'),
-            audio_enregistrement=request.FILES.get('audio_enregistrement'),
+            compte_bancaire=compte_bancaire,
+            rib=rib,
+            audio_enregistrement=audio_enregistrement,
             disponibilites=disponibilites,
         )
         return redirect('inscription_confirmation')
