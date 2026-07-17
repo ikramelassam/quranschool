@@ -33,7 +33,6 @@ urlpatterns = [
     path('admin/inscriptions/eleve/<int:inscription_id>/', views.admin_inscription_eleve_detail, name='admin_inscription_eleve_detail'),
     path('admin/inscriptions/eleve/<int:inscription_id>/valider/', views.admin_valider_eleve, name='admin_valider_eleve'),
     path('admin/inscriptions/eleve/<int:inscription_id>/rejeter/', views.admin_rejeter_eleve, name='admin_rejeter_eleve'),
-    path('admin/inscriptions/profs/', views.admin_inscriptions_profs, name='admin_inscriptions_profs'),
     path('admin/inscriptions/prof/<int:inscription_id>/', views.admin_inscription_prof_detail, name='admin_inscription_prof_detail'),
     path('admin/inscriptions/prof/<int:inscription_id>/valider/', views.admin_valider_prof, name='admin_valider_prof'),
     path('admin/inscriptions/prof/<int:inscription_id>/rejeter/', views.admin_rejeter_prof, name='admin_rejeter_prof'),

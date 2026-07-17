@@ -179,16 +179,9 @@
             class="menu-item {% if request.resolver_match.url_name == 'admin_calendrier' %}active{% endif %}">
                 <span class="icon">🗓️</span> التقويم الأسبوعي
             </a>
-        <a href="{% url 'admin_inscriptions' %}" 
+        <a href="{% url 'admin_inscriptions' %}"
            class="menu-item {% if request.resolver_match.url_name == 'admin_inscriptions' %}active{% endif %}">
-            <span class="icon">📋</span> طلبات الطلاب
-            {% if pending_eleves %}
-                <span class="menu-badge">{{ pending_eleves }}</span>
-            {% endif %}
-        </a>
-        <a href="{% url 'admin_inscriptions_profs' %}" 
-        class="menu-item {% if request.resolver_match.url_name == 'admin_inscriptions_profs' %}active{% endif %}">
-            <span class="icon">📝</span> طلبات المعلمين
+            <span class="icon">📋</span> طلبات التسجيل
         </a>
         <a href="{% url 'admin_groupes' %}" 
         class="menu-item {% if request.resolver_match.url_name == 'admin_groupes' %}active{% endif %}">

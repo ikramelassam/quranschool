@@ -432,18 +432,24 @@ def dashboard_admin(request):
     return render(request, 'dashboard/admin.html', context)
 @role_required('admin')
 def admin_inscriptions(request):
+    """Liste unique des candidatures en attente, élèves et profs mélangés
+    et triés par date de soumission — chaque ligne porte son propre type
+    (voir type_demande, posé dynamiquement ici, pas un champ du modèle)
+    pour que le template sache quel badge et quelles actions afficher."""
     from inscriptions.models import InscriptionProf
 
-    inscriptions_eleves = InscriptionEleve.objects.filter(
-        statut='en_attente'
-    ).order_by('-date_soumission')
-    inscriptions_profs = InscriptionProf.objects.filter(
-        statut='en_attente'
-    ).order_by('-date_soumission')
+    eleves = list(InscriptionEleve.objects.filter(statut='en_attente').order_by('-date_soumission'))
+    for e in eleves:
+        e.type_demande = 'eleve'
+
+    profs = list(InscriptionProf.objects.filter(statut='en_attente').order_by('-date_soumission'))
+    for p in profs:
+        p.type_demande = 'prof'
+
+    inscriptions = sorted(eleves + profs, key=lambda ins: ins.date_soumission, reverse=True)
 
     return render(request, 'dashboard/admin_inscriptions.html', {
-        'inscriptions': paginer(request, inscriptions_eleves, 10, param='page_eleves'),
-        'inscriptions_profs': paginer(request, inscriptions_profs, 10, param='page_profs'),
+        'inscriptions': paginer(request, inscriptions, 10),
     })
 
 
@@ -684,7 +690,7 @@ def admin_valider_prof(request, inscription_id):
             f'تم قبول المعلم {inscription.nom}، لكن تعذر إرسال بريد تسجيل الدخول. '
             f'كلمة المرور المؤقتة: {password_temp} (أرسلها للمعلم يدوياً).'
         )
-    return redirect('admin_inscriptions_profs')
+    return redirect('admin_inscriptions')
 
 @role_required('admin')
 def admin_rejeter_prof(request, inscription_id):
@@ -693,18 +699,7 @@ def admin_rejeter_prof(request, inscription_id):
     inscription.statut = 'rejete'
     inscription.save()
     messages.info(request, f'تم رفض طلب {inscription.nom}.')
-    return redirect('admin_inscriptions_profs')
-
-@role_required('admin')
-def admin_inscriptions_profs(request):
-    from inscriptions.models import InscriptionProf
-    inscriptions = InscriptionProf.objects.filter(
-        statut='en_attente'
-    ).order_by('-date_soumission')
-
-    return render(request, 'dashboard/admin_inscriptions_profs.html', {
-        'inscriptions': paginer(request, inscriptions, 10),
-    })
+    return redirect('admin_inscriptions')
 
 
 # ==================== DASHBOARD ÉLÈVE ====================

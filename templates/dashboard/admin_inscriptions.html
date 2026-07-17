@@ -3,7 +3,7 @@
 {% block title %}طلبات التسجيل{% endblock %}
 
 {% block content %}
-<div class="page-title">طلبات تسجيل الطلاب</div>
+<div class="page-title">طلبات التسجيل</div>
 <div class="page-subtitle">الطلبات المعلقة: {{ inscriptions.paginator.count }}</div>
 
 {% if inscriptions %}
@@ -11,14 +11,23 @@
     <div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
         <div class="row align-items-center">
             <div class="col-md-6">
-                <div style="font-weight:700; font-size:1.1rem;">{{ ins.nom }}</div>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    {% if ins.type_demande == 'eleve' %}
+                    <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:2px 10px; font-size:0.75rem; font-weight:700;">طالب</span>
+                    <div style="font-weight:700; font-size:1.1rem;">{{ ins.nom }}</div>
+                    {% else %}
+                    <span style="background:#fdf8ec; color:#C9A84C; border-radius:20px; padding:2px 10px; font-size:0.75rem; font-weight:700;">معلم</span>
+                    <div style="font-weight:700; font-size:1.1rem;">{{ ins.nom }} {{ ins.prenom }}</div>
+                    {% endif %}
+                </div>
                 <div style="color:#888; font-size:0.9rem;">{{ ins.email }}</div>
                 <div style="color:#888; font-size:0.85rem; margin-top:4px;">
                     تاريخ التقديم: {{ ins.date_soumission|date:"d-m-Y" }}
                 </div>
             </div>
             <div class="col-md-6 d-flex gap-2 justify-content-end mt-3 mt-md-0">
-                <a href="{% url 'admin_inscription_eleve_detail' ins.id %}" 
+                {% if ins.type_demande == 'eleve' %}
+                <a href="{% url 'admin_inscription_eleve_detail' ins.id %}"
                    style="background:white; color:#2d5a1b; border:2px solid #2d5a1b; border-radius:8px; padding:8px 16px; text-decoration:none;">
                    👁 عرض
                 </a>
@@ -32,44 +41,7 @@
                    style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
                    ❌ رفض
                 </a>
-            </div>
-        </div>
-    </div>
-    {% endfor %}
-{% else %}
-    <div style="text-align:center; padding:60px; color:#aaa;">🎉 لا توجد طلبات طلاب معلقة</div>
-{% endif %}
-{% if inscriptions.has_other_pages %}
-<div class="d-flex justify-content-center align-items-center gap-3 mt-4" style="font-size:0.9rem;">
-    {% if inscriptions.has_previous %}
-        <a href="{% querystring page_eleves=inscriptions.previous_page_number %}" style="color:#555; text-decoration:none;">→ السابق</a>
-    {% else %}
-        <span style="color:#ccc;">→ السابق</span>
-    {% endif %}
-    <span style="color:#888;">صفحة {{ inscriptions.number }} من {{ inscriptions.paginator.num_pages }}</span>
-    {% if inscriptions.has_next %}
-        <a href="{% querystring page_eleves=inscriptions.next_page_number %}" style="color:#555; text-decoration:none;">التالي ←</a>
-    {% else %}
-        <span style="color:#ccc;">التالي ←</span>
-    {% endif %}
-</div>
-{% endif %}
-
-<div class="page-title" style="margin-top:40px;">طلبات تسجيل المعلمين</div>
-<div class="page-subtitle">الطلبات المعلقة: {{ inscriptions_profs.paginator.count }}</div>
-
-{% if inscriptions_profs %}
-    {% for ins in inscriptions_profs %}
-    <div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-        <div class="row align-items-center">
-            <div class="col-md-6">
-                <div style="font-weight:700; font-size:1.1rem;">{{ ins.nom }} {{ ins.prenom }}</div>
-                <div style="color:#888; font-size:0.9rem;">{{ ins.email }}</div>
-                <div style="color:#888; font-size:0.85rem; margin-top:4px;">
-                    تاريخ التقديم: {{ ins.date_soumission|date:"d-m-Y" }}
-                </div>
-            </div>
-            <div class="col-md-6 d-flex gap-2 justify-content-end mt-3 mt-md-0">
+                {% else %}
                 <a href="{% url 'admin_inscription_prof_detail' ins.id %}"
                    style="background:white; color:#C9A84C; border:2px solid #C9A84C; border-radius:8px; padding:8px 16px; text-decoration:none;">
                    👁 عرض
@@ -84,26 +56,13 @@
                    style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
                    ❌ رفض
                 </a>
+                {% endif %}
             </div>
         </div>
     </div>
     {% endfor %}
 {% else %}
-    <div style="text-align:center; padding:60px; color:#aaa;">🎉 لا توجد طلبات معلمين معلقة</div>
+    <div style="text-align:center; padding:60px; color:#aaa;">🎉 لا توجد طلبات معلقة</div>
 {% endif %}
-{% if inscriptions_profs.has_other_pages %}
-<div class="d-flex justify-content-center align-items-center gap-3 mt-4" style="font-size:0.9rem;">
-    {% if inscriptions_profs.has_previous %}
-        <a href="{% querystring page_profs=inscriptions_profs.previous_page_number %}" style="color:#555; text-decoration:none;">→ السابق</a>
-    {% else %}
-        <span style="color:#ccc;">→ السابق</span>
-    {% endif %}
-    <span style="color:#888;">صفحة {{ inscriptions_profs.number }} من {{ inscriptions_profs.paginator.num_pages }}</span>
-    {% if inscriptions_profs.has_next %}
-        <a href="{% querystring page_profs=inscriptions_profs.next_page_number %}" style="color:#555; text-decoration:none;">التالي ←</a>
-    {% else %}
-        <span style="color:#ccc;">التالي ←</span>
-    {% endif %}
-</div>
-{% endif %}
+{% include 'dashboard/_pagination.html' with page_obj=inscriptions %}
 {% endblock %}
