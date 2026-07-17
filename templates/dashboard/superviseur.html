@@ -134,6 +134,24 @@
     {% if seances_a_venir %}
         <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
         {% for seance in seances_a_venir %}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last or seances_a_venir_extra %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
+                <div>
+                    <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                    <div style="color:#999; font-size:0.85rem;">
+                        {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}غير محدد{% endif %}
+                        — {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    {% include 'dashboard/_seance_evaluation_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                    <a href="{% url 'superviseur_seance_detail' seance.id %}"
+                       style="color:#6b3a2a; text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                </div>
+            </div>
+        {% endfor %}
+        {% if seances_a_venir_extra %}
+        <div id="seances_a_venir_extra" style="display:none;">
+        {% for seance in seances_a_venir_extra %}
             <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
                 <div>
                     <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
@@ -150,11 +168,25 @@
             </div>
         {% endfor %}
         </div>
-        {% if nb_a_venir > 10 %}
-        <div style="text-align:center; color:#aaa; font-size:0.85rem; margin-top:8px;">+ {{ nb_a_venir|add:"-10" }} حصة أخرى قادمة لاحقاً</div>
+        {% endif %}
+        </div>
+        {% if seances_a_venir_extra %}
+        <div style="text-align:center; margin-top:8px;">
+            <span id="toggle_a_venir_texte" onclick="toggleSeancesAVenir()" style="cursor:pointer; color:#6b3a2a; font-size:0.85rem; text-decoration:underline;">+ {{ nb_a_venir|add:"-10" }} حصة أخرى قادمة لاحقاً — عرض ↓</span>
+        </div>
         {% endif %}
     {% else %}
         <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص قادمة</div>
     {% endif %}
 </div>
+
+<script>
+function toggleSeancesAVenir() {
+    const extra = document.getElementById('seances_a_venir_extra');
+    const texte = document.getElementById('toggle_a_venir_texte');
+    const ouvert = extra.style.display !== 'none';
+    extra.style.display = ouvert ? 'none' : 'block';
+    texte.textContent = ouvert ? '+ {{ nb_a_venir|add:"-10" }} حصة أخرى قادمة لاحقاً — عرض ↓' : 'إخفاء ↑';
+}
+</script>
 {% endblock %}

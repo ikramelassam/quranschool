@@ -209,6 +209,10 @@ def prof_seances(request):
     # qu'on cherche justement à éviter. Le prof les verra de toute façon
     # apparaître ici au fur et à mesure qu'elles se rapprochent.
     seances_a_venir = seances_a_venir_qs[:10]
+    # Reste des séances à venir au-delà des 10 déjà visibles — rendu caché
+    # dans le template et déplié en JS au clic sur le compteur, sans
+    # rechargement (horizon de génération borné à 8 semaines).
+    seances_a_venir_extra = seances_a_venir_qs[10:]
     seances_passees_traitees = toutes_seances.filter(date__lt=aujourdhui).exclude(
         statut='planifiee'
     ).order_by('-date', '-heure')
@@ -221,6 +225,7 @@ def prof_seances(request):
         'seances_retard': seances_retard,
         'seances_aujourdhui': seances_aujourdhui,
         'seances_a_venir': seances_a_venir,
+        'seances_a_venir_extra': seances_a_venir_extra,
         'nb_a_venir': nb_a_venir,
         'seances_passees_traitees': paginer(request, seances_passees_traitees, 15),
     })
@@ -751,6 +756,10 @@ def eleve_seances(request):
     ).exclude(statut='terminee').select_related('groupe').order_by('date', 'heure')
     nb_a_venir = seances_a_venir_qs.count()
     seances_a_venir = seances_a_venir_qs[:3]
+    # Reste des séances à venir au-delà des 3 déjà visibles — rendu caché
+    # dans le template et déplié en JS au clic sur le compteur, sans
+    # rechargement (horizon de génération borné à 8 semaines).
+    seances_a_venir_extra = seances_a_venir_qs[3:]
 
     # Le passé (évaluations à consulter) est plus prioritaire visuellement que
     # le futur (juste informatif) — voir le template, cette section s'affiche
@@ -763,6 +772,7 @@ def eleve_seances(request):
         'eleve': eleve,
         'aujourdhui': aujourdhui,
         'seances_a_venir': seances_a_venir,
+        'seances_a_venir_extra': seances_a_venir_extra,
         'nb_a_venir': nb_a_venir,
         'presences': paginer(request, presences, 10),
     })
@@ -854,6 +864,11 @@ def dashboard_superviseur(request):
     seances_a_venir_qs = toutes_seances.filter(date__gt=aujourdhui).order_by('date', 'heure')
     nb_a_venir = seances_a_venir_qs.count()
     seances_a_venir = seances_a_venir_qs[:10]
+    # Reste des séances à venir au-delà des 10 déjà visibles — rendu caché
+    # dans le template et déplié en JS au clic sur le compteur, sans
+    # rechargement (horizon de génération borné à 8 semaines, jamais
+    # assez volumineux pour justifier un appel serveur séparé).
+    seances_a_venir_extra = seances_a_venir_qs[10:]
 
     seances_passees_traitees = toutes_seances.filter(
         date__lt=aujourdhui
@@ -867,6 +882,7 @@ def dashboard_superviseur(request):
         'seances_retard': seances_retard,
         'seances_aujourdhui': seances_aujourdhui,
         'seances_a_venir': seances_a_venir,
+        'seances_a_venir_extra': seances_a_venir_extra,
         'nb_a_venir': nb_a_venir,
         'seances_passees_traitees': paginer(request, seances_passees_traitees, 15),
         'profs': profs_assignes.select_related('user').order_by('user__first_name'),

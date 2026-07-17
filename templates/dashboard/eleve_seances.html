@@ -67,6 +67,20 @@
     {% if seances_a_venir %}
         <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
         {% for seance in seances_a_venir %}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last or seances_a_venir_extra %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
+                <div>
+                    <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                    <div style="color:#999; font-size:0.85rem;">{{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}</div>
+                    {% if seance.statut == 'annulee' and seance.remarque %}
+                    <div style="color:#dc3545; font-size:0.8rem; margin-top:4px;">السبب: {{ seance.remarque }}</div>
+                    {% endif %}
+                </div>
+                {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
+            </div>
+        {% endfor %}
+        {% if seances_a_venir_extra %}
+        <div id="seances_a_venir_extra" style="display:none;">
+        {% for seance in seances_a_venir_extra %}
             <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
                 <div>
                     <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
@@ -79,11 +93,25 @@
             </div>
         {% endfor %}
         </div>
-        {% if nb_a_venir > 3 %}
-        <div style="text-align:center; color:#aaa; font-size:0.85rem; margin-top:8px;">+ {{ nb_a_venir|add:"-3" }} حصة أخرى قادمة لاحقاً</div>
+        {% endif %}
+        </div>
+        {% if seances_a_venir_extra %}
+        <div style="text-align:center; margin-top:8px;">
+            <span id="toggle_a_venir_texte" onclick="toggleSeancesAVenir()" style="cursor:pointer; color:#2d5a1b; font-size:0.85rem; text-decoration:underline;">+ {{ nb_a_venir|add:"-3" }} حصة أخرى قادمة لاحقاً — عرض ↓</span>
+        </div>
         {% endif %}
     {% else %}
         <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص قادمة</div>
     {% endif %}
 </div>
+
+<script>
+function toggleSeancesAVenir() {
+    const extra = document.getElementById('seances_a_venir_extra');
+    const texte = document.getElementById('toggle_a_venir_texte');
+    const ouvert = extra.style.display !== 'none';
+    extra.style.display = ouvert ? 'none' : 'block';
+    texte.textContent = ouvert ? '+ {{ nb_a_venir|add:"-3" }} حصة أخرى قادمة لاحقاً — عرض ↓' : 'إخفاء ↑';
+}
+</script>
 {% endblock %}
