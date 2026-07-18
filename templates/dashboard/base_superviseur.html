@@ -18,10 +18,10 @@
             display: flex; flex-direction: column;
             z-index: 100;
         }
-        .sidebar-logo { padding: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar-logo img { width: 60px; border-radius: 10px; }
-        .sidebar-logo .title { color: white; font-weight: 700; font-size: 1rem; margin-top: 8px; }
-        .sidebar-logo .subtitle { color: rgba(255,255,255,0.6); font-size: 0.75rem; }
+        .sidebar-logo { margin: 16px; padding: 14px 10px 12px; text-align: center; background: var(--color-bg-cream); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .sidebar-logo img { width: 84px; height: 84px; object-fit: contain; border-radius: 10px; }
+        .sidebar-logo .title { color: var(--color-text-primary); font-weight: 700; font-size: 1rem; margin-top: 8px; }
+        .sidebar-logo .subtitle { color: var(--color-text-muted); font-size: 0.75rem; }
         .sidebar-menu { padding: 16px 0; flex: 1; }
         .menu-item {
             display: flex; align-items: center;
@@ -85,7 +85,7 @@
 
 <div class="sidebar">
     <div class="sidebar-logo">
-        <img src="{% static 'images/logo.jpeg' %}" alt="Logo">
+        <img src="{% static 'images/logo_nouveau.jpeg' %}" alt="زدني علماً">
         <div class="title">منصة زدني علماً</div>
         <div class="subtitle">لوحة المشرف</div>
     </div>
