@@ -75,6 +75,7 @@ def groupe_ajouter(request):
             description=request.POST.get('description', ''),
             capacite_max=request.POST.get('max_eleves', 10),
             type_capacite=request.POST.get('type_capacite', 'groupe'),
+            lien_reunion=request.POST.get('lien_reunion', ''),
         )
         regenerer_pour_nouveau_creneau(groupe)
         messages.success(request, 'تمت إضافة المجموعة وتوليد حصصها تلقائياً بنجاح.')
@@ -149,6 +150,7 @@ def groupe_modifier(request, groupe_id):
         groupe.statut = request.POST.get('statut')
         groupe.prof_id = nouveau_prof_id
         groupe.creneau_id = nouveau_creneau_id
+        groupe.lien_reunion = request.POST.get('lien_reunion', '')
         groupe.save()
 
         if creneau_a_change:

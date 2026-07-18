@@ -40,7 +40,10 @@
         <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f0f0f0;">
             <div>
                 <div style="font-weight:600;">{{ seance.groupe.nom }}</div>
-                <div style="color:#888; font-size:0.85rem;">{{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}</div>
+                <div style="color:#888; font-size:0.85rem;">
+                    {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
+                    {% if seance.groupe.lien_reunion %} · <a href="{{ seance.groupe.lien_reunion }}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 رابط الاجتماع</a>{% endif %}
+                </div>
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
                 {% if seance.statut == 'terminee' %}

@@ -82,7 +82,10 @@
 
 {% block content %}
 <div class="page-title">{{ seance.groupe.nom }}</div>
-<div class="page-subtitle">{{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }} — {{ seance.get_type_display }}</div>
+<div class="page-subtitle">
+    {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }} — {{ seance.get_type_display }}
+    {% if seance.groupe.lien_reunion %} · <a href="{{ seance.groupe.lien_reunion }}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 رابط الاجتماع</a>{% endif %}
+</div>
 
 <form method="POST" action="{% url 'prof_presence_sauvegarder' seance.id %}">
     {% csrf_token %}

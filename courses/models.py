@@ -155,6 +155,7 @@ class Groupe(models.Model):
         choices=[('actif', 'Actif'), ('archive', 'Archivé')],
         default='actif'
     )
+    lien_reunion = models.URLField(blank=True)
 
     def __str__(self):
         return self.nom
