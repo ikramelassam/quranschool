@@ -388,7 +388,7 @@ def prof_disponibilites(request):
             demande_en_attente.save()
         else:
             DemandeModificationDisponibilite.objects.create(prof=prof, nouvelle_matrice=nouvelle_matrice)
-        messages.success(request, 'تم إرسال طلب تعديل جدول التفرغ، بانتظار موافقة الإدارة.')
+        messages.success(request, 'تم إرسال طلب تعديل الأوقات المتاحة للتدريس، بانتظار موافقة الإدارة.')
         return redirect('prof_disponibilites')
 
     valeurs_form = set(demande_en_attente.nouvelle_matrice) if demande_en_attente else matrice_active
