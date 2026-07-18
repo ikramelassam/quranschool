@@ -1,5 +1,5 @@
 {% if seance.statut == 'terminee' %}
-    <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">منتهية ✅</span>
+    <span style="background:#e8f5e9; color:var(--color-brand-emerald); border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">منتهية ✅</span>
 {% elif seance.statut == 'planifiee' %}
     {% if seance.date < aujourdhui %}
         <span style="background:#ff9800; color:white; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">لم يتم تقييمها بعد ⚠️</span>

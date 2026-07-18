@@ -8,7 +8,7 @@
     {% if seance.groupe.prof %} — المعلم: {{ seance.groupe.prof.user.get_full_name }}{% endif %}
 </div>
 
-<div style="font-weight:700; color:#2d5a1b; margin:20px 0 12px;">📚 تقييمات الطلاب</div>
+<div style="font-weight:700; color:var(--color-brand-emerald); margin:20px 0 12px;">📚 تقييمات الطلاب</div>
 {% for p in presences %}
 <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -41,13 +41,13 @@
 {% endfor %}
 
 {% if seance.remarque_generale %}
-<div style="background:#fff8e6; border:2px dashed #C9A84C; border-radius:12px; padding:20px; margin:20px 0;">
+<div style="background:#fff8e6; border:2px dashed var(--color-brand-gold); border-radius:12px; padding:20px; margin:20px 0;">
     <div style="font-weight:700; color:#7a5c00; margin-bottom:8px;">📝 ملاحظات عامة عن الحصة</div>
     <div style="white-space:pre-wrap;">{{ seance.remarque_generale }}</div>
 </div>
 {% endif %}
 
-<div style="font-weight:700; color:#6b3a2a; margin:28px 0 12px;">🧑‍🏫 تقييم المعلم (من طرف المشرف)</div>
+<div style="font-weight:700; color:var(--color-brand-gold-dark); margin:28px 0 12px;">🧑‍🏫 تقييم المعلم (من طرف المشرف)</div>
 {% if evaluation %}
 <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div style="color:#888; font-size:0.85rem; margin-bottom:12px;">

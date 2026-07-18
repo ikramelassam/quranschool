@@ -7,7 +7,7 @@
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
-    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
+    <div style="color:var(--color-bg-brown-dark); font-weight:700; border-bottom:2px solid var(--color-bg-brown-dark); padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">المدينة</span>
         <span style="font-weight:600;">{{ prof.ville }}</span>
@@ -21,7 +21,7 @@
         <span style="font-weight:600;">{{ prof.certifications|default:"—" }}</span>
     </div>
 
-    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">التفضيلات</div>
+    <div style="color:var(--color-bg-brown-dark); font-weight:700; border-bottom:2px solid var(--color-bg-brown-dark); padding-bottom:6px; margin:20px 0 12px;">التفضيلات</div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">اللغات</span>
         <span style="font-weight:600;">{{ prof.langues|libelles_arabes_liste:"langues" }}</span>
@@ -39,7 +39,7 @@
         <span style="font-weight:600;">{{ prof.contrainte_genre|libelles_arabes_liste:"contrainte_genre" }}</span>
     </div>
 
-    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">المسار</div>
+    <div style="color:var(--color-bg-brown-dark); font-weight:700; border-bottom:2px solid var(--color-bg-brown-dark); padding-bottom:6px; margin:20px 0 12px;">المسار</div>
     <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <div style="color:#888; margin-bottom:4px;">المسار الدراسي</div>
         <div style="font-weight:600;">{{ prof.parcours_scolaire }}</div>
@@ -61,7 +61,7 @@
     </div>
     {% endif %}
 
-    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">معلومات بنكية</div>
+    <div style="color:var(--color-bg-brown-dark); font-weight:700; border-bottom:2px solid var(--color-bg-brown-dark); padding-bottom:6px; margin:20px 0 12px;">معلومات بنكية</div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الحساب البنكي</span>
         <span style="font-weight:600;">{{ prof.compte_bancaire }}</span>
@@ -71,7 +71,7 @@
         <span style="font-weight:600;">{{ prof.rib }}</span>
     </div>
 
-    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">المجموعات</div>
+    <div style="color:var(--color-bg-brown-dark); font-weight:700; border-bottom:2px solid var(--color-bg-brown-dark); padding-bottom:6px; margin:20px 0 12px;">المجموعات</div>
     {% if prof.groupes.all %}
         {% for groupe in prof.groupes.all %}
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
@@ -84,7 +84,7 @@
     {% endif %}
 
     {% if inscription %}
-    <div style="color:#1a3a5c; font-weight:700; border-bottom:2px solid #1a3a5c; padding-bottom:6px; margin:20px 0 12px;">معلومات إضافية من استمارة التسجيل</div>
+    <div style="color:var(--color-bg-brown-dark); font-weight:700; border-bottom:2px solid var(--color-bg-brown-dark); padding-bottom:6px; margin:20px 0 12px;">معلومات إضافية من استمارة التسجيل</div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">تاريخ الميلاد</span>
         <span style="font-weight:600;">{{ inscription.date_naissance }}</span>
@@ -100,7 +100,7 @@
     {% if inscription.audio_enregistrement %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">تسجيل صوتي</span>
-        <a href="{{ inscription.audio_enregistrement.url }}" target="_blank" style="font-weight:600; color:#1a3a5c;">🎧 استماع</a>
+        <a href="{{ inscription.audio_enregistrement.url }}" target="_blank" style="font-weight:600; color:var(--color-bg-brown-dark);">🎧 استماع</a>
     </div>
     {% endif %}
     <div style="display:flex; justify-content:space-between; padding:8px 0;">
@@ -114,11 +114,11 @@
     <div class="mt-4 d-flex gap-3 align-items-center">
         <a href="{% url 'admin_profs' %}" style="color:#888; text-decoration:none;">← رجوع</a>
         <a href="{% url 'admin_utilisateur_modifier_email' prof.user.id %}?next={% url 'admin_prof_detail' prof.id %}"
-           style="background:#C9A84C; color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
+           style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
            ✉️ تغيير البريد الإلكتروني
         </a>
         <a href="{% url 'admin_prof_disponibilites' prof.id %}"
-           style="background:#1a3a5c; color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
+           style="background:var(--color-bg-brown-dark); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
            🕐 جدول التفرغ
         </a>
     </div>

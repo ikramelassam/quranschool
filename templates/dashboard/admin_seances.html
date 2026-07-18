@@ -33,7 +33,7 @@
             </select>
         </div>
         <div class="col-md-3 d-flex gap-2">
-            <button type="submit" style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <button type="submit" style="background:var(--color-brand-emerald); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
             <a href="{% url 'admin_seances' %}" style="color:#888; text-decoration:none; padding:8px;">مسح التصفية</a>
         </div>
     </div>
@@ -52,11 +52,11 @@
         </div>
         <div class="col-md-6 d-flex gap-2 justify-content-end">
             {% if seance.statut == 'terminee' %}
-                <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:4px 12px; font-size:0.8rem;">منتهية ✅</span>
+                <span style="background:#e8f5e9; color:var(--color-brand-emerald); border-radius:20px; padding:4px 12px; font-size:0.8rem;">منتهية ✅</span>
             {% elif seance.statut == 'planifiee' %}
                 <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:4px 12px; font-size:0.8rem;">مخططة 📅</span>
                 <a href="{% url 'admin_seance_deplacer' seance.id %}"
-                   style="background:#C9A84C; color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+                   style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
                    تأجيل
                 </a>
                 <a href="{% url 'admin_seance_annuler' seance.id %}"

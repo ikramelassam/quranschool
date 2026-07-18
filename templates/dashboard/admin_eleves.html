@@ -11,7 +11,7 @@
             <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="اكتب اسم الطالب أو بريده الإلكتروني...">
         </div>
         <div class="col-md-4 d-flex gap-2">
-            <button type="submit" style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">بحث</button>
+            <button type="submit" style="background:var(--color-brand-emerald); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">بحث</button>
             <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
         </div>
     </div>
@@ -26,7 +26,7 @@
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
             <span style="color:#888; font-size:0.85rem;">{{ eleve.groupes.count }} مجموعة</span>
-            <span style="background:{% if eleve.statut == 'actif' %}#e8f5e9; color:#2d5a1b{% else %}#fce4e4; color:#dc3545{% endif %}; border-radius:20px; padding:3px 12px; font-size:0.8rem;">
+            <span style="background:{% if eleve.statut == 'actif' %}#e8f5e9; color:var(--color-brand-emerald){% else %}#fce4e4; color:#dc3545{% endif %}; border-radius:20px; padding:3px 12px; font-size:0.8rem;">
                 {{ eleve.get_statut_display }}
             </span>
         </div>

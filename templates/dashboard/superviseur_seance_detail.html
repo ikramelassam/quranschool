@@ -9,12 +9,12 @@
     </div>
     {% if seance.evaluation %}
     <a href="{% url 'superviseur_evaluation_detail' seance.id %}"
-       style="background:#6b3a2a; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+       style="background:var(--color-brand-gold-dark); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
         عرض تقييم المعلم 👁
     </a>
     {% else %}
     <a href="{% url 'superviseur_evaluer' seance.id %}"
-       style="background:#6b3a2a; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+       style="background:var(--color-brand-gold-dark); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
         تقييم المعلم 📝
     </a>
     {% endif %}
@@ -23,7 +23,7 @@
 
 {% for presence in presences %}
 <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; color:#6b3a2a; margin-bottom:12px;">{{ presence.eleve.user.get_full_name }}</div>
+    <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:12px;">{{ presence.eleve.user.get_full_name }}</div>
 
     <div class="row g-2">
         <div class="col-md-3">
@@ -56,5 +56,5 @@
 <div style="text-align:center; color:#aaa; padding:30px;">لا توجد تقييمات لهذه الحصة</div>
 {% endfor %}
 
-<a href="{% url 'dashboard_superviseur' %}" style="color:#6b3a2a; text-decoration:none;">← رجوع</a>
+<a href="{% url 'dashboard_superviseur' %}" style="color:var(--color-brand-gold-dark); text-decoration:none;">← رجوع</a>
 {% endblock %}

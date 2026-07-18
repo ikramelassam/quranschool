@@ -7,7 +7,7 @@
         <div class="page-subtitle">تظهر هذه الخيارات في استمارة تسجيل الطلاب</div>
     </div>
     <a href="{% url 'admin_abonnement_ajouter' %}"
-       style="background:#2d5a1b; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+       style="background:var(--color-brand-emerald); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
        + إضافة نوع اشتراك
     </a>
 </div>
@@ -21,12 +21,12 @@
         </div>
         <div class="d-flex gap-2 align-items-center">
             {% if type_abo.est_actif %}
-                <span style="background:#e8f5e9; color:#2d5a1b; border-radius:20px; padding:4px 12px; font-size:0.8rem;">نشط ✅</span>
+                <span style="background:#e8f5e9; color:var(--color-brand-emerald); border-radius:20px; padding:4px 12px; font-size:0.8rem;">نشط ✅</span>
             {% else %}
                 <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:4px 12px; font-size:0.8rem;">غير نشط ❌</span>
             {% endif %}
             <a href="{% url 'admin_abonnement_modifier' type_abo.id %}"
-               style="background:#C9A84C; color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
                تعديل ✏️
             </a>
             <a href="{% url 'admin_abonnement_toggle' type_abo.id %}"

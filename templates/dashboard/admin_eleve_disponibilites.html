@@ -9,7 +9,7 @@
         {% csrf_token %}
         {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form %}
         <div class="d-flex gap-3 mt-3">
-            <button type="submit" style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
+            <button type="submit" style="background:var(--color-brand-emerald); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
                 حفظ الجدول ✅
             </button>
             <a href="{% url 'admin_eleve_detail' eleve.id %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>

@@ -1,0 +1,41 @@
+/* ============================================================
+   Zidni Ilman — design tokens (identité "زدني علما")
+   Thème : calligraphie dorée / fond crème.
+   Chargé par tous les templates HTML complets (bases + pages
+   d'inscription/login). Ne pas dupliquer ces valeurs en dur
+   dans les templates : toujours passer par var(--...).
+   ============================================================ */
+
+:root {
+    /* --- Couleurs de marque --- */
+    --color-brand-gold: #C9962E;       /* décoratif / grands titres / bordures / icônes UNIQUEMENT
+                                           contraste insuffisant (~2.6:1) en texte sur crème ou blanc,
+                                           même en grande taille -> ne jamais l'utiliser comme couleur
+                                           de texte, voir --color-brand-gold-dark à la place. */
+    --color-brand-gold-dark: #8B5A2B;  /* texte/accents dorés lisibles (AA ok sur crème et blanc) */
+    --color-brand-emerald: #2D5A3D;    /* couleur de rôle : admin + élève (remplace l'ancien #2d5a1b) */
+
+    /* --- Fonds --- */
+    --color-bg-cream: #F5EFE0;         /* fond général de l'appli (remplace l'ancien #f0ebe3) */
+    --color-bg-brown-dark: #3D2817;    /* couleur de rôle : professeur (remplace l'ancien #1a3a5c,
+                                           qui était hors de la nouvelle identité dorée/crème — aucun
+                                           bleu n'existe dans la nouvelle palette) */
+
+    /* --- Texte --- */
+    --color-text-primary: #1A1A1A;
+    --color-text-inverse: #F5EFE0;
+    --color-text-muted: #6B6B6B;
+
+    /* --- États sémantiques (indépendants de la marque, ne pas remplacer par le doré/émeraude) --- */
+    --color-success: #2D5A3D;
+    --color-warning: #C9962E;
+    --color-danger: #B3261E;
+
+    /* --- Rôles (sidebar / accents par tableau de bord) ---
+       admin, élève -> emerald | professeur -> brown-dark | superviseur -> gold-dark
+       3 couleurs bien distinctes, toutes >= 4.5:1 de contraste avec du texte blanc. */
+    --color-role-admin: var(--color-brand-emerald);
+    --color-role-eleve: var(--color-brand-emerald);
+    --color-role-prof: var(--color-bg-brown-dark);
+    --color-role-superviseur: var(--color-brand-gold-dark);
+}

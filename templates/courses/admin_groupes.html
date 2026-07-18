@@ -14,7 +14,7 @@
     </span>
     {% else %}
     <a href="{% url 'admin_groupe_ajouter' %}"
-       style="background:#2d5a1b; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+       style="background:var(--color-brand-emerald); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
        + إنشاء مجموعة جديدة
     </a>
     {% endif %}
@@ -55,7 +55,7 @@
             </select>
         </div>
         <div class="col-md-3 d-flex gap-2">
-            <button type="submit" style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <button type="submit" style="background:var(--color-brand-emerald); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
             <a href="{% url 'admin_groupes' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
         </div>
     </div>
@@ -68,7 +68,7 @@
         <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <div style="font-weight:700; font-size:1.1rem; color:#222;">{{ groupe.nom }}</div>
-                <span style="background:#f0ebe3; color:#6b3a2a; border-radius:20px; padding:2px 10px; font-size:0.75rem;">{{ groupe.get_type_capacite_display }}</span>
+                <span style="background:var(--color-bg-cream); color:var(--color-brand-gold-dark); border-radius:20px; padding:2px 10px; font-size:0.75rem;">{{ groupe.get_type_capacite_display }}</span>
             </div>
 
             <div style="color:#888; font-size:0.9rem; margin-bottom:6px;">
@@ -77,7 +77,7 @@
             </div>
             <div style="color:#888; font-size:0.9rem; margin-bottom:6px;">
                 👥 عدد الطلاب: 
-                <span style="background:#C9A84C; color:white; border-radius:20px; padding:2px 10px; font-size:0.8rem;">
+                <span style="background:var(--color-brand-gold); color:white; border-radius:20px; padding:2px 10px; font-size:0.8rem;">
                     {{ groupe.eleves.count }} طالب
                 </span>
             </div>
@@ -87,7 +87,7 @@
             </div>
 
             <a href="{% url 'admin_groupe_detail' groupe.id %}" 
-               style="background:#f0f7ed; color:#2d5a1b; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; font-weight:600;">
+               style="background:#f0f7ed; color:var(--color-brand-emerald); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; font-weight:600;">
                عرض التفاصيل ←
             </a>
         </div>

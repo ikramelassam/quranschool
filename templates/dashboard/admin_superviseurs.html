@@ -7,7 +7,7 @@
         <div class="page-subtitle">كل مشرف لا يرى ولا يمكنه تقييم إلا المعلمين المُسندين إليه</div>
     </div>
     <a href="{% url 'admin_superviseur_ajouter' %}"
-       style="background:#6b3a2a; color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+       style="background:var(--color-brand-gold-dark); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
        + إضافة مشرف
     </a>
 </div>
@@ -21,11 +21,11 @@
         </div>
         <div class="d-flex gap-2">
             <a href="{% url 'admin_superviseur_assignations' s.id %}"
-               style="background:#6b3a2a; color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
+               style="background:var(--color-brand-gold-dark); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
                إدارة الإسناد ✏️
             </a>
             <a href="{% url 'admin_utilisateur_modifier_email' s.user.id %}?next={% url 'admin_superviseurs' %}"
-               style="background:#C9A84C; color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
                ✉️ البريد الإلكتروني
             </a>
         </div>

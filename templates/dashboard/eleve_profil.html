@@ -19,10 +19,10 @@
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0;">
         <span style="color:#888;">الحالة</span>
-        <span style="font-weight:600; color:#2d5a1b;">{{ eleve.get_statut_display }}</span>
+        <span style="font-weight:600; color:var(--color-brand-emerald);">{{ eleve.get_statut_display }}</span>
     </div>
 
-    <div style="margin-top:20px; font-weight:700; color:#2d5a1b; margin-bottom:12px;">مجموعاتي</div>
+    <div style="margin-top:20px; font-weight:700; color:var(--color-brand-emerald); margin-bottom:12px;">مجموعاتي</div>
     {% for groupe in eleve.groupes.all %}
     <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="font-weight:600;">{{ groupe.nom }}</span>
