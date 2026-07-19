@@ -5,25 +5,32 @@
 <div class="page-subtitle">لوحة التحكم الخاصة بك</div>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
             <div style="color:#888; font-size:0.85rem;">إجمالي الحصص</div>
             <div style="color:var(--color-brand-emerald); font-size:2rem; font-weight:700;">{{ total_seances }}</div>
             <div style="color:#888; font-size:0.8rem;">📋</div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
             <div style="color:#888; font-size:0.85rem;">حضوري</div>
             <div style="color:var(--color-brand-emerald); font-size:2rem; font-weight:700;">{{ total_present }}</div>
             <div style="color:#888; font-size:0.8rem;">✅</div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
             <div style="color:#888; font-size:0.85rem;">مجموعاتي</div>
             <div style="color:var(--color-brand-emerald); font-size:2rem; font-weight:700;">{{ groupes|length }}</div>
             <div style="color:#888; font-size:0.8rem;">👥</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="color:#888; font-size:0.85rem;">الأحزاب المحفوظة</div>
+            <div style="color:var(--color-brand-gold-dark); font-size:2rem; font-weight:700;" dir="ltr">{{ nb_hizb_memorises }}<span style="font-size:1rem; color:#888;"> / 60</span></div>
+            <div style="color:#888; font-size:0.8rem;">📖</div>
         </div>
     </div>
 </div>

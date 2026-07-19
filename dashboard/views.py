@@ -715,6 +715,7 @@ def admin_rejeter_prof(request, inscription_id):
 def dashboard_eleve(request):
     from accounts.models import Eleve
     from courses.models import Seance, Presence
+    from courses.utils import calculer_progression_eleve
 
     try:
         eleve = Eleve.objects.get(user=request.user)
@@ -732,6 +733,7 @@ def dashboard_eleve(request):
         'presences': presences,
         'total_seances': Presence.objects.filter(eleve=eleve).count(),
         'total_present': Presence.objects.filter(eleve=eleve, statut='present').count(),
+        'nb_hizb_memorises': calculer_progression_eleve(eleve)['nb_hizb_memorises'],
     }
     return render(request, 'dashboard/eleve.html', context)
 

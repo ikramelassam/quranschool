@@ -329,7 +329,7 @@ def calculer_progression_eleve(eleve):
     étendue reflète correctement l'avancement sans complexité inutile.
     """
     from .models import Presence
-    from .quran_data import SOURATES_NOMS, SOURATES_NB_AYAT
+    from .quran_data import SOURATES_NOMS, SOURATES_NB_AYAT, calculer_nb_hizb
 
     presences = Presence.objects.filter(
         eleve=eleve, sourate_memorisee__isnull=False
@@ -381,6 +381,7 @@ def calculer_progression_eleve(eleve):
 
     return {
         'total_ayat_memorises': total_ayat,
+        'nb_hizb_memorises': calculer_nb_hizb(total_ayat),
         'nb_sourates_distinctes': len(par_sourate),
         'par_sourate': par_sourate_liste,
         'historique': list(reversed(historique)),

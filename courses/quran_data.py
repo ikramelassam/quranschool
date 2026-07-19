@@ -124,3 +124,31 @@ SOURATES = [
 
 SOURATES_NOMS = {numero: nom for numero, nom, _ in SOURATES}
 SOURATES_NB_AYAT = {numero: nb_ayat for numero, nom, nb_ayat in SOURATES}
+
+# Limites des 60 hizb du Coran (le Coran est divisé en 30 juz, chacun en 2 hizb).
+# Chaque valeur est le numéro d'ayah cumulé (sur l'ensemble du Coran, décompte
+# حفص عن عاصم) marquant la FIN de ce hizb — ex: le hizb 1 se termine à l'ayah
+# cumulée 81 (Al-Baqara 1-74 inclus), le hizb 60 se termine à 6236 (dernière
+# ayah du Coran). Source: api.quran.com/api/v4/hizbs (référentiel officiel).
+HIZB_LIMITES = [
+    81, 148, 209, 259, 307, 385, 463, 516, 580, 640,
+    695, 750, 824, 899, 954, 1041, 1124, 1200, 1268, 1327,
+    1389, 1478, 1556, 1648, 1725, 1802, 1951, 2029, 2127, 2214,
+    2348, 2483, 2595, 2673, 2811, 2875, 3042, 3214, 3302, 3385,
+    3490, 3563, 3629, 3732, 3932, 4089, 4173, 4264, 4348, 4510,
+    4600, 4705, 4901, 5104, 5177, 5241, 5447, 5672, 5948, 6236,
+]
+
+
+def calculer_nb_hizb(total_ayat_memorises):
+    """Nombre de hizb complets couverts par un total d'ayats mémorisés,
+    en supposant une progression linéaire depuis le début du Coran.
+    Approximation raisonnable tant que l'élève mémorise dans l'ordre —
+    ne reflète pas la position réelle si la mémorisation saute des sourates."""
+    nb_hizb = 0
+    for limite in HIZB_LIMITES:
+        if total_ayat_memorises >= limite:
+            nb_hizb += 1
+        else:
+            break
+    return nb_hizb
