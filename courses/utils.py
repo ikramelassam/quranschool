@@ -386,3 +386,28 @@ def calculer_progression_eleve(eleve):
         'par_sourate': par_sourate_liste,
         'historique': list(reversed(historique)),
     }
+
+
+TARIF_PAR_ELEVE_ACTIF = 50  # DH / élève actif / mois — même tarif pour tous les profs (pas encore de barème par prof)
+
+
+def calculer_remuneration_prof(prof):
+    """Rémunération mensuelle d'un prof: TARIF_PAR_ELEVE_ACTIF DH par élève au
+    statut 'actif' dans chacun de ses groupes. Détail par groupe pour que le
+    calcul soit vérifiable (un élève suspendu/ancien ne compte pas)."""
+    detail = []
+    total = 0
+    for groupe in prof.groupes.all():
+        nb_actifs = groupe.eleves.filter(statut='actif').count()
+        montant = nb_actifs * TARIF_PAR_ELEVE_ACTIF
+        total += montant
+        detail.append({
+            'groupe': groupe,
+            'nb_eleves_actifs': nb_actifs,
+            'montant': montant,
+        })
+    return {
+        'detail': detail,
+        'total': total,
+        'tarif_par_eleve': TARIF_PAR_ELEVE_ACTIF,
+    }

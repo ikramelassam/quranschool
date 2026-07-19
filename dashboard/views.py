@@ -407,9 +407,11 @@ def prof_disponibilites(request):
 @role_required('prof')
 def prof_profil(request):
     from accounts.models import Prof
+    from courses.utils import calculer_remuneration_prof
     prof = get_object_or_404(Prof, user=request.user)
     return render(request, 'dashboard/prof_profil.html', {
         'prof': prof,
+        'remuneration': calculer_remuneration_prof(prof),
     })
 
 
@@ -1113,10 +1115,12 @@ def admin_profs(request):
 @role_required('admin')
 def admin_prof_detail(request, prof_id):
     from accounts.models import Prof
+    from courses.utils import calculer_remuneration_prof
     prof = get_object_or_404(Prof, id=prof_id)
     return render(request, 'dashboard/admin_prof_detail.html', {
         'prof': prof,
         'inscription': prof.inscription,
+        'remuneration': calculer_remuneration_prof(prof),
     })
 
 
