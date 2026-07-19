@@ -291,6 +291,7 @@ def prof_presence_sauvegarder(request, seance_id):
             ayah_fin_revision = request.POST.get(f'ayah_fin_rev_{eleve.id}') or None
             note_revision = request.POST.get(f'note_rev_{eleve.id}', '')
             remarque = request.POST.get(f'remarque_{eleve.id}', '')
+            consigne_prochaine_seance = request.POST.get(f'consigne_{eleve.id}', '')
 
             # Une plage d'ayat inversée (fin < début) donnerait un nombre d'ayat
             # mémorisés/révisés négatif ou nul silencieusement (voir Presence.nb_ayat_memorises) —
@@ -325,6 +326,7 @@ def prof_presence_sauvegarder(request, seance_id):
                     'ayah_fin_revision': ayah_fin_revision,
                     'note_revision': note_revision,
                     'remarque': remarque,
+                    'consigne_prochaine_seance': consigne_prochaine_seance,
                 }
             )
 

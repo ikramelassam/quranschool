@@ -256,6 +256,7 @@ class Presence(models.Model):
         blank=True
     )
     remarque = models.TextField(blank=True)
+    consigne_prochaine_seance = models.TextField(blank=True)
 
     def __str__(self):
         return f"{self.eleve} - {self.seance}"

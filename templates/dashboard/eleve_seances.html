@@ -53,6 +53,11 @@
             💬 {{ presence.remarque }}
         </div>
         {% endif %}
+        {% if presence.consigne_prochaine_seance %}
+        <div style="color:#555; font-size:0.85rem; margin-top:10px; background:#fff8ec; padding:10px; border-radius:8px; border-right:3px solid var(--color-brand-gold-dark);">
+            📌 للحصة القادمة: {{ presence.consigne_prochaine_seance }}
+        </div>
+        {% endif %}
     </a>
     {% endfor %}
     {% include 'dashboard/_pagination.html' with page_obj=presences %}

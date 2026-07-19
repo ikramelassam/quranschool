@@ -181,6 +181,12 @@
                 <label>ملاحظة عن الطالب</label>
                 <textarea name="remarque_{{ eleve.id }}" class="form-control" rows="1">{{ presence.remarque|default:'' }}</textarea>
             </div>
+
+            <div class="remarque-eleve">
+                <label>📌 تحضير الحصة القادمة (حفظ أو مراجعة، والكمية)</label>
+                <textarea name="consigne_{{ eleve.id }}" class="form-control" rows="1"
+                          placeholder="مثال: حفظ سورة النساء من آية 1 إلى 10">{{ presence.consigne_prochaine_seance|default:'' }}</textarea>
+            </div>
         </div>
     </div>
     {% endwith %}
