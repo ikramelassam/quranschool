@@ -23,10 +23,10 @@
 <div class="page-title" style="font-size:1.2rem;">المعلمون المُسندون إليّ ({{ profs.count }})</div>
 <div style="background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:700px; overflow:hidden;">
     {% for prof in profs %}
-    <div style="display:flex; justify-content:space-between; padding:16px 24px; border-bottom:1px solid #f0f0f0;">
+    <a href="{% url 'superviseur_prof_detail' prof.id %}" style="display:flex; justify-content:space-between; padding:16px 24px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:inherit;">
         <span style="font-weight:600;">{{ prof.user.get_full_name }}</span>
         <span style="color:#888;">{{ prof.ville }}</span>
-    </div>
+    </a>
     {% empty %}
     <div style="text-align:center; padding:40px; color:#aaa;">لا يوجد أي معلم مُسند إليك بعد</div>
     {% endfor %}

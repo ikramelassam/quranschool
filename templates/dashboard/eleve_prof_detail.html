@@ -1,0 +1,14 @@
+{% extends 'dashboard/base_eleve.html' %}
+{% block title %}{{ prof.user.get_full_name }}{% endblock %}
+{% block content %}
+<div class="page-title">{{ prof.user.get_full_name }}</div>
+<div class="page-subtitle">{{ prof.ville }}</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    {% include 'dashboard/_prof_infos_readonly.html' with prof=prof couleur_accent='var(--color-brand-emerald)' %}
+
+    <div class="mt-4">
+        <a href="{% url 'eleve_profil' %}" style="color:#888; text-decoration:none;">← رجوع</a>
+    </div>
+</div>
+{% endblock %}

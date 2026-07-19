@@ -1,0 +1,38 @@
+{% load libelles_arabes %}
+<div style="color:{{ couleur_accent }}; font-weight:700; border-bottom:2px solid {{ couleur_accent }}; padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
+<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <span style="color:#888;">المدينة</span>
+    <span style="font-weight:600;">{{ prof.ville }}</span>
+</div>
+<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <span style="color:#888;">مستوى الحفظ</span>
+    <span style="font-weight:600;">{{ prof.niveau_memorisation }}</span>
+</div>
+<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <span style="color:#888;">الشهادات</span>
+    <span style="font-weight:600;">{{ prof.certifications|default:"—" }}</span>
+</div>
+
+<div style="color:{{ couleur_accent }}; font-weight:700; border-bottom:2px solid {{ couleur_accent }}; padding-bottom:6px; margin:20px 0 12px;">الكفاءات</div>
+<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <span style="color:#888;">اللغات</span>
+    <span style="font-weight:600;">{{ prof.langues|libelles_arabes_liste:"langues" }}</span>
+</div>
+<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <span style="color:#888;">أدوات التواصل</span>
+    <span style="font-weight:600;">{{ prof.outils_maitrises|libelles_arabes_liste:"outils_maitrises" }}</span>
+</div>
+<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <span style="color:#888;">الفئة المفضلة</span>
+    <span style="font-weight:600;">{{ prof.type_eleve_preference|libelles_arabes_liste:"type_eleve_preference" }}</span>
+</div>
+
+<div style="color:{{ couleur_accent }}; font-weight:700; border-bottom:2px solid {{ couleur_accent }}; padding-bottom:6px; margin:20px 0 12px;">المسار</div>
+<div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <div style="color:#888; margin-bottom:4px;">المسار الدراسي</div>
+    <div style="font-weight:600;">{{ prof.parcours_scolaire }}</div>
+</div>
+<div style="padding:8px 0;">
+    <div style="color:#888; margin-bottom:4px;">المسار التعليمي</div>
+    <div style="font-weight:600;">{{ prof.parcours_enseignant }}</div>
+</div>

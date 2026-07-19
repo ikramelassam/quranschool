@@ -803,6 +803,18 @@ def eleve_profil(request):
 
 
 @role_required('eleve')
+def eleve_prof_detail(request, prof_id):
+    from accounts.models import Eleve, Prof
+
+    eleve = get_object_or_404(Eleve, user=request.user)
+    prof = get_object_or_404(Prof.objects.filter(groupes__eleves=eleve).distinct(), id=prof_id)
+
+    return render(request, 'dashboard/eleve_prof_detail.html', {
+        'prof': prof,
+    })
+
+
+@role_required('eleve')
 def eleve_progression(request):
     from accounts.models import Eleve
     from courses.utils import calculer_progression_eleve
@@ -921,6 +933,18 @@ def superviseur_profil(request):
     return render(request, 'dashboard/superviseur_profil.html', {
         'superviseur': superviseur,
         'profs': profs,
+    })
+
+
+@role_required('superviseur')
+def superviseur_prof_detail(request, prof_id):
+    from accounts.models import Superviseur, Prof
+
+    superviseur = get_object_or_404(Superviseur, user=request.user)
+    prof = get_object_or_404(Prof, id=prof_id, superviseurs=superviseur)
+
+    return render(request, 'dashboard/superviseur_prof_detail.html', {
+        'prof': prof,
     })
 
 
