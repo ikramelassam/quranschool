@@ -2,7 +2,13 @@
 {% load libelles_arabes %}
 {% block title %}{{ eleve.user.get_full_name }}{% endblock %}
 {% block content %}
-<div class="page-title">{{ eleve.user.get_full_name }}</div>
+<div class="page-title" style="display:flex; align-items:center; gap:10px;">
+    {{ eleve.user.get_full_name }}
+    {% if eleve.user.telephone %}
+    <a href="https://wa.me/{{ eleve.user.telephone|wa_number }}" target="_blank" rel="noopener"
+       title="مراسلة عبر واتساب" style="font-size:1.1rem; text-decoration:none;">🟢</a>
+    {% endif %}
+</div>
 <div class="page-subtitle">{{ eleve.user.email }}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">

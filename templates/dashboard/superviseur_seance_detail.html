@@ -1,5 +1,6 @@
 {% extends 'dashboard/base_superviseur.html' %}
 {% load presence_style %}
+{% load libelles_arabes %}
 {% block title %}تفاصيل الحصة{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -23,7 +24,13 @@
 
 {% for presence in presences %}
 <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:12px;">{{ presence.eleve.user.get_full_name }}</div>
+    <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+        {{ presence.eleve.user.get_full_name }}
+        {% if presence.eleve.user.telephone %}
+        <a href="https://wa.me/{{ presence.eleve.user.telephone|wa_number }}" target="_blank" rel="noopener"
+           title="مراسلة عبر واتساب" style="text-decoration:none;">🟢</a>
+        {% endif %}
+    </div>
 
     <div class="row g-2">
         <div class="col-md-3">

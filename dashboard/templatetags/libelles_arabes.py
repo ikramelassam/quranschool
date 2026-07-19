@@ -56,3 +56,14 @@ def libelles_arabes_liste(codes, categorie):
     ailleurs dans ces mêmes fiches."""
     mapping = LIBELLES.get(categorie, {})
     return '، '.join(mapping.get(code, code) for code in codes)
+
+
+@register.filter
+def wa_number(telephone):
+    """Convertit un numéro marocain local (ex: '0663394165') au format
+    international sans '+' attendu par les liens wa.me. Un numéro déjà saisi
+    avec indicatif (ex: '212663394165') passe tel quel."""
+    chiffres = ''.join(c for c in telephone if c.isdigit())
+    if chiffres.startswith('0'):
+        return '212' + chiffres[1:]
+    return chiffres

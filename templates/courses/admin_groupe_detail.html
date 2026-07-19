@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_admin.html' %}
+{% load libelles_arabes %}
 
 {% block title %}تفاصيل المجموعة{% endblock %}
 
@@ -53,7 +54,13 @@
             {% for eleve in groupe.eleves.all %}
             <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0;">
                 <div>
-                    <div style="font-weight:600;">{{ eleve.user.get_full_name }}</div>
+                    <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
+                        {{ eleve.user.get_full_name }}
+                        {% if eleve.user.telephone %}
+                        <a href="https://wa.me/{{ eleve.user.telephone|wa_number }}" target="_blank" rel="noopener"
+                           title="مراسلة عبر واتساب" style="text-decoration:none;">🟢</a>
+                        {% endif %}
+                    </div>
                     <div style="color:#888; font-size:0.85rem;">{{ eleve.user.email }}</div>
                 </div>
             </div>
