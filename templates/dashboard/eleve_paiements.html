@@ -4,7 +4,7 @@
 <div class="page-title">مدفوعاتي</div>
 <div class="page-subtitle">أرسل إثبات الدفع الشهري</div>
 
-<div style="background:white; border-radius:12px; padding:24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+<div class="compact-card mb-4">
     <div style="font-weight:700; color:var(--color-role-eleve-solid); margin-bottom:16px;">إرسال دفعة جديدة</div>
     <form method="POST" enctype="multipart/form-data" class="row g-3">
         {% csrf_token %}
@@ -29,10 +29,10 @@
     </form>
 </div>
 
-<div style="font-weight:700; font-size:1.1rem; color:#222; margin-bottom:16px;">سجل المدفوعات</div>
+<div class="section-title" style="font-size:1.05rem;">سجل المدفوعات</div>
 
 {% for paiement in paiements %}
-<div style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+<div class="compact-card mb-3">
     <div class="d-flex justify-content-between align-items-center">
         <div>
             <div style="font-weight:700;">{{ paiement.mois_reference|date:"F Y" }}</div>
@@ -41,14 +41,14 @@
         {% if paiement.statut == 'valide' %}
             <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">مقبول ✅</span>
         {% elif paiement.statut == 'rejete' %}
-            <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:4px 12px; font-size:0.8rem;">مرفوض ❌</span>
+            <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:4px 12px; font-size:0.8rem;">مرفوض ❌</span>
         {% else %}
             <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:4px 12px; font-size:0.8rem;">قيد المراجعة ⏳</span>
         {% endif %}
     </div>
 </div>
 {% empty %}
-<div style="text-align:center; padding:60px; color:#aaa;">لا توجد مدفوعات بعد</div>
+<div class="compact-card" style="text-align:center; color:#aaa;">لا توجد مدفوعات بعد</div>
 {% endfor %}
 {% include 'dashboard/_pagination.html' with page_obj=paiements %}
 {% endblock %}
