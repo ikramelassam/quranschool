@@ -717,8 +717,7 @@ def admin_rejeter_prof(request, inscription_id):
 def dashboard_eleve(request):
     from accounts.models import Eleve
     from courses.models import Seance, Presence
-    from courses.utils import calculer_progression_eleve
-    from courses.quran_data import HIZB_LIMITES
+    from courses.utils import calculer_progression_eleve, stats_anneau_hizb
     from django.utils import timezone
 
     try:
@@ -732,20 +731,13 @@ def dashboard_eleve(request):
     progression = calculer_progression_eleve(eleve)
     nb_hizb = progression['nb_hizb_memorises']
     total_ayat = progression['total_ayat_memorises']
-    ayat_avant_prochain_hizb = (
-        HIZB_LIMITES[nb_hizb] - total_ayat if nb_hizb < len(HIZB_LIMITES) else 0
-    )
-
-    # Anneau SVG (voir eleve.html): cercle de rayon 72 -> circonférence
-    # 2*pi*72 ≈ 452.39. Le remplissage suit le nombre de hizb ENTIERS
-    # (pas de fraction), pour rester cohérent avec le chiffre affiché
-    # au centre de l'anneau.
-    ring_dashoffset = round(452.39 * (1 - nb_hizb / 60), 1)
+    ayat_avant_prochain_hizb, ring_dashoffset = stats_anneau_hizb(nb_hizb, total_ayat)
 
     # Aperçu "dernier hifz par sourate": on part de l'historique (déjà
     # trié du plus récent au plus ancien par calculer_progression_eleve)
     # et on garde la 1ère occurrence de chaque sourate rencontrée, donc
-    # triée par récence et non par numéro de sourate.
+    # triée par récence et non par numéro de sourate. Chaque entrée de
+    # par_sourate porte déjà son propre pourcentage + dernière note.
     par_sourate_par_nom = {item['nom']: item for item in progression['par_sourate']}
     sourates_recentes = []
     vues = set()
@@ -754,12 +746,8 @@ def dashboard_eleve(request):
             continue
         vues.add(h['sourate'])
         par = par_sourate_par_nom.get(h['sourate'])
-        sourates_recentes.append({
-            'nom': h['sourate'],
-            'pourcentage': par['pourcentage'] if par else 0,
-            'note_code': h['note_code'],
-            'note_display': h['note_display'],
-        })
+        if par:
+            sourates_recentes.append(par)
         if len(sourates_recentes) == 3:
             break
 
@@ -874,14 +862,20 @@ def eleve_prof_detail(request, prof_id):
 @role_required('eleve')
 def eleve_progression(request):
     from accounts.models import Eleve
-    from courses.utils import calculer_progression_eleve
+    from courses.utils import calculer_progression_eleve, stats_anneau_hizb
 
     eleve = get_object_or_404(Eleve, user=request.user)
     progression = calculer_progression_eleve(eleve)
+    ayat_avant_prochain_hizb, ring_dashoffset = stats_anneau_hizb(
+        progression['nb_hizb_memorises'], progression['total_ayat_memorises']
+    )
 
     return render(request, 'dashboard/eleve_progression.html', {
         'eleve': eleve,
         'progression': progression,
+        'nb_hizb_memorises': progression['nb_hizb_memorises'],
+        'ayat_avant_prochain_hizb': ayat_avant_prochain_hizb,
+        'ring_dashoffset': ring_dashoffset,
     })
 
 

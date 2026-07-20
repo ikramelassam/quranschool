@@ -363,6 +363,10 @@ def calculer_progression_eleve(eleve):
         else:
             par_sourate[numero]['debut'] = min(par_sourate[numero]['debut'], p.ayah_debut_memorisation)
             par_sourate[numero]['fin'] = max(par_sourate[numero]['fin'], p.ayah_fin_memorisation)
+        # Écrasé à chaque passage (ordre chronologique croissant) -> reste
+        # la note de la séance la PLUS RÉCENTE pour cette sourate.
+        par_sourate[numero]['note_code'] = p.note_memorisation
+        par_sourate[numero]['note_display'] = p.get_note_memorisation_display() if p.note_memorisation else None
 
     par_sourate_liste = []
     for numero, bornes in par_sourate.items():
@@ -376,6 +380,8 @@ def calculer_progression_eleve(eleve):
             'ayah_fin': bornes['fin'],
             'total_ayat_sourate': total_ayat_sourate,
             'pourcentage': min(pourcentage, 100),
+            'note_code': bornes['note_code'],
+            'note_display': bornes['note_display'],
         })
     par_sourate_liste.sort(key=lambda item: item['numero'])
 
@@ -386,6 +392,25 @@ def calculer_progression_eleve(eleve):
         'par_sourate': par_sourate_liste,
         'historique': list(reversed(historique)),
     }
+
+
+RING_CIRCONFERENCE_HIZB = 452.39  # 2*pi*72, rayon du cercle SVG (voir templates/dashboard/_ring_hizb.html)
+
+
+def stats_anneau_hizb(nb_hizb_memorises, total_ayat_memorises):
+    """Valeurs pour l'anneau de progression du hifz (accueil élève +
+    page "تقدمي في الحفظ", même composant _ring_hizb.html) : combien
+    d'ayat avant le prochain hizb, et le remplissage de l'anneau SVG
+    correspondant (en hizb entiers, pas de fraction, pour rester
+    cohérent avec le chiffre affiché au centre)."""
+    from .quran_data import HIZB_LIMITES
+
+    if nb_hizb_memorises < len(HIZB_LIMITES):
+        ayat_avant_prochain_hizb = HIZB_LIMITES[nb_hizb_memorises] - total_ayat_memorises
+    else:
+        ayat_avant_prochain_hizb = 0
+    ring_dashoffset = round(RING_CIRCONFERENCE_HIZB * (1 - nb_hizb_memorises / 60), 1)
+    return ayat_avant_prochain_hizb, ring_dashoffset
 
 
 TARIF_PAR_ELEVE_ACTIF = 50  # DH / élève actif / mois — même tarif pour tous les profs (pas encore de barème par prof)

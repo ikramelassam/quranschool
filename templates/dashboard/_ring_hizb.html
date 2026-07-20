@@ -1,0 +1,23 @@
+<div class="ring-wrap">
+    <svg width="168" height="168" viewBox="0 0 168 168">
+        <circle cx="84" cy="84" r="72" fill="none" stroke="#f2ead9" stroke-width="14"/>
+        <circle cx="84" cy="84" r="72" fill="none" stroke="url(#ringGrad)" stroke-width="14"
+                stroke-linecap="round" stroke-dasharray="452.39"
+                stroke-dashoffset="{{ ring_dashoffset }}"/>
+        <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#A86414"/>
+                <stop offset="100%" stop-color="#F0C040"/>
+            </linearGradient>
+        </defs>
+    </svg>
+    <div class="ring-center">
+        <div class="num">{{ nb_hizb_memorises }}<span> / 60</span></div>
+        <div class="label">حزب محفوظ</div>
+    </div>
+</div>
+{% if ayat_avant_prochain_hizb > 0 %}
+<div class="next-goal">🎯 باقي {{ ayat_avant_prochain_hizb }} آية للحزب القادم</div>
+{% else %}
+<div class="next-goal" style="background:rgba(45,90,61,0.12); color:var(--color-success);">🎉 ما شاء الله، تم حفظ القرآن كاملاً</div>
+{% endif %}

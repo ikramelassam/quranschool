@@ -43,6 +43,60 @@
         .page-title { color: var(--color-role-eleve-solid); font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
         .page-subtitle { color: var(--color-text-muted); margin-bottom: 30px; }
 
+        /* ===== Composants partagés de l'expérience élève =====
+           Un seul vocabulaire visuel (cartes, badges de mention, anneau de
+           progression) réutilisé sur toutes les pages élève (accueil,
+           progression, séances, profil, paiements) pour que ça reste UNE
+           expérience cohérente et non des pages stylées chacune à part. */
+        .section-title { font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary); margin: 0 0 10px; }
+        .compact-card { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        a.compact-card, .compact-card.clickable { display: block; color: inherit; text-decoration: none; transition: box-shadow 0.15s; }
+        a.compact-card:hover, .compact-card.clickable:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+
+        .group-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 0.8rem; color: var(--color-text-muted);
+            background: rgba(139,75,0,0.07); border-radius: 20px; padding: 6px 14px;
+            text-decoration: none; white-space: nowrap;
+        }
+        .group-chip:hover { background: rgba(139,75,0,0.13); }
+
+        .btn-join {
+            background: var(--color-role-eleve); color: white; text-decoration: none;
+            display: inline-block; font-size: 0.82rem; font-weight: 600;
+            border-radius: 20px; padding: 7px 16px; white-space: nowrap;
+        }
+        .btn-join:hover { opacity: 0.9; color: white; }
+
+        .medal-badge { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px; padding: 4px 11px 4px 8px; font-size: 0.78rem; font-weight: 600; }
+        .medal-badge svg { flex-shrink: 0; }
+
+        .progress-track { background: var(--color-bg-cream); border-radius: 20px; height: 6px; overflow: hidden; }
+        .progress-fill { background: var(--color-role-eleve); height: 100%; }
+
+        /* Anneau de progression (hizb mémorisés / 60) — identique sur
+           l'accueil et la page "تقدمي في الحفظ" (voir _ring_hizb.html) */
+        .hero-ring-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); padding: 28px 24px; text-align: center; margin-bottom: 20px; }
+        .ring-wrap { position: relative; width: 168px; height: 168px; margin: 0 auto 14px; }
+        .ring-wrap svg { transform: rotate(-90deg); transform-origin: 84px 84px; }
+        .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .ring-center .num { font-size: 2.4rem; font-weight: 700; color: var(--color-role-eleve-solid); line-height: 1; direction: ltr; }
+        .ring-center .num span { font-size: 1rem; color: #b3a08c; font-weight: 500; }
+        .ring-center .label { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 4px; }
+        .next-goal {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(201,150,46,0.12); color: var(--color-brand-gold-dark);
+            font-size: 0.85rem; font-weight: 600; border-radius: 20px; padding: 6px 16px;
+        }
+        .stats-row { display: flex; gap: 24px; justify-content: center; margin-top: 18px; padding-top: 16px; border-top: 1px dashed #eee0cc; }
+        .stat-mini { text-align: center; }
+        .stat-mini .v { font-size: 1.1rem; font-weight: 700; color: var(--color-text-primary); }
+        .stat-mini .l { font-size: 0.72rem; color: #aaa; }
+        @media (max-width: 480px) {
+            .ring-wrap { width: 140px; height: 140px; }
+            .stats-row { gap: 14px; }
+        }
+
         /* Menu mobile */
         .sidebar-toggle {
             display: none;
