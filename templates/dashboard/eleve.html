@@ -1,73 +1,156 @@
 {% extends 'dashboard/base_eleve.html' %}
 {% block title %}لوحة الطالب{% endblock %}
-{% block content %}
-<div class="page-title">أهلاً، {{ eleve.user.get_full_name }} 👋</div>
-<div class="page-subtitle">لوحة التحكم الخاصة بك</div>
+{% block extra_css %}
+<style>
+.dash-top-row { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+.group-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:0.8rem; color:var(--color-text-muted);
+    background:rgba(139,75,0,0.07); border-radius:20px; padding:6px 14px;
+    text-decoration:none; white-space:nowrap;
+}
+.group-chip:hover { background:rgba(139,75,0,0.13); }
 
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="color:#888; font-size:0.85rem;">إجمالي الحصص</div>
-            <div style="color:var(--color-role-eleve-solid); font-size:2rem; font-weight:700;">{{ total_seances }}</div>
-            <div style="color:#888; font-size:0.8rem;">📋</div>
+.hero-ring-card { background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); padding:28px 24px; text-align:center; margin-bottom:20px; }
+.ring-wrap { position:relative; width:168px; height:168px; margin:0 auto 14px; }
+.ring-wrap svg { transform:rotate(-90deg); transform-origin:84px 84px; }
+.ring-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.ring-center .num { font-size:2.4rem; font-weight:700; color:var(--color-role-eleve-solid); line-height:1; direction:ltr; }
+.ring-center .num span { font-size:1rem; color:#b3a08c; font-weight:500; }
+.ring-center .label { font-size:0.78rem; color:var(--color-text-muted); margin-top:4px; }
+.next-goal {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(201,150,46,0.12); color:var(--color-brand-gold-dark);
+    font-size:0.85rem; font-weight:600; border-radius:20px; padding:6px 16px;
+}
+.stats-row { display:flex; gap:24px; justify-content:center; margin-top:18px; padding-top:16px; border-top:1px dashed #eee0cc; }
+.stat-mini { text-align:center; }
+.stat-mini .v { font-size:1.1rem; font-weight:700; color:var(--color-text-primary); }
+.stat-mini .l { font-size:0.72rem; color:#aaa; }
+
+.section-title { font-weight:700; font-size:0.95rem; color:var(--color-text-primary); margin:0 0 10px; }
+.compact-card { background:white; border-radius:12px; padding:16px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+.btn-join {
+    background:var(--color-role-eleve); color:white; text-decoration:none;
+    font-size:0.82rem; font-weight:600; border-radius:20px; padding:7px 16px;
+    white-space:nowrap;
+}
+.btn-join:hover { opacity:0.9; color:white; }
+
+.eval-card { display:block; color:inherit; text-decoration:none; height:100%; transition:box-shadow 0.15s; }
+.eval-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12); }
+.eval-card .date { color:#888; font-size:0.78rem; }
+.eval-card .groupe { font-weight:600; font-size:0.9rem; margin:4px 0 8px; }
+.eval-card .voir { color:var(--color-role-eleve-solid); font-size:0.8rem; margin-top:10px; }
+
+.medal-badge { display:inline-flex; align-items:center; gap:5px; border-radius:20px; padding:4px 11px 4px 8px; font-size:0.78rem; font-weight:600; }
+.medal-badge svg { flex-shrink:0; }
+
+.sourate-chip-row { display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; margin-bottom:24px; }
+.sourate-chip { flex:0 0 auto; width:150px; background:white; border-radius:12px; padding:12px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+.sourate-chip .nom { font-weight:700; font-size:0.88rem; margin-bottom:6px; }
+.sourate-chip .bar-bg { background:var(--color-bg-cream); border-radius:20px; height:6px; overflow:hidden; margin-bottom:8px; }
+.sourate-chip .bar-fill { background:var(--color-role-eleve); height:100%; }
+
+@media (max-width:480px) {
+    .ring-wrap { width:140px; height:140px; }
+    .stats-row { gap:14px; }
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="dash-top-row">
+    <div>
+        <div class="page-title" style="margin-bottom:2px;">أهلاً، {{ eleve.user.get_full_name }} 👋</div>
+        <div class="page-subtitle" style="margin-bottom:0;">لوحة التحكم الخاصة بك</div>
+    </div>
+    {% if groupe_principal %}
+    <a href="{% url 'eleve_profil' %}" class="group-chip">📚 {{ groupe_principal.nom }}</a>
+    {% endif %}
+</div>
+
+<div class="hero-ring-card">
+    <div class="ring-wrap">
+        <svg width="168" height="168" viewBox="0 0 168 168">
+            <circle cx="84" cy="84" r="72" fill="none" stroke="#f2ead9" stroke-width="14"/>
+            <circle cx="84" cy="84" r="72" fill="none" stroke="url(#ringGrad)" stroke-width="14"
+                    stroke-linecap="round" stroke-dasharray="452.39"
+                    stroke-dashoffset="{{ ring_dashoffset }}"/>
+            <defs>
+                <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#A86414"/>
+                    <stop offset="100%" stop-color="#F0C040"/>
+                </linearGradient>
+            </defs>
+        </svg>
+        <div class="ring-center">
+            <div class="num">{{ nb_hizb_memorises }}<span> / 60</span></div>
+            <div class="label">حزب محفوظ</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="color:#888; font-size:0.85rem;">حضوري</div>
-            <div style="color:var(--color-role-eleve-solid); font-size:2rem; font-weight:700;">{{ total_present }}</div>
-            <div style="color:#888; font-size:0.8rem;">✅</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="color:#888; font-size:0.85rem;">مجموعاتي</div>
-            <div style="color:var(--color-role-eleve-solid); font-size:2rem; font-weight:700;">{{ groupes|length }}</div>
-            <div style="color:#888; font-size:0.8rem;">👥</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="color:#888; font-size:0.85rem;">الأحزاب المحفوظة</div>
-            <div style="color:var(--color-brand-gold-dark); font-size:2rem; font-weight:700;" dir="ltr">{{ nb_hizb_memorises }}<span style="font-size:1rem; color:#888;"> / 60</span></div>
-            <div style="color:#888; font-size:0.8rem;">📖</div>
-        </div>
+    {% if ayat_avant_prochain_hizb > 0 %}
+    <div class="next-goal">🎯 باقي {{ ayat_avant_prochain_hizb }} آية للحزب القادم</div>
+    {% else %}
+    <div class="next-goal" style="background:rgba(45,90,61,0.12); color:var(--color-success);">🎉 ما شاء الله، تم حفظ القرآن كاملاً</div>
+    {% endif %}
+    <div class="stats-row">
+        <div class="stat-mini"><div class="v">{{ total_seances }}</div><div class="l">حصة</div></div>
+        <div class="stat-mini"><div class="v">{{ total_present }}</div><div class="l">حضور</div></div>
+        <div class="stat-mini"><div class="v">{{ nb_sourates_distinctes }}</div><div class="l">سور بدأت</div></div>
     </div>
 </div>
 
-<!-- Dernières notes -->
-<div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; font-size:1.1rem; color:#222; margin-bottom:16px;">آخر التقييمات</div>
-    {% if presences %}
-        {% for presence in presences %}
-        <div style="padding:12px 0; border-bottom:1px solid #f0f0f0;">
-            <div style="display:flex; justify-content:space-between;">
-                <div>
-                    <div style="font-weight:600;">{{ presence.seance.groupe.nom }}</div>
-                    <div style="color:#888; font-size:0.85rem;">{{ presence.seance.date|date:"d-m-Y" }}</div>
-                </div>
-                <div style="text-align:left;">
-                    {% if presence.note_memorisation %}
-                    <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 10px; font-size:0.8rem;">
-                        حفظ: {{ presence.note_memorisation }}
-                    </span>
-                    {% endif %}
-                </div>
-            </div>
-            {% if presence.remarque %}
-            <div style="color:#555; font-size:0.85rem; margin-top:6px; background:#f9f9f9; padding:8px; border-radius:6px;">
-                💬 {{ presence.remarque }}
-            </div>
+<div class="section-title">الحصة القادمة</div>
+<div class="compact-card mb-4">
+    {% if prochaine_seance %}
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+            <div style="font-weight:700;">{{ prochaine_seance.date|date:"d-m-Y" }} — {{ prochaine_seance.heure|time:"H:i" }}</div>
+            <div style="color:#888; font-size:0.82rem; margin-top:2px;">{{ prochaine_seance.groupe.nom }}</div>
+            {% if prochaine_seance.statut == 'annulee' and prochaine_seance.remarque %}
+            <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">السبب: {{ prochaine_seance.remarque }}</div>
             {% endif %}
         </div>
-        {% endfor %}
+        <div style="display:flex; align-items:center; gap:10px;">
+            {% include 'dashboard/_seance_statut_badge.html' with seance=prochaine_seance aujourdhui=aujourdhui %}
+            {% if prochaine_seance.statut != 'annulee' and prochaine_seance.groupe.lien_reunion %}
+            <a href="{{ prochaine_seance.groupe.lien_reunion }}" target="_blank" rel="noopener" class="btn-join">🔗 الانضمام للاجتماع</a>
+            {% endif %}
+        </div>
+    </div>
     {% else %}
-        <div style="text-align:center; color:#aaa; padding:30px;">لا توجد تقييمات بعد</div>
+    <div style="text-align:center; color:#aaa; padding:6px 0;">لا توجد حصة مبرمجة حالياً</div>
     {% endif %}
-    <div class="mt-3">
-        <a href="{% url 'eleve_seances' %}" style="color:var(--color-role-eleve-solid); text-decoration:none; font-size:0.9rem;">
-            عرض جميع الحصص ←
+</div>
+
+<div class="section-title">آخر التقييمات</div>
+{% if dernieres_evaluations %}
+<div class="row g-3 mb-4">
+    {% for presence in dernieres_evaluations %}
+    <div class="col-md-4">
+        <a href="{% url 'eleve_seance_detail' presence.id %}" class="compact-card eval-card">
+            <div class="date">{{ presence.seance.date|date:"d-m-Y" }}</div>
+            <div class="groupe">{{ presence.seance.groupe.nom }}</div>
+            {% include 'dashboard/_medal_badge.html' with code=presence.note_memorisation label=presence.get_note_memorisation_display %}
+            <div class="voir">عرض التفاصيل ←</div>
         </a>
     </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="compact-card mb-4" style="text-align:center; color:#aaa;">لا توجد تقييمات بعد</div>
+{% endif %}
+
+<div class="section-title">آخر ما تم حفظه</div>
+<div class="sourate-chip-row">
+    {% for s in sourates_recentes %}
+    <div class="sourate-chip">
+        <div class="nom">{{ s.nom }}</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:{{ s.pourcentage }}%;"></div></div>
+        {% include 'dashboard/_medal_badge.html' with code=s.note_code label=s.note_display %}
+    </div>
+    {% empty %}
+    <div style="color:#aaa; padding:10px 4px;">لا يوجد أي حفظ مسجَّل بعد</div>
+    {% endfor %}
 </div>
 {% endblock %}

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة الطالب — مقارنة اتجاهين</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --color-brand-gold: #C9962E;
+    --color-brand-gold-dark: #8B4B00;
+    --color-bg-cream: #FFF8EF;
+    --color-text-primary: #2C1500;
+    --color-text-inverse: #FFF8EF;
+    --color-text-muted: #8B6040;
+    --color-success: #2D5A3D;
+    --color-warning: #8B4B00;
+    --color-danger: #B3261E;
+    --color-role-eleve: linear-gradient(135deg, #8B4B00, #A86414);
+    --color-role-eleve-solid: #8B4B00;
+}
+* { box-sizing: border-box; }
+body {
+    font-family: 'Tajawal', sans-serif;
+    background: #DDD4BE;
+    margin: 0;
+    padding: 32px 16px;
+    color: var(--color-text-primary);
+}
+.compare-label {
+    font-family: monospace;
+    font-size: 11px;
+    color: #888;
+    text-align: center;
+    margin-bottom: 8px;
+    direction: ltr;
+}
+.direction-wrap {
+    max-width: 640px;
+    margin: 0 auto 56px;
+}
+.direction-header { text-align: center; margin-bottom: 16px; }
+.direction-header h2 { font-size: 1.25rem; font-weight: 700; margin: 0 0 4px; color: var(--color-text-primary); }
+.direction-header p { font-size: 0.85rem; color: var(--color-text-muted); margin: 0; }
+.stage { background: var(--color-bg-cream); padding: 24px; border-radius: 8px; }
+.page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 2px; }
+.page-subtitle { font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 20px; }
+
+/* --- éléments communs --- */
+.card { background: white; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.top-row { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 16px; }
+.group-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    font-size: 0.78rem; color: var(--color-text-muted);
+    background: rgba(139,75,0,0.07); border-radius: 20px; padding: 5px 12px;
+    text-decoration: none;
+}
+.group-chip:hover { background: rgba(139,75,0,0.13); }
+
+.medal { display:inline-flex; align-items:center; gap:5px; border-radius:20px; padding:4px 11px 4px 8px; font-size:0.78rem; font-weight:600; }
+.medal svg { flex-shrink:0; }
+
+/* === DIRECTION A : anneau circulaire === */
+.hero-a {
+    padding: 28px 24px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+.ring-wrap { position: relative; width: 168px; height: 168px; margin: 0 auto 14px; }
+.ring-wrap svg { transform: rotate(-90deg); }
+.ring-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.ring-center .num { font-size: 2.4rem; font-weight: 700; color: var(--color-role-eleve-solid); line-height:1; direction: ltr; }
+.ring-center .num span { font-size: 1rem; color: #b3a08c; font-weight:500; }
+.ring-center .label { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 4px; }
+.next-goal-a {
+    display:inline-flex; align-items:center; gap:6px;
+    background: rgba(201,150,46,0.12); color: var(--color-brand-gold-dark);
+    font-size: 0.85rem; font-weight:600; border-radius: 20px; padding: 6px 16px;
+    margin-bottom: 4px;
+}
+.stats-row-a { display:flex; gap:24px; justify-content:center; margin-top:18px; padding-top:16px; border-top:1px dashed #eee0cc; }
+.stat-mini { text-align:center; }
+.stat-mini .v { font-size:1.1rem; font-weight:700; color: var(--color-text-primary); }
+.stat-mini .l { font-size:0.72rem; color:#aaa; }
+
+.sourates-a-title { font-weight:700; font-size:0.95rem; margin: 0 0 10px; color: var(--color-text-primary); }
+.sourate-chip-row { display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; }
+.sourate-chip { flex: 0 0 auto; width: 140px; background: white; border-radius:12px; padding:12px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+.sourate-chip .nom { font-weight:700; font-size:0.88rem; margin-bottom:6px; }
+.sourate-chip .bar-bg { background:#f2ead9; border-radius:20px; height:6px; overflow:hidden; margin-bottom:8px; }
+.sourate-chip .bar-fill { background: var(--color-role-eleve); height:100%; }
+.sourate-chip .medal { font-size:0.68rem; padding:2px 8px 2px 6px; }
+
+/* === DIRECTION B : barre de niveau horizontale === */
+.hero-b {
+    padding: 26px 24px 22px;
+    background: linear-gradient(135deg, #8B4B00, #5C3300);
+    color: var(--color-text-inverse);
+    margin-bottom: 20px;
+}
+.hero-b .eyebrow { font-size:0.78rem; opacity:0.8; margin-bottom:2px; }
+.hero-b .title-row { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; }
+.hero-b .big { font-size:1.7rem; font-weight:700; }
+.hero-b .big .of60 { font-size:0.95rem; font-weight:400; opacity:0.75; }
+.level-bar-bg { position:relative; background: rgba(255,255,255,0.18); border-radius:20px; height:14px; overflow:hidden; margin-bottom:8px; }
+.level-bar-fill { background: linear-gradient(90deg, #F0C040, #C9962E); height:100%; border-radius:20px; }
+.level-ticks { display:flex; justify-content:space-between; padding: 0 1px; }
+.level-ticks span { width:1px; height:6px; background: rgba(255,255,255,0.25); }
+.hero-b .next-goal-b { font-size:0.82rem; opacity:0.9; margin-top:8px; }
+.stats-row-b { display:flex; gap:10px; margin-bottom:20px; }
+.stat-pill-b { flex:1; background:white; border-radius:12px; padding:12px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.05); display:flex; align-items:center; gap:10px; }
+.stat-pill-b .icon { font-size:1.1rem; }
+.stat-pill-b .v { font-weight:700; font-size:1.05rem; }
+.stat-pill-b .l { font-size:0.72rem; color:#aaa; }
+
+.sourates-b { padding: 4px 0; }
+.sourates-b-title { font-weight:700; font-size:0.95rem; padding: 16px 20px 4px; }
+.sourate-row-b { display:flex; justify-content:space-between; align-items:center; padding: 12px 20px; border-bottom:1px solid #f5f0e6; }
+.sourate-row-b:last-child { border-bottom:none; }
+.sourate-row-b .nom { font-weight:600; font-size:0.9rem; }
+.sourate-row-b .range { color:#aaa; font-size:0.78rem; }
+
+@media (max-width: 480px) {
+    .ring-wrap { width:140px; height:140px; }
+    .stats-row-a { gap:14px; }
+    .stats-row-b { flex-direction:column; }
+}
+</style>
+</head>
+<body>
+
+<div class="direction-wrap">
+    <div class="direction-header">
+        <h2>الاتجاه A — حلقة التقدم</h2>
+        <p>مؤشر دائري مركزي + شرائح سور أفقية قابلة للتمرير</p>
+    </div>
+    <div class="compare-label">direction-A</div>
+    <div class="stage">
+        <div class="top-row">
+            <div>
+                <div class="page-title">أهلاً، أمين 👋</div>
+                <div class="page-subtitle">لوحة التحكم الخاصة بك</div>
+            </div>
+            <a href="#" class="group-chip">📚 المجموعة أ</a>
+        </div>
+
+        <div class="card hero-a">
+            <div class="ring-wrap">
+                <svg width="168" height="168" viewBox="0 0 168 168">
+                    <circle cx="84" cy="84" r="72" fill="none" stroke="#f2ead9" stroke-width="14"/>
+                    <circle cx="84" cy="84" r="72" fill="none" stroke="url(#gradA)" stroke-width="14"
+                            stroke-linecap="round"
+                            stroke-dasharray="452.4"
+                            stroke-dashoffset="399.9"/>
+                    <defs>
+                        <linearGradient id="gradA" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#A86414"/>
+                            <stop offset="100%" stop-color="#F0C040"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div class="ring-center">
+                    <div class="num">7<span> / 60</span></div>
+                    <div class="label">حزب محفوظ</div>
+                </div>
+            </div>
+            <div class="next-goal-a">🎯 باقي 42 آية للحزب القادم</div>
+            <div class="stats-row-a">
+                <div class="stat-mini"><div class="v">24</div><div class="l">حصة</div></div>
+                <div class="stat-mini"><div class="v">21</div><div class="l">حضور</div></div>
+                <div class="stat-mini"><div class="v">4</div><div class="l">سور بدأت</div></div>
+            </div>
+        </div>
+
+        <div class="sourates-a-title">آخر ما تم حفظه</div>
+        <div class="sourate-chip-row">
+            <div class="sourate-chip">
+                <div class="nom">الفاتحة</div>
+                <div class="bar-bg"><div class="bar-fill" style="width:100%"></div></div>
+                <span class="medal" style="background:#e8f5e9; color:#1b5e20;">
+                    <svg width="11" height="11" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.6 6.8L12 16.9 5.8 20.4l1.6-6.8L2.2 9l6.9-.7z"/></svg>
+                    ممتاز
+                </span>
+            </div>
+            <div class="sourate-chip">
+                <div class="nom">البقرة</div>
+                <div class="bar-bg"><div class="bar-fill" style="width:34%"></div></div>
+                <span class="medal" style="background:#eef7e5; color:#2d5a1b;">
+                    <svg width="11" height="11" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.6 6.8L12 16.9 5.8 20.4l1.6-6.8L2.2 9l6.9-.7z"/></svg>
+                    حسن جدا
+                </span>
+            </div>
+            <div class="sourate-chip">
+                <div class="nom">آل عمران</div>
+                <div class="bar-bg"><div class="bar-fill" style="width:12%"></div></div>
+                <span class="medal" style="background:#ffe4c4; color:#b35900;">
+                    <svg width="11" height="11" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.6 6.8L12 16.9 5.8 20.4l1.6-6.8L2.2 9l6.9-.7z"/></svg>
+                    متوسط
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="direction-wrap">
+    <div class="direction-header">
+        <h2>الاتجاه B — شريط المستوى</h2>
+        <p>بانر أفقي بلون العلامة الداكن + قائمة سور عمودية</p>
+    </div>
+    <div class="compare-label">direction-B</div>
+    <div class="stage">
+        <div class="page-title">أهلاً، أمين 👋</div>
+        <div class="page-subtitle">لوحة التحكم الخاصة بك · المجموعة أ</div>
+
+        <div class="card hero-b">
+            <div class="eyebrow">تقدمي في الحفظ</div>
+            <div class="title-row">
+                <div class="big">الحزب 7 <span class="of60">من 60</span></div>
+                <div style="font-size:0.85rem; opacity:0.85;">39% مكتمل تقريباً</div>
+            </div>
+            <div class="level-bar-bg">
+                <div class="level-bar-fill" style="width:39%"></div>
+            </div>
+            <div class="level-ticks">
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="next-goal-b">🎯 باقي 42 آية حتى الحزب القادم</div>
+        </div>
+
+        <div class="stats-row-b">
+            <div class="stat-pill-b"><span class="icon">📋</span><div><div class="v">24</div><div class="l">إجمالي الحصص</div></div></div>
+            <div class="stat-pill-b"><span class="icon">✅</span><div><div class="v">21</div><div class="l">حضوري</div></div></div>
+        </div>
+
+        <div class="card sourates-b">
+            <div class="sourates-b-title">آخر ما تم حفظه</div>
+            <div class="sourate-row-b">
+                <div>
+                    <div class="nom">الفاتحة</div>
+                    <div class="range">الآيات 1-7 من أصل 7</div>
+                </div>
+                <span class="medal" style="background:#e8f5e9; color:#1b5e20;">
+                    <svg width="11" height="11" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.6 6.8L12 16.9 5.8 20.4l1.6-6.8L2.2 9l6.9-.7z"/></svg>
+                    ممتاز
+                </span>
+            </div>
+            <div class="sourate-row-b">
+                <div>
+                    <div class="nom">البقرة</div>
+                    <div class="range">الآيات 1-96 من أصل 286</div>
+                </div>
+                <span class="medal" style="background:#eef7e5; color:#2d5a1b;">
+                    <svg width="11" height="11" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.6 6.8L12 16.9 5.8 20.4l1.6-6.8L2.2 9l6.9-.7z"/></svg>
+                    حسن جدا
+                </span>
+            </div>
+            <div class="sourate-row-b">
+                <div>
+                    <div class="nom">آل عمران</div>
+                    <div class="range">الآيات 1-24 من أصل 200</div>
+                </div>
+                <span class="medal" style="background:#ffe4c4; color:#b35900;">
+                    <svg width="11" height="11" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.6 6.8L12 16.9 5.8 20.4l1.6-6.8L2.2 9l6.9-.7z"/></svg>
+                    متوسط
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

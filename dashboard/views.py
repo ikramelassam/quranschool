@@ -718,6 +718,8 @@ def dashboard_eleve(request):
     from accounts.models import Eleve
     from courses.models import Seance, Presence
     from courses.utils import calculer_progression_eleve
+    from courses.quran_data import HIZB_LIMITES
+    from django.utils import timezone
 
     try:
         eleve = Eleve.objects.get(user=request.user)
@@ -725,17 +727,66 @@ def dashboard_eleve(request):
         return redirect('login')
 
     groupes = eleve.groupes.all()
-    presences = Presence.objects.filter(
+    aujourdhui = timezone.localdate()
+
+    progression = calculer_progression_eleve(eleve)
+    nb_hizb = progression['nb_hizb_memorises']
+    total_ayat = progression['total_ayat_memorises']
+    ayat_avant_prochain_hizb = (
+        HIZB_LIMITES[nb_hizb] - total_ayat if nb_hizb < len(HIZB_LIMITES) else 0
+    )
+
+    # Anneau SVG (voir eleve.html): cercle de rayon 72 -> circonférence
+    # 2*pi*72 ≈ 452.39. Le remplissage suit le nombre de hizb ENTIERS
+    # (pas de fraction), pour rester cohérent avec le chiffre affiché
+    # au centre de l'anneau.
+    ring_dashoffset = round(452.39 * (1 - nb_hizb / 60), 1)
+
+    # Aperçu "dernier hifz par sourate": on part de l'historique (déjà
+    # trié du plus récent au plus ancien par calculer_progression_eleve)
+    # et on garde la 1ère occurrence de chaque sourate rencontrée, donc
+    # triée par récence et non par numéro de sourate.
+    par_sourate_par_nom = {item['nom']: item for item in progression['par_sourate']}
+    sourates_recentes = []
+    vues = set()
+    for h in progression['historique']:
+        if h['sourate'] in vues:
+            continue
+        vues.add(h['sourate'])
+        par = par_sourate_par_nom.get(h['sourate'])
+        sourates_recentes.append({
+            'nom': h['sourate'],
+            'pourcentage': par['pourcentage'] if par else 0,
+            'note_code': h['note_code'],
+            'note_display': h['note_display'],
+        })
+        if len(sourates_recentes) == 3:
+            break
+
+    # Prochaine séance: même filtre que eleve_seances (exclut seulement les
+    # séances déjà terminées) — une séance annulée reste affichée avec son
+    # motif, c'est une info que l'élève doit voir.
+    prochaine_seance = Seance.objects.filter(
+        groupe__in=groupes, date__gte=aujourdhui
+    ).exclude(statut='terminee').select_related('groupe').order_by('date', 'heure').first()
+
+    dernieres_evaluations = Presence.objects.filter(
         eleve=eleve
-    ).order_by('-seance__date')[:10]
+    ).select_related('seance__groupe').order_by('-seance__date', '-seance__heure')[:3]
 
     context = {
         'eleve': eleve,
-        'groupes': groupes,
-        'presences': presences,
+        'groupe_principal': groupes.first(),
+        'aujourdhui': aujourdhui,
         'total_seances': Presence.objects.filter(eleve=eleve).count(),
         'total_present': Presence.objects.filter(eleve=eleve, statut='present').count(),
-        'nb_hizb_memorises': calculer_progression_eleve(eleve)['nb_hizb_memorises'],
+        'nb_hizb_memorises': nb_hizb,
+        'nb_sourates_distinctes': progression['nb_sourates_distinctes'],
+        'ayat_avant_prochain_hizb': ayat_avant_prochain_hizb,
+        'ring_dashoffset': ring_dashoffset,
+        'sourates_recentes': sourates_recentes,
+        'prochaine_seance': prochaine_seance,
+        'dernieres_evaluations': dernieres_evaluations,
     }
     return render(request, 'dashboard/eleve.html', context)
 
