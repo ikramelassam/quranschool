@@ -20,7 +20,7 @@
     </div>
 
     <!-- Mémorisation -->
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin-bottom:12px;">الحفظ</div>
+    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin-bottom:12px;">الحفظ</div>
     {% if presence.sourate_memorisee %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">السورة</span>
@@ -43,7 +43,7 @@
     {% endif %}
 
     <!-- Révision -->
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin:20px 0 12px;">المراجعة</div>
+    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">المراجعة</div>
     {% if presence.sourate_revisee %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">السورة</span>
@@ -66,15 +66,15 @@
     {% endif %}
 
     <!-- Remarque -->
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin:20px 0 12px;">ملاحظة المعلم</div>
+    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">ملاحظة المعلم</div>
     {% if presence.remarque %}
-    <div style="background:#f0f7ed; padding:14px; border-radius:8px; border-right:3px solid var(--color-brand-emerald); white-space:pre-wrap;">{{ presence.remarque }}</div>
+    <div style="background:#f0f7ed; padding:14px; border-radius:8px; border-right:3px solid var(--color-role-eleve-solid); white-space:pre-wrap;">{{ presence.remarque }}</div>
     {% else %}
     <div style="color:#aaa;">لا توجد ملاحظة من المعلم لهذه الحصة.</div>
     {% endif %}
 
     <!-- Consigne pour la prochaine séance -->
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin:20px 0 12px;">📌 تحضير الحصة القادمة</div>
+    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">📌 تحضير الحصة القادمة</div>
     {% if presence.consigne_prochaine_seance %}
     <div style="background:#fff8ec; padding:14px; border-radius:8px; border-right:3px solid var(--color-brand-gold-dark); white-space:pre-wrap;">{{ presence.consigne_prochaine_seance }}</div>
     {% else %}
@@ -82,7 +82,7 @@
     {% endif %}
 
     <div class="mt-4">
-        <a href="{% url 'eleve_seances' %}" style="color:var(--color-brand-emerald); text-decoration:none;">← رجوع إلى حصصي</a>
+        <a href="{% url 'eleve_seances' %}" style="color:var(--color-role-eleve-solid); text-decoration:none;">← رجوع إلى حصصي</a>
     </div>
 </div>
 {% endblock %}

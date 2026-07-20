@@ -29,7 +29,7 @@
             <input type="month" name="mois" class="form-control" value="{{ filtres.mois }}">
         </div>
         <div class="col-md-3 d-flex gap-2">
-            <button type="submit" style="background:var(--color-brand-emerald); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
             <a href="{% url 'admin_paiements' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
         </div>
     </div>
@@ -44,14 +44,14 @@
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
             {% if paiement.statut == 'valide' %}
-                <span style="background:#e8f5e9; color:var(--color-brand-emerald); border-radius:20px; padding:3px 12px; font-size:0.8rem;">مقبول ✅</span>
+                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem;">مقبول ✅</span>
             {% elif paiement.statut == 'rejete' %}
                 <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:3px 12px; font-size:0.8rem;">مرفوض ❌</span>
             {% else %}
                 <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">قيد المراجعة ⏳</span>
             {% endif %}
             <a href="{% url 'admin_paiement_detail' paiement.id %}"
-               style="color:var(--color-brand-emerald); text-decoration:none; font-size:0.85rem;">عرض ←</a>
+               style="color:var(--color-role-admin-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
         </div>
     </div>
     {% empty %}

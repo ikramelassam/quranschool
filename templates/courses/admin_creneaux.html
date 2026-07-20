@@ -9,7 +9,7 @@
         <div class="page-subtitle">إجمالي الحلقات: {{ creneaux.paginator.count }}</div>
     </div>
     <a href="{% url 'admin_creneau_ajouter' %}" 
-       style="background:var(--color-brand-emerald); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+       style="background:var(--color-role-admin); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
        + إضافة حلقة جديدة
     </a>
 </div>
@@ -50,7 +50,7 @@
             </select>
         </div>
         <div class="col-md-3 d-flex gap-2">
-            <button type="submit" style="background:var(--color-brand-emerald); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
             <a href="{% url 'admin_creneaux' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
         </div>
     </div>
@@ -74,7 +74,7 @@
         <div class="d-flex gap-2 align-items-center">
             <!-- Statut actif/inactif -->
             {% if creneau.est_actif %}
-                <span style="background:#e8f5e9; color:var(--color-brand-emerald); border-radius:20px; padding:4px 12px; font-size:0.8rem;">نشط ✅</span>
+                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">نشط ✅</span>
             {% else %}
                 <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:4px 12px; font-size:0.8rem;">غير نشط ❌</span>
             {% endif %}

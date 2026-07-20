@@ -7,35 +7,51 @@
    ============================================================ */
 
 :root {
-    /* --- Couleurs de marque --- */
+    /* --- Couleurs de marque — alignées sur le site vitrine (stalwart-salamander-bd9011.netlify.app) --- */
     --color-brand-gold: #C9962E;       /* décoratif / grands titres / bordures / icônes UNIQUEMENT
                                            contraste insuffisant (~2.6:1) en texte sur crème ou blanc,
                                            même en grande taille -> ne jamais l'utiliser comme couleur
                                            de texte, voir --color-brand-gold-dark à la place. */
-    --color-brand-gold-dark: #8B5A2B;  /* texte/accents dorés lisibles (AA ok sur crème et blanc) */
-    --color-brand-emerald: #2D5A3D;    /* couleur de rôle : admin + élève (remplace l'ancien #2d5a1b) */
+    --color-brand-gold-dark: #8B4B00;  /* texte/accents dorés lisibles (AA ok sur crème et blanc) — aligné sur le brun-or de la vitrine */
+    --color-brand-emerald: #2D5A3D;    /* couleur SÉMANTIQUE "succès" uniquement (badges ✅/نشط) —
+                                           n'existe pas dans l'identité de marque de la vitrine, donc
+                                           plus jamais utilisée comme couleur de rôle/accent depuis la refonte. */
+
+    /* --- Dégradés (comme la vitrine, qui n'utilise aucune couleur plate sur boutons/rôles) --- */
+    --gradient-cta-gold: linear-gradient(135deg, #D4A843, #F0C040);   /* CTA principal (pages publiques : login, inscription) */
+    --color-cta-gold-text: #3D1E00;                                    /* texte sombre requis sur le dégradé doré — recalculé (WCAG): 6.85:1
+                                                                           au point foncé #D4A843 (le vrai minimum), 8.90:1 au point clair #F0C040 */
 
     /* --- Fonds --- */
-    --color-bg-cream: #F5EFE0;         /* fond général de l'appli (remplace l'ancien #f0ebe3) */
-    --color-bg-brown-dark: #3D2817;    /* couleur de rôle : professeur (remplace l'ancien #1a3a5c,
-                                           qui était hors de la nouvelle identité dorée/crème — aucun
-                                           bleu n'existe dans la nouvelle palette) */
+    --color-bg-cream: #FFF8EF;         /* fond général de l'appli — aligné sur la vitrine (remplace #F5EFE0) */
+    --color-bg-brown-dark: #3D2817;    /* conservé pour compat, non utilisé comme couleur de rôle directe */
 
     /* --- Texte --- */
-    --color-text-primary: #1A1A1A;
-    --color-text-inverse: #F5EFE0;
-    --color-text-muted: #6B6B6B;
+    --color-text-primary: #2C1500;     /* aligné sur la vitrine (brun quasi-noir, remplace #1A1A1A) */
+    --color-text-inverse: #FFF8EF;
+    --color-text-muted: #8B6040;       /* aligné sur la vitrine (remplace #6B6B6B) — 5.18:1 sur crème, 5.46:1 sur blanc */
 
-    /* --- États sémantiques (indépendants de la marque, ne pas remplacer par le doré/émeraude) --- */
+    /* --- États sémantiques (indépendants de la marque, ne pas remplacer par le doré/brun) --- */
     --color-success: #2D5A3D;
-    --color-warning: #C9962E;
+    --color-warning: #8B4B00;
     --color-danger: #B3261E;
 
-    /* --- Rôles (sidebar / accents par tableau de bord) ---
-       admin, élève -> emerald | professeur -> brown-dark | superviseur -> gold-dark
-       3 couleurs bien distinctes, toutes >= 4.5:1 de contraste avec du texte blanc. */
-    --color-role-admin: var(--color-brand-emerald);
-    --color-role-eleve: var(--color-brand-emerald);
-    --color-role-prof: var(--color-bg-brown-dark);
-    --color-role-superviseur: var(--color-brand-gold-dark);
+    /* --- Rôles (sidebar / accents par tableau de bord) —
+       4 nuances d'un même dégradé brun/or continu, aucune couleur hors de cette famille
+       (donc plus de vert). Toutes >= 4.5:1 avec du texte blanc, y compris sur le point le
+       plus clair de chaque dégradé — recalculé (WCAG) sur les 5 couleurs d'ancrage réelles,
+       du plus sombre (#2C1500) au plus clair (#A86414) : 17.29 / 13.39 / 9.89 / 6.76 / 4.67. */
+    --color-role-admin: linear-gradient(135deg, #2C1500, #4A2600);        /* le plus sombre — autorité */
+    --color-role-prof: linear-gradient(135deg, #4A2600, #6B3410);
+    --color-role-superviseur: linear-gradient(135deg, #6B3410, #8B4B00);
+    --color-role-eleve: linear-gradient(135deg, #8B4B00, #A86414);        /* le plus clair — accueillant */
+
+    /* Variantes SOLIDES (une couleur, pas de dégradé) des rôles ci-dessus —
+       à utiliser partout où un dégradé est invalide en CSS : `color`, `border-color`,
+       `box-shadow`, remplissage d'icône SVG. Ne jamais mettre --color-role-* (dégradé)
+       sur `color:` — un dégradé n'est pas une valeur de couleur de texte valide. */
+    --color-role-admin-solid: #2C1500;
+    --color-role-prof-solid: #4A2600;
+    --color-role-superviseur-solid: #6B3410;
+    --color-role-eleve-solid: #8B4B00;
 }

@@ -9,7 +9,7 @@
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
     <!-- Infos personnelles -->
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin-bottom:12px;">المعلومات الشخصية</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin-bottom:12px;">المعلومات الشخصية</div>
 
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الاسم الكامل</span>
@@ -37,7 +37,7 @@
     </div>
 
     <!-- Qualifications -->
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin:20px 0 12px;">المؤهلات</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">المؤهلات</div>
 
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">مستوى الحفظ</span>
@@ -49,7 +49,7 @@
     </div>
 
     <!-- Parcours -->
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin:20px 0 12px;">المسار والخبرة</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">المسار والخبرة</div>
 
     <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <div style="color:#888; margin-bottom:4px;">المسار الدراسي</div>
@@ -69,7 +69,7 @@
     </div>
 
     <!-- Tafaصيل إضافية -->
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin:20px 0 12px;">معلومات إضافية</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">معلومات إضافية</div>
 
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الفئة المفضلة</span>
@@ -110,7 +110,7 @@
     {% endif %}
 
     <!-- Infos bancaires -->
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin:20px 0 12px;">المعلومات البنكية</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">المعلومات البنكية</div>
 
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الحساب البنكي</span>
@@ -122,7 +122,7 @@
     </div>
 
     <!-- Disponibilités horaires -->
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin:20px 0 12px;">التفرغ الأسبوعي المصرَّح به</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">التفرغ الأسبوعي المصرَّح به</div>
 
     {% if inscription.disponibilites %}
     {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo_apercu' valeurs_form=valeurs_dispo lecture_seule=True %}
@@ -131,7 +131,7 @@
     {% endif %}
 
     <!-- Mot de passe temporaire -->
-    <div style="background:#e8f0fe; border-radius:8px; padding:14px 18px; margin:20px 0; color:var(--color-bg-brown-dark);">
+    <div style="background:#e8f0fe; border-radius:8px; padding:14px 18px; margin:20px 0; color:var(--color-role-admin-solid);">
         🔑 عند القبول، سيتم إسناد كلمة المرور المؤقتة التالية: <strong>{{ mot_de_passe_temporaire }}</strong><br>
         <span style="font-size:0.85rem;">بلّغها للمعلم — سيُطلب منه تغييرها إجبارياً عند أول تسجيل دخول.</span>
     </div>
@@ -162,7 +162,7 @@
         {% if not conflit.conflit %}
         <a href="{% url 'admin_valider_prof' inscription.id %}"
            onclick="return confirm('هل أنت متأكد من قبول طلب {{ inscription.nom|escapejs }} {{ inscription.prenom|escapejs }}؟ سيتم إنشاء حساب مستخدم فعلي له.');"
-           style="background:var(--color-brand-emerald); color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">✅ قبول</a>
+           style="background:var(--color-success); color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">✅ قبول</a>
         {% endif %}
         <a href="{% url 'admin_rejeter_prof' inscription.id %}"
            onclick="return confirm('هل أنت متأكد من رفض طلب {{ inscription.nom|escapejs }} {{ inscription.prenom|escapejs }}؟ لا يمكن التراجع عن هذا الإجراء.');"

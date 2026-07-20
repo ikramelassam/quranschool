@@ -19,10 +19,10 @@
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0;">
         <span style="color:#888;">الحالة</span>
-        <span style="font-weight:600; color:var(--color-brand-emerald);">{{ eleve.get_statut_display }}</span>
+        <span style="font-weight:600; color:var(--color-role-eleve-solid);">{{ eleve.get_statut_display }}</span>
     </div>
 
-    <div style="margin-top:20px; font-weight:700; color:var(--color-brand-emerald); margin-bottom:12px;">مجموعاتي</div>
+    <div style="margin-top:20px; font-weight:700; color:var(--color-role-eleve-solid); margin-bottom:12px;">مجموعاتي</div>
     {% for groupe in eleve.groupes.all %}
     <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="font-weight:600;">{{ groupe.nom }}</span>
@@ -32,7 +32,7 @@
         {% if groupe.prof %}
         <div style="font-size:0.85rem; margin-top:2px;">
             المعلم:
-            <a href="{% url 'eleve_prof_detail' groupe.prof.id %}" style="color:var(--color-brand-emerald); font-weight:600; text-decoration:none;">
+            <a href="{% url 'eleve_prof_detail' groupe.prof.id %}" style="color:var(--color-role-eleve-solid); font-weight:600; text-decoration:none;">
                 {{ groupe.prof.user.get_full_name }}
             </a>
         </div>

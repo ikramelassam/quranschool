@@ -8,7 +8,7 @@
         <div class="page-subtitle" style="margin-bottom:0;">{{ seance.groupe.nom }} — {{ seance.date|date:"d-m-Y" }}</div>
     </div>
     <a href="{% url 'superviseur_evaluer' seance.id %}"
-       style="background:var(--color-brand-gold-dark); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+       style="background:var(--color-role-superviseur); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
         تعديل ✏️
     </a>
 </div>
@@ -53,6 +53,6 @@
 </div>
 
 <div class="mt-3">
-    <a href="{% url 'superviseur_seance_detail' seance.id %}" style="color:var(--color-brand-gold-dark); text-decoration:none;">← رجوع إلى تفاصيل الحصة</a>
+    <a href="{% url 'superviseur_seance_detail' seance.id %}" style="color:var(--color-role-superviseur-solid); text-decoration:none;">← رجوع إلى تفاصيل الحصة</a>
 </div>
 {% endblock %}

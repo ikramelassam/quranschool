@@ -13,7 +13,7 @@
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin-bottom:12px;">الحساب</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin-bottom:12px;">الحساب</div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الجنس</span>
         <span style="font-weight:600;">{{ eleve.sexe|libelle_arabe:"sexe" }}</span>
@@ -31,7 +31,7 @@
         <span style="font-weight:600;">{{ eleve.user.date_naissance|default:"—" }}</span>
     </div>
 
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin:20px 0 12px;">المجموعات</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">المجموعات</div>
     {% if eleve.groupes.all %}
         {% for groupe in eleve.groupes.all %}
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
@@ -43,7 +43,7 @@
         <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
     {% endif %}
 
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin:20px 0 12px;">مجموعات مقترحة</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">مجموعات مقترحة</div>
     {% if groupes_suggeres %}
         {% for groupe in groupes_suggeres %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
@@ -54,7 +54,7 @@
             <form method="POST" action="{% url 'admin_groupe_ajouter_eleve' groupe.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="eleve_id" value="{{ eleve.id }}">
-                <button type="submit" style="background:var(--color-brand-emerald); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:0.85rem;">إضافة ✅</button>
+                <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:0.85rem;">إضافة ✅</button>
             </form>
         </div>
         {% endfor %}
@@ -63,7 +63,7 @@
     {% endif %}
 
     {% if inscription %}
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin:20px 0 12px;">معلومات استمارة التسجيل</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">معلومات استمارة التسجيل</div>
 
     {% if inscription.nom_parent %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
@@ -123,7 +123,7 @@
     <div style="color:#aaa; padding:12px 0;">لا توجد استمارة تسجيل مرتبطة بهذا الطالب.</div>
     {% endif %}
 
-    <div style="color:var(--color-brand-emerald); font-weight:700; border-bottom:2px solid var(--color-brand-emerald); padding-bottom:6px; margin:20px 0 12px;">جدول التفرغ</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">جدول التفرغ</div>
     {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form lecture_seule=True %}
 
     <div class="mt-4 d-flex gap-3 align-items-center">
@@ -133,7 +133,7 @@
            ✉️ تغيير البريد الإلكتروني
         </a>
         <a href="{% url 'admin_eleve_disponibilites' eleve.id %}"
-           style="background:var(--color-bg-brown-dark); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
+           style="background:var(--color-role-admin); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
            🕐 جدول التفرغ
         </a>
     </div>
@@ -145,20 +145,20 @@
     <div class="row g-3 mb-3">
         <div class="col-md-6">
             <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-align:center;">
-                <div style="font-size:1.8rem; font-weight:700; color:var(--color-brand-emerald);">{{ progression.total_ayat_memorises }}</div>
+                <div style="font-size:1.8rem; font-weight:700; color:var(--color-role-admin-solid);">{{ progression.total_ayat_memorises }}</div>
                 <div style="color:#888; font-size:0.85rem;">آية محفوظة (تراكمياً)</div>
             </div>
         </div>
         <div class="col-md-6">
             <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-align:center;">
-                <div style="font-size:1.8rem; font-weight:700; color:var(--color-brand-emerald);">{{ progression.nb_sourates_distinctes }}</div>
+                <div style="font-size:1.8rem; font-weight:700; color:var(--color-role-admin-solid);">{{ progression.nb_sourates_distinctes }}</div>
                 <div style="color:#888; font-size:0.85rem;">سورة تم البدء فيها</div>
             </div>
         </div>
     </div>
 
     <div style="background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px;">
-        <div style="font-weight:700; color:var(--color-brand-emerald); margin-bottom:8px;">حسب السورة</div>
+        <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:8px;">حسب السورة</div>
         {% for item in progression.par_sourate %}
         <div style="padding:10px 0; border-bottom:1px solid #f0f0f0;">
             <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
@@ -166,7 +166,7 @@
                 <span style="color:#888; font-size:0.85rem;">الآيات {{ item.ayah_debut }}-{{ item.ayah_fin }} من أصل {{ item.total_ayat_sourate }}</span>
             </div>
             <div style="background:var(--color-bg-cream); border-radius:20px; height:8px; overflow:hidden;">
-                <div style="background:var(--color-brand-emerald); height:100%; width:{{ item.pourcentage }}%;"></div>
+                <div style="background:var(--color-success); height:100%; width:{{ item.pourcentage }}%;"></div>
             </div>
         </div>
         {% empty %}
@@ -175,7 +175,7 @@
     </div>
 
     <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
-        <div style="font-weight:700; color:var(--color-brand-emerald); padding:16px 24px 0;">السجل الزمني</div>
+        <div style="font-weight:700; color:var(--color-role-admin-solid); padding:16px 24px 0;">السجل الزمني</div>
         {% for h in progression.historique %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 24px; border-bottom:1px solid #f0f0f0;">
             <div>
@@ -184,7 +184,7 @@
             </div>
             <div style="text-align:left;">
                 {% if h.note_display %}
-                <span style="background:#e8f5e9; color:var(--color-brand-emerald); border-radius:20px; padding:2px 10px; font-size:0.8rem;">{{ h.note_display }}</span>
+                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:2px 10px; font-size:0.8rem;">{{ h.note_display }}</span>
                 {% endif %}
                 <div style="color:#888; font-size:0.8rem; margin-top:4px;">+{{ h.nb_ayat }} آية</div>
             </div>

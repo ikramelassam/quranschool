@@ -8,13 +8,13 @@
 <div class="row g-3 mb-4">
     <div class="col-md-6">
         <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-align:center;">
-            <div style="font-size:2.2rem; font-weight:700; color:var(--color-brand-emerald);">{{ progression.total_ayat_memorises }}</div>
+            <div style="font-size:2.2rem; font-weight:700; color:var(--color-role-eleve-solid);">{{ progression.total_ayat_memorises }}</div>
             <div style="color:#888;">آية محفوظة (تراكمياً)</div>
         </div>
     </div>
     <div class="col-md-6">
         <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-align:center;">
-            <div style="font-size:2.2rem; font-weight:700; color:var(--color-brand-emerald);">{{ progression.nb_sourates_distinctes }}</div>
+            <div style="font-size:2.2rem; font-weight:700; color:var(--color-role-eleve-solid);">{{ progression.nb_sourates_distinctes }}</div>
             <div style="color:#888;">سورة تم البدء فيها</div>
         </div>
     </div>
@@ -29,7 +29,7 @@
             <span style="color:#888; font-size:0.85rem;">الآيات {{ item.ayah_debut }}-{{ item.ayah_fin }} من أصل {{ item.total_ayat_sourate }}</span>
         </div>
         <div style="background:var(--color-bg-cream); border-radius:20px; height:10px; overflow:hidden;">
-            <div style="background:var(--color-brand-emerald); height:100%; width:{{ item.pourcentage }}%;"></div>
+            <div style="background:var(--color-success); height:100%; width:{{ item.pourcentage }}%;"></div>
         </div>
     </div>
     {% empty %}

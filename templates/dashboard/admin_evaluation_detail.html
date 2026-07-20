@@ -8,7 +8,7 @@
     {% if seance.groupe.prof %} — المعلم: {{ seance.groupe.prof.user.get_full_name }}{% endif %}
 </div>
 
-<div style="font-weight:700; color:var(--color-brand-emerald); margin:20px 0 12px;">📚 تقييمات الطلاب</div>
+<div style="font-weight:700; color:var(--color-role-admin-solid); margin:20px 0 12px;">📚 تقييمات الطلاب</div>
 {% for p in presences %}
 <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">

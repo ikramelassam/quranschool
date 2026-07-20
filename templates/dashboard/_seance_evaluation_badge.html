@@ -1,7 +1,7 @@
 {% if seance.statut == 'annulee' %}
     <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">ملغاة ❌</span>
 {% elif seance.est_evaluee %}
-    <span style="background:#e8f5e9; color:var(--color-brand-emerald); border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">تم التقييم ✅</span>
+    <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">تم التقييم ✅</span>
 {% elif seance.date > aujourdhui %}
     <span style="background:#e9ecef; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">لم تُدرَّس بعد 📌</span>
 {% elif seance.date < aujourdhui %}

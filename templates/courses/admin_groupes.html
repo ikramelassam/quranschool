@@ -14,7 +14,7 @@
     </span>
     {% else %}
     <a href="{% url 'admin_groupe_ajouter' %}"
-       style="background:var(--color-brand-emerald); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+       style="background:var(--color-role-admin); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
        + إنشاء مجموعة جديدة
     </a>
     {% endif %}
@@ -55,7 +55,7 @@
             </select>
         </div>
         <div class="col-md-3 d-flex gap-2">
-            <button type="submit" style="background:var(--color-brand-emerald); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
             <a href="{% url 'admin_groupes' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
         </div>
     </div>
@@ -87,7 +87,7 @@
             </div>
 
             <a href="{% url 'admin_groupe_detail' groupe.id %}" 
-               style="background:#f0f7ed; color:var(--color-brand-emerald); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; font-weight:600;">
+               style="background:#f0f7ed; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; font-weight:600;">
                عرض التفاصيل ←
             </a>
         </div>

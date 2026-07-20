@@ -12,19 +12,19 @@
 {% endif %}
 
 <div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; color:var(--color-bg-brown-dark); margin-bottom:12px;">الجدول الحالي (الساري فعلياً)</div>
+    <div style="font-weight:700; color:var(--color-role-prof-solid); margin-bottom:12px;">الجدول الحالي (الساري فعلياً)</div>
     {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo_lecture' valeurs_form=valeurs_actuelles lecture_seule=True %}
 </div>
 
 <div style="background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; color:var(--color-bg-brown-dark); margin-bottom:6px;">
+    <div style="font-weight:700; color:var(--color-role-prof-solid); margin-bottom:6px;">
         {% if demande_en_attente %}تعديل الاقتراح المعلّق{% else %}اقتراح جدول جديد{% endif %}
     </div>
     <p style="color:#888; font-size:0.85rem; margin-bottom:12px;">لن يصبح هذا الجدول سارياً إلا بعد موافقة الإدارة.</p>
     <form method="POST">
         {% csrf_token %}
         {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form %}
-        <button type="submit" class="btn mt-3" style="background:var(--color-bg-brown-dark); color:white; font-weight:600; padding:10px 24px; border-radius:8px; border:none;">
+        <button type="submit" class="btn mt-3" style="background:var(--color-role-prof); color:white; font-weight:600; padding:10px 24px; border-radius:8px; border:none;">
             {% if demande_en_attente %}تحديث الطلب المعلّق{% else %}إرسال للموافقة{% endif %}
         </button>
     </form>
