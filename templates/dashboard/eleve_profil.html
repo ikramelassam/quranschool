@@ -3,34 +3,37 @@
 {% block title %}ملفي الشخصي{% endblock %}
 {% block content %}
 <div class="page-title">ملفي الشخصي</div>
+<div class="page-subtitle">معلوماتك الشخصية ومجموعاتك</div>
 
-<div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+<div class="compact-card mb-4" style="max-width:600px;">
+    <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f5f0e6;">
         <span style="color:#888;">الاسم الكامل</span>
         <span style="font-weight:600;">{{ eleve.user.get_full_name }}</span>
     </div>
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f5f0e6;">
         <span style="color:#888;">البريد الإلكتروني</span>
         <span style="font-weight:600;">{{ eleve.user.email }}</span>
     </div>
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f5f0e6;">
         <span style="color:#888;">الجنس</span>
         <span style="font-weight:600;">{{ eleve.sexe|libelle_arabe:"sexe" }}</span>
     </div>
-    <div style="display:flex; justify-content:space-between; padding:8px 0;">
+    <div style="display:flex; justify-content:space-between; padding:10px 0;">
         <span style="color:#888;">الحالة</span>
         <span style="font-weight:600; color:var(--color-role-eleve-solid);">{{ eleve.get_statut_display }}</span>
     </div>
+</div>
 
-    <div style="margin-top:20px; font-weight:700; color:var(--color-role-eleve-solid); margin-bottom:12px;">مجموعاتي</div>
+<div class="section-title">مجموعاتي</div>
+<div class="compact-card" style="max-width:600px; padding:4px 20px;">
     {% for groupe in eleve.groupes.all %}
-    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="font-weight:600;">{{ groupe.nom }}</span>
-        {% if groupe.creneau %}
-        <span style="color:#888; font-size:0.85rem; margin-right:8px;">— {{ groupe.creneau }}</span>
-        {% endif %}
+    <div style="padding:14px 0; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %}">
+        <div style="font-weight:700;">
+            📚 {{ groupe.nom }}
+            {% if groupe.creneau %}<span style="color:#888; font-weight:400; font-size:0.85rem;"> — {{ groupe.creneau }}</span>{% endif %}
+        </div>
         {% if groupe.prof %}
-        <div style="font-size:0.85rem; margin-top:2px;">
+        <div style="font-size:0.85rem; margin-top:4px;">
             المعلم:
             <a href="{% url 'eleve_prof_detail' groupe.prof.id %}" style="color:var(--color-role-eleve-solid); font-weight:600; text-decoration:none;">
                 {{ groupe.prof.user.get_full_name }}
@@ -39,7 +42,7 @@
         {% endif %}
     </div>
     {% empty %}
-    <div style="color:#aaa;">لم يتم تعيينك في مجموعة بعد</div>
+    <div style="color:#aaa; padding:20px 0;">لم يتم تعيينك في مجموعة بعد</div>
     {% endfor %}
 </div>
 {% endblock %}
