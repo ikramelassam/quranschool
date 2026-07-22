@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maquette — تعديل ميثاق التدريس (نصوص بسيطة)</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --color-brand-gold: #C9962E;
+    --color-brand-gold-dark: #8B4B00;
+    --color-bg-cream: #FFF8EF;
+    --color-text-primary: #2C1500;
+    --color-text-muted: #8B6040;
+    --color-success: #2D5A3D;
+    --color-warning: #8B4B00;
+    --color-danger: #B3261E;
+    --color-role-mshrif: linear-gradient(135deg, #1A0D00, #2C1500);
+    --color-role-mshrif-solid: #1A0D00;
+}
+* { box-sizing: border-box; font-family: 'Tajawal', sans-serif; }
+body { background: #ddd; margin: 0; padding: 32px; }
+h2.maquette-titre { color: #333; font-size: 1.3rem; margin: 48px 0 16px; border-bottom: 3px solid var(--color-role-mshrif-solid); padding-bottom: 8px; }
+h2.maquette-titre:first-child { margin-top: 0; }
+.note-maquette { background: #fff3cd; border-right: 4px solid #8a6d00; padding: 10px 16px; border-radius: 6px; font-size: 0.85rem; color: #6b5400; margin-bottom: 16px; max-width: 900px; }
+
+.frame-desktop { width: 1180px; max-width: 100%; margin-bottom: 20px; box-shadow: 0 4px 24px rgba(0,0,0,0.2); border-radius: 8px; overflow: hidden; }
+.frame-label { display:inline-block; background:#333; color:white; font-size:0.75rem; padding:3px 12px; border-radius: 6px 6px 0 0; margin-bottom:-1px; }
+
+.app { display: flex; min-height: 560px; background: var(--color-bg-cream); }
+.sidebar { width: 240px; flex-shrink: 0; background: var(--color-role-mshrif); display: flex; flex-direction: column; }
+.sidebar-logo { margin: 16px; padding: 14px 10px 12px; text-align: center; background: var(--color-bg-cream); border-radius: 16px; }
+.sidebar-logo .title { color: var(--color-text-primary); font-weight: 700; font-size: 1rem; }
+.sidebar-logo .subtitle { color: var(--color-text-muted); font-size: 0.75rem; }
+.sidebar-menu { padding: 16px 0; flex: 1; }
+.menu-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.95rem; }
+.menu-item.active { background: rgba(255,255,255,0.15); color: white; font-weight: 600; }
+.menu-item .label { display:flex; align-items:center; gap: 10px; }
+.main { flex: 1; padding: 28px; overflow: auto; }
+.page-title { color: var(--color-role-mshrif-solid); font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+.page-subtitle { color: var(--color-text-muted); margin-bottom: 22px; font-size: 0.92rem; }
+
+.section-title { font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary); margin: 0 0 10px; }
+.card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 18px; }
+
+.field-label { color:#888; font-size:0.8rem; margin-bottom:4px; display:block; }
+.field-hint { color:#aaa; font-size:0.75rem; margin-bottom:8px; }
+input[type=text], textarea, select {
+    width:100%; border:1px solid #ddd; border-radius:8px; padding:8px 12px;
+    font-family:'Tajawal',sans-serif; font-size:0.92rem; margin-bottom:14px;
+}
+textarea { line-height:1.7; }
+.card-section-num { display:inline-block; background:var(--color-brand-gold); color:white; border-radius:8px; padding:2px 12px; font-size:0.8rem; font-weight:700; margin-left:8px; }
+.card-header { display:flex; align-items:center; margin-bottom:14px; font-weight:700; color:var(--color-role-mshrif-solid); }
+
+.verse-box { background:var(--color-bg-cream); border-radius:8px; padding:12px 16px; margin-bottom:14px; }
+.verse-box .field-label { color:var(--color-brand-gold-dark); font-weight:600; }
+
+.sanction-row { display:flex; gap:10px; align-items:center; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #f0f0f0; }
+.sanction-row input[type=text] { margin-bottom:0; flex:2; }
+.sanction-row select { margin-bottom:0; flex:1; }
+.btn-remove-row { background:#fce4e4; color:#dc3545; border:none; border-radius:6px; width:32px; height:32px; cursor:pointer; font-size:0.9rem; flex-shrink:0; }
+.btn-add-row { background:#f0f0f0; color:#555; border:none; border-radius:8px; padding:8px 16px; font-size:0.85rem; cursor:pointer; margin-top:6px; }
+
+.btn-save { background:var(--color-role-mshrif); color:white; border:none; border-radius:8px; padding:12px 32px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer; }
+.top-actions { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.link-preview { color:var(--color-role-mshrif-solid); text-decoration:none; font-size:0.9rem; font-weight:600; }
+</style>
+</head>
+<body>
+
+<h2 class="maquette-titre">Maquette — تعديل ميثاق التدريس (بحقول نصية بسيطة، بدون HTML)</h2>
+<div class="note-maquette">
+    Chaque bloc = titre court + phrase d'intro + liste de points (un point par ligne, format libre
+    « التسمية: الوصف » — le : est optionnel, si absent le point s'affiche simplement en texte normal).
+    Le rendu final (aperçu) garde exactement la même mise en page HTML qu'aujourd'hui — seul le texte change.
+    Les 2 versets coraniques sont désormais des champs texte éditables comme le reste (texte + référence séparés).
+    Le tableau de sanctions est une liste de lignes ajoutables/supprimables.
+</div>
+
+<div class="frame-desktop">
+<div class="frame-label">Desktop — 1180px</div>
+<div class="app">
+    <div class="sidebar">
+        <div class="sidebar-logo">
+            <div class="title">زدني علماً</div>
+            <div class="subtitle">لوحة المشرف</div>
+        </div>
+        <div class="sidebar-menu">
+            <a class="menu-item"><span class="label">📊 نظرة عامة</span></a>
+            <a class="menu-item"><span class="label">👥 طلبات الأساتذة</span></a>
+            <a class="menu-item"><span class="label">💰 الاستحقاقات</span></a>
+            <a class="menu-item"><span class="label">📋 تقارير المؤطرين</span></a>
+            <a class="menu-item active"><span class="label">📜 ميثاق التدريس</span></a>
+        </div>
+    </div>
+    <div class="main">
+        <div class="top-actions">
+            <div>
+                <div class="page-title">تعديل ميثاق التدريس</div>
+                <div class="page-subtitle">عدّل النصوص مباشرة — لا حاجة لأي معرفة بالـ HTML. التصميم لن يتغيّر.</div>
+            </div>
+            <a class="link-preview">👁 معاينة الشكل النهائي ←</a>
+        </div>
+
+        <!-- Préambule -->
+        <div class="card">
+            <div class="card-header">المقدّمة</div>
+            <label class="field-label">نص المقدّمة</label>
+            <div class="field-hint">فقرة أو أكثر — افصل بين الفقرات بسطر فارغ</div>
+            <textarea rows="5">الحمد لله الذي علّم بالقلم...</textarea>
+            <div class="verse-box">
+                <label class="field-label">الآية الافتتاحية</label>
+                <input type="text" value="﴿ وَقُل رَّبِّ زِدْنِي عِلْمًا ﴾">
+            </div>
+            <label class="field-label">عنوان القسم الرئيسي</label>
+            <input type="text" value="بنود ميثاق التدريس في مقرأة زدني علماً للقرآن الكريم">
+        </div>
+
+        <!-- Section 1 -->
+        <div class="card">
+            <div class="card-header">القسم 1 <span class="card-section-num">أولاً</span></div>
+            <label class="field-label">عنوان القسم</label>
+            <input type="text" value="المجال العلمي">
+            <label class="field-label">مقدّمة القسم</label>
+            <textarea rows="2">حرصًا على تحقيق المقاصد القرآنية والتعليمية...</textarea>
+            <label class="field-label">النقاط (سطر واحد لكل نقطة)</label>
+            <div class="field-hint">مثال: تصحيح اللحن الجلي والخفي: الحرص على متابعة تلاوة الطلاب...</div>
+            <textarea rows="6">تصحيح اللحن الجلي والخفي: الحرص على متابعة تلاوة الطلاب وتصحيح أخطائهم بدقة...
+الشرح النظري لقواعد التجويد: تخصيص وقتٍ خلال الحصة لشرح القواعد النظرية...
+متابعة التقدم العلمي للطلاب: الحرص على الارتقاء بمستوى الطلاب...
+تعاهد المراجعة: حث الطلاب على المراجعة المنتظمة...</textarea>
+        </div>
+
+        <!-- Section 2 (identique structure) -->
+        <div class="card">
+            <div class="card-header">القسم 2 <span class="card-section-num">ثانياً</span></div>
+            <label class="field-label">عنوان القسم</label>
+            <input type="text" value="المجال الإداري">
+            <label class="field-label">مقدّمة القسم</label>
+            <textarea rows="2">حرصًا على انتظام العمل وجودة الأداء...</textarea>
+            <label class="field-label">النقاط</label>
+            <textarea rows="4">الانضباط الزمني للحصة: الحرص على استيفاء وقت الحصة كاملاً...
+التفاعل مع إدارة المقرأة: الالتزام بالتجاوب الفعّال...
+استيفاء التسميع لجميع الطلاب: العناية بتسميع جميع الطلاب...</textarea>
+        </div>
+
+        <!-- Section 3 (avec verset) -->
+        <div class="card">
+            <div class="card-header">القسم 3 <span class="card-section-num">ثالثاً</span></div>
+            <label class="field-label">عنوان القسم</label>
+            <input type="text" value="المجال التربوي">
+            <label class="field-label">مقدّمة القسم</label>
+            <textarea rows="2">انطلاقًا من رسالة مقرأة زدني علماً...</textarea>
+            <label class="field-label">النقاط</label>
+            <textarea rows="5">تحبيب القرآن للطلاب: غرس محبة كتاب الله...
+إيقاد الهمة والتنافس: بث روح الهمة العالية...
+تفقد أحوال الطلاب: الحرص على تفقد الطالب الغائب...
+التحلي بالأخلاق الحسنة: حث الطلاب على التخلّق بالأدب...
+الرفق في الخطاب والتعامل: تجنّب أي أسلوبٍ سلبي...</textarea>
+            <div class="verse-box">
+                <label class="field-label">نص الآية</label>
+                <input type="text" value="﴿ فَبِمَا رَحْمَةٍ مِّنَ اللَّهِ لِنتَ لَهُمْ ۖ ... ﴾">
+                <label class="field-label">مرجع الآية</label>
+                <input type="text" value="(سورة آل عمران: 159)">
+            </div>
+            <label class="field-label">خاتمة القسم (بعد الآية)</label>
+            <textarea rows="2">اقتداءً بهديه ﷺ في اللين والرحمة...</textarea>
+        </div>
+
+        <!-- Section 4 -->
+        <div class="card">
+            <div class="card-header">القسم 4 <span class="card-section-num">رابعاً</span></div>
+            <label class="field-label">عنوان القسم</label>
+            <input type="text" value="المجال التقني">
+            <label class="field-label">مقدّمة القسم</label>
+            <textarea rows="2">حرصًا على جودة التواصل...</textarea>
+            <label class="field-label">النقاط</label>
+            <textarea rows="4">وضوح الصوت وجودة البيئة التعليمية: ...
+التأكد من جودة الاتصال: ...
+إدخال تقييمات الطلاب: ...
+الالتزام بالمدة الزمنية للتقييم: ...</textarea>
+        </div>
+
+        <!-- Section 5 (tableau) -->
+        <div class="card">
+            <div class="card-header">القسم 5 <span class="card-section-num">خامساً</span></div>
+            <label class="field-label">عنوان القسم</label>
+            <input type="text" value="الملاحظات وما يترتب عليها">
+            <label class="field-label">مقدّمة القسم</label>
+            <textarea rows="2">حرصًا على ترسيخ الانضباط...</textarea>
+
+            <label class="field-label">جدول المخالفات والإجراءات</label>
+            <div class="field-hint">لكل مخالفة: النص + نوع الإجراء (تصاعدي = إنذار أول ← إنذار ثاني ← خصم من الراتب، أو إعفاء فوري)</div>
+
+            <div class="sanction-row">
+                <input type="text" value="سوء الأدب وعدم احترام المادة القرآنية">
+                <select><option selected>الإعفاء الفوري</option><option>تصاعدي (إنذار ← إنذار ← خصم)</option></select>
+                <button class="btn-remove-row">🗑</button>
+            </div>
+            <div class="sanction-row">
+                <input type="text" value="عدم تصحيح أخطاء الحفظ">
+                <select><option>الإعفاء الفوري</option><option selected>تصاعدي (إنذار ← إنذار ← خصم)</option></select>
+                <button class="btn-remove-row">🗑</button>
+            </div>
+            <div class="sanction-row">
+                <input type="text" value="عدم تصحيح اللحن الجلي أو الخفي">
+                <select><option>الإعفاء الفوري</option><option selected>تصاعدي (إنذار ← إنذار ← خصم)</option></select>
+                <button class="btn-remove-row">🗑</button>
+            </div>
+            <div style="text-align:center; color:#aaa; font-size:0.85rem; padding:6px;">⋮ (9 أسطر أخرى بنفس الشكل)</div>
+            <button class="btn-add-row">+ إضافة مخالفة</button>
+
+            <label class="field-label" style="margin-top:16px;">ملاحظة أسفل الجدول</label>
+            <textarea rows="2">⁕ ملاحظة: يُحدَّد مقدار الخصم من الراتب من طرف إدارة المقرأة...</textarea>
+        </div>
+
+        <!-- Section 6 -->
+        <div class="card">
+            <div class="card-header">القسم 6</div>
+            <label class="field-label">عنوان القسم</label>
+            <input type="text" value="التعويضات المادية مقابل تأطير الحصص">
+            <label class="field-label">مقدّمة القسم</label>
+            <textarea rows="2">حرصًا على الإنصاف وتحفيز الأداء...</textarea>
+            <label class="field-label">النقاط</label>
+            <textarea rows="4">التعويض عن الطلاب: يعوض الأستاذ عن كل تلميذ...
+أثر التهاون على التعويضات: كل تقصير أو تهاون...
+الفترة التجريبية للمؤطرين الجدد: يمر كل مؤطر جديد...</textarea>
+        </div>
+
+        <!-- Section 7 -->
+        <div class="card">
+            <div class="card-header">القسم 7</div>
+            <label class="field-label">عنوان القسم</label>
+            <input type="text" value="إدارة الغياب وتعويض الحصص">
+            <label class="field-label">مقدّمة القسم</label>
+            <textarea rows="2">حرصًا على انتظام الحصص واستمرارية التعليم...</textarea>
+            <label class="field-label">النقاط</label>
+            <textarea rows="6">الإخبار بالغياب مسبقًا: يجب على المؤطر إبلاغ الإدارة...
+التعويض عن الحصص الغائبة: يلزم المؤطر بتعويض الحصص...
+التعويضات المالية للحصص المعوضة: الحصص التي يتم تعويضها...
+المدة القصوى للتعويض: يحق للمؤطر أن يُعوض حصصه...
+التأخر عن موعد الحصة: يجب إعلام الطلاب بأي تأخر...
+غياب بدون عذر: كل مؤطر يتغيب بدون عذر...</textarea>
+        </div>
+
+        <button class="btn-save">حفظ التعديلات ✅</button>
+    </div>
+</div>
+</div>
+
+</body>
+</html>

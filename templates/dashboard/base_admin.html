@@ -108,6 +108,15 @@
         .page-title { color: var(--color-role-admin-solid); font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
         .page-subtitle { color: var(--color-text-muted); margin-bottom: 30px; }
 
+        /* Icônes de contact rapide (WhatsApp/email) — voir dashboard/_whatsapp_icon.html et _email_icon.html.
+           Halo de survol propre à chaque icône (vert WhatsApp / doré marque) via un modificateur. */
+        .contact-icon-link { display: inline-flex; border-radius: 50%; transition: transform 150ms ease, box-shadow 150ms ease; }
+        .contact-icon-link:hover { transform: scale(1.12); }
+        .contact-icon-link.contact-icon-wa:hover { box-shadow: 0 2px 8px rgba(37, 211, 102, 0.45); }
+        .contact-icon-link.contact-icon-mail:hover { box-shadow: 0 2px 8px rgba(139, 75, 0, 0.45); }
+        .contact-icon-link.contact-icon-meet:hover { box-shadow: 0 2px 8px rgba(26, 115, 232, 0.45); }
+        .contact-icon-link.contact-icon-meet-disabled:hover { box-shadow: 0 2px 8px rgba(150, 150, 150, 0.45); }
+
         /* Menu mobile */
         .sidebar-toggle {
             display: none;
@@ -204,6 +213,10 @@
         class="menu-item {% if request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' %}active{% endif %}">
             <span class="icon">🏷️</span> أنواع الاشتراك
         </a>
+        <a href="{% url 'admin_tarifs_remuneration' %}"
+        class="menu-item {% if request.resolver_match.url_name == 'admin_tarifs_remuneration' or request.resolver_match.url_name == 'admin_tarif_remuneration_modifier' %}active{% endif %}">
+            <span class="icon">💰</span> شبكة رواتب المعلمين
+        </a>
         <a href="{% url 'admin_criteres' %}"
         class="menu-item {% if request.resolver_match.url_name == 'admin_criteres' or request.resolver_match.url_name == 'admin_critere_ajouter' or request.resolver_match.url_name == 'admin_critere_modifier' %}active{% endif %}">
             <span class="icon">📝</span> معايير تقييم المعلمين
@@ -212,9 +225,17 @@
         class="menu-item {% if request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' %}active{% endif %}">
             <span class="icon">📊</span> التقييمات
         </a>
+        <a href="{% url 'classement_mensuel_profs' %}"
+        class="menu-item {% if request.resolver_match.url_name == 'classement_mensuel_profs' %}active{% endif %}">
+            <span class="icon">🏆</span> الترتيب الشهري للمعلمين
+        </a>
+        <a href="{% url 'mshrif_charte' %}"
+        class="menu-item {% if request.resolver_match.url_name == 'mshrif_charte' %}active{% endif %}">
+            <span class="icon">📜</span> ميثاق التدريس
+        </a>
         <a href="{% url 'admin_superviseurs' %}"
         class="menu-item {% if request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}active{% endif %}">
-            <span class="icon">🧭</span> إسناد المشرفين
+            <span class="icon">🧭</span> إسناد المؤطرين
         </a>
         <a href="{% url 'admin_demandes_disponibilite' %}"
         class="menu-item {% if request.resolver_match.url_name == 'admin_demandes_disponibilite' %}active{% endif %}">

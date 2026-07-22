@@ -1,0 +1,27 @@
+{% extends 'dashboard/base_prof.html' %}
+{% block title %}ميثاق التدريس{% endblock %}
+{% block content %}
+<div class="page-title">ميثاق التدريس</div>
+<div class="page-subtitle">يرجى قراءة الميثاق بالكامل قبل الموافقة عليه</div>
+
+<div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px; max-width:900px;">
+    {% include 'dashboard/_charte_contenu.html' %}
+</div>
+
+<div style="max-width:900px;">
+    {% if prof.charte_acceptee %}
+    <div class="compact-card" style="background:#e8f5e9; color:var(--color-success); display:flex; align-items:center; gap:10px;">
+        ✅ لقد وافقت على الميثاق بتاريخ {{ prof.date_acceptation_charte|date:"d-m-Y H:i" }}
+    </div>
+    {% else %}
+    <form method="POST" class="compact-card" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        {% csrf_token %}
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:600;">
+            <input type="checkbox" name="accepte" required style="width:18px; height:18px;">
+            لقد قرأت ووافقت على الميثاق
+        </label>
+        <button type="submit" style="background:var(--color-role-prof); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:0.95rem; cursor:pointer;">تأكيد الموافقة ✅</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

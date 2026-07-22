@@ -1,0 +1,140 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="{% static 'images/logo_nouveau.jpeg' %}" type="image/jpeg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}لوحة المشرف{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+    <style>
+        * { font-family: 'Tajawal', sans-serif; }
+        body { background-color: var(--color-bg-cream); margin: 0; }
+        .sidebar {
+            position: fixed; right: 0; top: 0;
+            height: 100vh; width: 240px;
+            background: var(--color-role-mshrif);
+            display: flex; flex-direction: column;
+            z-index: 100;
+        }
+        .sidebar-logo { margin: 16px; padding: 14px 10px 12px; text-align: center; background: var(--color-bg-cream); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .sidebar-logo img { width: 84px; height: 84px; object-fit: contain; border-radius: 10px; }
+        .sidebar-logo .title { color: var(--color-text-primary); font-weight: 700; font-size: 1rem; margin-top: 8px; }
+        .sidebar-logo .subtitle { color: var(--color-text-muted); font-size: 0.75rem; }
+        .sidebar-menu { padding: 16px 0; flex: 1; }
+        .menu-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 20px; color: rgba(255,255,255,0.8);
+            text-decoration: none; transition: all 0.2s;
+        }
+        .menu-item:hover { background: rgba(255,255,255,0.1); color: white; }
+        .menu-item.active { background: rgba(255,255,255,0.15); color: white; font-weight: 600; }
+        .menu-item .icon { margin-left: 10px; }
+        .menu-item .label { display: flex; align-items: center; }
+        .menu-badge { background: var(--color-danger); color: white; border-radius: 20px; padding: 1px 8px; font-size: 0.72rem; font-weight: 700; }
+        .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .btn-logout { display: block; color: rgba(255,255,255,0.7); text-decoration: none; text-align: center; padding: 8px; border-radius: 8px; }
+        .btn-logout:hover { background: rgba(255,255,255,0.1); color: white; }
+        .main-content { margin-right: 240px; min-height: 100vh; padding: 32px; }
+        .page-title { color: var(--color-role-mshrif-solid); font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
+        .page-subtitle { color: var(--color-text-muted); margin-bottom: 30px; }
+
+        /* Menu mobile */
+        .sidebar-toggle {
+            display: none;
+            position: fixed;
+            top: 14px;
+            left: 14px;
+            z-index: 210;
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 10px;
+            background: var(--color-role-mshrif);
+            color: white;
+            font-size: 1.3rem;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 90;
+        }
+        @media (max-width: 768px) {
+            .sidebar-toggle { display: flex; }
+            .sidebar {
+                transform: translateX(100%);
+                transition: transform 0.25s ease;
+            }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-overlay.open { display: block; }
+            .main-content {
+                margin-right: 0;
+                padding: 20px 16px 32px;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<button type="button" class="sidebar-toggle" onclick="toggleSidebar()" aria-label="فتح القائمة">☰</button>
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<div class="sidebar">
+    <div class="sidebar-logo">
+        <img src="{% static 'images/logo_nouveau.jpeg' %}" alt="زدني علماً">
+        <div class="title">منصة زدني علماً</div>
+        <div class="subtitle">لوحة المشرف</div>
+    </div>
+    <div class="sidebar-menu">
+        <a href="{% url 'dashboard_mshrif' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'dashboard_mshrif' %}active{% endif %}">
+            <span class="label"><span class="icon">📊</span> نظرة عامة</span>
+        </a>
+        <a href="{% url 'mshrif_inscriptions_profs' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'mshrif_inscriptions_profs' or request.resolver_match.url_name == 'mshrif_inscription_prof_detail' %}active{% endif %}">
+            <span class="label"><span class="icon">👥</span> طلبات الأساتذة</span>
+            {% if nb_demandes_en_attente %}<span class="menu-badge">{{ nb_demandes_en_attente }}</span>{% endif %}
+        </a>
+        <a href="{% url 'mshrif_remuneration' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'mshrif_remuneration' %}active{% endif %}">
+            <span class="label"><span class="icon">💰</span> الاستحقاقات</span>
+        </a>
+        <a href="{% url 'classement_mensuel_profs' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'classement_mensuel_profs' %}active{% endif %}">
+            <span class="label"><span class="icon">📋</span> تقارير المؤطرين</span>
+        </a>
+        <a href="{% url 'mshrif_charte' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'mshrif_charte' %}active{% endif %}">
+            <span class="label"><span class="icon">📜</span> ميثاق التدريس</span>
+        </a>
+        <a href="{% url 'password_change' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
+            <span class="label"><span class="icon">⚙️</span> الإعدادات</span>
+        </a>
+    </div>
+    <div class="sidebar-footer">
+        <a href="{% url 'logout' %}" class="btn-logout">🚪 تسجيل الخروج</a>
+    </div>
+</div>
+<div class="main-content">
+    {% include 'dashboard/_messages.html' %}
+    {% block content %}{% endblock %}
+</div>
+
+<script>
+function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open');
+    document.querySelector('.sidebar-overlay').classList.toggle('open');
+}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

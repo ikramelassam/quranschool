@@ -7,6 +7,7 @@
 .sourate-chip-row { display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; margin-bottom:24px; }
 .sourate-chip { flex:0 0 auto; width:150px; background:white; border-radius:12px; padding:12px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
 .sourate-chip .nom { font-weight:700; font-size:0.88rem; margin-bottom:6px; }
+.sourate-chip .ayat-count { color:#888; font-size:0.78rem; margin-bottom:6px; }
 .sourate-chip .progress-track { margin-bottom:8px; }
 </style>
 {% endblock %}
@@ -43,9 +44,6 @@
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
             {% include 'dashboard/_seance_statut_badge.html' with seance=prochaine_seance aujourdhui=aujourdhui %}
-            {% if prochaine_seance.statut != 'annulee' and prochaine_seance.groupe.lien_reunion %}
-            <a href="{{ prochaine_seance.groupe.lien_reunion }}" target="_blank" rel="noopener" class="btn-join">🔗 الانضمام للاجتماع</a>
-            {% endif %}
         </div>
     </div>
     {% else %}
@@ -76,6 +74,7 @@
     {% for s in sourates_recentes %}
     <div class="sourate-chip">
         <div class="nom">{{ s.nom }}</div>
+        <div class="ayat-count">{{ s.ayat_couverts }}/{{ s.total_ayat_sourate }} آية</div>
         <div class="progress-track"><div class="progress-fill" style="width:{{ s.pourcentage }}%;"></div></div>
         {% include 'dashboard/_medal_badge.html' with code=s.note_code label=s.note_display %}
     </div>

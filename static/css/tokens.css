@@ -37,11 +37,14 @@
     --color-danger: #B3261E;
 
     /* --- Rôles (sidebar / accents par tableau de bord) —
-       4 nuances d'un même dégradé brun/or continu, aucune couleur hors de cette famille
+       nuances d'un même dégradé brun/or continu, aucune couleur hors de cette famille
        (donc plus de vert). Toutes >= 4.5:1 avec du texte blanc, y compris sur le point le
        plus clair de chaque dégradé — recalculé (WCAG) sur les 5 couleurs d'ancrage réelles,
-       du plus sombre (#2C1500) au plus clair (#A86414) : 17.29 / 13.39 / 9.89 / 6.76 / 4.67. */
-    --color-role-admin: linear-gradient(135deg, #2C1500, #4A2600);        /* le plus sombre — autorité */
+       du plus sombre (#2C1500) au plus clair (#A86414) : 17.29 / 13.39 / 9.89 / 6.76 / 4.67.
+       مشرف (mshrif) prolonge la famille encore plus sombre que مدير (admin), cohérent avec
+       sa position au-dessus de مدير dans la hiérarchie de décision. */
+    --color-role-mshrif: linear-gradient(135deg, #1A0D00, #2C1500);       /* le plus sombre de tous — au-dessus de مدير */
+    --color-role-admin: linear-gradient(135deg, #2C1500, #4A2600);
     --color-role-prof: linear-gradient(135deg, #4A2600, #6B3410);
     --color-role-superviseur: linear-gradient(135deg, #6B3410, #8B4B00);
     --color-role-eleve: linear-gradient(135deg, #8B4B00, #A86414);        /* le plus clair — accueillant */
@@ -50,6 +53,7 @@
        à utiliser partout où un dégradé est invalide en CSS : `color`, `border-color`,
        `box-shadow`, remplissage d'icône SVG. Ne jamais mettre --color-role-* (dégradé)
        sur `color:` — un dégradé n'est pas une valeur de couleur de texte valide. */
+    --color-role-mshrif-solid: #1A0D00;
     --color-role-admin-solid: #2C1500;
     --color-role-prof-solid: #4A2600;
     --color-role-superviseur-solid: #6B3410;

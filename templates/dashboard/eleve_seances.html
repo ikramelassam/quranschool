@@ -74,7 +74,6 @@
                     <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
                     <div style="color:#999; font-size:0.85rem;">
                         {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
-                        {% if seance.groupe.lien_reunion %} · <a href="{{ seance.groupe.lien_reunion }}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 رابط الاجتماع</a>{% endif %}
                     </div>
                     {% if seance.statut == 'annulee' and seance.remarque %}
                     <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">السبب: {{ seance.remarque }}</div>
@@ -91,7 +90,6 @@
                     <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
                     <div style="color:#999; font-size:0.85rem;">
                         {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
-                        {% if seance.groupe.lien_reunion %} · <a href="{{ seance.groupe.lien_reunion }}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 رابط الاجتماع</a>{% endif %}
                     </div>
                     {% if seance.statut == 'annulee' and seance.remarque %}
                     <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">السبب: {{ seance.remarque }}</div>

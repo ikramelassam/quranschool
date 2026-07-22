@@ -1,15 +1,17 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 {% block title %}معايير تقييم المعلمين{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <div class="page-title">معايير تقييم المعلمين</div>
-        <div class="page-subtitle">تظهر هذه المعايير في استمارة تقييم المشرف للمعلم</div>
+        <div class="page-subtitle">تظهر هذه المعايير في استمارة تقييم المؤطر للمعلم</div>
     </div>
+    {% if request.user.role != 'mshrif' %}
     <a href="{% url 'admin_critere_ajouter' %}"
        style="background:var(--color-role-admin); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
        + إضافة معيار
     </a>
+    {% endif %}
 </div>
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
@@ -24,6 +26,7 @@
             {% else %}
                 <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:4px 12px; font-size:0.8rem;">غير نشط ❌</span>
             {% endif %}
+            {% if request.user.role != 'mshrif' %}
             <a href="{% url 'admin_critere_modifier' critere.id %}"
                style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
                تعديل ✏️
@@ -37,6 +40,7 @@
                style="background:#fce4e4; color:#dc3545; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
                حذف 🗑️
             </a>
+            {% endif %}
         </div>
     </div>
     {% empty %}

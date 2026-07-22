@@ -1,4 +1,4 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 
 {% block title %}الحلقات{% endblock %}
 
@@ -8,10 +8,12 @@
         <div class="page-title">إدارة الحلقات</div>
         <div class="page-subtitle">إجمالي الحلقات: {{ creneaux.paginator.count }}</div>
     </div>
-    <a href="{% url 'admin_creneau_ajouter' %}" 
+    {% if request.user.role != 'mshrif' %}
+    <a href="{% url 'admin_creneau_ajouter' %}"
        style="background:var(--color-role-admin); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
        + إضافة حلقة جديدة
     </a>
+    {% endif %}
 </div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
@@ -79,17 +81,19 @@
                 <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:4px 12px; font-size:0.8rem;">غير نشط ❌</span>
             {% endif %}
 
+            {% if request.user.role != 'mshrif' %}
             <!-- Bouton modifier -->
-            <a href="{% url 'admin_creneau_modifier' creneau.id %}" 
+            <a href="{% url 'admin_creneau_modifier' creneau.id %}"
                style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
                تعديل ✏️
             </a>
 
             <!-- Bouton toggle -->
-            <a href="{% url 'admin_creneau_toggle' creneau.id %}" 
+            <a href="{% url 'admin_creneau_toggle' creneau.id %}"
                style="background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
                {% if creneau.est_actif %}تعطيل{% else %}تفعيل{% endif %}
             </a>
+            {% endif %}
         </div>
 
     </div>

@@ -1,10 +1,32 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 {% block title %}إسناد {{ superviseur.user.get_full_name }}{% endblock %}
 {% block content %}
 <div class="page-title">المعلمون المُسندون إلى {{ superviseur.user.get_full_name }}</div>
-<div class="page-subtitle">حدد المعلمين الذين يمكن لهذا المشرف رؤيتهم وتقييمهم</div>
+<div class="page-subtitle">
+    {% if request.user.role == 'mshrif' %}عرض للاطلاع فقط — لا يمكن التعديل من هنا{% else %}حدد المعلمين الذين يمكن لهذا المؤطر رؤيتهم وتقييمهم{% endif %}
+</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    {% if request.user.role == 'mshrif' %}
+        {% for prof in profs %}
+        <div class="mb-2" style="display:flex; align-items:center; gap:10px;">
+            {% if prof.id in profs_assignes_ids %}
+            <span style="color:var(--color-success);">✅</span>
+            {% else %}
+            <span style="color:#ccc;">▫️</span>
+            {% endif %}
+            <span {% if prof.id not in profs_assignes_ids %}style="color:#aaa;"{% endif %}>
+                {{ prof.user.get_full_name }}
+                <span style="color:#888; font-size:0.85rem;">— {{ prof.ville }}</span>
+            </span>
+        </div>
+        {% empty %}
+        <div style="text-align:center; color:#aaa; padding:20px;">لا يوجد معلمون بعد</div>
+        {% endfor %}
+        <div class="mt-4">
+            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    {% else %}
     <form method="POST">
         {% csrf_token %}
         {% for prof in profs %}
@@ -28,5 +50,6 @@
             <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
         </div>
     </form>
+    {% endif %}
 </div>
 {% endblock %}

@@ -329,7 +329,7 @@ def calculer_progression_eleve(eleve):
     étendue reflète correctement l'avancement sans complexité inutile.
     """
     from .models import Presence
-    from .quran_data import SOURATES_NOMS, SOURATES_NB_AYAT, calculer_nb_hizb
+    from .quran_data import SOURATES_NOMS, SOURATES_NB_AYAT
 
     presences = Presence.objects.filter(
         eleve=eleve, sourate_memorisee__isnull=False
@@ -378,6 +378,7 @@ def calculer_progression_eleve(eleve):
             'nom': SOURATES_NOMS.get(numero),
             'ayah_debut': bornes['debut'],
             'ayah_fin': bornes['fin'],
+            'ayat_couverts': couverts,
             'total_ayat_sourate': total_ayat_sourate,
             'pourcentage': min(pourcentage, 100),
             'note_code': bornes['note_code'],
@@ -387,7 +388,6 @@ def calculer_progression_eleve(eleve):
 
     return {
         'total_ayat_memorises': total_ayat,
-        'nb_hizb_memorises': calculer_nb_hizb(total_ayat),
         'nb_sourates_distinctes': len(par_sourate),
         'par_sourate': par_sourate_liste,
         'historique': list(reversed(historique)),
@@ -396,43 +396,157 @@ def calculer_progression_eleve(eleve):
 
 RING_CIRCONFERENCE_HIZB = 452.39  # 2*pi*72, rayon du cercle SVG (voir templates/dashboard/_ring_hizb.html)
 
-
-def stats_anneau_hizb(nb_hizb_memorises, total_ayat_memorises):
-    """Valeurs pour l'anneau de progression du hifz (accueil élève +
-    page "تقدمي في الحفظ", même composant _ring_hizb.html) : combien
-    d'ayat avant le prochain hizb, et le remplissage de l'anneau SVG
-    correspondant (en hizb entiers, pas de fraction, pour rester
-    cohérent avec le chiffre affiché au centre)."""
-    from .quran_data import HIZB_LIMITES
-
-    if nb_hizb_memorises < len(HIZB_LIMITES):
-        ayat_avant_prochain_hizb = HIZB_LIMITES[nb_hizb_memorises] - total_ayat_memorises
-    else:
-        ayat_avant_prochain_hizb = 0
-    ring_dashoffset = round(RING_CIRCONFERENCE_HIZB * (1 - nb_hizb_memorises / 60), 1)
-    return ayat_avant_prochain_hizb, ring_dashoffset
+FRACTION_QUART = {1: '1/4', 2: '1/2', 3: '3/4'}
 
 
-TARIF_PAR_ELEVE_ACTIF = 50  # DH / élève actif / mois — même tarif pour tous les profs (pas encore de barème par prof)
+def _couverture_ayat_par_sourate(eleve):
+    """{numero_sourate: [ayah_min, ayah_fin_max]} agrégé sur toutes les
+    Presence de l'élève avec mémorisation enregistrée. Même hypothèse que
+    calculer_progression_eleve: l'étendue entre le début le plus bas et la
+    fin la plus haute vus sur toutes les séances, pas une fusion exacte
+    d'intervalles (la mémorisation progresse en pratique de façon continue
+    dans une sourate)."""
+    from .models import Presence
+
+    couverture = {}
+    valeurs = Presence.objects.filter(
+        eleve=eleve, sourate_memorisee__isnull=False
+    ).values_list('sourate_memorisee', 'ayah_debut_memorisation', 'ayah_fin_memorisation')
+    for numero, debut, fin in valeurs:
+        if numero not in couverture:
+            couverture[numero] = [debut, fin]
+        else:
+            couverture[numero][0] = min(couverture[numero][0], debut)
+            couverture[numero][1] = max(couverture[numero][1], fin)
+    return couverture
+
+
+def _quart_est_couvert(quart, couverture):
+    """Un quart de hizb (quran_data.HIZB_QUARTERS) est couvert si la
+    mémorisation enregistrée de l'élève recouvre ENTIÈREMENT sa plage
+    d'ayat, sourate par sourate — un quart peut chevaucher 2 sourates
+    consécutives à sa frontière (ex: hizb 45, quart 3 = 36:60 -> 37:21)."""
+    from .quran_data import SOURATES_NB_AYAT
+
+    (sourate_debut, ayah_debut), (sourate_fin, ayah_fin) = quart
+    for sourate in range(sourate_debut, sourate_fin + 1):
+        if sourate not in couverture:
+            return False
+        debut_couvert, fin_couvert = couverture[sourate]
+        borne_debut = ayah_debut if sourate == sourate_debut else 1
+        borne_fin = ayah_fin if sourate == sourate_fin else SOURATES_NB_AYAT[sourate]
+        if debut_couvert > borne_debut or fin_couvert < borne_fin:
+            return False
+    return True
+
+
+def calculer_hizb_precis(eleve):
+    """Progression réelle dans les 60 hizb, basée sur les VRAIES sourates/ayat
+    mémorisés (pas sur un total d'ayat cumulé en supposant une progression
+    linéaire depuis le début du Coran — un élève peut commencer par le
+    hizb 60 ou mémoriser des sourates au milieu du Coran).
+
+    Chaque hizb est découpé en 4 quarts (quran_data.HIZB_QUARTERS, le
+    découpage universel du Coran). Un hizb ne compte comme complet que si
+    ses 4 quarts sont couverts. Retourne le nombre total de hizb complets
+    et la liste de tous les hizb partiellement couverts (1 à 3 quarts sur
+    4), chacun avec sa fraction — un élève peut mémoriser dans plusieurs
+    hizb non consécutifs à la fois, donc pas de "hizb en cours" unique."""
+    from .quran_data import HIZB_QUARTERS
+
+    couverture = _couverture_ayat_par_sourate(eleve)
+
+    nb_hizb_complets = 0
+    hizb_en_cours = []
+    for numero_hizb, quarts in enumerate(HIZB_QUARTERS, start=1):
+        nb_quarts_couverts = sum(1 for quart in quarts if _quart_est_couvert(quart, couverture))
+        if nb_quarts_couverts == 4:
+            nb_hizb_complets += 1
+        elif nb_quarts_couverts > 0:
+            hizb_en_cours.append({
+                'numero': numero_hizb,
+                'quarts_couverts': nb_quarts_couverts,
+                'fraction': FRACTION_QUART[nb_quarts_couverts],
+            })
+
+    return {
+        'nb_hizb_complets': nb_hizb_complets,
+        'hizb_en_cours': hizb_en_cours,
+    }
+
+
+def ring_dashoffset_hizb(nb_hizb_complets):
+    """Remplissage de l'anneau SVG de progression du hifz (accueil élève +
+    page "تقدمي في الحفظ", composant _ring_hizb.html), proportionnel au
+    nombre de hizb complets sur 60."""
+    return round(RING_CIRCONFERENCE_HIZB * (1 - nb_hizb_complets / 60), 1)
+
+
+AGE_SEUIL_ADULTE = 18  # seuil enfant/adulte pour la grille tarifaire — confirmé par le client (moins de 18 = enfant, 18 et plus = adulte)
+
+
+def _tranche_age_eleve(eleve):
+    """'enfant'/'adulte' selon AGE_SEUIL_ADULTE, ou None si l'âge est inconnu
+    (élève sans dossier d'inscription lié, ou dossier sans date de naissance —
+    Eleve n'a pas de date_naissance propre, la seule source fiable est
+    eleve.inscription.date_naissance). Jamais d'hypothèse silencieuse ici:
+    un âge inconnu doit rester visible comme tel dans le détail du calcul,
+    vu l'impact direct sur une somme d'argent réelle."""
+    if eleve.inscription is None or eleve.inscription.date_naissance is None:
+        return None
+    age = _age_depuis_naissance(eleve.inscription.date_naissance)
+    return 'adulte' if age >= AGE_SEUIL_ADULTE else 'enfant'
 
 
 def calculer_remuneration_prof(prof):
-    """Rémunération mensuelle d'un prof: TARIF_PAR_ELEVE_ACTIF DH par élève au
-    statut 'actif' dans chacun de ses groupes. Détail par groupe pour que le
-    calcul soit vérifiable (un élève suspendu/ancien ne compte pas)."""
+    """Rémunération mensuelle d'un prof selon la grille TarifRemuneration
+    (type_capacite du groupe × tranche d'âge de chaque élève actif). Détail
+    par groupe pour que le calcul soit vérifiable. Ne retourne QUE le calcul
+    de base de la grille — majoration_mensuelle (Prof) n'est ni lue ni
+    additionnée ici: elle ne doit jamais atteindre la page du prof, même
+    fondue dans un total, voir templates/dashboard/prof_remuneration.html."""
+    from .models import TarifRemuneration
+
+    tarifs = {
+        (t.type_capacite, t.tranche_age): t.montant
+        for t in TarifRemuneration.objects.all()
+    }
+
     detail = []
-    total = 0
+    total_calcule = 0
     for groupe in prof.groupes.all():
-        nb_actifs = groupe.eleves.filter(statut='actif').count()
-        montant = nb_actifs * TARIF_PAR_ELEVE_ACTIF
-        total += montant
+        nb_enfants = 0
+        nb_adultes = 0
+        nb_age_inconnu = 0
+        for eleve in groupe.eleves.filter(statut='actif').select_related('inscription'):
+            tranche = _tranche_age_eleve(eleve)
+            if tranche == 'enfant':
+                nb_enfants += 1
+            elif tranche == 'adulte':
+                nb_adultes += 1
+            else:
+                nb_age_inconnu += 1
+
+        tarif_enfant = tarifs.get((groupe.type_capacite, 'enfant'), 0)
+        tarif_adulte = tarifs.get((groupe.type_capacite, 'adulte'), 0)
+        montant_enfants = nb_enfants * tarif_enfant
+        montant_adultes = nb_adultes * tarif_adulte
+        sous_total = montant_enfants + montant_adultes
+        total_calcule += sous_total
+
         detail.append({
             'groupe': groupe,
-            'nb_eleves_actifs': nb_actifs,
-            'montant': montant,
+            'nb_enfants': nb_enfants,
+            'nb_adultes': nb_adultes,
+            'tarif_enfant': tarif_enfant,
+            'tarif_adulte': tarif_adulte,
+            'montant_enfants': montant_enfants,
+            'montant_adultes': montant_adultes,
+            'sous_total': sous_total,
+            'nb_age_inconnu': nb_age_inconnu,
         })
+
     return {
         'detail': detail,
-        'total': total,
-        'tarif_par_eleve': TARIF_PAR_ELEVE_ACTIF,
+        'total_calcule': total_calcule,
     }

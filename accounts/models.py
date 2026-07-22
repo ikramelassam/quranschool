@@ -7,8 +7,9 @@ class User(AbstractUser):
     ROLE_CHOICES = [
         ('eleve', 'طالب'),
         ('prof', 'معلم'),
-        ('superviseur', 'مشرف'),
+        ('superviseur', 'مؤطر'),
         ('admin', 'مدير'),
+        ('mshrif', 'المشرف'),
     ]
     telephone = models.CharField(max_length=20, blank=True)
     date_naissance = models.DateField(null=True, blank=True)
@@ -88,6 +89,16 @@ class Prof(models.Model):
         blank=True,
         related_name='prof_valide'
     )
+    # Montant ajouté manuellement au virement réel par le مدير, en dehors de la
+    # plateforme (ex: prime, ancienneté). Visible en lecture seule par مدير et
+    # مؤطر (superviseur) — jamais montré ni additionné dans ce que le prof voit
+    # sur sa propre page de rémunération (courses.utils.calculer_remuneration_prof
+    # ne la connaît pas du tout).
+    majoration_mensuelle = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    # Acceptation du ميثاق التدريس (voir CharteEnseignement ci-dessous) — un simple
+    # accusé de lecture, pas un blocage: le prof garde l'accès au site même sans avoir coché.
+    charte_acceptee = models.BooleanField(default=False)
+    date_acceptation_charte = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return str(self.user)
@@ -95,6 +106,87 @@ class Prof(models.Model):
     class Meta:
         verbose_name = "Professeur"
         verbose_name_plural = "Professeurs"
+
+
+class CharteEnseignement(models.Model):
+    """ميثاق التدريس — singleton (une seule ligne en base, toujours pk=1, voir
+    get_charte() ci-dessous), éditable uniquement par le rôle مشرف. Contenu structuré en
+    champs texte simples (pas de HTML) pour que le مشرف — sans compétences HTML — puisse
+    modifier le texte sans jamais toucher à la mise en page, qui reste fixée dans
+    templates/dashboard/mshrif_charte.html et templates/dashboard/_charte_contenu.html.
+    Chaque champ *_items est une liste de points, un par ligne, au format libre
+    "التسمية: الوصف" (le ':' est optionnel) — voir accounts.templatetags.charte_tags.parse_items."""
+    intro = models.TextField(blank=True)
+    verset_ouverture = models.CharField(max_length=300, blank=True)
+    titre_bunud = models.CharField(max_length=300, blank=True)
+
+    section1_titre = models.CharField(max_length=200, blank=True)
+    section1_intro = models.TextField(blank=True)
+    section1_items = models.TextField(blank=True)
+
+    section2_titre = models.CharField(max_length=200, blank=True)
+    section2_intro = models.TextField(blank=True)
+    section2_items = models.TextField(blank=True)
+
+    section3_titre = models.CharField(max_length=200, blank=True)
+    section3_intro = models.TextField(blank=True)
+    section3_items = models.TextField(blank=True)
+    verset_rahma_texte = models.TextField(blank=True)
+    verset_rahma_reference = models.CharField(max_length=100, blank=True)
+    section3_conclusion = models.TextField(blank=True)
+
+    section4_titre = models.CharField(max_length=200, blank=True)
+    section4_intro = models.TextField(blank=True)
+    section4_items = models.TextField(blank=True)
+
+    section5_titre = models.CharField(max_length=200, blank=True)
+    section5_intro = models.TextField(blank=True)
+    section5_note = models.TextField(blank=True)
+
+    section6_titre = models.CharField(max_length=200, blank=True)
+    section6_intro = models.TextField(blank=True)
+    section6_items = models.TextField(blank=True)
+
+    section7_titre = models.CharField(max_length=200, blank=True)
+    section7_intro = models.TextField(blank=True)
+    section7_items = models.TextField(blank=True)
+
+    date_modification = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "ميثاق التدريس"
+
+    class Meta:
+        verbose_name = "Charte d'enseignement"
+        verbose_name_plural = "Charte d'enseignement"
+
+
+class CharteSanctionLigne(models.Model):
+    """Une ligne du tableau des sanctions (section خامساً de la charte). Modèle à part
+    (plutôt qu'un TextField comme les autres sections) car le مشرف doit pouvoir
+    ajouter/retirer des lignes — un simple champ texte multi-lignes ne permet pas
+    d'associer un ordre stable + une sévérité à chaque ligne de façon fiable."""
+    SEVERITE_CHOICES = [
+        ('immediate', 'الإعفاء الفوري'),
+        ('progressive', 'إنذار أول ← إنذار ثاني ← خصم من الراتب'),
+    ]
+    charte = models.ForeignKey(CharteEnseignement, on_delete=models.CASCADE, related_name='sanctions')
+    ordre = models.PositiveIntegerField(default=0)
+    violation = models.CharField(max_length=300)
+    severite = models.CharField(max_length=20, choices=SEVERITE_CHOICES, default='progressive')
+
+    class Meta:
+        ordering = ['ordre', 'id']
+
+    def __str__(self):
+        return self.violation
+
+
+def get_charte():
+    """Renvoie l'unique instance de CharteEnseignement, en la créant (vide) si elle
+    n'existe pas encore — patron singleton simple (toujours pk=1)."""
+    charte, _ = CharteEnseignement.objects.get_or_create(pk=1)
+    return charte
 
 
 class Superviseur(models.Model):

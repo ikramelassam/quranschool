@@ -112,6 +112,22 @@ def _next_valide(request, defaut='admin_eleves'):
     return reverse(defaut)
 
 
+def _base_template_admin_ou_mshrif(request):
+    """Pages admin réutilisées en lecture seule par المشرف (listes/fiches élèves-profs,
+    évaluations) : garde son propre sidebar/couleur plutôt que celui du مدير."""
+    return 'dashboard/base_mshrif.html' if request.user.role == 'mshrif' else 'dashboard/base_admin.html'
+
+
+def _contexte_base_mshrif(request):
+    """Contexte commun à toute page utilisant base_mshrif.html (badge sidebar du nombre de
+    candidatures en attente) — un seul endroit à mettre à jour plutôt que de répéter la
+    requête dans chacune des vues qui rendent ce sidebar."""
+    if request.user.role != 'mshrif':
+        return {}
+    from inscriptions.models import InscriptionProf
+    return {'nb_demandes_en_attente': InscriptionProf.objects.filter(statut='validee_directeur').count()}
+
+
 def _verifier_conflit_email(email):
     """Vérifie si un User existe déjà pour cet email et s'il a un profil Eleve/Prof.
     Utilisé pour bloquer la validation d'une inscription en cas de conflit
@@ -407,15 +423,54 @@ def prof_disponibilites(request):
 @role_required('prof')
 def prof_profil(request):
     from accounts.models import Prof
-    from courses.utils import calculer_remuneration_prof
     prof = get_object_or_404(Prof, user=request.user)
     return render(request, 'dashboard/prof_profil.html', {
         'prof': prof,
-        'remuneration': calculer_remuneration_prof(prof),
     })
 
 
-@role_required('admin')
+@role_required('prof')
+def prof_remuneration(request):
+    from accounts.models import Prof
+    from courses.models import TarifRemuneration
+    from courses.utils import calculer_remuneration_prof
+    from django.utils import timezone
+
+    prof = get_object_or_404(Prof, user=request.user)
+    aujourdhui = timezone.localdate()
+    # Volontairement: ni majoration_mensuelle ni aucune donnée de classement/
+    # évaluation ne sont chargées ni passées ici — voir courses.utils.calculer_remuneration_prof.
+    return render(request, 'dashboard/prof_remuneration.html', {
+        'remuneration': calculer_remuneration_prof(prof),
+        'tarifs': TarifRemuneration.objects.all().order_by('type_capacite', 'tranche_age'),
+        'aujourdhui': aujourdhui,
+    })
+
+
+@role_required('prof')
+def prof_charte(request):
+    """Lecture seule + accusé de lecture du ميثاق التدريس côté prof — pas bloquant,
+    un prof qui n'a pas encore coché garde l'accès normal au reste du site (voir le
+    bandeau discret sur dashboard_prof)."""
+    from accounts.models import Prof, get_charte
+    from django.utils import timezone
+
+    prof = get_object_or_404(Prof, user=request.user)
+
+    if request.method == 'POST':
+        prof.charte_acceptee = True
+        prof.date_acceptation_charte = timezone.now()
+        prof.save()
+        messages.success(request, 'شكراً لك، تم تسجيل موافقتك على الميثاق.')
+        return redirect('prof_charte')
+
+    return render(request, 'dashboard/prof_charte.html', {
+        'charte': get_charte(),
+        'prof': prof,
+    })
+
+
+@role_required('admin', 'mshrif')
 def dashboard_admin(request):
     from inscriptions.models import InscriptionEleve, InscriptionProf
     from accounts.models import Eleve, Prof
@@ -437,9 +492,13 @@ def dashboard_admin(request):
                          InscriptionProf.objects.filter(statut='en_attente').count(),
         'dernieres_eleves': dernieres_eleves,
         'dernieres_profs': dernieres_profs,
+        'base_template': _base_template_admin_ou_mshrif(request),
     }
+    context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin.html', context)
-@role_required('admin')
+
+
+@role_required('admin', 'mshrif')
 def admin_inscriptions(request):
     """Liste unique des candidatures en attente, élèves et profs mélangés
     et triés par date de soumission — chaque ligne porte son propre type
@@ -457,9 +516,12 @@ def admin_inscriptions(request):
 
     inscriptions = sorted(eleves + profs, key=lambda ins: ins.date_soumission, reverse=True)
 
-    return render(request, 'dashboard/admin_inscriptions.html', {
+    context = {
         'inscriptions': paginer(request, inscriptions, 10),
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_inscriptions.html', context)
 
 
 
@@ -548,7 +610,7 @@ def admin_rejeter_eleve(request, inscription_id):
     return redirect('admin_inscriptions')
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_inscription_eleve_detail(request, inscription_id):
     from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO, groupes_compatibles_pour_inscription
 
@@ -557,7 +619,7 @@ def admin_inscription_eleve_detail(request, inscription_id):
         conflit = {'conflit': False, 'user': None, 'orphelin': False}
     else:
         conflit = _verifier_conflit_email(inscription.email)
-    return render(request, 'dashboard/admin_inscription_detail.html', {
+    context = {
         'inscription': inscription,
         'conflit': conflit,
         'jours': JOURS_SEMAINE_DISPO,
@@ -565,18 +627,18 @@ def admin_inscription_eleve_detail(request, inscription_id):
         'valeurs_dispo': set(inscription.disponibilites),
         'groupes_suggeres': groupes_compatibles_pour_inscription(inscription),
         'mot_de_passe_temporaire': MOT_DE_PASSE_TEMPORAIRE,
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_inscription_detail.html', context)
 
-@role_required('admin')
+
+@role_required('admin', 'mshrif')
 def admin_inscription_prof_detail(request, inscription_id):
     from inscriptions.models import InscriptionProf
     from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
 
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
-    if inscription.statut == 'valide':
-        conflit = {'conflit': False, 'user': None, 'orphelin': False}
-    else:
-        conflit = _verifier_conflit_email(inscription.email)
 
     # Le champ peut référencer un fichier qui n'existe plus (ou jamais existé) sur
     # le disque — évite d'afficher silencieusement un lecteur audio cassé.
@@ -591,16 +653,17 @@ def admin_inscription_prof_detail(request, inscription_id):
             logger.exception("Échec de la vérification Cloudinary pour l'audio de l'inscription %s", inscription.id)
             audio_verification_echouee = True
 
-    return render(request, 'dashboard/admin_inscription_prof_detail.html', {
+    context = {
         'inscription': inscription,
-        'conflit': conflit,
         'audio_fichier_manquant': audio_fichier_manquant,
         'audio_verification_echouee': audio_verification_echouee,
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
         'valeurs_dispo': set(inscription.disponibilites),
-        'mot_de_passe_temporaire': MOT_DE_PASSE_TEMPORAIRE,
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_inscription_prof_detail.html', context)
 
 @role_required('admin')
 def admin_supprimer_user_orphelin(request, user_id):
@@ -625,6 +688,103 @@ def admin_supprimer_user_orphelin(request, user_id):
 
 @role_required('admin')
 def admin_valider_prof(request, inscription_id):
+    """Pré-validation du مدير — étape 1/2. Ne crée AUCUN compte: passe juste le statut à
+    'validee_directeur', qui n'apparaît plus dans la liste admin_inscriptions (elle ne concerne
+    plus l'admin) mais devient visible pour le المشرف, seul habilité à créer le compte final
+    (voir mshrif_valider_prof_final, qui reprend exactement la logique de création qui vivait
+    ici auparavant)."""
+    from inscriptions.models import InscriptionProf
+    inscription = get_object_or_404(InscriptionProf, id=inscription_id)
+    inscription.statut = 'validee_directeur'
+    inscription.save()
+    messages.success(
+        request,
+        f'تم قبول طلب {inscription.nom} مبدئياً — بانتظار التصديق النهائي من المشرف قبل إنشاء الحساب.'
+    )
+    return redirect('admin_inscriptions')
+
+@role_required('admin')
+def admin_rejeter_prof(request, inscription_id):
+    from inscriptions.models import InscriptionProf
+    inscription = get_object_or_404(InscriptionProf, id=inscription_id)
+    inscription.statut = 'rejete'
+    inscription.save()
+    messages.info(request, f'تم رفض طلب {inscription.nom}.')
+    return redirect('admin_inscriptions')
+
+
+# ==================== المشرف (mshrif) ====================
+# Rôle au-dessus du مدير: valide en dernier les candidatures profs déjà pré-validées par le
+# مدير (statut='validee_directeur') — c'est SEULEMENT à cette étape que le compte est créé.
+# Voir PARTIE 1 du plan: workflow de validation prof en 2 étapes.
+
+@role_required('mshrif')
+def dashboard_mshrif(request):
+    from accounts.models import Eleve, Prof
+    from courses.models import Groupe, Presence
+    from django.utils import timezone
+
+    aujourdhui = timezone.localdate()
+    presences_mois = Presence.objects.filter(seance__date__year=aujourdhui.year, seance__date__month=aujourdhui.month)
+    nb_presences_total = presences_mois.count()
+    nb_presences_ok = presences_mois.filter(statut='present').count()
+    taux_presence = round((nb_presences_ok / nb_presences_total) * 100) if nb_presences_total else 0
+
+    context = {
+        'nb_eleves_actifs': Eleve.objects.filter(statut='actif').count(),
+        'nb_profs': Prof.objects.count(),
+        'nb_groupes_actifs': Groupe.objects.filter(statut='actif').count(),
+        'taux_presence_mois': taux_presence,
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/dashboard_mshrif.html', context)
+
+
+@role_required('mshrif')
+def mshrif_inscriptions_profs(request):
+    from inscriptions.models import InscriptionProf
+    inscriptions = InscriptionProf.objects.filter(statut='validee_directeur').order_by('-date_soumission')
+    context = {'inscriptions': inscriptions}
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/mshrif_inscriptions_profs.html', context)
+
+
+@role_required('mshrif')
+def mshrif_inscription_prof_detail(request, inscription_id):
+    from inscriptions.models import InscriptionProf
+    from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
+
+    inscription = get_object_or_404(InscriptionProf, id=inscription_id)
+    conflit = _verifier_conflit_email(inscription.email)
+
+    audio_fichier_manquant = False
+    audio_verification_echouee = False
+    if inscription.audio_enregistrement:
+        try:
+            audio_fichier_manquant = not inscription.audio_enregistrement.storage.exists(inscription.audio_enregistrement.name)
+        except Exception:
+            logger.exception("Échec de la vérification Cloudinary pour l'audio de l'inscription %s", inscription.id)
+            audio_verification_echouee = True
+
+    context = {
+        'inscription': inscription,
+        'conflit': conflit,
+        'audio_fichier_manquant': audio_fichier_manquant,
+        'audio_verification_echouee': audio_verification_echouee,
+        'jours': JOURS_SEMAINE_DISPO,
+        'heures': generer_heures_grille(),
+        'valeurs_dispo': set(inscription.disponibilites),
+        'mot_de_passe_temporaire': MOT_DE_PASSE_TEMPORAIRE,
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/mshrif_inscription_prof_detail.html', context)
+
+
+@role_required('mshrif')
+def mshrif_valider_prof_final(request, inscription_id):
+    """Validation finale — étape 2/2. Reprend EXACTEMENT la logique de création de compte qui
+    vivait auparavant dans admin_valider_prof (même transaction.atomic(), mêmes champs copiés,
+    même envoi d'email) — seule la source (مدير → المشرف) et le statut de départ changent."""
     from inscriptions.models import InscriptionProf
     from accounts.models import Prof
     from django.contrib.auth import get_user_model
@@ -647,7 +807,7 @@ def admin_valider_prof(request, inscription_id):
                 f'تعذر القبول: يوجد حساب نشط بهذا البريد الإلكتروني ({inscription.email}) '
                 f'مرتبط بملف شخصي آخر — التعارض يجب حله يدوياً قبل المتابعة.'
             )
-        return redirect('admin_inscription_prof_detail', inscription_id=inscription.id)
+        return redirect('mshrif_inscription_prof_detail', inscription_id=inscription.id)
 
     password_temp = MOT_DE_PASSE_TEMPORAIRE
 
@@ -690,25 +850,143 @@ def admin_valider_prof(request, inscription_id):
     if email_envoye:
         messages.success(
             request,
-            f'تم قبول المعلم {inscription.nom}. كلمة المرور المؤقتة: {password_temp} '
+            f'تم قبول المعلم {inscription.nom} نهائياً وإنشاء حسابه. كلمة المرور المؤقتة: {password_temp} '
             f'(تم إرسالها أيضاً عبر البريد الإلكتروني).'
         )
     else:
         messages.warning(
             request,
-            f'تم قبول المعلم {inscription.nom}، لكن تعذر إرسال بريد تسجيل الدخول. '
+            f'تم قبول المعلم {inscription.nom} نهائياً، لكن تعذر إرسال بريد تسجيل الدخول. '
             f'كلمة المرور المؤقتة: {password_temp} (أرسلها للمعلم يدوياً).'
         )
-    return redirect('admin_inscriptions')
+    return redirect('mshrif_inscriptions_profs')
 
-@role_required('admin')
-def admin_rejeter_prof(request, inscription_id):
+
+@role_required('mshrif')
+def mshrif_rejeter_prof(request, inscription_id):
     from inscriptions.models import InscriptionProf
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
     inscription.statut = 'rejete'
     inscription.save()
-    messages.info(request, f'تم رفض طلب {inscription.nom}.')
-    return redirect('admin_inscriptions')
+    messages.info(request, f'تم رفض طلب {inscription.nom} نهائياً.')
+    return redirect('mshrif_inscriptions_profs')
+
+
+@role_required('mshrif')
+def mshrif_remuneration(request):
+    """الاستحقاقات — vue tabulaire de tous les profs pour le مشرف: montant de base
+    (calculer_remuneration_prof) + majoration (visible ici, contrairement à la page prof
+    qui ne la montre jamais) + total. Pas de filtre par mois: le calcul est toujours "à la
+    volée" sur les élèves actifs actuels, aucune donnée mensuelle n'est historisée."""
+    from accounts.models import Prof
+    from courses.utils import calculer_remuneration_prof
+
+    lignes = []
+    total_base = 0
+    total_majoration = 0
+    for prof in Prof.objects.select_related('user').order_by('user__first_name'):
+        base = calculer_remuneration_prof(prof)['total_calcule']
+        majoration = prof.majoration_mensuelle or 0
+        total_base += base
+        total_majoration += majoration
+        lignes.append({
+            'prof': prof,
+            'base': base,
+            'majoration': prof.majoration_mensuelle,
+            'total': base + majoration,
+        })
+
+    context = {
+        'lignes': lignes,
+        'total_base': total_base,
+        'total_majoration': total_majoration,
+        'total_general': total_base + total_majoration,
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/mshrif_remuneration.html', context)
+
+
+@role_required('admin', 'superviseur', 'mshrif')
+def mshrif_charte(request):
+    """Gestion du ميثاق التدريس. Modification réservée au مشرف ; المدير et المؤطر y ont
+    accès en lecture seule (voir demande explicite : la charte doit leur être visible
+    aussi, pas seulement au مشرف). Contenu structuré en champs texte simples (voir
+    accounts.models.CharteEnseignement) — le مشرف n'a aucune compétence HTML, donc
+    chaque section est éditée via des champs texte séparés, réinjectés dans le même
+    squelette HTML fixe (templates/dashboard/_charte_contenu.html) à l'affichage. Les
+    lignes du tableau de sanctions sont rechargées entièrement à chaque sauvegarde (plus
+    simple et sans risque d'incohérence qu'un diff ligne par ligne, vu leur faible nombre)."""
+    from accounts.models import get_charte, CharteSanctionLigne
+
+    charte = get_charte()
+
+    if request.method == 'POST' and request.user.role == 'mshrif':
+        charte.intro = request.POST.get('intro', '')
+        charte.verset_ouverture = request.POST.get('verset_ouverture', '')
+        charte.titre_bunud = request.POST.get('titre_bunud', '')
+
+        charte.section1_titre = request.POST.get('section1_titre', '')
+        charte.section1_intro = request.POST.get('section1_intro', '')
+        charte.section1_items = request.POST.get('section1_items', '')
+
+        charte.section2_titre = request.POST.get('section2_titre', '')
+        charte.section2_intro = request.POST.get('section2_intro', '')
+        charte.section2_items = request.POST.get('section2_items', '')
+
+        charte.section3_titre = request.POST.get('section3_titre', '')
+        charte.section3_intro = request.POST.get('section3_intro', '')
+        charte.section3_items = request.POST.get('section3_items', '')
+        charte.verset_rahma_texte = request.POST.get('verset_rahma_texte', '')
+        charte.verset_rahma_reference = request.POST.get('verset_rahma_reference', '')
+        charte.section3_conclusion = request.POST.get('section3_conclusion', '')
+
+        charte.section4_titre = request.POST.get('section4_titre', '')
+        charte.section4_intro = request.POST.get('section4_intro', '')
+        charte.section4_items = request.POST.get('section4_items', '')
+
+        charte.section5_titre = request.POST.get('section5_titre', '')
+        charte.section5_intro = request.POST.get('section5_intro', '')
+        charte.section5_note = request.POST.get('section5_note', '')
+
+        charte.section6_titre = request.POST.get('section6_titre', '')
+        charte.section6_intro = request.POST.get('section6_intro', '')
+        charte.section6_items = request.POST.get('section6_items', '')
+
+        charte.section7_titre = request.POST.get('section7_titre', '')
+        charte.section7_intro = request.POST.get('section7_intro', '')
+        charte.section7_items = request.POST.get('section7_items', '')
+        charte.save()
+
+        violations = request.POST.getlist('sanction_violation')
+        severites = request.POST.getlist('sanction_severite')
+        charte.sanctions.all().delete()
+        for ordre, (violation, severite) in enumerate(zip(violations, severites)):
+            if violation.strip():
+                CharteSanctionLigne.objects.create(
+                    charte=charte, ordre=ordre, violation=violation.strip(), severite=severite,
+                )
+
+        messages.success(request, 'تم تحديث ميثاق التدريس بنجاح.')
+        return redirect('mshrif_charte')
+
+    BASE_TEMPLATE_PAR_ROLE = {
+        'admin': 'dashboard/base_admin.html',
+        'superviseur': 'dashboard/base_superviseur.html',
+        'mshrif': 'dashboard/base_mshrif.html',
+    }
+    COULEUR_PAR_ROLE = {
+        'admin': 'var(--color-role-admin-solid)',
+        'superviseur': 'var(--color-role-superviseur-solid)',
+        'mshrif': 'var(--color-role-mshrif-solid)',
+    }
+    context = {
+        'charte': charte,
+        'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
+        'couleur_role': COULEUR_PAR_ROLE[request.user.role],
+        'lecture_stricte': request.user.role != 'mshrif',
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/mshrif_charte.html', context)
 
 
 # ==================== DASHBOARD ÉLÈVE ====================
@@ -717,7 +995,7 @@ def admin_rejeter_prof(request, inscription_id):
 def dashboard_eleve(request):
     from accounts.models import Eleve
     from courses.models import Seance, Presence
-    from courses.utils import calculer_progression_eleve, stats_anneau_hizb
+    from courses.utils import calculer_progression_eleve, calculer_hizb_precis, ring_dashoffset_hizb
     from django.utils import timezone
 
     try:
@@ -729,9 +1007,9 @@ def dashboard_eleve(request):
     aujourdhui = timezone.localdate()
 
     progression = calculer_progression_eleve(eleve)
-    nb_hizb = progression['nb_hizb_memorises']
-    total_ayat = progression['total_ayat_memorises']
-    ayat_avant_prochain_hizb, ring_dashoffset = stats_anneau_hizb(nb_hizb, total_ayat)
+    hizb = calculer_hizb_precis(eleve)
+    nb_hizb = hizb['nb_hizb_complets']
+    ring_dashoffset = ring_dashoffset_hizb(nb_hizb)
 
     # Aperçu "dernier hifz par sourate": on part de l'historique (déjà
     # trié du plus récent au plus ancien par calculer_progression_eleve)
@@ -770,7 +1048,7 @@ def dashboard_eleve(request):
         'total_present': Presence.objects.filter(eleve=eleve, statut='present').count(),
         'nb_hizb_memorises': nb_hizb,
         'nb_sourates_distinctes': progression['nb_sourates_distinctes'],
-        'ayat_avant_prochain_hizb': ayat_avant_prochain_hizb,
+        'hizb_en_cours': hizb['hizb_en_cours'],
         'ring_dashoffset': ring_dashoffset,
         'sourates_recentes': sourates_recentes,
         'prochaine_seance': prochaine_seance,
@@ -862,20 +1140,18 @@ def eleve_prof_detail(request, prof_id):
 @role_required('eleve')
 def eleve_progression(request):
     from accounts.models import Eleve
-    from courses.utils import calculer_progression_eleve, stats_anneau_hizb
+    from courses.utils import calculer_progression_eleve, calculer_hizb_precis, ring_dashoffset_hizb
 
     eleve = get_object_or_404(Eleve, user=request.user)
     progression = calculer_progression_eleve(eleve)
-    ayat_avant_prochain_hizb, ring_dashoffset = stats_anneau_hizb(
-        progression['nb_hizb_memorises'], progression['total_ayat_memorises']
-    )
+    hizb = calculer_hizb_precis(eleve)
 
     return render(request, 'dashboard/eleve_progression.html', {
         'eleve': eleve,
         'progression': progression,
-        'nb_hizb_memorises': progression['nb_hizb_memorises'],
-        'ayat_avant_prochain_hizb': ayat_avant_prochain_hizb,
-        'ring_dashoffset': ring_dashoffset,
+        'nb_hizb_memorises': hizb['nb_hizb_complets'],
+        'hizb_en_cours': hizb['hizb_en_cours'],
+        'ring_dashoffset': ring_dashoffset_hizb(hizb['nb_hizb_complets']),
     })
 
 
@@ -1001,7 +1277,7 @@ def superviseur_prof_detail(request, prof_id):
 
 # ==================== ADMIN — SÉANCES ====================
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_seances(request):
     """Page d'exceptions: les séances normales sont générées automatiquement
     (voir courses.utils). Ici, l'admin peut seulement annuler ou déplacer
@@ -1023,7 +1299,7 @@ def admin_seances(request):
     if statut:
         seances = seances.filter(statut=statut)
 
-    return render(request, 'dashboard/admin_seances.html', {
+    context = {
         'seances': paginer(request, seances, 10),
         'groupes': Groupe.objects.order_by('nom'),
         'filtres': {
@@ -1031,7 +1307,10 @@ def admin_seances(request):
             'date': date,
             'statut': statut,
         },
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_seances.html', context)
 
 
 @role_required('admin')
@@ -1064,7 +1343,7 @@ def admin_seance_deplacer(request, seance_id):
 
 # ==================== ADMIN — ÉLÈVES VALIDÉS ====================
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_eleves(request):
     from django.db.models import Q
     from accounts.models import Eleve
@@ -1078,13 +1357,16 @@ def admin_eleves(request):
             Q(user__email__icontains=q)
         )
 
-    return render(request, 'dashboard/admin_eleves.html', {
+    context = {
         'eleves': paginer(request, eleves, 10),
         'q': q,
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_eleves.html', context)
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_eleve_detail(request, eleve_id):
     from accounts.models import Eleve
     from courses.models import DisponibiliteEleve
@@ -1098,7 +1380,7 @@ def admin_eleve_detail(request, eleve_id):
         for j, h in DisponibiliteEleve.objects.filter(eleve=eleve).values_list('jour_semaine', 'heure_debut')
     )
 
-    return render(request, 'dashboard/admin_eleve_detail.html', {
+    context = {
         'eleve': eleve,
         'inscription': eleve.inscription,
         'progression': progression,
@@ -1106,7 +1388,10 @@ def admin_eleve_detail(request, eleve_id):
         'valeurs_form': valeurs_form,
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_eleve_detail.html', context)
 
 
 @role_required('admin')
@@ -1137,7 +1422,7 @@ def admin_eleve_disponibilites(request, eleve_id):
 
 # ==================== ADMIN — PROFS VALIDÉS ====================
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_profs(request):
     from django.db.models import Q
     from accounts.models import Prof
@@ -1151,27 +1436,47 @@ def admin_profs(request):
             Q(ville__icontains=q)
         )
 
-    return render(request, 'dashboard/admin_profs.html', {
+    context = {
         'profs': paginer(request, profs, 10),
         'q': q,
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_profs.html', context)
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_prof_detail(request, prof_id):
     from accounts.models import Prof
     from courses.utils import calculer_remuneration_prof
     prof = get_object_or_404(Prof, id=prof_id)
-    return render(request, 'dashboard/admin_prof_detail.html', {
+    context = {
         'prof': prof,
         'inscription': prof.inscription,
         'remuneration': calculer_remuneration_prof(prof),
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_prof_detail.html', context)
+
+
+@role_required('admin')
+def admin_prof_majoration_modifier(request, prof_id):
+    from accounts.models import Prof
+    prof = get_object_or_404(Prof, id=prof_id)
+
+    if request.method == 'POST':
+        majoration = request.POST.get('majoration_mensuelle', '').strip()
+        prof.majoration_mensuelle = majoration or None
+        prof.save()
+        messages.success(request, 'تم تحديث المنحة الشهرية.')
+
+    return redirect('admin_prof_detail', prof_id=prof.id)
 
 
 # ==================== ADMIN — DISPONIBILITÉS DES PROFS ====================
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_prof_disponibilites(request, prof_id):
     from accounts.models import Prof
     from courses.models import DisponibiliteProf
@@ -1211,11 +1516,14 @@ def admin_demandes_disponibilite(request):
         for d in demandes
     ]
 
-    return render(request, 'dashboard/admin_demandes_disponibilite.html', {
+    context = {
         'demandes': demandes_avec_matrice,
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_demandes_disponibilite.html', context)
 
 
 @role_required('admin')
@@ -1242,13 +1550,13 @@ def admin_demande_disponibilite_rejeter(request, demande_id):
     demande.statut = 'rejetee'
     demande.date_traitement = timezone.now()
     demande.save()
-    messages.info(request, f'تم رفض طلب تعديل جدول تفرغ {demande.prof.user.get_full_name}.')
+    messages.info(request, f'تم رفض طلب تعديل جدول تفرغ {demande.prof.user.get_full_name()}.')
     return redirect('admin_demandes_disponibilite')
 
 
 # ==================== ADMIN — CALENDRIER ====================
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_calendrier(request):
     from courses.models import Seance
     from courses.utils import etendre_toutes_les_seances
@@ -1273,7 +1581,7 @@ def admin_calendrier(request):
     for seance in seances:
         seances_par_jour[seance.date].append(seance)
 
-    return render(request, 'dashboard/admin_calendrier.html', {
+    context = {
         'jours': [
             {'date': jour, 'nom': JOURS_SEMAINE_AR[jour.weekday()], 'seances': seances_par_jour[jour]}
             for jour in jours_dates
@@ -1282,18 +1590,24 @@ def admin_calendrier(request):
         'dimanche': jours_dates[-1],
         'semaine_precedente': (lundi - datetime.timedelta(days=7)).isoformat(),
         'semaine_suivante': (lundi + datetime.timedelta(days=7)).isoformat(),
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_calendrier.html', context)
 
 
 # ==================== ADMIN — PARAMÈTRES (TARIFS) ====================
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_parametres_abonnements(request):
     from inscriptions.models import TypeAbonnement
     types_abonnement = TypeAbonnement.objects.all().order_by('ordre')
-    return render(request, 'dashboard/admin_parametres_abonnements.html', {
+    context = {
         'types_abonnement': types_abonnement,
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_parametres_abonnements.html', context)
 
 
 @role_required('admin')
@@ -1341,15 +1655,51 @@ def admin_abonnement_toggle(request, abonnement_id):
     return redirect('admin_parametres_abonnements')
 
 
-# ==================== ADMIN — CRITÈRES D'ÉVALUATION (SUPERVISEUR) ====================
+# ==================== ADMIN — GRILLE TARIFAIRE DE RÉMUNÉRATION DES PROFS ====================
+# Grille fixe à 4 lignes (type_capacite × tranche_age) — contrairement à
+# TypeAbonnement/Critere ci-dessus, pas d'ajout/suppression: seul le montant
+# de chaque ligne existante est modifiable (voir courses.models.TarifRemuneration).
+
+@role_required('admin', 'mshrif')
+def admin_tarifs_remuneration(request):
+    from courses.models import TarifRemuneration
+    tarifs = TarifRemuneration.objects.all().order_by('type_capacite', 'tranche_age')
+    context = {
+        'tarifs': tarifs,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_tarifs_remuneration.html', context)
+
 
 @role_required('admin')
+def admin_tarif_remuneration_modifier(request, tarif_id):
+    from courses.models import TarifRemuneration
+    tarif = get_object_or_404(TarifRemuneration, id=tarif_id)
+
+    if request.method == 'POST':
+        tarif.montant = request.POST.get('montant')
+        tarif.save()
+        messages.success(request, 'تم تعديل التعرفة بنجاح.')
+        return redirect('admin_tarifs_remuneration')
+
+    return render(request, 'dashboard/admin_tarif_remuneration_modifier.html', {
+        'tarif': tarif,
+    })
+
+
+# ==================== ADMIN — CRITÈRES D'ÉVALUATION (SUPERVISEUR) ====================
+
+@role_required('admin', 'mshrif')
 def admin_criteres(request):
     from evaluations.models import Critere
     criteres = Critere.objects.all().order_by('ordre')
-    return render(request, 'dashboard/admin_criteres.html', {
+    context = {
         'criteres': criteres,
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_criteres.html', context)
 
 
 @role_required('admin')
@@ -1418,7 +1768,7 @@ def admin_critere_supprimer(request, critere_id):
 LIMITE_EVALUATIONS_LISTE = 30
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_evaluations(request):
     from courses.models import Presence, Groupe
     from accounts.models import Prof, Eleve
@@ -1456,7 +1806,7 @@ def admin_evaluations(request):
     nb_presences_total = presences.count()
     nb_evaluations_profs_total = evaluations_profs.count()
 
-    return render(request, 'dashboard/admin_evaluations.html', {
+    context = {
         'presences': presences[:LIMITE_EVALUATIONS_LISTE],
         'nb_presences_total': nb_presences_total,
         'evaluations_profs': evaluations_profs[:LIMITE_EVALUATIONS_LISTE],
@@ -1472,10 +1822,13 @@ def admin_evaluations(request):
             'date_debut': date_debut,
             'date_fin': date_fin,
         },
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_evaluations.html', context)
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_evaluation_detail(request, seance_id):
     from courses.models import Seance, Presence
     from evaluations.models import Evaluation
@@ -1484,22 +1837,131 @@ def admin_evaluation_detail(request, seance_id):
     presences = Presence.objects.filter(seance=seance).select_related('eleve__user').order_by('eleve__user__first_name')
     evaluation = Evaluation.objects.filter(seance=seance).select_related('superviseur__user').prefetch_related('notes__critere').first()
 
-    return render(request, 'dashboard/admin_evaluation_detail.html', {
+    context = {
         'seance': seance,
         'presences': presences,
         'evaluation': evaluation,
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_evaluation_detail.html', context)
+
+
+# ==================== CLASSEMENT MENSUEL DES PROFS (مؤطر/superviseur + مدير/admin) ====================
+# Jamais visible par un prof — trié par moyenne d'évaluation du mois, avec un
+# commentaire libre par prof/mois (evaluations.models.CommentaireMensuel).
+
+@role_required('admin', 'superviseur', 'mshrif')
+def classement_mensuel_profs(request):
+    from django.db.models import Avg
+    from django.utils import timezone
+    from accounts.models import Prof, Superviseur
+    from evaluations.models import Evaluation, CommentaireMensuel
+
+    mois = request.GET.get('mois', '')
+    aujourdhui = timezone.localdate()
+    if mois:
+        annee, _, num_mois = mois.partition('-')
+        annee, num_mois = int(annee), int(num_mois)
+    else:
+        annee, num_mois = aujourdhui.year, aujourdhui.month
+        mois = f'{annee:04d}-{num_mois:02d}'
+    mois_reference = datetime.date(annee, num_mois, 1)
+
+    # مشرف voit tous les profs (comme مدير) — au-dessus de tous dans la hiérarchie,
+    # seul مؤطر/superviseur reste scopé à ses profs assignés.
+    if request.user.role == 'superviseur':
+        superviseur = get_object_or_404(Superviseur, user=request.user)
+        profs = superviseur.profs_assignes.select_related('user')
+    else:
+        profs = Prof.objects.select_related('user')
+
+    commentaires = {
+        c.prof_id: c for c in CommentaireMensuel.objects.filter(
+            prof__in=profs, mois_reference=mois_reference
+        )
+    }
+
+    lignes = []
+    for prof in profs:
+        evaluations = Evaluation.objects.filter(
+            seance__groupe__prof=prof,
+            seance__date__year=annee,
+            seance__date__month=num_mois,
+        ).annotate(moyenne_evaluation=Avg('notes__note'))
+        moyennes = [e.moyenne_evaluation for e in evaluations if e.moyenne_evaluation is not None]
+        moyenne_mensuelle = sum(moyennes) / len(moyennes) if moyennes else None
+
+        commentaire = commentaires.get(prof.id)
+        lignes.append({
+            'prof': prof,
+            'nb_evaluations': len(moyennes),
+            'moyenne_mensuelle': round(moyenne_mensuelle, 2) if moyenne_mensuelle is not None else None,
+            'majoration_mensuelle': prof.majoration_mensuelle,
+            'commentaire': commentaire.commentaire if commentaire else '',
+        })
+
+    # Tri décroissant par moyenne, profs sans évaluation ce mois-ci en dernier.
+    lignes.sort(key=lambda l: (l['moyenne_mensuelle'] is None, -(l['moyenne_mensuelle'] or 0)))
+
+    BASE_TEMPLATE_PAR_ROLE = {
+        'admin': 'dashboard/base_admin.html',
+        'superviseur': 'dashboard/base_superviseur.html',
+        'mshrif': 'dashboard/base_mshrif.html',
+    }
+    COULEUR_PAR_ROLE = {
+        'admin': 'var(--color-role-admin-solid)',
+        'superviseur': 'var(--color-role-superviseur-solid)',
+        'mshrif': 'var(--color-role-mshrif-solid)',
+    }
+
+    context = {
+        'lignes': lignes,
+        'mois': mois,
+        'mois_reference': mois_reference,
+        'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
+        'couleur_role': COULEUR_PAR_ROLE[request.user.role],
+        'lecture_stricte': request.user.role == 'mshrif',
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/classement_mensuel_profs.html', context)
+
+
+@role_required('admin', 'superviseur')
+def classement_mensuel_commentaire(request, prof_id):
+    from django.urls import reverse
+    from accounts.models import Prof
+    from evaluations.models import CommentaireMensuel
+
+    prof = get_object_or_404(Prof, id=prof_id)
+    mois = request.POST.get('mois', '')
+    annee, _, num_mois = mois.partition('-')
+    mois_reference = datetime.date(int(annee), int(num_mois), 1)
+
+    CommentaireMensuel.objects.update_or_create(
+        prof=prof,
+        mois_reference=mois_reference,
+        defaults={
+            'commentaire': request.POST.get('commentaire', ''),
+            'redige_par': request.user,
+        },
+    )
+    messages.success(request, 'تم حفظ الملاحظة.')
+    return redirect(f"{reverse('classement_mensuel_profs')}?mois={mois}")
 
 
 # ==================== ADMIN — ASSIGNATION SUPERVISEURS ↔ PROFS ====================
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_superviseurs(request):
     from accounts.models import Superviseur
     superviseurs = Superviseur.objects.select_related('user').prefetch_related('profs_assignes').order_by('user__first_name')
-    return render(request, 'dashboard/admin_superviseurs.html', {
+    context = {
         'superviseurs': superviseurs,
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_superviseurs.html', context)
 
 
 @role_required('admin')
@@ -1540,15 +2002,15 @@ def admin_superviseur_ajouter(request):
         email_envoye = envoyer_email_bienvenue(request, email, password_temp, nom)
 
         if email_envoye:
-            messages.success(request, f'تمت إضافة المشرف {nom}. كلمة المرور المؤقتة: {password_temp} (تم إرسالها أيضاً عبر البريد الإلكتروني).')
+            messages.success(request, f'تمت إضافة المؤطر {nom}. كلمة المرور المؤقتة: {password_temp} (تم إرسالها أيضاً عبر البريد الإلكتروني).')
         else:
-            messages.warning(request, f'تمت إضافة المشرف {nom}، لكن تعذر إرسال بريد تسجيل الدخول. كلمة المرور المؤقتة: {password_temp} (أرسلها له يدوياً).')
+            messages.warning(request, f'تمت إضافة المؤطر {nom}، لكن تعذر إرسال بريد تسجيل الدخول. كلمة المرور المؤقتة: {password_temp} (أرسلها له يدوياً).')
         return redirect('admin_superviseurs')
 
     return render(request, 'dashboard/admin_superviseur_ajouter.html')
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_superviseur_assignations(request, superviseur_id):
     from accounts.models import Superviseur, Prof
     superviseur = get_object_or_404(Superviseur, id=superviseur_id)
@@ -1557,16 +2019,19 @@ def admin_superviseur_assignations(request, superviseur_id):
     if request.method == 'POST':
         profs_selectionnes = request.POST.getlist('profs')
         superviseur.profs_assignes.set(profs_selectionnes)
-        messages.success(request, f'تم تحديث المعلمين المُسندين إلى {superviseur.user.get_full_name}.')
+        messages.success(request, f'تم تحديث المعلمين المُسندين إلى {superviseur.user.get_full_name()}.')
         return redirect('admin_superviseurs')
 
     profs_assignes_ids = set(superviseur.profs_assignes.values_list('id', flat=True))
 
-    return render(request, 'dashboard/admin_superviseur_assignations.html', {
+    context = {
         'superviseur': superviseur,
         'profs': tous_les_profs,
         'profs_assignes_ids': profs_assignes_ids,
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_superviseur_assignations.html', context)
 
 
 # ==================== ADMIN — MODIFIER L'EMAIL D'UN UTILISATEUR ====================

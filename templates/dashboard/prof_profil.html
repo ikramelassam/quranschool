@@ -43,22 +43,8 @@
     {% endif %}
 </div>
 
-<div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">💰 مستحقاتي الشهرية</div>
-    <div style="color:#888; font-size:0.85rem; margin-bottom:12px;">{{ remuneration.tarif_par_eleve }} درهم × عدد الطلاب النشطين في كل مجموعة</div>
-    {% if remuneration.detail %}
-        {% for ligne in remuneration.detail %}
-        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-            <span style="font-weight:600;">{{ ligne.groupe.nom }}</span>
-            <span style="color:#888;">{{ ligne.nb_eleves_actifs }} طالب × {{ remuneration.tarif_par_eleve }} = <span style="color:var(--color-role-prof-solid); font-weight:700;">{{ ligne.montant }} د.م.</span></span>
-        </div>
-        {% endfor %}
-        <div style="display:flex; justify-content:space-between; padding:14px 0 0; margin-top:8px; font-size:1.1rem;">
-            <span style="font-weight:700;">المجموع</span>
-            <span style="font-weight:700; color:var(--color-role-prof-solid);">{{ remuneration.total }} د.م.</span>
-        </div>
-    {% else %}
-        <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
-    {% endif %}
-</div>
+<a href="{% url 'prof_remuneration' %}" class="compact-card" style="max-width:700px; display:flex; justify-content:space-between; align-items:center; text-decoration:none;">
+    <span style="color:var(--color-role-prof-solid); font-weight:700;">💰 راتبي الشهري</span>
+    <span style="color:var(--color-role-prof-solid);">عرض التفاصيل ←</span>
+</a>
 {% endblock %}

@@ -35,6 +35,8 @@ def redirect_by_role(user):
         return redirect('dashboard_superviseur')
     elif user.role == 'admin':
         return redirect('dashboard_admin')
+    elif user.role == 'mshrif':
+        return redirect('dashboard_mshrif')
     return redirect('login')
 
 
@@ -49,12 +51,14 @@ BASE_TEMPLATE_PAR_ROLE = {
     'prof': 'dashboard/base_prof.html',
     'superviseur': 'dashboard/base_superviseur.html',
     'admin': 'dashboard/base_admin.html',
+    'mshrif': 'dashboard/base_mshrif.html',
 }
 COULEUR_PAR_ROLE = {
     'eleve': '#2d5a1b',
     'admin': '#2d5a1b',
     'prof': '#1a3a5c',
     'superviseur': '#6b3a2a',
+    'mshrif': '#1A0D00',
 }
 
 

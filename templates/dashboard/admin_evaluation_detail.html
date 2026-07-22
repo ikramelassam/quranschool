@@ -1,4 +1,4 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 {% load presence_style %}
 {% block title %}تفاصيل تقييمات الحصة{% endblock %}
 {% block content %}
@@ -47,7 +47,7 @@
 </div>
 {% endif %}
 
-<div style="font-weight:700; color:var(--color-brand-gold-dark); margin:28px 0 12px;">🧑‍🏫 تقييم المعلم (من طرف المشرف)</div>
+<div style="font-weight:700; color:var(--color-brand-gold-dark); margin:28px 0 12px;">🧑‍🏫 تقييم المعلم (من طرف المؤطر)</div>
 {% if evaluation %}
 <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div style="color:#888; font-size:0.85rem; margin-bottom:12px;">

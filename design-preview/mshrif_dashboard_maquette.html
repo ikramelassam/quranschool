@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maquette — لوحة المشرف (PARTIE 2)</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ===== Tokens copiés tels quels depuis static/css/tokens.css (valeurs réelles actuelles) ===== */
+:root {
+    --color-brand-gold: #C9962E;
+    --color-brand-gold-dark: #8B4B00;
+    --color-bg-cream: #FFF8EF;
+    --color-text-primary: #2C1500;
+    --color-text-muted: #8B6040;
+    --color-success: #2D5A3D;
+    --color-warning: #8B4B00;
+    --color-danger: #B3261E;
+    --color-role-mshrif: linear-gradient(135deg, #1A0D00, #2C1500);
+    --color-role-mshrif-solid: #1A0D00;
+}
+* { box-sizing: border-box; font-family: 'Tajawal', sans-serif; }
+body { background: #ddd; margin: 0; padding: 32px; }
+h2.maquette-titre { color: #333; font-size: 1.3rem; margin: 48px 0 16px; border-bottom: 3px solid var(--color-role-mshrif-solid); padding-bottom: 8px; }
+h2.maquette-titre:first-child { margin-top: 0; }
+.note-maquette { background: #fff3cd; border-right: 4px solid #8a6d00; padding: 10px 16px; border-radius: 6px; font-size: 0.85rem; color: #6b5400; margin-bottom: 16px; max-width: 900px; }
+
+/* ===== Frame desktop ===== */
+.frame-desktop { width: 1180px; max-width: 100%; margin-bottom: 20px; box-shadow: 0 4px 24px rgba(0,0,0,0.2); border-radius: 8px; overflow: hidden; }
+.frame-label { display:inline-block; background:#333; color:white; font-size:0.75rem; padding:3px 12px; border-radius: 6px 6px 0 0; margin-bottom:-1px; }
+
+/* ===== App shell (copie de base_mshrif.html) ===== */
+.app { display: flex; min-height: 560px; background: var(--color-bg-cream); }
+.sidebar { width: 240px; flex-shrink: 0; background: var(--color-role-mshrif); display: flex; flex-direction: column; }
+.sidebar-logo { margin: 16px; padding: 14px 10px 12px; text-align: center; background: var(--color-bg-cream); border-radius: 16px; }
+.sidebar-logo .title { color: var(--color-text-primary); font-weight: 700; font-size: 1rem; }
+.sidebar-logo .subtitle { color: var(--color-text-muted); font-size: 0.75rem; }
+.sidebar-menu { padding: 16px 0; flex: 1; }
+.menu-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.95rem; transition: all .2s; }
+.menu-item:hover { background: rgba(255,255,255,0.1); color: white; }
+.menu-item.active { background: rgba(255,255,255,0.15); color: white; font-weight: 600; }
+.menu-item .label { display:flex; align-items:center; gap: 10px; }
+.menu-badge { background: var(--color-danger); color: white; border-radius: 20px; padding: 1px 8px; font-size: 0.72rem; font-weight: 700; }
+.sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+.btn-logout { color: rgba(255,255,255,0.7); font-size: 0.9rem; }
+.main { flex: 1; padding: 28px; overflow: auto; }
+.page-title { color: var(--color-role-mshrif-solid); font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+.page-subtitle { color: var(--color-text-muted); margin-bottom: 22px; font-size: 0.92rem; }
+
+/* ===== Composants réutilisés (identiques à compact-card / stat cards déjà en prod) ===== */
+.stat-grid { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.stat-card { flex: 1 1 220px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.stat-card .l { color: #888; font-size: 0.85rem; }
+.stat-card .v { color: var(--color-role-mshrif-solid); font-size: 2rem; font-weight: 700; }
+.stat-card .i { color: #888; font-size: 0.8rem; }
+
+.section-title { font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary); margin: 0 0 10px; }
+.compact-card { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+a.compact-card { display: block; color: inherit; text-decoration: none; transition: box-shadow .15s; }
+a.compact-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+.row2 { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.row2 > a { flex: 1 1 260px; }
+
+.candid-card { background: white; border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.candid-name { font-weight: 700; font-size: 1.1rem; }
+.candid-meta { color: #888; font-size: 0.85rem; margin-top: 2px; }
+.btn { border-radius: 8px; padding: 8px 16px; text-decoration: none; font-size: 0.9rem; display: inline-block; transition: all .15s; }
+.btn:hover { filter: brightness(0.93); transform: translateY(-1px); }
+.btn-outline { background: white; color: var(--color-role-mshrif-solid); border: 2px solid var(--color-role-mshrif-solid); }
+.btn-success { background: var(--color-success); color: white; }
+.btn-danger { background: #dc3545; color: white; }
+
+table.remun { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+table.remun th { background: var(--color-role-mshrif-solid); color: white; text-align: right; padding: 12px 18px; font-size: 0.85rem; font-weight: 600; }
+table.remun td { padding: 14px 18px; border-bottom: 1px solid #f0f0f0; }
+table.remun tr:last-child td { border-bottom: none; }
+.badge-majoration { background: rgba(201,150,46,0.15); color: var(--color-brand-gold-dark); border-radius: 20px; padding: 3px 12px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+.badge-none { color: #bbb; font-size: 0.85rem; }
+.total-row td { background: var(--color-bg-cream); font-weight: 700; font-size: 1.05rem; color: var(--color-role-mshrif-solid); }
+
+.classement-card { background: white; border-radius: 12px; padding: 18px 22px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 12px; }
+.classement-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.pill-note { background: rgba(45,90,61,0.1); color: var(--color-success); border-radius: 20px; padding: 5px 14px; font-weight: 700; font-size: 0.9rem; }
+.pill-majoration { background: rgba(201,150,46,0.12); color: var(--color-brand-gold-dark); border-radius: 20px; padding: 5px 14px; font-size: 0.85rem; }
+.lien-detail { color: var(--color-role-mshrif-solid); font-size: 0.85rem; text-decoration: none; font-weight: 600; }
+.lien-detail:hover { text-decoration: underline; }
+.readonly-note { background: var(--color-bg-cream); border-radius: 8px; padding: 8px 14px; color: var(--color-text-muted); font-size: 0.78rem; margin-top: 10px; }
+
+/* ===== Frame mobile (simule un vrai écran 375px, sidebar cachée = comportement réel du site <768px) ===== */
+.frame-mobile { width: 375px; box-shadow: 0 4px 24px rgba(0,0,0,0.25); border-radius: 24px; overflow: hidden; border: 8px solid #222; }
+.mobile-topbar { background: var(--color-role-mshrif-solid); color: white; padding: 10px 16px; font-size: 1.1rem; }
+.mobile-body { background: var(--color-bg-cream); padding: 16px; min-height: 500px; }
+.mobile-body .page-title { font-size: 1.25rem; }
+.mobile-body .stat-grid { flex-direction: column; }
+.mobile-body .row2 { flex-direction: column; }
+.mobile-body table.remun { font-size: 0.82rem; }
+.mobile-body table.remun th, .mobile-body table.remun td { padding: 8px 10px; }
+.mobile-body .candid-card, .mobile-body .classement-card { flex-direction: column; align-items: stretch; }
+.mobile-body .candid-card > div:last-child, .mobile-body .classement-top { flex-direction: column; align-items: stretch; }
+
+.side-by-side { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+</style>
+</head>
+<body>
+
+<div class="note-maquette">
+    📐 Maquette statique — HTML/CSS autonome, réutilise les tokens et composants déjà en production
+    (compact-card, stat-card, badges). Aucun template réel n'est modifié par ce fichier.
+</div>
+
+<!-- ==================================================================== -->
+<h2 class="maquette-titre">1. 📊 نظرة عامة — desktop</h2>
+<div class="frame-desktop">
+<div class="app">
+    <div class="sidebar">
+        <div class="sidebar-logo"><div class="title">منصة زدني علماً</div><div class="subtitle">لوحة المشرف</div></div>
+        <div class="sidebar-menu">
+            <a class="menu-item active"><span class="label">📊 نظرة عامة</span></a>
+            <a class="menu-item"><span class="label">👥 طلبات الأساتذة</span><span class="menu-badge">1</span></a>
+            <a class="menu-item"><span class="label">💰 الاستحقاقات</span></a>
+            <a class="menu-item"><span class="label">📋 تقارير المؤطرين</span></a>
+            <a class="menu-item"><span class="label">⚙️ الإعدادات</span></a>
+        </div>
+        <div class="sidebar-footer"><span class="btn-logout">🚪 تسجيل الخروج</span></div>
+    </div>
+    <div class="main">
+        <div class="page-title">أهلاً بك 👋</div>
+        <div class="page-subtitle">نظرة عامة على المنصة</div>
+
+        <div class="stat-grid">
+            <div class="stat-card"><div class="l">الطلاب النشطون</div><div class="v">3</div><div class="i">👤</div></div>
+            <div class="stat-card"><div class="l">المعلمون</div><div class="v">3</div><div class="i">🎓</div></div>
+            <div class="stat-card"><div class="l">المجموعات النشطة</div><div class="v">4</div><div class="i">👥</div></div>
+            <div class="stat-card"><div class="l">نسبة الحضور هذا الشهر</div><div class="v">67%</div><div class="i">📊</div></div>
+        </div>
+
+        <div class="section-title">الوصول السريع (قراءة فقط)</div>
+        <div class="row2">
+            <a class="compact-card" href="#">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:700;">👤 قائمة الطلاب</span>
+                    <span style="color:var(--color-role-mshrif-solid);">عرض القائمة الكاملة ←</span>
+                </div>
+            </a>
+            <a class="compact-card" href="#">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:700;">🎓 قائمة المعلمين</span>
+                    <span style="color:var(--color-role-mshrif-solid);">عرض القائمة الكاملة ←</span>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+</div>
+
+<h2 class="maquette-titre">1. نظرة عامة — mobile 375px</h2>
+<div class="frame-mobile">
+    <div class="mobile-topbar">☰ منصة زدني علماً</div>
+    <div class="mobile-body">
+        <div class="page-title">أهلاً بك 👋</div>
+        <div class="page-subtitle">نظرة عامة على المنصة</div>
+        <div class="stat-grid">
+            <div class="stat-card"><div class="l">الطلاب النشطون</div><div class="v">3</div><div class="i">👤</div></div>
+            <div class="stat-card"><div class="l">المعلمون</div><div class="v">3</div><div class="i">🎓</div></div>
+            <div class="stat-card"><div class="l">المجموعات النشطة</div><div class="v">4</div><div class="i">👥</div></div>
+            <div class="stat-card"><div class="l">نسبة الحضور هذا الشهر</div><div class="v">67%</div><div class="i">📊</div></div>
+        </div>
+        <div class="section-title">الوصول السريع (قراءة فقط)</div>
+        <div class="row2">
+            <a class="compact-card" href="#">👤 قائمة الطلاب <span style="float:left; color:var(--color-role-mshrif-solid);">←</span></a>
+            <a class="compact-card" href="#">🎓 قائمة المعلمين <span style="float:left; color:var(--color-role-mshrif-solid);">←</span></a>
+        </div>
+    </div>
+</div>
+
+<!-- ==================================================================== -->
+<h2 class="maquette-titre">2. 👥 طلبات الأساتذة — desktop (déjà construite, badge sidebar ajouté)</h2>
+<div class="frame-desktop">
+<div class="app">
+    <div class="sidebar">
+        <div class="sidebar-logo"><div class="title">منصة زدني علماً</div><div class="subtitle">لوحة المشرف</div></div>
+        <div class="sidebar-menu">
+            <a class="menu-item"><span class="label">📊 نظرة عامة</span></a>
+            <a class="menu-item active"><span class="label">👥 طلبات الأساتذة</span><span class="menu-badge">1</span></a>
+            <a class="menu-item"><span class="label">💰 الاستحقاقات</span></a>
+            <a class="menu-item"><span class="label">📋 تقارير المؤطرين</span></a>
+            <a class="menu-item"><span class="label">⚙️ الإعدادات</span></a>
+        </div>
+        <div class="sidebar-footer"><span class="btn-logout">🚪 تسجيل الخروج</span></div>
+    </div>
+    <div class="main">
+        <div class="page-title">طلبات الأساتذة</div>
+        <div class="page-subtitle">مرحّلة من المدير، بانتظار التصديق النهائي — القبول هنا ينشئ حساب المعلم فعلياً</div>
+        <div class="candid-card">
+            <div>
+                <div class="candid-name">أحمد بنعلي</div>
+                <div class="candid-meta">ahmed.benali@example.com</div>
+                <div class="candid-meta">تاريخ التقديم: 18-07-2026</div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <a class="btn btn-outline" href="#">👁 عرض</a>
+                <a class="btn btn-success" href="#">✅ قبول نهائي</a>
+                <a class="btn btn-danger" href="#">❌ رفض</a>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<h2 class="maquette-titre">2. طلبات الأساتذة — mobile 375px</h2>
+<div class="frame-mobile">
+    <div class="mobile-topbar">☰ منصة زدني علماً</div>
+    <div class="mobile-body">
+        <div class="page-title">طلبات الأساتذة</div>
+        <div class="page-subtitle">بانتظار التصديق النهائي</div>
+        <div class="candid-card">
+            <div>
+                <div class="candid-name">أحمد بنعلي</div>
+                <div class="candid-meta">ahmed.benali@example.com</div>
+                <div class="candid-meta">18-07-2026</div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <a class="btn btn-outline" href="#">👁 عرض</a>
+                <a class="btn btn-success" href="#">✅ قبول نهائي</a>
+                <a class="btn btn-danger" href="#">❌ رفض</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================================================================== -->
+<h2 class="maquette-titre">3. 💰 الاستحقاقات — desktop</h2>
+<div class="frame-desktop">
+<div class="app">
+    <div class="sidebar">
+        <div class="sidebar-logo"><div class="title">منصة زدني علماً</div><div class="subtitle">لوحة المشرف</div></div>
+        <div class="sidebar-menu">
+            <a class="menu-item"><span class="label">📊 نظرة عامة</span></a>
+            <a class="menu-item"><span class="label">👥 طلبات الأساتذة</span><span class="menu-badge">1</span></a>
+            <a class="menu-item active"><span class="label">💰 الاستحقاقات</span></a>
+            <a class="menu-item"><span class="label">📋 تقارير المؤطرين</span></a>
+            <a class="menu-item"><span class="label">⚙️ الإعدادات</span></a>
+        </div>
+        <div class="sidebar-footer"><span class="btn-logout">🚪 تسجيل الخروج</span></div>
+    </div>
+    <div class="main">
+        <div class="page-title">الاستحقاقات</div>
+        <div class="page-subtitle">حسب شبكة التعرفات الحالية — المجموع العام: <strong style="color:var(--color-role-mshrif-solid);">140.00 د.م.</strong></div>
+        <table class="remun">
+            <tr><th>المعلم</th><th>المبلغ الأساسي</th><th>المنحة</th><th>المجموع</th></tr>
+            <tr>
+                <td>mehdi l</td>
+                <td>140.00 د.م.</td>
+                <td><span class="badge-none">—</span></td>
+                <td style="font-weight:700;">140.00 د.م.</td>
+            </tr>
+            <tr>
+                <td>بروف تجريبي</td>
+                <td>0.00 د.م.</td>
+                <td><span class="badge-majoration">➕ 200.00 د.م.</span></td>
+                <td style="font-weight:700;">200.00 د.م.</td>
+            </tr>
+            <tr>
+                <td>samira hh</td>
+                <td>0.00 د.م.</td>
+                <td><span class="badge-none">—</span></td>
+                <td style="font-weight:700;">0.00 د.م.</td>
+            </tr>
+            <tr class="total-row"><td>المجموع العام</td><td>140.00 د.م.</td><td>200.00 د.م.</td><td>340.00 د.م.</td></tr>
+        </table>
+        <div class="readonly-note" style="max-width:600px; margin-top:16px;">
+            ℹ️ Pas de filtre par mois : le calcul est toujours "à la volée" (élèves actifs actuels),
+            aucune donnée mensuelle historisée n'existe pour l'instant — un filtre par mois n'aurait
+            aucun effet réel. À construire uniquement si un historique mensuel est demandé séparément.
+        </div>
+    </div>
+</div>
+</div>
+
+<h2 class="maquette-titre">3. الاستحقاقات — mobile 375px</h2>
+<div class="frame-mobile">
+    <div class="mobile-topbar">☰ منصة زدني علماً</div>
+    <div class="mobile-body">
+        <div class="page-title">الاستحقاقات</div>
+        <div class="page-subtitle">المجموع العام: <strong>140.00 د.م.</strong></div>
+        <table class="remun">
+            <tr><th>المعلم</th><th>الأساسي</th><th>المنحة</th><th>المجموع</th></tr>
+            <tr><td>mehdi l</td><td>140</td><td>—</td><td><b>140</b></td></tr>
+            <tr><td>بروف تجريبي</td><td>0</td><td><span class="badge-majoration">➕200</span></td><td><b>200</b></td></tr>
+            <tr><td>samira hh</td><td>0</td><td>—</td><td><b>0</b></td></tr>
+            <tr class="total-row"><td>المجموع</td><td>140</td><td>200</td><td>340</td></tr>
+        </table>
+    </div>
+</div>
+
+<!-- ==================================================================== -->
+<h2 class="maquette-titre">4. 📋 تقارير المؤطرين — desktop (réutilise classement_mensuel_profs.html, lecture seule)</h2>
+<div class="frame-desktop">
+<div class="app">
+    <div class="sidebar">
+        <div class="sidebar-logo"><div class="title">منصة زدني علماً</div><div class="subtitle">لوحة المشرف</div></div>
+        <div class="sidebar-menu">
+            <a class="menu-item"><span class="label">📊 نظرة عامة</span></a>
+            <a class="menu-item"><span class="label">👥 طلبات الأساتذة</span><span class="menu-badge">1</span></a>
+            <a class="menu-item"><span class="label">💰 الاستحقاقات</span></a>
+            <a class="menu-item active"><span class="label">📋 تقارير المؤطرين</span></a>
+            <a class="menu-item"><span class="label">⚙️ الإعدادات</span></a>
+        </div>
+        <div class="sidebar-footer"><span class="btn-logout">🚪 تسجيل الخروج</span></div>
+    </div>
+    <div class="main">
+        <div class="page-title">الترتيب الشهري للمعلمين</div>
+        <div class="page-subtitle">مرتب حسب متوسط تقييمات المؤطر لهذا الشهر — عرض للاطلاع فقط</div>
+        <div class="classement-card">
+            <div class="classement-top">
+                <div><span style="font-weight:700; font-size:1.05rem;">mehdi l</span> <span style="color:#888; font-size:0.82rem; margin-right:8px;">2 تقييم هذا الشهر</span></div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="pill-note">⭐ 2.23 / 4</span>
+                    <a class="lien-detail" href="#">عرض التقييمات التفصيلية (15 معيار) ←</a>
+                </div>
+            </div>
+        </div>
+        <div class="classement-card">
+            <div class="classement-top">
+                <div><span style="font-weight:700; font-size:1.05rem;">بروف تجريبي</span> <span style="color:#888; font-size:0.82rem; margin-right:8px;">0 تقييم هذا الشهر</span></div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <span style="background:#f0f0f0; color:#aaa; border-radius:20px; padding:5px 14px; font-size:0.85rem;">— لا يوجد تقييم</span>
+                    <span class="pill-majoration">➕ منحة: 200.00 د.م.</span>
+                </div>
+            </div>
+        </div>
+        <div class="readonly-note" style="max-width:700px;">
+            🔒 القراءة فقط للمشرف — لا يظهر حقل الملاحظة الشهرية (خاص بالمؤطر/المدير فقط).
+        </div>
+    </div>
+</div>
+</div>
+
+<h2 class="maquette-titre">4. تقارير المؤطرين — mobile 375px</h2>
+<div class="frame-mobile">
+    <div class="mobile-topbar">☰ منصة زدني علماً</div>
+    <div class="mobile-body">
+        <div class="page-title">الترتيب الشهري</div>
+        <div class="page-subtitle">عرض للاطلاع فقط</div>
+        <div class="classement-card">
+            <div class="classement-top">
+                <div style="font-weight:700;">mehdi l</div>
+                <div style="color:#888; font-size:0.8rem;">2 تقييم هذا الشهر</div>
+                <div style="margin-top:6px;"><span class="pill-note">⭐ 2.23 / 4</span></div>
+                <a class="lien-detail" href="#" style="display:block; margin-top:8px;">عرض التقييمات التفصيلية ←</a>
+            </div>
+        </div>
+        <div class="classement-card">
+            <div class="classement-top">
+                <div style="font-weight:700;">بروف تجريبي</div>
+                <div style="color:#888; font-size:0.8rem;">0 تقييم هذا الشهر</div>
+                <div style="margin-top:6px; display:flex; gap:8px; flex-wrap:wrap;">
+                    <span style="background:#f0f0f0; color:#aaa; border-radius:20px; padding:5px 14px; font-size:0.85rem;">— لا يوجد تقييم</span>
+                    <span class="pill-majoration">➕ 200.00 د.م.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

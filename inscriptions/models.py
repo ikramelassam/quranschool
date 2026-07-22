@@ -109,6 +109,7 @@ class InscriptionEleve(models.Model):
 class InscriptionProf(models.Model):
     STATUT_CHOICES = [
         ('en_attente', 'En attente'),
+        ('validee_directeur', 'Validée par le directeur — en attente du المشرف'),
         ('valide', 'Validé'),
         ('rejete', 'Rejeté'),
     ]

@@ -67,6 +67,26 @@
         .page-title { color: var(--color-role-prof-solid); font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
         .page-subtitle { color: var(--color-text-muted); margin-bottom: 30px; }
 
+        /* ===== Composants partagés de l'expérience prof =====
+           Mêmes classes que templates/dashboard/base_eleve.html (couleur
+           adaptée --color-role-prof-solid), pour que la page راتبي garde le
+           même vocabulaire visuel que l'accueil élève déjà validé. */
+        .section-title { font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary); margin: 0 0 10px; }
+        .compact-card { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        a.compact-card, .compact-card.clickable { display: block; color: inherit; text-decoration: none; transition: box-shadow 0.15s; }
+        a.compact-card:hover, .compact-card.clickable:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+
+        .hero-total-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); padding: 28px 24px; text-align: center; margin-bottom: 20px; }
+        .hero-total-card .mois { font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 6px; }
+        .hero-total-card .montant { font-size: 2.6rem; font-weight: 700; color: var(--color-role-prof-solid); line-height: 1; }
+        .hero-total-card .montant span { font-size: 1.1rem; color: #b3a08c; font-weight: 500; }
+
+        /* Icône de lien Meet à côté du badge de statut de séance — voir dashboard/_meet_icon.html. */
+        .contact-icon-link { display: inline-flex; border-radius: 50%; transition: transform 150ms ease, box-shadow 150ms ease; }
+        .contact-icon-link:hover { transform: scale(1.12); }
+        .contact-icon-link.contact-icon-meet:hover { box-shadow: 0 2px 8px rgba(26, 115, 232, 0.45); }
+        .contact-icon-link.contact-icon-meet-disabled:hover { box-shadow: 0 2px 8px rgba(150, 150, 150, 0.45); }
+
         /* Menu mobile */
         .sidebar-toggle {
             display: none;
@@ -145,6 +165,14 @@
         <a href="{% url 'prof_profil' %}"
            class="menu-item {% if request.resolver_match.url_name == 'prof_profil' %}active{% endif %}">
             <span class="icon">👤</span> ملفي الشخصي
+        </a>
+        <a href="{% url 'prof_remuneration' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'prof_remuneration' %}active{% endif %}">
+            <span class="icon">💰</span> راتبي
+        </a>
+        <a href="{% url 'prof_charte' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'prof_charte' %}active{% endif %}">
+            <span class="icon">📜</span> ميثاق التدريس
         </a>
         <a href="{% url 'password_change' %}"
            class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">

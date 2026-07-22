@@ -1,0 +1,93 @@
+{% load charte_tags %}
+<div style="text-align:center; color:var(--color-text-muted); font-size:0.95rem; line-height:2; margin-bottom:24px;">
+    {{ charte.intro|linebreaks }}
+</div>
+
+<div style="text-align:center; color:var(--color-brand-gold-dark); font-weight:700; font-size:1.15rem; margin:24px 0; padding:16px; background:var(--color-bg-cream); border-radius:10px;">
+    {{ charte.verset_ouverture }}
+</div>
+
+<h3 style="color:var(--color-text-primary); border-bottom:2px solid var(--color-brand-gold); padding-bottom:8px; margin:32px 0 16px;">{{ charte.titre_bunud }}</h3>
+
+<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">أولاً: {{ charte.section1_titre }}</h3>
+<p>{{ charte.section1_intro }}</p>
+<ul style="padding-right:20px; line-height:1.9;">
+{% for item in charte.section1_items|parse_items %}
+    <li>{% if item.label %}<strong>{{ item.label }}:</strong> {% endif %}{{ item.texte }}</li>
+{% endfor %}
+</ul>
+
+<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">ثانياً: {{ charte.section2_titre }}</h3>
+<p>{{ charte.section2_intro }}</p>
+<ul style="padding-right:20px; line-height:1.9;">
+{% for item in charte.section2_items|parse_items %}
+    <li>{% if item.label %}<strong>{{ item.label }}:</strong> {% endif %}{{ item.texte }}</li>
+{% endfor %}
+</ul>
+
+<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">ثالثاً: {{ charte.section3_titre }}</h3>
+<p>{{ charte.section3_intro }}</p>
+<ul style="padding-right:20px; line-height:1.9;">
+{% for item in charte.section3_items|parse_items %}
+    <li>{% if item.label %}<strong>{{ item.label }}:</strong> {% endif %}{{ item.texte }}</li>
+{% endfor %}
+</ul>
+<div style="text-align:center; color:var(--color-brand-gold-dark); font-weight:600; font-size:1.05rem; margin:16px 0; padding:16px; background:var(--color-bg-cream); border-radius:10px; line-height:2;">
+    {{ charte.verset_rahma_texte }}
+    <div style="font-size:0.8rem; color:var(--color-text-muted); margin-top:6px;">{{ charte.verset_rahma_reference }}</div>
+</div>
+<p>{{ charte.section3_conclusion }}</p>
+
+<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">رابعاً: {{ charte.section4_titre }}</h3>
+<p>{{ charte.section4_intro }}</p>
+<ul style="padding-right:20px; line-height:1.9;">
+{% for item in charte.section4_items|parse_items %}
+    <li>{% if item.label %}<strong>{{ item.label }}:</strong> {% endif %}{{ item.texte }}</li>
+{% endfor %}
+</ul>
+
+<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">خامساً: {{ charte.section5_titre }}</h3>
+<p>{{ charte.section5_intro }}</p>
+<div style="overflow-x:auto; margin:16px 0;">
+<table style="width:100%; border-collapse:collapse; font-size:0.92rem;">
+<thead>
+<tr style="background:var(--color-brand-gold-dark); color:white;">
+<th style="padding:10px 14px; text-align:right;">المخالفة</th>
+<th style="padding:10px 14px; text-align:center;">الإجراء الأول</th>
+<th style="padding:10px 14px; text-align:center;">الإجراء الثاني</th>
+<th style="padding:10px 14px; text-align:center;">الإجراء الثالث</th>
+</tr>
+</thead>
+<tbody>
+{% for ligne in charte.sanctions.all %}
+<tr style="border-bottom:1px solid #eee;">
+    <td style="padding:10px 14px;">{{ ligne.violation }}</td>
+    {% if ligne.severite == 'immediate' %}
+    <td style="padding:10px 14px; text-align:center;" colspan="3">الإعفاء الفوري</td>
+    {% else %}
+    <td style="padding:10px 14px; text-align:center;">الإنذار الأول</td>
+    <td style="padding:10px 14px; text-align:center;">الإنذار الثاني</td>
+    <td style="padding:10px 14px; text-align:center;">خصم من الراتب</td>
+    {% endif %}
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<p style="font-size:0.85rem; color:var(--color-text-muted);">{{ charte.section5_note }}</p>
+
+<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">{{ charte.section6_titre }}</h3>
+<p>{{ charte.section6_intro }}</p>
+<ul style="padding-right:20px; line-height:1.9;">
+{% for item in charte.section6_items|parse_items %}
+    <li>{% if item.label %}<strong>{{ item.label }}:</strong> {% endif %}{{ item.texte }}</li>
+{% endfor %}
+</ul>
+
+<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">{{ charte.section7_titre }}</h3>
+<p>{{ charte.section7_intro }}</p>
+<ul style="padding-right:20px; line-height:1.9;">
+{% for item in charte.section7_items|parse_items %}
+    <li>{% if item.label %}<strong>{{ item.label }}:</strong> {% endif %}{{ item.texte }}</li>
+{% endfor %}
+</ul>

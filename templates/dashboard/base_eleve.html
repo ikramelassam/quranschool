@@ -43,6 +43,12 @@
         .page-title { color: var(--color-role-eleve-solid); font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
         .page-subtitle { color: var(--color-text-muted); margin-bottom: 30px; }
 
+        /* Icône de lien Meet à côté du badge de statut de séance — voir dashboard/_meet_icon.html. */
+        .contact-icon-link { display: inline-flex; border-radius: 50%; transition: transform 150ms ease, box-shadow 150ms ease; }
+        .contact-icon-link:hover { transform: scale(1.12); }
+        .contact-icon-link.contact-icon-meet:hover { box-shadow: 0 2px 8px rgba(26, 115, 232, 0.45); }
+        .contact-icon-link.contact-icon-meet-disabled:hover { box-shadow: 0 2px 8px rgba(150, 150, 150, 0.45); }
+
         /* ===== Composants partagés de l'expérience élève =====
            Un seul vocabulaire visuel (cartes, badges de mention, anneau de
            progression) réutilisé sur toutes les pages élève (accueil,

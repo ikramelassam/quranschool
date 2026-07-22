@@ -6,6 +6,13 @@
 <div class="page-title">أهلاً، {{ prof.user.get_full_name }} 👋</div>
 <div class="page-subtitle">لوحة التحكم الخاصة بك</div>
 
+{% if not prof.charte_acceptee %}
+<a href="{% url 'prof_charte' %}" style="display:flex; justify-content:space-between; align-items:center; background:#fff8ec; border:1px solid var(--color-brand-gold); border-radius:10px; padding:12px 18px; margin-bottom:20px; text-decoration:none; color:var(--color-brand-gold-dark); flex-wrap:wrap; gap:8px;">
+    <span>📜 يرجى الاطلاع على ميثاق التدريس والموافقة عليه</span>
+    <span style="font-weight:600;">عرض الميثاق ←</span>
+</a>
+{% endif %}
+
 <!-- Stats -->
 <div class="row g-3 mb-4">
     <div class="col-md-4">
@@ -42,7 +49,6 @@
                 <div style="font-weight:600;">{{ seance.groupe.nom }}</div>
                 <div style="color:#888; font-size:0.85rem;">
                     {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
-                    {% if seance.groupe.lien_reunion %} · <a href="{{ seance.groupe.lien_reunion }}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 رابط الاجتماع</a>{% endif %}
                 </div>
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
@@ -50,6 +56,7 @@
                     <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem;">منتهية ✅</span>
                 {% elif seance.statut == 'planifiee' %}
                     <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">مخططة 📅</span>
+                    {% include 'dashboard/_meet_icon.html' with lien=seance.groupe.lien_reunion %}
                 {% else %}
                     <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:3px 12px; font-size:0.8rem;">ملغاة ❌</span>
                 {% endif %}

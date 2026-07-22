@@ -1,0 +1,174 @@
+{% extends 'dashboard/base_mshrif.html' %}
+{% load libelles_arabes %}
+
+{% block title %}تفاصيل طلب المعلم{% endblock %}
+
+{% block content %}
+<div class="page-title">📋 تفاصيل طلب المعلم</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+
+    <!-- Infos personnelles -->
+    <div style="color:var(--color-role-mshrif-solid); font-weight:700; border-bottom:2px solid var(--color-role-mshrif-solid); padding-bottom:6px; margin-bottom:12px;">المعلومات الشخصية</div>
+
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الاسم الكامل</span>
+        <span style="font-weight:600;">{{ inscription.nom }} {{ inscription.prenom }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">البريد الإلكتروني</span>
+        <span style="font-weight:600;">{{ inscription.email }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">تاريخ الميلاد</span>
+        <span style="font-weight:600;">{{ inscription.date_naissance }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">المدينة</span>
+        <span style="font-weight:600;">{{ inscription.ville }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الحالة الاجتماعية</span>
+        <span style="font-weight:600;">{{ inscription.statut_familial|libelle_arabe:"statut_familial" }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الوظيفة الحالية</span>
+        <span style="font-weight:600;">{{ inscription.job_actuel }}</span>
+    </div>
+
+    <!-- Qualifications -->
+    <div style="color:var(--color-role-mshrif-solid); font-weight:700; border-bottom:2px solid var(--color-role-mshrif-solid); padding-bottom:6px; margin:20px 0 12px;">المؤهلات</div>
+
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">مستوى الحفظ</span>
+        <span style="font-weight:600;">{{ inscription.niveau_memorisation }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الشهادات</span>
+        <span style="font-weight:600;">{{ inscription.certifications }}</span>
+    </div>
+
+    <!-- Parcours -->
+    <div style="color:var(--color-role-mshrif-solid); font-weight:700; border-bottom:2px solid var(--color-role-mshrif-solid); padding-bottom:6px; margin:20px 0 12px;">المسار والخبرة</div>
+
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">المسار الدراسي</div>
+        <div style="font-weight:600;">{{ inscription.parcours_scolaire }}</div>
+    </div>
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">مسار التدريس</div>
+        <div style="font-weight:600;">{{ inscription.parcours_enseignant }}</div>
+    </div>
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">التعامل مع الطالب الضعيف</div>
+        <div style="font-weight:600;">{{ inscription.gestion_eleve_faible }}</div>
+    </div>
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">التعامل مع الطالب الغائب</div>
+        <div style="font-weight:600;">{{ inscription.gestion_eleve_absent }}</div>
+    </div>
+
+    <!-- Détails supplémentaires -->
+    <div style="color:var(--color-role-mshrif-solid); font-weight:700; border-bottom:2px solid var(--color-role-mshrif-solid); padding-bottom:6px; margin:20px 0 12px;">معلومات إضافية</div>
+
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الفئة المفضلة</span>
+        <span style="font-weight:600;">{{ inscription.type_eleve_preference|libelles_arabes_liste:"type_eleve_preference" }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">قيود الجنس</span>
+        <span style="font-weight:600;">{{ inscription.contrainte_genre|libelles_arabes_liste:"contrainte_genre" }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">اللغات</span>
+        <span style="font-weight:600;">{{ inscription.langues|libelles_arabes_liste:"langues" }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الأدوات</span>
+        <span style="font-weight:600;">{{ inscription.outils_maitrises|libelles_arabes_liste:"outils_maitrises" }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">تاريخ التقديم</span>
+        <span style="font-weight:600;">{{ inscription.date_soumission|date:"d-m-Y H:i" }}</span>
+    </div>
+
+    {% if inscription.audio_enregistrement %}
+    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <div style="color:#888; margin-bottom:4px;">التسجيل الصوتي</div>
+        {% if audio_verification_echouee %}
+        <div style="background:#fff3cd; color:#856404; border-radius:8px; padding:10px 14px; font-size:0.9rem;">
+            ⚠️ تعذر التحقق من وجود الملف الصوتي حالياً (مشكلة اتصال مؤقتة). أعد تحميل الصفحة لاحقاً للمحاولة مجدداً.
+        </div>
+        {% elif audio_fichier_manquant %}
+        <div style="background:#f8d7da; color:#721c24; border-radius:8px; padding:10px 14px; font-size:0.9rem;">
+            ⚠️ الملف الصوتي غير موجود على الخادم (فشل الرفع على الأرجح). يرجى التواصل مع المترشح لإعادة إرساله.
+        </div>
+        {% else %}
+        <audio controls src="{{ inscription.audio_enregistrement.url }}"></audio>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Infos bancaires -->
+    <div style="color:var(--color-role-mshrif-solid); font-weight:700; border-bottom:2px solid var(--color-role-mshrif-solid); padding-bottom:6px; margin:20px 0 12px;">المعلومات البنكية</div>
+
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">الحساب البنكي</span>
+        <span style="font-weight:600;">{{ inscription.compte_bancaire|default:"—" }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">RIB</span>
+        <span style="font-weight:600;">{{ inscription.rib|default:"—" }}</span>
+    </div>
+
+    <!-- Disponibilités horaires -->
+    <div style="color:var(--color-role-mshrif-solid); font-weight:700; border-bottom:2px solid var(--color-role-mshrif-solid); padding-bottom:6px; margin:20px 0 12px;">التفرغ الأسبوعي المصرَّح به</div>
+
+    {% if inscription.disponibilites %}
+    {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo_apercu' valeurs_form=valeurs_dispo lecture_seule=True %}
+    {% else %}
+    <div style="color:#aaa; padding:8px 0;">لم يحدد المترشح أي وقت تفرغ.</div>
+    {% endif %}
+
+    <!-- Mot de passe temporaire -->
+    <div style="background:#e8f0fe; border-radius:8px; padding:14px 18px; margin:20px 0; color:var(--color-role-mshrif-solid);">
+        🔑 عند القبول النهائي، سيتم إنشاء حساب المعلم وإسناد كلمة المرور المؤقتة التالية: <strong>{{ mot_de_passe_temporaire }}</strong><br>
+        <span style="font-size:0.85rem;">بلّغها للمعلم — سيُطلب منه تغييرها إجبارياً عند أول تسجيل دخول.</span>
+    </div>
+
+    {% if conflit.conflit %}
+    <div style="background:#f8d7da; border-radius:8px; padding:16px; margin:20px 0; color:#721c24;">
+        <div style="font-weight:700; margin-bottom:8px;">⚠️ تعذر القبول — تعارض في البريد الإلكتروني</div>
+        {% if conflit.orphelin %}
+        <div style="margin-bottom:12px;">
+            يوجد حساب بهذا البريد الإلكتروني ({{ inscription.email }}) بدون ملف شخصي مرتبط
+            (على الأرجح من اختبار سابق). يمكنك حذف هذا الحساب اليتيم ثم إعادة محاولة القبول.
+        </div>
+        <a href="{% url 'admin_supprimer_user_orphelin' conflit.user.id %}?next={{ request.path }}"
+           onclick="return confirm('هل أنت متأكد من حذف هذا الحساب اليتيم ({{ conflit.user.email }})؟');"
+           style="background:#dc3545; color:white; border-radius:8px; padding:8px 20px; text-decoration:none; display:inline-block;">🗑️ حذف الحساب اليتيم</a>
+        {% else %}
+        <div>
+            يوجد حساب نشط بهذا البريد الإلكتروني ({{ inscription.email }}) مرتبط بملف شخصي آخر
+            (دور الحساب: {{ conflit.user.get_role_display }}). راجع هذا الحساب يدوياً — لا يمكن
+            قبول هذا الطلب تلقائياً.
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Boutons -->
+    <div class="d-flex gap-3 mt-4">
+        {% if not conflit.conflit %}
+        <a href="{% url 'mshrif_valider_prof_final' inscription.id %}"
+           onclick="return confirm('هل أنت متأكد من القبول النهائي لطلب {{ inscription.nom|escapejs }} {{ inscription.prenom|escapejs }}؟ سيتم إنشاء حساب مستخدم فعلي له.');"
+           style="background:var(--color-success); color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">✅ قبول نهائي</a>
+        {% endif %}
+        <a href="{% url 'mshrif_rejeter_prof' inscription.id %}"
+           onclick="return confirm('هل أنت متأكد من رفض طلب {{ inscription.nom|escapejs }} {{ inscription.prenom|escapejs }}؟ لا يمكن التراجع عن هذا الإجراء.');"
+           style="background:#dc3545; color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">❌ رفض</a>
+        <a href="{% url 'mshrif_inscriptions_profs' %}"
+           style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+    </div>
+</div>
+{% endblock %}

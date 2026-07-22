@@ -163,7 +163,32 @@ class Groupe(models.Model):
     class Meta:
         verbose_name = "Groupe"
         verbose_name_plural = "Groupes"
-        
+
+
+class TarifRemuneration(models.Model):
+    """Grille tarifaire de rémunération des profs: 1 ligne par combinaison
+    type_capacite × tranche_age (4 lignes fixes, jamais ajoutées/supprimées
+    depuis l'admin — seul le montant est modifiable). Réutilise les mêmes
+    codes que Groupe.type_capacite (pas Creneau.type_seance, un champ au
+    nom proche mais qui désigne autre chose: hifz/tathbit)."""
+    TRANCHE_AGE_CHOICES = [
+        ('enfant', 'طفل'),
+        ('adulte', 'بالغ'),
+    ]
+
+    type_capacite = models.CharField(max_length=10, choices=Groupe.TYPE_CAPACITE_CHOICES)
+    tranche_age = models.CharField(max_length=10, choices=TRANCHE_AGE_CHOICES)
+    montant = models.DecimalField(max_digits=8, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.get_type_capacite_display()} / {self.get_tranche_age_display()} — {self.montant} د.م."
+
+    class Meta:
+        unique_together = ('type_capacite', 'tranche_age')
+        verbose_name = "Tarif de rémunération"
+        verbose_name_plural = "Tarifs de rémunération"
+
+
 class Seance(models.Model):
     TYPE_CHOICES = [
         ('normal', 'Normal'),

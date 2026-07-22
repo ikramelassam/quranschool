@@ -1,0 +1,63 @@
+{% extends 'dashboard/base_mshrif.html' %}
+{% block title %}لوحة المشرف{% endblock %}
+{% block extra_css %}
+<style>
+.stat-grid { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+.stat-card { flex:1 1 220px; background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+.stat-card .l { color:#888; font-size:0.85rem; }
+.stat-card .v { color:var(--color-role-mshrif-solid); font-size:2rem; font-weight:700; }
+.stat-card .i { color:#888; font-size:0.8rem; }
+.section-title { font-weight:700; font-size:0.95rem; color:var(--color-text-primary); margin:0 0 10px; }
+.compact-card { background:white; border-radius:12px; padding:16px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+a.compact-card { display:block; color:inherit; text-decoration:none; transition:box-shadow .15s; }
+a.compact-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12); }
+.row2 { display:flex; gap:16px; flex-wrap:wrap; }
+.row2 > a { flex:1 1 260px; }
+.quick-links { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:28px; }
+.quick-links > a { flex:1 1 200px; }
+.quick-link { background:white; border-radius:10px; padding:14px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.05); display:block; color:inherit; text-decoration:none; transition:box-shadow .15s; font-size:0.9rem; }
+.quick-link:hover { box-shadow:0 4px 14px rgba(0,0,0,0.1); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-title">أهلاً بك 👋</div>
+<div class="page-subtitle">نظرة عامة على المنصة</div>
+
+<div class="stat-grid">
+    <div class="stat-card"><div class="l">الطلاب النشطون</div><div class="v">{{ nb_eleves_actifs }}</div><div class="i">👤</div></div>
+    <div class="stat-card"><div class="l">المعلمون</div><div class="v">{{ nb_profs }}</div><div class="i">🎓</div></div>
+    <div class="stat-card"><div class="l">المجموعات النشطة</div><div class="v">{{ nb_groupes_actifs }}</div><div class="i">👥</div></div>
+    <div class="stat-card"><div class="l">نسبة الحضور هذا الشهر</div><div class="v">{{ taux_presence_mois }}%</div><div class="i">📊</div></div>
+</div>
+
+<div class="section-title">الوصول السريع (قراءة فقط)</div>
+<div class="row2" style="margin-bottom:24px;">
+    <a class="compact-card" href="{% url 'admin_eleves' %}">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700;">👤 قائمة الطلاب</span>
+            <span style="color:var(--color-role-mshrif-solid);">عرض القائمة الكاملة ←</span>
+        </div>
+    </a>
+    <a class="compact-card" href="{% url 'admin_profs' %}">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700;">🎓 قائمة المعلمين</span>
+            <span style="color:var(--color-role-mshrif-solid);">عرض القائمة الكاملة ←</span>
+        </div>
+    </a>
+</div>
+
+<div class="section-title">كل ما يراه المدير والمؤطر — بنفس صلاحيات القراءة</div>
+<div class="quick-links">
+    <a class="quick-link" href="{% url 'admin_inscriptions' %}">📋 طلبات التسجيل المعلقة</a>
+    <a class="quick-link" href="{% url 'admin_seances' %}">📅 سجل الحصص</a>
+    <a class="quick-link" href="{% url 'admin_calendrier' %}">🗓️ التقويم الأسبوعي</a>
+    <a class="quick-link" href="{% url 'admin_demandes_disponibilite' %}">🕐 طلبات تعديل الأوقات</a>
+    <a class="quick-link" href="{% url 'admin_groupes' %}">👥 المجموعات</a>
+    <a class="quick-link" href="{% url 'admin_creneaux' %}">🕐 الحلقات</a>
+    <a class="quick-link" href="{% url 'admin_paiements' %}">💰 مدفوعات الطلاب</a>
+    <a class="quick-link" href="{% url 'admin_parametres_abonnements' %}">🏷️ أنواع الاشتراك</a>
+    <a class="quick-link" href="{% url 'admin_tarifs_remuneration' %}">💰 شبكة رواتب المعلمين</a>
+    <a class="quick-link" href="{% url 'admin_criteres' %}">📝 معايير تقييم المعلمين</a>
+    <a class="quick-link" href="{% url 'admin_superviseurs' %}">🧭 إسناد المؤطرين</a>
+</div>
+{% endblock %}

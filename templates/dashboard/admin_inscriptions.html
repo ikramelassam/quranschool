@@ -1,4 +1,4 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 
 {% block title %}طلبات التسجيل{% endblock %}
 
@@ -31,6 +31,7 @@
                    style="background:white; color:var(--color-role-admin-solid); border:2px solid var(--color-role-admin-solid); border-radius:8px; padding:8px 16px; text-decoration:none;">
                    👁 عرض
                 </a>
+                {% if request.user.role != 'mshrif' %}
                 <a href="{% url 'admin_valider_eleve' ins.id %}"
                    onclick="return confirm('هل أنت متأكد من قبول طلب {{ ins.nom|escapejs }}؟ سيتم إنشاء حساب مستخدم فعلي له.');"
                    style="background:var(--color-success); color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
@@ -41,13 +42,15 @@
                    style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
                    ❌ رفض
                 </a>
+                {% endif %}
                 {% else %}
                 <a href="{% url 'admin_inscription_prof_detail' ins.id %}"
                    style="background:white; color: var(--color-brand-gold-dark); border:2px solid var(--color-brand-gold); border-radius:8px; padding:8px 16px; text-decoration:none;">
                    👁 عرض
                 </a>
+                {% if request.user.role != 'mshrif' %}
                 <a href="{% url 'admin_valider_prof' ins.id %}"
-                   onclick="return confirm('هل أنت متأكد من قبول طلب {{ ins.nom|escapejs }} {{ ins.prenom|escapejs }}؟ سيتم إنشاء حساب مستخدم فعلي له.');"
+                   onclick="return confirm('هل أنت متأكد من قبول طلب {{ ins.nom|escapejs }} {{ ins.prenom|escapejs }} مبدئياً؟ سيُحال إلى المشرف للتصديق النهائي (لن يُنشأ أي حساب الآن).');"
                    style="background:var(--color-success); color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
                    ✅ قبول
                 </a>
@@ -56,6 +59,7 @@
                    style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
                    ❌ رفض
                 </a>
+                {% endif %}
                 {% endif %}
             </div>
         </div>

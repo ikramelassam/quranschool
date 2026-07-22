@@ -1,15 +1,17 @@
-{% extends 'dashboard/base_admin.html' %}
-{% block title %}إسناد المشرفين{% endblock %}
+{% extends base_template %}
+{% block title %}إسناد المؤطرين{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <div class="page-title">إسناد المشرفين إلى المعلمين</div>
-        <div class="page-subtitle">كل مشرف لا يرى ولا يمكنه تقييم إلا المعلمين المُسندين إليه</div>
+        <div class="page-title">إسناد المؤطرين إلى المعلمين</div>
+        <div class="page-subtitle">كل مؤطر لا يرى ولا يمكنه تقييم إلا المعلمين المُسندين إليه</div>
     </div>
+    {% if request.user.role != 'mshrif' %}
     <a href="{% url 'admin_superviseur_ajouter' %}"
        style="background:var(--color-brand-gold-dark); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
-       + إضافة مشرف
+       + إضافة مؤطر
     </a>
+    {% endif %}
 </div>
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
@@ -22,16 +24,18 @@
         <div class="d-flex gap-2">
             <a href="{% url 'admin_superviseur_assignations' s.id %}"
                style="background:var(--color-brand-gold-dark); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-               إدارة الإسناد ✏️
+               {% if request.user.role == 'mshrif' %}عرض الإسناد 👁{% else %}إدارة الإسناد ✏️{% endif %}
             </a>
+            {% if request.user.role != 'mshrif' %}
             <a href="{% url 'admin_utilisateur_modifier_email' s.user.id %}?next={% url 'admin_superviseurs' %}"
                style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
                ✉️ البريد الإلكتروني
             </a>
+            {% endif %}
         </div>
     </div>
     {% empty %}
-    <div style="text-align:center; padding:60px; color:#aaa;">لا يوجد مشرفون بعد</div>
+    <div style="text-align:center; padding:60px; color:#aaa;">لا يوجد مؤطرون بعد</div>
     {% endfor %}
 </div>
 {% endblock %}

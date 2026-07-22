@@ -1,4 +1,4 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 
 {% block title %}المجموعات{% endblock %}
 
@@ -8,6 +8,7 @@
         <div class="page-title">إدارة المجموعات</div>
         <div class="page-subtitle">إجمالي المجموعات: {{ groupes.paginator.count }}</div>
     </div>
+    {% if request.user.role != 'mshrif' %}
     {% if aucun_creneau %}
     <span style="background:#eee; color:#999; border-radius:8px; padding:10px 20px; font-weight:600;" title="أنشئ حلقة أولاً">
        + إنشاء مجموعة جديدة
@@ -18,9 +19,10 @@
        + إنشاء مجموعة جديدة
     </a>
     {% endif %}
+    {% endif %}
 </div>
 
-{% if aucun_creneau %}
+{% if aucun_creneau and request.user.role != 'mshrif' %}
 <div style="background:#fff3cd; color:#856404; border-radius:8px; padding:14px 20px; margin-bottom:20px;">
     ⚠️ لا توجد أي حلقة نشطة بعد. يجب <a href="{% url 'admin_creneau_ajouter' %}" style="color:#856404; font-weight:700;">إنشاء حلقة</a> قبل أن تتمكن من إنشاء مجموعة.
 </div>

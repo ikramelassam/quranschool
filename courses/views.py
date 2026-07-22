@@ -7,16 +7,30 @@ from .utils import regenerer_pour_nouveau_creneau, creneaux_manquants_pour_prof,
 from accounts.models import Prof, Eleve
 
 
+def _base_template_admin_ou_mshrif(request):
+    """Équivalent local de dashboard.views._base_template_admin_ou_mshrif — pages
+    admin de gestion des groupes/créneaux réutilisées en lecture seule par المشرف."""
+    return 'dashboard/base_mshrif.html' if request.user.role == 'mshrif' else 'dashboard/base_admin.html'
+
+
+def _contexte_base_mshrif(request):
+    """Équivalent local de dashboard.views._contexte_base_mshrif (badge sidebar)."""
+    if request.user.role != 'mshrif':
+        return {}
+    from inscriptions.models import InscriptionProf
+    return {'nb_demandes_en_attente': InscriptionProf.objects.filter(statut='validee_directeur').count()}
+
+
 def _message_incompatibilite(prof, manquants):
     jours_dict = dict(Creneau.JOUR_CHOICES)
     details = '، '.join(f'{jours_dict.get(j, j)} {h.strftime("%H:%M")}' for j, h in manquants)
     return (
-        f'لا يمكن إسناد {prof.user.get_full_name} لهذه الحلقة: '
+        f'لا يمكن إسناد {prof.user.get_full_name()} لهذه الحلقة: '
         f'هذا المعلم غير متفرغ في الأوقات التالية حسب جدول تفرغه المعتمد: {details}.'
     )
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def groupes_list(request):
     statut = request.GET.get('statut', '')
     prof_id = request.GET.get('prof', '')
@@ -30,7 +44,7 @@ def groupes_list(request):
     if creneau_id:
         groupes = groupes.filter(creneau_id=creneau_id)
 
-    return render(request, 'courses/admin_groupes.html', {
+    context = {
         'groupes': paginer(request, groupes, 10),
         'aucun_creneau': not Creneau.objects.filter(est_actif=True).exists(),
         'profs': Prof.objects.select_related('user').order_by('user__first_name'),
@@ -40,7 +54,10 @@ def groupes_list(request):
             'prof': prof_id,
             'creneau': creneau_id,
         },
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'courses/admin_groupes.html', context)
 
 
 @role_required('admin')
@@ -88,14 +105,17 @@ def groupe_ajouter(request):
     })
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def groupe_detail(request, groupe_id):
     groupe = get_object_or_404(Groupe, id=groupe_id)
     eleves_disponibles = Eleve.objects.exclude(groupes=groupe)
-    return render(request, 'courses/admin_groupe_detail.html', {
+    context = {
         'groupe': groupe,
         'eleves_disponibles': eleves_disponibles,
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'courses/admin_groupe_detail.html', context)
 
 
 @role_required('admin')
@@ -167,7 +187,7 @@ def groupe_modifier(request, groupe_id):
     })
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def creneaux_list(request):
     sexe_cible = request.GET.get('sexe_cible', '')
     actif = request.GET.get('actif', '')
@@ -184,7 +204,7 @@ def creneaux_list(request):
     if riwaya:
         creneaux = creneaux.filter(riwaya=riwaya)
 
-    return render(request, 'courses/admin_creneaux.html', {
+    context = {
         'creneaux': paginer(request, creneaux, 10),
         'filtres': {
             'sexe_cible': sexe_cible,
@@ -192,7 +212,10 @@ def creneaux_list(request):
             'type_seance': type_seance,
             'riwaya': riwaya,
         },
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'courses/admin_creneaux.html', context)
 
 
 @role_required('admin')

@@ -1,0 +1,54 @@
+{% extends base_template %}
+{% block title %}الترتيب الشهري للمعلمين{% endblock %}
+{% block content %}
+<div class="page-title">الترتيب الشهري للمعلمين</div>
+<div class="page-subtitle">مرتب حسب متوسط تقييمات المؤطر لهذا الشهر — غير مرئي للمعلمين{% if lecture_stricte %} — عرض للاطلاع فقط{% endif %}</div>
+
+<form method="GET" style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+    <div>
+        <label style="color:#888; font-size:0.8rem;">الشهر</label>
+        <input type="month" name="mois" class="form-control" value="{{ mois }}">
+    </div>
+    <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+</form>
+
+<div style="display:flex; flex-direction:column; gap:12px;">
+    {% for ligne in lignes %}
+    <div style="background:white; border-radius:12px; padding:18px 22px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+            <div>
+                <span style="font-weight:700; font-size:1.05rem;">{{ ligne.prof.user.get_full_name }}</span>
+                <span style="color:#888; font-size:0.82rem; margin-right:8px;">{{ ligne.nb_evaluations }} تقييم هذا الشهر</span>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+                {% if ligne.moyenne_mensuelle is not None %}
+                <span style="background:rgba(45,90,61,0.1); color:var(--color-success); border-radius:20px; padding:5px 14px; font-weight:700; font-size:0.9rem;">⭐ {{ ligne.moyenne_mensuelle }} / 4</span>
+                {% else %}
+                <span style="background:#f0f0f0; color:#aaa; border-radius:20px; padding:5px 14px; font-size:0.85rem;">— لا يوجد تقييم</span>
+                {% endif %}
+                {% if ligne.majoration_mensuelle %}
+                <span style="background:rgba(201,150,46,0.12); color:var(--color-brand-gold-dark); border-radius:20px; padding:5px 14px; font-size:0.85rem;">➕ منحة: {{ ligne.majoration_mensuelle }} د.م.</span>
+                {% endif %}
+                {% if lecture_stricte %}
+                <a href="{% url 'admin_evaluations' %}?prof={{ ligne.prof.id }}" style="color:{{ couleur_role }}; font-size:0.85rem; font-weight:600; text-decoration:none; white-space:nowrap;">عرض التقييمات التفصيلية (15 معيار) ←</a>
+                {% endif %}
+            </div>
+        </div>
+        {% if lecture_stricte %}
+        {% if ligne.commentaire %}
+        <div style="background:var(--color-bg-cream); border-radius:8px; padding:10px 14px; color:#555; font-size:0.9rem;">💬 {{ ligne.commentaire }}</div>
+        {% endif %}
+        {% else %}
+        <form method="POST" action="{% url 'classement_mensuel_commentaire' ligne.prof.id %}" style="display:flex; gap:10px; align-items:flex-start;">
+            {% csrf_token %}
+            <input type="hidden" name="mois" value="{{ mois }}">
+            <textarea name="commentaire" rows="2" class="form-control" placeholder="ملاحظة حول أداء هذا المعلم هذا الشهر...">{{ ligne.commentaire }}</textarea>
+            <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; white-space:nowrap; cursor:pointer;">حفظ</button>
+        </form>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div style="background:white; border-radius:12px; padding:60px; text-align:center; color:#aaa;">لا يوجد معلمون لعرضهم</div>
+    {% endfor %}
+</div>
+{% endblock %}

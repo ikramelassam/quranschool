@@ -1,14 +1,8 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 {% load libelles_arabes %}
 {% block title %}{{ eleve.user.get_full_name }}{% endblock %}
 {% block content %}
-<div class="page-title" style="display:flex; align-items:center; gap:10px;">
-    {{ eleve.user.get_full_name }}
-    {% if eleve.user.telephone %}
-    <a href="https://wa.me/{{ eleve.user.telephone|wa_number }}" target="_blank" rel="noopener"
-       title="مراسلة عبر واتساب" style="font-size:1.1rem; text-decoration:none;">🟢</a>
-    {% endif %}
-</div>
+<div class="page-title">{{ eleve.user.get_full_name }}</div>
 <div class="page-subtitle">{{ eleve.user.email }}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
@@ -18,9 +12,15 @@
         <span style="color:#888;">الجنس</span>
         <span style="font-weight:600;">{{ eleve.sexe|libelle_arabe:"sexe" }}</span>
     </div>
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الحالة</span>
-        <span style="font-weight:600;">{{ eleve.get_statut_display }}</span>
+        <span style="font-weight:600; display:flex; align-items:center; gap:10px;">
+            {{ eleve.get_statut_display }}
+            <span style="display:inline-flex; gap:6px; align-items:center;">
+                {% include 'dashboard/_email_icon.html' with email=eleve.user.email %}
+                {% include 'dashboard/_whatsapp_icon.html' with telephone=eleve.user.telephone %}
+            </span>
+        </span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الهاتف</span>
@@ -43,6 +43,7 @@
         <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
     {% endif %}
 
+    {% if request.user.role != 'mshrif' %}
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">مجموعات مقترحة</div>
     {% if groupes_suggeres %}
         {% for groupe in groupes_suggeres %}
@@ -60,6 +61,7 @@
         {% endfor %}
     {% else %}
         <div style="color:#aaa; padding:8px 0;">لا توجد مجموعة متوافقة حالياً مع معايير هذا الطالب (العمر، الجنس، البرنامج، الجدول الزمني، الأماكن المتاحة).</div>
+    {% endif %}
     {% endif %}
 
     {% if inscription %}
@@ -128,6 +130,7 @@
 
     <div class="mt-4 d-flex gap-3 align-items-center">
         <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none;">← رجوع</a>
+        {% if request.user.role != 'mshrif' %}
         <a href="{% url 'admin_utilisateur_modifier_email' eleve.user.id %}?next={% url 'admin_eleve_detail' eleve.id %}"
            style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
            ✉️ تغيير البريد الإلكتروني
@@ -136,6 +139,7 @@
            style="background:var(--color-role-admin); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
            🕐 جدول التفرغ
         </a>
+        {% endif %}
     </div>
 </div>
 

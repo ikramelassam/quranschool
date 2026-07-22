@@ -1,4 +1,4 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 {% load libelles_arabes %}
 
 {% block title %}تفاصيل المجموعة{% endblock %}
@@ -10,10 +10,12 @@
         <div class="page-title">{{ groupe.nom }}</div>
         <div class="page-subtitle">تفاصيل المجموعة</div>
     </div>
-    <a href="{% url 'admin_groupe_modifier' groupe.id %}" 
+    {% if request.user.role != 'mshrif' %}
+    <a href="{% url 'admin_groupe_modifier' groupe.id %}"
        style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
-       تعديل 
+       تعديل
     </a>
+    {% endif %}
 </div>
 
 <div class="row g-3">
@@ -21,10 +23,16 @@
     <div class="col-md-5">
         <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
             <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:16px;">معلومات المجموعة</div>
-            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
                 <span style="color:#888;">المعلم</span>
-                <span style="font-weight:600;">
+                <span style="font-weight:600; display:flex; align-items:center; gap:10px;">
                     {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}غير محدد{% endif %}
+                    {% if groupe.prof %}
+                    <span style="display:inline-flex; gap:6px; align-items:center;">
+                        {% include 'dashboard/_email_icon.html' with email=groupe.prof.user.email %}
+                        {% include 'dashboard/_whatsapp_icon.html' with telephone=groupe.prof.user.telephone %}
+                    </span>
+                    {% endif %}
                 </span>
             </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
@@ -54,20 +62,19 @@
             {% for eleve in groupe.eleves.all %}
             <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0;">
                 <div>
-                    <div style="font-weight:600; display:flex; align-items:center; gap:6px;">
-                        {{ eleve.user.get_full_name }}
-                        {% if eleve.user.telephone %}
-                        <a href="https://wa.me/{{ eleve.user.telephone|wa_number }}" target="_blank" rel="noopener"
-                           title="مراسلة عبر واتساب" style="text-decoration:none;">🟢</a>
-                        {% endif %}
-                    </div>
+                    <div style="font-weight:600;">{{ eleve.user.get_full_name }}</div>
                     <div style="color:#888; font-size:0.85rem;">{{ eleve.user.email }}</div>
                 </div>
+                <span style="display:inline-flex; gap:6px; align-items:center;">
+                    {% include 'dashboard/_email_icon.html' with email=eleve.user.email %}
+                    {% include 'dashboard/_whatsapp_icon.html' with telephone=eleve.user.telephone %}
+                </span>
             </div>
             {% empty %}
             <div style="text-align:center; color:#aaa; padding:20px;">لا يوجد طلاب بعد</div>
             {% endfor %}
 
+            {% if request.user.role != 'mshrif' %}
             <div style="margin-top:16px; padding-top:16px; border-top:2px solid #f0f0f0;">
                 <div style="font-weight:600; margin-bottom:10px;">إضافة طالب</div>
                 <form method="POST" action="{% url 'admin_groupe_ajouter_eleve' groupe.id %}" class="d-flex gap-2">
@@ -78,12 +85,13 @@
                         <option value="{{ eleve.id }}">{{ eleve.user.get_full_name }}</option>
                         {% endfor %}
                     </select>
-                    <button type="submit" 
+                    <button type="submit"
                         style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 16px; font-family:'Tajawal',sans-serif; white-space:nowrap; cursor:pointer;">
                         إضافة +
                     </button>
                 </form>
             </div>
+            {% endif %}
         </div>
     </div>
 

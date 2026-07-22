@@ -1,0 +1,19 @@
+{% if lien %}
+<a href="{{ lien }}" target="_blank" rel="noopener"
+   title="الانضمام إلى الاجتماع" class="contact-icon-link contact-icon-meet">
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="12" fill="#1A73E8"/>
+        <rect x="5" y="8.5" width="9" height="7" rx="1.5" fill="#FFFFFF"/>
+        <path d="M15 10.7 19.2 8.3 19.2 15.7 15 13.3 Z" fill="#FFFFFF"/>
+    </svg>
+</a>
+{% else %}
+<span onclick="alert('لم يقم المدير بإضافة رابط الاجتماع بعد.');"
+      title="لم يتم إضافة رابط الاجتماع بعد" class="contact-icon-link contact-icon-meet-disabled" style="cursor:pointer;">
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="12" fill="#C7C7C7"/>
+        <rect x="5" y="8.5" width="9" height="7" rx="1.5" fill="#FFFFFF"/>
+        <path d="M15 10.7 19.2 8.3 19.2 15.7 15 13.3 Z" fill="#FFFFFF"/>
+    </svg>
+</span>
+{% endif %}

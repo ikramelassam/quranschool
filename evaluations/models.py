@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from accounts.models import Superviseur, Prof
 from courses.models import Seance
@@ -64,3 +65,24 @@ class NoteEvaluation(models.Model):
     class Meta:
         unique_together = ('evaluation', 'critere')
         verbose_name = "Note Évaluation"
+
+
+class CommentaireMensuel(models.Model):
+    """Commentaire libre du مؤطر (superviseur) ou مدير (admin) sur un prof,
+    un par prof par mois — voir la page de classement mensuel. Même patron
+    que payments.Paiement.mois_reference: toujours stocké au 1er du mois."""
+    prof = models.ForeignKey(Prof, on_delete=models.CASCADE, related_name='commentaires_mensuels')
+    mois_reference = models.DateField()
+    commentaire = models.TextField(blank=True)
+    redige_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    date_modification = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Commentaire {self.prof} - {self.mois_reference:%Y-%m}"
+
+    class Meta:
+        unique_together = ('prof', 'mois_reference')
+        verbose_name = "Commentaire mensuel"
+        verbose_name_plural = "Commentaires mensuels"

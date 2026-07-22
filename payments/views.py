@@ -6,6 +6,20 @@ from accounts.models import Eleve
 from .models import Paiement
 
 
+def _base_template_admin_ou_mshrif(request):
+    """Équivalent local de dashboard.views._base_template_admin_ou_mshrif — les
+    paiements élèves sont réutilisés en lecture seule par المشرف."""
+    return 'dashboard/base_mshrif.html' if request.user.role == 'mshrif' else 'dashboard/base_admin.html'
+
+
+def _contexte_base_mshrif(request):
+    """Équivalent local de dashboard.views._contexte_base_mshrif (badge sidebar)."""
+    if request.user.role != 'mshrif':
+        return {}
+    from inscriptions.models import InscriptionProf
+    return {'nb_demandes_en_attente': InscriptionProf.objects.filter(statut='validee_directeur').count()}
+
+
 @role_required('eleve')
 def eleve_paiements(request):
     eleve = get_object_or_404(Eleve, user=request.user)
@@ -27,7 +41,7 @@ def eleve_paiements(request):
     })
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_paiements(request):
     statut = request.GET.get('statut', '')
     eleve_id = request.GET.get('eleve', '')
@@ -42,7 +56,7 @@ def admin_paiements(request):
         annee, _, num_mois = mois.partition('-')
         paiements = paiements.filter(mois_reference__year=annee, mois_reference__month=num_mois)
 
-    return render(request, 'dashboard/admin_paiements.html', {
+    context = {
         'paiements': paginer(request, paiements, 10),
         'eleves': Eleve.objects.select_related('user').order_by('user__first_name'),
         'filtres': {
@@ -50,15 +64,21 @@ def admin_paiements(request):
             'eleve': eleve_id,
             'mois': mois,
         },
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_paiements.html', context)
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_paiement_detail(request, paiement_id):
     paiement = get_object_or_404(Paiement, id=paiement_id)
-    return render(request, 'dashboard/admin_paiement_detail.html', {
+    context = {
         'paiement': paiement,
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_paiement_detail.html', context)
 
 
 @role_required('admin')

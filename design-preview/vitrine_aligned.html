@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aligné sur le site vitrine — validation</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Amiri:wght@700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --color-bg-cream: #FFF8EF;
+    --color-text-primary: #2C1500;
+    --color-text-muted: #8B6040;
+    --gold-1: #D4A843; --gold-2: #F0C040;
+    --brown-1: #8B4B00; --brown-2: #5E2F00;
+    --card-border: #F0DBB8;
+
+    --role-admin: #3D1E00;
+    --role-prof: #6B3410;
+    --role-superviseur: #8B4B00;
+    --role-eleve: #95591A;
+
+    --radius-btn: 14px;
+    --radius-card: 16px;
+}
+* { box-sizing:border-box; }
+body { font-family:'Cairo',sans-serif; background:var(--color-bg-cream); margin:0; padding:32px; color:var(--color-text-primary); }
+h3.section-label { font-family:'Cairo',sans-serif; font-size:13px; color:#8B6040; text-transform:uppercase; letter-spacing:0.5px; margin:0 0 12px; }
+.block { margin-bottom:40px; }
+
+.page-title { font-family:'Amiri',serif; font-size:32px; font-weight:700; color:var(--brown-2); margin-bottom:4px; }
+.page-subtitle { font-size:14px; color:var(--color-text-muted); margin-bottom:20px; }
+
+.btn { font-family:'Cairo',sans-serif; font-size:15px; font-weight:700; padding:12px 28px; border:none; border-radius:var(--radius-btn); cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 180ms ease; }
+.btn-primary { background:linear-gradient(135deg, var(--gold-1), var(--gold-2)); color:#3D1E00; font-weight:800; box-shadow:0 8px 20px rgba(212,168,67,0.35); }
+.btn-primary:hover { transform:translateY(-1px); box-shadow:0 10px 26px rgba(212,168,67,0.45); }
+.btn-secondary { background:linear-gradient(135deg, var(--brown-1), var(--brown-2)); color:#F3D8A6; box-shadow:0 6px 16px rgba(139,75,0,0.25); }
+.btn-secondary:hover { transform:translateY(-1px); box-shadow:0 8px 20px rgba(139,75,0,0.35); }
+
+.badge { font-size:12px; font-weight:600; padding:5px 14px; border-radius:8px; display:inline-flex; align-items:center; gap:4px; }
+.badge-success { background:#E3F2E7; color:#2D5A3D; }
+.badge-warning { background:#F7E8D4; color:#8B5A2B; }
+.badge-danger { background:#FBE4E1; color:#B3261E; }
+.badge-urgent { background:var(--brown-1); color:white; }
+
+.card { background:white; border:1px solid var(--card-border); border-radius:var(--radius-card); padding:20px 24px; box-shadow:0 4px 15px rgba(139,75,0,0.04); transition:all 180ms ease; margin-bottom:12px; }
+.card:hover { box-shadow:0 8px 24px rgba(139,75,0,0.1); }
+.card-title { font-weight:700; font-size:16px; margin-bottom:4px; }
+.card-meta { font-size:13px; color:var(--color-text-muted); }
+
+.sidebars { display:flex; gap:16px; flex-wrap:wrap; }
+.sidebar-swatch { width:150px; border-radius:var(--radius-card); padding:20px 16px; color:white; }
+.sidebar-swatch .role-name { font-weight:700; font-size:15px; margin-bottom:2px; }
+.sidebar-swatch .role-label { font-size:11px; opacity:0.75; margin-bottom:16px; }
+.sidebar-swatch .nav-item { font-size:13px; padding:8px 10px; border-radius:8px; margin-bottom:4px; background:rgba(255,255,255,0.12); }
+.sidebar-swatch .ratio { font-size:10px; opacity:0.6; margin-top:12px; font-family:monospace; direction:ltr; text-align:right; }
+</style>
+</head>
+<body>
+
+<div class="block">
+    <h3 class="section-label">Typographie — Amiri (titres) + Cairo (corps), comme le site vitrine</h3>
+    <div class="page-title">إدارة المجموعات</div>
+    <div class="page-subtitle">إجمالي المجموعات: 3</div>
+</div>
+
+<div class="block">
+    <h3 class="section-label">Boutons — dégradé or / dégradé brun, radius 14px, ombre teintée</h3>
+    <div style="display:flex; gap:16px;">
+        <button class="btn btn-primary">✨ سجّل الآن</button>
+        <button class="btn btn-secondary">📚 اكتشف البرامج</button>
+    </div>
+</div>
+
+<div class="block">
+    <h3 class="section-label">Badges — teintes vérifiées AA (inchangées), radius 8px</h3>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <span class="badge badge-warning">📅 مخططة</span>
+        <span class="badge badge-success">✅ منتهية</span>
+        <span class="badge badge-danger">❌ ملغاة</span>
+        <span class="badge badge-urgent">⚠️ لم يتم تقييمها بعد</span>
+    </div>
+</div>
+
+<div class="block">
+    <h3 class="section-label">Carte — radius 16px, bordure claire, ombre douce teintée brun</h3>
+    <div class="card">
+        <div class="card-title">groupe a</div>
+        <div class="card-meta">المعلم: mehdi l · الاثنين 20:00 + الأربعاء 19:00</div>
+    </div>
+</div>
+
+<div class="block">
+    <h3 class="section-label">4 rôles — nuances or/brun uniquement (aucun vert), toutes ≥ 4.5:1</h3>
+    <div class="sidebars">
+        <div class="sidebar-swatch" style="background:var(--role-admin);">
+            <div class="role-name">لوحة الإدارة</div>
+            <div class="role-label">Admin</div>
+            <div class="nav-item">لوحة التحكم</div>
+            <div class="nav-item">الطلاب</div>
+            <div class="ratio">#3D1E00 — 15.17:1</div>
+        </div>
+        <div class="sidebar-swatch" style="background:var(--role-prof);">
+            <div class="role-name">لوحة المعلم</div>
+            <div class="role-label">Prof</div>
+            <div class="nav-item">مجموعاتي</div>
+            <div class="nav-item">سجل الحصص</div>
+            <div class="ratio">#6B3410 — 9.89:1</div>
+        </div>
+        <div class="sidebar-swatch" style="background:var(--role-superviseur);">
+            <div class="role-name">لوحة المشرف</div>
+            <div class="role-label">Superviseur</div>
+            <div class="nav-item">لوحة التحكم</div>
+            <div class="nav-item">ملفي الشخصي</div>
+            <div class="ratio">#8B4B00 — 6.76:1</div>
+        </div>
+        <div class="sidebar-swatch" style="background:var(--role-eleve);">
+            <div class="role-name">لوحة الطالب</div>
+            <div class="role-label">Élève</div>
+            <div class="nav-item">حصصي وتقييماتي</div>
+            <div class="nav-item">تقدمي في الحفظ</div>
+            <div class="ratio">#95591A — 5.64:1</div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

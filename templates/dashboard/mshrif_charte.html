@@ -1,0 +1,171 @@
+{% extends base_template %}
+{% block title %}ميثاق التدريس{% endblock %}
+{% block extra_css %}
+<style>
+.charte-field-label { color:#888; font-size:0.8rem; margin-bottom:4px; display:block; }
+.charte-field-hint { color:#aaa; font-size:0.75rem; margin-bottom:8px; }
+.charte-card { background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:18px; max-width:900px; }
+.charte-card input[type=text], .charte-card textarea, .charte-card select {
+    width:100%; border:1px solid #ddd; border-radius:8px; padding:8px 12px;
+    font-family:'Tajawal',sans-serif; font-size:0.92rem; margin-bottom:14px;
+}
+.charte-card textarea { line-height:1.7; }
+.charte-section-badge { display:inline-block; background:var(--color-brand-gold); color:white; border-radius:8px; padding:2px 12px; font-size:0.8rem; font-weight:700; margin-left:8px; }
+.charte-card-header { display:flex; align-items:center; margin-bottom:14px; font-weight:700; color:{{ couleur_role }}; }
+.charte-verse-box { background:var(--color-bg-cream); border-radius:8px; padding:12px 16px; margin-bottom:14px; }
+.charte-verse-box .charte-field-label { color:var(--color-brand-gold-dark); font-weight:600; }
+.sanction-row { display:flex; gap:10px; align-items:center; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #f0f0f0; }
+.sanction-row input[type=text] { margin-bottom:0; flex:2; }
+.sanction-row select { margin-bottom:0; flex:1; }
+.btn-remove-row { background:#fce4e4; color:#dc3545; border:none; border-radius:6px; width:32px; height:32px; cursor:pointer; font-size:0.9rem; flex-shrink:0; }
+.btn-add-row { background:#f0f0f0; color:#555; border:none; border-radius:8px; padding:8px 16px; font-size:0.85rem; cursor:pointer; margin-top:6px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-title">ميثاق التدريس</div>
+<div class="page-subtitle">
+    آخر تعديل: {{ charte.date_modification|date:"d-m-Y H:i" }}
+    {% if lecture_stricte %} — عرض للاطلاع فقط، التعديل من صلاحية المشرف فقط{% else %} — عدّل النصوص مباشرة، لا حاجة لأي معرفة بالـ HTML. التصميم لن يتغيّر.{% endif %}
+</div>
+
+<div class="section-title" style="margin-bottom:10px;">👁 المعاينة الحالية</div>
+<div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:28px; max-width:900px;">
+    {% include 'dashboard/_charte_contenu.html' %}
+</div>
+
+{% if not lecture_stricte %}
+<div class="section-title" style="margin-bottom:10px;">✏️ تعديل النصوص</div>
+<form method="POST">
+    {% csrf_token %}
+
+    <div class="charte-card">
+        <div class="charte-card-header">المقدّمة</div>
+        <label class="charte-field-label">نص المقدّمة</label>
+        <div class="charte-field-hint">فقرة أو أكثر — افصل بين الفقرات بسطر فارغ</div>
+        <textarea name="intro" rows="6">{{ charte.intro }}</textarea>
+        <div class="charte-verse-box">
+            <label class="charte-field-label">الآية الافتتاحية</label>
+            <input type="text" name="verset_ouverture" value="{{ charte.verset_ouverture }}">
+        </div>
+        <label class="charte-field-label">عنوان القسم الرئيسي</label>
+        <input type="text" name="titre_bunud" value="{{ charte.titre_bunud }}">
+    </div>
+
+    <div class="charte-card">
+        <div class="charte-card-header">القسم 1 <span class="charte-section-badge">أولاً</span></div>
+        <label class="charte-field-label">عنوان القسم</label>
+        <input type="text" name="section1_titre" value="{{ charte.section1_titre }}">
+        <label class="charte-field-label">مقدّمة القسم</label>
+        <textarea name="section1_intro" rows="2">{{ charte.section1_intro }}</textarea>
+        <label class="charte-field-label">النقاط (سطر واحد لكل نقطة)</label>
+        <div class="charte-field-hint">مثال: تصحيح اللحن الجلي والخفي: الحرص على متابعة تلاوة الطلاب...</div>
+        <textarea name="section1_items" rows="6">{{ charte.section1_items }}</textarea>
+    </div>
+
+    <div class="charte-card">
+        <div class="charte-card-header">القسم 2 <span class="charte-section-badge">ثانياً</span></div>
+        <label class="charte-field-label">عنوان القسم</label>
+        <input type="text" name="section2_titre" value="{{ charte.section2_titre }}">
+        <label class="charte-field-label">مقدّمة القسم</label>
+        <textarea name="section2_intro" rows="2">{{ charte.section2_intro }}</textarea>
+        <label class="charte-field-label">النقاط</label>
+        <textarea name="section2_items" rows="5">{{ charte.section2_items }}</textarea>
+    </div>
+
+    <div class="charte-card">
+        <div class="charte-card-header">القسم 3 <span class="charte-section-badge">ثالثاً</span></div>
+        <label class="charte-field-label">عنوان القسم</label>
+        <input type="text" name="section3_titre" value="{{ charte.section3_titre }}">
+        <label class="charte-field-label">مقدّمة القسم</label>
+        <textarea name="section3_intro" rows="2">{{ charte.section3_intro }}</textarea>
+        <label class="charte-field-label">النقاط</label>
+        <textarea name="section3_items" rows="6">{{ charte.section3_items }}</textarea>
+        <div class="charte-verse-box">
+            <label class="charte-field-label">نص الآية</label>
+            <input type="text" name="verset_rahma_texte" value="{{ charte.verset_rahma_texte }}">
+            <label class="charte-field-label">مرجع الآية</label>
+            <input type="text" name="verset_rahma_reference" value="{{ charte.verset_rahma_reference }}">
+        </div>
+        <label class="charte-field-label">خاتمة القسم (بعد الآية)</label>
+        <textarea name="section3_conclusion" rows="2">{{ charte.section3_conclusion }}</textarea>
+    </div>
+
+    <div class="charte-card">
+        <div class="charte-card-header">القسم 4 <span class="charte-section-badge">رابعاً</span></div>
+        <label class="charte-field-label">عنوان القسم</label>
+        <input type="text" name="section4_titre" value="{{ charte.section4_titre }}">
+        <label class="charte-field-label">مقدّمة القسم</label>
+        <textarea name="section4_intro" rows="2">{{ charte.section4_intro }}</textarea>
+        <label class="charte-field-label">النقاط</label>
+        <textarea name="section4_items" rows="5">{{ charte.section4_items }}</textarea>
+    </div>
+
+    <div class="charte-card">
+        <div class="charte-card-header">القسم 5 <span class="charte-section-badge">خامساً</span></div>
+        <label class="charte-field-label">عنوان القسم</label>
+        <input type="text" name="section5_titre" value="{{ charte.section5_titre }}">
+        <label class="charte-field-label">مقدّمة القسم</label>
+        <textarea name="section5_intro" rows="2">{{ charte.section5_intro }}</textarea>
+
+        <label class="charte-field-label">جدول المخالفات والإجراءات</label>
+        <div class="charte-field-hint">لكل مخالفة: النص + نوع الإجراء (تصاعدي = إنذار أول ← إنذار ثاني ← خصم من الراتب، أو إعفاء فوري)</div>
+
+        <div id="sanction-rows">
+        {% for ligne in charte.sanctions.all %}
+            <div class="sanction-row">
+                <input type="text" name="sanction_violation" value="{{ ligne.violation }}">
+                <select name="sanction_severite">
+                    <option value="progressive" {% if ligne.severite == 'progressive' %}selected{% endif %}>تصاعدي (إنذار ← إنذار ← خصم)</option>
+                    <option value="immediate" {% if ligne.severite == 'immediate' %}selected{% endif %}>الإعفاء الفوري</option>
+                </select>
+                <button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">🗑</button>
+            </div>
+        {% endfor %}
+        </div>
+        <button type="button" class="btn-add-row" onclick="ajouterLigneSanction()">+ إضافة مخالفة</button>
+
+        <label class="charte-field-label" style="margin-top:16px;">ملاحظة أسفل الجدول</label>
+        <textarea name="section5_note" rows="2">{{ charte.section5_note }}</textarea>
+    </div>
+
+    <div class="charte-card">
+        <div class="charte-card-header">القسم 6</div>
+        <label class="charte-field-label">عنوان القسم</label>
+        <input type="text" name="section6_titre" value="{{ charte.section6_titre }}">
+        <label class="charte-field-label">مقدّمة القسم</label>
+        <textarea name="section6_intro" rows="2">{{ charte.section6_intro }}</textarea>
+        <label class="charte-field-label">النقاط</label>
+        <textarea name="section6_items" rows="5">{{ charte.section6_items }}</textarea>
+    </div>
+
+    <div class="charte-card">
+        <div class="charte-card-header">القسم 7</div>
+        <label class="charte-field-label">عنوان القسم</label>
+        <input type="text" name="section7_titre" value="{{ charte.section7_titre }}">
+        <label class="charte-field-label">مقدّمة القسم</label>
+        <textarea name="section7_intro" rows="2">{{ charte.section7_intro }}</textarea>
+        <label class="charte-field-label">النقاط</label>
+        <textarea name="section7_items" rows="7">{{ charte.section7_items }}</textarea>
+    </div>
+
+    <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:12px 32px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">حفظ التعديلات ✅</button>
+</form>
+
+<script>
+function ajouterLigneSanction() {
+    const container = document.getElementById('sanction-rows');
+    const row = document.createElement('div');
+    row.className = 'sanction-row';
+    row.innerHTML = `
+        <input type="text" name="sanction_violation" value="">
+        <select name="sanction_severite">
+            <option value="progressive" selected>تصاعدي (إنذار ← إنذار ← خصم)</option>
+            <option value="immediate">الإعفاء الفوري</option>
+        </select>
+        <button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">🗑</button>
+    `;
+    container.appendChild(row);
+}
+</script>
+{% endif %}
+{% endblock %}

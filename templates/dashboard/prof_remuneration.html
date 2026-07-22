@@ -1,0 +1,67 @@
+{% extends 'dashboard/base_prof.html' %}
+{% block title %}راتبي{% endblock %}
+{% block extra_css %}
+<style>
+.tarif-ref-grid { display:flex; flex-wrap:wrap; gap:12px; }
+.tarif-ref-chip { flex:1 1 200px; background:white; border-radius:12px; padding:14px 16px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+.tarif-ref-chip .type { font-weight:700; font-size:0.88rem; margin-bottom:4px; }
+.tarif-ref-chip .montant { color:var(--color-role-prof-solid); font-weight:700; font-size:1.2rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-title">راتبي</div>
+<div class="page-subtitle">حساب راتبك الشهري حسب شبكة تعرفات المنصة</div>
+
+<div class="hero-total-card">
+    <div class="mois">{{ aujourdhui|date:"F Y" }}</div>
+    <div class="montant">{{ remuneration.total_calcule }}<span> د.م.</span></div>
+</div>
+
+<div class="section-title">تفاصيل الحساب حسب المجموعة</div>
+{% if remuneration.detail %}
+<div class="row g-3 mb-4">
+    {% for ligne in remuneration.detail %}
+    <div class="col-md-6">
+        <div class="compact-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="font-weight:700;">{{ ligne.groupe.nom }}</span>
+                <span style="color:#888; font-size:0.8rem; background:var(--color-bg-cream); border-radius:20px; padding:3px 12px;">{{ ligne.groupe.get_type_capacite_display }}</span>
+            </div>
+            {% if ligne.nb_enfants %}
+            <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f5f0e6;">
+                <span style="color:#888;">{{ ligne.nb_enfants }} طالب (طفل) × {{ ligne.tarif_enfant }} د.م.</span>
+                <span style="font-weight:600;">{{ ligne.montant_enfants }} د.م.</span>
+            </div>
+            {% endif %}
+            {% if ligne.nb_adultes %}
+            <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f5f0e6;">
+                <span style="color:#888;">{{ ligne.nb_adultes }} طالب (بالغ) × {{ ligne.tarif_adulte }} د.م.</span>
+                <span style="font-weight:600;">{{ ligne.montant_adultes }} د.م.</span>
+            </div>
+            {% endif %}
+            {% if not ligne.nb_enfants and not ligne.nb_adultes %}
+            <div style="color:#aaa; padding:6px 0;">لا يوجد طالب نشط بعمر معروف حالياً</div>
+            {% endif %}
+            <div style="display:flex; justify-content:space-between; padding-top:10px; margin-top:4px;">
+                <span style="font-weight:700;">المجموع الفرعي</span>
+                <span style="font-weight:700; color:var(--color-role-prof-solid);">{{ ligne.sous_total }} د.م.</span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="compact-card mb-4" style="text-align:center; color:#aaa;">لا يوجد أي مجموعة بعد</div>
+{% endif %}
+
+<div class="section-title">شبكة التعرفات المرجعية</div>
+<div class="compact-card mb-2" style="color:#888; font-size:0.82rem;">هذه شبكة عامة ثابتة، غير مرتبطة مباشرة بحسابك الشخصي أعلاه — تُستخدم لحساب مستحقات كل معلم.</div>
+<div class="tarif-ref-grid">
+    {% for tarif in tarifs %}
+    <div class="tarif-ref-chip">
+        <div class="type">{{ tarif.get_type_capacite_display }} — {{ tarif.get_tranche_age_display }}</div>
+        <div class="montant">{{ tarif.montant }} د.م.</div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

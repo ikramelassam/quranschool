@@ -1,4 +1,4 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 {% block title %}تفاصيل الدفعة{% endblock %}
 {% block content %}
 <div class="page-title">{{ paiement.eleve.user.get_full_name }}</div>
@@ -35,7 +35,7 @@
         <div style="color:#aaa;">لا توجد صورة</div>
     {% endif %}
 
-    {% if paiement.statut == 'en_attente' %}
+    {% if paiement.statut == 'en_attente' and request.user.role != 'mshrif' %}
     <div class="mt-4 d-flex gap-2">
         <form method="POST" action="{% url 'admin_paiement_valider' paiement.id %}">
             {% csrf_token %}
@@ -50,6 +50,8 @@
             </button>
         </form>
     </div>
+    {% elif paiement.statut == 'en_attente' %}
+    <div class="mt-4" style="color:#888; font-size:0.9rem;">بانتظار قرار المدير</div>
     {% endif %}
 </div>
 

@@ -7,6 +7,7 @@ urlpatterns = [
     path('prof/', views.dashboard_prof, name='dashboard_prof'),
     path('superviseur/', views.dashboard_superviseur, name='dashboard_superviseur'),
     path('admin/', views.dashboard_admin, name='dashboard_admin'),
+    path('mshrif/', views.dashboard_mshrif, name='dashboard_mshrif'),
 
     # Élève
     path('eleve/seances/', views.eleve_seances, name='eleve_seances'),
@@ -24,6 +25,8 @@ urlpatterns = [
     path('prof/emploi/', views.prof_emploi, name='prof_emploi'),
     path('prof/disponibilites/', views.prof_disponibilites, name='prof_disponibilites'),
     path('prof/profil/', views.prof_profil, name='prof_profil'),
+    path('prof/remuneration/', views.prof_remuneration, name='prof_remuneration'),
+    path('prof/charte/', views.prof_charte, name='prof_charte'),
 
     # Superviseur
     path('superviseur/seance/<int:seance_id>/', views.superviseur_seance_detail, name='superviseur_seance_detail'),
@@ -40,6 +43,14 @@ urlpatterns = [
     path('admin/inscriptions/prof/<int:inscription_id>/rejeter/', views.admin_rejeter_prof, name='admin_rejeter_prof'),
     path('admin/users/<int:user_id>/supprimer-orphelin/', views.admin_supprimer_user_orphelin, name='admin_supprimer_user_orphelin'),
 
+    # المشرف — validation finale des candidatures profs (étape 2/2)
+    path('mshrif/candidatures-profs/', views.mshrif_inscriptions_profs, name='mshrif_inscriptions_profs'),
+    path('mshrif/candidatures-profs/<int:inscription_id>/', views.mshrif_inscription_prof_detail, name='mshrif_inscription_prof_detail'),
+    path('mshrif/candidatures-profs/<int:inscription_id>/valider/', views.mshrif_valider_prof_final, name='mshrif_valider_prof_final'),
+    path('mshrif/candidatures-profs/<int:inscription_id>/rejeter/', views.mshrif_rejeter_prof, name='mshrif_rejeter_prof'),
+    path('mshrif/remuneration/', views.mshrif_remuneration, name='mshrif_remuneration'),
+    path('mshrif/charte/', views.mshrif_charte, name='mshrif_charte'),
+
     # Admin — gestion
     path('admin/eleves/', views.admin_eleves, name='admin_eleves'),
     path('admin/eleves/<int:eleve_id>/', views.admin_eleve_detail, name='admin_eleve_detail'),
@@ -47,6 +58,7 @@ urlpatterns = [
     path('admin/profs/', views.admin_profs, name='admin_profs'),
     path('admin/profs/<int:prof_id>/', views.admin_prof_detail, name='admin_prof_detail'),
     path('admin/profs/<int:prof_id>/disponibilites/', views.admin_prof_disponibilites, name='admin_prof_disponibilites'),
+    path('admin/profs/<int:prof_id>/majoration/', views.admin_prof_majoration_modifier, name='admin_prof_majoration_modifier'),
     path('admin/demandes-disponibilite/', views.admin_demandes_disponibilite, name='admin_demandes_disponibilite'),
     path('admin/demandes-disponibilite/<int:demande_id>/approuver/', views.admin_demande_disponibilite_approuver, name='admin_demande_disponibilite_approuver'),
     path('admin/demandes-disponibilite/<int:demande_id>/rejeter/', views.admin_demande_disponibilite_rejeter, name='admin_demande_disponibilite_rejeter'),
@@ -61,6 +73,10 @@ urlpatterns = [
     path('admin/parametres/abonnements/<int:abonnement_id>/modifier/', views.admin_abonnement_modifier, name='admin_abonnement_modifier'),
     path('admin/parametres/abonnements/<int:abonnement_id>/toggle/', views.admin_abonnement_toggle, name='admin_abonnement_toggle'),
 
+    # Admin — grille tarifaire de rémunération des profs
+    path('admin/parametres/remuneration/', views.admin_tarifs_remuneration, name='admin_tarifs_remuneration'),
+    path('admin/parametres/remuneration/<int:tarif_id>/modifier/', views.admin_tarif_remuneration_modifier, name='admin_tarif_remuneration_modifier'),
+
     # Admin — critères d'évaluation (superviseur)
     path('admin/criteres/', views.admin_criteres, name='admin_criteres'),
     path('admin/criteres/ajouter/', views.admin_critere_ajouter, name='admin_critere_ajouter'),
@@ -71,6 +87,10 @@ urlpatterns = [
     # Admin — vue centralisée des évaluations
     path('admin/evaluations/', views.admin_evaluations, name='admin_evaluations'),
     path('admin/evaluations/seance/<int:seance_id>/', views.admin_evaluation_detail, name='admin_evaluation_detail'),
+
+    # Classement mensuel des profs (مؤطر/superviseur + مدير/admin uniquement)
+    path('classement-mensuel/', views.classement_mensuel_profs, name='classement_mensuel_profs'),
+    path('classement-mensuel/<int:prof_id>/commentaire/', views.classement_mensuel_commentaire, name='classement_mensuel_commentaire'),
 
     # Admin — assignation superviseurs ↔ profs
     path('admin/superviseurs/', views.admin_superviseurs, name='admin_superviseurs'),

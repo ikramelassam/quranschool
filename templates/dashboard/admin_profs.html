@@ -1,8 +1,8 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 {% block title %}المعلمون{% endblock %}
 {% block content %}
 <div class="page-title">إدارة المعلمين</div>
-<div class="page-subtitle">إجمالي المعلمين: {{ profs.paginator.count }}</div>
+<div class="page-subtitle">إجمالي المعلمين: {{ profs.paginator.count }}{% if request.user.role == 'mshrif' %} — عرض للاطلاع فقط{% endif %}</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
@@ -11,7 +11,7 @@
             <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="اكتب اسم المعلم أو مدينته...">
         </div>
         <div class="col-md-4 d-flex gap-2">
-            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">بحث</button>
+            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">بحث</button>
             <a href="{% url 'admin_profs' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
         </div>
     </div>
@@ -19,16 +19,20 @@
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
     {% for prof in profs %}
-    <a href="{% url 'admin_prof_detail' prof.id %}" style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:inherit;">
-        <div>
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid #f0f0f0;">
+        <a href="{% url 'admin_prof_detail' prof.id %}" style="text-decoration:none; color:inherit;">
             <div style="font-weight:700;">{{ prof.user.get_full_name }}</div>
             <div style="color:#888; font-size:0.85rem;">{{ prof.user.email }}</div>
             <div style="color:#888; font-size:0.85rem;">{{ prof.ville }}</div>
-        </div>
-        <div>
+        </a>
+        <div style="display:flex; gap:10px; align-items:center;">
             <span style="color:#888; font-size:0.85rem;">{{ prof.groupes.count }} مجموعة</span>
+            <span style="display:inline-flex; gap:6px; align-items:center;">
+                {% include 'dashboard/_email_icon.html' with email=prof.user.email %}
+                {% include 'dashboard/_whatsapp_icon.html' with telephone=prof.user.telephone %}
+            </span>
         </div>
-    </a>
+    </div>
     {% empty %}
     <div style="text-align:center; padding:60px; color:#aaa;">
         {% if q %}لا توجد نتائج لـ « {{ q }} »{% else %}لا يوجد معلمون بعد{% endif %}

@@ -1,4 +1,4 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 {% load libelles_arabes %}
 {% block title %}{{ prof.user.get_full_name }}{% endblock %}
 {% block content %}
@@ -8,6 +8,13 @@
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">تواصل سريع</span>
+        <span style="display:inline-flex; gap:6px; align-items:center;">
+            {% include 'dashboard/_email_icon.html' with email=prof.user.email %}
+            {% include 'dashboard/_whatsapp_icon.html' with telephone=prof.user.telephone %}
+        </span>
+    </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">المدينة</span>
         <span style="font-weight:600;">{{ prof.ville }}</span>
@@ -61,22 +68,51 @@
     </div>
     {% endif %}
 
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">💰 المستحقات الشهرية</div>
-    <div style="color:#888; font-size:0.85rem; margin-bottom:12px;">{{ remuneration.tarif_par_eleve }} درهم × عدد الطلاب النشطين في كل مجموعة</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">💰 المستحقات الشهرية (حسب شبكة التعرفات)</div>
     {% if remuneration.detail %}
         {% for ligne in remuneration.detail %}
-        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-            <span style="font-weight:600;">{{ ligne.groupe.nom }}</span>
-            <span style="color:#888;">{{ ligne.nb_eleves_actifs }} طالب × {{ remuneration.tarif_par_eleve }} = <span style="color:var(--color-role-admin-solid); font-weight:700;">{{ ligne.montant }} د.م.</span></span>
+        <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
+            <div style="display:flex; justify-content:space-between;">
+                <span style="font-weight:600;">{{ ligne.groupe.nom }} ({{ ligne.groupe.get_type_capacite_display }})</span>
+                <span style="font-weight:700; color:var(--color-role-admin-solid);">{{ ligne.sous_total }} د.م.</span>
+            </div>
+            <div style="color:#888; font-size:0.82rem; margin-top:2px;">
+                {% if ligne.nb_enfants %}{{ ligne.nb_enfants }} طفل × {{ ligne.tarif_enfant }}{% endif %}
+                {% if ligne.nb_enfants and ligne.nb_adultes %} + {% endif %}
+                {% if ligne.nb_adultes %}{{ ligne.nb_adultes }} بالغ × {{ ligne.tarif_adulte }}{% endif %}
+                {% if not ligne.nb_enfants and not ligne.nb_adultes %}لا يوجد طالب بعمر معروف{% endif %}
+            </div>
+            {% if ligne.nb_age_inconnu %}
+            <div style="color:var(--color-danger); font-size:0.8rem; margin-top:2px;">⚠️ {{ ligne.nb_age_inconnu }} طالب بدون تاريخ ميلاد معروف — مستبعد من الحساب، يُرجى التحقق</div>
+            {% endif %}
         </div>
         {% endfor %}
         <div style="display:flex; justify-content:space-between; padding:14px 0 0; margin-top:8px; font-size:1.1rem;">
-            <span style="font-weight:700;">المجموع</span>
-            <span style="font-weight:700; color:var(--color-role-admin-solid);">{{ remuneration.total }} د.م.</span>
+            <span style="font-weight:700;">مجموع الحساب الأساسي</span>
+            <span style="font-weight:700; color:var(--color-role-admin-solid);">{{ remuneration.total_calcule }} د.م.</span>
         </div>
     {% else %}
         <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
     {% endif %}
+
+    <div style="margin-top:16px; background:var(--color-bg-cream); border-radius:10px; padding:14px 16px;">
+        {% if request.user.role == 'mshrif' %}
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:600; color:#333;">➕ منحة شهرية إضافية (لا تظهر للمعلم)</span>
+            <span style="font-weight:700; color:var(--color-role-mshrif-solid);">{{ prof.majoration_mensuelle|default_if_none:"—" }}{% if prof.majoration_mensuelle %} د.م.{% endif %}</span>
+        </div>
+        <div style="color:#888; font-size:0.78rem; margin-top:6px;">للاطلاع فقط — يُعدَّلها المدير من هذه الصفحة.</div>
+        {% else %}
+        <form method="POST" action="{% url 'admin_prof_majoration_modifier' prof.id %}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            {% csrf_token %}
+            <label style="font-weight:600; color:#333; white-space:nowrap;">➕ منحة شهرية إضافية (لا تظهر للمعلم)</label>
+            <input type="number" step="0.01" name="majoration_mensuelle" value="{{ prof.majoration_mensuelle|default_if_none:'' }}"
+                   class="form-control" style="max-width:150px;" placeholder="0.00">
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 16px; font-size:0.85rem; cursor:pointer;">حفظ</button>
+        </form>
+        <div style="color:#888; font-size:0.78rem; margin-top:6px;">تُضاف يدوياً عند التحويل الفعلي، خارج المنصة — لا تدخل في أي حساب يراه المعلم.</div>
+        {% endif %}
+    </div>
 
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">معلومات بنكية</div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">

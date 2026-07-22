@@ -1,4 +1,4 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 {% block title %}طلبات تعديل الأوقات المتاحة للتدريس{% endblock %}
 {% block content %}
 <div class="page-title">طلبات تعديل الأوقات المتاحة للتدريس</div>
@@ -12,6 +12,7 @@
             <div style="color:#888; font-size:0.85rem;">طُلب في {{ item.demande.date_demande|date:"d-m-Y H:i" }}</div>
         </div>
         <div class="d-flex gap-2" style="flex-shrink:0;">
+            {% if request.user.role != 'mshrif' %}
             <a href="{% url 'admin_demande_disponibilite_approuver' item.demande.id %}"
                style="background:var(--color-success); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.85rem;">
                قبول ✅
@@ -20,6 +21,9 @@
                style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.85rem;">
                رفض ❌
             </a>
+            {% else %}
+            <span style="color:#888; font-size:0.85rem;">بانتظار قرار المدير</span>
+            {% endif %}
         </div>
     </div>
     {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo_apercu' valeurs_form=item.valeurs lecture_seule=True %}
