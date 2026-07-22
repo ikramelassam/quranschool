@@ -1404,7 +1404,7 @@ def admin_eleve_disponibilites(request, eleve_id):
 
     if request.method == 'POST':
         matrice_vers_lignes_eleve(eleve, request.POST.getlist('dispo'))
-        messages.success(request, f'تم تحديث جدول تفرغ {eleve.user.get_full_name}.')
+        messages.success(request, f'تم تحديث جدول تفرغ {eleve.user.get_full_name()}.')
         return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
     valeurs_form = set(
@@ -1541,7 +1541,7 @@ def admin_demande_disponibilite_approuver(request, demande_id):
     demande.statut = 'approuvee'
     demande.date_traitement = timezone.now()
     demande.save()
-    messages.success(request, f'تم قبول تعديل جدول تفرغ {demande.prof.user.get_full_name}.')
+    messages.success(request, f'تم قبول تعديل جدول تفرغ {demande.prof.user.get_full_name()}.')
     return redirect('admin_demandes_disponibilite')
 
 

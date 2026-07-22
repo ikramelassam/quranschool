@@ -151,7 +151,11 @@ def groupe_modifier(request, groupe_id):
         creneau_a_change = str(groupe.creneau_id) != str(nouveau_creneau_id)
 
         nouveau_prof_id = request.POST.get('prof') or None
-        if nouveau_prof_id:
+        prof_a_change = str(groupe.prof_id) != str(nouveau_prof_id)
+        # Ne revalider la compatibilité prof/créneau que si l'un des deux change réellement —
+        # sinon un groupe déjà assigné avant durcissement des disponibilités (ou avec une
+        # matrice de dispo incomplète) devient bloqué pour toute autre modification (ex: lien_reunion).
+        if nouveau_prof_id and (creneau_a_change or prof_a_change):
             prof_obj = get_object_or_404(Prof, id=nouveau_prof_id)
             creneau_obj = get_object_or_404(Creneau, id=nouveau_creneau_id)
             manquants = creneaux_manquants_pour_prof(prof_obj, creneau_obj)
