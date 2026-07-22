@@ -1484,9 +1484,9 @@ def admin_prof_disponibilites(request, prof_id):
 
     prof = get_object_or_404(Prof, id=prof_id)
 
-    if request.method == 'POST':
+    if request.method == 'POST' and request.user.role == 'admin':
         matrice_vers_lignes(prof, request.POST.getlist('dispo'))
-        messages.success(request, f'تم تحديث جدول تفرغ {prof.user.get_full_name}.')
+        messages.success(request, f'تم تحديث جدول تفرغ {prof.user.get_full_name()}.')
         return redirect('admin_prof_detail', prof_id=prof.id)
 
     valeurs_form = set(
@@ -1494,15 +1494,19 @@ def admin_prof_disponibilites(request, prof_id):
         for j, h in DisponibiliteProf.objects.filter(prof=prof).values_list('jour_semaine', 'heure_debut')
     )
 
-    return render(request, 'dashboard/admin_prof_disponibilites.html', {
+    context = {
         'prof': prof,
         'valeurs_form': valeurs_form,
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
-    })
+        'base_template': _base_template_admin_ou_mshrif(request),
+        'lecture_seule': request.user.role == 'mshrif',
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_prof_disponibilites.html', context)
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_demandes_disponibilite(request):
     from courses.models import DemandeModificationDisponibilite
     from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
