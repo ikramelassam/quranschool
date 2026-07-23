@@ -87,6 +87,75 @@
     {% if seance.groupe.lien_reunion %} · <a href="{{ seance.groupe.lien_reunion }}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 رابط الاجتماع</a>{% endif %}
 </div>
 
+{% if not seance.modifiable_par_prof %}
+    {% if seance.statut == 'terminee' %}
+    <div style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:14px 18px; margin-bottom:20px; font-weight:600;">
+        ✅ تم تقييم هذه الحصة نهائياً — العرض التالي للاطلاع فقط، لم يعد بالإمكان تعديله.
+    </div>
+    {% elif seance.statut == 'planifiee' %}
+    <div style="background:#e0e0e0; color:#555; border-radius:8px; padding:14px 18px; margin-bottom:20px; font-weight:600;">
+        ⛔ انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يتم تقييمها، ولن يكون ذلك ممكناً بعد الآن. ستبقى هذه الحصة "غير مقيَّمة" نهائياً.
+    </div>
+    {% endif %}
+
+    {% for item in eleves_presences %}
+    {% with eleve=item.eleve presence=item.presence %}
+    <div class="eleve-card open">
+        <div class="eleve-card-header">
+            <div class="eleve-nom">{{ eleve.user.get_full_name }}</div>
+            {% if presence %}
+            <span class="pill active statut-{{ presence.statut }}">{{ presence.get_statut_display }}</span>
+            {% else %}
+            <span style="color:#aaa; font-size:0.85rem;">لم يُسجَّل</span>
+            {% endif %}
+        </div>
+        {% if presence %}
+        <div class="eleve-card-body" style="display:block;">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="notation-groupe">
+                        <div class="notation-titre">الحفظ</div>
+                        {% if presence.nom_sourate_memorisee %}
+                        <div>{{ presence.nom_sourate_memorisee }} ({{ presence.ayah_debut_memorisation }}-{{ presence.ayah_fin_memorisation }})</div>
+                        {% if presence.note_memorisation %}<div style="color:#888; font-size:0.85rem; margin-top:4px;">{{ presence.get_note_memorisation_display }}</div>{% endif %}
+                        {% else %}
+                        <div style="color:#aaa;">لا يوجد</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="notation-groupe">
+                        <div class="notation-titre">المراجعة</div>
+                        {% if presence.nom_sourate_revisee %}
+                        <div>{{ presence.nom_sourate_revisee }} ({{ presence.ayah_debut_revision }}-{{ presence.ayah_fin_revision }})</div>
+                        {% if presence.note_revision %}<div style="color:#888; font-size:0.85rem; margin-top:4px;">{{ presence.get_note_revision_display }}</div>{% endif %}
+                        {% else %}
+                        <div style="color:#aaa;">لا يوجد</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% if presence.remarque %}
+            <div class="remarque-eleve"><label>ملاحظة عن الطالب</label><div>{{ presence.remarque }}</div></div>
+            {% endif %}
+            {% if presence.consigne_prochaine_seance %}
+            <div class="remarque-eleve"><label>📌 تحضير الحصة القادمة</label><div>{{ presence.consigne_prochaine_seance }}</div></div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endwith %}
+    {% empty %}
+    <div style="text-align:center; color:#aaa; padding:30px;">لا يوجد طلاب في هذه المجموعة</div>
+    {% endfor %}
+
+    {% if seance.remarque_generale %}
+    <div class="remarque-generale-bloc">
+        <label>📝 ملاحظات عامة عن الحصة</label>
+        <div>{{ seance.remarque_generale }}</div>
+    </div>
+    {% endif %}
+{% else %}
 <form method="POST" action="{% url 'prof_presence_sauvegarder' seance.id %}">
     {% csrf_token %}
 
@@ -212,6 +281,7 @@
     </button>
     {% endif %}
 </form>
+{% endif %}
 
 <div class="mt-3">
     <a href="{% url 'prof_seances' %}" style="color:var(--color-role-prof-solid); text-decoration:none;">← رجوع إلى سجل الحصص</a>

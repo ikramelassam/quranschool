@@ -293,6 +293,13 @@ def prof_presence_sauvegarder(request, seance_id):
     prof = get_object_or_404(Prof, user=request.user)
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
 
+    if not seance.modifiable_par_prof:
+        if seance.statut == 'terminee':
+            messages.error(request, 'تم تقييم هذه الحصة بالفعل — لم يعد بالإمكان تعديلها.')
+        else:
+            messages.error(request, 'انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يعد بالإمكان تقييمها.')
+        return redirect('prof_seance_detail', seance_id=seance.id)
+
     if request.method == 'POST':
         eleves = seance.groupe.eleves.all()
         erreurs = []

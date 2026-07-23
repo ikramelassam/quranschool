@@ -1,6 +1,7 @@
 import datetime
 
 from django.db import models
+from django.utils import timezone
 from accounts.models import Prof, Eleve, Superviseur
 
 
@@ -230,8 +231,33 @@ class Seance(models.Model):
         help_text="Remarque du prof sur la séance dans son ensemble (distincte des remarques par élève)."
     )
 
+    FENETRE_EVALUATION_PRESENCE_HEURES = 24  # même principe que evaluations.Evaluation
+    # (مؤطر -> prof) : passé ce délai depuis le DÉBUT de la séance (aucune durée de
+    # séance n'est stockée, l'heure de début sert donc de référence), le prof perd
+    # définitivement le droit de remplir la feuille de présence si ce n'est pas déjà
+    # fait — la séance reste "non évaluée" pour toujours, ce n'est pas juste un rappel.
+
     def __str__(self):
         return f"{self.groupe} - {self.date}"
+
+    @property
+    def debut_datetime(self):
+        """Datetime aware combinant date+heure — référence pour la fenêtre de 24h."""
+        naive = datetime.datetime.combine(self.date, self.heure)
+        return timezone.make_aware(naive) if timezone.is_naive(naive) else naive
+
+    @property
+    def delai_evaluation_depasse(self):
+        """True si plus de 24h se sont écoulées depuis le DÉBUT de la séance."""
+        return timezone.now() - self.debut_datetime > datetime.timedelta(hours=self.FENETRE_EVALUATION_PRESENCE_HEURES)
+
+    @property
+    def modifiable_par_prof(self):
+        """Le prof peut encore remplir/soumettre la feuille de présence : la séance est
+        encore 'planifiee' (pas déjà soumise -> 'terminee', pas 'annulee') ET le délai
+        de 24h depuis le début n'est pas dépassé. Une fois soumise OU le délai dépassé
+        sans soumission, cet état est définitif — jamais réversible dans les deux cas."""
+        return self.statut == 'planifiee' and not self.delai_evaluation_depasse
 
     class Meta:
         verbose_name = "Séance"
