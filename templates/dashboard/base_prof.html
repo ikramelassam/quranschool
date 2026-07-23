@@ -174,9 +174,9 @@
            class="menu-item {% if request.resolver_match.url_name == 'prof_remuneration' %}active{% endif %}">
             <span class="icon">💰</span> راتبي
         </a>
-        <a href="{% url 'prof_charte' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'prof_charte' %}active{% endif %}">
-            <span class="icon">📜</span> ميثاق التدريس
+        <a href="{% url 'prof_hakiba' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'prof_hakiba' or request.resolver_match.url_name == 'prof_charte' or request.resolver_match.url_name == 'programme_general_detail' %}active{% endif %}">
+            <span class="icon">📁</span> حقيبة الأستاذ
         </a>
         <a href="{% url 'password_change' %}"
            class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">

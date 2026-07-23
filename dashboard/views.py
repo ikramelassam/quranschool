@@ -471,6 +471,45 @@ def prof_charte(request):
 
 
 @role_required('prof')
+def prof_hakiba(request):
+    """Page d'atterrissage حقيبة الأستاذ — regroupe ميثاق التدريس (prof_charte, déjà
+    existant) et البرنامج العام (programme_general_detail) sous une seule entrée
+    sidebar, même sidebar restant plate (aucune base_*.html du projet n'a de
+    sous-menu) : un lien -> une page de cartes, comme les quick-links du مشرف."""
+    return render(request, 'dashboard/prof_hakiba.html')
+
+
+@role_required('prof', 'eleve')
+def programme_general_detail(request):
+    """Lecture seule du البرنامج العام — même vue pour prof et élève (contenu
+    identique, seul le sidebar change), édité uniquement par le مدير (voir
+    admin_programme_general)."""
+    from accounts.models import get_programme_general
+
+    base_template = 'dashboard/base_prof.html' if request.user.role == 'prof' else 'dashboard/base_eleve.html'
+    return render(request, 'dashboard/programme_general_detail.html', {
+        'programme': get_programme_general(),
+        'base_template': base_template,
+    })
+
+
+@role_required('admin')
+def admin_programme_general(request):
+    """Édition du البرنامج العام — مدير uniquement (contrairement à ميثاق التدريس,
+    géré par le المشرف). Un seul champ texte libre, pas de structure en sections."""
+    from accounts.models import get_programme_general
+
+    programme = get_programme_general()
+    if request.method == 'POST':
+        programme.contenu = request.POST.get('contenu', '')
+        programme.save()
+        messages.success(request, 'تم تحديث البرنامج العام بنجاح.')
+        return redirect('admin_programme_general')
+
+    return render(request, 'dashboard/admin_programme_general.html', {'programme': programme})
+
+
+@role_required('prof')
 def prof_bilans_mensuels(request):
     """Liste des élèves du prof pour le mois choisi, avec statut rempli/non rempli du
     bilan mensuel — point d'entrée pour remplir/consulter (voir bilan_mensuel_detail)."""

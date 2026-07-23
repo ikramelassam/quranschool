@@ -27,6 +27,8 @@ urlpatterns = [
     path('prof/profil/', views.prof_profil, name='prof_profil'),
     path('prof/remuneration/', views.prof_remuneration, name='prof_remuneration'),
     path('prof/charte/', views.prof_charte, name='prof_charte'),
+    path('prof/hakiba/', views.prof_hakiba, name='prof_hakiba'),
+    path('programme-general/', views.programme_general_detail, name='programme_general_detail'),
 
     # Superviseur
     path('superviseur/seance/<int:seance_id>/', views.superviseur_seance_detail, name='superviseur_seance_detail'),
@@ -100,6 +102,7 @@ urlpatterns = [
     # Admin — modification d'email (n'importe quel utilisateur) et compte admin
     path('admin/utilisateurs/<int:user_id>/modifier-email/', views.admin_utilisateur_modifier_email, name='admin_utilisateur_modifier_email'),
     path('admin/mon-compte/', views.admin_mon_compte, name='admin_mon_compte'),
+    path('admin/programme-general/', views.admin_programme_general, name='admin_programme_general'),
 
     # Bilans mensuels élèves (prof: saisie ; مدير/مؤطر/مشرف: lecture seule)
     path('prof/bilans/', views.prof_bilans_mensuels, name='prof_bilans_mensuels'),

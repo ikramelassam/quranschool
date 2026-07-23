@@ -237,6 +237,10 @@
         class="menu-item {% if request.resolver_match.url_name == 'mshrif_charte' %}active{% endif %}">
             <span class="icon">📜</span> ميثاق التدريس
         </a>
+        <a href="{% url 'admin_programme_general' %}"
+        class="menu-item {% if request.resolver_match.url_name == 'admin_programme_general' %}active{% endif %}">
+            <span class="icon">📖</span> البرنامج العام
+        </a>
         <a href="{% url 'bilans_mensuels' %}"
         class="menu-item {% if request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' %}active{% endif %}">
             <span class="icon">📝</span> البيانات الشهرية للطلاب

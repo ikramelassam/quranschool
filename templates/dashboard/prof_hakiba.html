@@ -1,0 +1,27 @@
+{% extends 'dashboard/base_prof.html' %}
+{% block title %}حقيبة الأستاذ{% endblock %}
+{% block content %}
+<div class="page-title">حقيبة الأستاذ</div>
+<div class="page-subtitle">كل ما تحتاجه لمعرفة قواعد وبرنامج التدريس في المنصة</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <a href="{% url 'prof_charte' %}" class="compact-card" style="display:block; text-decoration:none; color:inherit;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; font-size:1.05rem;">📜 ميثاق التدريس</span>
+                <span style="color:var(--color-role-prof-solid);">عرض ←</span>
+            </div>
+            <div style="color:#888; font-size:0.85rem; margin-top:8px;">القواعد والالتزامات التي يجب على كل معلم الاطلاع عليها والموافقة عليها.</div>
+        </a>
+    </div>
+    <div class="col-md-6">
+        <a href="{% url 'programme_general_detail' %}" class="compact-card" style="display:block; text-decoration:none; color:inherit;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; font-size:1.05rem;">📖 البرنامج العام</span>
+                <span style="color:var(--color-role-prof-solid);">عرض ←</span>
+            </div>
+            <div style="color:#888; font-size:0.85rem; margin-top:8px;">البرنامج العام لمقرأة زدني علماً — للاطلاع فقط.</div>
+        </a>
+    </div>
+</div>
+{% endblock %}

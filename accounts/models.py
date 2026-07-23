@@ -189,6 +189,30 @@ def get_charte():
     return charte
 
 
+class ProgrammeGeneral(models.Model):
+    """البرنامج العام لمقرأة زدني علماً — contenu texte libre, modifiable UNIQUEMENT
+    par le مدير (contrairement à ميثاق التدريس qui est géré par le المشرف), visible en
+    lecture seule par le prof et l'élève. Singleton comme CharteEnseignement, mais
+    volontairement un seul champ texte : contenu plus simple que la charte, pas de
+    structure en sections nécessaire."""
+    contenu = models.TextField(blank=True)
+    date_modification = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "البرنامج العام"
+
+    class Meta:
+        verbose_name = "Programme général"
+        verbose_name_plural = "Programme général"
+
+
+def get_programme_general():
+    """Renvoie l'unique instance de ProgrammeGeneral, en la créant (vide) si elle
+    n'existe pas encore — même patron singleton que get_charte()."""
+    programme, _ = ProgrammeGeneral.objects.get_or_create(pk=1)
+    return programme
+
+
 class Superviseur(models.Model):
     user = models.OneToOneField(
         User,

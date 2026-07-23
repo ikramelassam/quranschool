@@ -176,6 +176,10 @@
            class="menu-item {% if request.resolver_match.url_name == 'eleve_paiements' %}active{% endif %}">
             <span class="icon">💰</span> مدفوعاتي
         </a>
+        <a href="{% url 'programme_general_detail' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'programme_general_detail' %}active{% endif %}">
+            <span class="icon">📖</span> البرنامج العام
+        </a>
         <a href="{% url 'password_change' %}"
            class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
             <span class="icon">⚙️</span> الإعدادات

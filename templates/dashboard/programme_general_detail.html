@@ -1,0 +1,14 @@
+{% extends base_template %}
+{% block title %}البرنامج العام{% endblock %}
+{% block content %}
+<div class="page-title">البرنامج العام</div>
+<div class="page-subtitle">آخر تحديث: {{ programme.date_modification|date:"d-m-Y H:i" }}</div>
+
+<div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:800px;">
+    {% if programme.contenu %}
+        <div style="line-height:2;">{{ programme.contenu|linebreaks }}</div>
+    {% else %}
+        <div style="text-align:center; color:#aaa; padding:20px;">لم يتم نشر البرنامج العام بعد.</div>
+    {% endif %}
+</div>
+{% endblock %}
