@@ -1,7 +1,13 @@
+import datetime
+
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from accounts.models import Superviseur, Prof
 from courses.models import Seance
+
+FENETRE_MODIFICATION_EVALUATION_HEURES = 24  # confirmé par le client : le مؤطر ne peut plus
+# corriger son évaluation du prof passé ce délai depuis l'envoi initial.
 
 
 class Critere(models.Model):
@@ -34,6 +40,14 @@ class Evaluation(models.Model):
 
     def __str__(self):
         return f"Évaluation {self.seance} par {self.superviseur}"
+
+    @property
+    def modifiable(self):
+        """True tant que la fenêtre de correction (voir FENETRE_MODIFICATION_EVALUATION_HEURES)
+        n'est pas dépassée depuis l'envoi initial. `date` est auto_now_add donc ne bouge jamais
+        après coup, y compris si l'évaluation est ensuite modifiée — la fenêtre se compte bien
+        depuis le premier envoi, pas depuis la dernière modification."""
+        return timezone.now() - self.date < datetime.timedelta(hours=FENETRE_MODIFICATION_EVALUATION_HEURES)
 
     class Meta:
         verbose_name = "Évaluation"

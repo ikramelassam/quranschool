@@ -7,10 +7,16 @@
         <div class="page-title" style="margin-bottom:0;">تقييم المعلم</div>
         <div class="page-subtitle" style="margin-bottom:0;">{{ seance.groupe.nom }} — {{ seance.date|date:"d-m-Y" }}</div>
     </div>
+    {% if evaluation.modifiable %}
     <a href="{% url 'superviseur_evaluer' seance.id %}"
        style="background:var(--color-role-superviseur); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
         تعديل ✏️
     </a>
+    {% else %}
+    <span style="background:#f0f0f0; color:#888; border-radius:8px; padding:10px 20px; font-weight:600; font-size:0.9rem;">
+        🔒 لم يعد قابلاً للتعديل (تجاوز 24 ساعة)
+    </span>
+    {% endif %}
 </div>
 
 <div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">

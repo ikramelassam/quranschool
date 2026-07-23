@@ -42,6 +42,10 @@ def superviseur_evaluer(request, seance_id):
     criteres = Critere.objects.filter(est_actif=True)
 
     evaluation = Evaluation.objects.filter(seance=seance).first()
+    if evaluation and not evaluation.modifiable:
+        messages.error(request, 'انتهت مدة تعديل هذا التقييم (24 ساعة من الإرسال الأول) — لم يعد قابلاً للتعديل.')
+        return redirect('superviseur_evaluation_detail', seance_id=seance.id)
+
     notes_existantes = {}
     if evaluation:
         notes_existantes = {n.critere_id: n.note for n in evaluation.notes.all()}
