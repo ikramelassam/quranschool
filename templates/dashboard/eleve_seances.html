@@ -1,5 +1,6 @@
 {% extends 'dashboard/base_eleve.html' %}
 {% load presence_style %}
+{% load libelles_arabes %}
 {% block title %}حصصي{% endblock %}
 {% block content %}
 <div class="page-title">حصصي وتقييماتي</div>
@@ -75,6 +76,9 @@
                     <div style="color:#999; font-size:0.85rem;">
                         {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
                     </div>
+                    <div style="color:#aaa; font-size:0.8rem; margin-top:2px;">
+                        👥 {{ seance.groupe.eleves.all|length }} طلاب{% if seance.groupe.eleves.all %}: {{ seance.groupe.eleves|noms_eleves }}{% endif %}
+                    </div>
                     {% if seance.statut == 'annulee' and seance.remarque %}
                     <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">السبب: {{ seance.remarque }}</div>
                     {% endif %}
@@ -90,6 +94,9 @@
                     <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
                     <div style="color:#999; font-size:0.85rem;">
                         {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
+                    </div>
+                    <div style="color:#aaa; font-size:0.8rem; margin-top:2px;">
+                        👥 {{ seance.groupe.eleves.all|length }} طلاب{% if seance.groupe.eleves.all %}: {{ seance.groupe.eleves|noms_eleves }}{% endif %}
                     </div>
                     {% if seance.statut == 'annulee' and seance.remarque %}
                     <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">السبب: {{ seance.remarque }}</div>

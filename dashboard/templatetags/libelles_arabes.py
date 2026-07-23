@@ -67,3 +67,13 @@ def wa_number(telephone):
     if chiffres.startswith('0'):
         return '212' + chiffres[1:]
     return chiffres
+
+
+@register.filter
+def noms_eleves(eleves_manager):
+    """Joint les noms complets des élèves d'un groupe (eleve.user.get_full_name()),
+    séparés par '، ' — utilisé sur les listes de séances à venir (prof + élève) pour
+    afficher qui est dans la halqa sans clic supplémentaire. Passer le manager
+    (ex: groupe.eleves, pas groupe.eleves.all) pour profiter du prefetch_related
+    déjà fait côté vue plutôt que de redéclencher une requête."""
+    return '، '.join(e.user.get_full_name() for e in eleves_manager.all())

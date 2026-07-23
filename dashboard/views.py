@@ -207,7 +207,7 @@ def prof_seances(request):
     prof = get_object_or_404(Prof, user=request.user)
     aujourdhui = timezone.localdate()
 
-    toutes_seances = Seance.objects.filter(groupe__prof=prof).select_related('groupe')
+    toutes_seances = Seance.objects.filter(groupe__prof=prof).select_related('groupe').prefetch_related('groupe__eleves__user')
 
     # Une séance "en retard" est une séance passée jamais remplie par le prof
     # (statut resté à 'planifiee' au lieu de passer à 'terminee' via
@@ -1181,7 +1181,7 @@ def dashboard_eleve(request):
     # motif, c'est une info que l'élève doit voir.
     prochaine_seance = Seance.objects.filter(
         groupe__in=groupes, date__gte=aujourdhui
-    ).exclude(statut='terminee').select_related('groupe').order_by('date', 'heure').first()
+    ).exclude(statut='terminee').select_related('groupe').prefetch_related('groupe__eleves__user').order_by('date', 'heure').first()
 
     dernieres_evaluations = Presence.objects.filter(
         eleve=eleve
@@ -1223,7 +1223,7 @@ def eleve_seances(request):
     # nb_a_venir permet au template d'afficher un compteur du reste.
     seances_a_venir_qs = Seance.objects.filter(
         groupe__in=eleve.groupes.all(), date__gte=aujourdhui
-    ).exclude(statut='terminee').select_related('groupe').order_by('date', 'heure')
+    ).exclude(statut='terminee').select_related('groupe').prefetch_related('groupe__eleves__user').order_by('date', 'heure')
     nb_a_venir = seances_a_venir_qs.count()
     seances_a_venir = seances_a_venir_qs[:3]
     # Reste des séances à venir au-delà des 3 déjà visibles — rendu caché

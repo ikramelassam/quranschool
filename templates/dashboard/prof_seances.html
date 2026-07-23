@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_prof.html' %}
+{% load libelles_arabes %}
 {% block title %}سجل الحصص{% endblock %}
 {% block content %}
 <div class="page-title">سجل الحصص</div>
@@ -100,6 +101,9 @@
                     <div style="color:#999; font-size:0.85rem;">
                         {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }} — {{ seance.get_type_display }}
                     </div>
+                    <div style="color:#aaa; font-size:0.8rem; margin-top:2px;">
+                        👥 {{ seance.groupe.eleves.all|length }} طلاب{% if seance.groupe.eleves.all %}: {{ seance.groupe.eleves|noms_eleves }}{% endif %}
+                    </div>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                     {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
@@ -116,6 +120,9 @@
                     <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
                     <div style="color:#999; font-size:0.85rem;">
                         {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }} — {{ seance.get_type_display }}
+                    </div>
+                    <div style="color:#aaa; font-size:0.8rem; margin-top:2px;">
+                        👥 {{ seance.groupe.eleves.all|length }} طلاب{% if seance.groupe.eleves.all %}: {{ seance.groupe.eleves|noms_eleves }}{% endif %}
                     </div>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">

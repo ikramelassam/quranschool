@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_eleve.html' %}
+{% load libelles_arabes %}
 {% block title %}لوحة الطالب{% endblock %}
 {% block extra_css %}
 <style>
@@ -38,6 +39,9 @@
         <div>
             <div style="font-weight:700;">{{ prochaine_seance.date|date:"d-m-Y" }} — {{ prochaine_seance.heure|time:"H:i" }}</div>
             <div style="color:#888; font-size:0.82rem; margin-top:2px;">{{ prochaine_seance.groupe.nom }}</div>
+            <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">
+                👥 {{ prochaine_seance.groupe.eleves.all|length }} طلاب{% if prochaine_seance.groupe.eleves.all %}: {{ prochaine_seance.groupe.eleves|noms_eleves }}{% endif %}
+            </div>
             {% if prochaine_seance.statut == 'annulee' and prochaine_seance.remarque %}
             <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">السبب: {{ prochaine_seance.remarque }}</div>
             {% endif %}
