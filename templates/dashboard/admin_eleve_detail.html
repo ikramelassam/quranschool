@@ -130,6 +130,10 @@
 
     <div class="mt-4 d-flex gap-3 align-items-center">
         <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none;">← رجوع</a>
+        <a href="{% url 'bilans_mensuels' %}?eleve={{ eleve.id }}"
+           style="background:var(--color-role-admin); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
+           📝 البيانات الشهرية
+        </a>
         {% if request.user.role != 'mshrif' %}
         <a href="{% url 'admin_utilisateur_modifier_email' eleve.user.id %}?next={% url 'admin_eleve_detail' eleve.id %}"
            style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">

@@ -1,0 +1,33 @@
+{% extends base_template %}
+{% block title %}البيان الشهري — {{ eleve.user.get_full_name }}{% endblock %}
+{% block content %}
+<div class="page-title">{{ eleve.user.get_full_name }}</div>
+<div class="page-subtitle">
+    البيان الشهري — {{ mois_reference|date:"F Y" }} — بقلم {{ prof.user.get_full_name }}
+    {% if lecture_seule %} — عرض للاطلاع فقط{% endif %}
+</div>
+
+<div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:800px;">
+    <form method="POST">
+        {% csrf_token %}
+
+        <label style="font-weight:600; color:#333;">📖 ما تم حفظه هذا الشهر</label>
+        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">سطر لكل حصة — تم تعبئته تلقائياً من سجل الحصص، عدّله بحرية</div>
+        <textarea name="memorisation" rows="6" class="form-control mb-3" {% if lecture_seule %}disabled{% endif %}>{{ bilan.memorisation }}</textarea>
+
+        <label style="font-weight:600; color:#333;">🔁 ما تمت مراجعته هذا الشهر</label>
+        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">سطر لكل حصة — تم تعبئته تلقائياً من سجل الحصص، عدّله بحرية</div>
+        <textarea name="revision" rows="6" class="form-control mb-3" {% if lecture_seule %}disabled{% endif %}>{{ bilan.revision }}</textarea>
+
+        <label style="font-weight:600; color:#333;">📝 ملاحظات السلوك والانضباط</label>
+        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">نص حر — لا يُعبَّأ تلقائياً</div>
+        <textarea name="remarques_discipline" rows="4" class="form-control mb-3" {% if lecture_seule %}disabled{% endif %}>{{ bilan.remarques_discipline }}</textarea>
+
+        {% if not lecture_seule %}
+        <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">حفظ البيان ✅</button>
+        {% elif request.user.role == 'prof' %}
+        <div style="color:#888; font-size:0.85rem;">⏳ لم يعد بإمكانك تعديل هذا البيان — مدة التعديل (حتى نهاية الشهر الموالي) انتهت.</div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

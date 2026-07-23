@@ -394,6 +394,40 @@ def calculer_progression_eleve(eleve):
     }
 
 
+def generer_brouillon_bilan_mensuel(eleve, prof, mois_reference):
+    """Agrège les Presence du mois (eleve, prof, mois) en un brouillon texte pour les
+    champs memorisation/revision d'un nouveau BilanMensuel — un point de départ que le
+    prof relit et corrige avant de sauvegarder, pas un résumé figé. Ne couvre PAS les
+    remarques de discipline (aucune donnée par séance équivalente à agréger)."""
+    from .models import Presence
+
+    presences = Presence.objects.filter(
+        eleve=eleve, seance__groupe__prof=prof,
+        seance__date__year=mois_reference.year, seance__date__month=mois_reference.month,
+    ).select_related('seance').order_by('seance__date')
+
+    lignes_memorisation = []
+    lignes_revision = []
+    for p in presences:
+        if p.sourate_memorisee:
+            note = f' — {p.get_note_memorisation_display()}' if p.note_memorisation else ''
+            lignes_memorisation.append(
+                f'{p.seance.date:%d-%m}: {p.nom_sourate_memorisee} '
+                f'({p.ayah_debut_memorisation}-{p.ayah_fin_memorisation}){note}'
+            )
+        if p.sourate_revisee:
+            note = f' — {p.get_note_revision_display()}' if p.note_revision else ''
+            lignes_revision.append(
+                f'{p.seance.date:%d-%m}: {p.nom_sourate_revisee} '
+                f'({p.ayah_debut_revision}-{p.ayah_fin_revision}){note}'
+            )
+
+    return {
+        'memorisation': '\n'.join(lignes_memorisation),
+        'revision': '\n'.join(lignes_revision),
+    }
+
+
 RING_CIRCONFERENCE_HIZB = 452.39  # 2*pi*72, rayon du cercle SVG (voir templates/dashboard/_ring_hizb.html)
 
 FRACTION_QUART = {1: '1/4', 2: '1/2', 3: '3/4'}

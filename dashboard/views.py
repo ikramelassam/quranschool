@@ -470,6 +470,153 @@ def prof_charte(request):
     })
 
 
+@role_required('prof')
+def prof_bilans_mensuels(request):
+    """Liste des élèves du prof pour le mois choisi, avec statut rempli/non rempli du
+    bilan mensuel — point d'entrée pour remplir/consulter (voir bilan_mensuel_detail)."""
+    from accounts.models import Prof, Eleve
+    from courses.models import BilanMensuel
+    from django.utils import timezone
+
+    prof = get_object_or_404(Prof, user=request.user)
+    mois = request.GET.get('mois', '')
+    aujourdhui = timezone.localdate()
+    if mois:
+        annee, _, num_mois = mois.partition('-')
+        annee, num_mois = int(annee), int(num_mois)
+    else:
+        annee, num_mois = aujourdhui.year, aujourdhui.month
+        mois = f'{annee:04d}-{num_mois:02d}'
+    mois_reference = datetime.date(annee, num_mois, 1)
+
+    eleves = Eleve.objects.filter(groupes__prof=prof).distinct().select_related('user').order_by('user__first_name')
+    bilans = {b.eleve_id: b for b in BilanMensuel.objects.filter(prof=prof, mois_reference=mois_reference)}
+
+    lignes = [{'eleve': eleve, 'bilan': bilans.get(eleve.id)} for eleve in eleves]
+
+    return render(request, 'dashboard/prof_bilans_mensuels.html', {
+        'lignes': lignes,
+        'mois': mois,
+        'mois_reference': mois_reference,
+    })
+
+
+@role_required('prof', 'admin', 'superviseur', 'mshrif')
+def bilan_mensuel_detail(request, eleve_id, mois):
+    """Page de saisie/consultation d'un bilan mensuel — unique pour les 4 rôles :
+    le prof le crée/modifie (tant que modifiable_par_prof), les 3 autres rôles le
+    consultent en lecture seule (le مؤطر scopé à ses profs assignés, comme pour le
+    classement mensuel)."""
+    from accounts.models import Eleve, Prof, Superviseur
+    from courses.models import BilanMensuel
+    from courses.utils import generer_brouillon_bilan_mensuel
+    from django.http import HttpResponseForbidden
+
+    eleve = get_object_or_404(Eleve, id=eleve_id)
+    annee, _, num_mois = mois.partition('-')
+    mois_reference = datetime.date(int(annee), int(num_mois), 1)
+
+    if request.user.role == 'prof':
+        prof = get_object_or_404(Prof, user=request.user)
+        if not eleve.groupes.filter(prof=prof).exists():
+            return HttpResponseForbidden('هذا الطالب ليس ضمن مجموعاتك.')
+        bilan, _cree = BilanMensuel.objects.get_or_create(
+            eleve=eleve, prof=prof, mois_reference=mois_reference,
+            defaults=generer_brouillon_bilan_mensuel(eleve, prof, mois_reference),
+        )
+    else:
+        bilan = get_object_or_404(BilanMensuel, eleve=eleve, mois_reference=mois_reference)
+        prof = bilan.prof
+        if request.user.role == 'superviseur':
+            superviseur = get_object_or_404(Superviseur, user=request.user)
+            if prof not in superviseur.profs_assignes.all():
+                return HttpResponseForbidden('هذا المعلم غير مسند إليك.')
+
+    lecture_seule = request.user.role != 'prof' or not bilan.modifiable_par_prof
+
+    if request.method == 'POST' and not lecture_seule:
+        bilan.memorisation = request.POST.get('memorisation', '')
+        bilan.revision = request.POST.get('revision', '')
+        bilan.remarques_discipline = request.POST.get('remarques_discipline', '')
+        bilan.save()
+        messages.success(request, 'تم حفظ البيان الشهري بنجاح.')
+        return redirect('bilan_mensuel_detail', eleve_id=eleve.id, mois=mois)
+
+    BASE_TEMPLATE_PAR_ROLE = {
+        'prof': 'dashboard/base_prof.html',
+        'admin': 'dashboard/base_admin.html',
+        'superviseur': 'dashboard/base_superviseur.html',
+        'mshrif': 'dashboard/base_mshrif.html',
+    }
+    COULEUR_PAR_ROLE = {
+        'prof': 'var(--color-role-prof)',
+        'admin': 'var(--color-role-admin)',
+        'superviseur': 'var(--color-role-superviseur)',
+        'mshrif': 'var(--color-role-mshrif)',
+    }
+    context = {
+        'eleve': eleve,
+        'prof': prof,
+        'bilan': bilan,
+        'mois': mois,
+        'mois_reference': mois_reference,
+        'lecture_seule': lecture_seule,
+        'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
+        'couleur_role': COULEUR_PAR_ROLE[request.user.role],
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/bilan_mensuel_detail.html', context)
+
+
+@role_required('admin', 'superviseur', 'mshrif')
+def bilans_mensuels(request):
+    """Liste des bilans mensuels déjà rédigés — lecture seule pour مدير/مؤطر/مشرف,
+    مؤطر scopé à ses profs assignés (même filtre que classement_mensuel_profs)."""
+    from accounts.models import Prof, Eleve, Superviseur
+    from courses.models import BilanMensuel
+
+    mois = request.GET.get('mois', '')
+    prof_id = request.GET.get('prof', '')
+    eleve_id = request.GET.get('eleve', '')
+
+    bilans = BilanMensuel.objects.select_related('eleve__user', 'prof__user').order_by(
+        '-mois_reference', 'eleve__user__first_name'
+    )
+
+    if request.user.role == 'superviseur':
+        superviseur = get_object_or_404(Superviseur, user=request.user)
+        bilans = bilans.filter(prof__in=superviseur.profs_assignes.all())
+
+    if mois:
+        annee, _, num_mois = mois.partition('-')
+        bilans = bilans.filter(mois_reference__year=int(annee), mois_reference__month=int(num_mois))
+    if prof_id:
+        bilans = bilans.filter(prof_id=prof_id)
+    if eleve_id:
+        bilans = bilans.filter(eleve_id=eleve_id)
+
+    BASE_TEMPLATE_PAR_ROLE = {
+        'admin': 'dashboard/base_admin.html',
+        'superviseur': 'dashboard/base_superviseur.html',
+        'mshrif': 'dashboard/base_mshrif.html',
+    }
+    COULEUR_PAR_ROLE = {
+        'admin': 'var(--color-role-admin-solid)',
+        'superviseur': 'var(--color-role-superviseur-solid)',
+        'mshrif': 'var(--color-role-mshrif-solid)',
+    }
+    context = {
+        'bilans': paginer(request, bilans, 20),
+        'filtres': {'mois': mois, 'prof': prof_id, 'eleve': eleve_id},
+        'profs': Prof.objects.select_related('user').order_by('user__first_name'),
+        'eleves': Eleve.objects.select_related('user').order_by('user__first_name'),
+        'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
+        'couleur_role': COULEUR_PAR_ROLE[request.user.role],
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/bilans_mensuels.html', context)
+
+
 @role_required('admin', 'mshrif')
 def dashboard_admin(request):
     from inscriptions.models import InscriptionEleve, InscriptionProf

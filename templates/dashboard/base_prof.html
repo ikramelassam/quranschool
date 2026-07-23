@@ -158,6 +158,10 @@
            class="menu-item {% if request.resolver_match.url_name == 'prof_emploi' %}active{% endif %}">
             <span class="icon">📅</span> جدولي
         </a>
+        <a href="{% url 'prof_bilans_mensuels' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'prof_bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' %}active{% endif %}">
+            <span class="icon">📝</span> البيانات الشهرية للطلاب
+        </a>
         <a href="{% url 'prof_disponibilites' %}"
            class="menu-item {% if request.resolver_match.url_name == 'prof_disponibilites' %}active{% endif %}">
             <span class="icon">🕐</span> الأوقات المتاحة للتدريس

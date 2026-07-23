@@ -100,4 +100,9 @@ urlpatterns = [
     # Admin — modification d'email (n'importe quel utilisateur) et compte admin
     path('admin/utilisateurs/<int:user_id>/modifier-email/', views.admin_utilisateur_modifier_email, name='admin_utilisateur_modifier_email'),
     path('admin/mon-compte/', views.admin_mon_compte, name='admin_mon_compte'),
+
+    # Bilans mensuels élèves (prof: saisie ; مدير/مؤطر/مشرف: lecture seule)
+    path('prof/bilans/', views.prof_bilans_mensuels, name='prof_bilans_mensuels'),
+    path('bilans/', views.bilans_mensuels, name='bilans_mensuels'),
+    path('bilans/<int:eleve_id>/<str:mois>/', views.bilan_mensuel_detail, name='bilan_mensuel_detail'),
 ]

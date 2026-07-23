@@ -1,3 +1,5 @@
+import datetime
+
 from django.db import models
 from accounts.models import Prof, Eleve, Superviseur
 
@@ -312,3 +314,40 @@ class Presence(models.Model):
         unique_together = ('seance', 'eleve')
         verbose_name = "Présence"
         verbose_name_plural = "Présences"
+
+
+class BilanMensuel(models.Model):
+    """Synthèse mensuelle par élève, rédigée par le prof en fin de mois (mémorisation,
+    révision, remarques de discipline/comportement) — un bilan par élève par mois par
+    prof. Les champs memorisation/revision sont pré-remplis à la création à partir des
+    Presence du mois (voir courses.utils.generer_brouillon_bilan_mensuel), mais restent
+    un brouillon librement modifiable, pas une valeur recalculée en direct : une fois
+    sauvegardé, le texte n'est plus jamais regénéré automatiquement."""
+    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name='bilans_mensuels')
+    prof = models.ForeignKey(Prof, on_delete=models.CASCADE, related_name='bilans_mensuels')
+    mois_reference = models.DateField()
+    memorisation = models.TextField(blank=True)
+    revision = models.TextField(blank=True)
+    remarques_discipline = models.TextField(blank=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+    date_modification = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('eleve', 'prof', 'mois_reference')
+        ordering = ['-mois_reference']
+        verbose_name = "Bilan mensuel"
+        verbose_name_plural = "Bilans mensuels"
+
+    def __str__(self):
+        return f"{self.eleve} - {self.mois_reference:%Y-%m}"
+
+    @property
+    def modifiable_par_prof(self):
+        """Le prof qui l'a rédigé peut le modifier jusqu'à la fin du mois SUIVANT
+        mois_reference (ex: bilan de juillet modifiable jusqu'au 31 août inclus)."""
+        from django.utils import timezone
+        total_mois = (self.mois_reference.year * 12 + (self.mois_reference.month - 1)) + 2
+        annee_limite = total_mois // 12
+        mois_limite = total_mois % 12 + 1
+        date_limite = datetime.date(annee_limite, mois_limite, 1)
+        return timezone.localdate() < date_limite
