@@ -1,0 +1,39 @@
+{% extends base_template %}
+{% block title %}متابعة مدفوعات الطلاب{% endblock %}
+{% block extra_css %}
+<style>
+.groupe-card { background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:18px; }
+.groupe-card .groupe-nom { font-weight:700; font-size:1.05rem; color:var(--color-role-admin-solid); border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:8px; margin-bottom:14px; }
+.eleve-row { padding:12px 0; border-bottom:1px solid #f0f0f0; }
+.eleve-row:last-child { border-bottom:none; }
+.eleve-nom { font-weight:600; margin-bottom:8px; }
+.mois-liste { display:flex; flex-wrap:wrap; gap:6px; }
+.mois-badge { border-radius:8px; padding:4px 10px; font-size:0.78rem; white-space:nowrap; }
+.mois-badge.paye { background:#e8f5e9; color:var(--color-success); }
+.mois-badge.non-paye { background:#fce4e4; color:#dc3545; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-title">متابعة مدفوعات الطلاب</div>
+<div class="page-subtitle">من شهر التسجيل حتى الشهر الحالي — الشهر "مدفوع" إذا وُجدت دفعة مقبولة واحدة على الأقل خلاله</div>
+
+{% for bloc in donnees %}
+<div class="groupe-card">
+    <div class="groupe-nom">{{ bloc.groupe.nom }}</div>
+    {% for ligne in bloc.eleves %}
+    <div class="eleve-row">
+        <div class="eleve-nom">{{ ligne.eleve.user.get_full_name }}</div>
+        <div class="mois-liste">
+            {% for m in ligne.mois_liste %}
+            <span class="mois-badge {% if m.paye %}paye{% else %}non-paye{% endif %}">
+                {{ m.label|date:"F Y" }} - {% if m.paye %}مدفوع ✅{% else %}غير مدفوع ❌{% endif %}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% empty %}
+<div style="background:white; border-radius:12px; padding:60px; text-align:center; color:#aaa;">لا توجد مجموعات بها طلاب بعد</div>
+{% endfor %}
+{% endblock %}

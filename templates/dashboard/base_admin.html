@@ -209,6 +209,10 @@
         class="menu-item {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' %}active{% endif %}">
             <span class="icon">💰</span> المدفوعات
         </a>
+        <a href="{% url 'suivi_paiements_eleves' %}"
+        class="menu-item {% if request.resolver_match.url_name == 'suivi_paiements_eleves' %}active{% endif %}">
+            <span class="icon">📆</span> متابعة مدفوعات الطلاب
+        </a>
         <a href="{% url 'admin_parametres_abonnements' %}"
         class="menu-item {% if request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' %}active{% endif %}">
             <span class="icon">🏷️</span> أنواع الاشتراك

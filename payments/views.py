@@ -1,3 +1,5 @@
+import datetime
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from accounts.decorators import role_required
@@ -79,6 +81,57 @@ def admin_paiement_detail(request, paiement_id):
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_paiement_detail.html', context)
+
+
+@role_required('admin', 'mshrif')
+def suivi_paiements_eleves(request):
+    """Vue organisée Groupe -> Élève -> mois avec statut payé/non payé, du mois
+    d'inscription de l'élève (user.date_joined) au mois courant. Un mois est
+    considéré payé si au moins un Paiement statut='valide' existe pour cet
+    élève ce mois-là (agrégation simple sur mois_reference, pas un système
+    d'échéances — mois_reference n'est pas garanti au 1er du mois car saisi
+    par l'élève via un champ date libre, d'où le filtre year/month plutôt
+    qu'une égalité de date)."""
+    from django.utils import timezone
+    from courses.models import Groupe
+
+    aujourdhui = timezone.localdate()
+
+    mois_payes_par_eleve = {}
+    for eleve_id, annee, mois in Paiement.objects.filter(statut='valide').values_list(
+        'eleve_id', 'mois_reference__year', 'mois_reference__month'
+    ):
+        mois_payes_par_eleve.setdefault(eleve_id, set()).add((annee, mois))
+
+    groupes = Groupe.objects.prefetch_related('eleves__user').order_by('nom')
+    donnees = []
+    for groupe in groupes:
+        lignes_eleves = []
+        for eleve in groupe.eleves.all():
+            depart = eleve.user.date_joined.date()
+            annee, mois = depart.year, depart.month
+            mois_payes = mois_payes_par_eleve.get(eleve.id, set())
+            mois_liste = []
+            while (annee, mois) <= (aujourdhui.year, aujourdhui.month):
+                mois_liste.append({
+                    'label': datetime.date(annee, mois, 1),
+                    'paye': (annee, mois) in mois_payes,
+                })
+                mois += 1
+                if mois > 12:
+                    mois = 1
+                    annee += 1
+            mois_liste.reverse()
+            lignes_eleves.append({'eleve': eleve, 'mois_liste': mois_liste})
+        if lignes_eleves:
+            donnees.append({'groupe': groupe, 'eleves': lignes_eleves})
+
+    context = {
+        'donnees': donnees,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/suivi_paiements_eleves.html', context)
 
 
 @role_required('admin')
