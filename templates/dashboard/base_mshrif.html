@@ -3,7 +3,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="{% static 'images/logo_nouveau.jpeg' %}" type="image/jpeg">
+    <link rel="icon" href="{{ logo_url }}" type="{{ logo_mime_type }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}لوحة المشرف{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
@@ -89,7 +89,7 @@
 
 <div class="sidebar">
     <div class="sidebar-logo">
-        <img src="{% static 'images/logo_nouveau.jpeg' %}" alt="زدني علماً">
+        <img src="{{ logo_url }}" alt="زدني علماً">
         <div class="title">منصة زدني علماً</div>
         <div class="subtitle">لوحة المشرف</div>
     </div>
@@ -118,6 +118,10 @@
         <a href="{% url 'bilans_mensuels' %}"
            class="menu-item {% if request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' %}active{% endif %}">
             <span class="label"><span class="icon">📝</span> البيانات الشهرية للطلاب</span>
+        </a>
+        <a href="{% url 'mshrif_logo' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'mshrif_logo' %}active{% endif %}">
+            <span class="label"><span class="icon">🖼️</span> شعار المنصة</span>
         </a>
         <a href="{% url 'password_change' %}"
            class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">

@@ -52,6 +52,7 @@ urlpatterns = [
     path('mshrif/candidatures-profs/<int:inscription_id>/rejeter/', views.mshrif_rejeter_prof, name='mshrif_rejeter_prof'),
     path('mshrif/remuneration/', views.mshrif_remuneration, name='mshrif_remuneration'),
     path('mshrif/charte/', views.mshrif_charte, name='mshrif_charte'),
+    path('mshrif/logo/', views.mshrif_logo, name='mshrif_logo'),
 
     # Admin — gestion
     path('admin/eleves/', views.admin_eleves, name='admin_eleves'),

@@ -213,6 +213,32 @@ def get_programme_general():
     return programme
 
 
+class LogoConfig(models.Model):
+    """Logo de la plateforme, modifiable UNIQUEMENT par le المشرف (mshrif_logo) — une
+    fois uploadé, remplace automatiquement le logo par défaut partout (header,
+    connexion, favicon, pages d'inscription) via le context processor
+    accounts.context_processors.logo_context. Stocké via le storage par défaut du
+    projet (Cloudinary en production, disque local en dev) comme les autres fichiers
+    média (Paiement.screenshot, InscriptionProf.audio_enregistrement). Singleton comme
+    CharteEnseignement/ProgrammeGeneral."""
+    logo = models.ImageField(upload_to='logo/', blank=True, null=True)
+    date_modification = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "شعار المنصة"
+
+    class Meta:
+        verbose_name = "Logo de la plateforme"
+        verbose_name_plural = "Logo de la plateforme"
+
+
+def get_logo_config():
+    """Renvoie l'unique instance de LogoConfig, en la créant (vide -> logo=None,
+    donc fallback sur le logo statique par défaut) si elle n'existe pas encore."""
+    config, _ = LogoConfig.objects.get_or_create(pk=1)
+    return config
+
+
 class Superviseur(models.Model):
     user = models.OneToOneField(
         User,

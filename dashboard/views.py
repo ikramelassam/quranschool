@@ -1175,6 +1175,50 @@ def mshrif_charte(request):
     return render(request, 'dashboard/mshrif_charte.html', context)
 
 
+TAILLE_MAX_LOGO_OCTETS = 2 * 1024 * 1024  # 2 Mo
+EXTENSIONS_LOGO_VALIDES = ('.png', '.jpg', '.jpeg', '.webp', '.gif')
+
+
+@role_required('mshrif')
+def mshrif_logo(request):
+    """Gestion du logo de la plateforme — المشرف uniquement. Validation manuelle
+    (pas de Django Forms dans ce projet) : extension, taille, et ouverture réelle via
+    Pillow (confirme que le fichier est vraiment une image, pas juste renommé)."""
+    from accounts.models import get_logo_config
+    from PIL import Image
+
+    config = get_logo_config()
+
+    if request.method == 'POST':
+        fichier = request.FILES.get('logo')
+        if not fichier:
+            messages.error(request, 'يرجى اختيار ملف صورة.')
+            return redirect('mshrif_logo')
+
+        if not fichier.name.lower().endswith(EXTENSIONS_LOGO_VALIDES):
+            messages.error(request, 'صيغة الملف غير مدعومة — استعمل PNG أو JPEG أو WEBP أو GIF.')
+            return redirect('mshrif_logo')
+
+        if fichier.size > TAILLE_MAX_LOGO_OCTETS:
+            messages.error(request, 'حجم الملف كبير جداً — الحد الأقصى 2 ميغابايت.')
+            return redirect('mshrif_logo')
+
+        try:
+            image = Image.open(fichier)
+            image.verify()
+            fichier.seek(0)  # verify() consomme le curseur du fichier, on le remet au début avant de sauvegarder
+        except Exception:
+            messages.error(request, 'الملف المرفوع ليس صورة صالحة.')
+            return redirect('mshrif_logo')
+
+        config.logo = fichier
+        config.save()
+        messages.success(request, 'تم تحديث شعار المنصة بنجاح — سيظهر الشعار الجديد في كل الصفحات.')
+        return redirect('mshrif_logo')
+
+    return render(request, 'dashboard/mshrif_logo.html', {'config': config})
+
+
 # ==================== DASHBOARD ÉLÈVE ====================
 
 @role_required('eleve')
