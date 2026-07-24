@@ -1,4 +1,5 @@
 {% extends base_template %}
+{% load libelles_arabes %}
 {% block title %}البيانات الشهرية للطلاب{% endblock %}
 {% block content %}
 <div class="page-title">البيانات الشهرية للطلاب</div>
@@ -36,7 +37,7 @@
     <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 20px; border-bottom:1px solid #f0f0f0;">
         <div>
             <div style="font-weight:700;">{{ bilan.eleve.user.get_full_name }}</div>
-            <div style="color:#888; font-size:0.85rem;">{{ bilan.mois_reference|date:"F Y" }} — بقلم {{ bilan.prof.user.get_full_name }}</div>
+            <div style="color:#888; font-size:0.85rem;">{{ bilan.mois_reference|mois_annee_ar }} — بقلم {{ bilan.prof.user.get_full_name }}</div>
         </div>
         <a href="{% url 'bilan_mensuel_detail' bilan.eleve.id bilan.mois_reference|date:'Y-m' %}"
            style="color:{{ couleur_role }}; text-decoration:none; font-size:0.85rem; font-weight:600;">عرض ←</a>

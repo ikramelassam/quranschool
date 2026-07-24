@@ -1,8 +1,9 @@
 {% extends base_template %}
+{% load libelles_arabes %}
 {% block title %}تفاصيل الدفعة{% endblock %}
 {% block content %}
 <div class="page-title">{{ paiement.eleve.user.get_full_name }}</div>
-<div class="page-subtitle">{{ paiement.mois_reference|date:"F Y" }}</div>
+<div class="page-subtitle">{{ paiement.mois_reference|mois_annee_ar }}</div>
 
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 mb-4">

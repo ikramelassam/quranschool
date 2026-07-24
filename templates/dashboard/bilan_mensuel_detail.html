@@ -1,9 +1,10 @@
 {% extends base_template %}
+{% load libelles_arabes %}
 {% block title %}البيان الشهري — {{ eleve.user.get_full_name }}{% endblock %}
 {% block content %}
 <div class="page-title">{{ eleve.user.get_full_name }}</div>
 <div class="page-subtitle">
-    البيان الشهري — {{ mois_reference|date:"F Y" }} — بقلم {{ prof.user.get_full_name }}
+    البيان الشهري — {{ mois_reference|mois_annee_ar }} — بقلم {{ prof.user.get_full_name }}
     {% if lecture_seule %} — عرض للاطلاع فقط{% endif %}
 </div>
 

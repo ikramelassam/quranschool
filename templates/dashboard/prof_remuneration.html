@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_prof.html' %}
+{% load libelles_arabes %}
 {% block title %}راتبي{% endblock %}
 {% block extra_css %}
 <style>
@@ -13,7 +14,7 @@
 <div class="page-subtitle">حساب راتبك الشهري حسب شبكة تعرفات المنصة</div>
 
 <div class="hero-total-card">
-    <div class="mois">{{ aujourdhui|date:"F Y" }}</div>
+    <div class="mois">{{ aujourdhui|mois_annee_ar }}</div>
     <div class="montant">{{ remuneration.total_calcule }}<span> د.م.</span></div>
 </div>
 

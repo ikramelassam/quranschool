@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_prof.html' %}
+{% load libelles_arabes %}
 {% block title %}البيانات الشهرية للطلاب{% endblock %}
 {% block content %}
 <div class="page-title">البيانات الشهرية للطلاب</div>
@@ -12,7 +13,7 @@
     <button type="submit" style="background:var(--color-role-prof); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
 </form>
 
-<div class="section-title">{{ mois_reference|date:"F Y" }}</div>
+<div class="section-title">{{ mois_reference|mois_annee_ar }}</div>
 <div style="display:flex; flex-direction:column; gap:10px;">
     {% for ligne in lignes %}
     <a href="{% url 'bilan_mensuel_detail' ligne.eleve.id mois %}" class="compact-card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit;">
