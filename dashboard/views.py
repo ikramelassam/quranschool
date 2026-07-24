@@ -1617,29 +1617,43 @@ def admin_seances(request):
     """Page d'exceptions: les séances normales sont générées automatiquement
     (voir courses.utils). Ici, l'admin peut seulement annuler ou déplacer
     une séance précise (prof malade, vacances...)."""
+    from accounts.models import Prof
     from courses.models import Seance, Groupe
     from courses.utils import etendre_toutes_les_seances
 
     etendre_toutes_les_seances()
 
     groupe_id = request.GET.get('groupe', '')
+    prof_id = request.GET.get('prof', '')
     date = request.GET.get('date', '')
+    date_debut = request.GET.get('date_debut', '')
+    date_fin = request.GET.get('date_fin', '')
     statut = request.GET.get('statut', '')
 
     seances = Seance.objects.select_related('groupe').order_by('-date')
     if groupe_id:
         seances = seances.filter(groupe_id=groupe_id)
+    if prof_id:
+        seances = seances.filter(groupe__prof_id=prof_id)
     if date:
         seances = seances.filter(date=date)
+    if date_debut:
+        seances = seances.filter(date__gte=date_debut)
+    if date_fin:
+        seances = seances.filter(date__lte=date_fin)
     if statut:
         seances = seances.filter(statut=statut)
 
     context = {
         'seances': paginer(request, seances, 10),
         'groupes': Groupe.objects.order_by('nom'),
+        'profs': Prof.objects.select_related('user').order_by('user__first_name'),
         'filtres': {
             'groupe': groupe_id,
+            'prof': prof_id,
             'date': date,
+            'date_debut': date_debut,
+            'date_fin': date_fin,
             'statut': statut,
         },
         'base_template': _base_template_admin_ou_mshrif(request),
@@ -1921,6 +1935,7 @@ def admin_demande_disponibilite_rejeter(request, demande_id):
 
 @role_required('admin', 'mshrif')
 def admin_calendrier(request):
+    from accounts.models import Prof
     from courses.models import Seance
     from courses.utils import etendre_toutes_les_seances
     from django.utils import timezone
@@ -1928,6 +1943,7 @@ def admin_calendrier(request):
     etendre_toutes_les_seances()
 
     semaine_param = request.GET.get('semaine')
+    prof_id = request.GET.get('prof', '')
     try:
         reference = datetime.date.fromisoformat(semaine_param) if semaine_param else timezone.localdate()
     except ValueError:
@@ -1939,10 +1955,16 @@ def admin_calendrier(request):
     seances = Seance.objects.filter(
         date__gte=jours_dates[0], date__lte=jours_dates[-1]
     ).select_related('groupe', 'groupe__prof__user').order_by('date', 'heure')
+    if prof_id:
+        seances = seances.filter(groupe__prof_id=prof_id)
 
     seances_par_jour = {jour: [] for jour in jours_dates}
     for seance in seances:
         seances_par_jour[seance.date].append(seance)
+
+    # Le filtre prof doit survivre à la navigation semaine précédente/suivante,
+    # sinon changer de semaine le réinitialiserait silencieusement.
+    suffixe_prof = f'&prof={prof_id}' if prof_id else ''
 
     context = {
         'jours': [
@@ -1951,8 +1973,10 @@ def admin_calendrier(request):
         ],
         'lundi': lundi,
         'dimanche': jours_dates[-1],
-        'semaine_precedente': (lundi - datetime.timedelta(days=7)).isoformat(),
-        'semaine_suivante': (lundi + datetime.timedelta(days=7)).isoformat(),
+        'semaine_precedente': (lundi - datetime.timedelta(days=7)).isoformat() + suffixe_prof,
+        'semaine_suivante': (lundi + datetime.timedelta(days=7)).isoformat() + suffixe_prof,
+        'profs': Prof.objects.select_related('user').order_by('user__first_name'),
+        'filtres': {'prof': prof_id},
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
