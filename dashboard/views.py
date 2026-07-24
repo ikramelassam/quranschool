@@ -1692,8 +1692,12 @@ def admin_seance_deplacer(request, seance_id):
 def admin_eleves(request):
     from django.db.models import Q
     from accounts.models import Eleve
+    from courses.models import Groupe
 
     q = request.GET.get('q', '').strip()
+    statut = request.GET.get('statut', '')
+    groupe_id = request.GET.get('groupe', '')
+
     eleves = Eleve.objects.all().select_related('user').order_by('id')
     if q:
         eleves = eleves.filter(
@@ -1701,10 +1705,20 @@ def admin_eleves(request):
             Q(user__last_name__icontains=q) |
             Q(user__email__icontains=q)
         )
+    if statut:
+        eleves = eleves.filter(statut=statut)
+    if groupe_id:
+        eleves = eleves.filter(groupes__id=groupe_id)
 
     context = {
         'eleves': paginer(request, eleves, 10),
         'q': q,
+        'statut_choices': Eleve.STATUT_CHOICES,
+        'groupes': Groupe.objects.order_by('nom'),
+        'filtres': {
+            'statut': statut,
+            'groupe': groupe_id,
+        },
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
