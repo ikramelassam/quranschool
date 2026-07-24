@@ -18,6 +18,31 @@
 <div class="page-title">متابعة مدفوعات الطلاب</div>
 <div class="page-subtitle">من شهر التسجيل حتى الشهر الحالي — الشهر "مدفوع" إذا وُجدت دفعة مقبولة واحدة على الأقل خلاله</div>
 
+<form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label style="color:#888; font-size:0.8rem;">الحلقة</label>
+            <select name="groupe" class="form-select">
+                <option value="">الكل</option>
+                {% for g in groupes %}
+                <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label style="color:#888; font-size:0.8rem;">حالة الدفع</label>
+            <select name="impayes" class="form-select">
+                <option value="">كل الطلاب</option>
+                <option value="1" {% if filtres.impayes %}selected{% endif %}>غير المدفوعين فقط</option>
+            </select>
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <a href="{% url 'suivi_paiements_eleves' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+        </div>
+    </div>
+</form>
+
 {% for bloc in donnees %}
 <div class="groupe-card">
     <div class="groupe-nom">{{ bloc.groupe.nom }}</div>
@@ -35,6 +60,8 @@
     {% endfor %}
 </div>
 {% empty %}
-<div style="background:white; border-radius:12px; padding:60px; text-align:center; color:#aaa;">لا توجد مجموعات بها طلاب بعد</div>
+<div style="background:white; border-radius:12px; padding:60px; text-align:center; color:#aaa;">
+    {% if filtres.groupe or filtres.impayes %}لا توجد نتائج مطابقة لهذه التصفية{% else %}لا توجد مجموعات بها طلاب بعد{% endif %}
+</div>
 {% endfor %}
 {% endblock %}

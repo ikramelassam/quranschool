@@ -96,6 +96,8 @@ def suivi_paiements_eleves(request):
     from courses.models import Groupe
 
     aujourdhui = timezone.localdate()
+    groupe_id = request.GET.get('groupe', '')
+    impayes_seulement = request.GET.get('impayes') == '1'
 
     mois_payes_par_eleve = {}
     for eleve_id, annee, mois in Paiement.objects.filter(statut='valide').values_list(
@@ -103,9 +105,12 @@ def suivi_paiements_eleves(request):
     ):
         mois_payes_par_eleve.setdefault(eleve_id, set()).add((annee, mois))
 
-    groupes = Groupe.objects.prefetch_related('eleves__user').order_by('nom')
+    groupes_qs = Groupe.objects.prefetch_related('eleves__user').order_by('nom')
+    if groupe_id:
+        groupes_qs = groupes_qs.filter(id=groupe_id)
+
     donnees = []
-    for groupe in groupes:
+    for groupe in groupes_qs:
         lignes_eleves = []
         for eleve in groupe.eleves.all():
             depart = eleve.user.date_joined.date()
@@ -122,12 +127,23 @@ def suivi_paiements_eleves(request):
                     mois = 1
                     annee += 1
             mois_liste.reverse()
+            # "أظهر غير المدفوعين فقط" masque les élèves entièrement à jour — utile
+            # pour relancer vite les bonnes familles — mais garde l'historique complet
+            # (tous les mois, pas seulement les impayés) pour ceux qui restent affichés,
+            # afin de ne pas perdre le contexte de paiement déjà en place sur la page.
+            if impayes_seulement and not any(not m['paye'] for m in mois_liste):
+                continue
             lignes_eleves.append({'eleve': eleve, 'mois_liste': mois_liste})
         if lignes_eleves:
             donnees.append({'groupe': groupe, 'eleves': lignes_eleves})
 
     context = {
         'donnees': donnees,
+        'groupes': Groupe.objects.order_by('nom'),
+        'filtres': {
+            'groupe': groupe_id,
+            'impayes': impayes_seulement,
+        },
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
