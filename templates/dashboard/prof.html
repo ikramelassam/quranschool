@@ -58,7 +58,7 @@
                     <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">مخططة 📅</span>
                     {% include 'dashboard/_meet_icon.html' with lien=seance.groupe.lien_reunion %}
                 {% else %}
-                    <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:3px 12px; font-size:0.8rem;">ملغاة ❌</span>
+                    <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:3px 12px; font-size:0.8rem;">ملغاة ❌</span>
                 {% endif %}
                 <a href="{% url 'prof_seance_detail' seance.id %}"
                    style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>

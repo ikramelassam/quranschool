@@ -19,7 +19,7 @@
             {% if paiement.statut == 'valide' %}
                 <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.85rem;">مقبول ✅</span>
             {% elif paiement.statut == 'rejete' %}
-                <span style="background:#fce4e4; color:#dc3545; border-radius:20px; padding:3px 12px; font-size:0.85rem;">مرفوض ❌</span>
+                <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:3px 12px; font-size:0.85rem;">مرفوض ❌</span>
             {% else %}
                 <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.85rem;">قيد المراجعة ⏳</span>
             {% endif %}
