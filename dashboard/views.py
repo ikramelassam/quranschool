@@ -214,13 +214,16 @@ def prof_groupe_detail(request, groupe_id):
 @role_required('prof')
 def prof_seances(request):
     from accounts.models import Prof
-    from courses.models import Seance
+    from courses.models import Groupe, Seance
     from django.utils import timezone
 
     prof = get_object_or_404(Prof, user=request.user)
     aujourdhui = timezone.localdate()
+    groupe_id = request.GET.get('groupe', '')
 
     toutes_seances = Seance.objects.filter(groupe__prof=prof).select_related('groupe').prefetch_related('groupe__eleves__user')
+    if groupe_id:
+        toutes_seances = toutes_seances.filter(groupe_id=groupe_id)
 
     # Une séance "en retard" est une séance passée jamais remplie par le prof
     # (statut resté à 'planifiee' au lieu de passer à 'terminee' via
@@ -257,6 +260,8 @@ def prof_seances(request):
         'seances_a_venir_extra': seances_a_venir_extra,
         'nb_a_venir': nb_a_venir,
         'seances_passees_traitees': paginer(request, seances_passees_traitees, 15),
+        'groupes': Groupe.objects.filter(prof=prof).order_by('nom'),
+        'filtres': {'groupe': groupe_id},
     })
 
 

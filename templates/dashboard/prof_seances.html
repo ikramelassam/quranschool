@@ -5,6 +5,26 @@
 <div class="page-title">سجل الحصص</div>
 <div class="page-subtitle">إجمالي الحصص: {{ total_seances }}</div>
 
+{% if groupes|length > 1 %}
+<form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label style="color:#888; font-size:0.8rem;">الحلقة</label>
+            <select name="groupe" class="form-select">
+                <option value="">كل حلقاتي</option>
+                {% for g in groupes %}
+                <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button type="submit" style="background:var(--color-role-prof); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <a href="{% url 'prof_seances' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+        </div>
+    </div>
+</form>
+{% endif %}
+
 {% if nb_retard > 0 %}
 <a href="#retard" style="text-decoration:none; display:block; margin-bottom:24px;">
     <div style="background:#fff3e0; border:1px solid #ff9800; border-right:5px solid #ff9800; border-radius:10px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; color:#7a4a00;">
