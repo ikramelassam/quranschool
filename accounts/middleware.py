@@ -5,7 +5,7 @@ from django.shortcuts import redirect
 class ForcerChangementMotDePasseMiddleware:
     """Redirige tout utilisateur connecté ayant encore doit_changer_mot_de_passe=True
     vers la page de changement de mot de passe, avant qu'il puisse accéder à quoi
-    que ce soit d'autre sur le site (voir dashboard.views.MOT_DE_PASSE_TEMPORAIRE)."""
+    que ce soit d'autre sur le site (voir dashboard.views.generer_mot_de_passe_temporaire)."""
 
     CHEMINS_EXEMPTES = ('/accounts/mot-de-passe/', '/accounts/logout/')
     PREFIXES_EXEMPTES = ('/static/', settings.MEDIA_URL, '/admin/')

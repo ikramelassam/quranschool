@@ -1,5 +1,6 @@
 import datetime
 import logging
+import secrets
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.mail import send_mail
@@ -15,11 +16,23 @@ JOURS_SEMAINE_AR = ['الاثنين', 'الثلاثاء', 'الأربعاء', '�
 logger = logging.getLogger(__name__)
 
 # Mot de passe temporaire assigné à tout nouveau compte (élève, prof, superviseur)
-# lors de sa création. Solution en attendant que l'envoi d'email soit fiable en
-# production — l'admin le communique manuellement (affiché sur la fiche de
-# validation). L'utilisateur est forcé de le changer à sa première connexion
-# (voir accounts.middleware.ForcerChangementMotDePasseMiddleware).
-MOT_DE_PASSE_TEMPORAIRE = 'Bienvenue2026'
+# lors de sa création. L'admin le communique manuellement (affiché sur la page
+# après validation) en attendant que l'envoi d'email soit fiable en production.
+# L'utilisateur est forcé de le changer à sa première connexion (voir
+# accounts.middleware.ForcerChangementMotDePasseMiddleware).
+# Généré aléatoirement à CHAQUE création de compte (voir generer_mot_de_passe_temporaire
+# ci-dessous) — un mot de passe fixe partagé par tous les comptes permettrait à
+# quiconque le connaissant de se connecter à la place du titulaire avant lui.
+ALPHABET_MOT_DE_PASSE_TEMPORAIRE = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+# Exclut 0/O et 1/l/I (ambigus à l'œil) — ce mot de passe est souvent recopié
+# à la main ou lu à voix haute par un utilisateur non technique.
+
+
+def generer_mot_de_passe_temporaire(longueur=10):
+    """Mot de passe temporaire aléatoire et imprévisible, propre à ce compte.
+    secrets (pas random): générateur cryptographiquement sûr, adapté à un
+    secret de sécurité plutôt qu'à un simple tirage aléatoire."""
+    return ''.join(secrets.choice(ALPHABET_MOT_DE_PASSE_TEMPORAIRE) for _ in range(longueur))
 
 
 def envoyer_email_bienvenue(request, email, password_temp, prenom_nom):
@@ -788,7 +801,7 @@ def admin_valider_eleve(request, inscription_id):
             )
         return redirect('admin_inscription_eleve_detail', inscription_id=inscription.id)
 
-    password_temp = MOT_DE_PASSE_TEMPORAIRE
+    password_temp = generer_mot_de_passe_temporaire()
 
     # Tout ou rien: si une étape échoue (ex: matrice de disponibilités malformée),
     # aucun compte à moitié créé ne doit rester en base — voir l'incident où une
@@ -863,7 +876,6 @@ def admin_inscription_eleve_detail(request, inscription_id):
         'heures': generer_heures_grille(),
         'valeurs_dispo': set(inscription.disponibilites),
         'groupes_suggeres': groupes_compatibles_pour_inscription(inscription),
-        'mot_de_passe_temporaire': MOT_DE_PASSE_TEMPORAIRE,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -1011,7 +1023,6 @@ def mshrif_inscription_prof_detail(request, inscription_id):
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
         'valeurs_dispo': set(inscription.disponibilites),
-        'mot_de_passe_temporaire': MOT_DE_PASSE_TEMPORAIRE,
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/mshrif_inscription_prof_detail.html', context)
@@ -1046,7 +1057,7 @@ def mshrif_valider_prof_final(request, inscription_id):
             )
         return redirect('mshrif_inscription_prof_detail', inscription_id=inscription.id)
 
-    password_temp = MOT_DE_PASSE_TEMPORAIRE
+    password_temp = generer_mot_de_passe_temporaire()
 
     # Tout ou rien — voir le commentaire équivalent dans admin_valider_eleve.
     with transaction.atomic():
@@ -2271,7 +2282,7 @@ def admin_superviseur_ajouter(request):
                 'old_nom': nom, 'old_email': email, 'old_telephone': telephone,
             })
 
-        password_temp = MOT_DE_PASSE_TEMPORAIRE
+        password_temp = generer_mot_de_passe_temporaire()
 
         with transaction.atomic():
             user = User.objects.create_user(

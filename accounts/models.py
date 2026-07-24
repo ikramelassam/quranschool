@@ -19,7 +19,7 @@ class User(AbstractUser):
         default='eleve'
     )
     # True tant que l'utilisateur n'a pas changé son mot de passe temporaire
-    # (voir dashboard.views.MOT_DE_PASSE_TEMPORAIRE). Le middleware
+    # (voir dashboard.views.generer_mot_de_passe_temporaire). Le middleware
     # accounts.middleware.ForcerChangementMotDePasseMiddleware redirige tout
     # utilisateur avec ce champ à True vers le changement de mot de passe
     # avant tout accès au reste du site.
