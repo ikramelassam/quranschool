@@ -1,4 +1,5 @@
 {% extends base_template %}
+{% load libelles_arabes %}
 {% block title %}متابعة مدفوعات الطلاب{% endblock %}
 {% block extra_css %}
 <style>
@@ -26,7 +27,7 @@
         <div class="mois-liste">
             {% for m in ligne.mois_liste %}
             <span class="mois-badge {% if m.paye %}paye{% else %}non-paye{% endif %}">
-                {{ m.label|date:"F Y" }} - {% if m.paye %}مدفوع ✅{% else %}غير مدفوع ❌{% endif %}
+                {{ m.label|mois_annee_ar }} - {% if m.paye %}مدفوع ✅{% else %}غير مدفوع ❌{% endif %}
             </span>
             {% endfor %}
         </div>

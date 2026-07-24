@@ -69,6 +69,26 @@ def wa_number(telephone):
     return chiffres
 
 
+# Convention marocaine (administration/quotidien), pas la convention machreqienne
+# (كانون الثاني، شباط...) ni la forme standard mayo/يوليو/أغسطس — confirmée avec
+# le client. Django ne peut pas fournir ça via |date:"F Y": LANGUAGE_CODE='en-us'
+# et aucun LocaleMiddleware ne sont configurés (voir core/settings.py), donc ce
+# filtre rendrait les mois en anglais ("January 2026") sans ce mapping explicite.
+MOIS_AR = {
+    1: 'يناير', 2: 'فبراير', 3: 'مارس', 4: 'أبريل', 5: 'ماي', 6: 'يونيو',
+    7: 'يوليوز', 8: 'غشت', 9: 'شتنبر', 10: 'أكتوبر', 11: 'نونبر', 12: 'دجنبر',
+}
+
+
+@register.filter
+def mois_annee_ar(date_obj):
+    """Formate une date en 'mois_arabe année' (ex: 'يناير 2026'), convention
+    marocaine. Retombe sur une chaîne vide si date_obj est None."""
+    if not date_obj:
+        return ''
+    return f'{MOIS_AR.get(date_obj.month, date_obj.month)} {date_obj.year}'
+
+
 @register.filter
 def noms_eleves(eleves_manager):
     """Joint les noms complets des élèves d'un groupe (eleve.user.get_full_name()),
