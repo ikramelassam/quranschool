@@ -106,6 +106,7 @@ urlpatterns = [
     path('admin/programme-general/', views.admin_programme_general, name='admin_programme_general'),
 
     # Bilans mensuels élèves (prof: saisie ; مدير/مؤطر/مشرف: lecture seule)
+    path('prof/evaluations/', views.prof_evaluations, name='prof_evaluations'),
     path('prof/bilans/', views.prof_bilans_mensuels, name='prof_bilans_mensuels'),
     path('bilans/', views.bilans_mensuels, name='bilans_mensuels'),
     path('bilans/<int:eleve_id>/<str:mois>/', views.bilan_mensuel_detail, name='bilan_mensuel_detail'),

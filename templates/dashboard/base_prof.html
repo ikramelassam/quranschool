@@ -154,6 +154,10 @@
            class="menu-item {% if request.resolver_match.url_name == 'prof_seances' %}active{% endif %}">
             <span class="icon">📋</span> سجل الحصص
         </a>
+        <a href="{% url 'prof_evaluations' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'prof_evaluations' %}active{% endif %}">
+            <span class="icon">📊</span> تقييماتي
+        </a>
         <a href="{% url 'prof_emploi' %}"
            class="menu-item {% if request.resolver_match.url_name == 'prof_emploi' %}active{% endif %}">
             <span class="icon">📅</span> جدولي

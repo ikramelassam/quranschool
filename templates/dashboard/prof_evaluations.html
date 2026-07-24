@@ -1,0 +1,65 @@
+{% extends 'dashboard/base_prof.html' %}
+{% load presence_style %}
+{% block title %}تقييماتي{% endblock %}
+{% block content %}
+<div class="page-title">تقييماتي</div>
+<div class="page-subtitle">جميع تقييمات الطلاب التي قمت بتسجيلها — الأحدث أولاً</div>
+
+<form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label style="color:#888; font-size:0.8rem;">الطالب</label>
+            <select name="eleve" class="form-select">
+                <option value="">الكل</option>
+                {% for e in eleves %}
+                <option value="{{ e.id }}" {% if filtres.eleve == e.id|stringformat:"s" %}selected{% endif %}>{{ e.user.get_full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label style="color:#888; font-size:0.8rem;">المجموعة</label>
+            <select name="groupe" class="form-select">
+                <option value="">الكل</option>
+                {% for g in groupes %}
+                <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label style="color:#888; font-size:0.8rem;">من تاريخ</label>
+            <input type="date" name="date_debut" class="form-control" value="{{ filtres.date_debut }}">
+        </div>
+        <div class="col-md-2">
+            <label style="color:#888; font-size:0.8rem;">إلى تاريخ</label>
+            <input type="date" name="date_fin" class="form-control" value="{{ filtres.date_fin }}">
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" style="background:var(--color-role-prof); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+            <a href="{% url 'prof_evaluations' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+        </div>
+    </div>
+</form>
+
+<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+    {% for p in presences %}
+    <a href="{% url 'prof_seance_detail' p.seance.id %}" style="display:block; padding:14px 20px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:inherit;">
+        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+            <div style="font-weight:700;">{{ p.eleve.user.get_full_name }}</div>
+            <span style="{{ p.statut|statut_style }} border-radius:20px; padding:2px 10px; font-size:0.75rem;">{{ p.get_statut_display }}</span>
+        </div>
+        <div style="color:#888; font-size:0.85rem;">{{ p.seance.groupe.nom }} — {{ p.seance.date|date:"d-m-Y" }}</div>
+        {% if p.note_memorisation or p.note_revision %}
+        <div style="font-size:0.8rem; color:#555; margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;">
+            {% if p.note_memorisation %}<span>الحفظ:</span> <span style="{{ p.note_memorisation|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_memorisation_display }}</span>{% endif %}
+            {% if p.note_revision %}<span>المراجعة:</span> <span style="{{ p.note_revision|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_revision_display }}</span>{% endif %}
+        </div>
+        {% endif %}
+    </a>
+    {% empty %}
+    <div style="text-align:center; padding:60px; color:#aaa;">
+        {% if filtres.eleve or filtres.groupe or filtres.date_debut or filtres.date_fin %}لا توجد تقييمات مطابقة لهذه التصفية{% else %}لا توجد تقييمات مسجَّلة بعد{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% include 'dashboard/_pagination.html' with page_obj=presences %}
+{% endblock %}

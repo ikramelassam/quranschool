@@ -517,6 +517,50 @@ def admin_programme_general(request):
 
 
 @role_required('prof')
+def prof_evaluations(request):
+    """تقييماتي — liste de toutes les évaluations élève déjà soumises par ce prof
+    (une Presence n'existe que si prof_presence_sauvegarder a réussi, donc toujours
+    liée à une séance 'terminee'), filtrable par élève/groupe/plage de dates — même
+    pattern que admin_evaluations (filtres + liste plate triée par date décroissante),
+    réutilisé ici plutôt qu'inventé. Chaque ligne pointe vers prof_seance_detail, qui
+    bascule déjà automatiquement en lecture seule verrouillée pour une séance
+    'terminee' (voir Seance.modifiable_par_prof) — aucune nouvelle page de détail."""
+    from accounts.models import Prof, Eleve
+    from courses.models import Presence, Groupe
+
+    prof = get_object_or_404(Prof, user=request.user)
+    groupe_id = request.GET.get('groupe', '')
+    eleve_id = request.GET.get('eleve', '')
+    date_debut = request.GET.get('date_debut', '')
+    date_fin = request.GET.get('date_fin', '')
+
+    presences = Presence.objects.filter(seance__groupe__prof=prof).select_related(
+        'eleve__user', 'seance__groupe'
+    ).order_by('-seance__date', '-seance__heure')
+
+    if groupe_id:
+        presences = presences.filter(seance__groupe_id=groupe_id)
+    if eleve_id:
+        presences = presences.filter(eleve_id=eleve_id)
+    if date_debut:
+        presences = presences.filter(seance__date__gte=date_debut)
+    if date_fin:
+        presences = presences.filter(seance__date__lte=date_fin)
+
+    return render(request, 'dashboard/prof_evaluations.html', {
+        'presences': paginer(request, presences, 15),
+        'groupes': Groupe.objects.filter(prof=prof).order_by('nom'),
+        'eleves': Eleve.objects.filter(groupes__prof=prof).distinct().select_related('user').order_by('user__first_name'),
+        'filtres': {
+            'groupe': groupe_id,
+            'eleve': eleve_id,
+            'date_debut': date_debut,
+            'date_fin': date_fin,
+        },
+    })
+
+
+@role_required('prof')
 def prof_bilans_mensuels(request):
     """Liste des élèves du prof pour le mois choisi, avec statut rempli/non rempli du
     bilan mensuel — point d'entrée pour remplir/consulter (voir bilan_mensuel_detail)."""
