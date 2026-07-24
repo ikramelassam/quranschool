@@ -45,9 +45,12 @@ def eleve_paiements(request):
 
 @role_required('admin', 'mshrif')
 def admin_paiements(request):
+    from courses.models import Groupe
+
     statut = request.GET.get('statut', '')
     eleve_id = request.GET.get('eleve', '')
     mois = request.GET.get('mois', '')
+    groupe_id = request.GET.get('groupe', '')
 
     paiements = Paiement.objects.select_related('eleve__user').order_by('-date')
     if statut:
@@ -57,14 +60,21 @@ def admin_paiements(request):
     if mois:
         annee, _, num_mois = mois.partition('-')
         paiements = paiements.filter(mois_reference__year=annee, mois_reference__month=num_mois)
+    if groupe_id:
+        # Paiement n'a pas de FK directe vers Groupe — passe par la relation
+        # M2M Groupe.eleves (un élève peut être dans plusieurs halqas, chacun
+        # de ses paiements matche alors si l'une d'elles est celle filtrée).
+        paiements = paiements.filter(eleve__groupes__id=groupe_id)
 
     context = {
         'paiements': paginer(request, paiements, 10),
         'eleves': Eleve.objects.select_related('user').order_by('user__first_name'),
+        'groupes': Groupe.objects.order_by('nom'),
         'filtres': {
             'statut': statut,
             'eleve': eleve_id,
             'mois': mois,
+            'groupe': groupe_id,
         },
         'base_template': _base_template_admin_ou_mshrif(request),
     }
