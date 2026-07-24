@@ -854,6 +854,15 @@ def admin_valider_eleve(request, inscription_id):
 @role_required('admin')
 def admin_rejeter_eleve(request, inscription_id):
     inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
+    # Garde d'état: empêche de rejeter un dossier déjà traité (déjà accepté ou déjà
+    # rejeté par un autre clic/onglet) — voir l'incident équivalent côté prof où une
+    # candidature déjà rejetée pouvait être validée quand même faute de ce contrôle.
+    if inscription.statut != 'en_attente':
+        messages.error(
+            request,
+            f'تعذر الرفض: طلب {inscription.nom} لم يعد قيد الانتظار (تمت معالجته بالفعل).'
+        )
+        return redirect('admin_inscriptions')
     inscription.statut = 'rejete'
     inscription.save()
     messages.info(request, f'تم رفض طلب {inscription.nom}.')
@@ -956,6 +965,19 @@ def admin_valider_prof(request, inscription_id):
 def admin_rejeter_prof(request, inscription_id):
     from inscriptions.models import InscriptionProf
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
+    # Garde d'état: le مدير peut encore rejeter une candidature qu'il a lui-même déjà
+    # pré-validée ('validee_directeur') — ex: il repère un problème avant que le المشرف
+    # n'ait fini de traiter le dossier. Ce qui est bloqué, c'est d'agir sur un état FINAL
+    # (déjà transformée en compte réel, ou déjà rejetée) — voir mshrif_valider_prof_final
+    # pour le pendant côté المشرف, qui refuse désormais toute validation si ce rejet a
+    # eu lieu entre-temps (race condition confirmée par l'audit de sécurité).
+    if inscription.statut not in ('en_attente', 'validee_directeur'):
+        messages.error(
+            request,
+            f'تعذر الرفض: طلب {inscription.nom} لم يعد قابلاً للرفض '
+            f'(الحالة الحالية: {inscription.get_statut_display()}).'
+        )
+        return redirect('admin_inscriptions')
     inscription.statut = 'rejete'
     inscription.save()
     messages.info(request, f'تم رفض طلب {inscription.nom}.')
@@ -1040,6 +1062,18 @@ def mshrif_valider_prof_final(request, inscription_id):
     User = get_user_model()
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
 
+    # Garde d'état: le مدير a pu rejeter (ou re-traiter) ce dossier entre le moment où
+    # le المشرف a ouvert cette fiche et celui où il clique "قبول نهائي" — sans ce
+    # contrôle, la validation créerait quand même un compte réel et écraserait
+    # silencieusement le rejet (race condition confirmée par l'audit de sécurité).
+    if inscription.statut != 'validee_directeur':
+        messages.error(
+            request,
+            f'تعذر القبول النهائي: حالة طلب {inscription.nom} تغيّرت منذ فتح هذه الصفحة '
+            f'(الحالة الحالية: {inscription.get_statut_display()}). لم يتم إنشاء أي حساب.'
+        )
+        return redirect('mshrif_inscription_prof_detail', inscription_id=inscription.id)
+
     conflit = _verifier_conflit_email(inscription.email)
     if conflit['conflit']:
         if conflit['orphelin']:
@@ -1114,6 +1148,15 @@ def mshrif_valider_prof_final(request, inscription_id):
 def mshrif_rejeter_prof(request, inscription_id):
     from inscriptions.models import InscriptionProf
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
+    # Garde d'état: même principe que mshrif_valider_prof_final — évite de rejeter
+    # un dossier déjà traité entre-temps (déjà validé, ou déjà rejeté par un autre clic).
+    if inscription.statut != 'validee_directeur':
+        messages.error(
+            request,
+            f'تعذر الرفض: حالة طلب {inscription.nom} تغيّرت منذ فتح هذه الصفحة '
+            f'(الحالة الحالية: {inscription.get_statut_display()}).'
+        )
+        return redirect('mshrif_inscriptions_profs')
     inscription.statut = 'rejete'
     inscription.save()
     messages.info(request, f'تم رفض طلب {inscription.nom} نهائياً.')
@@ -1609,6 +1652,16 @@ def admin_seances(request):
 def admin_seance_annuler(request, seance_id):
     from courses.models import Seance
     seance = get_object_or_404(Seance, id=seance_id)
+    # Garde d'état: une séance déjà 'terminee' a des présences réelles enregistrées par
+    # le prof — l'annuler après coup laisserait une séance marquée "annulée" mais avec
+    # des données de présence bien réelles dessous, une incohérence trompeuse pour
+    # quiconque consulte l'historique ensuite (voir audit).
+    if seance.statut != 'planifiee':
+        messages.error(
+            request,
+            f'تعذر الإلغاء: هذه الحصة ليست في حالة "مبرمجة" حالياً (الحالة: {seance.get_statut_display()}).'
+        )
+        return redirect('admin_seances')
     seance.statut = 'annulee'
     seance.save()
     messages.info(request, 'تم إلغاء الحصة.')
