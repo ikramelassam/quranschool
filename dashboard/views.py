@@ -337,6 +337,10 @@ def prof_presence_sauvegarder(request, seance_id):
             # Une plage d'ayat inversée (fin < début) donnerait un nombre d'ayat
             # mémorisés/révisés négatif ou nul silencieusement (voir Presence.nb_ayat_memorises) —
             # on refuse d'enregistrer cette ligne plutôt que d'accepter une valeur incohérente.
+            # De même, une fin au-delà du nombre réel d'ayat de la sourate choisie
+            # (ex: ayah 300 pour الفاتحة qui n'en a que 7) doit être refusée — voir
+            # _ayah_depasse_sourate et le commentaire de courses/quran_data.py qui
+            # annonçait cette validation sans qu'elle ait jamais été implémentée.
             ligne_invalide = False
             if _ayah_incoherentes(ayah_debut_memorisation, ayah_fin_memorisation):
                 erreurs.append(
@@ -344,10 +348,24 @@ def prof_presence_sauvegarder(request, seance_id):
                     f'يجب أن تكون أكبر من أو تساوي آية البداية ({ayah_debut_memorisation}).'
                 )
                 ligne_invalide = True
+            elif _ayah_depasse_sourate(sourate_memorisee, ayah_fin_memorisation):
+                erreurs.append(
+                    f'{eleve.user.get_full_name()}: آية نهاية الحفظ ({ayah_fin_memorisation}) '
+                    f'تتجاوز عدد آيات {_nom_sourate(sourate_memorisee)} '
+                    f'({_total_ayat_sourate(sourate_memorisee)} آية).'
+                )
+                ligne_invalide = True
             if _ayah_incoherentes(ayah_debut_revision, ayah_fin_revision):
                 erreurs.append(
                     f'{eleve.user.get_full_name()}: آية نهاية المراجعة ({ayah_fin_revision}) '
                     f'يجب أن تكون أكبر من أو تساوي آية البداية ({ayah_debut_revision}).'
+                )
+                ligne_invalide = True
+            elif _ayah_depasse_sourate(sourate_revisee, ayah_fin_revision):
+                erreurs.append(
+                    f'{eleve.user.get_full_name()}: آية نهاية المراجعة ({ayah_fin_revision}) '
+                    f'تتجاوز عدد آيات {_nom_sourate(sourate_revisee)} '
+                    f'({_total_ayat_sourate(sourate_revisee)} آية).'
                 )
                 ligne_invalide = True
             if ligne_invalide:
@@ -394,6 +412,38 @@ def _ayah_incoherentes(debut, fin):
         return int(fin) < int(debut)
     except ValueError:
         return False
+
+
+def _ayah_depasse_sourate(sourate, fin):
+    """True si l'ayah de fin dépasse le nombre réel d'ayat de la sourate choisie
+    (ex: ayah 300 pour الفاتحة qui n'en a que 7) — voir courses/quran_data.py,
+    dont le commentaire annonçait cette validation sans qu'elle ait jamais été
+    implémentée."""
+    if not sourate or not fin:
+        return False
+    from courses.quran_data import SOURATES_NB_AYAT
+    try:
+        total_ayat = SOURATES_NB_AYAT.get(int(sourate))
+        fin_int = int(fin)
+    except ValueError:
+        return False
+    return bool(total_ayat) and fin_int > total_ayat
+
+
+def _nom_sourate(sourate):
+    from courses.quran_data import SOURATES_NOMS
+    try:
+        return SOURATES_NOMS.get(int(sourate), '')
+    except ValueError:
+        return ''
+
+
+def _total_ayat_sourate(sourate):
+    from courses.quran_data import SOURATES_NB_AYAT
+    try:
+        return SOURATES_NB_AYAT.get(int(sourate), '')
+    except ValueError:
+        return ''
 
 
 @role_required('prof')
