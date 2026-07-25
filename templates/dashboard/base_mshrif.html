@@ -34,7 +34,21 @@
         .menu-item.active { background: rgba(255,255,255,0.15); color: white; font-weight: 600; }
         .menu-item .icon { margin-left: 10px; }
         .menu-badge { background: var(--color-danger); color: white; border-radius: 20px; padding: 1px 8px; font-size: 0.72rem; font-weight: 700; margin-right: auto; }
-        .menu-category { padding: 14px 20px 4px; color: rgba(255,255,255,0.45); font-size: 0.72rem; font-weight: 700; }
+        .menu-category-group summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 14px 20px 4px;
+            color: rgba(255,255,255,0.45);
+            font-size: 0.72rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .menu-category-group summary::-webkit-details-marker { display: none; }
+        .menu-category-group summary::after { content: '⌄'; font-size: 0.9rem; transition: transform 0.15s; }
+        .menu-category-group[open] summary::after { transform: rotate(180deg); }
+        .menu-category-group summary:hover { color: rgba(255,255,255,0.75); }
         .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.1); }
         .btn-logout { display: block; color: rgba(255,255,255,0.7); text-decoration: none; text-align: center; padding: 8px; border-radius: 8px; }
         .btn-logout:hover { background: rgba(255,255,255,0.1); color: white; }
@@ -100,100 +114,118 @@
             <span class="icon">📊</span> نظرة عامة
         </a>
 
-        <div class="menu-category">إدارة المستخدمين</div>
-        <a href="{% url 'admin_eleves' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_eleves' %}active{% endif %}">
-            <span class="icon">👤</span> الطلاب
-        </a>
-        <a href="{% url 'admin_profs' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_profs' %}active{% endif %}">
-            <span class="icon">🎓</span> المعلمون
-        </a>
-        <a href="{% url 'admin_inscriptions' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_inscriptions' %}active{% endif %}">
-            <span class="icon">📋</span> طلبات التسجيل
-        </a>
-        <a href="{% url 'mshrif_inscriptions_profs' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'mshrif_inscriptions_profs' or request.resolver_match.url_name == 'mshrif_inscription_prof_detail' %}active{% endif %}">
-            <span class="icon">👥</span> طلبات الأساتذة
-            {% if nb_demandes_en_attente %}<span class="menu-badge">{{ nb_demandes_en_attente }}</span>{% endif %}
-        </a>
-        <a href="{% url 'admin_superviseurs' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}active{% endif %}">
-            <span class="icon">🧭</span> إسناد المؤطرين
-        </a>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_eleves' or request.resolver_match.url_name == 'admin_profs' or request.resolver_match.url_name == 'admin_inscriptions' or request.resolver_match.url_name == 'mshrif_inscriptions_profs' or request.resolver_match.url_name == 'mshrif_inscription_prof_detail' or request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}open{% endif %}>
+            <summary>إدارة المستخدمين</summary>
+            <a href="{% url 'admin_eleves' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_eleves' %}active{% endif %}">
+                <span class="icon">👤</span> الطلاب
+            </a>
+            <a href="{% url 'admin_profs' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_profs' %}active{% endif %}">
+                <span class="icon">🎓</span> المعلمون
+            </a>
+            <a href="{% url 'admin_inscriptions' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_inscriptions' %}active{% endif %}">
+                <span class="icon">📋</span> طلبات التسجيل
+            </a>
+            <a href="{% url 'mshrif_inscriptions_profs' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'mshrif_inscriptions_profs' or request.resolver_match.url_name == 'mshrif_inscription_prof_detail' %}active{% endif %}">
+                <span class="icon">👥</span> طلبات الأساتذة
+                {% if nb_demandes_en_attente %}<span class="menu-badge">{{ nb_demandes_en_attente }}</span>{% endif %}
+            </a>
+            <a href="{% url 'admin_superviseurs' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}active{% endif %}">
+                <span class="icon">🧭</span> إسناد المؤطرين
+            </a>
+        </details>
 
-        <div class="menu-category">الحصص والجدولة</div>
-        <a href="{% url 'admin_seances' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_seances' %}active{% endif %}">
-            <span class="icon">📅</span> استثناءات الحصص
-        </a>
-        <a href="{% url 'admin_calendrier' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_calendrier' %}active{% endif %}">
-            <span class="icon">🗓️</span> التقويم الأسبوعي
-        </a>
-        <a href="{% url 'admin_groupes' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_groupes' %}active{% endif %}">
-            <span class="icon">👥</span> المجموعات
-        </a>
-        <a href="{% url 'admin_creneaux' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_creneaux' %}active{% endif %}">
-            <span class="icon">🕐</span> الحلقات
-        </a>
-        <a href="{% url 'admin_demandes_disponibilite' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_demandes_disponibilite' %}active{% endif %}">
-            <span class="icon">🕐</span> طلبات تعديل الأوقات المتاحة للتدريس
-        </a>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_seances' or request.resolver_match.url_name == 'admin_calendrier' or request.resolver_match.url_name == 'admin_groupes' or request.resolver_match.url_name == 'admin_creneaux' or request.resolver_match.url_name == 'admin_demandes_disponibilite' %}open{% endif %}>
+            <summary>الحصص والجدولة</summary>
+            <a href="{% url 'admin_seances' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_seances' %}active{% endif %}">
+                <span class="icon">📅</span> استثناءات الحصص
+            </a>
+            <a href="{% url 'admin_calendrier' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_calendrier' %}active{% endif %}">
+                <span class="icon">🗓️</span> التقويم الأسبوعي
+            </a>
+            <a href="{% url 'admin_groupes' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_groupes' %}active{% endif %}">
+                <span class="icon">👥</span> المجموعات
+            </a>
+            <a href="{% url 'admin_creneaux' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_creneaux' %}active{% endif %}">
+                <span class="icon">🕐</span> الحلقات
+            </a>
+            <a href="{% url 'admin_demandes_disponibilite' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_demandes_disponibilite' %}active{% endif %}">
+                <span class="icon">🕐</span> طلبات تعديل الأوقات المتاحة للتدريس
+            </a>
+        </details>
 
-        <div class="menu-category">الماليات</div>
-        <a href="{% url 'admin_paiements' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' %}active{% endif %}">
-            <span class="icon">💰</span> المدفوعات
-        </a>
-        <a href="{% url 'suivi_paiements_eleves' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'suivi_paiements_eleves' %}active{% endif %}">
-            <span class="icon">📆</span> متابعة مدفوعات الطلاب
-        </a>
-        <a href="{% url 'admin_parametres_abonnements' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' %}active{% endif %}">
-            <span class="icon">🏷️</span> أنواع الاشتراك
-        </a>
-        <a href="{% url 'admin_tarifs_remuneration' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_tarifs_remuneration' or request.resolver_match.url_name == 'admin_tarif_remuneration_modifier' %}active{% endif %}">
-            <span class="icon">💰</span> شبكة رواتب المعلمين
-        </a>
-        <a href="{% url 'mshrif_remuneration' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'mshrif_remuneration' %}active{% endif %}">
-            <span class="icon">💰</span> الاستحقاقات
-        </a>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' or request.resolver_match.url_name == 'suivi_paiements_eleves' or request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' %}open{% endif %}>
+            <summary>المدفوعات</summary>
+            <a href="{% url 'admin_paiements' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' %}active{% endif %}">
+                <span class="icon">💰</span> إدارة المدفوعات
+            </a>
+            <a href="{% url 'suivi_paiements_eleves' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'suivi_paiements_eleves' %}active{% endif %}">
+                <span class="icon">📆</span> متابعة مدفوعات الطلاب
+            </a>
+            <a href="{% url 'admin_parametres_abonnements' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' %}active{% endif %}">
+                <span class="icon">🏷️</span> أنواع الاشتراك
+            </a>
+        </details>
 
-        <div class="menu-category">التقييم والمتابعة</div>
-        <a href="{% url 'admin_criteres' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_criteres' or request.resolver_match.url_name == 'admin_critere_ajouter' or request.resolver_match.url_name == 'admin_critere_modifier' %}active{% endif %}">
-            <span class="icon">📝</span> معايير تقييم المعلمين
-        </a>
-        <a href="{% url 'classement_mensuel_profs' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'classement_mensuel_profs' %}active{% endif %}">
-            <span class="icon">📋</span> تقارير المؤطرين
-        </a>
-        <a href="{% url 'bilans_mensuels' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' %}active{% endif %}">
-            <span class="icon">📝</span> البيانات الشهرية للطلاب
-        </a>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_tarifs_remuneration' or request.resolver_match.url_name == 'admin_tarif_remuneration_modifier' or request.resolver_match.url_name == 'mshrif_remuneration' %}open{% endif %}>
+            <summary>الاستحقاقات والتعرفات</summary>
+            <a href="{% url 'admin_tarifs_remuneration' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_tarifs_remuneration' or request.resolver_match.url_name == 'admin_tarif_remuneration_modifier' %}active{% endif %}">
+                <span class="icon">💰</span> شبكة رواتب المعلمين
+            </a>
+            <a href="{% url 'mshrif_remuneration' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'mshrif_remuneration' %}active{% endif %}">
+                <span class="icon">💰</span> الاستحقاقات
+            </a>
+        </details>
 
-        <div class="menu-category">إعدادات المنصة</div>
-        <a href="{% url 'mshrif_charte' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'mshrif_charte' %}active{% endif %}">
-            <span class="icon">📜</span> ميثاق التدريس
-        </a>
-        <a href="{% url 'mshrif_logo' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'mshrif_logo' %}active{% endif %}">
-            <span class="icon">🖼️</span> شعار المنصة
-        </a>
-        <a href="{% url 'password_change' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
-            <span class="icon">⚙️</span> الإعدادات
-        </a>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_criteres' or request.resolver_match.url_name == 'admin_critere_ajouter' or request.resolver_match.url_name == 'admin_critere_modifier' or request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' or request.resolver_match.url_name == 'classement_mensuel_profs' or request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' %}open{% endif %}>
+            <summary>التقييم والمتابعة</summary>
+            <a href="{% url 'admin_criteres' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_criteres' or request.resolver_match.url_name == 'admin_critere_ajouter' or request.resolver_match.url_name == 'admin_critere_modifier' %}active{% endif %}">
+                <span class="icon">📝</span> معايير تقييم المعلمين
+            </a>
+            <a href="{% url 'admin_evaluations' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' %}active{% endif %}">
+                <span class="icon">📊</span> التقييمات
+            </a>
+            <a href="{% url 'classement_mensuel_profs' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'classement_mensuel_profs' %}active{% endif %}">
+                <span class="icon">📋</span> تقارير المؤطرين
+            </a>
+            <a href="{% url 'bilans_mensuels' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' %}active{% endif %}">
+                <span class="icon">📝</span> البيانات الشهرية للطلاب
+            </a>
+        </details>
+
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'mshrif_logo' or request.resolver_match.url_name == 'password_change' %}open{% endif %}>
+            <summary>إعدادات المنصة</summary>
+            <a href="{% url 'mshrif_charte' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'mshrif_charte' %}active{% endif %}">
+                <span class="icon">📜</span> ميثاق التدريس
+            </a>
+            <a href="{% url 'mshrif_logo' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'mshrif_logo' %}active{% endif %}">
+                <span class="icon">🖼️</span> شعار المنصة
+            </a>
+            <a href="{% url 'password_change' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
+                <span class="icon">⚙️</span> الإعدادات
+            </a>
+        </details>
     </div>
     <div class="sidebar-footer">
         <a href="{% url 'logout' %}" class="btn-logout">🚪 تسجيل الخروج</a>
