@@ -94,7 +94,11 @@
     </div>
     {% elif seance.statut == 'planifiee' %}
     <div style="background:#e0e0e0; color:#555; border-radius:8px; padding:14px 18px; margin-bottom:20px; font-weight:600;">
+        {% if nb_presences_enregistrees > 0 %}
+        ⛔ انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) قبل إتمامها بالكامل — تم تسجيل {{ nb_presences_enregistrees }} من أصل {{ nb_total_eleves }} طالب فقط (معروضون أدناه)، ولن يكون بالإمكان تسجيل الباقي. ستبقى هذه الحصة "غير مكتملة التقييم" نهائياً.
+        {% else %}
         ⛔ انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يتم تقييمها، ولن يكون ذلك ممكناً بعد الآن. ستبقى هذه الحصة "غير مقيَّمة" نهائياً.
+        {% endif %}
     </div>
     {% endif %}
 

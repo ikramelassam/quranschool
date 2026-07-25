@@ -300,6 +300,13 @@ def prof_seance_detail(request, seance_id):
         'sourates': SOURATES,
         'statut_choices': Presence.STATUT_CHOICES,
         'note_choices': Presence.NOTE_CHOICES,
+        # Une séance restée 'planifiee' après le délai de 24h n'est pas forcément
+        # vide : un seul élève avec une plage d'ayat invalide suffit à empêcher le
+        # passage à 'terminee', même si tous les autres ont bien été enregistrés
+        # (voir prof_presence_sauvegarder). Le bandeau doit refléter cette nuance
+        # plutôt que de dire "rien n'a été fait" quand ce n'est pas le cas.
+        'nb_presences_enregistrees': len(presences_par_eleve),
+        'nb_total_eleves': len(eleves),
     })
 
 

@@ -3,7 +3,11 @@
 {% elif seance.statut == 'planifiee' %}
     {% if seance.date < aujourdhui %}
         {% if seance.delai_evaluation_depasse %}
-        <span style="background:#e0e0e0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;" title="انتهت مهلة الـ24 ساعة — لن يكون بالإمكان تقييمها">⛔ انتهت المهلة — لم تُقيَّم</span>
+            {% if seance.presences.count > 0 %}
+            <span style="background:#e0e0e0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;" title="انتهت المهلة قبل تسجيل حضور كل الطلاب — البيانات المسجَّلة تبقى محفوظة">⛔ انتهت المهلة — تقييم غير مكتمل</span>
+            {% else %}
+            <span style="background:#e0e0e0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;" title="انتهت مهلة الـ24 ساعة — لن يكون بالإمكان تقييمها">⛔ انتهت المهلة — لم تُقيَّم</span>
+            {% endif %}
         {% else %}
         <span style="background:var(--color-brand-gold-dark); color:white; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">لم يتم تقييمها بعد ⚠️</span>
         {% endif %}
