@@ -179,6 +179,14 @@ EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@zidni-ilman.local')
 
 
+# Notification Telegram au مدير (nouvelle candidature élève/prof) — voir
+# core.utils.envoyer_notification_telegram. Le token ne doit JAMAIS être
+# codé en dur ni loggé : uniquement lu depuis l'environnement (.env local,
+# variables d'environnement Render en production).
+TELEGRAM_BOT_TOKEN = env('TELEGRAM_BOT_TOKEN', default='')
+TELEGRAM_CHAT_ID = env('TELEGRAM_CHAT_ID', default='')
+
+
 # Plage horaire de l'école (utilisée pour générer la grille de disponibilités des profs)
 import datetime
 HEURE_OUVERTURE_ECOLE = datetime.time(7, 0)

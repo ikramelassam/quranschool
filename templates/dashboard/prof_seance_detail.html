@@ -92,6 +92,10 @@
     <div style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:14px 18px; margin-bottom:20px; font-weight:600;">
         ✅ تم تقييم هذه الحصة نهائياً — العرض التالي للاطلاع فقط، لم يعد بالإمكان تعديله.
     </div>
+    {% elif seance.statut == 'planifiee' and not seance.evaluable_par_prof %}
+    <div style="background:#e8f0fe; color:var(--color-role-prof-solid); border-radius:8px; padding:14px 18px; margin-bottom:20px; font-weight:600;">
+        ⏳ لم تنتهِ هذه الحصة بعد — لا يمكن تقييمها قبل انتهائها فعلياً. عاود المحاولة بعد وقت انتهاء الحصة.
+    </div>
     {% elif seance.statut == 'planifiee' %}
     <div style="background:#e0e0e0; color:#555; border-radius:8px; padding:14px 18px; margin-bottom:20px; font-weight:600;">
         {% if nb_presences_enregistrees > 0 %}
@@ -121,9 +125,11 @@
                         <div class="notation-titre">الحفظ</div>
                         {% if presence.nom_sourate_memorisee %}
                         <div>{{ presence.nom_sourate_memorisee }} ({{ presence.ayah_debut_memorisation }}-{{ presence.ayah_fin_memorisation }})</div>
-                        {% if presence.note_memorisation %}<div style="color:#888; font-size:0.85rem; margin-top:4px;">{{ presence.get_note_memorisation_display }}</div>{% endif %}
                         {% else %}
                         <div style="color:#aaa;">لا يوجد</div>
+                        {% endif %}
+                        {% if presence.note_memorisation %}
+                        <div style="color:#888; font-size:0.85rem; margin-top:4px;">{{ presence.get_note_memorisation_display }} <span style="color:#bbb;">(تقييم سابق)</span></div>
                         {% endif %}
                     </div>
                 </div>
@@ -132,18 +138,31 @@
                         <div class="notation-titre">المراجعة</div>
                         {% if presence.nom_sourate_revisee %}
                         <div>{{ presence.nom_sourate_revisee }} ({{ presence.ayah_debut_revision }}-{{ presence.ayah_fin_revision }})</div>
-                        {% if presence.note_revision %}<div style="color:#888; font-size:0.85rem; margin-top:4px;">{{ presence.get_note_revision_display }}</div>{% endif %}
                         {% else %}
                         <div style="color:#aaa;">لا يوجد</div>
+                        {% endif %}
+                        {% if presence.note_revision %}
+                        <div style="color:#888; font-size:0.85rem; margin-top:4px;">{{ presence.get_note_revision_display }} <span style="color:#bbb;">(تقييم سابق)</span></div>
                         {% endif %}
                     </div>
                 </div>
             </div>
+            {% if presence.note_hifz %}
+            <div class="row g-3 mt-1">
+                <div class="col-6 col-md-3"><div class="notation-groupe" style="text-align:center;"><div class="notation-titre">الحفظ</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_hifz }}/20</div></div></div>
+                <div class="col-6 col-md-3"><div class="notation-groupe" style="text-align:center;"><div class="notation-titre">المراجعة</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_muraja3a }}/20</div></div></div>
+                <div class="col-6 col-md-3"><div class="notation-groupe" style="text-align:center;"><div class="notation-titre">التلاوة</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_tilawa }}/20</div></div></div>
+                <div class="col-6 col-md-3"><div class="notation-groupe" style="text-align:center;"><div class="notation-titre">المواظبة والسلوك</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_mouwazaba }}/20</div></div></div>
+            </div>
+            {% endif %}
             {% if presence.remarque %}
             <div class="remarque-eleve"><label>ملاحظة عن الطالب</label><div>{{ presence.remarque }}</div></div>
             {% endif %}
-            {% if presence.consigne_prochaine_seance %}
-            <div class="remarque-eleve"><label>📌 تحضير الحصة القادمة</label><div>{{ presence.consigne_prochaine_seance }}</div></div>
+            {% if presence.consigne_memorisation %}
+            <div class="remarque-eleve"><label>📌 المطلوب حفظه</label><div>{{ presence.consigne_memorisation }}</div></div>
+            {% endif %}
+            {% if presence.consigne_revision %}
+            <div class="remarque-eleve"><label>📌 المطلوب مراجعته</label><div>{{ presence.consigne_revision }}</div></div>
             {% endif %}
         </div>
         {% endif %}
@@ -205,14 +224,9 @@
                                            value="{{ presence.ayah_fin_memorisation|default:'' }}" placeholder="إلى">
                                 </div>
                             </div>
-                            <div class="pills mt-2">
-                                {% for value, label in note_choices %}
-                                <button type="button" class="pill note-pill note-{{ value }}"
-                                        onclick="selectNote({{ eleve.id }}, 'memo', '{{ value }}', this)">{{ label }}</button>
-                                {% endfor %}
-                            </div>
-                            <input type="hidden" name="note_memo_{{ eleve.id }}" id="note_memo_input_{{ eleve.id }}"
-                                   value="{{ presence.note_memorisation|default:'' }}">
+                            <label class="mt-2" style="color:#888; font-size:0.8rem;">علامة الحفظ /20</label>
+                            <input type="number" min="1" max="20" name="note_hifz_{{ eleve.id }}" class="form-control form-control-sm note-input"
+                                   value="{{ presence.note_hifz|default:'' }}">
                         </div>
                     </div>
 
@@ -237,28 +251,46 @@
                                            value="{{ presence.ayah_fin_revision|default:'' }}" placeholder="إلى">
                                 </div>
                             </div>
-                            <div class="pills mt-2">
-                                {% for value, label in note_choices %}
-                                <button type="button" class="pill note-pill note-{{ value }}"
-                                        onclick="selectNote({{ eleve.id }}, 'rev', '{{ value }}', this)">{{ label }}</button>
-                                {% endfor %}
-                            </div>
-                            <input type="hidden" name="note_rev_{{ eleve.id }}" id="note_rev_input_{{ eleve.id }}"
-                                   value="{{ presence.note_revision|default:'' }}">
+                            <label class="mt-2" style="color:#888; font-size:0.8rem;">علامة المراجعة /20</label>
+                            <input type="number" min="1" max="20" name="note_muraja3a_{{ eleve.id }}" class="form-control form-control-sm note-input"
+                                   value="{{ presence.note_muraja3a|default:'' }}">
                         </div>
                     </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <div class="notation-groupe">
+                            <div class="notation-titre">التلاوة</div>
+                            <label style="color:#888; font-size:0.8rem;">علامة التلاوة /20</label>
+                            <input type="number" min="1" max="20" name="note_tilawa_{{ eleve.id }}" class="form-control form-control-sm note-input"
+                                   value="{{ presence.note_tilawa|default:'' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="notation-groupe">
+                            <div class="notation-titre">المواظبة والسلوك</div>
+                            <label style="color:#888; font-size:0.8rem;">علامة المواظبة والسلوك /20</label>
+                            <input type="number" min="1" max="20" name="note_mouwazaba_{{ eleve.id }}" class="form-control form-control-sm note-input"
+                                   value="{{ presence.note_mouwazaba|default:'' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="remarque-eleve">
+                    <label>📌 المطلوب حفظه *</label>
+                    <textarea name="consigne_memo_{{ eleve.id }}" class="form-control consigne-input" rows="1" required
+                              placeholder="مثال: حفظ سورة النساء من آية 1 إلى 10">{{ presence.consigne_memorisation|default:'' }}</textarea>
+                </div>
+                <div class="remarque-eleve">
+                    <label>📌 المطلوب مراجعته *</label>
+                    <textarea name="consigne_rev_{{ eleve.id }}" class="form-control consigne-input" rows="1" required
+                              placeholder="مثال: مراجعة سورة البقرة من آية 1 إلى 50">{{ presence.consigne_revision|default:'' }}</textarea>
                 </div>
             </div>
 
             <div class="remarque-eleve">
                 <label>ملاحظة عن الطالب</label>
                 <textarea name="remarque_{{ eleve.id }}" class="form-control" rows="1">{{ presence.remarque|default:'' }}</textarea>
-            </div>
-
-            <div class="remarque-eleve">
-                <label>📌 تحضير الحصة القادمة (حفظ أو مراجعة، والكمية)</label>
-                <textarea name="consigne_{{ eleve.id }}" class="form-control" rows="1"
-                          placeholder="مثال: حفظ سورة النساء من آية 1 إلى 10">{{ presence.consigne_prochaine_seance|default:'' }}</textarea>
             </div>
         </div>
     </div>
@@ -304,42 +336,27 @@ function selectStatut(eleveId, value, btn) {
     const notation = document.getElementById('notation_' + eleveId);
     if (value === 'present') {
         notation.classList.remove('masquee');
+        // Les 2 consignes ne redeviennent obligatoires que pour un élève présent
+        // (voir Tâche 9 du 2026-07-25) — required doit suivre .masquee, sinon le
+        // navigateur bloquerait la soumission pour un champ caché d'un absent.
+        notation.querySelectorAll('.consigne-input').forEach(function (t) { t.required = true; });
     } else {
         notation.classList.add('masquee');
-        // On efface les notes déjà choisies pour ne pas garder une note
-        // cachée incohérente avec un statut d'absence.
-        ['memo', 'rev'].forEach(function (champ) {
-            const input = document.getElementById('note_' + champ + '_input_' + eleveId);
-            if (input) input.value = '';
-            notation.querySelectorAll('.note-pill').forEach(function (b) { b.classList.remove('active'); });
+        // On efface les notes/consignes déjà saisies pour ne pas garder une
+        // évaluation cachée incohérente avec un statut d'absence.
+        notation.querySelectorAll('.note-input, .consigne-input').forEach(function (input) {
+            input.value = '';
+            input.required = false;
         });
     }
-}
-
-function selectNote(eleveId, champ, value, btn) {
-    document.getElementById('note_' + champ + '_input_' + eleveId).value = value;
-    btn.closest('.pills').querySelectorAll('.note-pill').forEach(function (b) { b.classList.remove('active'); });
-    btn.classList.add('active');
 }
 
 function initialiserPastilles() {
     document.querySelectorAll('.eleve-card').forEach(function (carte) {
         const eleveId = carte.id.replace('carte_', '');
-
         const statutValue = document.getElementById('statut_input_' + eleveId).value;
         const statutBtn = carte.querySelector('.statut-pill.statut-' + statutValue);
         if (statutBtn) selectStatut(eleveId, statutValue, statutBtn);
-
-        ['memo', 'rev'].forEach(function (champ) {
-            const noteInput = document.getElementById('note_' + champ + '_input_' + eleveId);
-            if (noteInput && noteInput.value) {
-                const noteBtn = carte.querySelector('.notation-bloc').querySelectorAll(
-                    champ === 'memo' ? '.col-md-6:first-child .note-pill.note-' + noteInput.value
-                                     : '.col-md-6:last-child .note-pill.note-' + noteInput.value
-                )[0];
-                if (noteBtn) selectNote(eleveId, champ, noteInput.value, noteBtn);
-            }
-        });
     });
 }
 initialiserPastilles();

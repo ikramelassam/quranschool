@@ -1,5 +1,15 @@
 {% load libelles_arabes %}
 <div style="color:{{ couleur_accent }}; font-weight:700; border-bottom:2px solid {{ couleur_accent }}; padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
+<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <span style="color:#888;">التواصل</span>
+    <span style="display:flex; align-items:center; gap:10px;">
+        <span style="font-weight:600;">{{ prof.user.telephone|default:"—" }}</span>
+        <span style="display:inline-flex; gap:6px; align-items:center;">
+            {% include 'dashboard/_email_icon.html' with email=prof.user.email %}
+            {% include 'dashboard/_whatsapp_icon.html' with telephone=prof.user.telephone %}
+        </span>
+    </span>
+</div>
 <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
     <span style="color:#888;">المدينة</span>
     <span style="font-weight:600;">{{ prof.ville }}</span>

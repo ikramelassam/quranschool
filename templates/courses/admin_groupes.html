@@ -49,11 +49,16 @@
         </div>
         <div class="col-md-3">
             <label style="color:#888; font-size:0.8rem;">الحلقة</label>
-            <select name="creneau" class="form-select">
+            <select name="creneau" class="form-select" onchange="if(this.value === '__creer__'){ window.location.href = '{% url "admin_creneau_ajouter" %}'; }">
                 <option value="">الكل</option>
                 {% for c in creneaux %}
-                <option value="{{ c.id }}" {% if filtres.creneau == c.id|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
+                <option value="{{ c.id }}" {% if filtres.creneau == c.id|stringformat:"s" %}selected{% endif %}>
+                    {{ c }} — {{ c.age_min }}-{{ c.age_max }} سنة، {{ c.get_sexe_cible_display }}، {{ c.get_type_seance_display }}
+                </option>
                 {% endfor %}
+                {% if request.user.role != 'mshrif' %}
+                <option value="__creer__">+ إنشاء حلقة جديدة</option>
+                {% endif %}
             </select>
         </div>
         <div class="col-md-3 d-flex gap-2">
@@ -83,12 +88,19 @@
                     {{ groupe.eleves.count }} طالب
                 </span>
             </div>
-            <div style="color:#888; font-size:0.9rem; margin-bottom:16px;">
-                📅 الجدول: 
+            <div style="color:#888; font-size:0.9rem; margin-bottom:6px;">
+                📅 الجدول:
                 {% if groupe.creneau %}{{ groupe.creneau }}{% else %}غير محدد{% endif %}
             </div>
+            <div style="margin-bottom:16px;">
+                {% if groupe.lien_reunion %}
+                {% include 'dashboard/_badge_statut.html' with type='success' texte='رابط مضاف ✓' %}
+                {% else %}
+                {% include 'dashboard/_badge_statut.html' with type='warning' texte='⚠ لا يوجد رابط' %}
+                {% endif %}
+            </div>
 
-            <a href="{% url 'admin_groupe_detail' groupe.id %}" 
+            <a href="{% url 'admin_groupe_detail' groupe.id %}"
                style="background:#f0f7ed; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; font-weight:600;">
                عرض التفاصيل ←
             </a>

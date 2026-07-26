@@ -161,6 +161,7 @@ def _verifier_conflit_email(email):
 def dashboard_prof(request):
     from accounts.models import Prof
     from courses.models import Groupe, Seance
+    from django.utils import timezone
 
     try:
         prof = Prof.objects.get(user=request.user)
@@ -172,10 +173,21 @@ def dashboard_prof(request):
         groupe__prof=prof
     ).order_by('-date')[:5]
 
+    # Encart dédié "prochaine séance" (Tâche 10/écart 1 du 2026-07-25) — même
+    # intention que dashboard_eleve.prochaine_seance : identifiable d'un coup
+    # d'œil, plutôt que noyée dans "آخر الحصص" qui mélange passé/futur trié
+    # par date décroissante.
+    aujourdhui = timezone.localdate()
+    prochaine_seance = Seance.objects.filter(
+        groupe__prof=prof, date__gte=aujourdhui
+    ).exclude(statut='terminee').select_related('groupe').order_by('date', 'heure').first()
+
     context = {
         'prof': prof,
         'groupes': groupes,
         'seances': seances,
+        'prochaine_seance': prochaine_seance,
+        'aujourdhui': aujourdhui,
         'total_eleves': sum(g.eleves.count() for g in groupes),
         'total_groupes': groupes.count(),
     }
@@ -188,7 +200,7 @@ def prof_groupes(request):
     from courses.models import Groupe
 
     prof = get_object_or_404(Prof, user=request.user)
-    groupes = Groupe.objects.filter(prof=prof)
+    groupes = Groupe.objects.filter(prof=prof).prefetch_related('eleves__user')
 
     return render(request, 'dashboard/prof_groupes.html', {
         'prof': prof,
@@ -273,7 +285,10 @@ def prof_seance_detail(request, seance_id):
 
     prof = get_object_or_404(Prof, user=request.user)
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
-    eleves = seance.groupe.eleves.all()
+    # Un élève suspendu/archivé ne doit plus apparaître dans les feuilles de
+    # présence à venir (voir Tâche 3 du 2026-07-25) — son historique passé
+    # n'est pas affecté, seule cette liste "à remplir maintenant" l'exclut.
+    eleves = seance.groupe.eleves.filter(statut='actif')
 
     # Django templates ne peuvent pas faire presences[eleve.id] (lookup par variable).
     # On construit donc directement la liste (élève, présence) dans la vue.
@@ -299,7 +314,6 @@ def prof_seance_detail(request, seance_id):
         'eleves_presences': eleves_presences,
         'sourates': SOURATES,
         'statut_choices': Presence.STATUT_CHOICES,
-        'note_choices': Presence.NOTE_CHOICES,
         # Une séance restée 'planifiee' après le délai de 24h n'est pas forcément
         # vide : un seul élève avec une plage d'ayat invalide suffit à empêcher le
         # passage à 'terminee', même si tous les autres ont bien été enregistrés
@@ -321,25 +335,40 @@ def prof_presence_sauvegarder(request, seance_id):
     if not seance.modifiable_par_prof:
         if seance.statut == 'terminee':
             messages.error(request, 'تم تقييم هذه الحصة بالفعل — لم يعد بالإمكان تعديلها.')
+        elif not seance.evaluable_par_prof:
+            messages.error(request, 'لم تنتهِ هذه الحصة بعد — لا يمكن تقييمها قبل انتهائها فعلياً.')
         else:
             messages.error(request, 'انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يعد بالإمكان تقييمها.')
         return redirect('prof_seance_detail', seance_id=seance.id)
 
     if request.method == 'POST':
-        eleves = seance.groupe.eleves.all()
+        # Un élève suspendu/archivé ne doit plus apparaître dans les feuilles de
+        # présence à venir (voir Tâche 3 du 2026-07-25) — son historique passé
+        # n'est pas affecté, seule cette liste "à remplir maintenant" l'exclut.
+        eleves = seance.groupe.eleves.filter(statut='actif')
         erreurs = []
         for eleve in eleves:
             statut = request.POST.get(f'statut_{eleve.id}', 'absent')
             sourate_memorisee = request.POST.get(f'sourate_memo_{eleve.id}') or None
             ayah_debut_memorisation = request.POST.get(f'ayah_debut_memo_{eleve.id}') or None
             ayah_fin_memorisation = request.POST.get(f'ayah_fin_memo_{eleve.id}') or None
-            note_memorisation = request.POST.get(f'note_memo_{eleve.id}', '')
             sourate_revisee = request.POST.get(f'sourate_rev_{eleve.id}') or None
             ayah_debut_revision = request.POST.get(f'ayah_debut_rev_{eleve.id}') or None
             ayah_fin_revision = request.POST.get(f'ayah_fin_rev_{eleve.id}') or None
-            note_revision = request.POST.get(f'note_rev_{eleve.id}', '')
             remarque = request.POST.get(f'remarque_{eleve.id}', '')
-            consigne_prochaine_seance = request.POST.get(f'consigne_{eleve.id}', '')
+            consigne_memorisation = request.POST.get(f'consigne_memo_{eleve.id}', '')
+            consigne_revision = request.POST.get(f'consigne_rev_{eleve.id}', '')
+
+            # 4 critères numériques /20 (Tâche 9 du 2026-07-25) — remplacent
+            # l'ancienne échelle qualitative pour toute nouvelle évaluation
+            # (note_memorisation/note_revision ne sont plus jamais réécrits
+            # depuis cette vue, voir Presence.note_memorisation).
+            criteres_bruts = {
+                'note_hifz': request.POST.get(f'note_hifz_{eleve.id}', ''),
+                'note_muraja3a': request.POST.get(f'note_muraja3a_{eleve.id}', ''),
+                'note_tilawa': request.POST.get(f'note_tilawa_{eleve.id}', ''),
+                'note_mouwazaba': request.POST.get(f'note_mouwazaba_{eleve.id}', ''),
+            }
 
             # Une plage d'ayat inversée (fin < début) donnerait un nombre d'ayat
             # mémorisés/révisés négatif ou nul silencieusement (voir Presence.nb_ayat_memorises) —
@@ -375,6 +404,40 @@ def prof_presence_sauvegarder(request, seance_id):
                     f'({_total_ayat_sourate(sourate_revisee)} آية).'
                 )
                 ligne_invalide = True
+
+            # Les 4 critères /20 et les 2 consignes ne sont obligatoires que pour
+            # un élève marqué présent — rien à noter/consigner pour une absence
+            # (voir Tâche 9 du 2026-07-25).
+            notes_validees = {}
+            if statut == 'present':
+                for champ, valeur_brute in criteres_bruts.items():
+                    nom_critere = NOMS_CRITERES_NOTATION[champ]
+                    if not valeur_brute:
+                        erreurs.append(f'{eleve.user.get_full_name()}: يجب إدخال علامة {nom_critere}.')
+                        ligne_invalide = True
+                        continue
+                    try:
+                        valeur = int(valeur_brute)
+                    except ValueError:
+                        erreurs.append(f'{eleve.user.get_full_name()}: علامة {nom_critere} غير صحيحة.')
+                        ligne_invalide = True
+                        continue
+                    if not (1 <= valeur <= 20):
+                        erreurs.append(f'{eleve.user.get_full_name()}: علامة {nom_critere} يجب أن تكون بين 1 و20.')
+                        ligne_invalide = True
+                        continue
+                    notes_validees[champ] = valeur
+                if not consigne_memorisation.strip():
+                    erreurs.append(f'{eleve.user.get_full_name()}: يجب تحديد "المطلوب حفظه".')
+                    ligne_invalide = True
+                if not consigne_revision.strip():
+                    erreurs.append(f'{eleve.user.get_full_name()}: يجب تحديد "المطلوب مراجعته".')
+                    ligne_invalide = True
+            else:
+                notes_validees = {champ: None for champ in criteres_bruts}
+                consigne_memorisation = ''
+                consigne_revision = ''
+
             if ligne_invalide:
                 continue
 
@@ -386,13 +449,13 @@ def prof_presence_sauvegarder(request, seance_id):
                     'sourate_memorisee': sourate_memorisee,
                     'ayah_debut_memorisation': ayah_debut_memorisation,
                     'ayah_fin_memorisation': ayah_fin_memorisation,
-                    'note_memorisation': note_memorisation,
                     'sourate_revisee': sourate_revisee,
                     'ayah_debut_revision': ayah_debut_revision,
                     'ayah_fin_revision': ayah_fin_revision,
-                    'note_revision': note_revision,
                     'remarque': remarque,
-                    'consigne_prochaine_seance': consigne_prochaine_seance,
+                    'consigne_memorisation': consigne_memorisation,
+                    'consigne_revision': consigne_revision,
+                    **notes_validees,
                 }
             )
 
@@ -409,6 +472,16 @@ def prof_presence_sauvegarder(request, seance_id):
         return redirect('prof_seances')
 
     return redirect('prof_seance_detail', seance_id=seance_id)
+
+
+# 4 critères numériques /20 de Presence (Tâche 9 du 2026-07-25) — noms arabes
+# affichés dans les messages d'erreur de prof_presence_sauvegarder.
+NOMS_CRITERES_NOTATION = {
+    'note_hifz': 'الحفظ',
+    'note_muraja3a': 'المراجعة',
+    'note_tilawa': 'التلاوة',
+    'note_mouwazaba': 'المواظبة والسلوك',
+}
 
 
 def _ayah_incoherentes(debut, fin):
@@ -457,13 +530,48 @@ def _total_ayat_sourate(sourate):
 def prof_emploi(request):
     from accounts.models import Prof
     from courses.models import Groupe
+    from courses.utils import JOUR_INDEX, JOURS_SEMAINE_DISPO, generer_heures_grille, _heures_couvertes
+    from django.utils import timezone
 
     prof = get_object_or_404(Prof, user=request.user)
-    groupes = Groupe.objects.filter(prof=prof, statut='actif')
+    groupes = Groupe.objects.filter(prof=prof, statut='actif').select_related('creneau')
+
+    # Grille jours×heures réelle (Tâche 12 du 2026-07-25) — remplace la liste
+    # de cartes, même patron que _grille_disponibilites.html (jours/heures
+    # déjà factorisés dans courses.utils, réutilisés tels quels). Une cellule
+    # par (jour, heure), jamais de lookup dict[jour, heure] dans le template
+    # (impossible en Django templates) — donc construite ici sous forme de
+    # lignes de cellules déjà dans l'ordre des colonnes.
+    occupation = {}
+    for groupe in groupes:
+        creneau = groupe.creneau
+        if not creneau:
+            continue
+        for jour, debut, fin in [
+            (creneau.jour_1, creneau.heure_debut_1, creneau.heure_fin_1),
+            (creneau.jour_2, creneau.heure_debut_2, creneau.heure_fin_2),
+        ]:
+            for h in _heures_couvertes(debut, fin):
+                occupation[(jour, h)] = groupe
+
+    jour_actuel = {v: k for k, v in JOUR_INDEX.items()}[timezone.localdate().weekday()]
+
+    lignes_grille = []
+    for heure in generer_heures_grille():
+        lignes_grille.append({
+            'heure': heure,
+            'cellules': [
+                {'jour_code': jour_code, 'groupe': occupation.get((jour_code, heure))}
+                for jour_code, _ in JOURS_SEMAINE_DISPO
+            ],
+        })
 
     return render(request, 'dashboard/prof_emploi.html', {
         'prof': prof,
         'groupes': groupes,
+        'jours': JOURS_SEMAINE_DISPO,
+        'lignes_grille': lignes_grille,
+        'jour_actuel': jour_actuel,
     })
 
 
@@ -505,9 +613,14 @@ def prof_disponibilites(request):
 @role_required('prof')
 def prof_profil(request):
     from accounts.models import Prof
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
     prof = get_object_or_404(Prof, user=request.user)
     return render(request, 'dashboard/prof_profil.html', {
         'prof': prof,
+        'superviseurs': prof.superviseurs.select_related('user').all(),
+        'admins': User.objects.filter(role='admin'),
+        'modifier_telephone': request.GET.get('modifier_telephone') == '1',
     })
 
 
@@ -561,34 +674,105 @@ def prof_hakiba(request):
     return render(request, 'dashboard/prof_hakiba.html')
 
 
-@role_required('prof', 'eleve')
+@role_required('prof', 'eleve', 'superviseur')
 def programme_general_detail(request):
-    """Lecture seule du البرنامج العام — même vue pour prof et élève (contenu
-    identique, seul le sidebar change), édité uniquement par le مدير (voir
-    admin_programme_general)."""
-    from accounts.models import get_programme_general
+    """Lecture seule du البرنامج العام, édité par مدير/مشرف (voir
+    admin_programme_general). Affichage conditionnel selon le rôle (voir Tâche 6b
+    du 2026-07-25, complété Tâche 22 du 2026-07-26 pour مؤطر) :
+    - élève : uniquement la version correspondant à son âge réel (même règle des
+      18 ans que Tâche 1, courses.utils.tranche_age_depuis_naissance) ;
+    - prof : la/les version(s) selon la tranche d'âge des élèves de ses groupes
+      actifs (les deux si le prof enseigne aux deux tranches, ou si l'info est
+      indéterminée faute d'élève avec âge connu — jamais rien caché sans raison) ;
+    - مؤطر : même logique, agrégée sur tous ses profs assignés (Tâche 22) — plus
+      "toujours les deux" comme avant, désormais cohérent avec prof/élève.
+    """
+    from accounts.models import get_programme_general, Prof
+    from courses.utils import tranche_age_depuis_naissance
 
-    base_template = 'dashboard/base_prof.html' if request.user.role == 'prof' else 'dashboard/base_eleve.html'
+    programme = get_programme_general()
+    montrer_enfants = True
+    montrer_adultes = True
+
+    def _tranches_enseignees_par(profs_qs):
+        tranches = set()
+        for prof in profs_qs:
+            for groupe in prof.groupes.filter(statut='actif'):
+                for eleve in groupe.eleves.filter(statut='actif').select_related('inscription'):
+                    if eleve.inscription and eleve.inscription.date_naissance:
+                        tranches.add(tranche_age_depuis_naissance(eleve.inscription.date_naissance))
+        return tranches
+
+    if request.user.role == 'eleve':
+        from accounts.models import Eleve
+
+        eleve = get_object_or_404(Eleve, user=request.user)
+        if eleve.inscription and eleve.inscription.date_naissance:
+            tranche = tranche_age_depuis_naissance(eleve.inscription.date_naissance)
+            montrer_enfants = tranche == 'enfant'
+            montrer_adultes = tranche == 'adulte'
+        # Âge inconnu (dossier sans date de naissance) : les deux versions restent
+        # affichées plutôt que de masquer silencieusement l'information.
+
+    elif request.user.role == 'prof':
+        prof = get_object_or_404(Prof, user=request.user)
+        tranches_enseignees = _tranches_enseignees_par([prof])
+        if tranches_enseignees:
+            montrer_enfants = 'enfant' in tranches_enseignees
+            montrer_adultes = 'adulte' in tranches_enseignees
+        # Aucun élève avec âge connu (nouveau prof, groupes vides...) : les deux
+        # versions restent affichées, même principe que pour l'élève ci-dessus.
+
+    elif request.user.role == 'superviseur':
+        from accounts.models import Superviseur
+
+        superviseur = get_object_or_404(Superviseur, user=request.user)
+        tranches_enseignees = _tranches_enseignees_par(superviseur.profs_assignes.all())
+        if tranches_enseignees:
+            montrer_enfants = 'enfant' in tranches_enseignees
+            montrer_adultes = 'adulte' in tranches_enseignees
+        # Aucun prof assigné, ou aucun élève avec âge connu chez eux : les deux
+        # versions restent affichées, même principe que pour prof/élève.
+
+    base_template = {
+        'prof': 'dashboard/base_prof.html',
+        'eleve': 'dashboard/base_eleve.html',
+        'superviseur': 'dashboard/base_superviseur.html',
+    }[request.user.role]
+
     return render(request, 'dashboard/programme_general_detail.html', {
-        'programme': get_programme_general(),
+        'programme': programme,
+        'montrer_enfants': montrer_enfants,
+        'montrer_adultes': montrer_adultes,
         'base_template': base_template,
     })
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_programme_general(request):
-    """Édition du البرنامج العام — مدير uniquement (contrairement à ميثاق التدريس,
-    géré par le المشرف). Un seul champ texte libre, pas de structure en sections."""
+    """Édition du البرنامج العام — مدير ET مشرف désormais (élargi depuis مدير
+    seul — voir Tâche 6b du 2026-07-25). Deux versions distinctes (أطفال/بالغون),
+    chacune structurée en titre/intro/items comme UNE section de CharteEnseignement."""
     from accounts.models import get_programme_general
 
     programme = get_programme_general()
     if request.method == 'POST':
-        programme.contenu = request.POST.get('contenu', '')
+        programme.titre_enfants = request.POST.get('titre_enfants', '')
+        programme.intro_enfants = request.POST.get('intro_enfants', '')
+        programme.items_enfants = request.POST.get('items_enfants', '')
+        programme.titre_adultes = request.POST.get('titre_adultes', '')
+        programme.intro_adultes = request.POST.get('intro_adultes', '')
+        programme.items_adultes = request.POST.get('items_adultes', '')
         programme.save()
         messages.success(request, 'تم تحديث البرنامج العام بنجاح.')
         return redirect('admin_programme_general')
 
-    return render(request, 'dashboard/admin_programme_general.html', {'programme': programme})
+    context = {
+        'programme': programme,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_programme_general.html', context)
 
 
 @role_required('prof')
@@ -622,8 +806,35 @@ def prof_evaluations(request):
     if date_fin:
         presences = presences.filter(seance__date__lte=date_fin)
 
+    # Regroupées par élève (Tâche 12 du 2026-07-25) — une liste chronologique
+    # plate mélangeant tous les élèves ne dit rien sur la progression de
+    # chacun ; un dict Python préserve l'ordre d'apparition (donc du plus
+    # récemment évalué en premier, cohérent avec le tri -date déjà en place).
+    blocs_par_eleve = {}
+    for p in presences:
+        bloc = blocs_par_eleve.setdefault(p.eleve_id, {'eleve': p.eleve, 'presences': []})
+        bloc['presences'].append(p)
+
+    def moyenne(valeurs):
+        valeurs = [v for v in valeurs if v is not None]
+        return round(sum(valeurs) / len(valeurs), 1) if valeurs else None
+
+    for bloc in blocs_par_eleve.values():
+        bloc['moyenne_hifz'] = moyenne([p.note_hifz for p in bloc['presences']])
+        bloc['moyenne_muraja3a'] = moyenne([p.note_muraja3a for p in bloc['presences']])
+        bloc['moyenne_tilawa'] = moyenne([p.note_tilawa for p in bloc['presences']])
+        bloc['moyenne_mouwazaba'] = moyenne([p.note_mouwazaba for p in bloc['presences']])
+        # Historique par séance potentiellement long sur une année scolaire —
+        # limité à 10 + bouton "عرض الكل" (Tâche 22 Partie F du 2026-07-26),
+        # même logique que suivi_paiements_eleves (toggle par bloc, id unique).
+        bloc['presences_recentes'] = bloc['presences'][:10]
+        bloc['presences_anciennes'] = bloc['presences'][10:]
+        bloc['nb_presences_total'] = len(bloc['presences'])
+
     return render(request, 'dashboard/prof_evaluations.html', {
-        'presences': paginer(request, presences, 15),
+        # Liste des élèves (une carte par élève) — potentiellement longue si le
+        # prof a beaucoup d'élèves, paginée comme le reste des listes du projet.
+        'blocs_par_eleve': paginer(request, list(blocs_par_eleve.values()), 10),
         'groupes': Groupe.objects.filter(prof=prof).order_by('nom'),
         'eleves': Eleve.objects.filter(groupes__prof=prof).distinct().select_related('user').order_by('user__first_name'),
         'filtres': {
@@ -685,10 +896,18 @@ def bilan_mensuel_detail(request, eleve_id, mois):
         prof = get_object_or_404(Prof, user=request.user)
         if not eleve.groupes.filter(prof=prof).exists():
             return HttpResponseForbidden('هذا الطالب ليس ضمن مجموعاتك.')
-        bilan, _cree = BilanMensuel.objects.get_or_create(
-            eleve=eleve, prof=prof, mois_reference=mois_reference,
-            defaults=generer_brouillon_bilan_mensuel(eleve, prof, mois_reference),
-        )
+        bilan = BilanMensuel.objects.filter(eleve=eleve, prof=prof, mois_reference=mois_reference).first()
+        if bilan is None:
+            # Un élève suspendu/archivé ne doit générer aucune nouvelle activité
+            # (même règle que pour les séances/présences, voir Tâche 3) — mais un
+            # bilan déjà existant avant la suspension reste consultable/corrigeable
+            # normalement, seule la CRÉATION d'un nouveau bilan est bloquée ici.
+            if eleve.statut != 'actif':
+                return HttpResponseForbidden('لا يمكن إنشاء بيان شهري جديد لطالب موقوف أو مؤرشف.')
+            bilan = BilanMensuel.objects.create(
+                eleve=eleve, prof=prof, mois_reference=mois_reference,
+                **generer_brouillon_bilan_mensuel(eleve, prof, mois_reference),
+            )
     else:
         bilan = get_object_or_404(BilanMensuel, eleve=eleve, mois_reference=mois_reference)
         prof = bilan.prof
@@ -735,14 +954,20 @@ def bilan_mensuel_detail(request, eleve_id, mois):
 
 @role_required('admin', 'superviseur', 'mshrif')
 def bilans_mensuels(request):
-    """Liste des bilans mensuels déjà rédigés — lecture seule pour مدير/مؤطر/مشرف,
-    مؤطر scopé à ses profs assignés (même filtre que classement_mensuel_profs)."""
+    """تقييم الطلاب — لائحة بيانات شهرية جاهزة (onglet "شهري", contenu inchangé
+    depuis toujours) + onglet "حسب الحصة" (Tâche 21 du 2026-07-26) qui réutilise
+    calculer_progression_eleve (même mécanisme que admin_eleve_detail.html,
+    voir _historique_evaluations_eleve.html) pour l'élève actuellement filtré.
+    Lecture seule pour مدير/مؤطر/مشرف, مؤطر scopé à ses profs assignés (même
+    filtre que classement_mensuel_profs)."""
     from accounts.models import Prof, Eleve, Superviseur
-    from courses.models import BilanMensuel
+    from courses.models import BilanMensuel, Presence
+    from courses.utils import calculer_progression_eleve
 
     mois = request.GET.get('mois', '')
     prof_id = request.GET.get('prof', '')
     eleve_id = request.GET.get('eleve', '')
+    onglet = request.GET.get('onglet', 'mensuel')
 
     bilans = BilanMensuel.objects.select_related('eleve__user', 'prof__user').order_by(
         '-mois_reference', 'eleve__user__first_name'
@@ -760,6 +985,32 @@ def bilans_mensuels(request):
     if eleve_id:
         bilans = bilans.filter(eleve_id=eleve_id)
 
+    bilans_page = paginer(request, bilans, 20)
+
+    # Moyenne des 4 critères /20 du mois pour chaque bilan affiché — même
+    # filtre (élève, prof, année/mois de la séance) que
+    # generer_brouillon_bilan_mensuel, pas une nouvelle règle de calcul.
+    def moyenne(valeurs):
+        valeurs = [v for v in valeurs if v is not None]
+        return round(sum(valeurs) / len(valeurs), 1) if valeurs else None
+
+    for bilan in bilans_page:
+        presences_mois = Presence.objects.filter(
+            eleve=bilan.eleve, seance__groupe__prof=bilan.prof,
+            seance__date__year=bilan.mois_reference.year, seance__date__month=bilan.mois_reference.month,
+        )
+        bilan.moyenne_hifz = moyenne([p.note_hifz for p in presences_mois])
+        bilan.moyenne_muraja3a = moyenne([p.note_muraja3a for p in presences_mois])
+        bilan.moyenne_tilawa = moyenne([p.note_tilawa for p in presences_mois])
+        bilan.moyenne_mouwazaba = moyenne([p.note_mouwazaba for p in presences_mois])
+
+    eleve_seance = None
+    progression_seance = None
+    if eleve_id:
+        eleve_seance = Eleve.objects.filter(id=eleve_id).select_related('user').first()
+        if eleve_seance:
+            progression_seance = calculer_progression_eleve(eleve_seance)
+
     BASE_TEMPLATE_PAR_ROLE = {
         'admin': 'dashboard/base_admin.html',
         'superviseur': 'dashboard/base_superviseur.html',
@@ -771,8 +1022,11 @@ def bilans_mensuels(request):
         'mshrif': 'var(--color-role-mshrif-solid)',
     }
     context = {
-        'bilans': paginer(request, bilans, 20),
+        'bilans': bilans_page,
         'filtres': {'mois': mois, 'prof': prof_id, 'eleve': eleve_id},
+        'onglet': onglet,
+        'eleve_seance': eleve_seance,
+        'progression_seance': progression_seance,
         'profs': Prof.objects.select_related('user').order_by('user__first_name'),
         'eleves': Eleve.objects.select_related('user').order_by('user__first_name'),
         'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
@@ -818,18 +1072,25 @@ def admin_inscriptions(request):
     pour que le template sache quel badge et quelles actions afficher."""
     from inscriptions.models import InscriptionProf
 
-    eleves = list(InscriptionEleve.objects.filter(statut='en_attente').order_by('-date_soumission'))
-    for e in eleves:
-        e.type_demande = 'eleve'
+    type_filtre = request.GET.get('type', '')
 
-    profs = list(InscriptionProf.objects.filter(statut='en_attente').order_by('-date_soumission'))
-    for p in profs:
-        p.type_demande = 'prof'
+    eleves = []
+    if type_filtre != 'prof':
+        eleves = list(InscriptionEleve.objects.filter(statut='en_attente').order_by('-date_soumission'))
+        for e in eleves:
+            e.type_demande = 'eleve'
+
+    profs = []
+    if type_filtre != 'eleve':
+        profs = list(InscriptionProf.objects.filter(statut='en_attente').order_by('-date_soumission'))
+        for p in profs:
+            p.type_demande = 'prof'
 
     inscriptions = sorted(eleves + profs, key=lambda ins: ins.date_soumission, reverse=True)
 
     context = {
         'inscriptions': paginer(request, inscriptions, 10),
+        'type_filtre': type_filtre,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -873,12 +1134,17 @@ def admin_valider_eleve(request, inscription_id):
     # échouer ni retenir la transaction (appel réseau lent), et ne peut de toute façon
     # plus lever d'exception (voir envoyer_email_bienvenue).
     with transaction.atomic():
-        # Crée le User
+        # Crée le User — telephone/date_naissance copiés depuis l'inscription
+        # (seule source qui les contient) pour que user.telephone/date_naissance
+        # ne restent plus jamais vides sur les fiches admin/superviseur qui les
+        # affichent directement (voir audit Tâche 2).
         user = User.objects.create_user(
             username=inscription.email,
             email=inscription.email,
             password=password_temp,
             first_name=inscription.nom,
+            telephone=inscription.telephone,
+            date_naissance=inscription.date_naissance,
             role='eleve'
         )
 
@@ -897,20 +1163,13 @@ def admin_valider_eleve(request, inscription_id):
         inscription.statut = 'valide'
         inscription.save()
 
-    email_envoye = envoyer_email_bienvenue(request, inscription.email, password_temp, inscription.nom)
+    envoyer_email_bienvenue(request, inscription.email, password_temp, inscription.nom)
 
-    if email_envoye:
-        messages.success(
-            request,
-            f'تم قبول الطالب {inscription.nom}. كلمة المرور المؤقتة: {password_temp} '
-            f'(تم إرسالها أيضاً عبر البريد الإلكتروني).'
-        )
-    else:
-        messages.warning(
-            request,
-            f'تم قبول الطالب {inscription.nom}، لكن تعذر إرسال بريد تسجيل الدخول. '
-            f'كلمة المرور المؤقتة: {password_temp} (أرسلها للطالب يدوياً).'
-        )
+    messages.success(
+        request,
+        f'تم قبول الطالب {inscription.nom}. كلمة المرور المؤقتة: {password_temp} '
+        f'— بلّغها للطالب يدوياً (لا يوجد إرسال تلقائي موثوق عبر البريد الإلكتروني).'
+    )
     return redirect('admin_inscriptions')
 
 @role_required('admin')
@@ -1077,7 +1336,7 @@ def dashboard_mshrif(request):
 def mshrif_inscriptions_profs(request):
     from inscriptions.models import InscriptionProf
     inscriptions = InscriptionProf.objects.filter(statut='validee_directeur').order_by('-date_soumission')
-    context = {'inscriptions': inscriptions}
+    context = {'inscriptions': paginer(request, inscriptions, 10)}
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/mshrif_inscriptions_profs.html', context)
 
@@ -1157,12 +1416,15 @@ def mshrif_valider_prof_final(request, inscription_id):
 
     # Tout ou rien — voir le commentaire équivalent dans admin_valider_eleve.
     with transaction.atomic():
+        # telephone/date_naissance copiés depuis l'inscription (voir audit Tâche 2).
         user = User.objects.create_user(
             username=inscription.email,
             email=inscription.email,
             password=password_temp,
             first_name=inscription.nom,
             last_name=inscription.prenom,
+            telephone=inscription.telephone,
+            date_naissance=inscription.date_naissance,
             role='prof'
         )
         prof = Prof.objects.create(
@@ -1189,20 +1451,13 @@ def mshrif_valider_prof_final(request, inscription_id):
         inscription.statut = 'valide'
         inscription.save()
 
-    email_envoye = envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
+    envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
 
-    if email_envoye:
-        messages.success(
-            request,
-            f'تم قبول المعلم {inscription.nom} نهائياً وإنشاء حسابه. كلمة المرور المؤقتة: {password_temp} '
-            f'(تم إرسالها أيضاً عبر البريد الإلكتروني).'
-        )
-    else:
-        messages.warning(
-            request,
-            f'تم قبول المعلم {inscription.nom} نهائياً، لكن تعذر إرسال بريد تسجيل الدخول. '
-            f'كلمة المرور المؤقتة: {password_temp} (أرسلها للمعلم يدوياً).'
-        )
+    messages.success(
+        request,
+        f'تم قبول المعلم {inscription.nom} نهائياً وإنشاء حسابه. كلمة المرور المؤقتة: {password_temp} '
+        f'— بلّغها للمعلم يدوياً (لا يوجد إرسال تلقائي موثوق عبر البريد الإلكتروني).'
+    )
     return redirect('mshrif_inscriptions_profs')
 
 
@@ -1230,8 +1485,16 @@ def mshrif_remuneration(request):
     """الاستحقاقات — vue tabulaire de tous les profs pour le مشرف: montant de base
     (calculer_remuneration_prof) + majoration (visible ici, contrairement à la page prof
     qui ne la montre jamais) + total. Pas de filtre par mois: le calcul est toujours "à la
-    volée" sur les élèves actifs actuels, aucune donnée mensuelle n'est historisée."""
+    volée" sur les élèves actifs actuels, aucune donnée mensuelle n'est historisée.
+
+    Intègre aussi, en section repliable (fermée par défaut), la grille de référence
+    des tarifs (courses.models.TarifRemuneration) — auparavant une page séparée
+    (admin_tarifs_remuneration), fusionnée ici pour éviter 2 pages distinctes sur
+    le même sujet. Toujours en lecture seule pour ce rôle : voir
+    admin_tarifs_remuneration/admin_tarif_remuneration_modifier pour l'édition,
+    réservée au مدير sur la page d'origine, restée intacte."""
     from accounts.models import Prof
+    from courses.models import TarifRemuneration
     from courses.utils import calculer_remuneration_prof
 
     lignes = []
@@ -1250,10 +1513,14 @@ def mshrif_remuneration(request):
         })
 
     context = {
-        'lignes': lignes,
+        # Paginé pour l'affichage (Tâche 22 Partie F du 2026-07-26) — les totaux
+        # ci-dessus restent calculés sur TOUS les profs, pas seulement la page
+        # affichée (calculés avant toute pagination, aucun changement à faire).
+        'lignes': paginer(request, lignes, 10),
         'total_base': total_base,
         'total_majoration': total_majoration,
         'total_general': total_base + total_majoration,
+        'tarifs': TarifRemuneration.objects.all().order_by('type_capacite', 'tranche_age'),
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/mshrif_remuneration.html', context)
@@ -1261,19 +1528,20 @@ def mshrif_remuneration(request):
 
 @role_required('admin', 'superviseur', 'mshrif')
 def mshrif_charte(request):
-    """Gestion du ميثاق التدريس. Modification réservée au مشرف ; المدير et المؤطر y ont
-    accès en lecture seule (voir demande explicite : la charte doit leur être visible
-    aussi, pas seulement au مشرف). Contenu structuré en champs texte simples (voir
-    accounts.models.CharteEnseignement) — le مشرف n'a aucune compétence HTML, donc
-    chaque section est éditée via des champs texte séparés, réinjectés dans le même
-    squelette HTML fixe (templates/dashboard/_charte_contenu.html) à l'affichage. Les
-    lignes du tableau de sanctions sont rechargées entièrement à chaque sauvegarde (plus
-    simple et sans risque d'incohérence qu'un diff ligne par ligne, vu leur faible nombre)."""
+    """Gestion du ميثاق التدريس. Modification réservée à مدير et مشرف (élargi depuis
+    مشرف seul — voir Tâche 6b du 2026-07-25) ; المؤطر y a accès en lecture seule.
+    Contenu structuré en champs texte simples (voir accounts.models.CharteEnseignement)
+    — ni مدير ni مشرف n'ont de compétence HTML, donc chaque section est éditée via des
+    champs texte séparés, réinjectés dans le même squelette HTML fixe
+    (templates/dashboard/_charte_contenu.html) à l'affichage. Les lignes du tableau de
+    sanctions sont rechargées entièrement à chaque sauvegarde (plus simple et sans
+    risque d'incohérence qu'un diff ligne par ligne, vu leur faible nombre)."""
     from accounts.models import get_charte, CharteSanctionLigne
 
     charte = get_charte()
+    peut_modifier = request.user.role in ('admin', 'mshrif')
 
-    if request.method == 'POST' and request.user.role == 'mshrif':
+    if request.method == 'POST' and peut_modifier:
         charte.intro = request.POST.get('intro', '')
         charte.verset_ouverture = request.POST.get('verset_ouverture', '')
         charte.titre_bunud = request.POST.get('titre_bunud', '')
@@ -1336,7 +1604,7 @@ def mshrif_charte(request):
         'charte': charte,
         'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
         'couleur_role': COULEUR_PAR_ROLE[request.user.role],
-        'lecture_stricte': request.user.role != 'mshrif',
+        'lecture_stricte': not peut_modifier,
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/mshrif_charte.html', context)
@@ -1437,6 +1705,15 @@ def dashboard_eleve(request):
         eleve=eleve
     ).select_related('seance__groupe').order_by('-seance__date', '-seance__heure')[:3]
 
+    # Encart "📌 المطلوب منك" (Tâche 9 du 2026-07-25) : les consignes de la
+    # dernière séance évaluée, mises en avant sur la page d'accueil plutôt que
+    # noyées dans l'historique (eleve_seances) — c'était le problème signalé.
+    derniere_avec_consignes = Presence.objects.filter(
+        eleve=eleve
+    ).exclude(consigne_memorisation='', consigne_revision='').select_related(
+        'seance__groupe'
+    ).order_by('-seance__date', '-seance__heure').first()
+
     context = {
         'eleve': eleve,
         'groupe_principal': groupes.first(),
@@ -1450,6 +1727,7 @@ def dashboard_eleve(request):
         'sourates_recentes': sourates_recentes,
         'prochaine_seance': prochaine_seance,
         'dernieres_evaluations': dernieres_evaluations,
+        'derniere_avec_consignes': derniere_avec_consignes,
     }
     return render(request, 'dashboard/eleve.html', context)
 
@@ -1519,6 +1797,10 @@ def eleve_profil(request):
     eleve = get_object_or_404(Eleve, user=request.user)
     return render(request, 'dashboard/eleve_profil.html', {
         'eleve': eleve,
+        'groupes_precedents': eleve.historique_groupes.filter(date_fin__isnull=False).select_related('groupe'),
+        # Bouton "تعديل" du téléphone — même pattern que Tâche 5 (lecture seule
+        # par défaut, édition seulement après clic explicite).
+        'modifier_telephone': request.GET.get('modifier_telephone') == '1',
     })
 
 
@@ -1588,27 +1870,49 @@ def dashboard_superviseur(request):
 
     # "En retard": le prof a bien terminé la séance mais ce superviseur ne
     # l'a pas encore évaluée. Non paginé volontairement (même logique que
-    # le retard d'évaluation du prof): il doit tout voir d'un coup.
+    # le retard d'évaluation du prof): il doit tout voir d'un coup — c'est le
+    # SEUL bloc qui reste une liste plate (voir commentaire ci-dessous).
     seances_retard = toutes_seances.filter(
         statut='terminee', date__lt=aujourdhui, est_evaluee=False
     ).order_by('-date', '-heure')
 
-    seances_aujourdhui = toutes_seances.filter(date=aujourdhui).order_by('heure')
+    # Regroupement par prof (refonte UX du 2026-07-26) : une liste plate de
+    # dizaines de séances identiques ne dit rien sur QUI a du retard — un
+    # مؤطر supervise des PROFS (pas des élèves, l'évaluation ici porte sur la
+    # séance/le prof, voir evaluations.Evaluation), donc le regroupement
+    # naturel est par prof, pas par élève. Le bandeau "متأخرة" tout en haut
+    # reste une liste plate volontairement (l'urgence se lit par ordre
+    # chronologique, un regroupement la noierait) ; le reste (اليوم/الماضية/
+    # القادمة) est regroupé par prof pour une lecture rapide.
+    profs_qs = profs_assignes.select_related('user').order_by('user__first_name')
+    if prof_id:
+        profs_qs = profs_qs.filter(id=prof_id)
 
-    # "À venir": la séance n'a pas encore été donnée par le prof, donc pas
-    # encore évaluable. En pratique correspond aux séances futures.
-    seances_a_venir_qs = toutes_seances.filter(date__gt=aujourdhui).order_by('date', 'heure')
-    nb_a_venir = seances_a_venir_qs.count()
-    seances_a_venir = seances_a_venir_qs[:10]
-    # Reste des séances à venir au-delà des 10 déjà visibles — rendu caché
-    # dans le template et déplié en JS au clic sur le compteur, sans
-    # rechargement (horizon de génération borné à 8 semaines, jamais
-    # assez volumineux pour justifier un appel serveur séparé).
-    seances_a_venir_extra = seances_a_venir_qs[10:]
+    fiches_profs = []
+    for prof in profs_qs:
+        seances_prof = toutes_seances.filter(groupe__prof=prof)
+        retard_prof = seances_prof.filter(
+            statut='terminee', date__lt=aujourdhui, est_evaluee=False
+        ).order_by('-date', '-heure')
+        aujourdhui_prof = seances_prof.filter(date=aujourdhui).order_by('heure')
+        a_venir_prof = seances_prof.filter(date__gt=aujourdhui).order_by('date', 'heure')
+        traitees_prof = seances_prof.filter(date__lt=aujourdhui).exclude(
+            statut='terminee', est_evaluee=False
+        ).order_by('-date', '-heure')
 
-    seances_passees_traitees = toutes_seances.filter(
-        date__lt=aujourdhui
-    ).exclude(statut='terminee', est_evaluee=False).order_by('-date', '-heure')
+        if not (retard_prof.exists() or aujourdhui_prof.exists() or a_venir_prof.exists() or traitees_prof.exists()):
+            continue
+
+        fiches_profs.append({
+            'prof': prof,
+            'nb_retard': retard_prof.count(),
+            'seances_retard': retard_prof,
+            'seances_aujourdhui': aujourdhui_prof,
+            'seances_a_venir': a_venir_prof[:5],
+            'nb_a_venir': a_venir_prof.count(),
+            'seances_traitees': traitees_prof[:5],
+            'nb_traitees': traitees_prof.count(),
+        })
 
     return render(request, 'dashboard/superviseur.html', {
         'superviseur': superviseur,
@@ -1616,11 +1920,7 @@ def dashboard_superviseur(request):
         'total_seances': toutes_seances.count(),
         'nb_retard': seances_retard.count(),
         'seances_retard': seances_retard,
-        'seances_aujourdhui': seances_aujourdhui,
-        'seances_a_venir': seances_a_venir,
-        'seances_a_venir_extra': seances_a_venir_extra,
-        'nb_a_venir': nb_a_venir,
-        'seances_passees_traitees': paginer(request, seances_passees_traitees, 15),
+        'fiches_profs': fiches_profs,
         'profs': profs_assignes.select_related('user').order_by('user__first_name'),
         'groupes': Groupe.objects.filter(prof__in=profs_assignes).order_by('nom'),
         'filtres': {
@@ -1649,14 +1949,68 @@ def superviseur_seance_detail(request, seance_id):
 
 @role_required('superviseur')
 def superviseur_profil(request):
+    """Profil مؤطر — refondu en centre d'information sur son périmètre de
+    supervision (Tâche 13 du 2026-07-25) : une carte enrichie par prof
+    (contact, groupes, type d'élèves, note moyenne du mois), pas une simple
+    liste de noms. Aucun nouveau calcul : la moyenne réutilise
+    evaluations.utils.moyenne_mensuelle_prof (même fonction que le classement
+    mensuel), le type enfants/adultes se lit depuis Creneau.age_min/age_max
+    déjà en base (pas de nouvelle donnée), le nombre d'évaluations en attente
+    réutilise le même filtre que dashboard_superviseur."""
+    from django.db.models import Exists, OuterRef
     from accounts.models import Superviseur
+    from courses.models import Seance
+    from evaluations.models import Evaluation
+    from evaluations.utils import moyenne_mensuelle_prof
+    from django.utils import timezone
 
     superviseur = get_object_or_404(Superviseur, user=request.user)
-    profs = superviseur.profs_assignes.select_related('user').order_by('user__first_name')
+    profs = superviseur.profs_assignes.select_related('user').prefetch_related('groupes__creneau').order_by('user__first_name')
+    aujourdhui = timezone.localdate()
+
+    fiches_profs = []
+    for prof in profs:
+        groupes_actifs = [g for g in prof.groupes.all() if g.statut == 'actif']
+        types_presents = set()
+        for g in groupes_actifs:
+            if not g.creneau:
+                continue
+            if g.creneau.age_max < 18:
+                types_presents.add('enfants')
+            elif g.creneau.age_min >= 18:
+                types_presents.add('adultes')
+            else:
+                types_presents.update({'enfants', 'adultes'})
+        if types_presents == {'enfants', 'adultes'}:
+            type_label = 'أطفال وبالغون'
+        elif types_presents == {'enfants'}:
+            type_label = 'أطفال'
+        elif types_presents == {'adultes'}:
+            type_label = 'بالغون'
+        else:
+            type_label = '—'
+
+        resultat_moyenne = moyenne_mensuelle_prof(prof, aujourdhui.year, aujourdhui.month)
+
+        fiches_profs.append({
+            'prof': prof,
+            'nb_groupes': len(groupes_actifs),
+            'type_label': type_label,
+            'moyenne_mensuelle': resultat_moyenne['moyenne'],
+        })
+
+    nb_evaluations_en_attente = Seance.objects.filter(
+        groupe__prof__in=profs, statut='terminee', date__lt=aujourdhui
+    ).annotate(
+        est_evaluee=Exists(Evaluation.objects.filter(seance=OuterRef('pk')))
+    ).filter(est_evaluee=False).count()
 
     return render(request, 'dashboard/superviseur_profil.html', {
         'superviseur': superviseur,
-        'profs': profs,
+        'fiches_profs': fiches_profs,
+        'nb_profs': profs.count(),
+        'nb_evaluations_en_attente': nb_evaluations_en_attente,
+        'modifier_telephone': request.GET.get('modifier_telephone') == '1',
     })
 
 
@@ -1773,6 +2127,9 @@ def admin_eleves(request):
     q = request.GET.get('q', '').strip()
     statut = request.GET.get('statut', '')
     groupe_id = request.GET.get('groupe', '')
+    date_debut = request.GET.get('date_debut', '')
+    date_fin = request.GET.get('date_fin', '')
+    afficher_archives = request.GET.get('afficher_archives') == '1'
 
     eleves = Eleve.objects.all().select_related('user').order_by('id')
     if q:
@@ -1783,8 +2140,20 @@ def admin_eleves(request):
         )
     if statut:
         eleves = eleves.filter(statut=statut)
+    elif not afficher_archives:
+        # Les archivés restent hors des listes actives par défaut (statut
+        # réversible, pas une suppression — voir admin_eleve_archiver) sauf
+        # si on les cherche explicitement via ce filtre ou le menu "الحالة".
+        eleves = eleves.exclude(statut='archive')
     if groupe_id:
         eleves = eleves.filter(groupes__id=groupe_id)
+    # Remplace l'ancien statut 'nouveau' (une donnée qui devenait fausse avec
+    # le temps sans job de rafraîchissement) par un vrai filtre sur la date
+    # d'inscription, ajustable par le directeur.
+    if date_debut:
+        eleves = eleves.filter(inscription__date_soumission__date__gte=date_debut)
+    if date_fin:
+        eleves = eleves.filter(inscription__date_soumission__date__lte=date_fin)
 
     context = {
         'eleves': paginer(request, eleves, 10),
@@ -1794,6 +2163,9 @@ def admin_eleves(request):
         'filtres': {
             'statut': statut,
             'groupe': groupe_id,
+            'date_debut': date_debut,
+            'date_fin': date_fin,
+            'afficher_archives': afficher_archives,
         },
         'base_template': _base_template_admin_ou_mshrif(request),
     }
@@ -1820,6 +2192,7 @@ def admin_eleve_detail(request, eleve_id):
         'inscription': eleve.inscription,
         'progression': progression,
         'groupes_suggeres': groupes_compatibles_pour_eleve(eleve),
+        'groupes_precedents': eleve.historique_groupes.filter(date_fin__isnull=False).select_related('groupe'),
         'valeurs_form': valeurs_form,
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
@@ -1827,6 +2200,56 @@ def admin_eleve_detail(request, eleve_id):
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_eleve_detail.html', context)
+
+
+@role_required('admin')
+def admin_eleve_suspendre(request, eleve_id):
+    """Suspend un élève: date_suspension posée automatiquement à aujourd'hui
+    (jamais laissée vide, contrairement à l'ancien statut 'موقوف' qui n'avait
+    aucune trace de depuis quand — voir badge_suspension_eleve). N'affecte pas
+    l'historique (séances/paiements/évaluations passés restent intacts et
+    interrogeables); seul le prof cesse de le voir dans ses feuilles de
+    présence à venir (voir prof_seance_detail/prof_presence_sauvegarder,
+    filtrés sur statut='actif')."""
+    from accounts.models import Eleve
+    from django.utils import timezone
+
+    eleve = get_object_or_404(Eleve, id=eleve_id)
+    eleve.statut = 'suspendu'
+    eleve.date_suspension = timezone.localdate()
+    eleve.save(update_fields=['statut', 'date_suspension'])
+    messages.info(request, f'تم إيقاف الطالب {eleve.user.get_full_name()}.')
+    return redirect('admin_eleve_detail', eleve_id=eleve.id)
+
+
+@role_required('admin')
+def admin_eleve_reactiver(request, eleve_id):
+    """Réactive un élève suspendu ou un élève archivé — même action de retour
+    à 'actif' dans les deux cas, la seule différence étant l'état de départ."""
+    from accounts.models import Eleve
+
+    eleve = get_object_or_404(Eleve, id=eleve_id)
+    eleve.statut = 'actif'
+    eleve.date_suspension = None
+    eleve.save(update_fields=['statut', 'date_suspension'])
+    messages.success(request, f'تمت إعادة تفعيل الطالب {eleve.user.get_full_name()}.')
+    return redirect('admin_eleve_detail', eleve_id=eleve.id)
+
+
+@role_required('admin')
+def admin_eleve_archiver(request, eleve_id):
+    """Archive un élève — remplace toute suppression définitive: le compte,
+    l'historique des séances/présences/paiements/évaluations restent intacts
+    et interrogeables, seulement exclus des listes actives par défaut (voir
+    filtre 'afficher les archivés' sur admin_eleves)."""
+    from accounts.models import Eleve
+
+    eleve = get_object_or_404(Eleve, id=eleve_id)
+    eleve.statut = 'archive'
+    eleve.date_suspension = None
+    eleve.save(update_fields=['statut', 'date_suspension'])
+    messages.info(request, f'تمت أرشفة الطالب {eleve.user.get_full_name()}.')
+    return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
 
 @role_required('admin')
@@ -1847,11 +2270,17 @@ def admin_eleve_disponibilites(request, eleve_id):
         for j, h in DisponibiliteEleve.objects.filter(eleve=eleve).values_list('jour_semaine', 'heure_debut')
     )
 
+    # Lecture seule par défaut — un clic pour consulter ne doit jamais pouvoir
+    # modifier par accident (voir Tâche 5 du 2026-07-25). Le mode édition n'est
+    # activé qu'après un clic explicite sur "تعديل" (?modifier=1).
+    mode_edition = request.GET.get('modifier') == '1'
+
     return render(request, 'dashboard/admin_eleve_disponibilites.html', {
         'eleve': eleve,
         'valeurs_form': valeurs_form,
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
+        'mode_edition': mode_edition,
     })
 
 
@@ -1929,13 +2358,22 @@ def admin_prof_disponibilites(request, prof_id):
         for j, h in DisponibiliteProf.objects.filter(prof=prof).values_list('jour_semaine', 'heure_debut')
     )
 
+    # مشرف reste en lecture seule dans tous les cas (déjà en place). Pour مدير,
+    # lecture seule par défaut désormais aussi — un clic pour consulter ne doit
+    # jamais pouvoir modifier par accident (voir Tâche 5 du 2026-07-25) — le
+    # mode édition n'est activé qu'après un clic explicite sur "تعديل".
+    peut_modifier = request.user.role == 'admin'
+    mode_edition = peut_modifier and request.GET.get('modifier') == '1'
+
     context = {
         'prof': prof,
         'valeurs_form': valeurs_form,
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
         'base_template': _base_template_admin_ou_mshrif(request),
-        'lecture_seule': request.user.role == 'mshrif',
+        'lecture_seule': not mode_edition,
+        'peut_modifier': peut_modifier,
+        'mode_edition': mode_edition,
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_prof_disponibilites.html', context)
@@ -2059,7 +2497,7 @@ def admin_parametres_abonnements(request):
     return render(request, 'dashboard/admin_parametres_abonnements.html', context)
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_abonnement_ajouter(request):
     from inscriptions.models import TypeAbonnement
 
@@ -2068,15 +2506,18 @@ def admin_abonnement_ajouter(request):
             code=request.POST.get('code'),
             label=request.POST.get('label'),
             prix=request.POST.get('prix'),
+            cible_age=request.POST.get('cible_age', 'les_deux'),
             ordre=request.POST.get('ordre', 0),
         )
         messages.success(request, 'تمت إضافة نوع الاشتراك بنجاح.')
         return redirect('admin_parametres_abonnements')
 
-    return render(request, 'dashboard/admin_abonnement_ajouter.html')
+    return render(request, 'dashboard/admin_abonnement_ajouter.html', {
+        'base_template': _base_template_admin_ou_mshrif(request),
+    })
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_abonnement_modifier(request, abonnement_id):
     from inscriptions.models import TypeAbonnement
     type_abonnement = get_object_or_404(TypeAbonnement, id=abonnement_id)
@@ -2084,6 +2525,7 @@ def admin_abonnement_modifier(request, abonnement_id):
     if request.method == 'POST':
         type_abonnement.label = request.POST.get('label')
         type_abonnement.prix = request.POST.get('prix')
+        type_abonnement.cible_age = request.POST.get('cible_age', 'les_deux')
         type_abonnement.ordre = request.POST.get('ordre', 0)
         type_abonnement.save()
         messages.success(request, 'تم تعديل نوع الاشتراك بنجاح.')
@@ -2091,10 +2533,11 @@ def admin_abonnement_modifier(request, abonnement_id):
 
     return render(request, 'dashboard/admin_abonnement_modifier.html', {
         'type_abonnement': type_abonnement,
+        'base_template': _base_template_admin_ou_mshrif(request),
     })
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_abonnement_toggle(request, abonnement_id):
     from inscriptions.models import TypeAbonnement
     type_abonnement = get_object_or_404(TypeAbonnement, id=abonnement_id)
@@ -2111,6 +2554,13 @@ def admin_abonnement_toggle(request, abonnement_id):
 
 @role_required('admin', 'mshrif')
 def admin_tarifs_remuneration(request):
+    # Fusionnée dans mshrif_remuneration (section repliable) pour le مشرف — cette
+    # page reste la version complète (avec édition) réservée au مدير. Redirection
+    # pour éviter un lien mort si l'ancienne URL était mise en favori côté مشرف,
+    # qui n'a plus de lien sidebar direct vers ici.
+    if request.user.role == 'mshrif':
+        return redirect('mshrif_remuneration')
+
     from courses.models import TarifRemuneration
     tarifs = TarifRemuneration.objects.all().order_by('type_capacite', 'tranche_age')
     context = {
@@ -2141,6 +2591,13 @@ def admin_tarif_remuneration_modifier(request, tarif_id):
 
 @role_required('admin', 'mshrif')
 def admin_criteres(request):
+    # Fusionnée dans classement_mensuel_profs (section repliable) pour le مشرف —
+    # cette page reste la version complète (avec édition) réservée au مدير.
+    # Redirection pour éviter un lien mort si l'ancienne URL était en favori côté
+    # مشرف, qui n'a plus de lien sidebar direct vers ici.
+    if request.user.role == 'mshrif':
+        return redirect('classement_mensuel_profs')
+
     from evaluations.models import Critere
     criteres = Critere.objects.all().order_by('ordre')
     context = {
@@ -2302,10 +2759,10 @@ def admin_evaluation_detail(request, seance_id):
 
 @role_required('admin', 'superviseur', 'mshrif')
 def classement_mensuel_profs(request):
-    from django.db.models import Avg
     from django.utils import timezone
     from accounts.models import Prof, Superviseur
-    from evaluations.models import Evaluation, CommentaireMensuel
+    from evaluations.models import CommentaireMensuel, Critere
+    from evaluations.utils import moyenne_mensuelle_prof
 
     mois = request.GET.get('mois', '')
     aujourdhui = timezone.localdate()
@@ -2333,19 +2790,12 @@ def classement_mensuel_profs(request):
 
     lignes = []
     for prof in profs:
-        evaluations = Evaluation.objects.filter(
-            seance__groupe__prof=prof,
-            seance__date__year=annee,
-            seance__date__month=num_mois,
-        ).annotate(moyenne_evaluation=Avg('notes__note'))
-        moyennes = [e.moyenne_evaluation for e in evaluations if e.moyenne_evaluation is not None]
-        moyenne_mensuelle = sum(moyennes) / len(moyennes) if moyennes else None
-
+        resultat = moyenne_mensuelle_prof(prof, annee, num_mois)
         commentaire = commentaires.get(prof.id)
         lignes.append({
             'prof': prof,
-            'nb_evaluations': len(moyennes),
-            'moyenne_mensuelle': round(moyenne_mensuelle, 2) if moyenne_mensuelle is not None else None,
+            'nb_evaluations': resultat['nb_evaluations'],
+            'moyenne_mensuelle': resultat['moyenne'],
             'majoration_mensuelle': prof.majoration_mensuelle,
             'commentaire': commentaire.commentaire if commentaire else '',
         })
@@ -2365,12 +2815,19 @@ def classement_mensuel_profs(request):
     }
 
     context = {
-        'lignes': lignes,
+        # Classement déjà trié avant pagination (Tâche 22 Partie F du 2026-07-26) —
+        # la pagination ne fait que découper le classement déjà ordonné, le rang
+        # affiché sur chaque page reste donc cohérent (page 2 = rangs 11-20, etc.).
+        'lignes': paginer(request, lignes, 10),
         'mois': mois,
         'mois_reference': mois_reference,
         'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
         'couleur_role': COULEUR_PAR_ROLE[request.user.role],
         'lecture_stricte': request.user.role == 'mshrif',
+        # Section repliable de référence — fusion de admin_criteres (voir plus haut),
+        # toujours en lecture seule ici quel que soit le rôle (l'édition reste
+        # réservée au مدير sur la page d'origine, restée intacte).
+        'criteres': Critere.objects.all().order_by('ordre'),
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/classement_mensuel_profs.html', context)
@@ -2448,12 +2905,9 @@ def admin_superviseur_ajouter(request):
             )
             Superviseur.objects.create(user=user)
 
-        email_envoye = envoyer_email_bienvenue(request, email, password_temp, nom)
+        envoyer_email_bienvenue(request, email, password_temp, nom)
 
-        if email_envoye:
-            messages.success(request, f'تمت إضافة المؤطر {nom}. كلمة المرور المؤقتة: {password_temp} (تم إرسالها أيضاً عبر البريد الإلكتروني).')
-        else:
-            messages.warning(request, f'تمت إضافة المؤطر {nom}، لكن تعذر إرسال بريد تسجيل الدخول. كلمة المرور المؤقتة: {password_temp} (أرسلها له يدوياً).')
+        messages.success(request, f'تمت إضافة المؤطر {nom}. كلمة المرور المؤقتة: {password_temp} — بلّغها له يدوياً (لا يوجد إرسال تلقائي موثوق عبر البريد الإلكتروني).')
         return redirect('admin_superviseurs')
 
     return render(request, 'dashboard/admin_superviseur_ajouter.html')

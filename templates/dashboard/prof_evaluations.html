@@ -40,26 +40,118 @@
     </div>
 </form>
 
-<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
-    {% for p in presences %}
-    <a href="{% url 'prof_seance_detail' p.seance.id %}" style="display:block; padding:14px 20px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:inherit;">
-        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-            <div style="font-weight:700;">{{ p.eleve.user.get_full_name }}</div>
-            <span style="{{ p.statut|statut_style }} border-radius:20px; padding:2px 10px; font-size:0.75rem;">{{ p.get_statut_display }}</span>
+{% if blocs_par_eleve %}
+{% for bloc in blocs_par_eleve %}
+<details class="compact-card mb-3" open style="padding:0; overflow:hidden;">
+    <summary style="cursor:pointer; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; list-style:none;">
+        <span style="font-weight:700;">{{ bloc.eleve.user.get_full_name }}</span>
+        {% if bloc.moyenne_hifz %}
+        <span style="display:flex; gap:6px; flex-wrap:wrap; font-size:0.78rem;">
+            <span style="background:#f0f0f0; border-radius:20px; padding:2px 8px;">حفظ {{ bloc.moyenne_hifz }}/20</span>
+            <span style="background:#f0f0f0; border-radius:20px; padding:2px 8px;">مراجعة {{ bloc.moyenne_muraja3a }}/20</span>
+            <span style="background:#f0f0f0; border-radius:20px; padding:2px 8px;">تلاوة {{ bloc.moyenne_tilawa }}/20</span>
+            <span style="background:#f0f0f0; border-radius:20px; padding:2px 8px;">مواظبة {{ bloc.moyenne_mouwazaba }}/20</span>
+        </span>
+        {% endif %}
+    </summary>
+    <div style="border-top:1px solid #f0f0f0;">
+        {% for p in bloc.presences_recentes %}
+        <a href="{% url 'prof_seance_detail' p.seance.id %}" style="display:block; padding:12px 20px; border-bottom:1px solid #f5f5f5; text-decoration:none; color:inherit;">
+            <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                <span style="color:#888; font-size:0.85rem;">{{ p.seance.groupe.nom }} — {{ p.seance.date|date:"d-m-Y" }}</span>
+                {% if p.statut == 'present' %}
+                    {% include 'dashboard/_badge_statut.html' with type='success' texte=p.get_statut_display %}
+                {% elif p.statut == 'absent_excuse' %}
+                    {% include 'dashboard/_badge_statut.html' with type='warning' texte=p.get_statut_display %}
+                {% else %}
+                    {% include 'dashboard/_badge_statut.html' with type='danger' texte=p.get_statut_display %}
+                {% endif %}
+            </div>
+            {% if p.note_hifz %}
+            <div style="font-size:0.78rem; color:#555; margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
+                <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">حفظ {{ p.note_hifz }}/20</span>
+                <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">مراجعة {{ p.note_muraja3a }}/20</span>
+                <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">تلاوة {{ p.note_tilawa }}/20</span>
+                <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">مواظبة {{ p.note_mouwazaba }}/20</span>
+            </div>
+            {% elif p.note_memorisation or p.note_revision %}
+            <div style="font-size:0.8rem; color:#555; margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
+                {% if p.note_memorisation %}<span>الحفظ:</span> <span style="{{ p.note_memorisation|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_memorisation_display }}</span>{% endif %}
+                {% if p.note_revision %}<span>المراجعة:</span> <span style="{{ p.note_revision|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_revision_display }}</span>{% endif %}
+            </div>
+            {% endif %}
+            {% if p.consigne_memorisation %}
+            <div style="font-size:0.78rem; color:#555; margin-top:6px;">📌 المطلوب حفظه: {{ p.consigne_memorisation }}</div>
+            {% endif %}
+            {% if p.consigne_revision %}
+            <div style="font-size:0.78rem; color:#555; margin-top:4px;">📌 المطلوب مراجعته: {{ p.consigne_revision }}</div>
+            {% endif %}
+        </a>
+        {% endfor %}
+        {% if bloc.presences_anciennes %}
+        <div id="presences_extra_{{ bloc.eleve.id }}" style="display:none;">
+            {% for p in bloc.presences_anciennes %}
+            <a href="{% url 'prof_seance_detail' p.seance.id %}" style="display:block; padding:12px 20px; border-bottom:1px solid #f5f5f5; text-decoration:none; color:inherit;">
+                <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                    <span style="color:#888; font-size:0.85rem;">{{ p.seance.groupe.nom }} — {{ p.seance.date|date:"d-m-Y" }}</span>
+                    {% if p.statut == 'present' %}
+                        {% include 'dashboard/_badge_statut.html' with type='success' texte=p.get_statut_display %}
+                    {% elif p.statut == 'absent_excuse' %}
+                        {% include 'dashboard/_badge_statut.html' with type='warning' texte=p.get_statut_display %}
+                    {% else %}
+                        {% include 'dashboard/_badge_statut.html' with type='danger' texte=p.get_statut_display %}
+                    {% endif %}
+                </div>
+                {% if p.note_hifz %}
+                <div style="font-size:0.78rem; color:#555; margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
+                    <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">حفظ {{ p.note_hifz }}/20</span>
+                    <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">مراجعة {{ p.note_muraja3a }}/20</span>
+                    <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">تلاوة {{ p.note_tilawa }}/20</span>
+                    <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">مواظبة {{ p.note_mouwazaba }}/20</span>
+                </div>
+                {% elif p.note_memorisation or p.note_revision %}
+                <div style="font-size:0.8rem; color:#555; margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
+                    {% if p.note_memorisation %}<span>الحفظ:</span> <span style="{{ p.note_memorisation|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_memorisation_display }}</span>{% endif %}
+                    {% if p.note_revision %}<span>المراجعة:</span> <span style="{{ p.note_revision|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_revision_display }}</span>{% endif %}
+                </div>
+                {% endif %}
+                {% if p.consigne_memorisation %}
+                <div style="font-size:0.78rem; color:#555; margin-top:6px;">📌 المطلوب حفظه: {{ p.consigne_memorisation }}</div>
+                {% endif %}
+                {% if p.consigne_revision %}
+                <div style="font-size:0.78rem; color:#555; margin-top:4px;">📌 المطلوب مراجعته: {{ p.consigne_revision }}</div>
+                {% endif %}
+            </a>
+            {% endfor %}
         </div>
-        <div style="color:#888; font-size:0.85rem;">{{ p.seance.groupe.nom }} — {{ p.seance.date|date:"d-m-Y" }}</div>
-        {% if p.note_memorisation or p.note_revision %}
-        <div style="font-size:0.8rem; color:#555; margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;">
-            {% if p.note_memorisation %}<span>الحفظ:</span> <span style="{{ p.note_memorisation|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_memorisation_display }}</span>{% endif %}
-            {% if p.note_revision %}<span>المراجعة:</span> <span style="{{ p.note_revision|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_revision_display }}</span>{% endif %}
+        <div style="padding:10px 20px;">
+            <span id="presences_toggle_texte_{{ bloc.eleve.id }}" onclick="togglePresencesAnciennes({{ bloc.eleve.id }})" style="cursor:pointer; color:var(--color-role-prof-solid); font-size:0.82rem; text-decoration:underline;">
+                عرض جميع الحصص ({{ bloc.nb_presences_total }}) ↓
+            </span>
         </div>
         {% endif %}
-    </a>
-    {% empty %}
-    <div style="text-align:center; padding:60px; color:#aaa;">
-        {% if filtres.eleve or filtres.groupe or filtres.date_debut or filtres.date_fin %}لا توجد تقييمات مطابقة لهذه التصفية{% else %}لا توجد تقييمات مسجَّلة بعد{% endif %}
     </div>
-    {% endfor %}
+</details>
+{% endfor %}
+{% include 'dashboard/_pagination.html' with page_obj=blocs_par_eleve %}
+{% else %}
+<div class="compact-card" style="text-align:center; padding:60px; color:#aaa;">
+    {% if filtres.eleve or filtres.groupe or filtres.date_debut or filtres.date_fin %}لا توجد تقييمات مطابقة لهذه التصفية{% else %}لا توجد تقييمات مسجَّلة بعد{% endif %}
 </div>
-{% include 'dashboard/_pagination.html' with page_obj=presences %}
+{% endif %}
+
+<script>
+    function togglePresencesAnciennes(eleveId) {
+        const extra = document.getElementById('presences_extra_' + eleveId);
+        const texte = document.getElementById('presences_toggle_texte_' + eleveId);
+        if (extra.style.display === 'none') {
+            extra.style.display = 'block';
+            if (!texte.dataset.original) { texte.dataset.original = texte.textContent; }
+            texte.textContent = 'إخفاء الحصص القديمة ↑';
+        } else {
+            extra.style.display = 'none';
+            texte.textContent = texte.dataset.original;
+        }
+    }
+</script>
 {% endblock %}

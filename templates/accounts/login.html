@@ -137,6 +137,13 @@
         <div class="alert alert-danger text-center">{{ error }}</div>
         {% endif %}
 
+        <!-- Messages (ex: نسيت كلمة المرور) -->
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} text-center">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+
         <!-- Formulaire -->
         <form method="POST" action="{% url 'login' %}">
             {% csrf_token %}
@@ -155,6 +162,10 @@
 
             <button type="submit" class="btn-login">تسجيل الدخول</button>
         </form>
+
+        <div class="text-center mt-2">
+            <a href="{% url 'mot_de_passe_oublie' %}" style="color:#888; font-size:0.88rem; text-decoration:none;">نسيت كلمة المرور ؟</a>
+        </div>
 
         <!-- Divider -->
         <div class="divider">جديد ؟</div>

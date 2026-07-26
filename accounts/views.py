@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
@@ -44,6 +44,87 @@ def redirect_by_role(user):
 def logout_view(request):
     logout(request)
     return redirect('login')
+
+
+def mot_de_passe_oublie(request):
+    """"نسيت كلمة المرور ؟" (Tâche 22 Partie E du 2026-07-26) — pas d'envoi email
+    (Brevo non fiable, voir Partie D) : le mot de passe généré est envoyé au
+    مدير via le bot Telegram déjà utilisé pour les notifications d'inscription
+    (core.utils.envoyer_notification_telegram), à charge pour lui de le
+    transmettre au titulaire du compte. Message affiché identique que l'email
+    existe ou non, pour ne jamais révéler quels emails sont enregistrés."""
+    from core.utils import envoyer_notification_telegram
+    from dashboard.views import generer_mot_de_passe_temporaire
+
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        User = get_user_model()
+        user = User.objects.filter(email=email).first()
+        if user:
+            nouveau_mot_de_passe = generer_mot_de_passe_temporaire()
+            user.set_password(nouveau_mot_de_passe)
+            user.doit_changer_mot_de_passe = True
+            user.save()
+            envoyer_notification_telegram(
+                f'🔑 طلب "نسيت كلمة المرور"\n'
+                f'الحساب: {email}\n'
+                f'كلمة المرور الجديدة: {nouveau_mot_de_passe}\n'
+                f'يرجى تبليغها لصاحب الحساب.'
+            )
+        messages.success(
+            request,
+            'إذا كان هذا البريد الإلكتروني مسجلاً لدينا، فقد تم إشعار الإدارة لإنشاء كلمة '
+            'مرور جديدة — تواصل مع الإدارة للحصول عليها.'
+        )
+        return redirect('login')
+
+    return render(request, 'accounts/mot_de_passe_oublie.html')
+
+
+@login_required
+def reinitialiser_mon_mot_de_passe(request):
+    """Même mécanisme que mot_de_passe_oublie, pour un utilisateur déjà connecté
+    qui veut réinitialiser (Tâche 22 Partie E) — accessible depuis sa page
+    profil. Déconnecte immédiatement (l'ancien mot de passe devient invalide)."""
+    from core.utils import envoyer_notification_telegram
+    from dashboard.views import generer_mot_de_passe_temporaire
+
+    if request.method == 'POST':
+        nouveau_mot_de_passe = generer_mot_de_passe_temporaire()
+        email = request.user.email
+        request.user.set_password(nouveau_mot_de_passe)
+        request.user.doit_changer_mot_de_passe = True
+        request.user.save()
+        envoyer_notification_telegram(
+            f'🔑 طلب إعادة تعيين كلمة مرور (من داخل الحساب)\n'
+            f'الحساب: {email}\n'
+            f'كلمة المرور الجديدة: {nouveau_mot_de_passe}\n'
+            f'يرجى تبليغها لصاحب الحساب.'
+        )
+        logout(request)
+        messages.success(
+            request,
+            'تم إنشاء كلمة مرور جديدة وإشعار الإدارة بها — تواصل معها للحصول عليها، '
+            'ثم سجّل الدخول من جديد.'
+        )
+        return redirect('login')
+    return redirect_by_role(request.user)
+
+
+@login_required
+def modifier_telephone(request):
+    """Modifie le téléphone du User connecté — partagé par élève/prof/مؤطر
+    (Tâche 11 du 2026-07-25). Vue générique (n'agit que sur request.user),
+    comme password_change_view : chaque page profil poste ici avec un champ
+    caché 'next' (nom d'URL) pour revenir sur elle-même après sauvegarde."""
+    if request.method == 'POST':
+        request.user.telephone = request.POST.get('telephone', '').strip()
+        request.user.save(update_fields=['telephone'])
+        messages.success(request, 'تم تحديث رقم الهاتف بنجاح.')
+        next_url = request.POST.get('next')
+        if next_url:
+            return redirect(next_url)
+    return redirect_by_role(request.user)
 
 
 BASE_TEMPLATE_PAR_ROLE = {

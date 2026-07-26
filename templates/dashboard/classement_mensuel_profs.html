@@ -1,5 +1,16 @@
 {% extends base_template %}
 {% block title %}الترتيب الشهري للمعلمين{% endblock %}
+{% block extra_css %}
+<style>
+.ref-details summary { list-style:none; cursor:pointer; }
+.ref-details summary::-webkit-details-marker { display:none; }
+.ref-details summary .chevron { transition:transform 0.15s; }
+.ref-details[open] summary .chevron { transform:rotate(180deg); }
+.ref-details summary .label-open { display:none; }
+.ref-details[open] summary .label-closed { display:none; }
+.ref-details[open] summary .label-open { display:inline; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="page-title">الترتيب الشهري للمعلمين</div>
 <div class="page-subtitle">مرتب حسب متوسط تقييمات المؤطر لهذا الشهر — غير مرئي للمعلمين{% if lecture_stricte %} — عرض للاطلاع فقط{% endif %}</div>
@@ -15,14 +26,21 @@
 <div style="display:flex; flex-direction:column; gap:12px;">
     {% for ligne in lignes %}
     <div style="background:white; border-radius:12px; padding:18px 22px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
-            <div>
-                <span style="font-weight:700; font-size:1.05rem;">{{ ligne.prof.user.get_full_name }}</span>
-                <span style="color:#888; font-size:0.82rem; margin-right:8px;">{{ ligne.nb_evaluations }} تقييم هذا الشهر</span>
-            </div>
-            <div style="display:flex; gap:10px; align-items:center;">
+        <div style="margin-bottom:10px;">
+            <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">{{ ligne.prof.user.get_full_name }}</div>
+            <!-- Ligne 1 : nombre d'évaluations — volontairement sur sa propre ligne, séparée
+                 de la ligne 2 (المعدل), pour qu'aucune coïncidence numérique entre les deux
+                 (ex: 4 évaluations ce mois avec une échelle sur 4) ne puisse se lire comme
+                 une fraction "X / Y". -->
+            <div style="color:#888; font-size:0.82rem; margin-bottom:8px;">{{ ligne.nb_evaluations }} تقييمات هذا الشهر</div>
+            <!-- Ligne 2 : المعدل, échelle 0-4 propre au score lui-même — voir l'infobulle
+                 pour la formule exacte (moyenne des moyennes par critères notés). -->
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 {% if ligne.moyenne_mensuelle is not None %}
-                <span style="background:rgba(45,90,61,0.1); color:var(--color-success); border-radius:20px; padding:5px 14px; font-weight:700; font-size:0.9rem;">⭐ {{ ligne.moyenne_mensuelle }} / 4</span>
+                <span style="background:rgba(45,90,61,0.1); color:var(--color-success); border-radius:20px; padding:5px 14px; font-weight:700; font-size:0.9rem; cursor:help;"
+                      title="معدل الحصص المقيَّمة هذا الشهر، بناءً على المعايير المسجَّلة لكل حصة">
+                    ⭐ المعدل: {{ ligne.moyenne_mensuelle }} / 4 <span style="opacity:0.65; font-weight:400;">ℹ️</span>
+                </span>
                 {% else %}
                 <span style="background:#f0f0f0; color:#aaa; border-radius:20px; padding:5px 14px; font-size:0.85rem;">— لا يوجد تقييم</span>
                 {% endif %}
@@ -51,4 +69,30 @@
     <div style="background:white; border-radius:12px; padding:60px; text-align:center; color:#aaa;">لا يوجد معلمون لعرضهم</div>
     {% endfor %}
 </div>
+{% include 'dashboard/_pagination.html' with page_obj=lignes %}
+
+<details class="ref-details" style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:20px; overflow:hidden;">
+    <summary style="padding:16px 24px; font-weight:700; color:{{ couleur_role }}; display:flex; align-items:center; justify-content:space-between;">
+        <span>
+            <span class="label-closed">عرض معايير التقييم</span>
+            <span class="label-open">إخفاء معايير التقييم</span>
+        </span>
+        <span class="chevron">⌄</span>
+    </summary>
+    <div style="border-top:1px solid #f0f0f0;">
+        <div style="padding:10px 24px 0; color:var(--color-text-muted); font-size:0.82rem;">تظهر هذه المعايير في استمارة تقييم المؤطر للمعلم</div>
+        {% for critere in criteres %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 24px; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
+            <div style="font-weight:700;">{{ critere.ordre }}. {{ critere.nom_ar }}</div>
+            {% if critere.est_actif %}
+            <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">نشط ✅</span>
+            {% else %}
+            <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:4px 12px; font-size:0.8rem;">غير نشط ❌</span>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div style="text-align:center; padding:40px; color:#aaa;">لا توجد معايير بعد</div>
+        {% endfor %}
+    </div>
+</details>
 {% endblock %}

@@ -3,29 +3,77 @@
 {% block title %}ملفي الشخصي{% endblock %}
 {% block content %}
 <div class="page-title">ملفي الشخصي</div>
-<div class="page-subtitle">معلوماتك الشخصية ومجموعاتك</div>
+<div class="page-subtitle">معلوماتك الشخصية، أمان حسابك، ومجموعاتك</div>
 
-<div class="compact-card mb-4" style="max-width:600px;">
-    <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f5f0e6;">
-        <span style="color:#888;">الاسم الكامل</span>
-        <span style="font-weight:600;">{{ eleve.user.get_full_name }}</span>
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="compact-card mb-4">
+            <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin-bottom:12px;">معلومات الحساب</div>
+            <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f5f0e6;">
+                <span style="color:#888;">الاسم الكامل</span>
+                <span style="font-weight:600;">{{ eleve.user.get_full_name }}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f5f0e6;">
+                <span style="color:#888;">البريد الإلكتروني</span>
+                <span style="font-weight:600;">{{ eleve.user.email }}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f5f0e6;">
+                <span style="color:#888;">الهاتف</span>
+                {% if not modifier_telephone %}
+                <span style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-weight:600;">{{ eleve.user.telephone|default:"—" }}</span>
+                    <a href="?modifier_telephone=1" style="color:var(--color-role-eleve-solid); font-size:0.82rem; text-decoration:none;">✏️ تعديل</a>
+                </span>
+                {% endif %}
+            </div>
+            {% if modifier_telephone %}
+            <form method="POST" action="{% url 'modifier_telephone' %}" style="padding-top:10px;">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'eleve_profil' %}">
+                <input type="tel" name="telephone" class="form-control mb-2" value="{{ eleve.user.telephone }}" placeholder="رقم الهاتف">
+                <div class="d-flex gap-2">
+                    <button type="submit" style="background:var(--color-role-eleve-solid); color:white; border:none; border-radius:8px; padding:6px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">حفظ</button>
+                    <a href="{% url 'eleve_profil' %}" style="color:#888; text-decoration:none; padding:6px;">إلغاء</a>
+                </div>
+            </form>
+            {% endif %}
+            <div style="display:flex; justify-content:space-between; padding:10px 0;">
+                <span style="color:#888;">الجنس</span>
+                <span style="font-weight:600;">{{ eleve.sexe|libelle_arabe:"sexe" }}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:10px 0 0;">
+                <span style="color:#888;">الحالة</span>
+                <span style="font-weight:600; color:var(--color-role-eleve-solid);">{{ eleve.get_statut_display }}</span>
+            </div>
+        </div>
     </div>
-    <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f5f0e6;">
-        <span style="color:#888;">البريد الإلكتروني</span>
-        <span style="font-weight:600;">{{ eleve.user.email }}</span>
-    </div>
-    <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f5f0e6;">
-        <span style="color:#888;">الجنس</span>
-        <span style="font-weight:600;">{{ eleve.sexe|libelle_arabe:"sexe" }}</span>
-    </div>
-    <div style="display:flex; justify-content:space-between; padding:10px 0;">
-        <span style="color:#888;">الحالة</span>
-        <span style="font-weight:600; color:var(--color-role-eleve-solid);">{{ eleve.get_statut_display }}</span>
+
+    <div class="col-lg-6">
+        <div class="compact-card mb-4">
+            <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin-bottom:12px;">🔒 الأمان — تغيير كلمة المرور</div>
+            <form method="POST" action="{% url 'password_change' %}">
+                {% csrf_token %}
+                <div class="mb-2">
+                    <label style="color:#888; font-size:0.85rem;">كلمة المرور الحالية</label>
+                    <input type="password" name="ancien_mot_de_passe" class="form-control" required>
+                </div>
+                <div class="mb-2">
+                    <label style="color:#888; font-size:0.85rem;">كلمة المرور الجديدة</label>
+                    <input type="password" name="nouveau_mot_de_passe" class="form-control" required minlength="8">
+                </div>
+                <div class="mb-3">
+                    <label style="color:#888; font-size:0.85rem;">تأكيد كلمة المرور الجديدة</label>
+                    <input type="password" name="confirmation" class="form-control" required minlength="8">
+                </div>
+                <button type="submit" style="background:var(--color-role-eleve-solid); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تغيير كلمة المرور</button>
+            </form>
+            {% include 'dashboard/_reinitialiser_mot_de_passe.html' %}
+        </div>
     </div>
 </div>
 
-<div class="section-title">مجموعاتي</div>
-<div class="compact-card" style="max-width:600px; padding:4px 20px;">
+<div class="section-title">مجموعاتي ومعلميّ</div>
+<div class="compact-card" style="padding:4px 20px;">
     {% for groupe in eleve.groupes.all %}
     <div style="padding:14px 0; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %}">
         <div style="font-weight:700;">
@@ -33,11 +81,17 @@
             {% if groupe.creneau %}<span style="color:#888; font-weight:400; font-size:0.85rem;"> — {{ groupe.creneau }}</span>{% endif %}
         </div>
         {% if groupe.prof %}
-        <div style="font-size:0.85rem; margin-top:4px;">
-            المعلم:
-            <a href="{% url 'eleve_prof_detail' groupe.prof.id %}" style="color:var(--color-role-eleve-solid); font-weight:600; text-decoration:none;">
-                {{ groupe.prof.user.get_full_name }}
-            </a>
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; margin-top:6px; flex-wrap:wrap; gap:8px;">
+            <div>
+                المعلم:
+                <a href="{% url 'eleve_prof_detail' groupe.prof.id %}" style="color:var(--color-role-eleve-solid); font-weight:600; text-decoration:none;">
+                    {{ groupe.prof.user.get_full_name }}
+                </a>
+            </div>
+            <span style="display:inline-flex; gap:6px; align-items:center;">
+                {% include 'dashboard/_email_icon.html' with email=groupe.prof.user.email %}
+                {% include 'dashboard/_whatsapp_icon.html' with telephone=groupe.prof.user.telephone %}
+            </span>
         </div>
         {% endif %}
     </div>
@@ -45,4 +99,11 @@
     <div style="color:#aaa; padding:20px 0;">لم يتم تعيينك في مجموعة بعد</div>
     {% endfor %}
 </div>
+
+{% if groupes_precedents %}
+<div class="section-title">مجموعاتي السابقة</div>
+<div class="compact-card" style="padding:4px 20px;">
+    {% include 'dashboard/_groupes_precedents_eleve.html' with groupes_precedents=groupes_precedents couleur='var(--color-role-eleve-solid)' %}
+</div>
+{% endif %}
 {% endblock %}

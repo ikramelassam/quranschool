@@ -24,8 +24,9 @@
 
 {% for presence in presences %}
 <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; color:var(--color-role-superviseur-solid); margin-bottom:12px;">
+    <div style="font-weight:700; color:var(--color-role-superviseur-solid); margin-bottom:12px; display:flex; align-items:center; gap:8px;">
         {{ presence.eleve.user.get_full_name }}
+        {% include 'dashboard/_badge_suspension_eleve.html' with eleve=presence.eleve %}
     </div>
 
     <div class="row g-2">
@@ -53,10 +54,32 @@
             <span style="{{ presence.note_revision|note_style }} border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ presence.get_note_revision_display }}</span>
             {% endif %}
         </div>
+        {% if presence.note_hifz %}
+        <div class="col-md-12">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">الحفظ: {{ presence.note_hifz }}/20</span>
+                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">المراجعة: {{ presence.note_muraja3a }}/20</span>
+                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">التلاوة: {{ presence.note_tilawa }}/20</span>
+                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">المواظبة والسلوك: {{ presence.note_mouwazaba }}/20</span>
+            </div>
+        </div>
+        {% endif %}
         {% if presence.remarque %}
         <div class="col-md-12">
             <div style="color:#888; font-size:0.8rem;">ملاحظة المعلم</div>
             <div style="background:#f9f9f9; padding:8px; border-radius:6px; font-size:0.9rem;">{{ presence.remarque }}</div>
+        </div>
+        {% endif %}
+        {% if presence.consigne_memorisation %}
+        <div class="col-md-6">
+            <div style="color:#888; font-size:0.8rem;">📌 المطلوب حفظه</div>
+            <div style="background:#fff8ec; padding:8px; border-radius:6px; font-size:0.9rem;">{{ presence.consigne_memorisation }}</div>
+        </div>
+        {% endif %}
+        {% if presence.consigne_revision %}
+        <div class="col-md-6">
+            <div style="color:#888; font-size:0.8rem;">📌 المطلوب مراجعته</div>
+            <div style="background:#fff8ec; padding:8px; border-radius:6px; font-size:0.9rem;">{{ presence.consigne_revision }}</div>
         </div>
         {% endif %}
     </div>

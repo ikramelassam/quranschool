@@ -33,8 +33,7 @@ class Eleve(models.Model):
     STATUT_CHOICES = [
         ('actif', 'نشط'),
         ('suspendu', 'موقوف'),
-        ('ancien', 'قديم'),
-        ('nouveau', 'جديد'),
+        ('archive', 'مؤرشف'),
     ]
     user = models.OneToOneField(
         User,
@@ -48,6 +47,11 @@ class Eleve(models.Model):
         choices=STATUT_CHOICES,
         default='actif'
     )
+    # Rempli uniquement quand statut='suspendu' (voir dashboard.views.admin_eleve_suspendre),
+    # remis à None à la réactivation — permet d'afficher "موقوف منذ X يوم" partout où
+    # l'élève apparaît sans qu'un badge statique masque une suspension oubliée depuis
+    # des mois (voir Tâche 3 du 2026-07-25).
+    date_suspension = models.DateField(null=True, blank=True)
     inscription = models.ForeignKey(
         'inscriptions.InscriptionEleve',
         on_delete=models.SET_NULL,
@@ -190,12 +194,23 @@ def get_charte():
 
 
 class ProgrammeGeneral(models.Model):
-    """البرنامج العام لمقرأة زدني علماً — contenu texte libre, modifiable UNIQUEMENT
-    par le مدير (contrairement à ميثاق التدريس qui est géré par le المشرف), visible en
-    lecture seule par le prof et l'élève. Singleton comme CharteEnseignement, mais
-    volontairement un seul champ texte : contenu plus simple que la charte, pas de
-    structure en sections nécessaire."""
-    contenu = models.TextField(blank=True)
+    """البرنامج العام لمقرأة زدني علماً — en DEUX versions distinctes (أطفال/بالغون),
+    modifiable par مدير ET مشرف (élargi depuis مدير seul — voir Tâche 6b du
+    2026-07-25). Chaque version reprend le même patron qu'UNE section de
+    CharteEnseignement (titre/intro/items, voir accounts.templatetags.charte_tags.
+    parse_items, réutilisé tel quel) plutôt qu'un texte libre unique — champ vide
+    avant cette migration, donc aucune donnée à préserver. Affichage conditionnel :
+    élève voit sa version selon son âge (courses.utils.tranche_age_depuis_naissance),
+    prof voit la/les version(s) selon le type de ses groupes, مؤطر voit les deux en
+    lecture seule (voir dashboard.views.programme_general_detail)."""
+    titre_enfants = models.CharField(max_length=200, blank=True)
+    intro_enfants = models.TextField(blank=True)
+    items_enfants = models.TextField(blank=True)
+
+    titre_adultes = models.CharField(max_length=200, blank=True)
+    intro_adultes = models.TextField(blank=True)
+    items_adultes = models.TextField(blank=True)
+
     date_modification = models.DateTimeField(auto_now=True)
 
     def __str__(self):

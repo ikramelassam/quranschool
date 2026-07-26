@@ -2,7 +2,13 @@
 {% load libelles_arabes %}
 {% block title %}البيان الشهري — {{ eleve.user.get_full_name }}{% endblock %}
 {% block content %}
-<div class="page-title">{{ eleve.user.get_full_name }}</div>
+<div class="page-title" style="display:flex; align-items:center; gap:10px;">
+    {{ eleve.user.get_full_name }}
+    <span style="display:inline-flex; gap:6px; align-items:center;">
+        {% include 'dashboard/_email_icon.html' with email=eleve.user.email %}
+        {% include 'dashboard/_whatsapp_icon.html' with telephone=eleve.user.telephone %}
+    </span>
+</div>
 <div class="page-subtitle">
     البيان الشهري — {{ mois_reference|mois_annee_ar }} — بقلم {{ prof.user.get_full_name }}
     {% if lecture_seule %} — عرض للاطلاع فقط{% endif %}

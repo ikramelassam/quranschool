@@ -125,16 +125,46 @@
     </div>
 
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">المجموعات</div>
-    {% if prof.groupes.all %}
-        {% for groupe in prof.groupes.all %}
+    {% with total_groupes=prof.groupes.count %}
+    {% if total_groupes %}
+        {% for groupe in prof.groupes.all|slice:":10" %}
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
             <span style="font-weight:600;">{{ groupe.nom }}</span>
             <span style="color:#888;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}—{% endif %}</span>
         </div>
         {% endfor %}
+        {% if total_groupes > 10 %}
+        <div id="groupes_prof_extra" style="display:none;">
+            {% for groupe in prof.groupes.all|slice:"10:" %}
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+                <span style="font-weight:600;">{{ groupe.nom }}</span>
+                <span style="color:#888;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}—{% endif %}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <div style="padding:8px 0;">
+            <span id="groupes_prof_toggle_texte" onclick="toggleGroupesProf()" style="cursor:pointer; color:var(--color-role-admin-solid); font-size:0.82rem; text-decoration:underline;">
+                عرض جميع المجموعات ({{ total_groupes }}) ↓
+            </span>
+        </div>
+        <script>
+            function toggleGroupesProf() {
+                const extra = document.getElementById('groupes_prof_extra');
+                const texte = document.getElementById('groupes_prof_toggle_texte');
+                if (extra.style.display === 'none') {
+                    extra.style.display = 'block';
+                    texte.textContent = 'إخفاء ↑';
+                } else {
+                    extra.style.display = 'none';
+                    texte.textContent = 'عرض جميع المجموعات ({{ total_groupes }}) ↓';
+                }
+            }
+        </script>
+        {% endif %}
     {% else %}
         <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
     {% endif %}
+    {% endwith %}
 
     {% if inscription %}
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">معلومات إضافية من استمارة التسجيل</div>
@@ -174,7 +204,7 @@
         {% endif %}
         <a href="{% url 'admin_prof_disponibilites' prof.id %}"
            style="background:var(--color-role-admin); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-           {% if request.user.role == 'mshrif' %}🕐 عرض جدول التفرغ{% else %}🕐 جدول التفرغ{% endif %}
+           {% if request.user.role == 'mshrif' %}🕐 عرض الأوقات المتاحة للتدريس{% else %}🕐 الأوقات المتاحة للتدريس{% endif %}
         </a>
     </div>
 </div>

@@ -34,6 +34,22 @@
             <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
         </div>
     </div>
+    <div class="row g-3 align-items-end mt-1">
+        <div class="col-md-3">
+            <label style="color:#888; font-size:0.8rem;">تاريخ التسجيل من</label>
+            <input type="date" name="date_debut" class="form-control" value="{{ filtres.date_debut }}">
+        </div>
+        <div class="col-md-3">
+            <label style="color:#888; font-size:0.8rem;">إلى</label>
+            <input type="date" name="date_fin" class="form-control" value="{{ filtres.date_fin }}">
+        </div>
+        <div class="col-md-3 d-flex align-items-center">
+            <div class="form-check">
+                <input type="checkbox" name="afficher_archives" value="1" class="form-check-input" id="afficher_archives" {% if filtres.afficher_archives %}checked{% endif %}>
+                <label class="form-check-label" for="afficher_archives" style="color:#888; font-size:0.85rem;">إظهار المؤرشفين</label>
+            </div>
+        </div>
+    </div>
 </form>
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
@@ -50,6 +66,7 @@
             <span style="background:{% if eleve.statut == 'actif' %}#e8f5e9; color:var(--color-success){% else %}#fce4e4; color:#dc3545{% endif %}; border-radius:20px; padding:3px 12px; font-size:0.8rem;">
                 {{ eleve.get_statut_display }}
             </span>
+            {% include 'dashboard/_badge_suspension_eleve.html' with eleve=eleve %}
             <span style="display:inline-flex; gap:6px; align-items:center;">
                 {% include 'dashboard/_email_icon.html' with email=eleve.user.email %}
                 {% include 'dashboard/_whatsapp_icon.html' with telephone=eleve.user.telephone %}

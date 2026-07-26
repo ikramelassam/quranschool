@@ -12,13 +12,13 @@
 
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">اسم المجموعة *</label>
-            <input type="text" name="nom" class="form-control mt-1" placeholder="مثال: مجموعة البقرة" required>
+            <input type="text" name="nom" class="form-control mt-1" value="{{ groupe.nom|default:'' }}" placeholder="مثال: مجموعة البقرة" required>
         </div>
 
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">وصف المجموعة</label>
-            <textarea name="description" class="form-control mt-1" rows="2" 
-                    placeholder="مثال: مجموعة للأطفال من 7 إلى 12 سنة"></textarea>
+            <textarea name="description" class="form-control mt-1" rows="2"
+                    placeholder="مثال: مجموعة للأطفال من 7 إلى 12 سنة">{{ groupe.description|default:'' }}</textarea>
         </div>
 
         <div class="mb-3">
@@ -26,7 +26,7 @@
             <select name="prof" class="form-select mt-1">
                 <option value="">بدون معلم</option>
                 {% for prof in profs %}
-                <option value="{{ prof.id }}">{{ prof.user.get_full_name }}</option>
+                <option value="{{ prof.id }}" {% if groupe.prof == prof %}selected{% endif %}>{{ prof.user.get_full_name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -36,7 +36,7 @@
             <select name="creneau" class="form-select mt-1" required>
                 <option value="">اختر حلقة</option>
                 {% for creneau in creneaux %}
-                <option value="{{ creneau.id }}">{{ creneau }}</option>
+                <option value="{{ creneau.id }}" {% if groupe.creneau == creneau %}selected{% endif %}>{{ creneau }}</option>
                 {% endfor %}
             </select>
             <div style="color:#888; font-size:0.8rem; margin-top:4px;">ستُولَّد حصص المجموعة تلقائياً حسب أيام وأوقات هذه الحلقة.</div>
@@ -45,28 +45,44 @@
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">نوع المجموعة *</label>
             <select name="type_capacite" class="form-select mt-1" required>
-                <option value="groupe">جماعي</option>
-                <option value="individuel">فردي</option>
+                <option value="groupe" {% if groupe.type_capacite == 'groupe' or not groupe %}selected{% endif %}>جماعي</option>
+                <option value="individuel" {% if groupe.type_capacite == 'individuel' %}selected{% endif %}>فردي</option>
             </select>
         </div>
 
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">الطاقة الاستيعابية القصوى</label>
-            <input type="number" name="max_eleves" class="form-control mt-1" value="10" min="1" max="50">
+            <input type="number" name="max_eleves" class="form-control mt-1" value="{{ groupe.capacite_max|default:10 }}" min="1" max="50">
         </div>
 
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">رابط اجتماع المجموعة</label>
-            <input type="url" name="lien_reunion" class="form-control mt-1" placeholder="https://meet.google.com/xxx-xxxx-xxx">
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">يظهر مع موعد كل حصة عند المعلم والطلاب.</div>
+        <div style="background:#f7f3ea; border:1px solid var(--color-brand-gold); border-radius:10px; padding:16px 18px; margin-bottom:16px;">
+            <label style="font-weight:700; color:var(--color-brand-gold-dark); display:flex; align-items:center; gap:8px;">
+                🔗 رابط الحصص عبر الإنترنت
+            </label>
+            <div style="color:#888; font-size:0.82rem; margin:4px 0 10px;">
+                رابط واحد ثابت يُستخدم لجميع حصص هذه المجموعة (وليس رابطاً لكل حصة على حدة). يظهر تلقائياً عند المعلم والطلاب في موعد كل حصة.
+            </div>
+            <input type="url" name="lien_reunion" class="form-control" value="{{ groupe.lien_reunion|default:'' }}" placeholder="https://meet.google.com/xxx-xxxx-xxx">
         </div>
+
+        {% if avertissements_prof %}
+        <div style="background:#fff3cd; border:1px solid #ff9800; border-radius:10px; padding:14px 18px; margin-bottom:16px;">
+            <div style="font-weight:700; color:#7a4a00; margin-bottom:6px;">⚠️ تأكيد مطلوب قبل الإنشاء</div>
+            <ul style="margin-bottom:0; color:#7a4a00;">
+                {% for a in avertissements_prof %}
+                <li>{{ a }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <input type="hidden" name="confirme" value="1">
+        {% endif %}
 
         <div class="d-flex gap-3 mt-4">
-            <button type="submit" 
-                style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                إنشاء المجموعة ✅
+            <button type="submit"
+                style="background:{% if avertissements_prof %}#ff9800{% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                {% if avertissements_prof %}متأكد، أنشئ رغم ذلك ✅{% else %}إنشاء المجموعة ✅{% endif %}
             </button>
-            <a href="{% url 'admin_groupes' %}" 
+            <a href="{% url 'admin_groupes' %}"
                style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
         </div>
     </form>

@@ -46,14 +46,28 @@
             {% endif %}
         </div>
 
+        {% if presence.note_hifz %}
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; font-size:0.8rem;">
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">الحفظ: {{ presence.note_hifz }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">المراجعة: {{ presence.note_muraja3a }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">التلاوة: {{ presence.note_tilawa }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">المواظبة والسلوك: {{ presence.note_mouwazaba }}/20</span>
+        </div>
+        {% endif %}
+
         {% if presence.remarque %}
         <div style="color:#555; font-size:0.85rem; margin-top:10px; background:#f9f5ee; padding:10px; border-radius:8px; border-right:3px solid var(--color-role-eleve-solid);">
             💬 {{ presence.remarque }}
         </div>
         {% endif %}
-        {% if presence.consigne_prochaine_seance %}
+        {% if presence.consigne_memorisation %}
         <div style="color:#555; font-size:0.85rem; margin-top:10px; background:#fff8ec; padding:10px; border-radius:8px; border-right:3px solid var(--color-brand-gold-dark);">
-            📌 للحصة القادمة: {{ presence.consigne_prochaine_seance }}
+            📌 المطلوب حفظه: {{ presence.consigne_memorisation }}
+        </div>
+        {% endif %}
+        {% if presence.consigne_revision %}
+        <div style="color:#555; font-size:0.85rem; margin-top:10px; background:#fff8ec; padding:10px; border-radius:8px; border-right:3px solid var(--color-brand-gold-dark);">
+            📌 المطلوب مراجعته: {{ presence.consigne_revision }}
         </div>
         {% endif %}
     </a>

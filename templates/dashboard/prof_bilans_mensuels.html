@@ -14,18 +14,22 @@
 </form>
 
 <div class="section-title">{{ mois_reference|mois_annee_ar }}</div>
-<div style="display:flex; flex-direction:column; gap:10px;">
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
     {% for ligne in lignes %}
-    <a href="{% url 'bilan_mensuel_detail' ligne.eleve.id mois %}" class="compact-card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit;">
-        <span style="font-weight:700;">{{ ligne.eleve.user.get_full_name }}</span>
-        {% if ligne.bilan %}
-            <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 14px; font-size:0.85rem;">تم التحرير ✅</span>
-        {% else %}
-            <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:4px 14px; font-size:0.85rem;">لم يُحرَّر بعد ⏳</span>
-        {% endif %}
-    </a>
+    <div class="col">
+        <a href="{% url 'bilan_mensuel_detail' ligne.eleve.id mois %}" class="compact-card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit; height:100%;">
+            <span style="font-weight:700;">{{ ligne.eleve.user.get_full_name }}</span>
+            {% if ligne.bilan %}
+                {% include 'dashboard/_badge_statut.html' with type='success' texte='تم التحرير ✅' %}
+            {% else %}
+                {% include 'dashboard/_badge_statut.html' with type='warning' texte='لم يُحرَّر بعد ⏳' %}
+            {% endif %}
+        </a>
+    </div>
     {% empty %}
-    <div class="compact-card" style="text-align:center; color:#aaa; padding:40px;">لا يوجد طلاب في مجموعاتك بعد</div>
+    <div class="col">
+        <div class="compact-card" style="text-align:center; color:#aaa; padding:40px;">لا يوجد طلاب في مجموعاتك بعد</div>
+    </div>
     {% endfor %}
 </div>
 {% endblock %}

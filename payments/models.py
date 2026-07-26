@@ -7,9 +7,9 @@ User = get_user_model()
 
 class Paiement(models.Model):
     STATUT_CHOICES = [
-        ('en_attente', 'En attente'),
-        ('valide', 'Validé'),
-        ('rejete', 'Rejeté'),
+        ('en_attente', 'قيد المراجعة'),
+        ('valide', 'مقبول'),
+        ('rejete', 'مرفوض'),
     ]
     eleve = models.ForeignKey(
         Eleve,
@@ -19,7 +19,10 @@ class Paiement(models.Model):
     montant = models.DecimalField(max_digits=8, decimal_places=2)
     mois_reference = models.DateField()
     date = models.DateTimeField(auto_now_add=True)
-    screenshot = models.FileField(upload_to='paiements/')
+    # Optionnel depuis Tâche 7 (2026-07-25) : un مدير peut créer un paiement
+    # directement (espèces reçues en personne), sans justificatif numérique —
+    # avant, seul l'élève créait un Paiement (toujours avec reçu obligatoire).
+    screenshot = models.FileField(upload_to='paiements/', blank=True, null=True)
     statut = models.CharField(
         max_length=20,
         choices=STATUT_CHOICES,
@@ -32,7 +35,12 @@ class Paiement(models.Model):
         blank=True,
         related_name='paiements_valides'
     )
-    date_validation = models.DateTimeField(auto_now_add=True,null=True, blank=True)
+    # Corrigé Tâche 7 (2026-07-25) : auto_now_add se déclenchait à la CRÉATION
+    # de l'objet (donc dès la soumission par l'élève), jamais au moment réel
+    # de la validation/rejet par le مدير — le champ était donc toujours rempli
+    # même pour un paiement encore 'en_attente'. Désormais posé explicitement
+    # dans admin_paiement_valider/admin_paiement_rejeter/paiement_panel_sauvegarder.
+    date_validation = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.eleve} - {self.mois_reference}"

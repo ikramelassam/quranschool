@@ -1,0 +1,19 @@
+{% comment %}
+Badge de statut générique (Tâche 12 du 2026-07-25) — palette figée, une seule
+fois ici, réutilisée partout dans le projet plutôt que des couleurs inline
+redéfinies à chaque écran :
+  type='success' (vert)  = état positif accompli (actif, حاضر, مدفوع, مقبول)
+  type='warning' (orange) = en attente / action requise
+  type='danger'  (rouge)  = état négatif (غائب, مرفوض, ملغاة, موقوف)
+  type='neutre'  (gris)   = archivé / inactif / non applicable
+Usage : {% include 'dashboard/_badge_statut.html' with type='success' texte='...' %}
+{% endcomment %}
+{% if type == 'success' %}
+<span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">{{ texte }}</span>
+{% elif type == 'warning' %}
+<span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">{{ texte }}</span>
+{% elif type == 'danger' %}
+<span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">{{ texte }}</span>
+{% else %}
+<span style="background:#f0f0f0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">{{ texte }}</span>
+{% endif %}

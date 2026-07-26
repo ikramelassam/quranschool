@@ -2,7 +2,13 @@
 {% load libelles_arabes %}
 {% block title %}تفاصيل الدفعة{% endblock %}
 {% block content %}
-<div class="page-title">{{ paiement.eleve.user.get_full_name }}</div>
+<div class="page-title" style="display:flex; align-items:center; gap:10px;">
+    {{ paiement.eleve.user.get_full_name }}
+    <span style="display:inline-flex; gap:6px; align-items:center;">
+        {% include 'dashboard/_email_icon.html' with email=paiement.eleve.user.email %}
+        {% include 'dashboard/_whatsapp_icon.html' with telephone=paiement.eleve.user.telephone %}
+    </span>
+</div>
 <div class="page-subtitle">{{ paiement.mois_reference|mois_annee_ar }}</div>
 
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">

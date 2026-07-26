@@ -65,6 +65,17 @@
     <div style="color:#aaa; padding:8px 0 16px;">لم تسجَّل أي مراجعة لهذه الحصة.</div>
     {% endif %}
 
+    {% if presence.note_hifz %}
+    <!-- Notation numérique /20 (Tâche 9) -->
+    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">التقييم</div>
+    <div class="row g-3">
+        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">الحفظ</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_hifz }}/20</div></div></div>
+        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">المراجعة</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_muraja3a }}/20</div></div></div>
+        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">التلاوة</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_tilawa }}/20</div></div></div>
+        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">المواظبة والسلوك</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_mouwazaba }}/20</div></div></div>
+    </div>
+    {% endif %}
+
     <!-- Remarque -->
     <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">ملاحظة المعلم</div>
     {% if presence.remarque %}
@@ -73,10 +84,17 @@
     <div style="color:#aaa;">لا توجد ملاحظة من المعلم لهذه الحصة.</div>
     {% endif %}
 
-    <!-- Consigne pour la prochaine séance -->
-    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">📌 تحضير الحصة القادمة</div>
-    {% if presence.consigne_prochaine_seance %}
-    <div style="background:#fff8ec; padding:14px; border-radius:8px; border-right:3px solid var(--color-brand-gold-dark); white-space:pre-wrap;">{{ presence.consigne_prochaine_seance }}</div>
+    <!-- Consignes pour la prochaine séance (Tâche 9) -->
+    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">📌 المطلوب منك للحصة القادمة</div>
+    {% if presence.consigne_memorisation or presence.consigne_revision %}
+        {% if presence.consigne_memorisation %}
+        <div style="margin-bottom:10px;"><div style="color:#888; font-size:0.8rem; margin-bottom:4px;">المطلوب حفظه</div>
+        <div style="background:#fff8ec; padding:14px; border-radius:8px; border-right:3px solid var(--color-brand-gold-dark); white-space:pre-wrap;">{{ presence.consigne_memorisation }}</div></div>
+        {% endif %}
+        {% if presence.consigne_revision %}
+        <div><div style="color:#888; font-size:0.8rem; margin-bottom:4px;">المطلوب مراجعته</div>
+        <div style="background:#fff8ec; padding:14px; border-radius:8px; border-right:3px solid var(--color-brand-gold-dark); white-space:pre-wrap;">{{ presence.consigne_revision }}</div></div>
+        {% endif %}
     {% else %}
     <div style="color:#aaa;">لم يحدد المعلم بعد ما يجب تحضيره للحصة القادمة.</div>
     {% endif %}

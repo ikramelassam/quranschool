@@ -1,19 +1,39 @@
 {% extends 'dashboard/base_admin.html' %}
 {% block title %}جدول تفرغ {{ eleve.user.get_full_name }}{% endblock %}
 {% block content %}
-<div class="page-title">جدول تفرغ {{ eleve.user.get_full_name }}</div>
-<div class="page-subtitle">تعديل مباشر — يسري فوراً (الطالب لا يمكنه تعديل جدوله بنفسه)</div>
+<div class="page-title" style="display:flex; align-items:center; gap:10px;">
+    {{ eleve.user.get_full_name }}
+    <span style="display:inline-flex; gap:6px; align-items:center;">
+        {% include 'dashboard/_email_icon.html' with email=eleve.user.email %}
+        {% include 'dashboard/_whatsapp_icon.html' with telephone=eleve.user.telephone %}
+    </span>
+</div>
+<div class="page-subtitle">
+    {% if mode_edition %}وضع التعديل — يسري فوراً (الطالب لا يمكنه تعديل جدوله بنفسه)
+    {% else %}عرض فقط — اضغط "تعديل" لتغيير الجدول
+    {% endif %}
+</div>
 
 <div style="background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    {% if mode_edition %}
     <form method="POST">
         {% csrf_token %}
-        {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form %}
+        {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form lecture_seule=False %}
         <div class="d-flex gap-3 mt-3">
             <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
                 حفظ الجدول ✅
             </button>
-            <a href="{% url 'admin_eleve_detail' eleve.id %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+            <a href="{% url 'admin_eleve_disponibilites' eleve.id %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
         </div>
     </form>
+    {% else %}
+    {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form lecture_seule=True %}
+    <div class="d-flex gap-3 mt-3">
+        <a href="?modifier=1" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; text-decoration:none;">
+            ✏️ تعديل
+        </a>
+        <a href="{% url 'admin_eleve_detail' eleve.id %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

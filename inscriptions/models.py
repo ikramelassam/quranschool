@@ -8,6 +8,15 @@ class TypeAbonnement(models.Model):
         ('groupe', 'جماعي'),
         ('individuel', 'فردي'),
     ]
+    # Mêmes codes que courses.utils.tranche_age_depuis_naissance / le paramètre
+    # type_age du formulaire d'inscription élève — mêmes valeurs que
+    # Creneau.SEXE_CHOICES pour le principe (une cible + une valeur "les deux"),
+    # voir Tâche 16 du 2026-07-26.
+    CIBLE_AGE_CHOICES = [
+        ('enfant', 'أطفال'),
+        ('adulte', 'بالغون'),
+        ('les_deux', 'الجميع'),
+    ]
 
     code = models.SlugField(max_length=30, unique=True)
     label = models.CharField(max_length=100)
@@ -15,6 +24,7 @@ class TypeAbonnement(models.Model):
     # Utilisé pour comparer un abonnement choisi à l'inscription au type_capacite
     # d'un Groupe (courses.utils.raison_incompatibilite_groupe*).
     type_offre = models.CharField(max_length=10, choices=TYPE_OFFRE_CHOICES, default='groupe')
+    cible_age = models.CharField(max_length=10, choices=CIBLE_AGE_CHOICES, default='les_deux')
     est_actif = models.BooleanField(default=True)
     ordre = models.IntegerField(default=0)
 
@@ -29,9 +39,9 @@ class TypeAbonnement(models.Model):
 
 class InscriptionEleve(models.Model):
     STATUT_CHOICES = [
-        ('en_attente', 'En attente'),
-        ('valide', 'Validé'),
-        ('rejete', 'Rejeté'),
+        ('en_attente', 'قيد الانتظار'),
+        ('valide', 'مقبول'),
+        ('rejete', 'مرفوض'),
     ]
     PROGRAMME_CHOICES = [
         ('hifz', 'الحفظ والمراجعة وتعلم أحكام التجويد'),
@@ -108,14 +118,15 @@ class InscriptionEleve(models.Model):
 
 class InscriptionProf(models.Model):
     STATUT_CHOICES = [
-        ('en_attente', 'En attente'),
-        ('validee_directeur', 'Validée par le directeur — en attente du المشرف'),
-        ('valide', 'Validé'),
-        ('rejete', 'Rejeté'),
+        ('en_attente', 'قيد الانتظار'),
+        ('validee_directeur', 'مقبول من المدير — بانتظار تصديق المشرف'),
+        ('valide', 'مقبول نهائياً'),
+        ('rejete', 'مرفوض'),
     ]
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100)
     date_naissance = models.DateField()
+    telephone = models.CharField(max_length=20, blank=True)
     ville = models.CharField(max_length=100)
     statut_familial = models.CharField(max_length=50)
     job_actuel = models.CharField(max_length=100)

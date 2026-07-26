@@ -32,7 +32,10 @@
         {% for eleve in eleves %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f0f0f0;">
             <div style="font-weight:600;">{{ eleve.user.get_full_name }}</div>
-            <div style="color:#888; font-size:0.85rem;">{{ eleve.user.email }}</div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                {% include 'dashboard/_badge_suspension_eleve.html' with eleve=eleve %}
+                <div style="color:#888; font-size:0.85rem;">{{ eleve.user.email }}</div>
+            </div>
         </div>
         {% endfor %}
     {% else %}

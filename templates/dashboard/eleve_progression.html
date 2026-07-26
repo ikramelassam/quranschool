@@ -18,7 +18,7 @@
     <div style="padding:14px 0; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %}">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
             <span style="font-weight:700;">{{ item.numero }}. {{ item.nom }}</span>
-            <span style="color:#888; font-size:0.82rem;">الآيات {{ item.ayah_debut }}-{{ item.ayah_fin }} من أصل {{ item.total_ayat_sourate }}</span>
+            <span style="color:#888; font-size:0.82rem;">الآيات {{ item.plages_texte }} من أصل {{ item.total_ayat_sourate }}</span>
         </div>
         <div style="display:flex; align-items:center; gap:12px;">
             <div class="progress-track" style="flex:1;"><div class="progress-fill" style="width:{{ item.pourcentage }}%;"></div></div>
@@ -32,19 +32,86 @@
 
 <div class="section-title">السجل الزمني</div>
 <div class="compact-card" style="padding:4px 20px;">
-    {% for h in progression.historique %}
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 0; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %} flex-wrap:wrap; gap:8px;">
-        <div>
-            <div style="font-weight:600;">{{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})</div>
-            <div style="color:#888; font-size:0.82rem;">{{ h.date }} — {{ h.groupe }}</div>
+    {% for h in progression.historique|slice:":10" %}
+    <div style="padding:14px 0; {% if not forloop.last or progression.historique|length > 10 %}border-bottom:1px solid #f5f0e6;{% endif %}">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+                {% if h.sourate %}<div style="font-weight:600;">{{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})</div>{% endif %}
+                <div style="color:#888; font-size:0.82rem;">{{ h.date }} — {{ h.groupe }}</div>
+            </div>
+            <div style="text-align:left;">
+                {% if h.note_code %}{% include 'dashboard/_medal_badge.html' with code=h.note_code label=h.note_display %}{% endif %}
+                {% if h.sourate %}<div style="color:#888; font-size:0.78rem; margin-top:4px;">+{{ h.nb_ayat }} آية</div>{% endif %}
+            </div>
         </div>
-        <div style="text-align:left;">
-            {% include 'dashboard/_medal_badge.html' with code=h.note_code label=h.note_display %}
-            <div style="color:#888; font-size:0.78rem; margin-top:4px;">+{{ h.nb_ayat }} آية</div>
+        {% if h.note_hifz %}
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">الحفظ: {{ h.note_hifz }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">المراجعة: {{ h.note_muraja3a }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">التلاوة: {{ h.note_tilawa }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">المواظبة والسلوك: {{ h.note_mouwazaba }}/20</span>
         </div>
+        {% endif %}
+        {% if h.consigne_memorisation %}
+        <div style="font-size:0.8rem; color:#555; margin-top:6px;">📌 المطلوب حفظه: {{ h.consigne_memorisation }}</div>
+        {% endif %}
+        {% if h.consigne_revision %}
+        <div style="font-size:0.8rem; color:#555; margin-top:4px;">📌 المطلوب مراجعته: {{ h.consigne_revision }}</div>
+        {% endif %}
     </div>
     {% empty %}
     <div style="text-align:center; color:#aaa; padding:40px;">لا توجد حصص حفظ مسجَّلة بعد</div>
     {% endfor %}
+
+    {% if progression.historique|length > 10 %}
+    <div id="historique_extra" style="display:none;">
+        {% for h in progression.historique|slice:"10:" %}
+        <div style="padding:14px 0; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %}">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div>
+                    {% if h.sourate %}<div style="font-weight:600;">{{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})</div>{% endif %}
+                    <div style="color:#888; font-size:0.82rem;">{{ h.date }} — {{ h.groupe }}</div>
+                </div>
+                <div style="text-align:left;">
+                    {% if h.note_code %}{% include 'dashboard/_medal_badge.html' with code=h.note_code label=h.note_display %}{% endif %}
+                    {% if h.sourate %}<div style="color:#888; font-size:0.78rem; margin-top:4px;">+{{ h.nb_ayat }} آية</div>{% endif %}
+                </div>
+            </div>
+            {% if h.note_hifz %}
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">الحفظ: {{ h.note_hifz }}/20</span>
+                <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">المراجعة: {{ h.note_muraja3a }}/20</span>
+                <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">التلاوة: {{ h.note_tilawa }}/20</span>
+                <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">المواظبة والسلوك: {{ h.note_mouwazaba }}/20</span>
+            </div>
+            {% endif %}
+            {% if h.consigne_memorisation %}
+            <div style="font-size:0.8rem; color:#555; margin-top:6px;">📌 المطلوب حفظه: {{ h.consigne_memorisation }}</div>
+            {% endif %}
+            {% if h.consigne_revision %}
+            <div style="font-size:0.8rem; color:#555; margin-top:4px;">📌 المطلوب مراجعته: {{ h.consigne_revision }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    <div style="text-align:center; padding:14px 0 4px;">
+        <span id="historique_toggle_texte" onclick="toggleHistoriqueComplet()" style="cursor:pointer; color:var(--color-role-eleve-solid); font-size:0.85rem; text-decoration:underline;">
+            عرض جميع الحصص ({{ progression.historique|length }}) ↓
+        </span>
+    </div>
+    <script>
+        function toggleHistoriqueComplet() {
+            const extra = document.getElementById('historique_extra');
+            const texte = document.getElementById('historique_toggle_texte');
+            if (extra.style.display === 'none') {
+                extra.style.display = 'block';
+                texte.textContent = 'إخفاء الباقي ↑';
+            } else {
+                extra.style.display = 'none';
+                texte.textContent = 'عرض جميع الحصص ({{ progression.historique|length }}) ↓';
+            }
+        }
+    </script>
+    {% endif %}
 </div>
 {% endblock %}

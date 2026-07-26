@@ -8,4 +8,5 @@ urlpatterns = [
     path('admin/<int:paiement_id>/valider/', views.admin_paiement_valider, name='admin_paiement_valider'),
     path('admin/<int:paiement_id>/rejeter/', views.admin_paiement_rejeter, name='admin_paiement_rejeter'),
     path('suivi/', views.suivi_paiements_eleves, name='suivi_paiements_eleves'),
+    path('suivi/panneau/sauvegarder/', views.paiement_panel_sauvegarder, name='paiement_panel_sauvegarder'),
 ]

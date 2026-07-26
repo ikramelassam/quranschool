@@ -90,6 +90,32 @@ def mois_annee_ar(date_obj):
 
 
 @register.filter
+def jours_depuis(date_reference):
+    """Nombre de jours écoulés depuis date_reference (aujourd'hui inclus comme
+    jour 0). Utilisé pour le badge d'ancienneté de suspension ('موقوف منذ X
+    يوم') — jamais un badge statique qui masquerait une suspension oubliée
+    depuis des mois. Retombe sur une chaîne vide si date_reference est None."""
+    from django.utils import timezone
+
+    if not date_reference:
+        return ''
+    return (timezone.localdate() - date_reference).days
+
+
+@register.filter
+def tranche_age_ar(date_naissance):
+    """'طفل'/'بالغ' calculé depuis une date de naissance, via la même règle
+    centralisée que la grille de rémunération et la validation d'inscription
+    (courses.utils.tranche_age_depuis_naissance, seuil AGE_SEUIL_ADULTE=18).
+    Retombe sur une chaîne vide si date_naissance est None."""
+    if not date_naissance:
+        return ''
+    from courses.utils import tranche_age_depuis_naissance
+
+    return 'بالغ' if tranche_age_depuis_naissance(date_naissance) == 'adulte' else 'طفل'
+
+
+@register.filter
 def noms_eleves(eleves_manager):
     """Joint les noms complets des élèves d'un groupe (eleve.user.get_full_name()),
     séparés par '، ' — utilisé sur les listes de séances à venir (prof + élève) pour

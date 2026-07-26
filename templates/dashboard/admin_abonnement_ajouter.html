@@ -1,4 +1,4 @@
-{% extends 'dashboard/base_admin.html' %}
+{% extends base_template %}
 {% block title %}إضافة نوع اشتراك{% endblock %}
 {% block content %}
 <div class="page-title">إضافة نوع اشتراك</div>
@@ -17,6 +17,15 @@
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">السعر (درهم) *</label>
             <input type="number" step="0.01" name="prix" class="form-control mt-1" required>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الفئة المستهدفة *</label>
+            <select name="cible_age" class="form-select mt-1">
+                <option value="les_deux" selected>الجميع (أطفال وبالغون)</option>
+                <option value="enfant">أطفال فقط</option>
+                <option value="adulte">بالغون فقط</option>
+            </select>
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">يحدد في أي استمارة تسجيل (أطفال/بالغون) يظهر هذا الاشتراك.</div>
         </div>
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">ترتيب الظهور</label>

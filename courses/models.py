@@ -1,5 +1,6 @@
 import datetime
 
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
 from accounts.models import Prof, Eleve, Superviseur
@@ -56,9 +57,9 @@ class DemandeModificationDisponibilite(models.Model):
     """Proposition de nouvelle matrice de disponibilités par un prof, en attente
     d'approbation admin. Tant que non approuvée, DisponibiliteProf reste inchangé."""
     STATUT_CHOICES = [
-        ('en_attente', 'En attente'),
-        ('approuvee', 'Approuvée'),
-        ('rejetee', 'Rejetée'),
+        ('en_attente', 'قيد الانتظار'),
+        ('approuvee', 'موافَق عليها'),
+        ('rejetee', 'مرفوضة'),
     ]
     prof = models.ForeignKey(
         Prof,
@@ -155,7 +156,7 @@ class Groupe(models.Model):
     capacite_max = models.IntegerField(default=10)
     statut = models.CharField(
         max_length=20,
-        choices=[('actif', 'Actif'), ('archive', 'Archivé')],
+        choices=[('actif', 'نشط'), ('archive', 'مؤرشف')],
         default='actif'
     )
     lien_reunion = models.URLField(blank=True)
@@ -166,6 +167,28 @@ class Groupe(models.Model):
     class Meta:
         verbose_name = "Groupe"
         verbose_name_plural = "Groupes"
+
+
+class HistoriqueGroupeEleve(models.Model):
+    """Trace le passage d'un élève dans un groupe (dates d'entrée/de sortie),
+    en complément de Groupe.eleves (M2M simple, qui ne reflète que
+    l'appartenance ACTUELLE et n'a jamais eu de date). Alimenté par
+    groupe_ajouter_eleve / groupe_retirer_eleve / groupe_transferer_eleve
+    (Tâche 18 du 2026-07-26). Groupe.eleves reste intact et continue de
+    faire foi pour l'appartenance actuelle (évite de casser les nombreux
+    appels .eleves.add()/.remove()/.filter(eleves=...) déjà existants) —
+    une ligne ici avec date_fin=None correspond à une entrée actuelle dans
+    Groupe.eleves ; date_fin non nulle = l'élève est passé par ce groupe
+    mais n'y est plus (retiré ou transféré ailleurs)."""
+    eleve = models.ForeignKey('accounts.Eleve', on_delete=models.CASCADE, related_name='historique_groupes')
+    groupe = models.ForeignKey(Groupe, on_delete=models.CASCADE, related_name='historique_eleves')
+    date_debut = models.DateTimeField(auto_now_add=True)
+    date_fin = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Historique d'appartenance à un groupe"
+        verbose_name_plural = "Historiques d'appartenance aux groupes"
+        ordering = ['-date_debut']
 
 
 class TarifRemuneration(models.Model):
@@ -194,14 +217,17 @@ class TarifRemuneration(models.Model):
 
 class Seance(models.Model):
     TYPE_CHOICES = [
-        ('normal', 'Normal'),
-        ('rattrapage', 'Rattrapage'),
-        ('revision', 'Révision'),
+        ('normal', 'عادية'),
+        ('rattrapage', 'حصة تعويضية'),
+        ('revision', 'مراجعة'),
     ]
+    # Mêmes libellés que dashboard/_seance_statut_badge.html (مخططة/منتهية/ملغاة),
+    # affichés partout où get_statut_display() est appelé (ex: message d'erreur
+    # d'admin_seance_annuler) — une seule et même formulation dans tout le projet.
     STATUT_CHOICES = [
-        ('planifiee', 'Planifiée'),
-        ('terminee', 'Terminée'),
-        ('annulee', 'Annulée'),
+        ('planifiee', 'مخططة'),
+        ('terminee', 'منتهية'),
+        ('annulee', 'ملغاة'),
     ]
     groupe = models.ForeignKey(
         Groupe,
@@ -247,6 +273,40 @@ class Seance(models.Model):
         return timezone.make_aware(naive) if timezone.is_naive(naive) else naive
 
     @property
+    def fin_datetime(self):
+        """Datetime aware de la fin RÉELLE de cette séance — Seance ne stocke pas
+        sa propre durée, elle est donc dérivée du Creneau du groupe (heure_fin_1
+        ou heure_fin_2 selon le jour de la semaine de cette séance). Retombe sur
+        heure_fin_1 si aucun des 2 jours ne correspond (créneau modifié depuis
+        la génération de cette séance — voir Tâche 19 Bug 1) ou None si le
+        groupe n'a plus de créneau du tout (voir evaluable_par_prof, Tâche 19
+        Bug 2 du 2026-07-26)."""
+        from .utils import JOUR_INDEX
+
+        creneau = self.groupe.creneau
+        if not creneau:
+            return None
+
+        jour_seance = self.date.weekday()
+        if jour_seance == JOUR_INDEX.get(creneau.jour_2):
+            heure_fin = creneau.heure_fin_2
+        else:
+            heure_fin = creneau.heure_fin_1
+
+        naive = datetime.datetime.combine(self.date, heure_fin)
+        return timezone.make_aware(naive) if timezone.is_naive(naive) else naive
+
+    @property
+    def evaluable_par_prof(self):
+        """False tant que l'heure de fin réelle de la séance n'est pas encore
+        passée (Tâche 19 Bug 2 du 2026-07-26) — sans fin_datetime connue (pas
+        de créneau), on se rabat sur le début par précaution plutôt que
+        d'autoriser une évaluation trop tôt."""
+        fin = self.fin_datetime
+        reference = fin if fin is not None else self.debut_datetime
+        return timezone.now() >= reference
+
+    @property
     def delai_evaluation_depasse(self):
         """True si plus de 24h se sont écoulées depuis le DÉBUT de la séance."""
         return timezone.now() - self.debut_datetime > datetime.timedelta(hours=self.FENETRE_EVALUATION_PRESENCE_HEURES)
@@ -254,10 +314,11 @@ class Seance(models.Model):
     @property
     def modifiable_par_prof(self):
         """Le prof peut encore remplir/soumettre la feuille de présence : la séance est
-        encore 'planifiee' (pas déjà soumise -> 'terminee', pas 'annulee') ET le délai
+        encore 'planifiee' (pas déjà soumise -> 'terminee', pas 'annulee'), sa fin réelle
+        est déjà passée (Tâche 19 Bug 2 — pas d'évaluation avant la fin réelle) ET le délai
         de 24h depuis le début n'est pas dépassé. Une fois soumise OU le délai dépassé
         sans soumission, cet état est définitif — jamais réversible dans les deux cas."""
-        return self.statut == 'planifiee' and not self.delai_evaluation_depasse
+        return self.statut == 'planifiee' and self.evaluable_par_prof and not self.delai_evaluation_depasse
 
     class Meta:
         verbose_name = "Séance"
@@ -295,6 +356,11 @@ class Presence(models.Model):
     sourate_memorisee = models.PositiveSmallIntegerField(null=True, blank=True)
     ayah_debut_memorisation = models.PositiveSmallIntegerField(null=True, blank=True)
     ayah_fin_memorisation = models.PositiveSmallIntegerField(null=True, blank=True)
+    # Ancienne échelle qualitative — conservée telle quelle en LECTURE SEULE pour
+    # l'historique déjà en base (voir Tâche 9 du 2026-07-25, option B "coexistence"
+    # choisie explicitement : aucune donnée existante n'est remappée/perdue).
+    # N'est plus jamais écrite depuis prof_presence_sauvegarder — remplacée par
+    # les 4 critères numériques /20 ci-dessous pour toute nouvelle évaluation.
     note_memorisation = models.CharField(
         max_length=20,
         choices=NOTE_CHOICES,
@@ -309,7 +375,32 @@ class Presence(models.Model):
         blank=True
     )
     remarque = models.TextField(blank=True)
-    consigne_prochaine_seance = models.TextField(blank=True)
+
+    # 4 critères numériques /20 (Tâche 9 du 2026-07-25), remplacent l'ancienne
+    # échelle qualitative (ممتاز/حسن جدا/...) pour toute évaluation à partir de
+    # maintenant. Nullable: null pour tout Presence antérieur à cette migration
+    # (jamais aucune valeur inventée) et pour un élève marqué absent (rien à noter).
+    note_hifz = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(20)],
+    )
+    note_muraja3a = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(20)],
+    )
+    note_tilawa = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(20)],
+    )
+    note_mouwazaba = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(20)],
+    )
+    # Remplace consigne_prochaine_seance (un seul champ combiné, jamais rempli
+    # en pratique — 0 Presence sur 8 lors de l'audit Tâche 9 — donc rien à
+    # migrer) par deux champs dédiés, désormais obligatoires côté formulaire.
+    consigne_memorisation = models.TextField(blank=True)
+    consigne_revision = models.TextField(blank=True)
 
     def __str__(self):
         return f"{self.eleve} - {self.seance}"

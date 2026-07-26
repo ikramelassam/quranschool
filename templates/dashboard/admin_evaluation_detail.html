@@ -12,7 +12,13 @@
 {% for p in presences %}
 <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <div style="font-weight:700;">{{ p.eleve.user.get_full_name }}</div>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <div style="font-weight:700;">{{ p.eleve.user.get_full_name }}</div>
+            <span style="display:inline-flex; gap:6px; align-items:center;">
+                {% include 'dashboard/_email_icon.html' with email=p.eleve.user.email %}
+                {% include 'dashboard/_whatsapp_icon.html' with telephone=p.eleve.user.telephone %}
+            </span>
+        </div>
         <span style="{{ p.statut|statut_style }} border-radius:20px; padding:4px 12px; font-size:0.8rem;">{{ p.get_statut_display }}</span>
     </div>
     <div class="row g-2">
@@ -28,10 +34,32 @@
                 {% if p.note_revision %}<span style="{{ p.note_revision|note_style }} border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ p.get_note_revision_display }}</span>{% endif %}
             </div>
         </div>
+        {% if p.note_hifz %}
+        <div class="col-md-12">
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
+                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">الحفظ: {{ p.note_hifz }}/20</span>
+                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">المراجعة: {{ p.note_muraja3a }}/20</span>
+                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">التلاوة: {{ p.note_tilawa }}/20</span>
+                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">المواظبة والسلوك: {{ p.note_mouwazaba }}/20</span>
+            </div>
+        </div>
+        {% endif %}
         {% if p.remarque %}
         <div class="col-md-12">
             <div style="color:#888; font-size:0.8rem;">ملاحظة المعلم</div>
             <div style="background:#f9f9f9; padding:8px; border-radius:6px; font-size:0.9rem;">{{ p.remarque }}</div>
+        </div>
+        {% endif %}
+        {% if p.consigne_memorisation %}
+        <div class="col-md-6">
+            <div style="color:#888; font-size:0.8rem;">📌 المطلوب حفظه</div>
+            <div style="background:#fff8ec; padding:8px; border-radius:6px; font-size:0.9rem;">{{ p.consigne_memorisation }}</div>
+        </div>
+        {% endif %}
+        {% if p.consigne_revision %}
+        <div class="col-md-6">
+            <div style="color:#888; font-size:0.8rem;">📌 المطلوب مراجعته</div>
+            <div style="background:#fff8ec; padding:8px; border-radius:6px; font-size:0.9rem;">{{ p.consigne_revision }}</div>
         </div>
         {% endif %}
     </div>

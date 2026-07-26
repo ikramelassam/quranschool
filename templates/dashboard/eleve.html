@@ -32,6 +32,19 @@
     </div>
 </div>
 
+{% if derniere_avec_consignes %}
+<div style="background:#fff8ec; border:2px solid var(--color-brand-gold); border-radius:14px; padding:20px 22px; margin-bottom:24px;">
+    <div style="font-weight:700; color:var(--color-brand-gold-dark); font-size:1.05rem; margin-bottom:12px;">📌 المطلوب منك</div>
+    {% if derniere_avec_consignes.consigne_memorisation %}
+    <div style="margin-bottom:8px;"><span style="font-weight:600;">الحفظ:</span> {{ derniere_avec_consignes.consigne_memorisation }}</div>
+    {% endif %}
+    {% if derniere_avec_consignes.consigne_revision %}
+    <div><span style="font-weight:600;">المراجعة:</span> {{ derniere_avec_consignes.consigne_revision }}</div>
+    {% endif %}
+    <div style="color:#9a8557; font-size:0.78rem; margin-top:10px;">حسب حصة {{ derniere_avec_consignes.seance.date|date:"d-m-Y" }} — {{ derniere_avec_consignes.seance.groupe.nom }}</div>
+</div>
+{% endif %}
+
 <div class="section-title">الحصة القادمة</div>
 <div class="compact-card mb-4">
     {% if prochaine_seance %}

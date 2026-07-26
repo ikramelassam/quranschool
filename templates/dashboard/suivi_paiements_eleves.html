@@ -9,14 +9,18 @@
 .eleve-row:last-child { border-bottom:none; }
 .eleve-nom { font-weight:600; margin-bottom:8px; }
 .mois-liste { display:flex; flex-wrap:wrap; gap:6px; }
-.mois-badge { border-radius:8px; padding:4px 10px; font-size:0.78rem; white-space:nowrap; }
+.mois-badge { border-radius:8px; padding:4px 10px; font-size:0.78rem; white-space:nowrap; border:none; cursor:pointer; font-family:'Tajawal',sans-serif; text-decoration:none; display:inline-block; }
 .mois-badge.paye { background:#e8f5e9; color:var(--color-success); }
 .mois-badge.non-paye { background:#fce4e4; color:var(--color-danger); }
+.mois-badge:hover { filter:brightness(0.95); }
+.panel-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px; }
+.panel-card { background:white; border-radius:16px; padding:28px; max-width:480px; width:100%; max-height:90vh; overflow-y:auto; }
+.panel-card label { color:#888; font-size:0.8rem; display:block; margin-bottom:4px; }
 </style>
 {% endblock %}
 {% block content %}
 <div class="page-title">متابعة مدفوعات الطلاب</div>
-<div class="page-subtitle">من شهر التسجيل حتى الشهر الحالي — الشهر "مدفوع" إذا وُجدت دفعة مقبولة واحدة على الأقل خلاله</div>
+<div class="page-subtitle">من شهر التسجيل حتى الشهر الحالي — اضغط على أي شهر للاطلاع على الدفعة أو إدارتها</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
@@ -48,14 +52,37 @@
     <div class="groupe-nom">{{ bloc.groupe.nom }}</div>
     {% for ligne in bloc.eleves %}
     <div class="eleve-row">
-        <div class="eleve-nom">{{ ligne.eleve.user.get_full_name }}</div>
-        <div class="mois-liste">
-            {% for m in ligne.mois_liste %}
-            <span class="mois-badge {% if m.paye %}paye{% else %}non-paye{% endif %}">
-                {{ m.label|mois_annee_ar }} - {% if m.paye %}مدفوع ✅{% else %}غير مدفوع ❌{% endif %}
+        <div class="eleve-nom" style="display:flex; align-items:center; gap:8px;">
+            {{ ligne.eleve.user.get_full_name }}
+            {% include 'dashboard/_badge_suspension_eleve.html' with eleve=ligne.eleve %}
+            <span style="display:inline-flex; gap:6px; align-items:center;">
+                {% include 'dashboard/_email_icon.html' with email=ligne.eleve.user.email %}
+                {% include 'dashboard/_whatsapp_icon.html' with telephone=ligne.eleve.user.telephone %}
             </span>
+        </div>
+        <div class="mois-liste">
+            {% for m in ligne.mois_liste_recents %}
+            <a class="mois-badge {% if m.paye %}paye{% else %}non-paye{% endif %}"
+               href="{% querystring panel_eleve=ligne.eleve.id panel_mois=m.cle_mois %}">
+                {{ m.label|mois_annee_ar }} - {% if m.paye %}مدفوع ✅{% else %}غير مدفوع ❌{% endif %}
+            </a>
             {% endfor %}
         </div>
+        {% if ligne.mois_liste_anciens %}
+        <div class="mois-liste" id="mois_extra_{{ ligne.eleve.id }}" style="display:none; margin-top:6px;">
+            {% for m in ligne.mois_liste_anciens %}
+            <a class="mois-badge {% if m.paye %}paye{% else %}non-paye{% endif %}"
+               href="{% querystring panel_eleve=ligne.eleve.id panel_mois=m.cle_mois %}">
+                {{ m.label|mois_annee_ar }} - {% if m.paye %}مدفوع ✅{% else %}غير مدفوع ❌{% endif %}
+            </a>
+            {% endfor %}
+        </div>
+        <div style="margin-top:6px;">
+            <span id="mois_toggle_texte_{{ ligne.eleve.id }}" onclick="toggleMoisAnciens({{ ligne.eleve.id }})" style="cursor:pointer; color:var(--color-role-admin-solid); font-size:0.8rem; text-decoration:underline;">
+                عرض جميع الأشهر ({{ ligne.nb_mois_total }}) ↓
+            </span>
+        </div>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
@@ -64,4 +91,83 @@
     {% if filtres.groupe or filtres.impayes %}لا توجد نتائج مطابقة لهذه التصفية{% else %}لا توجد مجموعات بها طلاب بعد{% endif %}
 </div>
 {% endfor %}
+
+{% if panel %}
+<div class="panel-overlay">
+    <div class="panel-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+            <div>
+                <div style="font-weight:700; font-size:1.05rem;">{{ panel.eleve.user.get_full_name }}</div>
+                <div style="color:#888; font-size:0.85rem;">{{ panel.mois_label|mois_annee_ar }}</div>
+            </div>
+            <a href="{% querystring panel_eleve=None panel_mois=None %}" style="color:#888; text-decoration:none; font-size:1.4rem; line-height:1;">×</a>
+        </div>
+
+        {% if panel.paiement %}
+        <div style="color:#888; font-size:0.8rem; margin-bottom:14px;">
+            تاريخ الإرسال: {{ panel.paiement.date|date:"Y-m-d H:i" }}
+            {% if panel.paiement.date_validation %} — تاريخ المعالجة: {{ panel.paiement.date_validation|date:"Y-m-d H:i" }}{% endif %}
+        </div>
+        {% if panel.paiement.screenshot %}
+        <div style="margin-bottom:14px;">
+            <label>إثبات الدفع الحالي</label>
+            <a href="{{ panel.paiement.screenshot.url }}" target="_blank">
+                <img src="{{ panel.paiement.screenshot.url }}" alt="إثبات الدفع" style="max-width:100%; border-radius:8px; border:1px solid #eee;">
+            </a>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {% if panel.peut_modifier %}
+        <form method="POST" action="{% url 'paiement_panel_sauvegarder' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="eleve_id" value="{{ panel.eleve.id }}">
+            <input type="hidden" name="mois" value="{{ panel.mois }}">
+
+            <label>المبلغ (درهم)</label>
+            <input type="number" step="0.01" min="0" name="montant" value="{{ panel.paiement.montant|default:'' }}" class="form-control mb-3" required>
+
+            <label>الحالة</label>
+            <select name="statut" class="form-select mb-3">
+                <option value="en_attente" {% if not panel.paiement or panel.paiement.statut == 'en_attente' %}selected{% endif %}>قيد المراجعة</option>
+                <option value="valide" {% if panel.paiement.statut == 'valide' %}selected{% endif %}>مقبول</option>
+                <option value="rejete" {% if panel.paiement.statut == 'rejete' %}selected{% endif %}>مرفوض</option>
+            </select>
+
+            <label>إثبات الدفع (اختياري)</label>
+            <input type="file" name="screenshot" class="form-control mb-3">
+
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer; width:100%;">
+                حفظ ✅
+            </button>
+        </form>
+        {% else %}
+        <div style="color:#888; font-size:0.85rem;">
+            {% if panel.paiement %}
+            المبلغ: {{ panel.paiement.montant }} درهم — الحالة: {{ panel.paiement.get_statut_display }}
+            {% else %}
+            لا توجد أي دفعة مسجَّلة لهذا الشهر.
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+    function toggleMoisAnciens(eleveId) {
+        const extra = document.getElementById('mois_extra_' + eleveId);
+        const texte = document.getElementById('mois_toggle_texte_' + eleveId);
+        if (extra.style.display === 'none') {
+            extra.style.display = 'flex';
+            texte.textContent = 'إخفاء الأشهر الأقدم ↑';
+        } else {
+            extra.style.display = 'none';
+            texte.textContent = texte.dataset.original;
+        }
+    }
+    document.querySelectorAll('[id^="mois_toggle_texte_"]').forEach(function(el) {
+        el.dataset.original = el.textContent;
+    });
+</script>
 {% endblock %}

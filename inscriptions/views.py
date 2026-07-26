@@ -1,12 +1,22 @@
+import datetime
+
 from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 from .models import InscriptionEleve, InscriptionProf, TypeAbonnement
+from core.utils import envoyer_notification_telegram
+from courses.utils import AGE_SEUIL_ADULTE, tranche_age_depuis_naissance
 import json
 
 MESSAGE_EMAIL_DEJA_UTILISE = (
     'هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد '
     'الدراسة. يرجى استخدام بريد إلكتروني آخر أو التواصل مع المدرسة.'
 )
+
+MESSAGE_AGE_NE_CORRESPOND_PAS = {
+    'adulte': 'يبدو أنك بالغ (18 سنة فما فوق) — يرجى استخدام نموذج التسجيل الخاص بالبالغين.',
+    'enfant': 'يبدو أنك طفل (أقل من 18 سنة) — يرجى استخدام نموذج التسجيل الخاص بالأطفال.',
+}
 
 
 def _email_deja_utilise(email, exclure_user_id=None):
@@ -41,16 +51,18 @@ def inscription_eleve_formulaire(request, type_age):
         'code': t.code,
         'label': t.label,
         'prix': str(t.prix),
-    } for t in TypeAbonnement.objects.filter(est_actif=True).order_by('ordre')])
+    } for t in TypeAbonnement.objects.filter(est_actif=True, cible_age__in=[type_age, 'les_deux']).order_by('ordre')])
 
     contexte_grille = {
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
+        'age_seuil_adulte': AGE_SEUIL_ADULTE,
     }
 
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
         disponibilites = request.POST.getlist('dispo')
+        date_naissance_str = request.POST.get('date_naissance', '')
 
         if _email_deja_utilise(email):
             return render(request, 'inscriptions/eleve_formulaire.html', {
@@ -62,7 +74,28 @@ def inscription_eleve_formulaire(request, type_age):
                 **contexte_grille,
             })
 
-        InscriptionEleve.objects.create(
+        # Garde-fou serveur, indépendant du JS de eleve_formulaire.html: même
+        # une requête POST directe (JS désactivé, script, curl) ne peut pas
+        # créer une InscriptionEleve dont la catégorie choisie (type_age, le
+        # paramètre d'URL) contredit l'âge réel calculé depuis date_naissance.
+        try:
+            date_naissance = datetime.date.fromisoformat(date_naissance_str)
+        except ValueError:
+            date_naissance = None
+
+        if date_naissance is not None:
+            categorie_reelle = tranche_age_depuis_naissance(date_naissance)
+            if categorie_reelle != type_age:
+                return render(request, 'inscriptions/eleve_formulaire.html', {
+                    'type_age': type_age,
+                    'types_abonnement_json': types_abonnement_json,
+                    'erreur_age': MESSAGE_AGE_NE_CORRESPOND_PAS[categorie_reelle],
+                    'old_email': email,
+                    'valeurs_form': set(disponibilites),
+                    **contexte_grille,
+                })
+
+        inscription = InscriptionEleve.objects.create(
             nom=request.POST.get('nom'),
             nom_parent=request.POST.get('nom_parent', ''),
             date_naissance=request.POST.get('date_naissance'),
@@ -77,6 +110,19 @@ def inscription_eleve_formulaire(request, type_age):
             remarques=request.POST.get('remarques', ''),
             disponibilites_libres=request.POST.get('disponibilites_libres', ''),
             disponibilites=disponibilites,
+        )
+        lien_fiche = request.build_absolute_uri(
+            reverse('admin_inscription_eleve_detail', args=[inscription.id])
+        )
+        if date_naissance is not None:
+            categorie_label = 'بالغ' if tranche_age_depuis_naissance(date_naissance) == 'adulte' else 'طفل'
+        else:
+            categorie_label = 'غير محدد'
+        envoyer_notification_telegram(
+            f'📥 طلب تسجيل جديد — طالب ({categorie_label})\n'
+            f'الاسم: {inscription}\n'
+            f'تاريخ التقديم: {inscription.date_soumission.strftime("%Y-%m-%d %H:%M")}\n'
+            f'رابط الملف: {lien_fiche}'
         )
         return redirect('inscription_confirmation')
 
@@ -104,6 +150,7 @@ def inscription_prof(request):
         disponibilites = request.POST.getlist('dispo')
         compte_bancaire = request.POST.get('compte_bancaire', '').strip()
         rib = request.POST.get('rib', '').strip()
+        telephone = request.POST.get('telephone', '').strip()
         audio_enregistrement = request.FILES.get('audio_enregistrement')
 
         if _email_deja_utilise(email):
@@ -123,6 +170,8 @@ def inscription_prof(request):
             champs_manquants.append('رقم الحساب البنكي')
         if not rib:
             champs_manquants.append('RIB')
+        if not telephone:
+            champs_manquants.append('رقم الهاتف')
         if not audio_enregistrement:
             champs_manquants.append('التسجيل الصوتي')
 
@@ -134,10 +183,11 @@ def inscription_prof(request):
                 **contexte_grille,
             })
 
-        InscriptionProf.objects.create(
+        inscription = InscriptionProf.objects.create(
             nom=request.POST.get('nom'),
             prenom=request.POST.get('prenom'),
             date_naissance=request.POST.get('date_naissance'),
+            telephone=telephone,
             ville=request.POST.get('ville'),
             statut_familial=request.POST.get('statut_familial'),
             job_actuel=request.POST.get('job_actuel'),
@@ -156,6 +206,15 @@ def inscription_prof(request):
             rib=rib,
             audio_enregistrement=audio_enregistrement,
             disponibilites=disponibilites,
+        )
+        lien_fiche = request.build_absolute_uri(
+            reverse('admin_inscription_prof_detail', args=[inscription.id])
+        )
+        envoyer_notification_telegram(
+            f'📥 طلب تسجيل جديد — أستاذ\n'
+            f'الاسم: {inscription}\n'
+            f'تاريخ التقديم: {inscription.date_soumission.strftime("%Y-%m-%d %H:%M")}\n'
+            f'رابط الملف: {lien_fiche}'
         )
         return redirect('inscription_confirmation')
 

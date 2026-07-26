@@ -101,13 +101,28 @@ def suivi_paiements_eleves(request):
     élève ce mois-là (agrégation simple sur mois_reference, pas un système
     d'échéances — mois_reference n'est pas garanti au 1er du mois car saisi
     par l'élève via un champ date libre, d'où le filtre year/month plutôt
-    qu'une égalité de date)."""
+    qu'une égalité de date).
+
+    Écran maître-détail (Tâche 7 du 2026-07-25) : chaque cellule élève × mois
+    est cliquable (?panel_eleve=&panel_mois=) et ouvre un panneau modal sur
+    cette même page (jamais de navigation vers une autre entrée sidebar) pour
+    voir/créer/modifier le Paiement correspondant — voir paiement_panel_sauvegarder.
+    L'ancienne page 'إدارة المدفوعات' (admin_paiements) n'est ni modifiée ni
+    retirée du sidebar : elle reste jusqu'à validation explicite du nouveau flux."""
     from django.utils import timezone
     from courses.models import Groupe
 
     aujourdhui = timezone.localdate()
     groupe_id = request.GET.get('groupe', '')
     impayes_seulement = request.GET.get('impayes') == '1'
+
+    # Tous statuts confondus (pas seulement 'valide') pour que le panneau
+    # puisse retrouver/modifier un paiement 'en_attente' ou 'rejete' existant,
+    # pas seulement en créer un nouveau par-dessus.
+    paiement_par_cellule = {}
+    for p in Paiement.objects.all():
+        cle = (p.eleve_id, p.mois_reference.year, p.mois_reference.month)
+        paiement_par_cellule[cle] = p
 
     mois_payes_par_eleve = {}
     for eleve_id, annee, mois in Paiement.objects.filter(statut='valide').values_list(
@@ -131,6 +146,8 @@ def suivi_paiements_eleves(request):
                 mois_liste.append({
                     'label': datetime.date(annee, mois, 1),
                     'paye': (annee, mois) in mois_payes,
+                    'cle_mois': f'{annee}-{mois:02d}',
+                    'paiement': paiement_par_cellule.get((eleve.id, annee, mois)),
                 })
                 mois += 1
                 if mois > 12:
@@ -143,9 +160,36 @@ def suivi_paiements_eleves(request):
             # afin de ne pas perdre le contexte de paiement déjà en place sur la page.
             if impayes_seulement and not any(not m['paye'] for m in mois_liste):
                 continue
-            lignes_eleves.append({'eleve': eleve, 'mois_liste': mois_liste})
+            # Limité aux 12 mois les plus récents par défaut + bouton "عرض الكل"
+            # (Tâche 22 Partie F du 2026-07-26) — un élève inscrit depuis
+            # plusieurs années afficherait sinon des dizaines de badges d'un coup.
+            lignes_eleves.append({
+                'eleve': eleve,
+                'mois_liste_recents': mois_liste[:12],
+                'mois_liste_anciens': mois_liste[12:],
+                'nb_mois_total': len(mois_liste),
+            })
         if lignes_eleves:
             donnees.append({'groupe': groupe, 'eleves': lignes_eleves})
+
+    # Panneau détail — ouvert si ?panel_eleve=&panel_mois= sont présents.
+    panel = None
+    panel_eleve_id = request.GET.get('panel_eleve', '')
+    panel_mois = request.GET.get('panel_mois', '')
+    if panel_eleve_id and panel_mois:
+        panel_eleve = Eleve.objects.select_related('user').filter(id=panel_eleve_id).first()
+        try:
+            p_annee, p_mois = (int(x) for x in panel_mois.split('-'))
+        except ValueError:
+            p_annee = p_mois = None
+        if panel_eleve and p_annee:
+            panel = {
+                'eleve': panel_eleve,
+                'mois': panel_mois,
+                'mois_label': datetime.date(p_annee, p_mois, 1),
+                'paiement': paiement_par_cellule.get((panel_eleve.id, p_annee, p_mois)),
+                'peut_modifier': request.user.role == 'admin',
+            }
 
     context = {
         'donnees': donnees,
@@ -154,6 +198,7 @@ def suivi_paiements_eleves(request):
             'groupe': groupe_id,
             'impayes': impayes_seulement,
         },
+        'panel': panel,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -161,10 +206,56 @@ def suivi_paiements_eleves(request):
 
 
 @role_required('admin')
+def paiement_panel_sauvegarder(request):
+    """Crée ou met à jour le Paiement d'un élève pour un mois donné depuis le
+    panneau détail de suivi_paiements_eleves (voir Tâche 7). مشرف exclu (accès
+    lecture seule aux paiements, comme partout ailleurs sur cette page)."""
+    from django.urls import reverse
+    from django.utils import timezone
+
+    if request.method != 'POST':
+        return redirect('suivi_paiements_eleves')
+
+    eleve = get_object_or_404(Eleve, id=request.POST.get('eleve_id'))
+    mois_str = request.POST.get('mois', '')
+    try:
+        annee, mois_num = (int(x) for x in mois_str.split('-'))
+    except ValueError:
+        messages.error(request, 'صيغة الشهر غير صحيحة.')
+        return redirect('suivi_paiements_eleves')
+
+    # Retrouve le Paiement existant pour ce mois (peu importe le jour exact de
+    # mois_reference, saisi librement par l'élève à l'origine) plutôt que de
+    # risquer un doublon via get_or_create sur une date arbitraire (le 1er du
+    # mois) qui ne matcherait pas un enregistrement déjà là à un autre jour.
+    paiement = Paiement.objects.filter(
+        eleve=eleve, mois_reference__year=annee, mois_reference__month=mois_num
+    ).first()
+    if paiement is None:
+        paiement = Paiement(eleve=eleve, mois_reference=datetime.date(annee, mois_num, 1))
+
+    paiement.montant = request.POST.get('montant') or 0
+    nouveau_statut = request.POST.get('statut', 'en_attente')
+    if nouveau_statut in ('valide', 'rejete') and nouveau_statut != paiement.statut:
+        paiement.valide_par = request.user
+        paiement.date_validation = timezone.now()
+    paiement.statut = nouveau_statut
+    if request.FILES.get('screenshot'):
+        paiement.screenshot = request.FILES['screenshot']
+    paiement.save()
+
+    messages.success(request, f'تم حفظ دفعة {eleve.user.get_full_name()}.')
+    return redirect(f"{reverse('suivi_paiements_eleves')}?panel_eleve={eleve.id}&panel_mois={mois_str}")
+
+
+@role_required('admin')
 def admin_paiement_valider(request, paiement_id):
+    from django.utils import timezone
+
     paiement = get_object_or_404(Paiement, id=paiement_id)
     paiement.statut = 'valide'
     paiement.valide_par = request.user
+    paiement.date_validation = timezone.now()
     paiement.save()
     messages.success(request, 'تم قبول الدفعة.')
     return redirect('admin_paiement_detail', paiement_id=paiement.id)
@@ -172,9 +263,12 @@ def admin_paiement_valider(request, paiement_id):
 
 @role_required('admin')
 def admin_paiement_rejeter(request, paiement_id):
+    from django.utils import timezone
+
     paiement = get_object_or_404(Paiement, id=paiement_id)
     paiement.statut = 'rejete'
     paiement.valide_par = request.user
+    paiement.date_validation = timezone.now()
     paiement.save()
     messages.info(request, 'تم رفض الدفعة.')
     return redirect('admin_paiement_detail', paiement_id=paiement.id)

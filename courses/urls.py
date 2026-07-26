@@ -8,6 +8,8 @@ urlpatterns = [
     path('groupes/<int:groupe_id>/', views.groupe_detail, name='admin_groupe_detail'),
     path('groupes/<int:groupe_id>/modifier/', views.groupe_modifier, name='admin_groupe_modifier'),
     path('groupes/<int:groupe_id>/ajouter-eleve/', views.groupe_ajouter_eleve, name='admin_groupe_ajouter_eleve'),
+    path('groupes/<int:groupe_id>/retirer-eleve/<int:eleve_id>/', views.groupe_retirer_eleve, name='admin_groupe_retirer_eleve'),
+    path('groupes/<int:groupe_id>/transferer-eleve/<int:eleve_id>/', views.groupe_transferer_eleve, name='admin_groupe_transferer_eleve'),
 
     # Créneaux
     path('creneaux/', views.creneaux_list, name='admin_creneaux'),

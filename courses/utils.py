@@ -64,6 +64,32 @@ def _heures_couvertes(heure_debut, heure_fin):
     return heures
 
 
+def fusionner_intervalles(intervalles):
+    """Fusionne une liste de (debut, fin) inclusifs en intervalles non
+    chevauchants triés, en fusionnant aussi les intervalles contigus (fin+1 ==
+    debut suivant, aucun trou entre les deux). Seule implémentation de fusion
+    d'intervalles du projet — réutilisée par calculer_progression_eleve
+    (compteur total d'ayat mémorisés) ET _couverture_ayat_par_sourate (système
+    hizb/ربع الحزب), qui souffraient tous deux du même bug avant Tâche 6c du
+    2026-07-25 : prendre l'étendue min/max entre séances au lieu d'une vraie
+    union, ce qui recomptait des ayat déjà couverts par une séance précédente
+    (ex: 1-10 puis 1-74 comptait 84 versets au lieu de 74) et pouvait déclarer
+    couvert un intervalle jamais mémorisé entre deux plages non contiguës
+    (ex: 1-10 puis 60-74 donnait l'étendue [1,74], pas les deux blocs [1,10]
+    et [60,74] réellement couverts)."""
+    if not intervalles:
+        return []
+    tries = sorted(intervalles)
+    fusionnes = [list(tries[0])]
+    for debut, fin in tries[1:]:
+        dernier = fusionnes[-1]
+        if debut <= dernier[1] + 1:
+            dernier[1] = max(dernier[1], fin)
+        else:
+            fusionnes.append([debut, fin])
+    return [(d, f) for d, f in fusionnes]
+
+
 def _age_depuis_naissance(naissance):
     aujourd_hui = timezone.localdate()
     return aujourd_hui.year - naissance.year - ((aujourd_hui.month, aujourd_hui.day) < (naissance.month, naissance.day))
@@ -115,15 +141,20 @@ def creneaux_manquants_pour_matrice(disponibilites_matrice, creneau):
 
 
 def raison_incompatibilite_groupe(eleve, groupe):
-    """Vérifie qu'un élève peut être assigné à un groupe donné, selon TOUS les
-    critères métier (place restante, horaire, programme, riwaya, âge, sexe,
-    type d'abonnement). Retourne une chaîne expliquant le premier critère non
-    respecté, ou None si le groupe est compatible. Utilisée à la fois pour la
-    suggestion automatique (affichage) et comme garde-fou serveur avant toute
-    assignation (sécurité), afin qu'aucune des deux voies ne puisse être
-    contournée par l'autre. Voir raison_incompatibilite_groupe_inscription,
-    l'équivalent pour une candidature pas encore acceptée — les deux
-    fonctions doivent rester alignées critère par critère."""
+    """Vérifie qu'un élève peut être assigné à un groupe donné, selon les
+    critères BLOQUANTS uniquement (place restante, horaire, âge, type
+    d'abonnement, disponibilité). Retourne une chaîne expliquant le premier
+    critère non respecté, ou None si le groupe est compatible. Utilisée à la
+    fois pour la suggestion automatique (affichage) et comme garde-fou
+    serveur avant toute assignation (sécurité), afin qu'aucune des deux voies
+    ne puisse être contournée par l'autre. Voir
+    raison_incompatibilite_groupe_inscription, l'équivalent pour une
+    candidature pas encore acceptée — les deux fonctions doivent rester
+    alignées critère par critère.
+
+    Programme/riwaya/sexe ne sont PLUS bloquants depuis la Tâche 14 (demande
+    client explicite) : voir avertissements_groupe pour ces 3 critères,
+    désormais informatifs seulement."""
     if groupe.eleves.filter(id=eleve.id).exists():
         return "الطالب منضم بالفعل إلى هذه المجموعة."
 
@@ -138,18 +169,9 @@ def raison_incompatibilite_groupe(eleve, groupe):
     if not inscription:
         return "لا يوجد ملف تسجيل مرتبط بهذا الطالب لمقارنة المعايير."
 
-    if inscription.programme != creneau.type_seance:
-        return "نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب."
-
-    if inscription.riwaya != creneau.riwaya:
-        return "رواية الحلقة لا تتوافق مع رواية الطالب."
-
     age = _age_depuis_naissance(inscription.date_naissance)
     if age < creneau.age_min or age > creneau.age_max:
         return "عمر الطالب لا يقع ضمن الفئة العمرية لهذه الحلقة."
-
-    if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
-        return "جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة."
 
     type_offre = inscription.abonnement_type_offre()
     if type_offre and type_offre != groupe.type_capacite:
@@ -162,10 +184,34 @@ def raison_incompatibilite_groupe(eleve, groupe):
     return None
 
 
+def avertissements_groupe(eleve, groupe):
+    """Critères informatifs (non bloquants depuis la Tâche 14) pour un couple
+    (eleve, groupe) : programme, riwaya, sexe. Retourne la liste des messages
+    d'avertissement à afficher — liste vide si tout correspond. À appeler
+    uniquement après avoir vérifié raison_incompatibilite_groupe (aucune
+    garantie ici si creneau/inscription sont absents)."""
+    creneau = groupe.creneau
+    inscription = eleve.inscription
+    if not creneau or not inscription:
+        return []
+
+    avertissements = []
+    if inscription.programme != creneau.type_seance:
+        avertissements.append("نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب.")
+    if inscription.riwaya != creneau.riwaya:
+        avertissements.append("رواية الحلقة لا تتوافق مع رواية الطالب.")
+    if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
+        avertissements.append("جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة.")
+    return avertissements
+
+
 def raison_incompatibilite_groupe_inscription(inscription, groupe):
     """Équivalent de raison_incompatibilite_groupe pour une candidature
     (InscriptionEleve) pas encore acceptée: pas de Eleve/DisponibiliteEleve
-    en base, les critères sont lus directement depuis l'inscription."""
+    en base, les critères sont lus directement depuis l'inscription.
+
+    Programme/riwaya/sexe ne sont plus bloquants depuis la Tâche 14 — voir
+    avertissements_groupe_inscription."""
     if groupe.eleves.count() >= groupe.capacite_max:
         return "المجموعة مكتملة العدد."
 
@@ -173,18 +219,9 @@ def raison_incompatibilite_groupe_inscription(inscription, groupe):
     if not creneau:
         return "لا يوجد جدول زمني محدد لهذه المجموعة."
 
-    if inscription.programme != creneau.type_seance:
-        return "نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب."
-
-    if inscription.riwaya != creneau.riwaya:
-        return "رواية الحلقة لا تتوافق مع رواية الطالب."
-
     age = _age_depuis_naissance(inscription.date_naissance)
     if age < creneau.age_min or age > creneau.age_max:
         return "عمر الطالب لا يقع ضمن الفئة العمرية لهذه الحلقة."
-
-    if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
-        return "جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة."
 
     type_offre = inscription.abonnement_type_offre()
     if type_offre and type_offre != groupe.type_capacite:
@@ -197,13 +234,73 @@ def raison_incompatibilite_groupe_inscription(inscription, groupe):
     return None
 
 
+def avertissements_groupe_inscription(inscription, groupe):
+    """Équivalent de avertissements_groupe pour une candidature pas encore
+    acceptée."""
+    creneau = groupe.creneau
+    if not creneau:
+        return []
+
+    avertissements = []
+    if inscription.programme != creneau.type_seance:
+        avertissements.append("نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب.")
+    if inscription.riwaya != creneau.riwaya:
+        avertissements.append("رواية الحلقة لا تتوافق مع رواية الطالب.")
+    if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
+        avertissements.append("جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة.")
+    return avertissements
+
+
+def _categorie_age_creneau(creneau):
+    """'enfants' si le créneau est entièrement sous AGE_SEUIL_ADULTE, 'adultes'
+    si entièrement au-dessus, 'mixte' s'il chevauche les deux (aucune
+    catégorie unique à comparer dans ce cas). Règle confirmée par le client
+    pour avertissements_prof_creneau (Tâche 18, Partie C, 2026-07-26)."""
+    if creneau.age_max < AGE_SEUIL_ADULTE:
+        return 'enfants'
+    if creneau.age_min >= AGE_SEUIL_ADULTE:
+        return 'adultes'
+    return 'mixte'
+
+
+def avertissements_prof_creneau(prof, creneau):
+    """Avertissements non bloquants (Tâche 18, Partie C) si la tranche d'âge
+    ou le sexe cible du créneau ne correspond pas aux préférences déclarées
+    par le prof (Prof.type_eleve_preference / Prof.contrainte_genre, listes
+    multi-valeurs). Le blocage horaire (creneaux_manquants_pour_prof) reste
+    séparé et bloquant, inchangé.
+
+    Reste SILENCIEUX si le prof n'a rien déclaré (liste vide) — l'absence de
+    préférence renseignée n'est pas une preuve d'incompatibilité, seule une
+    contradiction explicite avec une valeur réellement cochée déclenche un
+    avertissement (confirmé par le client)."""
+    avertissements = []
+
+    categorie = _categorie_age_creneau(creneau)
+    if categorie != 'mixte' and prof.type_eleve_preference:
+        if categorie not in prof.type_eleve_preference and 'les_deux' not in prof.type_eleve_preference:
+            avertissements.append("الفئة العمرية المستهدفة لهذه الحلقة لا تتوافق مع تفضيل المعلم المصرَّح به عند تسجيله.")
+
+    if creneau.sexe_cible != 'mixte' and prof.contrainte_genre:
+        if creneau.sexe_cible not in prof.contrainte_genre and 'mixte' not in prof.contrainte_genre:
+            avertissements.append("جنس الفئة المستهدفة لهذه الحلقة لا يتوافق مع تفضيل المعلم المصرَّح به عند تسجيله.")
+
+    return avertissements
+
+
 def groupes_compatibles_pour_eleve(eleve):
-    """Liste des groupes actifs compatibles avec un élève, selon tous les
-    critères vérifiés par raison_incompatibilite_groupe."""
+    """Liste des groupes actifs compatibles avec un élève. Reste strict sur
+    TOUS les critères (y compris programme/riwaya/sexe, même si Tâche 14 les
+    a rendus non bloquants pour l'ajout manuel) : cette liste sert de
+    suggestion "idéale" en un clic, distincte de l'ajout manuel qui accepte
+    désormais ces 3 critères avec un simple avertissement."""
     from .models import Groupe
 
     candidats = Groupe.objects.filter(statut='actif').exclude(eleves=eleve).select_related('creneau', 'prof__user')
-    return [g for g in candidats if raison_incompatibilite_groupe(eleve, g) is None]
+    return [
+        g for g in candidats
+        if raison_incompatibilite_groupe(eleve, g) is None and not avertissements_groupe(eleve, g)
+    ]
 
 
 def groupes_compatibles_pour_inscription(inscription):
@@ -213,7 +310,11 @@ def groupes_compatibles_pour_inscription(inscription):
     from .models import Groupe
 
     candidats = Groupe.objects.filter(statut='actif').select_related('creneau', 'prof__user')
-    return [g for g in candidats if raison_incompatibilite_groupe_inscription(inscription, g) is None]
+    return [
+        g for g in candidats
+        if raison_incompatibilite_groupe_inscription(inscription, g) is None
+        and not avertissements_groupe_inscription(inscription, g)
+    ]
 
 
 def matrice_vers_lignes(prof, valeurs):
@@ -322,26 +423,34 @@ def calculer_progression_eleve(eleve):
     (nb_ayat_memorises de chaque Presence). Compté en ayats, pas en pages
     (la pagination du mushaf varie selon l'édition/riwaya, l'ayah est universel).
 
-    Pour chaque sourate touchée, la couverture affichée est l'étendue
-    (ayah_debut le plus bas -> ayah_fin le plus haut vus sur toutes les
-    séances) plutôt qu'une fusion exacte d'intervalles: en pratique la
-    mémorisation progresse de façon linéaire dans une sourate, donc cette
-    étendue reflète correctement l'avancement sans complexité inutile.
+    Pour chaque sourate touchée, les plages de toutes les séances sont
+    fusionnées via fusionner_intervalles avant de compter les ayat couverts —
+    jamais une simple étendue min/max (voir Tâche 6c du 2026-07-25) : une
+    révision sur une plage déjà couverte n'ajoute rien, et deux plages non
+    contiguës (ex: 1-10 puis 60-74) restent deux blocs distincts (25 ayat au
+    total) plutôt qu'une étendue [1,74] qui compterait à tort des ayat jamais
+    mémorisés (11-59) comme acquis.
     """
+    from django.db.models import Q
     from .models import Presence
     from .quran_data import SOURATES_NOMS, SOURATES_NB_AYAT
 
-    presences = Presence.objects.filter(
-        eleve=eleve, sourate_memorisee__isnull=False
+    # Élargi (Tâche 9 — bug signalé le 2026-07-25) : une Presence avec les 4
+    # critères numériques /20 mais sans sourate_memorisee (l'élève n'a pas
+    # mémorisé de nouveau passage ce jour-là, mais a bien été noté/consigné)
+    # était auparavant totalement exclue de l'historique — invisible partout
+    # où admin_eleve_detail.html et eleve_progression.html réutilisent
+    # progression.historique pour afficher l'évaluation d'une séance.
+    presences = Presence.objects.filter(eleve=eleve).filter(
+        Q(sourate_memorisee__isnull=False) | Q(note_hifz__isnull=False)
     ).select_related('seance').order_by('seance__date', 'seance__heure')
 
-    total_ayat = 0
-    par_sourate = {}
+    intervalles_par_sourate = {}
+    notes_par_sourate = {}
     historique = []
 
     for p in presences:
         nb = p.nb_ayat_memorises
-        total_ayat += nb
 
         historique.append({
             'date': p.seance.date,
@@ -352,43 +461,54 @@ def calculer_progression_eleve(eleve):
             'nb_ayat': nb,
             'note_code': p.note_memorisation,
             'note_display': p.get_note_memorisation_display() if p.note_memorisation else None,
+            'note_hifz': p.note_hifz,
+            'note_muraja3a': p.note_muraja3a,
+            'note_tilawa': p.note_tilawa,
+            'note_mouwazaba': p.note_mouwazaba,
+            'consigne_memorisation': p.consigne_memorisation,
+            'consigne_revision': p.consigne_revision,
         })
 
+        if p.sourate_memorisee is None:
+            continue
+
         numero = p.sourate_memorisee
-        if numero not in par_sourate:
-            par_sourate[numero] = {
-                'debut': p.ayah_debut_memorisation,
-                'fin': p.ayah_fin_memorisation,
-            }
-        else:
-            par_sourate[numero]['debut'] = min(par_sourate[numero]['debut'], p.ayah_debut_memorisation)
-            par_sourate[numero]['fin'] = max(par_sourate[numero]['fin'], p.ayah_fin_memorisation)
+        intervalles_par_sourate.setdefault(numero, []).append(
+            (p.ayah_debut_memorisation, p.ayah_fin_memorisation)
+        )
         # Écrasé à chaque passage (ordre chronologique croissant) -> reste
         # la note de la séance la PLUS RÉCENTE pour cette sourate.
-        par_sourate[numero]['note_code'] = p.note_memorisation
-        par_sourate[numero]['note_display'] = p.get_note_memorisation_display() if p.note_memorisation else None
+        notes_par_sourate[numero] = {
+            'note_code': p.note_memorisation,
+            'note_display': p.get_note_memorisation_display() if p.note_memorisation else None,
+        }
 
+    total_ayat = 0
     par_sourate_liste = []
-    for numero, bornes in par_sourate.items():
+    for numero, intervalles_bruts in intervalles_par_sourate.items():
+        fusionnes = fusionner_intervalles(intervalles_bruts)
+        couverts = sum(fin - debut + 1 for debut, fin in fusionnes)
+        total_ayat += couverts
+
         total_ayat_sourate = SOURATES_NB_AYAT.get(numero, 0)
-        couverts = bornes['fin'] - bornes['debut'] + 1
         pourcentage = round((couverts / total_ayat_sourate) * 100) if total_ayat_sourate else 0
         par_sourate_liste.append({
             'numero': numero,
             'nom': SOURATES_NOMS.get(numero),
-            'ayah_debut': bornes['debut'],
-            'ayah_fin': bornes['fin'],
+            'ayah_debut': fusionnes[0][0],
+            'ayah_fin': fusionnes[-1][1],
+            'plages_texte': '، '.join(f'{debut}-{fin}' for debut, fin in fusionnes),
             'ayat_couverts': couverts,
             'total_ayat_sourate': total_ayat_sourate,
             'pourcentage': min(pourcentage, 100),
-            'note_code': bornes['note_code'],
-            'note_display': bornes['note_display'],
+            'note_code': notes_par_sourate[numero]['note_code'],
+            'note_display': notes_par_sourate[numero]['note_display'],
         })
     par_sourate_liste.sort(key=lambda item: item['numero'])
 
     return {
         'total_ayat_memorises': total_ayat,
-        'nb_sourates_distinctes': len(par_sourate),
+        'nb_sourates_distinctes': len(intervalles_par_sourate),
         'par_sourate': par_sourate_liste,
         'historique': list(reversed(historique)),
     }
@@ -434,42 +554,41 @@ FRACTION_QUART = {1: '1/4', 2: '1/2', 3: '3/4'}
 
 
 def _couverture_ayat_par_sourate(eleve):
-    """{numero_sourate: [ayah_min, ayah_fin_max]} agrégé sur toutes les
-    Presence de l'élève avec mémorisation enregistrée. Même hypothèse que
-    calculer_progression_eleve: l'étendue entre le début le plus bas et la
-    fin la plus haute vus sur toutes les séances, pas une fusion exacte
-    d'intervalles (la mémorisation progresse en pratique de façon continue
-    dans une sourate)."""
+    """{numero_sourate: [(debut, fin), ...]} — intervalles réellement fusionnés
+    (fusionner_intervalles) sur toutes les Presence de l'élève avec
+    mémorisation enregistrée, pas une étendue min/max (voir Tâche 6c du
+    2026-07-25) : deux plages non contiguës d'une même sourate (ex: 1-10 puis
+    60-74) restent deux blocs séparés, jamais fusionnés à tort en [1,74] qui
+    déclarerait couverts des ayat jamais mémorisés (11-59)."""
     from .models import Presence
 
-    couverture = {}
+    brut = {}
     valeurs = Presence.objects.filter(
         eleve=eleve, sourate_memorisee__isnull=False
     ).values_list('sourate_memorisee', 'ayah_debut_memorisation', 'ayah_fin_memorisation')
     for numero, debut, fin in valeurs:
-        if numero not in couverture:
-            couverture[numero] = [debut, fin]
-        else:
-            couverture[numero][0] = min(couverture[numero][0], debut)
-            couverture[numero][1] = max(couverture[numero][1], fin)
-    return couverture
+        brut.setdefault(numero, []).append((debut, fin))
+    return {numero: fusionner_intervalles(intervalles) for numero, intervalles in brut.items()}
 
 
 def _quart_est_couvert(quart, couverture):
     """Un quart de hizb (quran_data.HIZB_QUARTERS) est couvert si la
     mémorisation enregistrée de l'élève recouvre ENTIÈREMENT sa plage
     d'ayat, sourate par sourate — un quart peut chevaucher 2 sourates
-    consécutives à sa frontière (ex: hizb 45, quart 3 = 36:60 -> 37:21)."""
+    consécutives à sa frontière (ex: hizb 45, quart 3 = 36:60 -> 37:21). Une
+    plage de quart doit être entièrement contenue dans UN SEUL intervalle
+    fusionné de la sourate — jamais à cheval sur deux blocs disjoints, qui
+    signifierait un trou non mémorisé entre les deux (voir Tâche 6c)."""
     from .quran_data import SOURATES_NB_AYAT
 
     (sourate_debut, ayah_debut), (sourate_fin, ayah_fin) = quart
     for sourate in range(sourate_debut, sourate_fin + 1):
-        if sourate not in couverture:
+        intervalles = couverture.get(sourate)
+        if not intervalles:
             return False
-        debut_couvert, fin_couvert = couverture[sourate]
         borne_debut = ayah_debut if sourate == sourate_debut else 1
         borne_fin = ayah_fin if sourate == sourate_fin else SOURATES_NB_AYAT[sourate]
-        if debut_couvert > borne_debut or fin_couvert < borne_fin:
+        if not any(debut <= borne_debut and fin >= borne_fin for debut, fin in intervalles):
             return False
     return True
 
@@ -516,20 +635,36 @@ def ring_dashoffset_hizb(nb_hizb_complets):
     return round(RING_CIRCONFERENCE_HIZB * (1 - nb_hizb_complets / 60), 1)
 
 
-AGE_SEUIL_ADULTE = 18  # seuil enfant/adulte pour la grille tarifaire — confirmé par le client (moins de 18 = enfant, 18 et plus = adulte)
+AGE_SEUIL_ADULTE = 18  # seuil enfant/adulte — confirmé par le client (moins de 18 = enfant, 18 et plus = adulte)
+
+
+def tranche_age_depuis_naissance(date_naissance):
+    """'enfant' (< AGE_SEUIL_ADULTE) ou 'adulte' (>= AGE_SEUIL_ADULTE). Seule
+    fonction faisant autorité sur cette catégorisation dans tout le projet —
+    réutilisée par la grille de rémunération (_tranche_age_eleve) ET par la
+    validation du formulaire d'inscription élève (inscriptions.views)."""
+    age = _age_depuis_naissance(date_naissance)
+    return 'adulte' if age >= AGE_SEUIL_ADULTE else 'enfant'
+
+
+def age_correspond_a_categorie(date_naissance, type_age):
+    """True si la catégorie choisie à l'inscription (type_age: 'enfant'/'adulte',
+    le paramètre d'URL du formulaire) correspond à l'âge réel calculé depuis
+    date_naissance. Garde-fou serveur, indépendant de tout JS — voir
+    inscriptions.views.inscription_eleve_formulaire."""
+    return tranche_age_depuis_naissance(date_naissance) == type_age
 
 
 def _tranche_age_eleve(eleve):
-    """'enfant'/'adulte' selon AGE_SEUIL_ADULTE, ou None si l'âge est inconnu
-    (élève sans dossier d'inscription lié, ou dossier sans date de naissance —
-    Eleve n'a pas de date_naissance propre, la seule source fiable est
-    eleve.inscription.date_naissance). Jamais d'hypothèse silencieuse ici:
-    un âge inconnu doit rester visible comme tel dans le détail du calcul,
-    vu l'impact direct sur une somme d'argent réelle."""
+    """'enfant'/'adulte' pour un Eleve déjà validé, ou None si l'âge est
+    inconnu (élève sans dossier d'inscription lié, ou dossier sans date de
+    naissance — Eleve n'a pas de date_naissance propre, la seule source
+    fiable est eleve.inscription.date_naissance). Jamais d'hypothèse
+    silencieuse ici: un âge inconnu doit rester visible comme tel dans le
+    détail du calcul, vu l'impact direct sur une somme d'argent réelle."""
     if eleve.inscription is None or eleve.inscription.date_naissance is None:
         return None
-    age = _age_depuis_naissance(eleve.inscription.date_naissance)
-    return 'adulte' if age >= AGE_SEUIL_ADULTE else 'enfant'
+    return tranche_age_depuis_naissance(eleve.inscription.date_naissance)
 
 
 def calculer_remuneration_prof(prof):

@@ -6,12 +6,10 @@
         <div class="page-title">أنواع الاشتراك والتعرفات</div>
         <div class="page-subtitle">تظهر هذه الخيارات في استمارة تسجيل الطلاب</div>
     </div>
-    {% if request.user.role != 'mshrif' %}
     <a href="{% url 'admin_abonnement_ajouter' %}"
        style="background:var(--color-role-admin); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
        + إضافة نوع اشتراك
     </a>
-    {% endif %}
 </div>
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
@@ -22,12 +20,12 @@
             <div style="color:#888; font-size:0.85rem;">{{ type_abo.prix }} درهم — الرمز: {{ type_abo.code }}</div>
         </div>
         <div class="d-flex gap-2 align-items-center">
+            {% include 'dashboard/_badge_statut.html' with type='neutre' texte=type_abo.get_cible_age_display %}
             {% if type_abo.est_actif %}
                 <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">نشط ✅</span>
             {% else %}
                 <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:4px 12px; font-size:0.8rem;">غير نشط ❌</span>
             {% endif %}
-            {% if request.user.role != 'mshrif' %}
             <a href="{% url 'admin_abonnement_modifier' type_abo.id %}"
                style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
                تعديل ✏️
@@ -36,7 +34,6 @@
                style="background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
                {% if type_abo.est_actif %}تعطيل{% else %}تفعيل{% endif %}
             </a>
-            {% endif %}
         </div>
     </div>
     {% empty %}

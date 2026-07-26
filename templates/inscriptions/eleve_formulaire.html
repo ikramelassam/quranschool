@@ -133,6 +133,12 @@
     </div>
     {% endif %}
 
+    {% if erreur_age %}
+    <div style="background:#f8d7da; border-radius:8px; padding:14px 18px; margin-bottom:20px; color:#721c24;">
+        ⚠️ {{ erreur_age }}
+    </div>
+    {% endif %}
+
     <form method="POST" action="">
         {% csrf_token %}
         <input type="hidden" name="type_age" value="{{ type_age }}">
@@ -175,6 +181,7 @@
             <label class="form-label">تاريخ الميلاد *</label>
             <input type="date" name="date_naissance" class="form-control"
                    id="date_naissance" required>
+            <div id="erreur_age_js" style="display:none; color:#721c24; background:#f8d7da; border-radius:8px; padding:10px 14px; margin-top:8px; font-size:0.9rem;"></div>
         </div>
 
         <!-- Sexe -->
@@ -320,6 +327,54 @@
         parent.querySelectorAll('.select-btn').forEach(b => b.classList.remove('active'));
         el.classList.add('active');
     }
+
+    // Validation âge/catégorie — même règle que le garde-fou serveur
+    // (courses.utils.tranche_age_depuis_naissance), seuil transmis par la vue
+    // pour ne jamais diverger de la valeur Python. Confort visuel uniquement:
+    // la vue Django revalide indépendamment à la soumission (voir inscriptions/views.py).
+    const AGE_SEUIL_ADULTE = {{ age_seuil_adulte }};
+    const TYPE_AGE = '{{ type_age }}';
+    const MESSAGES_AGE = {
+        adulte: 'يبدو أنك بالغ (18 سنة فما فوق) — يرجى استخدام نموذج التسجيل الخاص بالبالغين.',
+        enfant: 'يبدو أنك طفل (أقل من 18 سنة) — يرجى استخدام نموذج التسجيل الخاص بالأطفال.',
+    };
+
+    function calculerAge(dateNaissanceStr) {
+        const naissance = new Date(dateNaissanceStr);
+        const aujourdhui = new Date();
+        let age = aujourdhui.getFullYear() - naissance.getFullYear();
+        const moisPasse = (aujourdhui.getMonth() - naissance.getMonth()) || (aujourdhui.getDate() - naissance.getDate());
+        if (moisPasse < 0) age--;
+        return age;
+    }
+
+    function verifierAgeCategorie() {
+        const input = document.getElementById('date_naissance');
+        const erreurDiv = document.getElementById('erreur_age_js');
+        if (!input.value) {
+            erreurDiv.style.display = 'none';
+            return true;
+        }
+        const age = calculerAge(input.value);
+        const categorieReelle = age >= AGE_SEUIL_ADULTE ? 'adulte' : 'enfant';
+        if (categorieReelle !== TYPE_AGE) {
+            erreurDiv.textContent = '⚠️ ' + MESSAGES_AGE[categorieReelle];
+            erreurDiv.style.display = 'block';
+            return false;
+        }
+        erreurDiv.style.display = 'none';
+        return true;
+    }
+
+    document.getElementById('date_naissance').addEventListener('change', verifierAgeCategorie);
+    document.getElementById('date_naissance').addEventListener('blur', verifierAgeCategorie);
+
+    document.querySelector('form').addEventListener('submit', function(e) {
+        if (!verifierAgeCategorie()) {
+            e.preventDefault();
+            document.getElementById('date_naissance').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
 </script>
 </body>
 </html>

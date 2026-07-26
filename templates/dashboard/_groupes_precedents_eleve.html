@@ -1,0 +1,44 @@
+{% comment %}
+Liste des groupes précédents d'un élève (historique d'appartenance) — Tâche 22
+Partie F du 2026-07-26 : limité à 10 + bouton "عرض الكل" comme les autres
+listes potentiellement longues du projet.
+Usage : {% include 'dashboard/_groupes_precedents_eleve.html' with groupes_precedents=groupes_precedents couleur='var(--color-role-admin-solid)' %}
+{% endcomment %}
+{% with total=groupes_precedents|length %}
+{% for entree in groupes_precedents|slice:":10" %}
+<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <span style="font-weight:600;">{{ entree.groupe.nom }}</span>
+    <span style="color:#888; font-size:0.85rem;">{{ entree.date_debut|date:"d-m-Y" }} → {{ entree.date_fin|date:"d-m-Y" }}</span>
+</div>
+{% empty %}
+<div style="color:#aaa; padding:8px 0;">لا يوجد مجموعات سابقة</div>
+{% endfor %}
+{% if total > 10 %}
+<div id="groupes_precedents_extra" style="display:none;">
+    {% for entree in groupes_precedents|slice:"10:" %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="font-weight:600;">{{ entree.groupe.nom }}</span>
+        <span style="color:#888; font-size:0.85rem;">{{ entree.date_debut|date:"d-m-Y" }} → {{ entree.date_fin|date:"d-m-Y" }}</span>
+    </div>
+    {% endfor %}
+</div>
+<div style="padding:8px 0;">
+    <span id="groupes_precedents_toggle_texte" onclick="toggleGroupesPrecedents()" style="cursor:pointer; color:{{ couleur|default:'#888' }}; font-size:0.82rem; text-decoration:underline;">
+        عرض جميع المجموعات السابقة ({{ total }}) ↓
+    </span>
+</div>
+<script>
+    function toggleGroupesPrecedents() {
+        const extra = document.getElementById('groupes_precedents_extra');
+        const texte = document.getElementById('groupes_precedents_toggle_texte');
+        if (extra.style.display === 'none') {
+            extra.style.display = 'block';
+            texte.textContent = 'إخفاء ↑';
+        } else {
+            extra.style.display = 'none';
+            texte.textContent = 'عرض جميع المجموعات السابقة ({{ total }}) ↓';
+        }
+    }
+</script>
+{% endif %}
+{% endwith %}

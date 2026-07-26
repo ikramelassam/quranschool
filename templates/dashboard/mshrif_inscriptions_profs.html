@@ -37,4 +37,5 @@
 {% else %}
     <div style="text-align:center; padding:60px; color:#aaa;">🎉 لا توجد طلبات بانتظار التصديق النهائي</div>
 {% endif %}
+{% include 'dashboard/_pagination.html' with page_obj=inscriptions %}
 {% endblock %}

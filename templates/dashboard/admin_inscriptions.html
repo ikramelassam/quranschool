@@ -6,6 +6,19 @@
 <div class="page-title">طلبات التسجيل</div>
 <div class="page-subtitle">الطلبات المعلقة: {{ inscriptions.paginator.count }}</div>
 
+<form method="GET" style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label style="color:#888; font-size:0.8rem;">نوع الطلب</label>
+            <select name="type" class="form-select" onchange="this.form.submit()">
+                <option value="" {% if not type_filtre %}selected{% endif %}>الكل</option>
+                <option value="eleve" {% if type_filtre == 'eleve' %}selected{% endif %}>طلاب</option>
+                <option value="prof" {% if type_filtre == 'prof' %}selected{% endif %}>معلمون</option>
+            </select>
+        </div>
+    </div>
+</form>
+
 {% if inscriptions %}
     {% for ins in inscriptions %}
     <div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">

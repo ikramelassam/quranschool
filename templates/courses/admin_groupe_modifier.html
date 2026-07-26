@@ -66,19 +66,35 @@
             </select>
         </div>
 
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">رابط اجتماع المجموعة</label>
-            <input type="url" name="lien_reunion" class="form-control mt-1"
+        <div style="background:#f7f3ea; border:1px solid var(--color-brand-gold); border-radius:10px; padding:16px 18px; margin-bottom:16px;">
+            <label style="font-weight:700; color:var(--color-brand-gold-dark); display:flex; align-items:center; gap:8px;">
+                🔗 رابط الحصص عبر الإنترنت
+            </label>
+            <div style="color:#888; font-size:0.82rem; margin:4px 0 10px;">
+                رابط واحد ثابت يُستخدم لجميع حصص هذه المجموعة (وليس رابطاً لكل حصة على حدة). يظهر تلقائياً عند المعلم والطلاب في موعد كل حصة.
+            </div>
+            <input type="url" name="lien_reunion" class="form-control"
                    value="{{ groupe.lien_reunion }}" placeholder="https://meet.google.com/xxx-xxxx-xxx">
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">يظهر مع موعد كل حصة عند المعلم والطلاب.</div>
         </div>
+
+        {% if avertissements_prof %}
+        <div style="background:#fff3cd; border:1px solid #ff9800; border-radius:10px; padding:14px 18px; margin-bottom:16px;">
+            <div style="font-weight:700; color:#7a4a00; margin-bottom:6px;">⚠️ تأكيد مطلوب قبل الحفظ</div>
+            <ul style="margin-bottom:0; color:#7a4a00;">
+                {% for a in avertissements_prof %}
+                <li>{{ a }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <input type="hidden" name="confirme" value="1">
+        {% endif %}
 
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
-                style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                حفظ التعديلات ✅
+                style="background:{% if avertissements_prof %}#ff9800{% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                {% if avertissements_prof %}متأكد، احفظ رغم ذلك ✅{% else %}حفظ التعديلات ✅{% endif %}
             </button>
-            <a href="{% url 'admin_groupe_detail' groupe.id %}" 
+            <a href="{% url 'admin_groupe_detail' groupe.id %}"
                style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
         </div>
     </form>

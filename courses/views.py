@@ -1,9 +1,12 @@
+from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.urls import reverse
+from django.utils import timezone
 from accounts.decorators import role_required
 from core.utils import paginer
-from .models import Groupe, Creneau
-from .utils import regenerer_pour_nouveau_creneau, creneaux_manquants_pour_prof, raison_incompatibilite_groupe
+from .models import Groupe, Creneau, HistoriqueGroupeEleve
+from .utils import regenerer_pour_nouveau_creneau, creneaux_manquants_pour_prof, raison_incompatibilite_groupe, avertissements_groupe, avertissements_prof_creneau
 from accounts.models import Prof, Eleve
 
 
@@ -74,6 +77,8 @@ def groupe_ajouter(request):
             })
 
         prof_id = request.POST.get('prof') or None
+        confirme = request.POST.get('confirme') == '1'
+        avertissements_prof = []
         if prof_id:
             prof_obj = get_object_or_404(Prof, id=prof_id)
             creneau_obj = get_object_or_404(Creneau, id=creneau_id)
@@ -83,6 +88,24 @@ def groupe_ajouter(request):
                 return render(request, 'courses/admin_groupe_ajouter.html', {
                     'creneaux': creneaux,
                     'profs': Prof.objects.all(),
+                })
+
+            avertissements_prof = avertissements_prof_creneau(prof_obj, creneau_obj)
+            if avertissements_prof and not confirme:
+                groupe_previsualise = Groupe(
+                    nom=request.POST.get('nom'),
+                    prof_id=prof_id,
+                    creneau_id=creneau_id,
+                    description=request.POST.get('description', ''),
+                    capacite_max=request.POST.get('max_eleves', 10),
+                    type_capacite=request.POST.get('type_capacite', 'groupe'),
+                    lien_reunion=request.POST.get('lien_reunion', ''),
+                )
+                return render(request, 'courses/admin_groupe_ajouter.html', {
+                    'creneaux': creneaux,
+                    'profs': Prof.objects.all(),
+                    'groupe': groupe_previsualise,
+                    'avertissements_prof': avertissements_prof,
                 })
 
         groupe = Groupe.objects.create(
@@ -95,6 +118,8 @@ def groupe_ajouter(request):
             lien_reunion=request.POST.get('lien_reunion', ''),
         )
         regenerer_pour_nouveau_creneau(groupe)
+        for avertissement in avertissements_prof:
+            messages.warning(request, avertissement)
         messages.success(request, 'تمت إضافة المجموعة وتوليد حصصها تلقائياً بنجاح.')
         return redirect('admin_groupes')
 
@@ -105,13 +130,67 @@ def groupe_ajouter(request):
     })
 
 
+def _ajouter_eleve_au_groupe(eleve, groupe):
+    """Ajout effectif (M2M + ouverture d'une ligne d'historique) — utilisé par
+    l'ajout direct, la confirmation après avertissement, et le transfert."""
+    groupe.eleves.add(eleve)
+    HistoriqueGroupeEleve.objects.create(eleve=eleve, groupe=groupe)
+
+
+def _retirer_eleve_du_groupe(eleve, groupe):
+    """Retrait effectif (M2M + fermeture de la ligne d'historique ouverte).
+    Ne touche jamais aux Presence/Evaluation passées: elles sont liées à la
+    Seance, pas à l'appartenance M2M au groupe (Tâche 18 du 2026-07-26)."""
+    groupe.eleves.remove(eleve)
+    HistoriqueGroupeEleve.objects.filter(eleve=eleve, groupe=groupe, date_fin__isnull=True).update(date_fin=timezone.now())
+
+
 @role_required('admin', 'mshrif')
 def groupe_detail(request, groupe_id):
     groupe = get_object_or_404(Groupe, id=groupe_id)
     eleves_disponibles = Eleve.objects.exclude(groupes=groupe)
+    autres_groupes_actifs = Groupe.objects.filter(statut='actif').exclude(id=groupe.id).select_related('creneau')
+
+    # État "en attente de confirmation" (Tâche 18, Partie D) — recalculé à
+    # chaque affichage à partir du seul ID transmis par l'URL, jamais depuis
+    # un avertissement mémorisé côté client, pour ne jamais afficher un
+    # avertissement obsolète ou fabriqué.
+    eleve_en_attente = None
+    avertissements_en_attente = []
+    action_en_attente = None
+    destination_en_attente = None
+
+    confirmer_ajout_id = request.GET.get('confirmer_ajout')
+    confirmer_transfert_id = request.GET.get('confirmer_transfert')
+    destination_id = request.GET.get('destination')
+
+    if confirmer_ajout_id:
+        candidat = Eleve.objects.filter(id=confirmer_ajout_id).select_related('user').first()
+        if candidat and raison_incompatibilite_groupe(candidat, groupe) is None:
+            avertissements = avertissements_groupe(candidat, groupe)
+            if avertissements:
+                eleve_en_attente = candidat
+                avertissements_en_attente = avertissements
+                action_en_attente = 'ajout'
+    elif confirmer_transfert_id and destination_id:
+        candidat = Eleve.objects.filter(id=confirmer_transfert_id).select_related('user').first()
+        destination = Groupe.objects.filter(id=destination_id).select_related('creneau').first()
+        if candidat and destination and raison_incompatibilite_groupe(candidat, destination) is None:
+            avertissements = avertissements_groupe(candidat, destination)
+            if avertissements:
+                eleve_en_attente = candidat
+                avertissements_en_attente = avertissements
+                action_en_attente = 'transfert'
+                destination_en_attente = destination
+
     context = {
         'groupe': groupe,
         'eleves_disponibles': eleves_disponibles,
+        'autres_groupes_actifs': autres_groupes_actifs,
+        'eleve_en_attente': eleve_en_attente,
+        'avertissements_en_attente': avertissements_en_attente,
+        'action_en_attente': action_en_attente,
+        'destination_en_attente': destination_en_attente,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -122,14 +201,67 @@ def groupe_detail(request, groupe_id):
 def groupe_ajouter_eleve(request, groupe_id):
     groupe = get_object_or_404(Groupe, id=groupe_id)
     eleve_id = request.POST.get('eleve_id')
+    confirme = request.POST.get('confirme') == '1'
     if eleve_id:
         eleve = get_object_or_404(Eleve, id=eleve_id)
         raison = raison_incompatibilite_groupe(eleve, groupe)
         if raison:
             messages.error(request, f'تعذّرت إضافة الطالب إلى المجموعة: {raison}')
         else:
-            groupe.eleves.add(eleve)
+            avertissements = avertissements_groupe(eleve, groupe)
+            if avertissements and not confirme:
+                url = reverse('admin_groupe_detail', args=[groupe_id]) + f'?confirmer_ajout={eleve.id}'
+                return redirect(url)
+            with transaction.atomic():
+                _ajouter_eleve_au_groupe(eleve, groupe)
+            for avertissement in avertissements:
+                messages.warning(request, avertissement)
             messages.success(request, 'تمت إضافة الطالب إلى المجموعة.')
+    return redirect('admin_groupe_detail', groupe_id=groupe_id)
+
+
+@role_required('admin')
+def groupe_retirer_eleve(request, groupe_id, eleve_id):
+    groupe = get_object_or_404(Groupe, id=groupe_id)
+    eleve = get_object_or_404(Eleve, id=eleve_id)
+    if request.method == 'POST':
+        with transaction.atomic():
+            _retirer_eleve_du_groupe(eleve, groupe)
+        messages.success(request, f'تمت إزالة {eleve.user.get_full_name()} من المجموعة (سجل حصصه وتقييماته محفوظ).')
+    return redirect('admin_groupe_detail', groupe_id=groupe_id)
+
+
+@role_required('admin')
+def groupe_transferer_eleve(request, groupe_id, eleve_id):
+    groupe = get_object_or_404(Groupe, id=groupe_id)
+    eleve = get_object_or_404(Eleve, id=eleve_id)
+    destination_id = request.POST.get('destination_id')
+    confirme = request.POST.get('confirme') == '1'
+
+    if not destination_id:
+        messages.error(request, 'يجب اختيار مجموعة الوجهة قبل النقل.')
+        return redirect('admin_groupe_detail', groupe_id=groupe_id)
+
+    destination = get_object_or_404(Groupe, id=destination_id)
+    raison = raison_incompatibilite_groupe(eleve, destination)
+    if raison:
+        messages.error(request, f'تعذّر نقل الطالب: {raison}')
+        return redirect('admin_groupe_detail', groupe_id=groupe_id)
+
+    avertissements = avertissements_groupe(eleve, destination)
+    if avertissements and not confirme:
+        url = (
+            reverse('admin_groupe_detail', args=[groupe_id])
+            + f'?confirmer_transfert={eleve.id}&destination={destination.id}'
+        )
+        return redirect(url)
+
+    with transaction.atomic():
+        _retirer_eleve_du_groupe(eleve, groupe)
+        _ajouter_eleve_au_groupe(eleve, destination)
+    for avertissement in avertissements:
+        messages.warning(request, avertissement)
+    messages.success(request, f'تم نقل {eleve.user.get_full_name()} إلى مجموعة {destination.nom} (سجل حصصه وتقييماته في المجموعة السابقة محفوظ).')
     return redirect('admin_groupe_detail', groupe_id=groupe_id)
 
 @role_required('admin')
@@ -152,6 +284,8 @@ def groupe_modifier(request, groupe_id):
 
         nouveau_prof_id = request.POST.get('prof') or None
         prof_a_change = str(groupe.prof_id) != str(nouveau_prof_id)
+        confirme = request.POST.get('confirme') == '1'
+        avertissements_prof = []
         # Ne revalider la compatibilité prof/créneau que si l'un des deux change réellement —
         # sinon un groupe déjà assigné avant durcissement des disponibilités (ou avec une
         # matrice de dispo incomplète) devient bloqué pour toute autre modification (ex: lien_reunion).
@@ -167,6 +301,26 @@ def groupe_modifier(request, groupe_id):
                     'profs': profs,
                 })
 
+            avertissements_prof = avertissements_prof_creneau(prof_obj, creneau_obj)
+            if avertissements_prof and not confirme:
+                groupe_previsualise = Groupe(
+                    id=groupe.id,
+                    nom=request.POST.get('nom'),
+                    description=request.POST.get('description', ''),
+                    capacite_max=request.POST.get('capacite_max', 10),
+                    type_capacite=request.POST.get('type_capacite', 'groupe'),
+                    statut=request.POST.get('statut'),
+                    prof_id=nouveau_prof_id,
+                    creneau_id=nouveau_creneau_id,
+                    lien_reunion=request.POST.get('lien_reunion', ''),
+                )
+                return render(request, 'courses/admin_groupe_modifier.html', {
+                    'groupe': groupe_previsualise,
+                    'creneaux': creneaux,
+                    'profs': profs,
+                    'avertissements_prof': avertissements_prof,
+                })
+
         groupe.nom = request.POST.get('nom')
         groupe.description = request.POST.get('description', '')
         groupe.capacite_max = request.POST.get('capacite_max', 10)
@@ -177,6 +331,8 @@ def groupe_modifier(request, groupe_id):
         groupe.lien_reunion = request.POST.get('lien_reunion', '')
         groupe.save()
 
+        for avertissement in avertissements_prof:
+            messages.warning(request, avertissement)
         if creneau_a_change:
             regenerer_pour_nouveau_creneau(groupe)
             messages.success(request, 'تم تعديل المجموعة وإعادة توليد حصصها حسب الحلقة الجديدة.')
@@ -249,6 +405,9 @@ def creneau_modifier(request, creneau_id):
     creneau = get_object_or_404(Creneau, id=creneau_id)
 
     if request.method == 'POST':
+        champs_horaire = ['jour_1', 'heure_debut_1', 'heure_fin_1', 'jour_2', 'heure_debut_2', 'heure_fin_2']
+        anciennes_valeurs_horaire = {champ: getattr(creneau, champ) for champ in champs_horaire}
+
         creneau.sexe_cible = request.POST.get('sexe_cible')
         creneau.type_seance = request.POST.get('type_seance')
         creneau.riwaya = request.POST.get('riwaya')
@@ -261,7 +420,24 @@ def creneau_modifier(request, creneau_id):
         creneau.heure_debut_2 = request.POST.get('heure_debut_2')
         creneau.heure_fin_2 = request.POST.get('heure_fin_2')
         creneau.save()
-        messages.success(request, 'تم تعديل الحلقة بنجاح.')
+
+        # L'horaire (jour/heure) est stocké sur le Creneau, partagé par tous les
+        # Groupe qui le référencent — un changement ici doit déplacer les séances
+        # futures de CHAQUE groupe concerné, pas seulement d'un seul (Tâche 19,
+        # Bug 1 du 2026-07-26). On ne régénère que si jour/heure ont vraiment
+        # changé, pour ne pas effacer inutilement des séances lors d'une simple
+        # modification d'âge/sexe/type sans lien avec le planning.
+        horaire_a_change = any(
+            str(anciennes_valeurs_horaire[champ]) != str(getattr(creneau, champ))
+            for champ in champs_horaire
+        )
+        if horaire_a_change:
+            with transaction.atomic():
+                for groupe in creneau.groupes.all():
+                    regenerer_pour_nouveau_creneau(groupe)
+            messages.success(request, 'تم تعديل الحلقة وإعادة توليد حصص جميع المجموعات المرتبطة بها حسب التوقيت الجديد.')
+        else:
+            messages.success(request, 'تم تعديل الحلقة بنجاح.')
         return redirect('admin_creneaux')
 
     return render(request, 'courses/admin_creneau_modifier.html', {

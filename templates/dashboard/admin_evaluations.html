@@ -54,23 +54,36 @@
         <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:12px;">📚 تقييمات الطلاب ({{ nb_presences_total }})</div>
         <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
             {% for p in presences %}
-            <a href="{% url 'admin_evaluation_detail' p.seance.id %}" style="display:block; padding:14px 20px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:inherit;">
-                <div style="display:flex; justify-content:space-between;">
-                    <div style="font-weight:700;">{{ p.eleve.user.get_full_name }}</div>
-                    <span style="{{ p.statut|statut_style }} border-radius:20px; padding:2px 10px; font-size:0.75rem;">{{ p.get_statut_display }}</span>
+            <div style="padding:14px 20px; border-bottom:1px solid #f0f0f0;">
+                <a href="{% url 'admin_evaluation_detail' p.seance.id %}" style="display:block; text-decoration:none; color:inherit;">
+                    <div style="display:flex; justify-content:space-between;">
+                        <div style="font-weight:700;">{{ p.eleve.user.get_full_name }}</div>
+                        <span style="{{ p.statut|statut_style }} border-radius:20px; padding:2px 10px; font-size:0.75rem;">{{ p.get_statut_display }}</span>
+                    </div>
+                    <div style="color:#888; font-size:0.85rem;">
+                        {{ p.seance.groupe.nom }}
+                        {% if p.seance.groupe.prof %} — {{ p.seance.groupe.prof.user.get_full_name }}{% endif %}
+                        — {{ p.seance.date|date:"d-m-Y" }}
+                    </div>
+                    {% if p.note_hifz %}
+                    <div style="font-size:0.78rem; color:#555; margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;">
+                        <span style="background:#f0f0f0; border-radius:20px; padding:1px 8px;">حفظ {{ p.note_hifz }}/20</span>
+                        <span style="background:#f0f0f0; border-radius:20px; padding:1px 8px;">مراجعة {{ p.note_muraja3a }}/20</span>
+                        <span style="background:#f0f0f0; border-radius:20px; padding:1px 8px;">تلاوة {{ p.note_tilawa }}/20</span>
+                        <span style="background:#f0f0f0; border-radius:20px; padding:1px 8px;">مواظبة {{ p.note_mouwazaba }}/20</span>
+                    </div>
+                    {% elif p.note_memorisation or p.note_revision %}
+                    <div style="font-size:0.8rem; color:#555; margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;">
+                        {% if p.note_memorisation %}<span>الحفظ:</span> <span style="{{ p.note_memorisation|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_memorisation_display }}</span>{% endif %}
+                        {% if p.note_revision %}<span>المراجعة:</span> <span style="{{ p.note_revision|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_revision_display }}</span>{% endif %}
+                    </div>
+                    {% endif %}
+                </a>
+                <div style="margin-top:6px; display:flex; gap:6px; align-items:center;">
+                    {% include 'dashboard/_email_icon.html' with email=p.eleve.user.email %}
+                    {% include 'dashboard/_whatsapp_icon.html' with telephone=p.eleve.user.telephone %}
                 </div>
-                <div style="color:#888; font-size:0.85rem;">
-                    {{ p.seance.groupe.nom }}
-                    {% if p.seance.groupe.prof %} — {{ p.seance.groupe.prof.user.get_full_name }}{% endif %}
-                    — {{ p.seance.date|date:"d-m-Y" }}
-                </div>
-                {% if p.note_memorisation or p.note_revision %}
-                <div style="font-size:0.8rem; color:#555; margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;">
-                    {% if p.note_memorisation %}<span>الحفظ:</span> <span style="{{ p.note_memorisation|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_memorisation_display }}</span>{% endif %}
-                    {% if p.note_revision %}<span>المراجعة:</span> <span style="{{ p.note_revision|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_revision_display }}</span>{% endif %}
-                </div>
-                {% endif %}
-            </a>
+            </div>
             {% empty %}
             <div style="text-align:center; padding:40px; color:#aaa;">لا توجد تقييمات طلاب مطابقة</div>
             {% endfor %}
