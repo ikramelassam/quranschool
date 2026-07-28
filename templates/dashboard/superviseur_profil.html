@@ -85,6 +85,11 @@
     </div>
 </div>
 
+<div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px;">
+    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">التواصل مع الإدارة</div>
+    {% include 'dashboard/_contact_administration.html' with admins=admins %}
+</div>
+
 <div class="page-title" style="font-size:1.2rem;">المعلمون المُسندون إليّ ({{ nb_profs }})</div>
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
     {% for fiche in fiches_profs %}

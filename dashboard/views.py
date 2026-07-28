@@ -1794,10 +1794,13 @@ def eleve_seance_detail(request, presence_id):
 @role_required('eleve')
 def eleve_profil(request):
     from accounts.models import Eleve
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
     eleve = get_object_or_404(Eleve, user=request.user)
     return render(request, 'dashboard/eleve_profil.html', {
         'eleve': eleve,
         'groupes_precedents': eleve.historique_groupes.filter(date_fin__isnull=False).select_related('groupe'),
+        'admins': User.objects.filter(role='admin'),
         # Bouton "تعديل" du téléphone — même pattern que Tâche 5 (lecture seule
         # par défaut, édition seulement après clic explicite).
         'modifier_telephone': request.GET.get('modifier_telephone') == '1',
@@ -2045,11 +2048,15 @@ def superviseur_profil(request):
         est_evaluee=Exists(Evaluation.objects.filter(seance=OuterRef('pk')))
     ).filter(est_evaluee=False).count()
 
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
     return render(request, 'dashboard/superviseur_profil.html', {
         'superviseur': superviseur,
         'fiches_profs': fiches_profs,
         'nb_profs': profs.count(),
         'nb_evaluations_en_attente': nb_evaluations_en_attente,
+        'admins': User.objects.filter(role='admin'),
         'modifier_telephone': request.GET.get('modifier_telephone') == '1',
     })
 

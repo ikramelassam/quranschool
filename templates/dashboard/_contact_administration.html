@@ -1,0 +1,20 @@
+{% comment %}
+Section "التواصل مع الإدارة" — coordonnées du/des مدير (User.email/telephone
+du compte role=admin, pas de nouveau champ dédié — Tâche 23, Partie 5 du
+2026-07-26). Réutilisé sur les profils élève et مؤطر (le prof a sa propre
+section "جهات الاتصال" depuis la Tâche 20, qui inclut déjà son مؤطر et le مدير).
+Usage : {% include 'dashboard/_contact_administration.html' with admins=admins %}
+{% endcomment %}
+{% if admins %}
+    {% for admin in admins %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
+        <span style="font-weight:600;">{{ admin.get_full_name|default:admin.email }}</span>
+        <span style="display:inline-flex; gap:6px; align-items:center;">
+            {% include 'dashboard/_email_icon.html' with email=admin.email %}
+            {% include 'dashboard/_whatsapp_icon.html' with telephone=admin.telephone %}
+        </span>
+    </div>
+    {% endfor %}
+{% else %}
+    <div style="color:#aaa; padding:8px 0;">لا يوجد مدير مسجَّل</div>
+{% endif %}

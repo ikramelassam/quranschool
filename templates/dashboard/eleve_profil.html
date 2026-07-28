@@ -106,4 +106,9 @@
     {% include 'dashboard/_groupes_precedents_eleve.html' with groupes_precedents=groupes_precedents couleur='var(--color-role-eleve-solid)' %}
 </div>
 {% endif %}
+
+<div class="section-title">التواصل مع الإدارة</div>
+<div class="compact-card" style="padding:4px 20px;">
+    {% include 'dashboard/_contact_administration.html' with admins=admins %}
+</div>
 {% endblock %}
