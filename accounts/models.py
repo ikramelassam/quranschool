@@ -13,6 +13,11 @@ class User(AbstractUser):
     ]
     telephone = models.CharField(max_length=20, blank=True)
     date_naissance = models.DateField(null=True, blank=True)
+    # Description courte affichée aux élèves/profs/مؤطرين sur les sections
+    # "التواصل مع الإدارة" / "جهات الاتصال" (utilisée pour le compte مدير —
+    # Tâche du 2026-07-28). Générique sur User plutôt que réservée à un rôle
+    # précis, comme telephone/date_naissance déjà partagés par tous les rôles.
+    description_courte = models.CharField(max_length=300, blank=True, default='')
     role = models.CharField(
         max_length=20,
         choices=ROLE_CHOICES,

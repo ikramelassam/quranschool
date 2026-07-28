@@ -8,7 +8,12 @@ Usage : {% include 'dashboard/_contact_administration.html' with admins=admins %
 {% if admins %}
     {% for admin in admins %}
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
-        <span style="font-weight:600;">{{ admin.get_full_name|default:admin.email }}</span>
+        <span>
+            <span style="font-weight:600;">{{ admin.get_full_name|default:admin.email }}</span>
+            {% if admin.description_courte %}
+            <div style="color:#888; font-size:0.8rem; margin-top:2px;">{{ admin.description_courte }}</div>
+            {% endif %}
+        </span>
         <span style="display:inline-flex; gap:6px; align-items:center;">
             {% include 'dashboard/_email_icon.html' with email=admin.email %}
             {% include 'dashboard/_whatsapp_icon.html' with telephone=admin.telephone %}

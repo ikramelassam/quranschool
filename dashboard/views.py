@@ -3056,6 +3056,28 @@ def admin_utilisateur_modifier_email(request, user_id):
 def admin_mon_compte(request):
     from inscriptions.views import _email_deja_utilise
 
+    if request.method == 'POST' and request.POST.get('action') == 'contact':
+        nom_complet = request.POST.get('nom_complet', '').strip()
+        description_courte = request.POST.get('description_courte', '').strip()
+        whatsapp_brut = request.POST.get('whatsapp', '').strip()
+
+        chiffres_whatsapp = ''.join(c for c in whatsapp_brut if c.isdigit())
+        if whatsapp_brut and not (9 <= len(chiffres_whatsapp) <= 15):
+            messages.error(
+                request,
+                'رقم الواتساب غير صالح — يجب أن يحتوي على عدد أرقام صحيح '
+                '(مثال: 0663394165 أو 212663394165).'
+            )
+            return redirect('admin_mon_compte')
+
+        request.user.first_name = nom_complet
+        request.user.last_name = ''
+        request.user.description_courte = description_courte
+        request.user.telephone = whatsapp_brut
+        request.user.save(update_fields=['first_name', 'last_name', 'description_courte', 'telephone'])
+        messages.success(request, 'تم تحديث معلومات التواصل بنجاح.')
+        return redirect('admin_mon_compte')
+
     if request.method == 'POST' and request.POST.get('action') == 'email':
         mot_de_passe = request.POST.get('mot_de_passe_email', '')
         nouvel_email = request.POST.get('nouvel_email', '').strip()
