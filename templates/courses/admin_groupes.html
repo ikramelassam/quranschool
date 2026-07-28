@@ -53,7 +53,7 @@
                 <option value="">الكل</option>
                 {% for c in creneaux %}
                 <option value="{{ c.id }}" {% if filtres.creneau == c.id|stringformat:"s" %}selected{% endif %}>
-                    {{ c }} — {{ c.age_min }}-{{ c.age_max }} سنة، {{ c.get_sexe_cible_display }}، {{ c.get_type_seance_display }}
+                    {{ c }} — {{ c.age_min }}-{{ c.age_max }} سنة، {{ c.get_sexe_cible_display }}، {{ c.get_type_seance_display }}، {{ c.get_riwaya_display }}
                 </option>
                 {% endfor %}
                 {% if request.user.role != 'mshrif' %}

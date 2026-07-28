@@ -37,7 +37,7 @@
                 <option value="">اختر حلقة</option>
                 {% for creneau in creneaux %}
                 <option value="{{ creneau.id }}" {% if groupe.creneau == creneau %}selected{% endif %}>
-                    {{ creneau }}
+                    {{ creneau }} — {{ creneau.age_min }}-{{ creneau.age_max }} سنة، {{ creneau.get_sexe_cible_display }}، {{ creneau.get_type_seance_display }}، {{ creneau.get_riwaya_display }}
                 </option>
                 {% endfor %}
             </select>
