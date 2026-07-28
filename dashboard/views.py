@@ -1882,11 +1882,18 @@ def dashboard_superviseur(request):
     if date_fin:
         toutes_seances = toutes_seances.filter(date__lte=date_fin)
 
-    # "En retard": le prof a bien terminé la séance mais ce superviseur ne
-    # l'a pas encore évaluée.
+    # "En retard": toute séance passée, non annulée, jamais évaluée par ce
+    # superviseur — QUE le prof ait bien clôturé la séance (statut='terminee')
+    # OU qu'il ait carrément oublié de remplir sa feuille de présence (restée
+    # 'planifiee' malgré une date passée). Corrigé le 2026-07-26 (Tâche 24,
+    # Partie 2) : l'ancien filtre exigeait statut='terminee', ce qui faisait
+    # atterrir les séances "oubliées" par le prof dans "seances_passees_traitees"
+    # avec malgré tout un badge rouge "لم يتم تقييمها بعد" (le badge ne teste
+    # jamais le statut) — décalage entre le chiffre de la bannière et le
+    # nombre réel de cartes affichant ce badge/le bouton "تقييم الآن".
     seances_retard = toutes_seances.filter(
-        statut='terminee', date__lt=aujourdhui, est_evaluee=False
-    ).order_by('-date', '-heure')
+        date__lt=aujourdhui, est_evaluee=False
+    ).exclude(statut='annulee').order_by('-date', '-heure')
 
     # ===== Onglet "بالترتيب الزمني" (mirroir exact de prof_seances) =====
     seances_aujourdhui = toutes_seances.filter(date=aujourdhui).order_by('heure')
@@ -1894,8 +1901,11 @@ def dashboard_superviseur(request):
     nb_a_venir = seances_a_venir_qs.count()
     seances_a_venir = seances_a_venir_qs[:10]
     seances_a_venir_extra = seances_a_venir_qs[10:]
+    # Complémentaire STRICT de seances_retard (via id__in) plutôt qu'une
+    # condition dupliquée à la main — garantit qu'aucune séance ne peut
+    # apparaître ni manquer des deux côtés à la fois.
     seances_passees_traitees = toutes_seances.filter(date__lt=aujourdhui).exclude(
-        statut='terminee', est_evaluee=False
+        id__in=seances_retard.values('id')
     ).order_by('-date', '-heure')
 
     # ===== Onglet "حسب المعلم" (inchangé, alternative — plus affiché en même temps) =====
@@ -1907,12 +1917,12 @@ def dashboard_superviseur(request):
     for prof in profs_qs:
         seances_prof = toutes_seances.filter(groupe__prof=prof)
         retard_prof = seances_prof.filter(
-            statut='terminee', date__lt=aujourdhui, est_evaluee=False
-        ).order_by('-date', '-heure')
+            date__lt=aujourdhui, est_evaluee=False
+        ).exclude(statut='annulee').order_by('-date', '-heure')
         aujourdhui_prof = seances_prof.filter(date=aujourdhui).order_by('heure')
         a_venir_prof = seances_prof.filter(date__gt=aujourdhui).order_by('date', 'heure')
         traitees_prof = seances_prof.filter(date__lt=aujourdhui).exclude(
-            statut='terminee', est_evaluee=False
+            id__in=retard_prof.values('id')
         ).order_by('-date', '-heure')
 
         if not (retard_prof.exists() or aujourdhui_prof.exists() or a_venir_prof.exists() or traitees_prof.exists()):

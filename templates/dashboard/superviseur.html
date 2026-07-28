@@ -167,7 +167,7 @@
         {% if seances_passees_traitees %}
         <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
             {% for seance in seances_passees_traitees %}
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px 12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} {% if seance.statut == 'annulee' %}border-right:4px solid #ccc;{% else %}border-right:4px solid var(--color-success);{% endif %} flex-wrap:wrap; gap:8px;">
                 <div>
                     <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
                     <div style="color:#999; font-size:0.85rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
@@ -308,7 +308,7 @@
                     </div>
                     {% endfor %}
                     {% for seance in fiche.seances_traitees %}
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f5f5f5; flex-wrap:wrap; gap:6px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 10px 10px 0; border-bottom:1px solid #f5f5f5; {% if seance.statut == 'annulee' %}border-right:3px solid #ccc;{% else %}border-right:3px solid var(--color-success);{% endif %} flex-wrap:wrap; gap:6px;">
                         <div>
                             <div style="font-weight:500; color:#666;">{{ seance.groupe.nom }}</div>
                             <div style="color:#999; font-size:0.82rem;">{{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}</div>
