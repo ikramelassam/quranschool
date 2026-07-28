@@ -76,7 +76,14 @@ def mot_de_passe_oublie(request):
             'إذا كان هذا البريد الإلكتروني مسجلاً لدينا، فقد تم إشعار الإدارة لإنشاء كلمة '
             'مرور جديدة — تواصل مع الإدارة للحصول عليها.'
         )
-        return redirect('login')
+        # Reste sur la même page (au lieu de rediriger vers login) pour pouvoir
+        # proposer tout de suite un contact direct avec le مدير (WhatsApp/email),
+        # plutôt que de faire attendre le relais Telegram (Tâche du 2026-07-28).
+        admin_principal = User.objects.filter(role='admin').order_by('id').first()
+        return render(request, 'accounts/mot_de_passe_oublie.html', {
+            'soumis': True,
+            'admin_principal': admin_principal,
+        })
 
     return render(request, 'accounts/mot_de_passe_oublie.html')
 
