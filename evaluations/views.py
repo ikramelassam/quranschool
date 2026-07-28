@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.utils import timezone
 from accounts.decorators import role_required
 from accounts.models import Superviseur
 from courses.models import Seance, Presence
@@ -39,6 +40,24 @@ def superviseur_evaluation_detail(request, seance_id):
 def superviseur_evaluer(request, seance_id):
     superviseur = get_object_or_404(Superviseur, user=request.user)
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof__in=superviseur.profs_assignes.all())
+
+    # Contrainte temporelle stricte (Tâche 24, Partie 3 du 2026-07-26) : pas
+    # d'évaluation avant l'heure de fin RÉELLE de la séance (Seance.evaluable_par_prof,
+    # déjà utilisée pour bloquer le prof lui-même — Tâche 19 Bug 2 — même
+    # définition de "la séance est-elle réellement terminée", réutilisée ici
+    # côté مؤطر). Vérifié côté serveur avant tout traitement GET ou POST, pas
+    # seulement masqué côté affichage : un accès direct par URL doit être
+    # refusé de la même façon.
+    if not seance.evaluable_par_prof:
+        heure_fin = seance.fin_datetime
+        heure_fin_locale = timezone.localtime(heure_fin).strftime('%H:%M') if heure_fin else ''
+        messages.error(
+            request,
+            f'الحصة لم تنته بعد، يمكن التقييم بعد الساعة {heure_fin_locale}.' if heure_fin_locale
+            else 'الحصة لم تنته بعد.'
+        )
+        return redirect('superviseur_seance_detail', seance_id=seance.id)
+
     criteres = Critere.objects.filter(est_actif=True)
 
     evaluation = Evaluation.objects.filter(seance=seance).first()

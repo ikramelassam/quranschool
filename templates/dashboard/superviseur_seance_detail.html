@@ -25,6 +25,11 @@
        style="background:var(--color-role-superviseur); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
         عرض تقييم المعلم 👁
     </a>
+    {% elif not seance.evaluable_par_prof %}
+    <div style="background:#f0f0f0; color:#777; border-radius:8px; padding:10px 20px; font-size:0.9rem; text-align:center;">
+        ⏳ الحصة لم تنته بعد<br>
+        <span style="font-size:0.8rem;">يمكن التقييم بعد الساعة {{ seance.fin_datetime|time:"H:i" }}</span>
+    </div>
     {% else %}
     <a href="{% url 'superviseur_evaluer' seance.id %}"
        style="background:var(--color-role-superviseur); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
