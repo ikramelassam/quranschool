@@ -1838,6 +1838,16 @@ def eleve_progression(request):
 
 @role_required('superviseur')
 def dashboard_superviseur(request):
+    """Refonte UX du 2026-07-26 (Tâche 23) : réutilise EXACTEMENT le pattern
+    déjà validé sur prof_seances (bandeau=ancre, cartes اليوم/الماضية/القادمة,
+    +N replié en JS) au lieu de répéter 3 fois la même information (bandeau +
+    liste plate + section "حسب المعلم"). "حسب المعلم" devient un onglet
+    alternatif (fiches_profs, inchangé) plutôt qu'un 3e bloc affiché en
+    permanence — bascule JS pure, les deux jeux de données sont déjà
+    calculés côté serveur, aucun rechargement nécessaire.
+    Ajout : "الحصة الحالية/التالية" (widget indépendant des filtres — le
+    مؤطر doit toujours savoir quoi suivre maintenant, même s'il a filtré
+    la liste sur autre chose)."""
     from django.db.models import Exists, OuterRef
     from accounts.models import Superviseur
     from courses.models import Seance, Groupe
@@ -1847,6 +1857,7 @@ def dashboard_superviseur(request):
     superviseur = get_object_or_404(Superviseur, user=request.user)
     profs_assignes = superviseur.profs_assignes.all()
     aujourdhui = timezone.localdate()
+    maintenant = timezone.now()
 
     prof_id = request.GET.get('prof', '')
     groupe_id = request.GET.get('groupe', '')
@@ -1855,7 +1866,7 @@ def dashboard_superviseur(request):
 
     toutes_seances = Seance.objects.filter(
         groupe__prof__in=profs_assignes,
-    ).select_related('groupe__prof__user').annotate(
+    ).select_related('groupe__prof__user', 'groupe__creneau').annotate(
         est_evaluee=Exists(Evaluation.objects.filter(seance=OuterRef('pk')))
     )
 
@@ -1869,21 +1880,22 @@ def dashboard_superviseur(request):
         toutes_seances = toutes_seances.filter(date__lte=date_fin)
 
     # "En retard": le prof a bien terminé la séance mais ce superviseur ne
-    # l'a pas encore évaluée. Non paginé volontairement (même logique que
-    # le retard d'évaluation du prof): il doit tout voir d'un coup — c'est le
-    # SEUL bloc qui reste une liste plate (voir commentaire ci-dessous).
+    # l'a pas encore évaluée.
     seances_retard = toutes_seances.filter(
         statut='terminee', date__lt=aujourdhui, est_evaluee=False
     ).order_by('-date', '-heure')
 
-    # Regroupement par prof (refonte UX du 2026-07-26) : une liste plate de
-    # dizaines de séances identiques ne dit rien sur QUI a du retard — un
-    # مؤطر supervise des PROFS (pas des élèves, l'évaluation ici porte sur la
-    # séance/le prof, voir evaluations.Evaluation), donc le regroupement
-    # naturel est par prof, pas par élève. Le bandeau "متأخرة" tout en haut
-    # reste une liste plate volontairement (l'urgence se lit par ordre
-    # chronologique, un regroupement la noierait) ; le reste (اليوم/الماضية/
-    # القادمة) est regroupé par prof pour une lecture rapide.
+    # ===== Onglet "بالترتيب الزمني" (mirroir exact de prof_seances) =====
+    seances_aujourdhui = toutes_seances.filter(date=aujourdhui).order_by('heure')
+    seances_a_venir_qs = toutes_seances.filter(date__gt=aujourdhui).order_by('date', 'heure')
+    nb_a_venir = seances_a_venir_qs.count()
+    seances_a_venir = seances_a_venir_qs[:10]
+    seances_a_venir_extra = seances_a_venir_qs[10:]
+    seances_passees_traitees = toutes_seances.filter(date__lt=aujourdhui).exclude(
+        statut='terminee', est_evaluee=False
+    ).order_by('-date', '-heure')
+
+    # ===== Onglet "حسب المعلم" (inchangé, alternative — plus affiché en même temps) =====
     profs_qs = profs_assignes.select_related('user').order_by('user__first_name')
     if prof_id:
         profs_qs = profs_qs.filter(id=prof_id)
@@ -1914,12 +1926,40 @@ def dashboard_superviseur(request):
             'nb_traitees': traitees_prof.count(),
         })
 
+    # ===== "الحصة الحالية/التالية" — toujours calculé sur TOUTES les séances
+    # assignées, indépendamment des filtres GET (le but est de répondre à
+    # "que dois-je suivre maintenant", pas "que dois-je suivre dans ma
+    # sélection filtrée"). Fenêtre de 7 jours suffisante et bornée plutôt que
+    # de charger tout l'horizon de génération. =====
+    candidates_proches = Seance.objects.filter(
+        groupe__prof__in=profs_assignes, statut='planifiee',
+        date__gte=aujourdhui, date__lte=aujourdhui + datetime.timedelta(days=7),
+    ).select_related('groupe__prof__user', 'groupe__creneau').order_by('date', 'heure')
+
+    seance_en_cours = None
+    seance_suivante = None
+    for s in candidates_proches:
+        debut = s.debut_datetime
+        fin = s.fin_datetime or (debut + datetime.timedelta(hours=1))
+        if debut <= maintenant <= fin:
+            seance_en_cours = s
+            break
+        if debut > maintenant and seance_suivante is None:
+            seance_suivante = s
+
     return render(request, 'dashboard/superviseur.html', {
         'superviseur': superviseur,
         'aujourdhui': aujourdhui,
         'total_seances': toutes_seances.count(),
         'nb_retard': seances_retard.count(),
         'seances_retard': seances_retard,
+        'seances_aujourdhui': seances_aujourdhui,
+        'seances_a_venir': seances_a_venir,
+        'seances_a_venir_extra': seances_a_venir_extra,
+        'nb_a_venir': nb_a_venir,
+        'seances_passees_traitees': paginer(request, seances_passees_traitees, 15),
+        'seance_en_cours': seance_en_cours,
+        'seance_suivante': seance_suivante,
         'fiches_profs': fiches_profs,
         'profs': profs_assignes.select_related('user').order_by('user__first_name'),
         'groupes': Groupe.objects.filter(prof__in=profs_assignes).order_by('nom'),
