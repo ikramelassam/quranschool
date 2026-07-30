@@ -2418,6 +2418,37 @@ def admin_prof_detail(request, prof_id):
 
 
 @role_required('admin')
+def admin_prof_modifier_infos(request, prof_id):
+    """Modification par le مدير des infos générales du prof visibles par
+    l'élève/le مؤطر (voir dashboard/_prof_infos_readonly.html) — ce même
+    ensemble de champs, jusqu'ici consultables uniquement (comme sur la
+    fiche prof de l'élève/مؤطر), pas modifiables depuis la plateforme."""
+    from accounts.models import Prof
+
+    prof = get_object_or_404(Prof, id=prof_id)
+
+    if request.method == 'POST':
+        prof.ville = request.POST.get('ville', '').strip()
+        prof.niveau_memorisation = request.POST.get('niveau_memorisation', '').strip()
+        prof.certifications = request.POST.get('certifications', '').strip()
+        prof.parcours_scolaire = request.POST.get('parcours_scolaire', '').strip()
+        prof.parcours_enseignant = request.POST.get('parcours_enseignant', '').strip()
+        prof.langues = request.POST.getlist('langues')
+        prof.outils_maitrises = request.POST.getlist('outils_maitrises')
+        prof.type_eleve_preference = request.POST.getlist('type_eleve_preference')
+        prof.save()
+        messages.success(request, 'تم تحديث المعلومات العامة للمعلم بنجاح.')
+        return redirect('admin_prof_detail', prof_id=prof.id)
+
+    context = {
+        'prof': prof,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_prof_modifier_infos.html', context)
+
+
+@role_required('admin')
 def admin_prof_majoration_modifier(request, prof_id):
     from accounts.models import Prof
     prof = get_object_or_404(Prof, id=prof_id)

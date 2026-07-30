@@ -66,6 +66,7 @@ urlpatterns = [
     path('admin/eleves/<int:eleve_id>/archiver/', views.admin_eleve_archiver, name='admin_eleve_archiver'),
     path('admin/profs/', views.admin_profs, name='admin_profs'),
     path('admin/profs/<int:prof_id>/', views.admin_prof_detail, name='admin_prof_detail'),
+    path('admin/profs/<int:prof_id>/modifier/', views.admin_prof_modifier_infos, name='admin_prof_modifier_infos'),
     path('admin/profs/<int:prof_id>/disponibilites/', views.admin_prof_disponibilites, name='admin_prof_disponibilites'),
     path('admin/profs/<int:prof_id>/majoration/', views.admin_prof_majoration_modifier, name='admin_prof_majoration_modifier'),
     path('admin/demandes-disponibilite/', views.admin_demandes_disponibilite, name='admin_demandes_disponibilite'),

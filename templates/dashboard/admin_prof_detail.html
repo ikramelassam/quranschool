@@ -7,7 +7,12 @@
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin-bottom:12px;">
+        <span style="color:var(--color-role-admin-solid); font-weight:700;">معلومات عامة</span>
+        {% if request.user.role != 'mshrif' %}
+        <a href="{% url 'admin_prof_modifier_infos' prof.id %}" style="color:var(--color-brand-gold-dark); font-size:0.85rem; text-decoration:none; font-weight:600;">✏️ تعديل</a>
+        {% endif %}
+    </div>
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">تواصل سريع</span>
         <span style="display:inline-flex; gap:6px; align-items:center;">
