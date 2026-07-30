@@ -1097,6 +1097,36 @@ def admin_inscriptions(request):
     return render(request, 'dashboard/admin_inscriptions.html', context)
 
 
+@role_required('admin', 'mshrif')
+def confirmation_creation_compte(request):
+    """Page de confirmation affichée juste après la création d'un compte élève
+    (par مدير) ou professeur (validation finale par مشرف) — remplace l'ancien
+    message flash en texte brut (qui ne pouvait pas contenir de bouton copier
+    ni de lien WhatsApp, les messages Django étant échappés en HTML). Les
+    infos transitent par la session, jamais par l'URL (mot de passe temporaire
+    sensible) — lues puis immédiatement effacées (pop), donc un rafraîchissement
+    de cette page renvoie proprement vers la liste plutôt que de les réafficher."""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    info = request.session.pop('confirmation_creation_compte', None)
+    if not info:
+        return redirect('dashboard_mshrif' if request.user.role == 'mshrif' else 'dashboard_admin')
+
+    message_pret_a_envoyer = (
+        f"مرحبا {info['nom']}, معلومات الدخول ديالك: "
+        f"البريد الإلكتروني: {info['email']} — كلمة المرور: {info['password']}"
+    )
+
+    context = {
+        'info': info,
+        'message_pret_a_envoyer': message_pret_a_envoyer,
+        'admins': User.objects.filter(role='admin') if info['type_compte'] == 'prof' else None,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/confirmation_creation_compte.html', context)
+
 
 @role_required('admin')
 def admin_valider_eleve(request, inscription_id):
@@ -1165,12 +1195,15 @@ def admin_valider_eleve(request, inscription_id):
 
     envoyer_email_bienvenue(request, inscription.email, password_temp, inscription.nom)
 
-    messages.success(
-        request,
-        f'تم قبول الطالب {inscription.nom}. كلمة المرور المؤقتة: {password_temp} '
-        f'— بلّغها للطالب يدوياً (لا يوجد إرسال تلقائي موثوق عبر البريد الإلكتروني).'
-    )
-    return redirect('admin_inscriptions')
+    request.session['confirmation_creation_compte'] = {
+        'type_compte': 'eleve',
+        'nom': inscription.nom,
+        'email': inscription.email,
+        'password': password_temp,
+        'telephone': inscription.telephone,
+        'redirect_url_name': 'admin_inscriptions',
+    }
+    return redirect('confirmation_creation_compte')
 
 @role_required('admin')
 def admin_rejeter_eleve(request, inscription_id):
@@ -1453,12 +1486,15 @@ def mshrif_valider_prof_final(request, inscription_id):
 
     envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
 
-    messages.success(
-        request,
-        f'تم قبول المعلم {inscription.nom} نهائياً وإنشاء حسابه. كلمة المرور المؤقتة: {password_temp} '
-        f'— بلّغها للمعلم يدوياً (لا يوجد إرسال تلقائي موثوق عبر البريد الإلكتروني).'
-    )
-    return redirect('mshrif_inscriptions_profs')
+    request.session['confirmation_creation_compte'] = {
+        'type_compte': 'prof',
+        'nom': f'{inscription.nom} {inscription.prenom}'.strip(),
+        'email': inscription.email,
+        'password': password_temp,
+        'telephone': inscription.telephone,
+        'redirect_url_name': 'mshrif_inscriptions_profs',
+    }
+    return redirect('confirmation_creation_compte')
 
 
 @role_required('mshrif')

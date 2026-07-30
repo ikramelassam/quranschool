@@ -35,6 +35,9 @@ urlpatterns = [
     path('superviseur/profil/', views.superviseur_profil, name='superviseur_profil'),
     path('superviseur/profs/<int:prof_id>/', views.superviseur_prof_detail, name='superviseur_prof_detail'),
 
+    # Confirmation partagée après création de compte (élève ou prof)
+    path('admin/confirmation-compte/', views.confirmation_creation_compte, name='confirmation_creation_compte'),
+
     # Admin — inscriptions
     path('admin/inscriptions/', views.admin_inscriptions, name='admin_inscriptions'),
     path('admin/inscriptions/eleve/<int:inscription_id>/', views.admin_inscription_eleve_detail, name='admin_inscription_eleve_detail'),
