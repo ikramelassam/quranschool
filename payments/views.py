@@ -1,9 +1,10 @@
 import datetime
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib import messages
 from accounts.decorators import role_required
-from core.utils import paginer
+from core.utils import paginer, envoyer_notification_telegram
 from accounts.models import Eleve
 from .models import Paiement
 
@@ -27,11 +28,26 @@ def eleve_paiements(request):
     eleve = get_object_or_404(Eleve, user=request.user)
 
     if request.method == 'POST':
-        Paiement.objects.create(
+        from dashboard.templatetags.libelles_arabes import mois_annee_ar
+
+        paiement = Paiement.objects.create(
             eleve=eleve,
             montant=request.POST.get('montant'),
             mois_reference=request.POST.get('mois_reference'),
             screenshot=request.FILES.get('screenshot'),
+        )
+        # .create() ne convertit pas mois_reference (chaîne POST brute) en objet
+        # date en mémoire — nécessaire pour mois_annee_ar() ci-dessous.
+        paiement.refresh_from_db()
+        lien_fiche = request.build_absolute_uri(
+            reverse('admin_paiement_detail', args=[paiement.id])
+        )
+        envoyer_notification_telegram(
+            f'💰 دفعة جديدة بانتظار المراجعة\n'
+            f'الطالب: {eleve.user.get_full_name()}\n'
+            f'المبلغ: {paiement.montant} د.م.\n'
+            f'الشهر المعني: {mois_annee_ar(paiement.mois_reference)}\n'
+            f'رابط الملف: {lien_fiche}'
         )
         messages.success(request, 'تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة.')
         return redirect('eleve_paiements')
