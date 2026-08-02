@@ -2418,11 +2418,39 @@ def admin_prof_detail(request, prof_id):
 
 
 @role_required('admin')
-def admin_prof_modifier_infos(request, prof_id):
-    """Modification par le مدير des infos générales du prof visibles par
-    l'élève/le مؤطر (voir dashboard/_prof_infos_readonly.html) — ce même
-    ensemble de champs, jusqu'ici consultables uniquement (comme sur la
-    fiche prof de l'élève/مؤطر), pas modifiables depuis la plateforme."""
+def admin_prof_infos_complementaires_modifier(request, prof_id):
+    """Modification par le مدير des infos COMPLÉMENTAIRES du prof (notes_admin,
+    date_debut_effectif) — un troisième bloc à part, sans rapport avec la
+    candidature (ni l'original figé, ni les données actuelles ci-dessous)."""
+    from accounts.models import Prof
+
+    prof = get_object_or_404(Prof, id=prof_id)
+
+    if request.method == 'POST':
+        prof.notes_admin = request.POST.get('notes_admin', '').strip()
+        date_debut = request.POST.get('date_debut_effectif', '').strip()
+        prof.date_debut_effectif = date_debut or None
+        prof.save()
+        messages.success(request, 'تم تحديث المعلومات الإضافية بنجاح.')
+        return redirect('admin_prof_detail', prof_id=prof.id)
+
+    context = {
+        'prof': prof,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_prof_infos_complementaires_modifier.html', context)
+
+
+@role_required('admin')
+def admin_prof_donnees_actuelles_modifier(request, prof_id):
+    """Modification par le مدير des données ACTUELLES du prof (modèle Prof —
+    ce que voient élève/مؤطر partout ailleurs sur le site). Volontairement
+    séparé de l'original de candidature (InscriptionProf, jamais modifié
+    depuis la plateforme, affiché à part en lecture seule sur admin_prof_detail)
+    — architecture déjà en place (Prof est copié depuis InscriptionProf à la
+    validation, voir mshrif_valider_prof_final), pas de duplication à ajouter :
+    corriger une donnée ici ne touche jamais à la candidature d'origine."""
     from accounts.models import Prof
 
     prof = get_object_or_404(Prof, id=prof_id)
@@ -2437,7 +2465,7 @@ def admin_prof_modifier_infos(request, prof_id):
         prof.outils_maitrises = request.POST.getlist('outils_maitrises')
         prof.type_eleve_preference = request.POST.getlist('type_eleve_preference')
         prof.save()
-        messages.success(request, 'تم تحديث المعلومات العامة للمعلم بنجاح.')
+        messages.success(request, 'تم تحديث البيانات الحالية للمعلم بنجاح.')
         return redirect('admin_prof_detail', prof_id=prof.id)
 
     context = {
@@ -2445,7 +2473,7 @@ def admin_prof_modifier_infos(request, prof_id):
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
-    return render(request, 'dashboard/admin_prof_modifier_infos.html', context)
+    return render(request, 'dashboard/admin_prof_donnees_actuelles_modifier.html', context)
 
 
 @role_required('admin')

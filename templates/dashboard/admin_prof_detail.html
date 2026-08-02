@@ -7,71 +7,172 @@
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
-    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin-bottom:12px;">
-        <span style="color:var(--color-role-admin-solid); font-weight:700;">معلومات عامة</span>
-        {% if request.user.role != 'mshrif' %}
-        <a href="{% url 'admin_prof_modifier_infos' prof.id %}" style="color:var(--color-brand-gold-dark); font-size:0.85rem; text-decoration:none; font-weight:600;">✏️ تعديل</a>
-        {% endif %}
-    </div>
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0 16px; border-bottom:1px solid #f0f0f0; margin-bottom:16px;">
         <span style="color:#888;">تواصل سريع</span>
         <span style="display:inline-flex; gap:6px; align-items:center;">
             {% include 'dashboard/_email_icon.html' with email=prof.user.email %}
             {% include 'dashboard/_whatsapp_icon.html' with telephone=prof.user.telephone %}
         </span>
     </div>
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">المدينة</span>
-        <span style="font-weight:600;">{{ prof.ville }}</span>
-    </div>
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">مستوى الحفظ</span>
-        <span style="font-weight:600;">{{ prof.niveau_memorisation }}</span>
-    </div>
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الشهادات</span>
-        <span style="font-weight:600;">{{ prof.certifications|default:"—" }}</span>
+
+    <!-- Bloc verrouillé: copie figée de ce que le prof a réellement soumis à la
+         candidature (InscriptionProf) — jamais modifié, quel que soit ce qui
+         change ensuite sur les données actuelles ci-dessous. -->
+    <div style="border:1.5px solid #e5e0d6; background:#FAF8F4; border-radius:14px; padding:22px 24px; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <span style="font-weight:700; color:#555;">📋 البيانات الأصلية (كما قدمها الأستاذ)</span>
+            <span style="background:#e9e6e0; color:#6b6459; border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">🔒 غير قابل للتعديل</span>
+        </div>
+
+        {% if inscription %}
+        <div style="color:#888; font-size:0.8rem; font-weight:700; margin-bottom:6px;">معلومات عامة</div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+            <span style="color:#888;">المدينة</span>
+            <span style="font-weight:600;">{{ inscription.ville }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+            <span style="color:#888;">مستوى الحفظ</span>
+            <span style="font-weight:600;">{{ inscription.niveau_memorisation }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0;">
+            <span style="color:#888;">الشهادات</span>
+            <span style="font-weight:600;">{{ inscription.certifications|default:"—" }}</span>
+        </div>
+
+        <div style="color:#888; font-size:0.8rem; font-weight:700; margin:18px 0 6px;">التفضيلات</div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+            <span style="color:#888;">اللغات</span>
+            <span style="font-weight:600;">{{ inscription.langues|libelles_arabes_liste:"langues" }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+            <span style="color:#888;">أدوات التواصل</span>
+            <span style="font-weight:600;">{{ inscription.outils_maitrises|libelles_arabes_liste:"outils_maitrises" }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+            <span style="color:#888;">الفئة المفضلة</span>
+            <span style="font-weight:600;">{{ inscription.type_eleve_preference|libelles_arabes_liste:"type_eleve_preference" }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0;">
+            <span style="color:#888;">قيود الجنس</span>
+            <span style="font-weight:600;">{{ inscription.contrainte_genre|libelles_arabes_liste:"contrainte_genre" }}</span>
+        </div>
+
+        <div style="color:#888; font-size:0.8rem; font-weight:700; margin:18px 0 6px;">المسار</div>
+        <div style="padding:8px 0; border-bottom:1px solid #eee;">
+            <div style="color:#888; margin-bottom:4px;">المسار الدراسي</div>
+            <div style="font-weight:600;">{{ inscription.parcours_scolaire }}</div>
+        </div>
+        <div style="padding:8px 0;">
+            <div style="color:#888; margin-bottom:4px;">المسار التعليمي</div>
+            <div style="font-weight:600;">{{ inscription.parcours_enseignant }}</div>
+        </div>
+        {% else %}
+        <div style="color:#aaa; padding:8px 0;">لا توجد استمارة ترشح أصلية محفوظة لهذا المعلم.</div>
+        {% endif %}
     </div>
 
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">التفضيلات</div>
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">اللغات</span>
-        <span style="font-weight:600;">{{ prof.langues|libelles_arabes_liste:"langues" }}</span>
-    </div>
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">أدوات التواصل</span>
-        <span style="font-weight:600;">{{ prof.outils_maitrises|libelles_arabes_liste:"outils_maitrises" }}</span>
-    </div>
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الفئة المفضلة</span>
-        <span style="font-weight:600;">{{ prof.type_eleve_preference|libelles_arabes_liste:"type_eleve_preference" }}</span>
-    </div>
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">قيود الجنس</span>
-        <span style="font-weight:600;">{{ prof.contrainte_genre|libelles_arabes_liste:"contrainte_genre" }}</span>
+    <!-- Bloc éditable: données ACTUELLES (modèle Prof) — celles affichées partout
+         ailleurs sur le site (élève, مؤطر). Modifiable par le مدير, sans jamais
+         toucher au bloc ci-dessus. -->
+    <div style="border:1.5px solid var(--color-brand-gold); background:var(--color-bg-cream); border-radius:14px; padding:22px 24px; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <span style="font-weight:700; color:var(--color-brand-gold-dark);">✏️ البيانات الحالية</span>
+            {% if request.user.role != 'mshrif' %}
+            <span style="background:rgba(139,75,0,0.12); color:var(--color-brand-gold-dark); border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">✏️ قابل للتعديل</span>
+            {% else %}
+            <span style="background:#e9e6e0; color:#6b6459; border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">🔒 عرض فقط</span>
+            {% endif %}
+        </div>
+
+        <div style="color:#8B6040; font-size:0.8rem; font-weight:700; margin-bottom:6px;">معلومات عامة</div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
+            <span style="color:#888;">المدينة</span>
+            <span style="font-weight:600;">{{ prof.ville }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
+            <span style="color:#888;">مستوى الحفظ</span>
+            <span style="font-weight:600;">{{ prof.niveau_memorisation }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0;">
+            <span style="color:#888;">الشهادات</span>
+            <span style="font-weight:600;">{{ prof.certifications|default:"—" }}</span>
+        </div>
+
+        <div style="color:#8B6040; font-size:0.8rem; font-weight:700; margin:18px 0 6px;">التفضيلات</div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
+            <span style="color:#888;">اللغات</span>
+            <span style="font-weight:600;">{{ prof.langues|libelles_arabes_liste:"langues" }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
+            <span style="color:#888;">أدوات التواصل</span>
+            <span style="font-weight:600;">{{ prof.outils_maitrises|libelles_arabes_liste:"outils_maitrises" }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
+            <span style="color:#888;">الفئة المفضلة</span>
+            <span style="font-weight:600;">{{ prof.type_eleve_preference|libelles_arabes_liste:"type_eleve_preference" }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px 0;">
+            <span style="color:#888;">قيود الجنس</span>
+            <span style="font-weight:600;">{{ prof.contrainte_genre|libelles_arabes_liste:"contrainte_genre" }}</span>
+        </div>
+
+        <div style="color:#8B6040; font-size:0.8rem; font-weight:700; margin:18px 0 6px;">المسار</div>
+        <div style="padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
+            <div style="color:#888; margin-bottom:4px;">المسار الدراسي</div>
+            <div style="font-weight:600;">{{ prof.parcours_scolaire }}</div>
+        </div>
+        <div style="padding:8px 0; {% if prof.gestion_eleve_faible or prof.gestion_eleve_absent %}border-bottom:1px solid rgba(139,75,0,0.15);{% endif %}">
+            <div style="color:#888; margin-bottom:4px;">المسار التعليمي</div>
+            <div style="font-weight:600;">{{ prof.parcours_enseignant }}</div>
+        </div>
+        {% if prof.gestion_eleve_faible %}
+        <div style="padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
+            <div style="color:#888; margin-bottom:4px;">التعامل مع الطالب الضعيف</div>
+            <div style="font-weight:600;">{{ prof.gestion_eleve_faible }}</div>
+        </div>
+        {% endif %}
+        {% if prof.gestion_eleve_absent %}
+        <div style="padding:8px 0;">
+            <div style="color:#888; margin-bottom:4px;">التعامل مع الطالب الغائب</div>
+            <div style="font-weight:600;">{{ prof.gestion_eleve_absent }}</div>
+        </div>
+        {% endif %}
+
+        {% if request.user.role != 'mshrif' %}
+        <a href="{% url 'admin_prof_donnees_actuelles_modifier' prof.id %}"
+           style="display:inline-block; margin-top:14px; color:var(--color-brand-gold-dark); font-size:0.85rem; font-weight:700; text-decoration:none;">
+           ✏️ تعديل
+        </a>
+        {% endif %}
     </div>
 
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">المسار</div>
-    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <div style="color:#888; margin-bottom:4px;">المسار الدراسي</div>
-        <div style="font-weight:600;">{{ prof.parcours_scolaire }}</div>
+    <!-- Bloc éditable: infos ajoutées par le مدير, indépendantes de la candidature. -->
+    <div style="border:1.5px solid var(--color-brand-gold); background:var(--color-bg-cream); border-radius:14px; padding:22px 24px; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <span style="font-weight:700; color:var(--color-brand-gold-dark);">➕ معلومات إضافية من الإدارة</span>
+            {% if request.user.role != 'mshrif' %}
+            <span style="background:rgba(139,75,0,0.12); color:var(--color-brand-gold-dark); border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">✏️ قابل للتعديل</span>
+            {% else %}
+            <span style="background:#e9e6e0; color:#6b6459; border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">🔒 عرض فقط</span>
+            {% endif %}
+        </div>
+
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
+            <span style="color:#888;">تاريخ بداية العمل الفعلي</span>
+            <span style="font-weight:600;">{{ prof.date_debut_effectif|date:"d-m-Y"|default:"—" }}</span>
+        </div>
+        <div style="padding:10px 0 4px;">
+            <div style="color:#888; margin-bottom:4px;">ملاحظات إدارية</div>
+            <div style="font-weight:600; white-space:pre-line;">{{ prof.notes_admin|default:"—" }}</div>
+        </div>
+
+        {% if request.user.role != 'mshrif' %}
+        <a href="{% url 'admin_prof_infos_complementaires_modifier' prof.id %}"
+           style="display:inline-block; margin-top:14px; color:var(--color-brand-gold-dark); font-size:0.85rem; font-weight:700; text-decoration:none;">
+           ✏️ تعديل
+        </a>
+        {% endif %}
     </div>
-    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <div style="color:#888; margin-bottom:4px;">المسار التعليمي</div>
-        <div style="font-weight:600;">{{ prof.parcours_enseignant }}</div>
-    </div>
-    {% if prof.gestion_eleve_faible %}
-    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <div style="color:#888; margin-bottom:4px;">التعامل مع الطالب الضعيف</div>
-        <div style="font-weight:600;">{{ prof.gestion_eleve_faible }}</div>
-    </div>
-    {% endif %}
-    {% if prof.gestion_eleve_absent %}
-    <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <div style="color:#888; margin-bottom:4px;">التعامل مع الطالب الغائب</div>
-        <div style="font-weight:600;">{{ prof.gestion_eleve_absent }}</div>
-    </div>
-    {% endif %}
 
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">💰 المستحقات الشهرية (حسب شبكة التعرفات)</div>
     {% if remuneration.detail %}

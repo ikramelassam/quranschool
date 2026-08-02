@@ -108,6 +108,12 @@ class Prof(models.Model):
     # accusé de lecture, pas un blocage: le prof garde l'accès au site même sans avoir coché.
     charte_acceptee = models.BooleanField(default=False)
     date_acceptation_charte = models.DateTimeField(null=True, blank=True)
+    # Infos complémentaires ajoutées par le مدير APRÈS la validation — jamais
+    # mélangées avec les champs ci-dessus (ceux-là viennent tels quels du
+    # formulaire de candidature d'origine, historique figé, non modifiable
+    # depuis la plateforme). Même principe que majoration_mensuelle plus haut.
+    notes_admin = models.TextField(blank=True, default='')
+    date_debut_effectif = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return str(self.user)
