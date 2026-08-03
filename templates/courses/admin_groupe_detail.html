@@ -18,6 +18,12 @@
     {% endif %}
 </div>
 
+{% if groupe.prof.statut == 'archive' %}
+<div style="background:#f0f0f0; color:#666; border-radius:10px; padding:14px 18px; margin-bottom:16px; font-weight:600;">
+    ⚠️ الأستاذ {{ groupe.prof.user.get_full_name }} مؤرشف — يجب إعادة تعيين أستاذ آخر لهذه المجموعة. لن يتم توليد حصص مستقبلية جديدة طالما هذا لم يُحل.
+</div>
+{% endif %}
+
 <div class="row g-3">
 
     <div class="col-md-5">
@@ -27,6 +33,7 @@
                 <span style="color:#888;">المعلم</span>
                 <span style="font-weight:600; display:flex; align-items:center; gap:10px;">
                     {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}غير محدد{% endif %}
+                    {% include 'dashboard/_badge_archive_prof.html' with prof=groupe.prof %}
                     {% if groupe.prof %}
                     <span style="display:inline-flex; gap:6px; align-items:center;">
                         {% include 'dashboard/_email_icon.html' with email=groupe.prof.user.email %}

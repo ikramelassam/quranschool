@@ -8,6 +8,11 @@ from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from accounts.decorators import role_required
+from accounts.services import (
+    invalider_sessions_utilisateur as _invalider_sessions_utilisateur,
+    archiver_eleve, reactiver_eleve, archiver_prof, reactiver_prof,
+    profs_pour_filtre, eleves_pour_filtre,
+)
 from core.utils import paginer
 from inscriptions.models import InscriptionEleve
 
@@ -91,29 +96,6 @@ def envoyer_email_notification_changement_email(request, ancien_email, nouvel_em
         return False
 
 
-def _invalider_sessions_utilisateur(utilisateur, request=None):
-    """Supprime toutes les sessions actives de cet utilisateur (déconnexion forcée
-    sur tous les appareils), suite à un changement d'email par exemple.
-    Si la requête courante appartient à ce même utilisateur (auto-modification),
-    on fait tourner la clé de SA session courante d'abord (cycle_key: opération
-    native Django qui recrée la ligne sous une nouvelle clé et supprime l'ancienne
-    proprement) et on l'exclut de la suppression en masse, pour ne pas le
-    déconnecter lui-même en plein milieu de son action."""
-    from django.contrib.sessions.models import Session
-    from django.utils import timezone
-
-    session_courante_a_garder = None
-    if request is not None and request.user.is_authenticated and request.user.pk == utilisateur.pk:
-        request.session.cycle_key()
-        session_courante_a_garder = request.session.session_key
-
-    for session in Session.objects.filter(expire_date__gte=timezone.now()):
-        if session.session_key == session_courante_a_garder:
-            continue
-        data = session.get_decoded()
-        if str(data.get('_auth_user_id')) == str(utilisateur.pk):
-            session.delete()
-
 
 def _next_valide(request, defaut='admin_eleves'):
     """Récupère un ?next= sûr (chemin interne au dashboard admin uniquement),
@@ -151,10 +133,17 @@ def _verifier_conflit_email(email):
 
     user_existant = User.objects.filter(email=email).first()
     if not user_existant:
-        return {'conflit': False, 'user': None, 'orphelin': False}
+        return {'conflit': False, 'user': None, 'orphelin': False, 'archive': False}
 
-    a_un_profil = Eleve.objects.filter(user=user_existant).exists() or Prof.objects.filter(user=user_existant).exists()
-    return {'conflit': True, 'user': user_existant, 'orphelin': not a_un_profil}
+    # .objects (non filtré) volontairement: un profil archivé compte comme "a un
+    # profil" (donc PAS orphelin) — l'archivage ne supprime jamais le compte,
+    # voir accounts.services.archiver_eleve/archiver_prof. 'archive' distingue ce
+    # cas pour un message d'erreur plus clair (chantier du 2026-08-03).
+    eleve_existant = Eleve.objects.filter(user=user_existant).first()
+    prof_existant = Prof.objects.filter(user=user_existant).first()
+    a_un_profil = eleve_existant is not None or prof_existant is not None
+    est_archive = (eleve_existant and eleve_existant.statut == 'archive') or (prof_existant and prof_existant.statut == 'archive')
+    return {'conflit': True, 'user': user_existant, 'orphelin': not a_un_profil, 'archive': bool(est_archive)}
 
 
 @role_required('prof')
@@ -188,7 +177,7 @@ def dashboard_prof(request):
         'seances': seances,
         'prochaine_seance': prochaine_seance,
         'aujourdhui': aujourdhui,
-        'total_eleves': sum(g.eleves.count() for g in groupes),
+        'total_eleves': sum(g.eleves.exclude(statut='archive').count() for g in groupes),
         'total_groupes': groupes.count(),
     }
     return render(request, 'dashboard/prof.html', context)
@@ -865,7 +854,7 @@ def prof_bilans_mensuels(request):
         mois = f'{annee:04d}-{num_mois:02d}'
     mois_reference = datetime.date(annee, num_mois, 1)
 
-    eleves = Eleve.objects.filter(groupes__prof=prof).distinct().select_related('user').order_by('user__first_name')
+    eleves = Eleve.actifs.filter(groupes__prof=prof).distinct().select_related('user').order_by('user__first_name')
     bilans = {b.eleve_id: b for b in BilanMensuel.objects.filter(prof=prof, mois_reference=mois_reference)}
 
     lignes = [{'eleve': eleve, 'bilan': bilans.get(eleve.id)} for eleve in eleves]
@@ -1006,10 +995,17 @@ def bilans_mensuels(request):
 
     eleve_seance = None
     progression_seance = None
+    mois_seance_reference = None
     if eleve_id:
         eleve_seance = Eleve.objects.filter(id=eleve_id).select_related('user').first()
         if eleve_seance:
-            progression_seance = calculer_progression_eleve(eleve_seance)
+            # mois=mois: l'onglet 'حسب الحصة' respecte désormais le même filtre
+            # 'الشهر' que l'onglet 'شهري', au lieu d'ignorer silencieusement le
+            # paramètre et d'afficher tout l'historique (Tâche du 2026-08-03).
+            progression_seance = calculer_progression_eleve(eleve_seance, mois=mois)
+            if mois:
+                annee_ms, _, num_mois_ms = mois.partition('-')
+                mois_seance_reference = datetime.date(int(annee_ms), int(num_mois_ms), 1)
 
     BASE_TEMPLATE_PAR_ROLE = {
         'admin': 'dashboard/base_admin.html',
@@ -1027,6 +1023,7 @@ def bilans_mensuels(request):
         'onglet': onglet,
         'eleve_seance': eleve_seance,
         'progression_seance': progression_seance,
+        'mois_seance_reference': mois_seance_reference,
         'profs': Prof.objects.select_related('user').order_by('user__first_name'),
         'eleves': Eleve.objects.select_related('user').order_by('user__first_name'),
         'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
@@ -1051,8 +1048,10 @@ def dashboard_admin(request):
     ).order_by('-date_soumission')[:3]
 
     context = {
-        'total_eleves': Eleve.objects.count(),
-        'total_profs': Prof.objects.count(),
+        # .actifs (exclut les archivés) — cohérent avec dashboard_mshrif.nb_eleves_actifs,
+        # qui filtrait déjà; décision explicite du chantier d'archivage du 2026-08-03.
+        'total_eleves': Eleve.actifs.count(),
+        'total_profs': Prof.actifs.count(),
         'total_groupes': Groupe.objects.count(),
         'total_pending': InscriptionEleve.objects.filter(statut='en_attente').count() +
                          InscriptionProf.objects.filter(statut='en_attente').count(),
@@ -1146,6 +1145,12 @@ def admin_valider_eleve(request, inscription_id):
                 f'بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). '
                 f'احذف الحساب اليتيم أولاً ثم أعد المحاولة.'
             )
+        elif conflit['archive']:
+            messages.error(
+                request,
+                f'تعذر القبول: يوجد حساب مؤرشف بهذا البريد الإلكتروني ({inscription.email}). '
+                f'يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول طلب جديد بنفس البريد.'
+            )
         else:
             messages.error(
                 request,
@@ -1229,7 +1234,7 @@ def admin_inscription_eleve_detail(request, inscription_id):
 
     inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
     if inscription.statut == 'valide':
-        conflit = {'conflit': False, 'user': None, 'orphelin': False}
+        conflit = {'conflit': False, 'user': None, 'orphelin': False, 'archive': False}
     else:
         conflit = _verifier_conflit_email(inscription.email)
     context = {
@@ -1357,7 +1362,8 @@ def dashboard_mshrif(request):
 
     context = {
         'nb_eleves_actifs': Eleve.objects.filter(statut='actif').count(),
-        'nb_profs': Prof.objects.count(),
+        # .actifs (exclut les archivés) — même décision que dashboard_admin.total_profs.
+        'nb_profs': Prof.actifs.count(),
         'nb_groupes_actifs': Groupe.objects.filter(statut='actif').count(),
         'taux_presence_mois': taux_presence,
     }
@@ -1437,6 +1443,12 @@ def mshrif_valider_prof_final(request, inscription_id):
                 f'بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). '
                 f'احذف الحساب اليتيم أولاً ثم أعد المحاولة.'
             )
+        elif conflit['archive']:
+            messages.error(
+                request,
+                f'تعذر القبول: يوجد حساب مؤرشف بهذا البريد الإلكتروني ({inscription.email}). '
+                f'يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول طلب جديد بنفس البريد.'
+            )
         else:
             messages.error(
                 request,
@@ -1462,6 +1474,7 @@ def mshrif_valider_prof_final(request, inscription_id):
         )
         prof = Prof.objects.create(
             user=user,
+            statut='actif',
             ville=inscription.ville,
             certifications=inscription.certifications,
             niveau_memorisation=inscription.niveau_memorisation,
@@ -1475,6 +1488,7 @@ def mshrif_valider_prof_final(request, inscription_id):
             outils_maitrises=inscription.outils_maitrises,
             compte_bancaire=inscription.compte_bancaire,
             rib=inscription.rib,
+            agence_bancaire=inscription.agence_bancaire,
             inscription=inscription,
         )
 
@@ -1536,7 +1550,9 @@ def mshrif_remuneration(request):
     lignes = []
     total_base = 0
     total_majoration = 0
-    for prof in Prof.objects.select_related('user').order_by('user__first_name'):
+    # Table de rémunération à verser (pas un historique) — un prof archivé n'a
+    # plus rien à toucher, chantier d'archivage du 2026-08-03.
+    for prof in Prof.actifs.select_related('user').order_by('user__first_name'):
         base = calculer_remuneration_prof(prof)['total_calcule']
         majoration = prof.majoration_mensuelle or 0
         total_base += base
@@ -2126,7 +2142,6 @@ def admin_seances(request):
     """Page d'exceptions: les séances normales sont générées automatiquement
     (voir courses.utils). Ici, l'admin peut seulement annuler ou déplacer
     une séance précise (prof malade, vacances...)."""
-    from accounts.models import Prof
     from courses.models import Seance, Groupe
     from courses.utils import etendre_toutes_les_seances
 
@@ -2138,6 +2153,7 @@ def admin_seances(request):
     date_debut = request.GET.get('date_debut', '')
     date_fin = request.GET.get('date_fin', '')
     statut = request.GET.get('statut', '')
+    afficher_archives = request.GET.get('afficher_archives') == '1'
 
     seances = Seance.objects.select_related('groupe').order_by('-date')
     if groupe_id:
@@ -2156,7 +2172,7 @@ def admin_seances(request):
     context = {
         'seances': paginer(request, seances, 10),
         'groupes': Groupe.objects.order_by('nom'),
-        'profs': Prof.objects.select_related('user').order_by('user__first_name'),
+        'profs': profs_pour_filtre(afficher_archives, prof_id),
         'filtres': {
             'groupe': groupe_id,
             'prof': prof_id,
@@ -2164,6 +2180,7 @@ def admin_seances(request):
             'date_debut': date_debut,
             'date_fin': date_fin,
             'statut': statut,
+            'afficher_archives': afficher_archives,
         },
         'base_template': _base_template_admin_ou_mshrif(request),
     }
@@ -2222,7 +2239,6 @@ def admin_eleves(request):
     groupe_id = request.GET.get('groupe', '')
     date_debut = request.GET.get('date_debut', '')
     date_fin = request.GET.get('date_fin', '')
-    afficher_archives = request.GET.get('afficher_archives') == '1'
 
     eleves = Eleve.objects.all().select_related('user').order_by('id')
     if q:
@@ -2233,10 +2249,11 @@ def admin_eleves(request):
         )
     if statut:
         eleves = eleves.filter(statut=statut)
-    elif not afficher_archives:
-        # Les archivés restent hors des listes actives par défaut (statut
-        # réversible, pas une suppression — voir admin_eleve_archiver) sauf
-        # si on les cherche explicitement via ce filtre ou le menu "الحالة".
+    else:
+        # Les archivés restent hors de la liste par défaut (statut réversible,
+        # pas une suppression — voir admin_eleve_archiver) sauf recherche
+        # explicite via le menu "الحالة" (seul filtre désormais — l'ancienne
+        # case "إظهار المؤرشفين" faisait doublon et a été retirée).
         eleves = eleves.exclude(statut='archive')
     if groupe_id:
         eleves = eleves.filter(groupes__id=groupe_id)
@@ -2258,7 +2275,6 @@ def admin_eleves(request):
             'groupe': groupe_id,
             'date_debut': date_debut,
             'date_fin': date_fin,
-            'afficher_archives': afficher_archives,
         },
         'base_template': _base_template_admin_ou_mshrif(request),
     }
@@ -2322,9 +2338,7 @@ def admin_eleve_reactiver(request, eleve_id):
     from accounts.models import Eleve
 
     eleve = get_object_or_404(Eleve, id=eleve_id)
-    eleve.statut = 'actif'
-    eleve.date_suspension = None
-    eleve.save(update_fields=['statut', 'date_suspension'])
+    reactiver_eleve(eleve)
     messages.success(request, f'تمت إعادة تفعيل الطالب {eleve.user.get_full_name()}.')
     return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
@@ -2334,14 +2348,14 @@ def admin_eleve_archiver(request, eleve_id):
     """Archive un élève — remplace toute suppression définitive: le compte,
     l'historique des séances/présences/paiements/évaluations restent intacts
     et interrogeables, seulement exclus des listes actives par défaut (voir
-    filtre 'afficher les archivés' sur admin_eleves)."""
+    filtre 'afficher les archivés' sur admin_eleves). Bloque aussi désormais la
+    connexion et invalide immédiatement toute session en cours — voir
+    accounts.services.archiver_eleve (chantier du 2026-08-03)."""
     from accounts.models import Eleve
 
     eleve = get_object_or_404(Eleve, id=eleve_id)
-    eleve.statut = 'archive'
-    eleve.date_suspension = None
-    eleve.save(update_fields=['statut', 'date_suspension'])
-    messages.info(request, f'تمت أرشفة الطالب {eleve.user.get_full_name()}.')
+    archiver_eleve(eleve, request=request)
+    messages.info(request, f'تمت أرشفة الطالب {eleve.user.get_full_name()} — لن يتمكن من تسجيل الدخول بعد الآن.')
     return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
 
@@ -2354,6 +2368,9 @@ def admin_eleve_disponibilites(request, eleve_id):
     eleve = get_object_or_404(Eleve, id=eleve_id)
 
     if request.method == 'POST':
+        if eleve.statut == 'archive':
+            messages.error(request, 'تعذر التعديل: هذا الطالب مؤرشف.')
+            return redirect('admin_eleve_detail', eleve_id=eleve.id)
         matrice_vers_lignes_eleve(eleve, request.POST.getlist('dispo'))
         messages.success(request, f'تم تحديث جدول تفرغ {eleve.user.get_full_name()}.')
         return redirect('admin_eleve_detail', eleve_id=eleve.id)
@@ -2385,6 +2402,8 @@ def admin_profs(request):
     from accounts.models import Prof
 
     q = request.GET.get('q', '').strip()
+    statut = request.GET.get('statut', '')
+
     profs = Prof.objects.all().select_related('user').order_by('id')
     if q:
         profs = profs.filter(
@@ -2392,10 +2411,23 @@ def admin_profs(request):
             Q(user__last_name__icontains=q) |
             Q(ville__icontains=q)
         )
+    if statut:
+        profs = profs.filter(statut=statut)
+    else:
+        # Même principe que admin_eleves: les profs archivés restent hors de la
+        # liste par défaut (statut réversible, pas une suppression — voir
+        # admin_prof_archiver) sauf recherche explicite via le menu "الحالة"
+        # (seul filtre désormais — l'ancienne case "إظهار المؤرشفين" faisait
+        # doublon et a été retirée).
+        profs = profs.exclude(statut='archive')
 
     context = {
         'profs': paginer(request, profs, 10),
         'q': q,
+        'statut_choices': Prof.STATUT_CHOICES,
+        'filtres': {
+            'statut': statut,
+        },
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -2415,6 +2447,34 @@ def admin_prof_detail(request, prof_id):
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_prof_detail.html', context)
+
+
+@role_required('admin')
+def admin_prof_archiver(request, prof_id):
+    """Archive un professeur — même principe que admin_eleve_archiver: aucune
+    suppression, tout l'historique (séances/évaluations/rémunération passée)
+    reste intact et interrogeable, seulement exclu des listes/sélecteurs actifs
+    par défaut. Bloque aussi la connexion et invalide toute session en cours —
+    voir accounts.services.archiver_prof (chantier du 2026-08-03)."""
+    from accounts.models import Prof
+
+    prof = get_object_or_404(Prof, id=prof_id)
+    archiver_prof(prof, request=request)
+    messages.info(request, f'تمت أرشفة الأستاذ {prof.user.get_full_name()} — لن يتمكن من تسجيل الدخول بعد الآن.')
+    return redirect('admin_prof_detail', prof_id=prof.id)
+
+
+@role_required('admin')
+def admin_prof_reactiver(request, prof_id):
+    """Réactive un professeur archivé: connexion, visibilité dans les listes/
+    sélecteurs et éligibilité à la création de nouvelles données reviennent
+    immédiatement."""
+    from accounts.models import Prof
+
+    prof = get_object_or_404(Prof, id=prof_id)
+    reactiver_prof(prof)
+    messages.success(request, f'تمت إعادة تفعيل الأستاذ {prof.user.get_full_name()}.')
+    return redirect('admin_prof_detail', prof_id=prof.id)
 
 
 @role_required('admin')
@@ -2482,6 +2542,9 @@ def admin_prof_majoration_modifier(request, prof_id):
     prof = get_object_or_404(Prof, id=prof_id)
 
     if request.method == 'POST':
+        if prof.statut == 'archive':
+            messages.error(request, 'تعذر التعديل: هذا الأستاذ مؤرشف.')
+            return redirect('admin_prof_detail', prof_id=prof.id)
         majoration = request.POST.get('majoration_mensuelle', '').strip()
         prof.majoration_mensuelle = majoration or None
         prof.save()
@@ -2501,6 +2564,9 @@ def admin_prof_disponibilites(request, prof_id):
     prof = get_object_or_404(Prof, id=prof_id)
 
     if request.method == 'POST' and request.user.role == 'admin':
+        if prof.statut == 'archive':
+            messages.error(request, 'تعذر التعديل: هذا الأستاذ مؤرشف.')
+            return redirect('admin_prof_detail', prof_id=prof.id)
         matrice_vers_lignes(prof, request.POST.getlist('dispo'))
         messages.success(request, f'تم تحديث جدول تفرغ {prof.user.get_full_name()}.')
         return redirect('admin_prof_detail', prof_id=prof.id)
@@ -2587,7 +2653,6 @@ def admin_demande_disponibilite_rejeter(request, demande_id):
 
 @role_required('admin', 'mshrif')
 def admin_calendrier(request):
-    from accounts.models import Prof
     from courses.models import Seance
     from courses.utils import etendre_toutes_les_seances
     from django.utils import timezone
@@ -2596,6 +2661,7 @@ def admin_calendrier(request):
 
     semaine_param = request.GET.get('semaine')
     prof_id = request.GET.get('prof', '')
+    afficher_archives = request.GET.get('afficher_archives') == '1'
     try:
         reference = datetime.date.fromisoformat(semaine_param) if semaine_param else timezone.localdate()
     except ValueError:
@@ -2614,9 +2680,12 @@ def admin_calendrier(request):
     for seance in seances:
         seances_par_jour[seance.date].append(seance)
 
-    # Le filtre prof doit survivre à la navigation semaine précédente/suivante,
-    # sinon changer de semaine le réinitialiserait silencieusement.
+    # Le filtre prof (et le toggle "afficher archivés") doit survivre à la navigation
+    # semaine précédente/suivante, sinon changer de semaine le réinitialiserait
+    # silencieusement.
     suffixe_prof = f'&prof={prof_id}' if prof_id else ''
+    if afficher_archives:
+        suffixe_prof += '&afficher_archives=1'
 
     context = {
         'jours': [
@@ -2627,8 +2696,8 @@ def admin_calendrier(request):
         'dimanche': jours_dates[-1],
         'semaine_precedente': (lundi - datetime.timedelta(days=7)).isoformat() + suffixe_prof,
         'semaine_suivante': (lundi + datetime.timedelta(days=7)).isoformat() + suffixe_prof,
-        'profs': Prof.objects.select_related('user').order_by('user__first_name'),
-        'filtres': {'prof': prof_id},
+        'profs': profs_pour_filtre(afficher_archives, prof_id),
+        'filtres': {'prof': prof_id, 'afficher_archives': afficher_archives},
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -2829,7 +2898,6 @@ LIMITE_EVALUATIONS_LISTE = 30
 @role_required('admin', 'mshrif')
 def admin_evaluations(request):
     from courses.models import Presence, Groupe
-    from accounts.models import Prof, Eleve
     from evaluations.models import Evaluation
 
     groupe_id = request.GET.get('groupe', '')
@@ -2837,6 +2905,7 @@ def admin_evaluations(request):
     eleve_id = request.GET.get('eleve', '')
     date_debut = request.GET.get('date_debut', '')
     date_fin = request.GET.get('date_fin', '')
+    afficher_archives = request.GET.get('afficher_archives') == '1'
 
     presences = Presence.objects.filter(seance__statut='terminee').select_related(
         'seance__groupe__prof__user', 'eleve__user'
@@ -2871,12 +2940,13 @@ def admin_evaluations(request):
         'nb_evaluations_profs_total': nb_evaluations_profs_total,
         'limite': LIMITE_EVALUATIONS_LISTE,
         'groupes': Groupe.objects.all().order_by('nom'),
-        'profs': Prof.objects.select_related('user').order_by('user__first_name'),
-        'eleves': Eleve.objects.select_related('user').order_by('user__first_name'),
+        'profs': profs_pour_filtre(afficher_archives, prof_id),
+        'eleves': eleves_pour_filtre(afficher_archives, eleve_id),
         'filtres': {
             'groupe': groupe_id,
             'prof': prof_id,
             'eleve': eleve_id,
+            'afficher_archives': afficher_archives,
             'date_debut': date_debut,
             'date_fin': date_fin,
         },
@@ -2928,11 +2998,13 @@ def classement_mensuel_profs(request):
 
     # مشرف voit tous les profs (comme مدير) — au-dessus de tous dans la hiérarchie,
     # seul مؤطر/superviseur reste scopé à ses profs assignés.
+    # Classement du mois en cours (pas un historique) — un prof archivé n'a plus
+    # rien à y faire, chantier d'archivage du 2026-08-03.
     if request.user.role == 'superviseur':
         superviseur = get_object_or_404(Superviseur, user=request.user)
-        profs = superviseur.profs_assignes.select_related('user')
+        profs = superviseur.profs_assignes.exclude(statut='archive').select_related('user')
     else:
-        profs = Prof.objects.select_related('user')
+        profs = Prof.actifs.select_related('user')
 
     commentaires = {
         c.prof_id: c for c in CommentaireMensuel.objects.filter(
@@ -2992,6 +3064,9 @@ def classement_mensuel_commentaire(request, prof_id):
     from evaluations.models import CommentaireMensuel
 
     prof = get_object_or_404(Prof, id=prof_id)
+    if prof.statut == 'archive':
+        messages.error(request, f'تعذر الحفظ: {prof.user.get_full_name()} مؤرشف.')
+        return redirect('classement_mensuel_profs')
     mois = request.POST.get('mois', '')
     annee, _, num_mois = mois.partition('-')
     mois_reference = datetime.date(int(annee), int(num_mois), 1)
@@ -3069,10 +3144,20 @@ def admin_superviseur_ajouter(request):
 def admin_superviseur_assignations(request, superviseur_id):
     from accounts.models import Superviseur, Prof
     superviseur = get_object_or_404(Superviseur, id=superviseur_id)
-    tous_les_profs = Prof.objects.select_related('user').order_by('user__first_name')
+    # Prof.actifs exclut les archivés de la liste à cocher — SAUF ceux déjà
+    # assignés à ce مؤطر (gardés visibles, étiquetés "مؤرشف" dans le template)
+    # pour ne pas les faire disparaître silencieusement d'un formulaire qui
+    # remplace toute la liste à chaque sauvegarde (chantier du 2026-08-03).
+    tous_les_profs = list(Prof.actifs.select_related('user').order_by('user__first_name'))
+    profs_assignes_archives = superviseur.profs_assignes.filter(statut='archive').select_related('user')
+    tous_les_profs += [p for p in profs_assignes_archives if p not in tous_les_profs]
 
     if request.method == 'POST':
-        profs_selectionnes = request.POST.getlist('profs')
+        # Revalidé côté serveur: n'accepte que des profs déjà actifs, ou déjà
+        # assignés (pour ne pas désassigner un prof archivé par accident quand
+        # son entrée reste cochée dans le formulaire soumis).
+        ids_valides = {str(p.id) for p in tous_les_profs}
+        profs_selectionnes = [pid for pid in request.POST.getlist('profs') if pid in ids_valides]
         superviseur.profs_assignes.set(profs_selectionnes)
         messages.success(request, f'تم تحديث المعلمين المُسندين إلى {superviseur.user.get_full_name()}.')
         return redirect('admin_superviseurs')

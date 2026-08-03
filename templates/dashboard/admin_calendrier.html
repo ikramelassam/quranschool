@@ -26,13 +26,21 @@
             <select name="prof" class="form-select">
                 <option value="">الكل</option>
                 {% for p in profs %}
-                <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}</option>
+                <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}{% if p.statut == 'archive' %} (مؤرشف){% endif %}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-4 d-flex gap-2">
             <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
             <a href="?semaine={{ lundi|date:'Y-m-d' }}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+        </div>
+    </div>
+    <div class="row g-3 align-items-end mt-1">
+        <div class="col-md-4 d-flex align-items-center">
+            <div class="form-check">
+                <input type="checkbox" name="afficher_archives" value="1" class="form-check-input" id="afficher_archives" {% if filtres.afficher_archives %}checked{% endif %}>
+                <label class="form-check-label" for="afficher_archives" style="color:#888; font-size:0.85rem;">إظهار الأساتذة المؤرشفين في قائمة التصفية</label>
+            </div>
         </div>
     </div>
 </form>

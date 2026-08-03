@@ -34,6 +34,20 @@ class User(AbstractUser):
         return f"{self.first_name} {self.last_name}"
 
 
+class EleveActifsManager(models.Manager):
+    """Exclut les élèves archivés — à utiliser pour toute liste/sélecteur où un
+    compte archivé ne doit jamais apparaître (listes actives, groupes, formulaires).
+    Ne PAS utiliser pour une fiche/détail par ID déjà connu (ex: page de réactivation),
+    qui doit rester accessible même pour un élève archivé — utiliser Eleve.objects
+    dans ce cas. Ne remplace PAS le manager par défaut (Eleve.objects reste complet,
+    inchangé) précisément pour ne jamais casser un get_object_or_404(Eleve, id=...)
+    existant ni le comportement des relations M2M/FK inversées (groupe.eleves.all()
+    reste volontairement non filtré — voir accounts/services.py pour le détail de
+    la décision Option A/B du chantier d'archivage du 2026-08-03)."""
+    def get_queryset(self):
+        return super().get_queryset().exclude(statut='archive')
+
+
 class Eleve(models.Model):
     STATUT_CHOICES = [
         ('actif', 'نشط'),
@@ -65,6 +79,9 @@ class Eleve(models.Model):
         related_name='eleve_valide'
     )
 
+    objects = models.Manager()
+    actifs = EleveActifsManager()
+
     def __str__(self):
         return str(self.user)
 
@@ -73,10 +90,29 @@ class Eleve(models.Model):
         verbose_name_plural = "Élèves"
 
 
+class ProfActifsManager(models.Manager):
+    """Exclut les professeurs archivés — même principe et mêmes précautions
+    que EleveActifsManager ci-dessus (voir sa docstring)."""
+    def get_queryset(self):
+        return super().get_queryset().exclude(statut='archive')
+
+
 class Prof(models.Model):
+    STATUT_CHOICES = [
+        ('actif', 'نشط'),
+        ('archive', 'مؤرشف'),
+    ]
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE
+    )
+    # Archivage réversible (Tâche du 2026-08-03) — contrairement à Eleve, pas de
+    # 'suspendu' pour le prof: seule l'archivation a été demandée pour ce chantier,
+    # volontairement hors périmètre pour ne pas ajouter une fonctionnalité non requise.
+    statut = models.CharField(
+        max_length=20,
+        choices=STATUT_CHOICES,
+        default='actif'
     )
     ville = models.CharField(max_length=100)
     certifications = models.TextField(blank=True)
@@ -91,6 +127,7 @@ class Prof(models.Model):
     gestion_eleve_absent = models.TextField(blank=True)
     compte_bancaire = models.CharField(max_length=50)
     rib = models.CharField(max_length=50)
+    agence_bancaire = models.CharField(max_length=100)
     inscription = models.ForeignKey(
         'inscriptions.InscriptionProf',
         on_delete=models.SET_NULL,
@@ -114,6 +151,9 @@ class Prof(models.Model):
     # depuis la plateforme). Même principe que majoration_mensuelle plus haut.
     notes_admin = models.TextField(blank=True, default='')
     date_debut_effectif = models.DateField(null=True, blank=True)
+
+    objects = models.Manager()
+    actifs = ProfActifsManager()
 
     def __str__(self):
         return str(self.user)

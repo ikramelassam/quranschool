@@ -144,6 +144,11 @@
         <a href="{% url 'admin_supprimer_user_orphelin' conflit.user.id %}?next={{ request.path }}"
            onclick="return confirm('هل أنت متأكد من حذف هذا الحساب اليتيم ({{ conflit.user.email }})؟');"
            style="background:#dc3545; color:white; border-radius:8px; padding:8px 20px; text-decoration:none; display:inline-block;">🗑️ حذف الحساب اليتيم</a>
+        {% elif conflit.archive %}
+        <div>
+            يوجد حساب <strong>مؤرشف</strong> بهذا البريد الإلكتروني ({{ inscription.email }}).
+            يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول هذا الطلب.
+        </div>
         {% else %}
         <div>
             يوجد حساب نشط بهذا البريد الإلكتروني ({{ inscription.email }}) مرتبط بملف شخصي آخر

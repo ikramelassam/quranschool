@@ -25,7 +25,7 @@
                 <option value="">بدون معلم</option>
                 {% for prof in profs %}
                 <option value="{{ prof.id }}" {% if groupe.prof == prof %}selected{% endif %}>
-                    {{ prof.user.get_full_name }}
+                    {{ prof.user.get_full_name }}{% if prof.statut == 'archive' %} (مؤرشف — يُستحسن إسناد أستاذ آخر){% endif %}
                 </option>
                 {% endfor %}
             </select>

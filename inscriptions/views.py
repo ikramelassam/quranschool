@@ -150,6 +150,7 @@ def inscription_prof(request):
         disponibilites = request.POST.getlist('dispo')
         compte_bancaire = request.POST.get('compte_bancaire', '').strip()
         rib = request.POST.get('rib', '').strip()
+        agence_bancaire = request.POST.get('agence_bancaire', '').strip()
         telephone = request.POST.get('telephone', '').strip()
         audio_enregistrement = request.FILES.get('audio_enregistrement')
 
@@ -170,6 +171,8 @@ def inscription_prof(request):
             champs_manquants.append('رقم الحساب البنكي')
         if not rib:
             champs_manquants.append('RIB')
+        if not agence_bancaire:
+            champs_manquants.append('اسم الوكالة البنكية')
         if not telephone:
             champs_manquants.append('رقم الهاتف')
         if not audio_enregistrement:
@@ -204,6 +207,7 @@ def inscription_prof(request):
             contrainte_genre=request.POST.getlist('contrainte_genre'),
             compte_bancaire=compte_bancaire,
             rib=rib,
+            agence_bancaire=agence_bancaire,
             audio_enregistrement=audio_enregistrement,
             disponibilites=disponibilites,
         )

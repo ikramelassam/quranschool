@@ -50,7 +50,7 @@ def groupes_list(request):
     context = {
         'groupes': paginer(request, groupes, 10),
         'aucun_creneau': not Creneau.objects.filter(est_actif=True).exists(),
-        'profs': Prof.objects.select_related('user').order_by('user__first_name'),
+        'profs': Prof.actifs.select_related('user').order_by('user__first_name'),
         'creneaux': Creneau.objects.order_by('id'),
         'filtres': {
             'statut': statut,
@@ -66,6 +66,7 @@ def groupes_list(request):
 @role_required('admin')
 def groupe_ajouter(request):
     creneaux = Creneau.objects.filter(est_actif=True)
+    profs = Prof.actifs.all()
 
     if request.method == 'POST':
         creneau_id = request.POST.get('creneau')
@@ -73,21 +74,30 @@ def groupe_ajouter(request):
             messages.error(request, 'يجب اختيار حلقة قبل إنشاء المجموعة. أنشئ حلقة أولاً إذا لم تتوفر أي حلقة.')
             return render(request, 'courses/admin_groupe_ajouter.html', {
                 'creneaux': creneaux,
-                'profs': Prof.objects.all(),
+                'profs': profs,
             })
 
         prof_id = request.POST.get('prof') or None
         confirme = request.POST.get('confirme') == '1'
         avertissements_prof = []
         if prof_id:
+            # Revalidé côté serveur même si le <select> exclut déjà les profs
+            # archivés (Prof.actifs) — se protège contre un POST direct avec un
+            # id manipulé (chantier d'archivage du 2026-08-03).
             prof_obj = get_object_or_404(Prof, id=prof_id)
+            if prof_obj.statut == 'archive':
+                messages.error(request, f'تعذّر إسناد {prof_obj.user.get_full_name()}: هذا الأستاذ مؤرشف.')
+                return render(request, 'courses/admin_groupe_ajouter.html', {
+                    'creneaux': creneaux,
+                    'profs': profs,
+                })
             creneau_obj = get_object_or_404(Creneau, id=creneau_id)
             manquants = creneaux_manquants_pour_prof(prof_obj, creneau_obj)
             if manquants:
                 messages.error(request, _message_incompatibilite(prof_obj, manquants))
                 return render(request, 'courses/admin_groupe_ajouter.html', {
                     'creneaux': creneaux,
-                    'profs': Prof.objects.all(),
+                    'profs': profs,
                 })
 
             avertissements_prof = avertissements_prof_creneau(prof_obj, creneau_obj)
@@ -103,7 +113,7 @@ def groupe_ajouter(request):
                 )
                 return render(request, 'courses/admin_groupe_ajouter.html', {
                     'creneaux': creneaux,
-                    'profs': Prof.objects.all(),
+                    'profs': profs,
                     'groupe': groupe_previsualise,
                     'avertissements_prof': avertissements_prof,
                 })
@@ -123,7 +133,6 @@ def groupe_ajouter(request):
         messages.success(request, 'تمت إضافة المجموعة وتوليد حصصها تلقائياً بنجاح.')
         return redirect('admin_groupes')
 
-    profs = Prof.objects.all()
     return render(request, 'courses/admin_groupe_ajouter.html', {
         'creneaux': creneaux,
         'profs': profs,
@@ -148,8 +157,13 @@ def _retirer_eleve_du_groupe(eleve, groupe):
 @role_required('admin', 'mshrif')
 def groupe_detail(request, groupe_id):
     groupe = get_object_or_404(Groupe, id=groupe_id)
-    eleves_disponibles = Eleve.objects.exclude(groupes=groupe)
-    autres_groupes_actifs = Groupe.objects.filter(statut='actif').exclude(id=groupe.id).select_related('creneau')
+    eleves_disponibles = Eleve.actifs.exclude(groupes=groupe)
+    autres_groupes_actifs = (
+        Groupe.objects.filter(statut='actif')
+        .exclude(id=groupe.id)
+        .exclude(prof__statut='archive')
+        .select_related('creneau')
+    )
 
     # État "en attente de confirmation" (Tâche 18, Partie D) — recalculé à
     # chaque affichage à partir du seul ID transmis par l'URL, jamais depuis
@@ -268,7 +282,14 @@ def groupe_transferer_eleve(request, groupe_id, eleve_id):
 def groupe_modifier(request, groupe_id):
     groupe = get_object_or_404(Groupe, id=groupe_id)
     creneaux = Creneau.objects.filter(est_actif=True)
-    profs = Prof.objects.all()
+    # Prof.actifs exclut les archivés du choix — SAUF le prof déjà assigné à ce
+    # groupe s'il vient d'être archivé: on le garde visible (étiqueté "مؤرشف"
+    # dans le template) pour que l'admin voie clairement qui est en place et
+    # puisse le réassigner explicitement, plutôt que de le faire disparaître
+    # silencieusement du formulaire (chantier d'archivage du 2026-08-03).
+    profs = list(Prof.actifs.all())
+    if groupe.prof_id and groupe.prof and groupe.prof.statut == 'archive' and groupe.prof not in profs:
+        profs.append(groupe.prof)
 
     if request.method == 'POST':
         nouveau_creneau_id = request.POST.get('creneau')
@@ -291,6 +312,16 @@ def groupe_modifier(request, groupe_id):
         # matrice de dispo incomplète) devient bloqué pour toute autre modification (ex: lien_reunion).
         if nouveau_prof_id and (creneau_a_change or prof_a_change):
             prof_obj = get_object_or_404(Prof, id=nouveau_prof_id)
+            # Revalidé côté serveur (le <select> exclut déjà les archivés, sauf le
+            # prof déjà en place — voir plus haut) — se protège contre un POST
+            # direct choisissant un AUTRE prof archivé que celui déjà assigné.
+            if prof_a_change and prof_obj.statut == 'archive':
+                messages.error(request, f'تعذّر إسناد {prof_obj.user.get_full_name()}: هذا الأستاذ مؤرشف.')
+                return render(request, 'courses/admin_groupe_modifier.html', {
+                    'groupe': groupe,
+                    'creneaux': creneaux,
+                    'profs': profs,
+                })
             creneau_obj = get_object_or_404(Creneau, id=nouveau_creneau_id)
             manquants = creneaux_manquants_pour_prof(prof_obj, creneau_obj)
             if manquants:

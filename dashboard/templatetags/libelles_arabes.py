@@ -121,5 +121,6 @@ def noms_eleves(eleves_manager):
     séparés par '، ' — utilisé sur les listes de séances à venir (prof + élève) pour
     afficher qui est dans la halqa sans clic supplémentaire. Passer le manager
     (ex: groupe.eleves, pas groupe.eleves.all) pour profiter du prefetch_related
-    déjà fait côté vue plutôt que de redéclencher une requête."""
-    return '، '.join(e.user.get_full_name() for e in eleves_manager.all())
+    déjà fait côté vue plutôt que de redéclencher une requête.
+    Exclut les élèves archivés (chantier d'archivage du 2026-08-03)."""
+    return '، '.join(e.user.get_full_name() for e in eleves_manager.all() if e.statut != 'archive')

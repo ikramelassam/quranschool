@@ -140,6 +140,7 @@ class InscriptionProf(models.Model):
     parcours_enseignant = models.TextField()
     compte_bancaire = models.CharField(max_length=50)
     rib = models.CharField(max_length=50)
+    agence_bancaire = models.CharField(max_length=100)
     audio_enregistrement = models.FileField(
         upload_to='audio_inscriptions/',
         null=True,

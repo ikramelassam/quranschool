@@ -130,6 +130,10 @@
         <span style="color:#888;">RIB</span>
         <span style="font-weight:600;">{{ inscription.rib|default:"—" }}</span>
     </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">اسم الوكالة البنكية</span>
+        <span style="font-weight:600;">{{ inscription.agence_bancaire|default:"—" }}</span>
+    </div>
 
     <!-- Disponibilités horaires -->
     <div style="color:var(--color-role-mshrif-solid); font-weight:700; border-bottom:2px solid var(--color-role-mshrif-solid); padding-bottom:6px; margin:20px 0 12px;">الأوقات المتاحة للتدريس المصرَّح بها</div>
@@ -157,6 +161,11 @@
         <a href="{% url 'admin_supprimer_user_orphelin' conflit.user.id %}?next={{ request.path }}"
            onclick="return confirm('هل أنت متأكد من حذف هذا الحساب اليتيم ({{ conflit.user.email }})؟');"
            style="background:#dc3545; color:white; border-radius:8px; padding:8px 20px; text-decoration:none; display:inline-block;">🗑️ حذف الحساب اليتيم</a>
+        {% elif conflit.archive %}
+        <div>
+            يوجد حساب <strong>مؤرشف</strong> بهذا البريد الإلكتروني ({{ inscription.email }}).
+            يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول هذا الطلب.
+        </div>
         {% else %}
         <div>
             يوجد حساب نشط بهذا البريد الإلكتروني ({{ inscription.email }}) مرتبط بملف شخصي آخر

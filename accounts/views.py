@@ -12,8 +12,17 @@ def login_view(request):
         password = request.POST.get('password')
         
         user = authenticate(request, username=email, password=password)
-        
+
         if user is not None:
+            # EmailBackend.authenticate() (accounts.backend) valide le mot de passe
+            # sans regarder is_active — le check est fait ici, séparément, pour
+            # afficher un message clair et distinct plutôt que le message générique
+            # "mot de passe incorrect" (voir accounts.services.archiver_eleve/prof,
+            # qui met is_active=False à l'archivage — chantier du 2026-08-03).
+            if not user.is_active:
+                return render(request, 'accounts/login.html', {
+                    'error': 'حسابك مؤرشف حالياً، تواصل مع الإدارة.'
+                })
             login(request, user)
             return redirect_by_role(user)
         else:

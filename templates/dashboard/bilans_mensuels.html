@@ -83,6 +83,22 @@
         <div style="font-weight:700;">{{ eleve_seance.user.get_full_name }}</div>
         <a href="{% url 'bilans_mensuels' %}" style="color:#888; text-decoration:none; font-size:0.85rem;">عرض طالب آخر (من قائمة "شهري")</a>
     </div>
+
+    <!-- Indicateur permanent du filtre actif — jamais ambigu sur ce que montre
+         la liste ci-dessous (Tâche du 2026-08-03: ce mode ignorait auparavant
+         le filtre "الشهر" en silence). -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding:0 4px;">
+        {% if filtres.mois %}
+        <div style="font-size:0.85rem; color:#555;">
+            📅 حصص شهر <strong>{{ mois_seance_reference|mois_annee_ar }}</strong> فقط
+            <a href="?eleve={{ eleve_seance.id }}&onglet=seance" style="color:#dc3545; text-decoration:none; font-weight:700; margin-right:4px;" title="إزالة تصفية الشهر">(×)</a>
+        </div>
+        <a href="?eleve={{ eleve_seance.id }}&onglet=seance" style="color:{{ couleur_role }}; text-decoration:none; font-size:0.85rem; font-weight:600;">عرض كل التاريخ</a>
+        {% else %}
+        <div style="font-size:0.85rem; color:#888;">📅 كل التاريخ</div>
+        {% endif %}
+    </div>
+
     <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
         {% include 'dashboard/_historique_evaluations_eleve.html' with historique=progression_seance.historique %}
     </div>

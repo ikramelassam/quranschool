@@ -4,6 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib import messages
 from accounts.decorators import role_required
+from accounts.services import eleves_pour_filtre
 from core.utils import paginer, envoyer_notification_telegram
 from accounts.models import Eleve
 from .models import Paiement
@@ -28,6 +29,13 @@ def eleve_paiements(request):
     eleve = get_object_or_404(Eleve, user=request.user)
 
     if request.method == 'POST':
+        # Défense en profondeur: un élève archivé ne peut plus se connecter (voir
+        # accounts.services.archiver_eleve), donc cette vue est normalement
+        # inatteignable pour lui — garde explicite malgré tout, chantier du 2026-08-03.
+        if eleve.statut == 'archive':
+            messages.error(request, 'حسابك مؤرشف — لا يمكن إرسال دفعات جديدة.')
+            return redirect('eleve_paiements')
+
         from dashboard.templatetags.libelles_arabes import mois_annee_ar
 
         paiement = Paiement.objects.create(
@@ -67,6 +75,7 @@ def admin_paiements(request):
     eleve_id = request.GET.get('eleve', '')
     mois = request.GET.get('mois', '')
     groupe_id = request.GET.get('groupe', '')
+    afficher_archives = request.GET.get('afficher_archives') == '1'
 
     paiements = Paiement.objects.select_related('eleve__user').order_by('-date')
     if statut:
@@ -84,13 +93,14 @@ def admin_paiements(request):
 
     context = {
         'paiements': paginer(request, paiements, 10),
-        'eleves': Eleve.objects.select_related('user').order_by('user__first_name'),
+        'eleves': eleves_pour_filtre(afficher_archives, eleve_id),
         'groupes': Groupe.objects.order_by('nom'),
         'filtres': {
             'statut': statut,
             'eleve': eleve_id,
             'mois': mois,
             'groupe': groupe_id,
+            'afficher_archives': afficher_archives,
         },
         'base_template': _base_template_admin_ou_mshrif(request),
     }
@@ -153,7 +163,12 @@ def suivi_paiements_eleves(request):
     donnees = []
     for groupe in groupes_qs:
         lignes_eleves = []
-        for eleve in groupe.eleves.all():
+        # exclude(statut='archive') — sinon un élève archivé accumule indéfiniment
+        # des mois "غير مدفوع" fantômes après son archivage, alors qu'aucun nouveau
+        # paiement ne peut plus être créé pour lui (chantier d'archivage du
+        # 2026-08-03). Son historique de paiements passés reste consultable via
+        # 'إدارة المدفوعات' (admin_paiements), non filtrée.
+        for eleve in groupe.eleves.exclude(statut='archive'):
             depart = eleve.user.date_joined.date()
             annee, mois = depart.year, depart.month
             mois_payes = mois_payes_par_eleve.get(eleve.id, set())
@@ -233,6 +248,9 @@ def paiement_panel_sauvegarder(request):
         return redirect('suivi_paiements_eleves')
 
     eleve = get_object_or_404(Eleve, id=request.POST.get('eleve_id'))
+    if eleve.statut == 'archive':
+        messages.error(request, f'تعذر الحفظ: {eleve.user.get_full_name()} مؤرشف.')
+        return redirect('suivi_paiements_eleves')
     mois_str = request.POST.get('mois', '')
     try:
         annee, mois_num = (int(x) for x in mois_str.split('-'))

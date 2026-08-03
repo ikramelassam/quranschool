@@ -154,7 +154,14 @@ def raison_incompatibilite_groupe(eleve, groupe):
 
     Programme/riwaya/sexe ne sont PLUS bloquants depuis la Tâche 14 (demande
     client explicite) : voir avertissements_groupe pour ces 3 critères,
-    désormais informatifs seulement."""
+    désormais informatifs seulement.
+
+    Élève archivé: bloquant depuis le chantier d'archivage du 2026-08-03 — c'est
+    le seul point de passage commun à l'ajout, au transfert et à la confirmation
+    malgré avertissement, donc le bon (et unique) endroit pour l'interdire."""
+    if eleve.statut == 'archive':
+        return "الطالب مؤرشف — يجب إعادة تفعيله أولاً قبل إضافته إلى مجموعة."
+
     if groupe.eleves.filter(id=eleve.id).exists():
         return "الطالب منضم بالفعل إلى هذه المجموعة."
 
@@ -396,10 +403,17 @@ def etendre_seances(groupe, horizon_semaines=HORIZON_SEMAINES):
 def etendre_toutes_les_seances():
     """Appelée à chaque visite des pages séances/calendrier admin: pousse l'horizon
     de génération de tous les groupes actifs ayant un créneau, sans jamais retoucher
-    aux semaines déjà couvertes."""
+    aux semaines déjà couvertes.
+
+    Exclut les groupes dont le prof est archivé (chantier du 2026-08-03): pas de
+    plantage, mais plus aucune nouvelle séance générée pour un groupe sans prof
+    actif — les séances déjà générées restent intactes, à annuler/reporter ou à
+    faire reprendre par un nouveau prof manuellement (voir admin_prof_detail,
+    bannière d'avertissement affichée quand un prof archivé a encore des groupes)."""
     from .models import Groupe
 
-    for groupe in Groupe.objects.filter(statut='actif', creneau__isnull=False):
+    groupes = Groupe.objects.filter(statut='actif', creneau__isnull=False).exclude(prof__statut='archive')
+    for groupe in groupes:
         etendre_seances(groupe)
 
 
@@ -418,7 +432,7 @@ def regenerer_pour_nouveau_creneau(groupe):
     etendre_seances(groupe)
 
 
-def calculer_progression_eleve(eleve):
+def calculer_progression_eleve(eleve, mois=None):
     """Suivi de progression cumulé d'un élève, basé sur les ayats mémorisés
     (nb_ayat_memorises de chaque Presence). Compté en ayats, pas en pages
     (la pagination du mushaf varie selon l'édition/riwaya, l'ayah est universel).
@@ -430,7 +444,15 @@ def calculer_progression_eleve(eleve):
     contiguës (ex: 1-10 puis 60-74) restent deux blocs distincts (25 ayat au
     total) plutôt qu'une étendue [1,74] qui compterait à tort des ayat jamais
     mémorisés (11-59) comme acquis.
-    """
+
+    mois: filtre optionnel 'AAAA-MM' (ex: '2026-01') — ne restreint QUE les
+    Presence prises en compte, à ce mois précis. None (par défaut) = tout
+    l'historique, comportement inchangé pour tous les appels existants
+    (dashboard_eleve, eleve_progression, admin_eleve_detail). Utilisé
+    uniquement par dashboard.views.bilans_mensuels (onglet 'حسب الحصة') pour
+    respecter le filtre 'الشهر' actif (Tâche du 2026-08-03) — avant ce
+    paramètre, ce mode ignorait silencieusement le filtre et affichait
+    toujours tout l'historique, même avec ?mois=X dans l'URL."""
     from django.db.models import Q
     from .models import Presence
     from .quran_data import SOURATES_NOMS, SOURATES_NB_AYAT
@@ -443,7 +465,11 @@ def calculer_progression_eleve(eleve):
     # progression.historique pour afficher l'évaluation d'une séance.
     presences = Presence.objects.filter(eleve=eleve).filter(
         Q(sourate_memorisee__isnull=False) | Q(note_hifz__isnull=False)
-    ).select_related('seance').order_by('seance__date', 'seance__heure')
+    )
+    if mois:
+        annee, _, num_mois = mois.partition('-')
+        presences = presences.filter(seance__date__year=annee, seance__date__month=num_mois)
+    presences = presences.select_related('seance').order_by('seance__date', 'seance__heure')
 
     intervalles_par_sourate = {}
     notes_par_sourate = {}

@@ -87,6 +87,7 @@
                 <a href="{% url 'eleve_prof_detail' groupe.prof.id %}" style="color:var(--color-role-eleve-solid); font-weight:600; text-decoration:none;">
                     {{ groupe.prof.user.get_full_name }}
                 </a>
+                {% include 'dashboard/_badge_archive_prof.html' with prof=groupe.prof %}
             </div>
             <span style="display:inline-flex; gap:6px; align-items:center;">
                 {% include 'dashboard/_email_icon.html' with email=groupe.prof.user.email %}
