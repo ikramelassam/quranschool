@@ -764,6 +764,33 @@ def admin_programme_general(request):
     return render(request, 'dashboard/admin_programme_general.html', context)
 
 
+@role_required('admin', 'mshrif')
+def admin_visibilite_prof(request):
+    """Édition du réglage global de visibilité du profil prof côté élève —
+    مدير ET مشرف, mêmes permissions que admin_programme_general (Tâche du
+    2026-08-03). Un seul réglage, lu par _prof_infos_readonly.html (fiche
+    dédiée) et eleve_profil.html (carte "مجموعاتي ومعلمي") au moment du
+    rendu — effet immédiat et cohérent sur les deux affichages."""
+    from accounts.models import get_visibilite_prof
+
+    visibilite = get_visibilite_prof()
+    if request.method == 'POST':
+        visibilite.afficher_ville = request.POST.get('afficher_ville') == '1'
+        visibilite.afficher_certifications = request.POST.get('afficher_certifications') == '1'
+        visibilite.afficher_niveau_memorisation = request.POST.get('afficher_niveau_memorisation') == '1'
+        visibilite.afficher_type_eleve_preference = request.POST.get('afficher_type_eleve_preference') == '1'
+        visibilite.save()
+        messages.success(request, 'تم تحديث إعدادات الظهور بنجاح.')
+        return redirect('admin_visibilite_prof')
+
+    context = {
+        'visibilite': visibilite,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_visibilite_prof.html', context)
+
+
 @role_required('prof')
 def prof_evaluations(request):
     """تقييماتي — liste de toutes les évaluations élève déjà soumises par ce prof
@@ -1845,7 +1872,7 @@ def eleve_seance_detail(request, presence_id):
 
 @role_required('eleve')
 def eleve_profil(request):
-    from accounts.models import Eleve
+    from accounts.models import Eleve, get_visibilite_prof
     from django.contrib.auth import get_user_model
     User = get_user_model()
     eleve = get_object_or_404(Eleve, user=request.user)
@@ -1856,18 +1883,20 @@ def eleve_profil(request):
         # Bouton "تعديل" du téléphone — même pattern que Tâche 5 (lecture seule
         # par défaut, édition seulement après clic explicite).
         'modifier_telephone': request.GET.get('modifier_telephone') == '1',
+        'visibilite_prof': get_visibilite_prof(),
     })
 
 
 @role_required('eleve')
 def eleve_prof_detail(request, prof_id):
-    from accounts.models import Eleve, Prof
+    from accounts.models import Eleve, Prof, get_visibilite_prof
 
     eleve = get_object_or_404(Eleve, user=request.user)
     prof = get_object_or_404(Prof.objects.filter(groupes__eleves=eleve).distinct(), id=prof_id)
 
     return render(request, 'dashboard/eleve_prof_detail.html', {
         'prof': prof,
+        'visibilite': get_visibilite_prof(),
     })
 
 

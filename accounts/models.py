@@ -305,6 +305,39 @@ def get_logo_config():
     return config
 
 
+class VisibiliteProf(models.Model):
+    """Réglage global (مدير + مشرف, mêmes permissions que ProgrammeGeneral) de
+    quels champs du profil professeur restent visibles côté élève — singleton
+    comme CharteEnseignement/ProgrammeGeneral/LogoConfig (Tâche du 2026-08-03,
+    confidentialité prof côté élève). Ne couvre QUE les 4 champs déjà gardés
+    après le retrait du contact direct/langues/parcours (voir
+    templates/dashboard/_prof_infos_readonly.html, contexte='eleve') — ces
+    autres champs restent masqués côté élève sans configuration possible.
+    Lu par _prof_infos_readonly.html (fiche dédiée) ET eleve_profil.html
+    (carte "مجموعاتي ومعلمي") au moment du rendu — un seul réglage, jamais
+    copié, donc effet immédiat et cohérent sur les deux affichages."""
+    afficher_ville = models.BooleanField(default=True)
+    afficher_certifications = models.BooleanField(default=True)
+    afficher_niveau_memorisation = models.BooleanField(default=True)
+    afficher_type_eleve_preference = models.BooleanField(default=True)
+    date_modification = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "إعدادات ظهور بيانات الأستاذ للطالب"
+
+    class Meta:
+        verbose_name = "Visibilité du profil professeur (élève)"
+        verbose_name_plural = "Visibilité du profil professeur (élève)"
+
+
+def get_visibilite_prof():
+    """Renvoie l'unique instance de VisibiliteProf, en la créant (valeurs par
+    défaut: tout visible, comportement actuel préservé) si elle n'existe pas
+    encore — même patron singleton que get_charte()/get_programme_general()."""
+    visibilite, _ = VisibiliteProf.objects.get_or_create(pk=1)
+    return visibilite
+
+
 class Superviseur(models.Model):
     user = models.OneToOneField(
         User,

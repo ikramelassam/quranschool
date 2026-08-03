@@ -6,6 +6,13 @@ Paramètre optionnel contexte : 'eleve' masque tout moyen de contact direct
 moyen de contacter directement son prof, ni voir langues/parcours). Tout
 autre appel (paramètre absent, ex: superviseur_prof_detail.html) garde le
 comportement d'origine, inchangé.
+
+Paramètre optionnel visibilite (accounts.models.VisibiliteProf, voir
+get_visibilite_prof) : n'a d'effet QUE combiné à contexte='eleve' — contrôle
+individuellement les 4 champs restants (ville/certifications/niveau/catégorie
+préférée) pour le seul rôle élève, réglable par مدير/مشرف sur
+admin_visibilite_prof. Absent (ou contexte != 'eleve') = ces 4 champs
+toujours affichés, comportement inchangé pour مؤطر/admin/مشرف.
 {% endcomment %}
 <div style="color:{{ couleur_accent }}; font-weight:700; border-bottom:2px solid {{ couleur_accent }}; padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
 {% if contexte != 'eleve' %}
@@ -20,18 +27,24 @@ comportement d'origine, inchangé.
     </span>
 </div>
 {% endif %}
+{% if contexte != 'eleve' or visibilite.afficher_ville %}
 <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
     <span style="color:#888;">المدينة</span>
     <span style="font-weight:600;">{{ prof.ville }}</span>
 </div>
+{% endif %}
+{% if contexte != 'eleve' or visibilite.afficher_niveau_memorisation %}
 <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
     <span style="color:#888;">مستوى الحفظ</span>
     <span style="font-weight:600;">{{ prof.niveau_memorisation }}</span>
 </div>
+{% endif %}
+{% if contexte != 'eleve' or visibilite.afficher_certifications %}
 <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
     <span style="color:#888;">الشهادات</span>
     <span style="font-weight:600;">{{ prof.certifications|default:"—" }}</span>
 </div>
+{% endif %}
 
 <div style="color:{{ couleur_accent }}; font-weight:700; border-bottom:2px solid {{ couleur_accent }}; padding-bottom:6px; margin:20px 0 12px;">الكفاءات</div>
 {% if contexte != 'eleve' %}
@@ -44,10 +57,12 @@ comportement d'origine, inchangé.
     <span style="font-weight:600;">{{ prof.outils_maitrises|libelles_arabes_liste:"outils_maitrises" }}</span>
 </div>
 {% endif %}
+{% if contexte != 'eleve' or visibilite.afficher_type_eleve_preference %}
 <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
     <span style="color:#888;">الفئة المفضلة</span>
     <span style="font-weight:600;">{{ prof.type_eleve_preference|libelles_arabes_liste:"type_eleve_preference" }}</span>
 </div>
+{% endif %}
 
 {% if contexte != 'eleve' %}
 <div style="color:{{ couleur_accent }}; font-weight:700; border-bottom:2px solid {{ couleur_accent }}; padding-bottom:6px; margin:20px 0 12px;">المسار</div>

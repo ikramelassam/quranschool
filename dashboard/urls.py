@@ -114,6 +114,7 @@ urlpatterns = [
     path('admin/utilisateurs/<int:user_id>/modifier-email/', views.admin_utilisateur_modifier_email, name='admin_utilisateur_modifier_email'),
     path('admin/mon-compte/', views.admin_mon_compte, name='admin_mon_compte'),
     path('admin/programme-general/', views.admin_programme_general, name='admin_programme_general'),
+    path('admin/visibilite-prof/', views.admin_visibilite_prof, name='admin_visibilite_prof'),
 
     # Bilans mensuels élèves (prof: saisie ; مدير/مؤطر/مشرف: lecture seule)
     path('prof/evaluations/', views.prof_evaluations, name='prof_evaluations'),

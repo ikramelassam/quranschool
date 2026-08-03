@@ -214,7 +214,7 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'mshrif_logo' or request.resolver_match.url_name == 'password_change' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'mshrif_logo' or request.resolver_match.url_name == 'password_change' %}open{% endif %}>
             <summary>إعدادات المنصة</summary>
             <a href="{% url 'mshrif_charte' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_charte' %}active{% endif %}">
@@ -223,6 +223,10 @@
             <a href="{% url 'admin_programme_general' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_programme_general' %}active{% endif %}">
                 <span class="icon">📘</span> البرنامج العام
+            </a>
+            <a href="{% url 'admin_visibilite_prof' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_visibilite_prof' %}active{% endif %}">
+                <span class="icon">👁️</span> ظهور بيانات الأستاذ للطالب
             </a>
             <a href="{% url 'mshrif_logo' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_logo' %}active{% endif %}">
