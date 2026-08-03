@@ -768,17 +768,22 @@ def admin_programme_general(request):
 def admin_visibilite_prof(request):
     """Édition du réglage global de visibilité du profil prof côté élève —
     مدير ET مشرف, mêmes permissions que admin_programme_general (Tâche du
-    2026-08-03). Un seul réglage, lu par _prof_infos_readonly.html (fiche
-    dédiée) et eleve_profil.html (carte "مجموعاتي ومعلمي") au moment du
-    rendu — effet immédiat et cohérent sur les deux affichages."""
+    2026-08-03, étendue le même jour à toutes les sections de la fiche, y
+    compris le contact). Un seul réglage, lu uniquement par
+    eleve_prof_detail.html au moment du rendu."""
     from accounts.models import get_visibilite_prof
+
+    CHAMPS = [
+        'afficher_contact', 'afficher_ville', 'afficher_certifications',
+        'afficher_niveau_memorisation', 'afficher_type_eleve_preference',
+        'afficher_langues', 'afficher_outils_communication',
+        'afficher_parcours_scolaire', 'afficher_parcours_educatif',
+    ]
 
     visibilite = get_visibilite_prof()
     if request.method == 'POST':
-        visibilite.afficher_ville = request.POST.get('afficher_ville') == '1'
-        visibilite.afficher_certifications = request.POST.get('afficher_certifications') == '1'
-        visibilite.afficher_niveau_memorisation = request.POST.get('afficher_niveau_memorisation') == '1'
-        visibilite.afficher_type_eleve_preference = request.POST.get('afficher_type_eleve_preference') == '1'
+        for champ in CHAMPS:
+            setattr(visibilite, champ, request.POST.get(champ) == '1')
         visibilite.save()
         messages.success(request, 'تم تحديث إعدادات الظهور بنجاح.')
         return redirect('admin_visibilite_prof')
@@ -1872,7 +1877,7 @@ def eleve_seance_detail(request, presence_id):
 
 @role_required('eleve')
 def eleve_profil(request):
-    from accounts.models import Eleve, get_visibilite_prof
+    from accounts.models import Eleve
     from django.contrib.auth import get_user_model
     User = get_user_model()
     eleve = get_object_or_404(Eleve, user=request.user)
@@ -1883,20 +1888,42 @@ def eleve_profil(request):
         # Bouton "تعديل" du téléphone — même pattern que Tâche 5 (lecture seule
         # par défaut, édition seulement après clic explicite).
         'modifier_telephone': request.GET.get('modifier_telephone') == '1',
-        'visibilite_prof': get_visibilite_prof(),
     })
 
 
 @role_required('eleve')
 def eleve_prof_detail(request, prof_id):
+    """Fiche prof — design carte avec avatar/initiales (Tâche du 2026-08-03,
+    refonte visuelle). Seule page où les sections optionnelles de la fiche
+    prof s'affichent côté élève, selon accounts.models.VisibiliteProf ;
+    eleve_profil.html ne montre plus que le nom en lien simple vers ici."""
     from accounts.models import Eleve, Prof, get_visibilite_prof
 
     eleve = get_object_or_404(Eleve, user=request.user)
     prof = get_object_or_404(Prof.objects.filter(groupes__eleves=eleve).distinct(), id=prof_id)
+    visibilite = get_visibilite_prof()
+
+    # certifications est un TextField libre (pas une liste) — une pill par
+    # diplôme suppose une séparation par virgule, convention la plus naturelle
+    # pour ce genre de champ ; un seul élément si aucune virgule.
+    certifications_liste = [c.strip() for c in prof.certifications.split(',') if c.strip()]
+
+    a_du_contenu = any([
+        visibilite.afficher_contact,
+        visibilite.afficher_niveau_memorisation,
+        visibilite.afficher_type_eleve_preference,
+        visibilite.afficher_langues,
+        visibilite.afficher_parcours_scolaire,
+        visibilite.afficher_parcours_educatif,
+        visibilite.afficher_certifications and certifications_liste,
+        visibilite.afficher_outils_communication and prof.outils_maitrises,
+    ])
 
     return render(request, 'dashboard/eleve_prof_detail.html', {
         'prof': prof,
-        'visibilite': get_visibilite_prof(),
+        'visibilite': visibilite,
+        'certifications_liste': certifications_liste,
+        'a_du_contenu': a_du_contenu,
     })
 
 

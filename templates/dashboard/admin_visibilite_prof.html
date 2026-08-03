@@ -2,12 +2,31 @@
 {% block title %}ظهور بيانات الأستاذ للطالب{% endblock %}
 {% block content %}
 <style>
-.vp-card { background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:18px; max-width:700px; }
-.vp-field { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f0f0f0; }
+.vp-card {
+    background:var(--color-bg-cream); border:1px solid rgba(139,75,0,0.15);
+    border-radius:14px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.05);
+    margin-bottom:18px; max-width:720px;
+}
+.vp-card-title {
+    color:var(--color-brand-gold-dark); font-weight:700; font-size:0.95rem;
+    border-bottom:1px solid rgba(139,75,0,0.15); padding-bottom:8px; margin-bottom:6px;
+}
+.vp-field { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid rgba(139,75,0,0.1); }
 .vp-field:last-child { border-bottom:none; }
-.vp-field-label { font-weight:600; }
-.vp-field-hint { color:#888; font-size:0.8rem; margin-top:2px; }
-.vp-switch { width:20px; height:20px; }
+.vp-field-label { font-weight:600; color:var(--color-text-primary); }
+.vp-field-hint { color:var(--color-text-muted); font-size:0.78rem; margin-top:2px; }
+
+/* Interrupteur (toggle switch) — off = rond à droite/fond clair, on = rond
+   glisse à gauche/fond doré, cohérent avec le sens de lecture RTL du site. */
+.toggle-switch { position:relative; display:inline-block; width:46px; height:26px; flex-shrink:0; }
+.toggle-switch input { opacity:0; width:0; height:0; position:absolute; }
+.toggle-slider { position:absolute; inset:0; cursor:pointer; background-color:#E5DDD0; transition:.2s; border-radius:26px; }
+.toggle-slider:before {
+    position:absolute; content:""; height:20px; width:20px; right:3px; bottom:3px;
+    background-color:#fff; transition:.2s; border-radius:50%; box-shadow:0 1px 2px rgba(0,0,0,0.2);
+}
+.toggle-switch input:checked + .toggle-slider { background-color:var(--color-brand-gold-dark); }
+.toggle-switch input:checked + .toggle-slider:before { transform:translateX(-20px); }
 </style>
 
 <div class="page-title">ظهور بيانات الأستاذ للطالب</div>
@@ -17,38 +36,109 @@
     {% csrf_token %}
 
     <div class="vp-card">
+        <div class="vp-card-title">📞 التواصل والتفاعل</div>
         <div class="vp-field">
             <div>
-                <div class="vp-field-label">المدينة</div>
-                <div class="vp-field-hint">مدينة إقامة الأستاذ</div>
+                <div class="vp-field-label">معلومات التواصل المباشر</div>
+                <div class="vp-field-hint">رقم الهاتف، وأيقونتا واتساب والبريد الإلكتروني</div>
             </div>
-            <input type="checkbox" class="vp-switch" name="afficher_ville" value="1" {% if visibilite.afficher_ville %}checked{% endif %}>
+            <label class="toggle-switch">
+                <input type="checkbox" name="afficher_contact" value="1" {% if visibilite.afficher_contact %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="vp-field">
+            <div>
+                <div class="vp-field-label">أدوات التواصل</div>
+                <div class="vp-field-hint">واتساب، Google Meet، Zoom...</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="afficher_outils_communication" value="1" {% if visibilite.afficher_outils_communication %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="vp-card">
+        <div class="vp-card-title">🎓 المعلومات الأكاديمية</div>
+        <div class="vp-field">
+            <div>
+                <div class="vp-field-label">مستوى الحفظ</div>
+                <div class="vp-field-hint">مستوى حفظ الأستاذ للقرآن الكريم</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="afficher_niveau_memorisation" value="1" {% if visibilite.afficher_niveau_memorisation %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
         </div>
         <div class="vp-field">
             <div>
                 <div class="vp-field-label">الشهادات</div>
                 <div class="vp-field-hint">الشهادات التي يحملها الأستاذ</div>
             </div>
-            <input type="checkbox" class="vp-switch" name="afficher_certifications" value="1" {% if visibilite.afficher_certifications %}checked{% endif %}>
+            <label class="toggle-switch">
+                <input type="checkbox" name="afficher_certifications" value="1" {% if visibilite.afficher_certifications %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
         </div>
         <div class="vp-field">
             <div>
-                <div class="vp-field-label">مستوى الحفظ</div>
-                <div class="vp-field-hint">مستوى حفظ الأستاذ للقرآن الكريم</div>
+                <div class="vp-field-label">اللغات</div>
+                <div class="vp-field-hint">اللغات التي يتقنها الأستاذ</div>
             </div>
-            <input type="checkbox" class="vp-switch" name="afficher_niveau_memorisation" value="1" {% if visibilite.afficher_niveau_memorisation %}checked{% endif %}>
+            <label class="toggle-switch">
+                <input type="checkbox" name="afficher_langues" value="1" {% if visibilite.afficher_langues %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="vp-field">
+            <div>
+                <div class="vp-field-label">المسار الدراسي</div>
+                <div class="vp-field-hint">المسار الدراسي للأستاذ</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="afficher_parcours_scolaire" value="1" {% if visibilite.afficher_parcours_scolaire %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="vp-field">
+            <div>
+                <div class="vp-field-label">المسار التعليمي</div>
+                <div class="vp-field-hint">مسار الأستاذ في التدريس</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="afficher_parcours_educatif" value="1" {% if visibilite.afficher_parcours_educatif %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="vp-card">
+        <div class="vp-card-title">📋 أخرى</div>
+        <div class="vp-field">
+            <div>
+                <div class="vp-field-label">المدينة</div>
+                <div class="vp-field-hint">مدينة إقامة الأستاذ</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="afficher_ville" value="1" {% if visibilite.afficher_ville %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
         </div>
         <div class="vp-field">
             <div>
                 <div class="vp-field-label">الفئة المفضلة</div>
                 <div class="vp-field-hint">الفئة العمرية التي يفضل الأستاذ التدريس لها</div>
             </div>
-            <input type="checkbox" class="vp-switch" name="afficher_type_eleve_preference" value="1" {% if visibilite.afficher_type_eleve_preference %}checked{% endif %}>
+            <label class="toggle-switch">
+                <input type="checkbox" name="afficher_type_eleve_preference" value="1" {% if visibilite.afficher_type_eleve_preference %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
         </div>
     </div>
 
-    <div style="color:#888; font-size:0.8rem; margin-bottom:16px; max-width:700px;">
-        هذه الحقول الأربعة هي فقط ما يمكن للطالب رؤيته من ملف أستاذه — بقية المعلومات (التواصل المباشر، اللغات، أدوات التواصل، المسار الدراسي والتعليمي) تبقى مخفية دائماً عن الطالب ولا يمكن إظهارها من هنا.
+    <div style="color:var(--color-text-muted); font-size:0.8rem; margin-bottom:16px; max-width:720px;">
+        هذه هي الحقول الوحيدة القابلة للتخصيص من ملف الأستاذ للطالب — الاسم يبقى ظاهراً دائماً، ولا تأثير لهذه الإعدادات على ما يراه المشرف أو المؤطر.
     </div>
 
     <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">حفظ التعديلات ✅</button>

@@ -309,17 +309,25 @@ class VisibiliteProf(models.Model):
     """Réglage global (مدير + مشرف, mêmes permissions que ProgrammeGeneral) de
     quels champs du profil professeur restent visibles côté élève — singleton
     comme CharteEnseignement/ProgrammeGeneral/LogoConfig (Tâche du 2026-08-03,
-    confidentialité prof côté élève). Ne couvre QUE les 4 champs déjà gardés
-    après le retrait du contact direct/langues/parcours (voir
-    templates/dashboard/_prof_infos_readonly.html, contexte='eleve') — ces
-    autres champs restent masqués côté élève sans configuration possible.
-    Lu par _prof_infos_readonly.html (fiche dédiée) ET eleve_profil.html
-    (carte "مجموعاتي ومعلمي") au moment du rendu — un seul réglage, jamais
-    copié, donc effet immédiat et cohérent sur les deux affichages."""
+    étendue le même jour : couvre désormais TOUTES les sections de la fiche,
+    y compris le contact direct — la décision de le bloquer en dur a été
+    remplacée par un réglage configurable, pas supprimée définitivement).
+    Lu uniquement par eleve_prof_detail.html (seule page où ces sections
+    s'affichent désormais — voir sa docstring de vue) au moment du rendu.
+    afficher_contact/langues/outils_communication/parcours_scolaire/
+    parcours_educatif sont de nouveaux champs, tous à False par défaut (la
+    migration qui les ajoute ne change rien au comportement existant tant
+    que مدير/مشرف n'y touchent pas) ; afficher_ville/certifications/
+    niveau_memorisation/type_eleve_preference existaient déjà, inchangés."""
+    afficher_contact = models.BooleanField(default=False)
     afficher_ville = models.BooleanField(default=True)
     afficher_certifications = models.BooleanField(default=True)
     afficher_niveau_memorisation = models.BooleanField(default=True)
     afficher_type_eleve_preference = models.BooleanField(default=True)
+    afficher_langues = models.BooleanField(default=False)
+    afficher_outils_communication = models.BooleanField(default=False)
+    afficher_parcours_scolaire = models.BooleanField(default=False)
+    afficher_parcours_educatif = models.BooleanField(default=False)
     date_modification = models.DateTimeField(auto_now=True)
 
     def __str__(self):

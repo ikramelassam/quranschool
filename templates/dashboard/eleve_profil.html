@@ -81,27 +81,14 @@
             {% if groupe.creneau %}<span style="color:#888; font-weight:400; font-size:0.85rem;"> — {{ groupe.creneau }}</span>{% endif %}
         </div>
         {% if groupe.prof %}
-        <div style="font-size:0.85rem; margin-top:6px;">
-            <span style="color:#888;">المعلم:</span>
-            <!-- Repliée par défaut: un clic sur le nom déplie ville + شهادات
-                 directement sur place, sans changer de page (Tâche du
-                 2026-08-03 — corrige un repliable posé au mauvais endroit
-                 lors d'une itération précédente). -->
-            <details style="display:inline-block; vertical-align:middle;">
-                <summary style="cursor:pointer; display:inline; color:var(--color-role-eleve-solid); font-weight:600;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; margin-top:6px; flex-wrap:wrap; gap:8px;">
+            <div>
+                المعلم:
+                <a href="{% url 'eleve_prof_detail' groupe.prof.id %}" style="color:var(--color-role-eleve-solid); font-weight:600; text-decoration:none;">
                     {{ groupe.prof.user.get_full_name }}
-                </summary>
-                <div style="margin-top:8px; color:#555;">
-                    {% if visibilite_prof.afficher_ville %}
-                    <div>المدينة: <span style="font-weight:600; color:#333;">{{ groupe.prof.ville }}</span></div>
-                    {% endif %}
-                    {% if visibilite_prof.afficher_certifications %}
-                    <div style="margin-top:4px;">الشهادات: <span style="font-weight:600; color:#333;">{{ groupe.prof.certifications|default:"—" }}</span></div>
-                    {% endif %}
-                    <a href="{% url 'eleve_prof_detail' groupe.prof.id %}" style="color:var(--color-role-eleve-solid); font-size:0.8rem; text-decoration:none; display:inline-block; margin-top:6px;">عرض الملف الكامل ←</a>
-                </div>
-            </details>
-            {% include 'dashboard/_badge_archive_prof.html' with prof=groupe.prof %}
+                </a>
+                {% include 'dashboard/_badge_archive_prof.html' with prof=groupe.prof %}
+            </div>
         </div>
         {% endif %}
     </div>
