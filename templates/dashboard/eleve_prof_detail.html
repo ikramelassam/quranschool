@@ -1,11 +1,16 @@
 {% extends 'dashboard/base_eleve.html' %}
 {% block title %}{{ prof.user.get_full_name }}{% endblock %}
 {% block content %}
-<div class="page-title">{{ prof.user.get_full_name }}</div>
-<div class="page-subtitle">{{ prof.ville }}</div>
-
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    {% include 'dashboard/_prof_infos_readonly.html' with prof=prof couleur_accent='var(--color-role-eleve-solid)' %}
+    <!-- Repliée par défaut: seul le nom est visible tant qu'on ne clique pas
+         dessus (Tâche du 2026-08-03 — pas de contact direct affiché en clair,
+         et le reste des infos n'est montré qu'à la demande). -->
+    <details>
+        <summary class="page-title" style="cursor:pointer; margin-bottom:0;">{{ prof.user.get_full_name }}</summary>
+        <div style="margin-top:20px;">
+            {% include 'dashboard/_prof_infos_readonly.html' with prof=prof couleur_accent='var(--color-role-eleve-solid)' contexte='eleve' %}
+        </div>
+    </details>
 
     <div class="mt-4">
         <a href="{% url 'eleve_profil' %}" style="color:#888; text-decoration:none;">← رجوع</a>

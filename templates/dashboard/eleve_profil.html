@@ -89,10 +89,6 @@
                 </a>
                 {% include 'dashboard/_badge_archive_prof.html' with prof=groupe.prof %}
             </div>
-            <span style="display:inline-flex; gap:6px; align-items:center;">
-                {% include 'dashboard/_email_icon.html' with email=groupe.prof.user.email %}
-                {% include 'dashboard/_whatsapp_icon.html' with telephone=groupe.prof.user.telephone %}
-            </span>
         </div>
         {% endif %}
     </div>
