@@ -215,7 +215,6 @@ def inscription_eleve_formulaire(request, type_age):
             sexe=request.POST.get('sexe'),
             telephone=telephone_complet,
             email=email,
-            job_actuel=request.POST.get('job_actuel', ''),
             programme=request.POST.get('programme'),
             riwaya=request.POST.get('riwaya'),
             outil=request.POST.get('outil'),
@@ -269,6 +268,7 @@ def inscription_prof(request):
         compte_bancaire = request.POST.get('compte_bancaire', '').strip()
         rib = request.POST.get('rib', '').strip()
         agence_bancaire = request.POST.get('agence_bancaire', '').strip()
+        job_actuel = request.POST.get('job_actuel', '').strip()
         audio_enregistrement = request.FILES.get('audio_enregistrement')
 
         if _email_deja_utilise(email):
@@ -299,6 +299,8 @@ def inscription_prof(request):
             champs_manquants.append('RIB')
         if not agence_bancaire:
             champs_manquants.append('اسم الوكالة البنكية')
+        if not job_actuel:
+            champs_manquants.append('العمل الحالي')
         if not audio_enregistrement:
             champs_manquants.append('التسجيل الصوتي')
 
@@ -317,7 +319,7 @@ def inscription_prof(request):
             telephone=telephone_complet,
             ville=request.POST.get('ville'),
             statut_familial=request.POST.get('statut_familial'),
-            job_actuel=request.POST.get('job_actuel'),
+            job_actuel=job_actuel,
             certifications=request.POST.get('certifications'),
             niveau_memorisation=request.POST.get('niveau_memorisation'),
             parcours_scolaire=request.POST.get('parcours_scolaire'),
