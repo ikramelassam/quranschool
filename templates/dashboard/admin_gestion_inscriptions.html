@@ -1,0 +1,88 @@
+{% extends base_template %}
+{% block title %}إدارة فتح التسجيل{% endblock %}
+{% block content %}
+<style>
+.gi-card {
+    background:var(--color-bg-cream); border:1px solid rgba(139,75,0,0.15);
+    border-radius:14px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.05);
+    margin-bottom:18px; max-width:720px;
+}
+.gi-field { display:flex; justify-content:space-between; align-items:center; padding:16px 0; border-bottom:1px solid rgba(139,75,0,0.1); }
+.gi-field:last-child { border-bottom:none; }
+.gi-field-label { font-weight:700; color:var(--color-text-primary); font-size:1rem; }
+.gi-statut { font-size:0.82rem; font-weight:600; margin-top:4px; }
+.gi-statut.ouverte { color:#2D5A3D; }
+.gi-statut.fermee { color:#B3261E; }
+
+/* Interrupteur — identique au patron de admin_visibilite_prof.html */
+.toggle-switch { position:relative; display:inline-block; width:46px; height:26px; flex-shrink:0; }
+.toggle-switch input { opacity:0; width:0; height:0; position:absolute; }
+.toggle-slider { position:absolute; inset:0; cursor:pointer; background-color:#E5DDD0; transition:.2s; border-radius:26px; }
+.toggle-slider:before {
+    position:absolute; content:""; height:20px; width:20px; right:3px; bottom:3px;
+    background-color:#fff; transition:.2s; border-radius:50%; box-shadow:0 1px 2px rgba(0,0,0,0.2);
+}
+.toggle-switch input:checked + .toggle-slider { background-color:var(--color-brand-gold-dark); }
+.toggle-switch input:checked + .toggle-slider:before { transform:translateX(-20px); }
+</style>
+
+<div class="page-title">إدارة فتح التسجيل</div>
+<div class="page-subtitle">
+    آخر تعديل:
+    {% if parametres.derniere_modification_par %}{{ parametres.derniere_modification_par.get_full_name }} — {% endif %}
+    {{ parametres.date_modification|date:"d-m-Y H:i" }}
+</div>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <div class="gi-card">
+        <div class="gi-field">
+            <div>
+                <div class="gi-field-label">الطلاب البالغون</div>
+                <div class="gi-statut {% if parametres.ouverte_eleve_adulte %}ouverte{% else %}fermee{% endif %}">
+                    {% if parametres.ouverte_eleve_adulte %}التسجيل مفتوح حالياً{% else %}التسجيل مغلق حالياً{% endif %}
+                </div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="ouverte_eleve_adulte" value="1" {% if parametres.ouverte_eleve_adulte %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
+        <div class="gi-field">
+            <div>
+                <div class="gi-field-label">الطلاب الأطفال</div>
+                <div class="gi-statut {% if parametres.ouverte_eleve_enfant %}ouverte{% else %}fermee{% endif %}">
+                    {% if parametres.ouverte_eleve_enfant %}التسجيل مفتوح حالياً{% else %}التسجيل مغلق حالياً{% endif %}
+                </div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="ouverte_eleve_enfant" value="1" {% if parametres.ouverte_eleve_enfant %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
+        <div class="gi-field">
+            <div>
+                <div class="gi-field-label">الأساتذة</div>
+                <div class="gi-statut {% if parametres.ouverte_prof %}ouverte{% else %}fermee{% endif %}">
+                    {% if parametres.ouverte_prof %}التسجيل مفتوح حالياً{% else %}التسجيل مغلق حالياً{% endif %}
+                </div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="ouverte_prof" value="1" {% if parametres.ouverte_prof %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div style="color:var(--color-text-muted); font-size:0.8rem; margin-bottom:16px; max-width:720px;">
+        عند إغلاق فئة، يبقى زر التسجيل ظاهراً للزوار كالمعتاد، لكنهم يصلون إلى رسالة توضح أن
+        التسجيل متوقف مؤقتاً. لا يؤثر هذا على الطلبات المُقدَّمة سابقاً — تبقى قابلة للمراجعة والقبول
+        بشكل طبيعي.
+    </div>
+
+    <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">حفظ التعديلات ✅</button>
+</form>
+{% endblock %}

@@ -115,6 +115,7 @@ urlpatterns = [
     path('admin/mon-compte/', views.admin_mon_compte, name='admin_mon_compte'),
     path('admin/programme-general/', views.admin_programme_general, name='admin_programme_general'),
     path('admin/visibilite-prof/', views.admin_visibilite_prof, name='admin_visibilite_prof'),
+    path('admin/gestion-inscriptions/', views.admin_gestion_inscriptions, name='admin_gestion_inscriptions'),
 
     # Bilans mensuels élèves (prof: saisie ; مدير/مؤطر/مشرف: lecture seule)
     path('prof/evaluations/', views.prof_evaluations, name='prof_evaluations'),

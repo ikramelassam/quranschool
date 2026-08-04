@@ -3,10 +3,28 @@ import datetime
 from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-from .models import InscriptionEleve, InscriptionProf, TypeAbonnement
+from .models import InscriptionEleve, InscriptionProf, TypeAbonnement, get_parametres_inscriptions
 from core.utils import envoyer_notification_telegram
 from courses.utils import AGE_SEUIL_ADULTE, tranche_age_depuis_naissance
 import json
+
+CATEGORIE_LABEL = {
+    'adulte': 'الطلاب البالغون',
+    'enfant': 'الطلاب الأطفال',
+    'prof': 'الأساتذة',
+}
+
+
+def _reponse_categorie_fermee(request, categorie):
+    """Écran public partagé affiché quand une catégorie d'inscription est
+    fermée (chantier du 2026-08-04) — mêmes coordonnées admin que
+    dashboard/_contact_administration.html (déjà réutilisé ailleurs), pour
+    ne pas inventer un nouveau mécanisme de contact."""
+    User = get_user_model()
+    return render(request, 'inscriptions/inscription_fermee.html', {
+        'categorie_label': CATEGORIE_LABEL[categorie],
+        'admins': User.objects.filter(role='admin'),
+    })
 
 MESSAGE_EMAIL_DEJA_UTILISE = (
     'هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد '
@@ -46,6 +64,16 @@ def inscription_eleve_choix(request):
 
 def inscription_eleve_formulaire(request, type_age):
     from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
+
+    # Garde AVANT tout traitement GET/POST — une requête directe (bouton
+    # normal, POST manipulé, script) sur une catégorie fermée ne doit jamais
+    # atteindre la logique de création, pas seulement voir le bouton caché
+    # côté affichage (chantier du 2026-08-04).
+    parametres = get_parametres_inscriptions()
+    if type_age == 'adulte' and not parametres.ouverte_eleve_adulte:
+        return _reponse_categorie_fermee(request, 'adulte')
+    if type_age == 'enfant' and not parametres.ouverte_eleve_enfant:
+        return _reponse_categorie_fermee(request, 'enfant')
 
     types_abonnement_json = json.dumps([{
         'code': t.code,
@@ -139,6 +167,10 @@ def inscription_confirmation(request):
 
 def inscription_prof(request):
     from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
+
+    # Même garde que inscription_eleve_formulaire — voir son commentaire.
+    if not get_parametres_inscriptions().ouverte_prof:
+        return _reponse_categorie_fermee(request, 'prof')
 
     contexte_grille = {
         'jours': JOURS_SEMAINE_DISPO,

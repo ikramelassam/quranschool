@@ -796,6 +796,34 @@ def admin_visibilite_prof(request):
     return render(request, 'dashboard/admin_visibilite_prof.html', context)
 
 
+@role_required('admin', 'mshrif')
+def admin_gestion_inscriptions(request):
+    """Ouverture/fermeture des inscriptions publiques par catégorie (élève
+    adulte, élève enfant, prof) — مدير ET مشرف, même patron que
+    admin_visibilite_prof (Tâche du 2026-08-04). N'affecte que la création de
+    nouvelles candidatures (inscriptions.views.inscription_eleve_formulaire/
+    inscription_prof) — jamais les candidatures déjà soumises ni leur
+    traitement admin/مشرف."""
+    from inscriptions.models import get_parametres_inscriptions
+
+    parametres = get_parametres_inscriptions()
+    if request.method == 'POST':
+        parametres.ouverte_eleve_adulte = request.POST.get('ouverte_eleve_adulte') == '1'
+        parametres.ouverte_eleve_enfant = request.POST.get('ouverte_eleve_enfant') == '1'
+        parametres.ouverte_prof = request.POST.get('ouverte_prof') == '1'
+        parametres.derniere_modification_par = request.user
+        parametres.save()
+        messages.success(request, 'تم تحديث إعدادات التسجيل بنجاح.')
+        return redirect('admin_gestion_inscriptions')
+
+    context = {
+        'parametres': parametres,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_gestion_inscriptions.html', context)
+
+
 @role_required('prof')
 def prof_evaluations(request):
     """تقييماتي — liste de toutes les évaluations élève déjà soumises par ce prof

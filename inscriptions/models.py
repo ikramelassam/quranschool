@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -163,3 +164,50 @@ class InscriptionProf(models.Model):
     class Meta:
         verbose_name = "Inscription Professeur"
         verbose_name_plural = "Inscriptions Professeurs"
+
+
+class ParametresInscriptions(models.Model):
+    """Réglage global (مدير + مشرف) d'ouverture/fermeture des inscriptions
+    publiques, par catégorie — singleton comme VisibiliteProf/ProgrammeGeneral
+    (Tâche du 2026-08-04). Trois interrupteurs indépendants : élève adulte,
+    élève enfant (même modèle InscriptionEleve, distingués uniquement par le
+    paramètre d'URL type_age — voir inscriptions.views.inscription_eleve_formulaire,
+    aucun champ 'catégorie' séparé n'existe sur InscriptionEleve) et professeur.
+    Lu par inscriptions.views.inscription_eleve_formulaire/inscription_prof
+    AVANT tout traitement GET/POST : catégorie fermée = même écran public
+    (templates/inscriptions/inscription_fermee.html) quel que soit le chemin
+    d'accès (bouton normal ou requête directe/POST). N'affecte jamais les
+    candidatures déjà soumises ni leur traitement admin/مشرف — uniquement la
+    création de nouvelles candidatures.
+
+    derniere_modification_par: contrairement aux autres singletons du projet
+    (qui ne tracent que date_modification), le format demandé ici ("آخر
+    تعديل: [utilisateur] — [date]") nécessite de savoir QUI a fait le dernier
+    changement, pas seulement quand — nouveau champ, pas une simple reprise
+    du patron existant."""
+    ouverte_eleve_adulte = models.BooleanField(default=True)
+    ouverte_eleve_enfant = models.BooleanField(default=True)
+    ouverte_prof = models.BooleanField(default=True)
+    derniere_modification_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+    )
+    date_modification = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "إعدادات فتح/إغلاق التسجيل"
+
+    class Meta:
+        verbose_name = "Paramètres d'inscription"
+        verbose_name_plural = "Paramètres d'inscription"
+
+
+def get_parametres_inscriptions():
+    """Renvoie l'unique instance de ParametresInscriptions, en la créant
+    (valeurs par défaut: tout ouvert, comportement actuel préservé) si elle
+    n'existe pas encore — même patron singleton que get_charte()/
+    get_programme_general()/get_visibilite_prof()."""
+    parametres, _ = ParametresInscriptions.objects.get_or_create(pk=1)
+    return parametres
