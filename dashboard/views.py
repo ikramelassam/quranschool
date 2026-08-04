@@ -778,6 +778,7 @@ def admin_visibilite_prof(request):
         'afficher_niveau_memorisation', 'afficher_type_eleve_preference',
         'afficher_langues', 'afficher_outils_communication',
         'afficher_parcours_scolaire', 'afficher_parcours_educatif',
+        'afficher_travail_actuel',
     ]
 
     visibilite = get_visibilite_prof()
@@ -1536,6 +1537,7 @@ def mshrif_valider_prof_final(request, inscription_id):
             user=user,
             statut='actif',
             ville=inscription.ville,
+            job_actuel=inscription.job_actuel,
             certifications=inscription.certifications,
             niveau_memorisation=inscription.niveau_memorisation,
             parcours_scolaire=inscription.parcours_scolaire,
@@ -1945,6 +1947,7 @@ def eleve_prof_detail(request, prof_id):
         visibilite.afficher_parcours_educatif,
         visibilite.afficher_certifications and certifications_liste,
         visibilite.afficher_outils_communication and prof.outils_maitrises,
+        visibilite.afficher_travail_actuel and prof.job_actuel,
     ])
 
     return render(request, 'dashboard/eleve_prof_detail.html', {
@@ -2601,6 +2604,7 @@ def admin_prof_donnees_actuelles_modifier(request, prof_id):
 
     if request.method == 'POST':
         prof.ville = request.POST.get('ville', '').strip()
+        prof.job_actuel = request.POST.get('job_actuel', '').strip()
         prof.niveau_memorisation = request.POST.get('niveau_memorisation', '').strip()
         prof.certifications = request.POST.get('certifications', '').strip()
         prof.parcours_scolaire = request.POST.get('parcours_scolaire', '').strip()
@@ -3171,10 +3175,29 @@ def classement_mensuel_commentaire(request, prof_id):
 
 @role_required('admin', 'mshrif')
 def admin_superviseurs(request):
+    """Liste des مؤطرين — مдير et مشرف y ont déjà accès tous les deux (ce
+    dernier en lecture seule, voir le template), mais sans recherche ni
+    pagination jusqu'ici, contrairement à admin_eleves/admin_profs (Tâche du
+    2026-08-04, même patron appliqué ici). Pas de filtre par statut actif/
+    archivé : Superviseur n'a aucun champ de statut ni système d'archivage
+    (contrairement à Eleve/Prof) — ajouter ça serait un chantier à part
+    entière (statut, blocage de connexion, invalidation de session...), pas
+    juste un filtre de liste, donc volontairement laissé de côté ici."""
+    from django.db.models import Q
     from accounts.models import Superviseur
+
+    q = request.GET.get('q', '').strip()
     superviseurs = Superviseur.objects.select_related('user').prefetch_related('profs_assignes').order_by('user__first_name')
+    if q:
+        superviseurs = superviseurs.filter(
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q) |
+            Q(user__email__icontains=q)
+        )
+
     context = {
-        'superviseurs': superviseurs,
+        'superviseurs': paginer(request, superviseurs, 10),
+        'q': q,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))

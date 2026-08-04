@@ -33,6 +33,13 @@
     </div>
     {% endif %}
 
+    {% if visibilite.afficher_travail_actuel and prof.job_actuel %}
+    <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(139,75,0,0.1);">
+        <span style="color:var(--color-text-muted); font-size:0.85rem;">العمل الحالي</span>
+        <span style="font-weight:600; color:var(--color-text-primary);">{{ prof.job_actuel }}</span>
+    </div>
+    {% endif %}
+
     {% if visibilite.afficher_niveau_memorisation %}
     <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(139,75,0,0.1);">
         <span style="color:var(--color-text-muted); font-size:0.85rem;">مستوى الحفظ</span>

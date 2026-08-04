@@ -1,4 +1,5 @@
 import datetime
+import re
 
 from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model
@@ -35,6 +36,79 @@ MESSAGE_AGE_NE_CORRESPOND_PAS = {
     'adulte': 'يبدو أنك بالغ (18 سنة فما فوق) — يرجى استخدام نموذج التسجيل الخاص بالبالغين.',
     'enfant': 'يبدو أنك طفل (أقل من 18 سنة) — يرجى استخدام نموذج التسجيل الخاص بالأطفال.',
 }
+
+
+# Longueurs plausibles (min, max) du numéro LOCAL (indicatif exclu, zéro
+# initial déjà retiré) par indicatif — couvre la liste déroulante de
+# _verification_whatsapp.html. Indicatif absent de cette table (option
+# "دولة أخرى" ou saisie libre) : on retombe sur une fourchette générique
+# E.164 large plutôt que de bloquer un pays non prévu (Tâche du 2026-08-04,
+# Point 3 — "pas une règle fixe marocaine").
+INDICATIFS_LONGUEUR_LOCALE = {
+    '212': (9, 9),   # Maroc
+    '33': (9, 9),    # France
+    '34': (9, 9),    # Espagne
+    '32': (8, 9),    # Belgique
+    '31': (9, 9),    # Pays-Bas
+    '39': (9, 10),   # Italie
+    '49': (10, 11),  # Allemagne
+    '1': (10, 10),   # USA/Canada
+    '971': (8, 9),   # Émirats
+    '966': (8, 9),   # Arabie Saoudite
+}
+LONGUEUR_LOCALE_GENERIQUE = (6, 12)
+
+MESSAGE_TELEPHONE_MISMATCH = 'رقم الهاتف وتأكيده غير متطابقين.'
+MESSAGE_TELEPHONE_INVALIDE = 'رقم الهاتف غير صحيح — يرجى التحقق من رمز الدولة والرقم المدخل.'
+
+
+def _normaliser_telephone(valeur):
+    """Retire espaces/tirets/parenthèses avant comparaison — même
+    normalisation que wa_normaliser() côté JS (_verification_whatsapp.html),
+    reproduite ici car le JS n'est qu'un confort visuel, jamais une garantie
+    (POST direct possible sans JS)."""
+    return re.sub(r'[\s\-()]', '', valeur or '')
+
+
+def _construire_et_valider_telephone(request):
+    """Combine indicatif_pays(+indicatif_pays_autre)/telephone soumis par
+    _verification_whatsapp.html en un numéro complet au format "+<indicatif><local>"
+    (compatible tel quel avec le filtre wa_number existant, voir
+    dashboard.templatetags.libelles_arabes), revalide la double saisie et le
+    format selon le pays choisi — jamais confiance au JS seul (Tâche du
+    2026-08-04, Point 3). Renvoie (numero_complet, None) si valide, ou
+    (None, message_erreur) sinon."""
+    indicatif_choisi = request.POST.get('indicatif_pays', '').strip()
+    if indicatif_choisi == 'autre':
+        indicatif = re.sub(r'[^0-9]', '', request.POST.get('indicatif_pays_autre', ''))
+    else:
+        indicatif = re.sub(r'[^0-9]', '', indicatif_choisi)
+
+    telephone_brut = request.POST.get('telephone', '')
+    confirmation_brut = request.POST.get('telephone_confirmation', '')
+
+    if _normaliser_telephone(telephone_brut) != _normaliser_telephone(confirmation_brut):
+        return None, MESSAGE_TELEPHONE_MISMATCH
+
+    numero_local = re.sub(r'[^0-9]', '', telephone_brut)
+    if numero_local.startswith('0'):
+        numero_local = numero_local[1:]
+
+    if not indicatif or not numero_local:
+        return None, MESSAGE_TELEPHONE_INVALIDE
+
+    longueur_min, longueur_max = INDICATIFS_LONGUEUR_LOCALE.get(indicatif, LONGUEUR_LOCALE_GENERIQUE)
+    if not (longueur_min <= len(numero_local) <= longueur_max):
+        return None, MESSAGE_TELEPHONE_INVALIDE
+
+    # Garde-fou universel (norme E.164 : 15 chiffres max, indicatif inclus) —
+    # couvre aussi le cas "دولة أخرى" où indicatif_pays_autre est une saisie
+    # libre non bornée par INDICATIFS_LONGUEUR_LOCALE, pour ne jamais tenter
+    # d'insérer une valeur trop longue pour la colonne telephone (varchar(20)).
+    if len(indicatif) + len(numero_local) > 15:
+        return None, MESSAGE_TELEPHONE_INVALIDE
+
+    return f'+{indicatif}{numero_local}', None
 
 
 def _email_deja_utilise(email, exclure_user_id=None):
@@ -102,6 +176,17 @@ def inscription_eleve_formulaire(request, type_age):
                 **contexte_grille,
             })
 
+        telephone_complet, erreur_telephone = _construire_et_valider_telephone(request)
+        if erreur_telephone:
+            return render(request, 'inscriptions/eleve_formulaire.html', {
+                'type_age': type_age,
+                'types_abonnement_json': types_abonnement_json,
+                'erreur_telephone': erreur_telephone,
+                'old_email': email,
+                'valeurs_form': set(disponibilites),
+                **contexte_grille,
+            })
+
         # Garde-fou serveur, indépendant du JS de eleve_formulaire.html: même
         # une requête POST directe (JS désactivé, script, curl) ne peut pas
         # créer une InscriptionEleve dont la catégorie choisie (type_age, le
@@ -128,8 +213,9 @@ def inscription_eleve_formulaire(request, type_age):
             nom_parent=request.POST.get('nom_parent', ''),
             date_naissance=request.POST.get('date_naissance'),
             sexe=request.POST.get('sexe'),
-            telephone=request.POST.get('telephone'),
+            telephone=telephone_complet,
             email=email,
+            job_actuel=request.POST.get('job_actuel', ''),
             programme=request.POST.get('programme'),
             riwaya=request.POST.get('riwaya'),
             outil=request.POST.get('outil'),
@@ -183,12 +269,20 @@ def inscription_prof(request):
         compte_bancaire = request.POST.get('compte_bancaire', '').strip()
         rib = request.POST.get('rib', '').strip()
         agence_bancaire = request.POST.get('agence_bancaire', '').strip()
-        telephone = request.POST.get('telephone', '').strip()
         audio_enregistrement = request.FILES.get('audio_enregistrement')
 
         if _email_deja_utilise(email):
             return render(request, 'inscriptions/prof_formulaire.html', {
                 'erreur_email': MESSAGE_EMAIL_DEJA_UTILISE,
+                'old_email': email,
+                'valeurs_form': set(disponibilites),
+                **contexte_grille,
+            })
+
+        telephone_complet, erreur_telephone = _construire_et_valider_telephone(request)
+        if erreur_telephone:
+            return render(request, 'inscriptions/prof_formulaire.html', {
+                'erreur_telephone': erreur_telephone,
                 'old_email': email,
                 'valeurs_form': set(disponibilites),
                 **contexte_grille,
@@ -205,8 +299,6 @@ def inscription_prof(request):
             champs_manquants.append('RIB')
         if not agence_bancaire:
             champs_manquants.append('اسم الوكالة البنكية')
-        if not telephone:
-            champs_manquants.append('رقم الهاتف')
         if not audio_enregistrement:
             champs_manquants.append('التسجيل الصوتي')
 
@@ -222,7 +314,7 @@ def inscription_prof(request):
             nom=request.POST.get('nom'),
             prenom=request.POST.get('prenom'),
             date_naissance=request.POST.get('date_naissance'),
-            telephone=telephone,
+            telephone=telephone_complet,
             ville=request.POST.get('ville'),
             statut_familial=request.POST.get('statut_familial'),
             job_actuel=request.POST.get('job_actuel'),

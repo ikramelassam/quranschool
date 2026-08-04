@@ -1,0 +1,120 @@
+{% comment %}
+Champ téléphone/WhatsApp avec indicatif international, double saisie et bouton
+de vérification via wa.me — Tâche du 2026-08-04 (Point 3), partagé entre
+eleve_formulaire.html et prof_formulaire.html pour garantir un comportement
+identique sur les deux formulaires plutôt que de dupliquer le code.
+
+Le champ "telephone" soumis au serveur ne contient QUE le numéro local (ex:
+"0663394165") — l'indicatif est soumis séparément via "indicatif_pays" (+
+"indicatif_pays_autre" si "دولة أخرى" est choisi). C'est la vue qui combine
+et valide les deux côté serveur (voir inscriptions.views._construire_et_valider_telephone),
+jamais confiance au JS seul pour la correspondance de la double saisie ni pour
+le format. Usage : {% include 'inscriptions/_verification_whatsapp.html' %}
+{% endcomment %}
+<div class="mb-3">
+    <label class="form-label">رقم الهاتف (واتساب) *</label>
+    <div class="row g-2">
+        <div class="col-4">
+            <select name="indicatif_pays" id="wa_indicatif" class="form-select" onchange="wa_toggleAutre(); wa_miseAJourLien();">
+                <option value="212" selected>🇲🇦 +212</option>
+                <option value="33">🇫🇷 +33</option>
+                <option value="34">🇪🇸 +34</option>
+                <option value="32">🇧🇪 +32</option>
+                <option value="31">🇳🇱 +31</option>
+                <option value="39">🇮🇹 +39</option>
+                <option value="49">🇩🇪 +49</option>
+                <option value="1">🇺🇸 +1</option>
+                <option value="971">🇦🇪 +971</option>
+                <option value="966">🇸🇦 +966</option>
+                <option value="autre">🌍 دولة أخرى</option>
+            </select>
+        </div>
+        <div class="col-8">
+            <input type="tel" name="telephone" id="wa_telephone" class="form-control"
+                   placeholder="رقم الهاتف" required
+                   oninput="wa_miseAJourLien(); wa_verifierTelephoneMatch();">
+        </div>
+    </div>
+
+    <div id="wa_indicatif_autre_wrap" style="display:none; margin-top:8px;">
+        <input type="text" name="indicatif_pays_autre" id="wa_indicatif_autre" class="form-control"
+               placeholder="رمز الدولة، مثال: 20" oninput="wa_miseAJourLien();">
+    </div>
+
+    <div class="mt-2">
+        <label class="form-label" style="font-size:0.9rem;">تأكيد رقم الواتساب *</label>
+        <input type="tel" name="telephone_confirmation" id="wa_telephone_confirmation" class="form-control"
+               placeholder="أعد كتابة رقم الهاتف" required
+               oninput="wa_verifierTelephoneMatch();">
+        <div id="wa_erreur_confirmation" style="display:none; color:#B3261E; font-size:0.85rem; margin-top:6px;">
+            ⚠️ رقم التأكيد لا يطابق رقم الهاتف المدخل
+        </div>
+    </div>
+
+    <div style="background:#FDF3E0; border-right:3px solid var(--color-brand-gold-dark); border-radius:8px; padding:10px 14px; margin-top:10px; font-size:0.85rem; color:#7a4a00;">
+        يرجى التأكد جيدا من رقم الواتساب، فهو الوسيلة الأساسية للتواصل معك
+    </div>
+
+    <a href="#" id="wa_lien_verification" target="_blank" rel="noopener" onclick="return wa_ouvrirVerification();"
+       style="display:inline-block; margin-top:10px; background:white; border:1.5px solid var(--color-brand-gold-dark); color:var(--color-brand-gold-dark); border-radius:8px; padding:7px 16px; font-size:0.85rem; text-decoration:none; font-weight:600;">
+        ✅ التحقق عبر واتساب
+    </a>
+</div>
+
+<script>
+    function wa_toggleAutre() {
+        const select = document.getElementById('wa_indicatif');
+        document.getElementById('wa_indicatif_autre_wrap').style.display = (select.value === 'autre') ? 'block' : 'none';
+    }
+
+    function wa_numeroComplet() {
+        const select = document.getElementById('wa_indicatif');
+        let indicatif = select.value;
+        if (indicatif === 'autre') {
+            indicatif = document.getElementById('wa_indicatif_autre').value;
+        }
+        indicatif = indicatif.replace(/[^0-9]/g, '');
+        let numero = document.getElementById('wa_telephone').value.replace(/[^0-9]/g, '');
+        if (numero.charAt(0) === '0') {
+            numero = numero.substring(1);
+        }
+        if (!indicatif || !numero) return '';
+        return indicatif + numero;
+    }
+
+    function wa_miseAJourLien() {
+        const lien = document.getElementById('wa_lien_verification');
+        const complet = wa_numeroComplet();
+        lien.href = complet ? ('https://wa.me/' + complet) : '#';
+    }
+
+    function wa_ouvrirVerification() {
+        const complet = wa_numeroComplet();
+        if (!complet) {
+            alert('يرجى إدخال رقم الهاتف أولا.');
+            return false;
+        }
+        window.open('https://wa.me/' + complet, '_blank');
+        return false;
+    }
+
+    function wa_normaliser(valeur) {
+        return valeur.replace(/[\s\-()]/g, '');
+    }
+
+    function wa_verifierTelephoneMatch() {
+        const principal = wa_normaliser(document.getElementById('wa_telephone').value);
+        const confirmation = wa_normaliser(document.getElementById('wa_telephone_confirmation').value);
+        const champConfirmation = document.getElementById('wa_telephone_confirmation');
+        const erreur = document.getElementById('wa_erreur_confirmation');
+        if (confirmation.length > 0 && principal !== confirmation) {
+            erreur.style.display = 'block';
+            champConfirmation.setCustomValidity('لا يطابق رقم الهاتف');
+        } else {
+            erreur.style.display = 'none';
+            champConfirmation.setCustomValidity('');
+        }
+    }
+
+    wa_toggleAutre();
+</script>

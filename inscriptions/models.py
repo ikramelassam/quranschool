@@ -65,6 +65,9 @@ class InscriptionEleve(models.Model):
     sexe = models.CharField(max_length=10)
     telephone = models.CharField(max_length=20)
     email = models.EmailField()
+    # Optionnel (contrairement à InscriptionProf.job_actuel, obligatoire) —
+    # un enfant n'a généralement pas de travail actuel (Tâche du 2026-08-04).
+    job_actuel = models.CharField(max_length=100, blank=True)
 
     # Programme
     creneau_souhaite = models.ForeignKey(

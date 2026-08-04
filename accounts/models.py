@@ -115,6 +115,10 @@ class Prof(models.Model):
         default='actif'
     )
     ville = models.CharField(max_length=100)
+    # Copié depuis InscriptionProf.job_actuel à la validation (Tâche du
+    # 2026-08-04) — blank=True ici (contrairement à l'inscription où il est
+    # obligatoire) pour ne pas bloquer les profs déjà validés avant ce champ.
+    job_actuel = models.CharField(max_length=100, blank=True, default='')
     certifications = models.TextField(blank=True)
     niveau_memorisation = models.CharField(max_length=100)
     type_eleve_preference = models.JSONField(default=list)
@@ -328,6 +332,9 @@ class VisibiliteProf(models.Model):
     afficher_outils_communication = models.BooleanField(default=False)
     afficher_parcours_scolaire = models.BooleanField(default=False)
     afficher_parcours_educatif = models.BooleanField(default=False)
+    # Nouveau champ (Tâche du 2026-08-04), même patron : False par défaut,
+    # rien ne change tant que مدير/مشرف n'active pas explicitement.
+    afficher_travail_actuel = models.BooleanField(default=False)
     date_modification = models.DateTimeField(auto_now=True)
 
     def __str__(self):

@@ -135,6 +135,16 @@
                 <span class="toggle-slider"></span>
             </label>
         </div>
+        <div class="vp-field">
+            <div>
+                <div class="vp-field-label">العمل الحالي</div>
+                <div class="vp-field-hint">مهنة أو عمل الأستاذ الحالي خارج التدريس</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="afficher_travail_actuel" value="1" {% if visibilite.afficher_travail_actuel %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
     </div>
 
     <div style="color:var(--color-text-muted); font-size:0.8rem; margin-bottom:16px; max-width:720px;">

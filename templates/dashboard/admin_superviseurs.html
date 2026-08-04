@@ -4,7 +4,10 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <div class="page-title">إسناد المؤطرين إلى المعلمين</div>
-        <div class="page-subtitle">كل مؤطر لا يرى ولا يمكنه تقييم إلا المعلمين المُسندين إليه</div>
+        <div class="page-subtitle">
+            كل مؤطر لا يرى ولا يمكنه تقييم إلا المعلمين المُسندين إليه — الإجمالي: {{ superviseurs.paginator.count }}
+            {% if request.user.role == 'mshrif' %} — عرض للاطلاع فقط{% endif %}
+        </div>
     </div>
     {% if request.user.role != 'mshrif' %}
     <a href="{% url 'admin_superviseur_ajouter' %}"
@@ -13,6 +16,19 @@
     </a>
     {% endif %}
 </div>
+
+<form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-8">
+            <label style="color:#888; font-size:0.8rem;">بحث بالاسم أو البريد الإلكتروني</label>
+            <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="اكتب اسم المؤطر أو بريده الإلكتروني...">
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-brand-gold-dark){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">بحث</button>
+            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+        </div>
+    </div>
+</form>
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
     {% for s in superviseurs %}
@@ -35,7 +51,10 @@
         </div>
     </div>
     {% empty %}
-    <div style="text-align:center; padding:60px; color:#aaa;">لا يوجد مؤطرون بعد</div>
+    <div style="text-align:center; padding:60px; color:#aaa;">
+        {% if q %}لا توجد نتائج مطابقة لهذا البحث{% else %}لا يوجد مؤطرون بعد{% endif %}
+    </div>
     {% endfor %}
 </div>
+{% include 'dashboard/_pagination.html' with page_obj=superviseurs %}
 {% endblock %}

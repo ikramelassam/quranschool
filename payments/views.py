@@ -185,12 +185,16 @@ def suivi_paiements_eleves(request):
                     mois = 1
                     annee += 1
             mois_liste.reverse()
-            # "أظهر غير المدفوعين فقط" masque les élèves entièrement à jour — utile
-            # pour relancer vite les bonnes familles — mais garde l'historique complet
-            # (tous les mois, pas seulement les impayés) pour ceux qui restent affichés,
-            # afin de ne pas perdre le contexte de paiement déjà en place sur la page.
-            if impayes_seulement and not any(not m['paye'] for m in mois_liste):
-                continue
+            # "أظهر غير المدفوعين فقط" doit montrer UNIQUEMENT les mois impayes --
+            # fix Tache du 2026-08-04 (signale par le client) : l'ancien filtre ne
+            # decidait QUE quels eleves afficher (masquait ceux entierement a jour)
+            # mais gardait ensuite TOUS leurs mois, payes inclus, dans la ligne --
+            # un eleve avec ne serait-ce qu'un seul mois impaye affichait donc
+            # aussi tous ses mois payes a cote.
+            if impayes_seulement:
+                mois_liste = [m for m in mois_liste if not m['paye']]
+                if not mois_liste:
+                    continue
             # Limité aux 12 mois les plus récents par défaut + bouton "عرض الكل"
             # (Tâche 22 Partie F du 2026-07-26) — un élève inscrit depuis
             # plusieurs années afficherait sinon des dizaines de badges d'un coup.
