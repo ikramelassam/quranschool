@@ -269,7 +269,7 @@ def prof_seances(request):
 @role_required('prof')
 def prof_seance_detail(request, seance_id):
     from accounts.models import Prof
-    from courses.models import Seance, Presence
+    from courses.models import Seance, Presence, CritereEleve, NotePresence
     from courses.quran_data import SOURATES
 
     prof = get_object_or_404(Prof, user=request.user)
@@ -279,9 +279,18 @@ def prof_seance_detail(request, seance_id):
     # n'est pas affecté, seule cette liste "à remplir maintenant" l'exclut.
     eleves = seance.groupe.eleves.filter(statut='actif')
 
+    # Critères dynamiques (Point 7, Tâche du 2026-08-04) — remplacent les 4
+    # champs fixes note_hifz/note_muraja3a/note_tilawa/note_mouwazaba.
+    criteres_actifs = list(CritereEleve.objects.filter(est_actif=True).order_by('ordre'))
+
     # Django templates ne peuvent pas faire presences[eleve.id] (lookup par variable).
     # On construit donc directement la liste (élève, présence) dans la vue.
     presences_par_eleve = {p.eleve_id: p for p in Presence.objects.filter(seance=seance)}
+    # Même limitation pour les notes par critère : {(eleve_id, critere_id): note}.
+    notes_par_cellule = {
+        (n.presence.eleve_id, n.critere_id): n.note
+        for n in NotePresence.objects.filter(presence__seance=seance).select_related('presence')
+    }
     eleves_presences = []
     premiere_non_remplie_trouvee = False
     for eleve in eleves:
@@ -291,16 +300,22 @@ def prof_seance_detail(request, seance_id):
         ouvrir_par_defaut = not presence and not premiere_non_remplie_trouvee
         if not presence:
             premiere_non_remplie_trouvee = True
+        notes_criteres = [
+            {'critere': c, 'note': notes_par_cellule.get((eleve.id, c.id))}
+            for c in criteres_actifs
+        ]
         eleves_presences.append({
             'eleve': eleve,
             'presence': presence,
             'ouvrir_par_defaut': ouvrir_par_defaut,
+            'notes_criteres': notes_criteres,
         })
 
     return render(request, 'dashboard/prof_seance_detail.html', {
         'prof': prof,
         'seance': seance,
         'eleves_presences': eleves_presences,
+        'criteres_actifs': criteres_actifs,
         'sourates': SOURATES,
         'statut_choices': Presence.STATUT_CHOICES,
         # Une séance restée 'planifiee' après le délai de 24h n'est pas forcément
@@ -331,6 +346,15 @@ def prof_presence_sauvegarder(request, seance_id):
         return redirect('prof_seance_detail', seance_id=seance.id)
 
     if request.method == 'POST':
+        from courses.models import CritereEleve, NotePresence
+
+        # Critères dynamiques (Tâche du 2026-08-04, Point 7) — remplacent les 4
+        # champs fixes note_hifz/note_muraja3a/note_tilawa/note_mouwazaba
+        # (gelés désormais, jamais plus réécrits depuis cette vue, conservés
+        # uniquement pour l'historique antérieur à cette migration). Champ HTML
+        # attendu par élève : note_critere_<critere.id>_<eleve.id>.
+        criteres_actifs = list(CritereEleve.objects.filter(est_actif=True).order_by('ordre'))
+
         # Un élève suspendu/archivé ne doit plus apparaître dans les feuilles de
         # présence à venir (voir Tâche 3 du 2026-07-25) — son historique passé
         # n'est pas affecté, seule cette liste "à remplir maintenant" l'exclut.
@@ -348,15 +372,13 @@ def prof_presence_sauvegarder(request, seance_id):
             consigne_memorisation = request.POST.get(f'consigne_memo_{eleve.id}', '')
             consigne_revision = request.POST.get(f'consigne_rev_{eleve.id}', '')
 
-            # 4 critères numériques /20 (Tâche 9 du 2026-07-25) — remplacent
+            # Critères dynamiques /20 (Tâche du 2026-08-04, Point 7) — remplacent
             # l'ancienne échelle qualitative pour toute nouvelle évaluation
             # (note_memorisation/note_revision ne sont plus jamais réécrits
             # depuis cette vue, voir Presence.note_memorisation).
-            criteres_bruts = {
-                'note_hifz': request.POST.get(f'note_hifz_{eleve.id}', ''),
-                'note_muraja3a': request.POST.get(f'note_muraja3a_{eleve.id}', ''),
-                'note_tilawa': request.POST.get(f'note_tilawa_{eleve.id}', ''),
-                'note_mouwazaba': request.POST.get(f'note_mouwazaba_{eleve.id}', ''),
+            notes_brutes = {
+                critere.id: request.POST.get(f'note_critere_{critere.id}_{eleve.id}', '')
+                for critere in criteres_actifs
             }
 
             # Une plage d'ayat inversée (fin < début) donnerait un nombre d'ayat
@@ -394,28 +416,28 @@ def prof_presence_sauvegarder(request, seance_id):
                 )
                 ligne_invalide = True
 
-            # Les 4 critères /20 et les 2 consignes ne sont obligatoires que pour
+            # Les critères /20 et les 2 consignes ne sont obligatoires que pour
             # un élève marqué présent — rien à noter/consigner pour une absence
             # (voir Tâche 9 du 2026-07-25).
             notes_validees = {}
             if statut == 'present':
-                for champ, valeur_brute in criteres_bruts.items():
-                    nom_critere = NOMS_CRITERES_NOTATION[champ]
+                for critere in criteres_actifs:
+                    valeur_brute = notes_brutes[critere.id]
                     if not valeur_brute:
-                        erreurs.append(f'{eleve.user.get_full_name()}: يجب إدخال علامة {nom_critere}.')
+                        erreurs.append(f'{eleve.user.get_full_name()}: يجب إدخال علامة {critere.nom_ar}.')
                         ligne_invalide = True
                         continue
                     try:
                         valeur = int(valeur_brute)
                     except ValueError:
-                        erreurs.append(f'{eleve.user.get_full_name()}: علامة {nom_critere} غير صحيحة.')
+                        erreurs.append(f'{eleve.user.get_full_name()}: علامة {critere.nom_ar} غير صحيحة.')
                         ligne_invalide = True
                         continue
                     if not (1 <= valeur <= 20):
-                        erreurs.append(f'{eleve.user.get_full_name()}: علامة {nom_critere} يجب أن تكون بين 1 و20.')
+                        erreurs.append(f'{eleve.user.get_full_name()}: علامة {critere.nom_ar} يجب أن تكون بين 1 و20.')
                         ligne_invalide = True
                         continue
-                    notes_validees[champ] = valeur
+                    notes_validees[critere.id] = valeur
                 if not consigne_memorisation.strip():
                     erreurs.append(f'{eleve.user.get_full_name()}: يجب تحديد "المطلوب حفظه".')
                     ligne_invalide = True
@@ -423,14 +445,16 @@ def prof_presence_sauvegarder(request, seance_id):
                     erreurs.append(f'{eleve.user.get_full_name()}: يجب تحديد "المطلوب مراجعته".')
                     ligne_invalide = True
             else:
-                notes_validees = {champ: None for champ in criteres_bruts}
+                # notes_validees reste vide -> toute note existante est effacée
+                # ci-dessous (élève absent = rien à noter, même s'il avait déjà
+                # des notes suite à une correction de statut).
                 consigne_memorisation = ''
                 consigne_revision = ''
 
             if ligne_invalide:
                 continue
 
-            Presence.objects.update_or_create(
+            presence, _ = Presence.objects.update_or_create(
                 seance=seance,
                 eleve=eleve,
                 defaults={
@@ -444,9 +468,19 @@ def prof_presence_sauvegarder(request, seance_id):
                     'remarque': remarque,
                     'consigne_memorisation': consigne_memorisation,
                     'consigne_revision': consigne_revision,
-                    **notes_validees,
                 }
             )
+
+            # Notes par critère dynamique (Point 7) — table de jonction dédiée,
+            # plus les 4 champs fixes sur Presence (gelés, voir plus haut).
+            for critere in criteres_actifs:
+                if critere.id in notes_validees:
+                    NotePresence.objects.update_or_create(
+                        presence=presence, critere=critere,
+                        defaults={'note': notes_validees[critere.id]},
+                    )
+                else:
+                    NotePresence.objects.filter(presence=presence, critere=critere).delete()
 
         if erreurs:
             for erreur in erreurs:
@@ -461,16 +495,6 @@ def prof_presence_sauvegarder(request, seance_id):
         return redirect('prof_seances')
 
     return redirect('prof_seance_detail', seance_id=seance_id)
-
-
-# 4 critères numériques /20 de Presence (Tâche 9 du 2026-07-25) — noms arabes
-# affichés dans les messages d'erreur de prof_presence_sauvegarder.
-NOMS_CRITERES_NOTATION = {
-    'note_hifz': 'الحفظ',
-    'note_muraja3a': 'المراجعة',
-    'note_tilawa': 'التلاوة',
-    'note_mouwazaba': 'المواظبة والسلوك',
-}
 
 
 def _ayah_incoherentes(debut, fin):
@@ -656,11 +680,19 @@ def prof_charte(request):
 
 @role_required('prof')
 def prof_hakiba(request):
-    """Page d'atterrissage حقيبة الأستاذ — regroupe ميثاق التدريس (prof_charte, déjà
-    existant) et البرنامج العام (programme_general_detail) sous une seule entrée
-    sidebar, même sidebar restant plate (aucune base_*.html du projet n'a de
-    sous-menu) : un lien -> une page de cartes, comme les quick-links du مشرف."""
-    return render(request, 'dashboard/prof_hakiba.html')
+    """Page d'atterrissage حقيبة الأستاذ — section "روابط ثابتة" (ميثاق التدريس +
+    البرنامج العام, inchangés) + section "أضيفت من طرف الإدارة" listant les
+    ElementHakiba ajoutés par مدير/مشرف pour ce prof (Tâche du 2026-08-04,
+    Point 1 — décision explicite du client de fusionner le nouveau contenu
+    dans cette page existante plutôt que d'en créer une autre). Lecture seule :
+    la gestion (ajout/modification/suppression) se fait depuis admin_prof_detail,
+    jamais depuis ici."""
+    from accounts.models import Prof
+
+    prof = get_object_or_404(Prof, user=request.user)
+    return render(request, 'dashboard/prof_hakiba.html', {
+        'elements_hakiba': prof.elements_hakiba.all(),
+    })
 
 
 @role_required('prof', 'eleve', 'superviseur')
@@ -1004,69 +1036,79 @@ def bilan_mensuel_detail(request, eleve_id, mois):
 
 @role_required('admin', 'superviseur', 'mshrif')
 def bilans_mensuels(request):
-    """تقييم الطلاب — لائحة بيانات شهرية جاهزة (onglet "شهري", contenu inchangé
-    depuis toujours) + onglet "حسب الحصة" (Tâche 21 du 2026-07-26) qui réutilise
-    calculer_progression_eleve (même mécanisme que admin_eleve_detail.html,
-    voir _historique_evaluations_eleve.html) pour l'élève actuellement filtré.
+    """تقييم الطلاب — Niveau 1 (Point 11, Tâche du 2026-08-04) : parcours
+    unique par GROUPE, remplace les anciens onglets "شهري" (liste plate de
+    BilanMensuel) et "حسب الحصة" (vide tant qu'aucun élève n'était choisi
+    depuis "شهري"). Filtre "الطالب" retiré (remplacé par "المجموعة") — ceci
+    corrige au passage une fuite de périmètre : l'ancien menu déroulant
+    listait TOUS les élèves de la plateforme, y compris pour un مؤطر, sans
+    aucun scope. Le détail par séance d'un élève vit désormais sur une page
+    séparée (voir bilans_mensuels_detail_seance) plutôt qu'un 2e onglet.
     Lecture seule pour مدير/مؤطر/مشرف, مؤطر scopé à ses profs assignés (même
-    filtre que classement_mensuel_profs)."""
-    from accounts.models import Prof, Eleve, Superviseur
-    from courses.models import BilanMensuel, Presence
-    from courses.utils import calculer_progression_eleve
+    filtre que classement_mensuel_profs) — appliqué ici au niveau des GROUPES
+    eux-mêmes (queryset de base), pas juste des données affichées."""
+    from django.db.models import Avg
+    from accounts.models import Prof, Superviseur
+    from courses.models import BilanMensuel, Groupe, NotePresence
 
     mois = request.GET.get('mois', '')
     prof_id = request.GET.get('prof', '')
-    eleve_id = request.GET.get('eleve', '')
-    onglet = request.GET.get('onglet', 'mensuel')
+    groupe_id = request.GET.get('groupe', '')
 
-    bilans = BilanMensuel.objects.select_related('eleve__user', 'prof__user').order_by(
-        '-mois_reference', 'eleve__user__first_name'
-    )
-
+    groupes_scope = Groupe.objects.order_by('nom')
     if request.user.role == 'superviseur':
         superviseur = get_object_or_404(Superviseur, user=request.user)
-        bilans = bilans.filter(prof__in=superviseur.profs_assignes.all())
+        groupes_scope = groupes_scope.filter(prof__in=superviseur.profs_assignes.all())
 
-    if mois:
-        annee, _, num_mois = mois.partition('-')
-        bilans = bilans.filter(mois_reference__year=int(annee), mois_reference__month=int(num_mois))
+    groupes = groupes_scope.select_related('prof__user').prefetch_related('eleves__user')
     if prof_id:
-        bilans = bilans.filter(prof_id=prof_id)
-    if eleve_id:
-        bilans = bilans.filter(eleve_id=eleve_id)
+        groupes = groupes.filter(prof_id=prof_id)
+    if groupe_id:
+        groupes = groupes.filter(id=groupe_id)
 
-    bilans_page = paginer(request, bilans, 20)
+    annee = mois_num = None
+    if mois:
+        annee_str, _, mois_str = mois.partition('-')
+        annee, mois_num = int(annee_str), int(mois_str)
 
-    # Moyenne des 4 critères /20 du mois pour chaque bilan affiché — même
-    # filtre (élève, prof, année/mois de la séance) que
-    # generer_brouillon_bilan_mensuel, pas une nouvelle règle de calcul.
-    def moyenne(valeurs):
-        valeurs = [v for v in valeurs if v is not None]
-        return round(sum(valeurs) / len(valeurs), 1) if valeurs else None
+    groupes_accordeon = []
+    for groupe in groupes:
+        lignes_eleves = []
+        for eleve in groupe.eleves.all():
+            moyennes_qs = NotePresence.objects.filter(
+                presence__eleve=eleve, presence__seance__groupe=groupe, critere__est_actif=True,
+            )
+            bilan_qs = BilanMensuel.objects.filter(eleve=eleve, prof=groupe.prof)
+            if annee:
+                moyennes_qs = moyennes_qs.filter(
+                    presence__seance__date__year=annee, presence__seance__date__month=mois_num
+                )
+                bilan_qs = bilan_qs.filter(mois_reference__year=annee, mois_reference__month=mois_num)
 
-    for bilan in bilans_page:
-        presences_mois = Presence.objects.filter(
-            eleve=bilan.eleve, seance__groupe__prof=bilan.prof,
-            seance__date__year=bilan.mois_reference.year, seance__date__month=bilan.mois_reference.month,
-        )
-        bilan.moyenne_hifz = moyenne([p.note_hifz for p in presences_mois])
-        bilan.moyenne_muraja3a = moyenne([p.note_muraja3a for p in presences_mois])
-        bilan.moyenne_tilawa = moyenne([p.note_tilawa for p in presences_mois])
-        bilan.moyenne_mouwazaba = moyenne([p.note_mouwazaba for p in presences_mois])
+            moyennes_calc = moyennes_qs.values('critere__nom_ar', 'critere__ordre').annotate(
+                moyenne=Avg('note')
+            ).order_by('critere__ordre')
+            moyennes = [{'nom_ar': m['critere__nom_ar'], 'moyenne': round(m['moyenne'], 1)} for m in moyennes_calc]
 
-    eleve_seance = None
-    progression_seance = None
-    mois_seance_reference = None
-    if eleve_id:
-        eleve_seance = Eleve.objects.filter(id=eleve_id).select_related('user').first()
-        if eleve_seance:
-            # mois=mois: l'onglet 'حسب الحصة' respecte désormais le même filtre
-            # 'الشهر' que l'onglet 'شهري', au lieu d'ignorer silencieusement le
-            # paramètre et d'afficher tout l'historique (Tâche du 2026-08-03).
-            progression_seance = calculer_progression_eleve(eleve_seance, mois=mois)
-            if mois:
-                annee_ms, _, num_mois_ms = mois.partition('-')
-                mois_seance_reference = datetime.date(int(annee_ms), int(num_mois_ms), 1)
+            bilan = bilan_qs.order_by('-mois_reference').first()
+            # Choix arbitraire (BilanMensuel n'a pas de champ "texte" unique) :
+            # les 3 champs qualitatifs (mémorisation/révision/discipline) sont
+            # concaténés pour l'aperçu, tronqué côté template (truncatechars).
+            bilan_texte = ''
+            if bilan:
+                bilan_texte = ' — '.join(filter(None, [bilan.memorisation, bilan.revision, bilan.remarques_discipline]))
+
+            lignes_eleves.append({
+                'eleve': eleve,
+                'moyennes': moyennes,
+                'bilan_texte': bilan_texte,
+            })
+
+        groupes_accordeon.append({
+            'groupe': groupe,
+            'lignes_eleves': lignes_eleves,
+            'nb_eleves': len(lignes_eleves),
+        })
 
     BASE_TEMPLATE_PAR_ROLE = {
         'admin': 'dashboard/base_admin.html',
@@ -1079,19 +1121,72 @@ def bilans_mensuels(request):
         'mshrif': 'var(--color-role-mshrif-solid)',
     }
     context = {
-        'bilans': bilans_page,
-        'filtres': {'mois': mois, 'prof': prof_id, 'eleve': eleve_id},
-        'onglet': onglet,
-        'eleve_seance': eleve_seance,
-        'progression_seance': progression_seance,
-        'mois_seance_reference': mois_seance_reference,
-        'profs': Prof.objects.select_related('user').order_by('user__first_name'),
-        'eleves': Eleve.objects.select_related('user').order_by('user__first_name'),
+        'groupes_accordeon': groupes_accordeon,
+        'filtres': {'mois': mois, 'prof': prof_id, 'groupe': groupe_id},
+        # Dropdowns de filtre scopés au périmètre du مؤطر (même correction de
+        # fuite de périmètre que groupes_scope ci-dessus) — inchangés pour
+        # مدير/مشرف (tout voir).
+        'profs': Prof.objects.filter(groupes__in=groupes_scope).distinct().order_by('user__first_name')
+                 if request.user.role == 'superviseur' else Prof.objects.select_related('user').order_by('user__first_name'),
+        'groupes_filtre': groupes_scope,
         'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
         'couleur_role': COULEUR_PAR_ROLE[request.user.role],
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/bilans_mensuels.html', context)
+
+
+@role_required('admin', 'superviseur', 'mshrif')
+def bilans_mensuels_detail_seance(request, groupe_id, eleve_id):
+    """تقييم الطلاب — Niveau 2 (Point 11) : détail séance par séance d'un
+    élève d'un groupe donné, atteint depuis une carte de groupe dépliée sur
+    bilans_mensuels. Page séparée plutôt qu'un dépliage imbriqué sous la
+    ligne élève : plus simple à implémenter correctement (pas d'accordéon
+    dans un accordéon en JS) et réutilise tel quel calculer_progression_eleve
+    + _historique_evaluations_eleve.html, déjà éprouvés ailleurs (Tâche 21 du
+    2026-07-26). Scope مؤطر appliqué directement dans le get_object_or_404 du
+    groupe (jamais une vérification a posteriori) : un accès direct par URL à
+    un groupe/élève hors périmètre renvoie 404, pas les données."""
+    from accounts.models import Eleve, Superviseur
+    from courses.models import Groupe
+    from courses.utils import calculer_progression_eleve
+
+    groupes_scope = Groupe.objects.all()
+    if request.user.role == 'superviseur':
+        superviseur = get_object_or_404(Superviseur, user=request.user)
+        groupes_scope = groupes_scope.filter(prof__in=superviseur.profs_assignes.all())
+
+    groupe = get_object_or_404(groupes_scope, id=groupe_id)
+    eleve = get_object_or_404(Eleve, id=eleve_id, groupes=groupe)
+
+    mois = request.GET.get('mois', '')
+    progression = calculer_progression_eleve(eleve, mois=mois)
+    mois_reference = None
+    if mois:
+        annee_ms, _, num_mois_ms = mois.partition('-')
+        mois_reference = datetime.date(int(annee_ms), int(num_mois_ms), 1)
+
+    BASE_TEMPLATE_PAR_ROLE = {
+        'admin': 'dashboard/base_admin.html',
+        'superviseur': 'dashboard/base_superviseur.html',
+        'mshrif': 'dashboard/base_mshrif.html',
+    }
+    COULEUR_PAR_ROLE = {
+        'admin': 'var(--color-role-admin-solid)',
+        'superviseur': 'var(--color-role-superviseur-solid)',
+        'mshrif': 'var(--color-role-mshrif-solid)',
+    }
+    context = {
+        'groupe': groupe,
+        'eleve': eleve,
+        'progression': progression,
+        'mois': mois,
+        'mois_reference': mois_reference,
+        'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
+        'couleur_role': COULEUR_PAR_ROLE[request.user.role],
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/bilans_mensuels_detail_seance.html', context)
 
 
 @role_required('admin', 'mshrif')
@@ -2153,43 +2248,11 @@ def superviseur_profil(request):
     from accounts.models import Superviseur
     from courses.models import Seance
     from evaluations.models import Evaluation
-    from evaluations.utils import moyenne_mensuelle_prof
     from django.utils import timezone
 
     superviseur = get_object_or_404(Superviseur, user=request.user)
     profs = superviseur.profs_assignes.select_related('user').prefetch_related('groupes__creneau').order_by('user__first_name')
     aujourdhui = timezone.localdate()
-
-    fiches_profs = []
-    for prof in profs:
-        groupes_actifs = [g for g in prof.groupes.all() if g.statut == 'actif']
-        types_presents = set()
-        for g in groupes_actifs:
-            if not g.creneau:
-                continue
-            if g.creneau.age_max < 18:
-                types_presents.add('enfants')
-            elif g.creneau.age_min >= 18:
-                types_presents.add('adultes')
-            else:
-                types_presents.update({'enfants', 'adultes'})
-        if types_presents == {'enfants', 'adultes'}:
-            type_label = 'أطفال وبالغون'
-        elif types_presents == {'enfants'}:
-            type_label = 'أطفال'
-        elif types_presents == {'adultes'}:
-            type_label = 'بالغون'
-        else:
-            type_label = '—'
-
-        resultat_moyenne = moyenne_mensuelle_prof(prof, aujourdhui.year, aujourdhui.month)
-
-        fiches_profs.append({
-            'prof': prof,
-            'nb_groupes': len(groupes_actifs),
-            'type_label': type_label,
-            'moyenne_mensuelle': resultat_moyenne['moyenne'],
-        })
 
     nb_evaluations_en_attente = Seance.objects.filter(
         groupe__prof__in=profs, statut='terminee', date__lt=aujourdhui
@@ -2197,12 +2260,24 @@ def superviseur_profil(request):
         est_evaluee=Exists(Evaluation.objects.filter(seance=OuterRef('pk')))
     ).filter(est_evaluee=False).count()
 
+    # "المجموعات المسندة" (Point 12, Tâche du 2026-08-04) — tous les groupes
+    # ACTIFS des profs supervisés, regroupés par prof (un sous-bloc par prof,
+    # masqué s'il n'a aucun groupe actif -- l'état vide global ne s'affiche
+    # que si AUCUN prof supervisé n'a le moindre groupe actif).
+    groupes_par_prof = []
+    for prof in profs:
+        groupes_actifs_prof = list(
+            prof.groupes.filter(statut='actif').select_related('creneau').order_by('nom')
+        )
+        if groupes_actifs_prof:
+            groupes_par_prof.append({'prof': prof, 'groupes': groupes_actifs_prof})
+
     from django.contrib.auth import get_user_model
     User = get_user_model()
 
     return render(request, 'dashboard/superviseur_profil.html', {
         'superviseur': superviseur,
-        'fiches_profs': fiches_profs,
+        'groupes_par_prof': groupes_par_prof,
         'nb_profs': profs.count(),
         'nb_evaluations_en_attente': nb_evaluations_en_attente,
         'admins': User.objects.filter(role='admin'),
@@ -2219,6 +2294,25 @@ def superviseur_prof_detail(request, prof_id):
 
     return render(request, 'dashboard/superviseur_prof_detail.html', {
         'prof': prof,
+    })
+
+
+@role_required('superviseur')
+def superviseur_groupe_detail(request, groupe_id):
+    """Détail d'un groupe pour le مؤطر — lecture seule, clone de
+    prof_groupe_detail (Point 12, Tâche du 2026-08-04). Restriction stricte :
+    prof__in=superviseur.profs_assignes.all() dans le get_object_or_404 lui-même,
+    pas une vérification a posteriori — un accès direct par URL à un groupe hors
+    périmètre renvoie 404, jamais les données."""
+    from accounts.models import Superviseur
+    from courses.models import Groupe
+
+    superviseur = get_object_or_404(Superviseur, user=request.user)
+    groupe = get_object_or_404(Groupe, id=groupe_id, prof__in=superviseur.profs_assignes.all())
+
+    return render(request, 'dashboard/superviseur_groupe_detail.html', {
+        'groupe': groupe,
+        'eleves': groupe.eleves.all(),
     })
 
 
@@ -2530,6 +2624,11 @@ def admin_prof_detail(request, prof_id):
         'prof': prof,
         'inscription': prof.inscription,
         'remuneration': calculer_remuneration_prof(prof),
+        # حقيبة الأستاذ (Point 1, Tâche du 2026-08-04) — مدير ET مشرف peuvent
+        # tous deux ajouter/modifier/supprimer (voir conditionnels dans le
+        # template : contrairement à d'autres blocs de cette page, aucun n'est
+        # réservé à مدير seul ici).
+        'elements_hakiba': prof.elements_hakiba.select_related('ajoute_par').all(),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -2587,6 +2686,141 @@ def admin_prof_infos_complementaires_modifier(request, prof_id):
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_prof_infos_complementaires_modifier.html', context)
+
+
+# ==================== ADMIN/MSHRIF — حقيبة الأستاذ ====================
+# Tâche du 2026-08-04 (Point 1) — مدير ET مشرف peuvent tous deux ajouter/
+# modifier/supprimer, contrairement à la plupart des autres blocs de
+# admin_prof_detail.html réservés à مدير seul.
+
+EXTENSIONS_HAKIBA_AUTORISEES = ('.pdf', '.doc', '.docx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png')
+TAILLE_MAX_HAKIBA_OCTETS = 10 * 1024 * 1024  # 10 Mo
+
+
+def _valider_fichier_hakiba(fichier):
+    """Validation stricte côté serveur (jamais confiance à l'attribut HTML
+    'accept' seul, qui ne bloque rien à l'envoi réel). Renvoie un message
+    d'erreur arabe si le fichier est refusé, None s'il est accepté."""
+    import os
+    extension = os.path.splitext(fichier.name)[1].lower()
+    if extension not in EXTENSIONS_HAKIBA_AUTORISEES:
+        return f'صيغة الملف "{extension}" غير مقبولة. الصيغ المقبولة: PDF, Word, Excel, صور (JPG/PNG).'
+    if fichier.size > TAILLE_MAX_HAKIBA_OCTETS:
+        return f'حجم الملف كبير جداً ({fichier.size // (1024 * 1024)} م.ب). الحد الأقصى 10 م.ب.'
+    return None
+
+
+@role_required('admin', 'mshrif')
+def admin_hakiba_ajouter(request, prof_id):
+    from django.core.validators import URLValidator
+    from django.core.exceptions import ValidationError
+    from accounts.models import Prof, ElementHakiba
+
+    prof = get_object_or_404(Prof, id=prof_id)
+
+    if request.method == 'POST':
+        type_element = request.POST.get('type_element', '')
+        titre = request.POST.get('titre', '').strip()
+
+        if type_element not in dict(ElementHakiba.TYPE_CHOICES):
+            messages.error(request, 'نوع العنصر غير صحيح.')
+            return redirect('admin_prof_detail', prof_id=prof.id)
+        if not titre:
+            messages.error(request, 'يرجى إدخال عنوان للعنصر.')
+            return redirect('admin_prof_detail', prof_id=prof.id)
+
+        element = ElementHakiba(prof=prof, type_element=type_element, titre=titre, ajoute_par=request.user)
+
+        if type_element == 'texte':
+            contenu = request.POST.get('contenu_texte', '').strip()
+            if not contenu:
+                messages.error(request, 'يرجى إدخال محتوى النص.')
+                return redirect('admin_prof_detail', prof_id=prof.id)
+            element.contenu_texte = contenu
+
+        elif type_element == 'video':
+            lien = request.POST.get('lien_video', '').strip()
+            try:
+                URLValidator()(lien)
+            except ValidationError:
+                messages.error(request, 'الرابط المدخل غير صحيح.')
+                return redirect('admin_prof_detail', prof_id=prof.id)
+            element.lien_video = lien
+
+        elif type_element == 'fichier':
+            fichier = request.FILES.get('fichier')
+            if not fichier:
+                messages.error(request, 'يرجى اختيار ملف.')
+                return redirect('admin_prof_detail', prof_id=prof.id)
+            erreur = _valider_fichier_hakiba(fichier)
+            if erreur:
+                messages.error(request, erreur)
+                return redirect('admin_prof_detail', prof_id=prof.id)
+            element.fichier = fichier
+
+        element.save()
+        messages.success(request, 'تمت إضافة العنصر إلى حقيبة الأستاذ بنجاح.')
+
+    return redirect('admin_prof_detail', prof_id=prof.id)
+
+
+@role_required('admin', 'mshrif')
+def admin_hakiba_modifier(request, element_id):
+    from django.core.validators import URLValidator
+    from django.core.exceptions import ValidationError
+    from accounts.models import ElementHakiba
+
+    element = get_object_or_404(ElementHakiba, id=element_id)
+
+    if request.method == 'POST':
+        titre = request.POST.get('titre', '').strip()
+        if not titre:
+            messages.error(request, 'يرجى إدخال عنوان للعنصر.')
+            return redirect('admin_hakiba_modifier', element_id=element.id)
+        element.titre = titre
+
+        if element.type_element == 'texte':
+            contenu = request.POST.get('contenu_texte', '').strip()
+            if not contenu:
+                messages.error(request, 'يرجى إدخال محتوى النص.')
+                return redirect('admin_hakiba_modifier', element_id=element.id)
+            element.contenu_texte = contenu
+        elif element.type_element == 'video':
+            lien = request.POST.get('lien_video', '').strip()
+            try:
+                URLValidator()(lien)
+            except ValidationError:
+                messages.error(request, 'الرابط المدخل غير صحيح.')
+                return redirect('admin_hakiba_modifier', element_id=element.id)
+            element.lien_video = lien
+        # type 'fichier' : seul le titre est modifiable ici (pas de ré-upload,
+        # pour garder ce formulaire simple — supprimer puis ré-ajouter pour
+        # remplacer le fichier lui-même).
+
+        element.ajoute_par = request.user
+        element.save()
+        messages.success(request, 'تم تعديل العنصر بنجاح.')
+        return redirect('admin_prof_detail', prof_id=element.prof_id)
+
+    context = {
+        'element': element,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_hakiba_modifier.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_hakiba_supprimer(request, element_id):
+    from accounts.models import ElementHakiba
+
+    element = get_object_or_404(ElementHakiba, id=element_id)
+    prof_id = element.prof_id
+    if element.fichier:
+        element.fichier.delete(save=False)
+    element.delete()
+    messages.success(request, 'تم حذف العنصر من حقيبة الأستاذ.')
+    return redirect('admin_prof_detail', prof_id=prof_id)
 
 
 @role_required('admin')
@@ -2976,6 +3210,87 @@ def admin_critere_supprimer(request, critere_id):
         messages.success(request, f'تم حذف المعيار "{nom}".')
 
     return redirect('admin_criteres')
+
+
+# ==================== ADMIN — CRITÈRES D'ÉVALUATION (ÉLÈVE) ====================
+# Miroir exact des vues "CRITÈRES D'ÉVALUATION (SUPERVISEUR)" ci-dessus —
+# Tâche du 2026-08-04 (Point 7). Contrairement à admin_criteres (qui redirige
+# مشرف vers classement_mensuel_profs), مشرف consulte directement cette liste
+# en lecture seule (mêmes conditionnels {% if request.user.role != 'mshrif' %}
+# déjà présents dans le template cloné) : pas de page de classement élèves
+# équivalente vers laquelle rediriger.
+
+@role_required('admin', 'mshrif')
+def admin_criteres_eleves(request):
+    from courses.models import CritereEleve
+    criteres = CritereEleve.objects.all().order_by('ordre')
+    context = {
+        'criteres': criteres,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_criteres_eleves.html', context)
+
+
+@role_required('admin')
+def admin_critere_eleve_ajouter(request):
+    from courses.models import CritereEleve
+
+    if request.method == 'POST':
+        CritereEleve.objects.create(
+            nom_ar=request.POST.get('nom_ar'),
+            ordre=request.POST.get('ordre', 0),
+        )
+        messages.success(request, 'تمت إضافة المعيار بنجاح.')
+        return redirect('admin_criteres_eleves')
+
+    return render(request, 'dashboard/admin_critere_eleve_ajouter.html')
+
+
+@role_required('admin')
+def admin_critere_eleve_modifier(request, critere_id):
+    from courses.models import CritereEleve
+    critere = get_object_or_404(CritereEleve, id=critere_id)
+
+    if request.method == 'POST':
+        critere.nom_ar = request.POST.get('nom_ar')
+        critere.ordre = request.POST.get('ordre', 0)
+        critere.save()
+        messages.success(request, 'تم تعديل المعيار بنجاح.')
+        return redirect('admin_criteres_eleves')
+
+    return render(request, 'dashboard/admin_critere_eleve_modifier.html', {
+        'critere': critere,
+    })
+
+
+@role_required('admin')
+def admin_critere_eleve_toggle(request, critere_id):
+    from courses.models import CritereEleve
+    critere = get_object_or_404(CritereEleve, id=critere_id)
+    critere.est_actif = not critere.est_actif
+    critere.save()
+    messages.info(request, 'تم تفعيل المعيار.' if critere.est_actif else 'تم تعطيل المعيار.')
+    return redirect('admin_criteres_eleves')
+
+
+@role_required('admin')
+def admin_critere_eleve_supprimer(request, critere_id):
+    from courses.models import CritereEleve, NotePresence
+    critere = get_object_or_404(CritereEleve, id=critere_id)
+
+    if NotePresence.objects.filter(critere=critere).exists():
+        messages.error(
+            request,
+            f'تعذر حذف "{critere.nom_ar}": هذا المعيار استُخدم في تقييمات سابقة. '
+            f'يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.'
+        )
+    else:
+        nom = critere.nom_ar
+        critere.delete()
+        messages.success(request, f'تم حذف المعيار "{nom}".')
+
+    return redirect('admin_criteres_eleves')
 
 
 # ==================== ADMIN — VUE CENTRALISÉE DES ÉVALUATIONS ====================

@@ -157,10 +157,12 @@
 
     <div class="mt-4 d-flex gap-3 align-items-center">
         <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none;">← رجوع</a>
-        <a href="{% url 'bilans_mensuels' %}?eleve={{ eleve.id }}"
+        {% with premier_groupe=eleve.groupes.first %}
+        <a href="{% if premier_groupe %}{% url 'bilans_mensuels_detail_seance' premier_groupe.id eleve.id %}{% else %}{% url 'bilans_mensuels' %}{% endif %}"
            style="background:var(--color-role-admin); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
            📝 البيانات الشهرية
         </a>
+        {% endwith %}
         <a href="{% url 'admin_evaluations' %}?eleve={{ eleve.id }}"
            style="background:var(--color-role-admin); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
            📊 التقييمات

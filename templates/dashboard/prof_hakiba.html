@@ -4,6 +4,7 @@
 <div class="page-title">حقيبة الأستاذ</div>
 <div class="page-subtitle">كل ما تحتاجه لمعرفة قواعد وبرنامج التدريس في المنصة</div>
 
+<div style="color:var(--color-role-prof-solid); font-weight:700; margin-bottom:10px;">روابط ثابتة</div>
 <div class="row g-3">
     <div class="col-md-6">
         <a href="{% url 'prof_charte' %}" class="compact-card" style="display:block; text-decoration:none; color:inherit;">
@@ -24,4 +25,40 @@
         </a>
     </div>
 </div>
+
+<div style="color:var(--color-role-prof-solid); font-weight:700; margin:28px 0 10px;">أضيفت من طرف الإدارة</div>
+<div class="compact-card">
+    {% for element in elements_hakiba %}
+    <div style="padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
+        {% if element.type_element == 'fichier' %}
+        <a href="{{ element.fichier.url }}" target="_blank" rel="noopener" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit;">
+            <span style="font-weight:600;">📎 {{ element.titre }}</span>
+            <span style="color:var(--color-role-prof-solid); font-size:0.85rem;">تحميل ←</span>
+        </a>
+        <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">{{ element.date_ajout|date:"d-m-Y" }}</div>
+        {% elif element.type_element == 'video' %}
+        <a href="{{ element.lien_video }}" target="_blank" rel="noopener" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit;">
+            <span style="font-weight:600;">🎬 {{ element.titre }}</span>
+            <span style="color:var(--color-role-prof-solid); font-size:0.85rem;">مشاهدة ←</span>
+        </a>
+        <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">{{ element.date_ajout|date:"d-m-Y" }}</div>
+        {% else %}
+        <div onclick="toggleTexteHakiba({{ element.id }})" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+            <span style="font-weight:600;">📝 {{ element.titre }}</span>
+            <span style="color:var(--color-role-prof-solid); font-size:0.85rem;">عرض ↓</span>
+        </div>
+        <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">{{ element.date_ajout|date:"d-m-Y" }}</div>
+        <div id="texte_hakiba_{{ element.id }}" style="display:none; color:#555; font-size:0.9rem; white-space:pre-line; margin-top:8px; background:var(--color-bg-cream); border-radius:8px; padding:10px 12px;">{{ element.contenu_texte }}</div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div style="color:#aaa; text-align:center; padding:20px 0;">لا توجد وثائق مضافة من الإدارة حاليا</div>
+    {% endfor %}
+</div>
+<script>
+    function toggleTexteHakiba(id) {
+        const bloc = document.getElementById('texte_hakiba_' + id);
+        bloc.style.display = (bloc.style.display === 'none') ? 'block' : 'none';
+    }
+</script>
 {% endblock %}

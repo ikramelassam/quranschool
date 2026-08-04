@@ -34,6 +34,7 @@ urlpatterns = [
     path('superviseur/seance/<int:seance_id>/', views.superviseur_seance_detail, name='superviseur_seance_detail'),
     path('superviseur/profil/', views.superviseur_profil, name='superviseur_profil'),
     path('superviseur/profs/<int:prof_id>/', views.superviseur_prof_detail, name='superviseur_prof_detail'),
+    path('superviseur/groupes/<int:groupe_id>/', views.superviseur_groupe_detail, name='superviseur_groupe_detail'),
 
     # Confirmation partagée après création de compte (élève ou prof)
     path('admin/confirmation-compte/', views.confirmation_creation_compte, name='confirmation_creation_compte'),
@@ -67,6 +68,9 @@ urlpatterns = [
     path('admin/profs/', views.admin_profs, name='admin_profs'),
     path('admin/profs/<int:prof_id>/', views.admin_prof_detail, name='admin_prof_detail'),
     path('admin/profs/<int:prof_id>/infos-complementaires/', views.admin_prof_infos_complementaires_modifier, name='admin_prof_infos_complementaires_modifier'),
+    path('admin/profs/<int:prof_id>/hakiba/ajouter/', views.admin_hakiba_ajouter, name='admin_hakiba_ajouter'),
+    path('admin/hakiba/<int:element_id>/modifier/', views.admin_hakiba_modifier, name='admin_hakiba_modifier'),
+    path('admin/hakiba/<int:element_id>/supprimer/', views.admin_hakiba_supprimer, name='admin_hakiba_supprimer'),
     path('admin/profs/<int:prof_id>/donnees-actuelles/modifier/', views.admin_prof_donnees_actuelles_modifier, name='admin_prof_donnees_actuelles_modifier'),
     path('admin/profs/<int:prof_id>/disponibilites/', views.admin_prof_disponibilites, name='admin_prof_disponibilites'),
     path('admin/profs/<int:prof_id>/majoration/', views.admin_prof_majoration_modifier, name='admin_prof_majoration_modifier'),
@@ -97,6 +101,12 @@ urlpatterns = [
     path('admin/criteres/<int:critere_id>/toggle/', views.admin_critere_toggle, name='admin_critere_toggle'),
     path('admin/criteres/<int:critere_id>/supprimer/', views.admin_critere_supprimer, name='admin_critere_supprimer'),
 
+    path('admin/criteres-eleves/', views.admin_criteres_eleves, name='admin_criteres_eleves'),
+    path('admin/criteres-eleves/ajouter/', views.admin_critere_eleve_ajouter, name='admin_critere_eleve_ajouter'),
+    path('admin/criteres-eleves/<int:critere_id>/modifier/', views.admin_critere_eleve_modifier, name='admin_critere_eleve_modifier'),
+    path('admin/criteres-eleves/<int:critere_id>/toggle/', views.admin_critere_eleve_toggle, name='admin_critere_eleve_toggle'),
+    path('admin/criteres-eleves/<int:critere_id>/supprimer/', views.admin_critere_eleve_supprimer, name='admin_critere_eleve_supprimer'),
+
     # Admin — vue centralisée des évaluations
     path('admin/evaluations/', views.admin_evaluations, name='admin_evaluations'),
     path('admin/evaluations/seance/<int:seance_id>/', views.admin_evaluation_detail, name='admin_evaluation_detail'),
@@ -121,5 +131,6 @@ urlpatterns = [
     path('prof/evaluations/', views.prof_evaluations, name='prof_evaluations'),
     path('prof/bilans/', views.prof_bilans_mensuels, name='prof_bilans_mensuels'),
     path('bilans/', views.bilans_mensuels, name='bilans_mensuels'),
+    path('bilans/groupe/<int:groupe_id>/eleve/<int:eleve_id>/', views.bilans_mensuels_detail_seance, name='bilans_mensuels_detail_seance'),
     path('bilans/<int:eleve_id>/<str:mois>/', views.bilan_mensuel_detail, name='bilan_mensuel_detail'),
 ]

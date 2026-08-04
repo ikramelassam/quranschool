@@ -449,27 +449,40 @@ def calculer_progression_eleve(eleve, mois=None):
     Presence prises en compte, à ce mois précis. None (par défaut) = tout
     l'historique, comportement inchangé pour tous les appels existants
     (dashboard_eleve, eleve_progression, admin_eleve_detail). Utilisé
-    uniquement par dashboard.views.bilans_mensuels (onglet 'حسب الحصة') pour
-    respecter le filtre 'الشهر' actif (Tâche du 2026-08-03) — avant ce
+    uniquement par dashboard.views.bilans_mensuels_detail_seance (Niveau 2 de
+    تقييم الطلاب, Point 11 du 2026-08-04 — anciennement l'onglet 'حسب الحصة')
+    pour respecter le filtre 'الشهر' actif (Tâche du 2026-08-03) — avant ce
     paramètre, ce mode ignorait silencieusement le filtre et affichait
     toujours tout l'historique, même avec ?mois=X dans l'URL."""
     from django.db.models import Q
-    from .models import Presence
+    from .models import Presence, NotePresence
     from .quran_data import SOURATES_NOMS, SOURATES_NB_AYAT
 
-    # Élargi (Tâche 9 — bug signalé le 2026-07-25) : une Presence avec les 4
+    # Élargi (Tâche 9 — bug signalé le 2026-07-25) : une Presence avec des
     # critères numériques /20 mais sans sourate_memorisee (l'élève n'a pas
     # mémorisé de nouveau passage ce jour-là, mais a bien été noté/consigné)
     # était auparavant totalement exclue de l'historique — invisible partout
     # où admin_eleve_detail.html et eleve_progression.html réutilisent
     # progression.historique pour afficher l'évaluation d'une séance.
+    # notes_criteres__isnull=False (Point 7, Tâche du 2026-08-04) remplace
+    # l'ancien test note_hifz__isnull=False -- ce dernier champ est gelé et ne
+    # sera plus jamais rempli pour une nouvelle Presence. distinct() nécessaire
+    # : la jointure sur notes_criteres peut dupliquer la ligne Presence.
     presences = Presence.objects.filter(eleve=eleve).filter(
-        Q(sourate_memorisee__isnull=False) | Q(note_hifz__isnull=False)
-    )
+        Q(sourate_memorisee__isnull=False) | Q(notes_criteres__isnull=False)
+    ).distinct()
     if mois:
         annee, _, num_mois = mois.partition('-')
         presences = presences.filter(seance__date__year=annee, seance__date__month=num_mois)
     presences = presences.select_related('seance').order_by('seance__date', 'seance__heure')
+
+    notes_par_presence = {}
+    for n in NotePresence.objects.filter(presence__eleve=eleve).select_related('critere'):
+        notes_par_presence.setdefault(n.presence_id, []).append(
+            {'nom_ar': n.critere.nom_ar, 'note': n.note, 'ordre': n.critere.ordre}
+        )
+    for liste in notes_par_presence.values():
+        liste.sort(key=lambda x: x['ordre'])
 
     intervalles_par_sourate = {}
     notes_par_sourate = {}
@@ -487,12 +500,15 @@ def calculer_progression_eleve(eleve, mois=None):
             'nb_ayat': nb,
             'note_code': p.note_memorisation,
             'note_display': p.get_note_memorisation_display() if p.note_memorisation else None,
-            'note_hifz': p.note_hifz,
-            'note_muraja3a': p.note_muraja3a,
-            'note_tilawa': p.note_tilawa,
-            'note_mouwazaba': p.note_mouwazaba,
+            # Critères dynamiques (Point 7, Tâche du 2026-08-04) — remplacent
+            # les 4 anciens champs fixes note_hifz/note_muraja3a/note_tilawa/
+            # note_mouwazaba (gelés, plus jamais réécrits).
+            'notes_criteres': notes_par_presence.get(p.id, []),
             'consigne_memorisation': p.consigne_memorisation,
             'consigne_revision': p.consigne_revision,
+            # Remarque par séance (Point 11, Tâche du 2026-08-04) — existait déjà
+            # sur Presence mais n'était jusqu'ici jamais incluse dans historique.
+            'remarque': p.remarque,
         })
 
         if p.sourate_memorisee is None:

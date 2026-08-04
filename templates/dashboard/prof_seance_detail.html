@@ -147,12 +147,13 @@
                     </div>
                 </div>
             </div>
-            {% if presence.note_hifz %}
+            {% if item.notes_criteres %}
             <div class="row g-3 mt-1">
-                <div class="col-6 col-md-3"><div class="notation-groupe" style="text-align:center;"><div class="notation-titre">الحفظ</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_hifz }}/20</div></div></div>
-                <div class="col-6 col-md-3"><div class="notation-groupe" style="text-align:center;"><div class="notation-titre">المراجعة</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_muraja3a }}/20</div></div></div>
-                <div class="col-6 col-md-3"><div class="notation-groupe" style="text-align:center;"><div class="notation-titre">التلاوة</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_tilawa }}/20</div></div></div>
-                <div class="col-6 col-md-3"><div class="notation-groupe" style="text-align:center;"><div class="notation-titre">المواظبة والسلوك</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_mouwazaba }}/20</div></div></div>
+                {% for nc in item.notes_criteres %}
+                {% if nc.note %}
+                <div class="col-6 col-md-3"><div class="notation-groupe" style="text-align:center;"><div class="notation-titre">{{ nc.critere.nom_ar }}</div><div style="font-weight:700; font-size:1.1rem;">{{ nc.note }}/20</div></div></div>
+                {% endif %}
+                {% endfor %}
             </div>
             {% endif %}
             {% if presence.remarque %}
@@ -224,9 +225,6 @@
                                            value="{{ presence.ayah_fin_memorisation|default:'' }}" placeholder="إلى">
                                 </div>
                             </div>
-                            <label class="mt-2" style="color:#888; font-size:0.8rem;">علامة الحفظ /20</label>
-                            <input type="number" min="1" max="20" name="note_hifz_{{ eleve.id }}" class="form-control form-control-sm note-input"
-                                   value="{{ presence.note_hifz|default:'' }}">
                         </div>
                     </div>
 
@@ -251,29 +249,25 @@
                                            value="{{ presence.ayah_fin_revision|default:'' }}" placeholder="إلى">
                                 </div>
                             </div>
-                            <label class="mt-2" style="color:#888; font-size:0.8rem;">علامة المراجعة /20</label>
-                            <input type="number" min="1" max="20" name="note_muraja3a_{{ eleve.id }}" class="form-control form-control-sm note-input"
-                                   value="{{ presence.note_muraja3a|default:'' }}">
                         </div>
                     </div>
                 </div>
+
+                <!-- Critères dynamiques /20 (Point 7, Tâche du 2026-08-04) — gérés
+                     depuis "معايير تقييم الطلاب", plus 4 champs fixes en dur. -->
                 <div class="row g-3 mt-1">
-                    <div class="col-md-6">
+                    {% for nc in item.notes_criteres %}
+                    <div class="col-6 col-md-3">
                         <div class="notation-groupe">
-                            <div class="notation-titre">التلاوة</div>
-                            <label style="color:#888; font-size:0.8rem;">علامة التلاوة /20</label>
-                            <input type="number" min="1" max="20" name="note_tilawa_{{ eleve.id }}" class="form-control form-control-sm note-input"
-                                   value="{{ presence.note_tilawa|default:'' }}">
+                            <div class="notation-titre">{{ nc.critere.nom_ar }}</div>
+                            <label style="color:#888; font-size:0.8rem;">علامة /20</label>
+                            <input type="number" min="1" max="20" name="note_critere_{{ nc.critere.id }}_{{ eleve.id }}" class="form-control form-control-sm note-input"
+                                   value="{{ nc.note|default:'' }}">
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="notation-groupe">
-                            <div class="notation-titre">المواظبة والسلوك</div>
-                            <label style="color:#888; font-size:0.8rem;">علامة المواظبة والسلوك /20</label>
-                            <input type="number" min="1" max="20" name="note_mouwazaba_{{ eleve.id }}" class="form-control form-control-sm note-input"
-                                   value="{{ presence.note_mouwazaba|default:'' }}">
-                        </div>
-                    </div>
+                    {% empty %}
+                    <div class="col-12" style="color:#aaa; font-size:0.85rem;">لا توجد معايير تقييم مفعّلة حالياً.</div>
+                    {% endfor %}
                 </div>
 
                 <div class="remarque-eleve">

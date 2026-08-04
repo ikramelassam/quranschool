@@ -433,6 +433,55 @@ class Presence(models.Model):
         verbose_name_plural = "Présences"
 
 
+class CritereEleve(models.Model):
+    """Critère d'évaluation élève, éditable dynamiquement par le مدير — miroir
+    exact de evaluations.models.Critere (critères d'évaluation PROF par le
+    مؤطر), Tâche du 2026-08-04 (Point 7) : avant ce modèle, les 4 critères
+    (الحفظ/المراجعة/التلاوة/المواظبة) étaient des champs fixes sur Presence
+    (note_hifz/note_muraja3a/note_tilawa/note_mouwazaba, voir plus bas —
+    conservés en lecture seule pour l'historique, jamais plus écrits)."""
+    nom_ar = models.CharField(max_length=200)
+    ordre = models.IntegerField(default=0)
+    est_actif = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.nom_ar
+
+    class Meta:
+        ordering = ['ordre']
+        verbose_name = "Critère d'évaluation élève"
+        verbose_name_plural = "Critères d'évaluation élève"
+
+
+class NotePresence(models.Model):
+    """Note /20 d'un élève pour un critère donné, sur une Presence donnée —
+    table de jonction dynamique remplaçant les 4 champs fixes note_hifz/
+    note_muraja3a/note_tilawa/note_mouwazaba (Tâche du 2026-08-04, Point 7),
+    même patron que evaluations.models.NoteEvaluation. Échelle /20 (pas la
+    même échelle 0-4 que NoteEvaluation, qui évalue les PROFS) — cohérente
+    avec l'échelle des 4 anciens champs fixes qu'elle remplace."""
+    presence = models.ForeignKey(
+        Presence,
+        on_delete=models.CASCADE,
+        related_name='notes_criteres'
+    )
+    critere = models.ForeignKey(
+        CritereEleve,
+        on_delete=models.CASCADE
+    )
+    note = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(20)],
+    )
+
+    def __str__(self):
+        return f"{self.critere} → {self.note}"
+
+    class Meta:
+        unique_together = ('presence', 'critere')
+        verbose_name = "Note par critère (élève)"
+        verbose_name_plural = "Notes par critère (élève)"
+
+
 class BilanMensuel(models.Model):
     """Synthèse mensuelle par élève, rédigée par le prof en fin de mois (mémorisation,
     révision, remarques de discipline/comportement) — un bilan par élève par mois par

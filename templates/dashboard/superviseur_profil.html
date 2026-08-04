@@ -2,27 +2,21 @@
 {% block title %}ملفي الشخصي{% endblock %}
 {% block content %}
 <div class="page-title">ملفي الشخصي</div>
-<div class="page-subtitle">{{ superviseur.user.email }}</div>
 
-<!-- Résumé de supervision -->
-<div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="color:#888; font-size:0.85rem;">المعلمون المُسندون</div>
-            <div style="color:var(--color-role-superviseur-solid); font-size:2rem; font-weight:700;">{{ nb_profs }}</div>
+<!-- En-tête -->
+<div style="background:white; border-radius:16px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+    <div style="display:flex; align-items:center; gap:16px;">
+        <div style="width:64px; height:64px; border-radius:50%; background:#8a5a2b; color:var(--color-bg-cream); display:flex; align-items:center; justify-content:center; font-size:1.3rem; font-weight:700; flex-shrink:0;">
+            {{ superviseur.user.first_name|first|upper }}{{ superviseur.user.last_name|first|upper }}
+        </div>
+        <div>
+            <div style="font-weight:700; font-size:1.25rem; color:var(--color-text-primary);">{{ superviseur.user.get_full_name }}</div>
+            <div style="color:#888; font-size:0.85rem; margin-top:2px;">{{ superviseur.user.email }}{% if superviseur.user.telephone %} — {{ superviseur.user.telephone }}{% endif %}</div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="color:#888; font-size:0.85rem;">تقييمات بانتظارك</div>
-            <div style="color:var(--color-role-superviseur-solid); font-size:2rem; font-weight:700;">{{ nb_evaluations_en_attente }}</div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <a href="{% url 'classement_mensuel_profs' %}" style="display:flex; flex-direction:column; justify-content:center; background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-decoration:none; height:100%;">
-            <span style="color:var(--color-role-superviseur-solid); font-weight:700;">🏆 الترتيب الشهري للمعلمين</span>
-            <span style="color:#888; font-size:0.85rem; margin-top:4px;">عرض التفاصيل ←</span>
-        </a>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <span style="background:#f3e6cc; color:var(--color-role-superviseur-solid); border-radius:20px; padding:6px 16px; font-size:0.85rem; font-weight:700;">{{ nb_profs }} أساتذة مسندون</span>
+        <span style="background:{% if nb_evaluations_en_attente > 0 %}#fce4e4{% else %}#f3e6cc{% endif %}; color:{% if nb_evaluations_en_attente > 0 %}var(--color-danger){% else %}var(--color-role-superviseur-solid){% endif %}; border-radius:20px; padding:6px 16px; font-size:0.85rem; font-weight:700;">{{ nb_evaluations_en_attente }} تقييمات بانتظارك</span>
     </div>
 </div>
 
@@ -30,10 +24,6 @@
     <div class="col-lg-6">
         <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%;">
             <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
-            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">الاسم الكامل</span>
-                <span style="font-weight:600;">{{ superviseur.user.get_full_name }}</span>
-            </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
                 <span style="color:#888;">البريد الإلكتروني</span>
                 <span style="font-weight:600;">{{ superviseur.user.email }}</span>
@@ -58,66 +48,84 @@
                 </div>
             </form>
             {% endif %}
+
+            <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:1px solid #f0f0f0; padding-bottom:6px; margin:20px 0 12px; font-size:0.9rem;">التواصل مع الإدارة</div>
+            {% include 'dashboard/_contact_administration.html' with admins=admins %}
         </div>
     </div>
 
     <div class="col-lg-6">
-        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%;">
-            <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">🔒 الأمان — تغيير كلمة المرور</div>
-            <form method="POST" action="{% url 'password_change' %}">
-                {% csrf_token %}
-                <div class="mb-2">
-                    <label style="color:#888; font-size:0.85rem;">كلمة المرور الحالية</label>
-                    <input type="password" name="ancien_mot_de_passe" class="form-control" required>
-                </div>
-                <div class="mb-2">
-                    <label style="color:#888; font-size:0.85rem;">كلمة المرور الجديدة</label>
-                    <input type="password" name="nouveau_mot_de_passe" class="form-control" required minlength="8">
-                </div>
-                <div class="mb-3">
-                    <label style="color:#888; font-size:0.85rem;">تأكيد كلمة المرور الجديدة</label>
-                    <input type="password" name="confirmation" class="form-control" required minlength="8">
-                </div>
-                <button type="submit" style="background:var(--color-role-superviseur-solid); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تغيير كلمة المرور</button>
-            </form>
-            {% include 'dashboard/_reinitialiser_mot_de_passe.html' %}
-        </div>
+        <a href="{% url 'classement_mensuel_profs' %}" style="display:block; text-decoration:none; color:inherit; background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%;">
+            <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">🏆 الترتيب الشهري للمعلمين</div>
+            <div style="color:#888; font-size:0.9rem; line-height:1.7;">اطّلع على ترتيب المعلمين المُسندين إليك هذا الشهر حسب معايير التقييم المفعّلة.</div>
+            <div style="color:var(--color-role-superviseur-solid); font-weight:700; margin-top:16px;">عرض التفاصيل ←</div>
+        </a>
     </div>
 </div>
 
+<!-- المجموعات المسندة -->
 <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px;">
-    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">التواصل مع الإدارة</div>
-    {% include 'dashboard/_contact_administration.html' with admins=admins %}
-</div>
+    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:16px;">المجموعات المسندة</div>
 
-<div class="page-title" style="font-size:1.2rem;">المعلمون المُسندون إليّ ({{ nb_profs }})</div>
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-    {% for fiche in fiches_profs %}
-    <div class="col">
-        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%; display:flex; flex-direction:column;">
-            <div style="display:flex; justify-content:space-between; align-items:start; gap:8px; margin-bottom:10px;">
-                <a href="{% url 'superviseur_prof_detail' fiche.prof.id %}" style="font-weight:700; color:inherit; text-decoration:none;">{{ fiche.prof.user.get_full_name }}</a>
-                <span style="display:inline-flex; gap:6px; align-items:center;">
-                    {% include 'dashboard/_email_icon.html' with email=fiche.prof.user.email %}
-                    {% include 'dashboard/_whatsapp_icon.html' with telephone=fiche.prof.user.telephone %}
-                </span>
+    {% for bloc in groupes_par_prof %}
+    <div style="{% if not forloop.last %}border-bottom:1px solid #f0f0f0; padding-bottom:18px; margin-bottom:18px;{% endif %}">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+            <div style="width:38px; height:38px; border-radius:50%; background:{% if bloc.prof.statut == 'archive' %}#fce4e4{% else %}#f3e6cc{% endif %}; color:{% if bloc.prof.statut == 'archive' %}var(--color-danger){% else %}var(--color-role-superviseur-solid){% endif %}; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem; flex-shrink:0;">
+                {{ bloc.prof.user.first_name|first|upper }}{{ bloc.prof.user.last_name|first|upper }}
             </div>
-            <div style="color:#888; font-size:0.85rem; margin-bottom:4px;">{{ fiche.prof.user.telephone|default:"—" }}</div>
-            <div style="color:#888; font-size:0.85rem; margin-bottom:4px;">📚 {{ fiche.nb_groupes }} مجموعة{% if fiche.type_label != "—" %} — {{ fiche.type_label }}{% endif %}</div>
-            <div style="margin-top:auto; padding-top:10px; display:flex; justify-content:space-between; align-items:center;">
-                {% if fiche.moyenne_mensuelle is not None %}
-                <span style="background:rgba(45,90,61,0.1); color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:700;">⭐ {{ fiche.moyenne_mensuelle }} / 4</span>
-                {% else %}
-                <span style="background:#f0f0f0; color:#aaa; border-radius:20px; padding:3px 12px; font-size:0.78rem;">— لا يوجد تقييم</span>
-                {% endif %}
-                <a href="{% url 'superviseur_prof_detail' fiche.prof.id %}" style="color:var(--color-role-superviseur-solid); font-size:0.82rem; text-decoration:none; font-weight:600;">التفاصيل ←</a>
+            <div>
+                <div style="font-weight:700;">
+                    {{ bloc.prof.user.get_full_name }}
+                    {% if bloc.prof.statut == 'archive' %}<span style="color:var(--color-danger); font-size:0.82rem; font-weight:700;">(مؤرشف)</span>{% endif %}
+                </div>
+                <div style="color:#888; font-size:0.82rem;">{{ bloc.prof.user.telephone|default:"—" }}</div>
             </div>
+        </div>
+
+        <div style="padding-right:50px;">
+            {% for groupe in bloc.groupes %}
+            <div class="groupe-mesnad-ligne" style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:8px; margin-bottom:4px;">
+                <a href="{% url 'superviseur_groupe_detail' groupe.id %}" style="text-decoration:none; color:inherit; flex:1;">
+                    <div style="font-weight:600;">{{ groupe.nom }}</div>
+                    <div style="color:#888; font-size:0.82rem; margin-top:2px;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}غير محدد{% endif %}</div>
+                </a>
+                <a href="{% url 'dashboard_superviseur' %}?groupe={{ groupe.id }}" style="color:var(--color-role-superviseur-solid); font-size:0.78rem; text-decoration:none; white-space:nowrap; margin-right:10px;">عرض حصص اليوم ←</a>
+            </div>
+            {% endfor %}
+            {% if bloc.prof.statut == 'archive' %}
+            <div style="color:var(--color-danger); font-size:0.82rem; margin-top:6px;">⚠ يجب تعيين أستاذ آخر لهذه المجموعة.</div>
+            {% endif %}
         </div>
     </div>
     {% empty %}
-    <div class="col">
-        <div style="text-align:center; padding:40px; color:#aaa; background:white; border-radius:12px;">لا يوجد أي معلم مُسند إليك بعد</div>
-    </div>
+    <div style="text-align:center; padding:40px; color:#aaa;">لا توجد مجموعات مسندة حاليا</div>
     {% endfor %}
+</div>
+<style>
+    .groupe-mesnad-ligne:hover { background:var(--color-bg-cream); cursor:pointer; }
+</style>
+
+<!-- الأمان -->
+<div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">🔒 الأمان — تغيير كلمة المرور</div>
+    <form method="POST" action="{% url 'password_change' %}">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label style="color:#888; font-size:0.85rem;">كلمة المرور الحالية</label>
+                <input type="password" name="ancien_mot_de_passe" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+                <label style="color:#888; font-size:0.85rem;">كلمة المرور الجديدة</label>
+                <input type="password" name="nouveau_mot_de_passe" class="form-control" required minlength="8">
+            </div>
+            <div class="col-md-4">
+                <label style="color:#888; font-size:0.85rem;">تأكيد كلمة المرور الجديدة</label>
+                <input type="password" name="confirmation" class="form-control" required minlength="8">
+            </div>
+        </div>
+        <button type="submit" style="margin-top:16px; background:var(--color-role-superviseur-solid); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تغيير كلمة المرور</button>
+    </form>
+    {% include 'dashboard/_reinitialiser_mot_de_passe.html' %}
 </div>
 {% endblock %}

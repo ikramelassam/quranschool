@@ -167,6 +167,44 @@ class Prof(models.Model):
         verbose_name_plural = "Professeurs"
 
 
+class ElementHakiba(models.Model):
+    """Élément de la "حقيبة الأستاذ" ajouté par مدير/مشرف sur la fiche d'un prof
+    (Tâche du 2026-08-04, Point 1) — texte libre, fichier ou lien vidéo externe.
+    Un seul modèle avec un champ type_element (plutôt que 3 modèles séparés) :
+    plus simple à lister/trier ensemble par ordre chronologique, et l'ajout
+    d'un futur 4e type ne casserait pas la structure. Stocké via le storage
+    par défaut du projet (voir LogoConfig.logo ci-dessus). Affiché en lecture
+    seule au prof concerné sur prof_hakiba.html, section "أضيفت من طرف الإدارة"."""
+    TYPE_CHOICES = [
+        ('texte', 'نص'),
+        ('fichier', 'ملف'),
+        ('video', 'فيديو'),
+    ]
+    prof = models.ForeignKey(Prof, on_delete=models.CASCADE, related_name='elements_hakiba')
+    type_element = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    titre = models.CharField(max_length=200)
+    contenu_texte = models.TextField(blank=True)
+    fichier = models.FileField(upload_to='hakiba_prof/', null=True, blank=True)
+    lien_video = models.URLField(blank=True)
+    # Trace qui a ajouté/modifié cet élément — مدير ET مشرف interviennent tous
+    # les deux sur la même حقيبة, contrairement aux autres réglages du projet
+    # où un seul rôle édite (voir ParametresInscriptions.derniere_modification_par,
+    # même patron FK nullable/SET_NULL repris ici).
+    ajoute_par = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+    date_ajout = models.DateTimeField(auto_now_add=True)
+    date_modification = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.get_type_element_display()} — {self.titre}"
+
+    class Meta:
+        ordering = ['-date_ajout']
+        verbose_name = "Élément de حقيبة الأستاذ"
+        verbose_name_plural = "Éléments de حقيبة الأستاذ"
+
+
 class CharteEnseignement(models.Model):
     """ميثاق التدريس — singleton (une seule ligne en base, toujours pk=1, voir
     get_charte() ci-dessous), éditable uniquement par le rôle مشرف. Contenu structuré en

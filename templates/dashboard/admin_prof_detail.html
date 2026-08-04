@@ -309,6 +309,77 @@
     {% endif %}
     {% endwith %}
 
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">
+        <span style="color:var(--color-role-admin-solid); font-weight:700;">🎒 حقيبة الأستاذ</span>
+        <span onclick="toggleFormeHakiba()" style="cursor:pointer; color:var(--color-brand-gold-dark); font-size:0.85rem; font-weight:700;">+ إضافة عنصر</span>
+    </div>
+    <div style="color:#888; font-size:0.8rem; margin-bottom:12px;">نصوص، ملفات وروابط فيديو يضيفها المدير أو المشرف — يظهر كل عنصر للأستاذ في صفحة "حقيبة الأستاذ" الخاصة به (قراءة فقط).</div>
+
+    <div id="forme_hakiba" style="display:none; background:var(--color-bg-cream); border-radius:10px; padding:16px; margin-bottom:16px;">
+        <form method="POST" action="{% url 'admin_hakiba_ajouter' prof.id %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-2">
+                <label style="font-weight:600; color:#333; font-size:0.85rem;">النوع</label>
+                <select name="type_element" class="form-select form-select-sm mt-1" onchange="afficherChampHakiba(this.value)">
+                    <option value="texte">📝 نص</option>
+                    <option value="fichier">📎 ملف</option>
+                    <option value="video">🎬 فيديو</option>
+                </select>
+            </div>
+            <div class="mb-2">
+                <label style="font-weight:600; color:#333; font-size:0.85rem;">العنوان *</label>
+                <input type="text" name="titre" class="form-control form-control-sm mt-1" required>
+            </div>
+            <div class="mb-2 hakiba-champ" data-type="texte">
+                <label style="font-weight:600; color:#333; font-size:0.85rem;">النص *</label>
+                <textarea name="contenu_texte" class="form-control form-control-sm mt-1" rows="3"></textarea>
+            </div>
+            <div class="mb-2 hakiba-champ" data-type="fichier" style="display:none;">
+                <label style="font-weight:600; color:#333; font-size:0.85rem;">الملف * (PDF, Word, Excel أو صورة — 10 م.ب كحد أقصى)</label>
+                <input type="file" name="fichier" class="form-control form-control-sm mt-1" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+            </div>
+            <div class="mb-2 hakiba-champ" data-type="video" style="display:none;">
+                <label style="font-weight:600; color:#333; font-size:0.85rem;">رابط الفيديو * (YouTube، Google Drive، Vimeo...)</label>
+                <input type="url" name="lien_video" class="form-control form-control-sm mt-1" placeholder="https://...">
+            </div>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:7px 18px; font-size:0.85rem; cursor:pointer;">إضافة ✅</button>
+        </form>
+    </div>
+    <script>
+        function toggleFormeHakiba() {
+            const forme = document.getElementById('forme_hakiba');
+            forme.style.display = (forme.style.display === 'none') ? 'block' : 'none';
+        }
+        function afficherChampHakiba(type) {
+            document.querySelectorAll('.hakiba-champ').forEach(function (champ) {
+                champ.style.display = (champ.dataset.type === type) ? 'block' : 'none';
+            });
+        }
+    </script>
+
+    {% for element in elements_hakiba %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0; gap:12px;">
+        <div style="min-width:0;">
+            <div style="font-weight:600;">
+                {% if element.type_element == 'texte' %}📝{% elif element.type_element == 'fichier' %}📎{% else %}🎬{% endif %}
+                {{ element.titre }}
+            </div>
+            <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">
+                {% if element.ajoute_par %}بواسطة {{ element.ajoute_par.get_full_name }} — {% endif %}{{ element.date_ajout|date:"d-m-Y" }}
+            </div>
+        </div>
+        <div class="d-flex gap-2" style="flex-shrink:0;">
+            <a href="{% url 'admin_hakiba_modifier' element.id %}"
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:5px 12px; text-decoration:none; font-size:0.8rem;">تعديل ✏️</a>
+            <a href="{% url 'admin_hakiba_supprimer' element.id %}"
+               onclick="return confirm('حذف \'{{ element.titre }}\' من حقيبة الأستاذ؟');"
+               style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:5px 12px; text-decoration:none; font-size:0.8rem;">حذف 🗑️</a>
+        </div>
+    </div>
+    {% empty %}
+    <div style="color:#aaa; padding:8px 0;">لا توجد عناصر مضافة بعد</div>
+    {% endfor %}
+
     {% if inscription %}
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">معلومات إضافية من استمارة التسجيل</div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">

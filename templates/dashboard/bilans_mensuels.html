@@ -2,123 +2,91 @@
 {% load libelles_arabes %}
 {% block title %}تقييم الطلاب{% endblock %}
 {% block content %}
+<style>
+.groupe-accordeon {
+    background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom:14px; overflow:hidden;
+}
+.groupe-accordeon summary {
+    list-style:none; cursor:pointer; padding:16px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+}
+.groupe-accordeon summary::-webkit-details-marker { display:none; }
+.groupe-accordeon summary::after {
+    content:'▾'; color:#aaa; margin-right:auto; transition:transform 0.15s;
+}
+.groupe-accordeon[open] summary::after { transform:rotate(180deg); }
+.groupe-accordeon summary:hover { background:var(--color-bg-cream); }
+.pill-prof {
+    background:#f3e6cc; color:{{ couleur_role }}; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600;
+}
+.pill-nb {
+    background:#f0f0f0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem;
+}
+.ligne-eleve {
+    display:block; padding:12px 20px; border-top:1px solid #f0f0f0; text-decoration:none; color:inherit;
+}
+.ligne-eleve:hover { background:var(--color-bg-cream); }
+.ligne-eleve .ligne1 { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+.ligne-eleve .moyennes { display:flex; gap:6px; flex-wrap:wrap; }
+.ligne-eleve .badge-note { background:#f9f9f9; border-radius:8px; padding:2px 10px; font-size:0.76rem; }
+.ligne-eleve .ligne2 { color:#999; font-size:0.82rem; font-style:italic; margin-top:4px; }
+</style>
+
 <div class="page-title">تقييم الطلاب</div>
 <div class="page-subtitle">عرض للاطلاع فقط — التحرير من صلاحية المعلم</div>
 
-<div class="d-flex gap-2 mb-3">
-    <button type="button" id="btn-onglet-mensuel" onclick="basculerOnglet('mensuel')"
-            style="border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">شهري</button>
-    <button type="button" id="btn-onglet-seance" onclick="basculerOnglet('seance')"
-            style="border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">حسب الحصة</button>
-</div>
-
-<div id="onglet-mensuel">
-    <form method="GET" style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
-        <div>
-            <label style="color:#888; font-size:0.8rem;">الشهر</label>
-            <input type="month" name="mois" class="form-control" value="{{ filtres.mois }}">
-        </div>
-        <div>
-            <label style="color:#888; font-size:0.8rem;">المعلم</label>
-            <select name="prof" class="form-select">
-                <option value="">الكل</option>
-                {% for prof in profs %}
-                <option value="{{ prof.id }}" {% if filtres.prof == prof.id|stringformat:"s" %}selected{% endif %}>{{ prof.user.get_full_name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label style="color:#888; font-size:0.8rem;">الطالب</label>
-            <select name="eleve" class="form-select">
-                <option value="">الكل</option>
-                {% for eleve in eleves %}
-                <option value="{{ eleve.id }}" {% if filtres.eleve == eleve.id|stringformat:"s" %}selected{% endif %}>{{ eleve.user.get_full_name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
-        <a href="{% url 'bilans_mensuels' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
-    </form>
-
-    <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
-        {% for bilan in bilans %}
-        <div style="padding:14px 20px; border-bottom:1px solid #f0f0f0;">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                <div>
-                    <div style="font-weight:700; display:flex; align-items:center; gap:8px;">
-                        {{ bilan.eleve.user.get_full_name }}
-                        <span style="display:inline-flex; gap:6px; align-items:center;">
-                            {% include 'dashboard/_email_icon.html' with email=bilan.eleve.user.email %}
-                            {% include 'dashboard/_whatsapp_icon.html' with telephone=bilan.eleve.user.telephone %}
-                        </span>
-                    </div>
-                    <div style="color:#888; font-size:0.85rem;">{{ bilan.mois_reference|mois_annee_ar }} — بقلم {{ bilan.prof.user.get_full_name }}</div>
-                </div>
-                <a href="{% url 'bilan_mensuel_detail' bilan.eleve.id bilan.mois_reference|date:'Y-m' %}"
-                   style="color:{{ couleur_role }}; text-decoration:none; font-size:0.85rem; font-weight:600;">عرض ←</a>
-            </div>
-            {% if bilan.moyenne_hifz or bilan.moyenne_muraja3a or bilan.moyenne_tilawa or bilan.moyenne_mouwazaba %}
-            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
-                <span style="background:#f9f9f9; border-radius:8px; padding:2px 10px; font-size:0.78rem;">الحفظ: {{ bilan.moyenne_hifz|default:"—" }}/20</span>
-                <span style="background:#f9f9f9; border-radius:8px; padding:2px 10px; font-size:0.78rem;">المراجعة: {{ bilan.moyenne_muraja3a|default:"—" }}/20</span>
-                <span style="background:#f9f9f9; border-radius:8px; padding:2px 10px; font-size:0.78rem;">التلاوة: {{ bilan.moyenne_tilawa|default:"—" }}/20</span>
-                <span style="background:#f9f9f9; border-radius:8px; padding:2px 10px; font-size:0.78rem;">المواظبة والسلوك: {{ bilan.moyenne_mouwazaba|default:"—" }}/20</span>
-            </div>
-            {% endif %}
-            <a href="?mois={{ filtres.mois }}&prof={{ filtres.prof }}&eleve={{ bilan.eleve.id }}&onglet=seance"
-               style="color:{{ couleur_role }}; text-decoration:none; font-size:0.82rem; display:inline-block; margin-top:8px;">
-                عرض تقييمات كل حصة ←
-            </a>
-        </div>
-        {% empty %}
-        <div style="text-align:center; padding:60px; color:#aaa;">لا توجد بيانات شهرية مطابقة</div>
-        {% endfor %}
+<form method="GET" style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+    <div>
+        <label style="color:#888; font-size:0.8rem;">الشهر</label>
+        <input type="month" name="mois" class="form-control" value="{{ filtres.mois }}">
     </div>
-    {% include 'dashboard/_pagination.html' with page_obj=bilans %}
-</div>
-
-<div id="onglet-seance" style="display:none;">
-    {% if eleve_seance %}
-    <div style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-weight:700;">{{ eleve_seance.user.get_full_name }}</div>
-        <a href="{% url 'bilans_mensuels' %}" style="color:#888; text-decoration:none; font-size:0.85rem;">عرض طالب آخر (من قائمة "شهري")</a>
+    <div>
+        <label style="color:#888; font-size:0.8rem;">المعلم</label>
+        <select name="prof" class="form-select">
+            <option value="">الكل</option>
+            {% for prof in profs %}
+            <option value="{{ prof.id }}" {% if filtres.prof == prof.id|stringformat:"s" %}selected{% endif %}>{{ prof.user.get_full_name }}</option>
+            {% endfor %}
+        </select>
     </div>
+    <div>
+        <label style="color:#888; font-size:0.8rem;">المجموعة</label>
+        <select name="groupe" class="form-select">
+            <option value="">الكل</option>
+            {% for g in groupes_filtre %}
+            <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+    <a href="{% url 'bilans_mensuels' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+</form>
 
-    <!-- Indicateur permanent du filtre actif — jamais ambigu sur ce que montre
-         la liste ci-dessous (Tâche du 2026-08-03: ce mode ignorait auparavant
-         le filtre "الشهر" en silence). -->
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding:0 4px;">
-        {% if filtres.mois %}
-        <div style="font-size:0.85rem; color:#555;">
-            📅 حصص شهر <strong>{{ mois_seance_reference|mois_annee_ar }}</strong> فقط
-            <a href="?eleve={{ eleve_seance.id }}&onglet=seance" style="color:#dc3545; text-decoration:none; font-weight:700; margin-right:4px;" title="إزالة تصفية الشهر">(×)</a>
+{% for item in groupes_accordeon %}
+<details class="groupe-accordeon">
+    <summary>
+        <span style="font-weight:700;">{{ item.groupe.nom }}</span>
+        <span class="pill-prof">{{ item.groupe.prof.user.get_full_name|default:"— بدون أستاذ" }}</span>
+        <span class="pill-nb">{{ item.nb_eleves }} طلاب</span>
+    </summary>
+    {% for ligne in item.lignes_eleves %}
+    <a href="{% url 'bilans_mensuels_detail_seance' item.groupe.id ligne.eleve.id %}{% if filtres.mois %}?mois={{ filtres.mois }}{% endif %}" class="ligne-eleve">
+        <div class="ligne1">
+            <span style="font-weight:600;">{{ ligne.eleve.user.get_full_name }}</span>
+            <span class="moyennes">
+                {% for m in ligne.moyennes %}<span class="badge-note">{{ m.nom_ar }}: {{ m.moyenne }}/20</span>{% endfor %}
+            </span>
         </div>
-        <a href="?eleve={{ eleve_seance.id }}&onglet=seance" style="color:{{ couleur_role }}; text-decoration:none; font-size:0.85rem; font-weight:600;">عرض كل التاريخ</a>
-        {% else %}
-        <div style="font-size:0.85rem; color:#888;">📅 كل التاريخ</div>
-        {% endif %}
-    </div>
-
-    <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
-        {% include 'dashboard/_historique_evaluations_eleve.html' with historique=progression_seance.historique %}
-    </div>
-    {% else %}
-    <div style="background:white; border-radius:12px; padding:40px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-        اختر طالباً من عامل التصفية في تبويب "شهري" (أو اضغط "عرض تقييمات كل حصة" على بطاقته) لعرض سجل تقييماته حسب كل حصة.
-    </div>
-    {% endif %}
-</div>
-
-<script>
-    function basculerOnglet(onglet) {
-        const estMensuel = onglet === 'mensuel';
-        document.getElementById('onglet-mensuel').style.display = estMensuel ? 'block' : 'none';
-        document.getElementById('onglet-seance').style.display = estMensuel ? 'none' : 'block';
-        document.getElementById('btn-onglet-mensuel').style.background = estMensuel ? '{{ couleur_role }}' : '#f0f0f0';
-        document.getElementById('btn-onglet-mensuel').style.color = estMensuel ? 'white' : '#555';
-        document.getElementById('btn-onglet-seance').style.background = estMensuel ? '#f0f0f0' : '{{ couleur_role }}';
-        document.getElementById('btn-onglet-seance').style.color = estMensuel ? '#555' : 'white';
-    }
-    basculerOnglet('{{ onglet }}');
-</script>
+        <div class="ligne2">
+            {% if ligne.bilan_texte %}{{ ligne.bilan_texte|truncatechars:110 }}{% else %}لا يوجد بيان مكتوب لهذا الشهر{% endif %}
+        </div>
+    </a>
+    {% empty %}
+    <div style="padding:16px 20px; color:#aaa; border-top:1px solid #f0f0f0;">لا يوجد طلاب في هذه المجموعة</div>
+    {% endfor %}
+</details>
+{% empty %}
+<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px;">لا توجد مجموعات مطابقة لهذه التصفية</div>
+{% endfor %}
 {% endblock %}
