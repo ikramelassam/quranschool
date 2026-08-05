@@ -41,6 +41,10 @@
                 {% include 'dashboard/_email_icon.html' with email=prof.user.email %}
                 {% include 'dashboard/_whatsapp_icon.html' with telephone=prof.user.telephone %}
             </span>
+            <a href="{% url 'admin_prof_detail' prof.id %}"
+               style="color:var(--color-role-admin-solid); font-size:0.85rem; font-weight:700; text-decoration:none; white-space:nowrap;">
+               التفاصيل ←
+            </a>
         </div>
     </div>
     {% empty %}

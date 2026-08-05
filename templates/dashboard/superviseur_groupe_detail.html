@@ -32,7 +32,33 @@
     <div class="col-md-3">
         <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
             <div style="color:#888; font-size:0.85rem;">الأستاذ</div>
-            <div style="color:var(--color-role-superviseur-solid); font-size:1rem; font-weight:700;">{{ groupe.prof.user.get_full_name|default:"—" }}</div>
+            <div style="color:var(--color-role-superviseur-solid); font-size:1rem; font-weight:700; display:flex; align-items:center; gap:8px;">
+                {{ groupe.prof.user.get_full_name|default:"—" }}
+                {% if groupe.prof %}
+                <span style="display:inline-flex; gap:6px; align-items:center;">
+                    {% include 'dashboard/_email_icon.html' with email=groupe.prof.user.email %}
+                    {% include 'dashboard/_whatsapp_icon.html' with telephone=groupe.prof.user.telephone %}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="color:#888; font-size:0.85rem;">الرواية</div>
+            <div style="color:var(--color-role-superviseur-solid); font-size:1rem; font-weight:700;">{% if groupe.creneau %}{{ groupe.creneau.get_riwaya_display }}{% else %}غير محدد{% endif %}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="color:#888; font-size:0.85rem;">🔗 رابط الحصص</div>
+            <div style="font-size:1rem; font-weight:700;">
+                {% if groupe.lien_reunion %}
+                <a href="{{ groupe.lien_reunion }}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); text-decoration:none;">فتح الرابط ↗</a>
+                {% else %}
+                {% include 'dashboard/_badge_statut.html' with type='warning' texte='⚠ لا يوجد رابط' %}
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
@@ -42,11 +68,17 @@
 
     {% if eleves %}
         {% for eleve in eleves %}
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f0f0f0;">
-            <div style="font-weight:600;">{{ eleve.user.get_full_name }}</div>
-            <div style="display:flex; gap:8px; align-items:center;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f0f0f0; flex-wrap:wrap; gap:8px;">
+            <div style="font-weight:600; display:flex; align-items:center; gap:8px;">
+                {{ eleve.user.get_full_name }}
                 {% include 'dashboard/_badge_suspension_eleve.html' with eleve=eleve %}
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
                 <div style="color:#888; font-size:0.85rem;">{{ eleve.user.email }}</div>
+                <span style="display:inline-flex; gap:6px; align-items:center;">
+                    {% include 'dashboard/_email_icon.html' with email=eleve.user.email %}
+                    {% include 'dashboard/_whatsapp_icon.html' with telephone=eleve.user.telephone %}
+                </span>
             </div>
         </div>
         {% endfor %}

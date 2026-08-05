@@ -2246,7 +2246,7 @@ def superviseur_profil(request):
     réutilise le même filtre que dashboard_superviseur."""
     from django.db.models import Exists, OuterRef
     from accounts.models import Superviseur
-    from courses.models import Seance
+    from courses.models import Seance, Groupe
     from evaluations.models import Evaluation
     from django.utils import timezone
 
@@ -2254,30 +2254,35 @@ def superviseur_profil(request):
     profs = superviseur.profs_assignes.select_related('user').prefetch_related('groupes__creneau').order_by('user__first_name')
     aujourdhui = timezone.localdate()
 
+    # Bug signale le 04/08/2026 (2e ronde) : statut='terminee' excluait a tort
+    # les seances restees 'planifiee' malgre une date passee (prof qui a
+    # oublie de remplir sa feuille de presence) -- exactement le meme bug deja
+    # corrige dans dashboard_superviseur (Tache 24, Partie 2 du 2026-07-26),
+    # jamais reporte ici malgre le commentaire du docstring qui pretendait le
+    # contraire. Desormais aligne EXACTEMENT sur seances_retard plus haut :
+    # toute seance passee, non annulee, jamais evaluee -- quel que soit son
+    # statut ('terminee' ou 'planifiee' oubliee).
     nb_evaluations_en_attente = Seance.objects.filter(
-        groupe__prof__in=profs, statut='terminee', date__lt=aujourdhui
-    ).annotate(
+        groupe__prof__in=profs, date__lt=aujourdhui,
+    ).exclude(statut='annulee').annotate(
         est_evaluee=Exists(Evaluation.objects.filter(seance=OuterRef('pk')))
     ).filter(est_evaluee=False).count()
 
-    # "المجموعات المسندة" (Point 12, Tâche du 2026-08-04) — tous les groupes
-    # ACTIFS des profs supervisés, regroupés par prof (un sous-bloc par prof,
-    # masqué s'il n'a aucun groupe actif -- l'état vide global ne s'affiche
-    # que si AUCUN prof supervisé n'a le moindre groupe actif).
-    groupes_par_prof = []
-    for prof in profs:
-        groupes_actifs_prof = list(
-            prof.groupes.filter(statut='actif').select_related('creneau').order_by('nom')
-        )
-        if groupes_actifs_prof:
-            groupes_par_prof.append({'prof': prof, 'groupes': groupes_actifs_prof})
+    # "المجموعات المسندة" (Point 12, Tâche du 2026-08-04, restructurée en
+    # liste PLATE le 04/08/2026 2e ronde — un prof en en-tête de section
+    # donnait une hiérarchie visuelle prof→groupes non voulue ; chaque ligne
+    # est maintenant un groupe, le prof affiché comme métadonnée dessus).
+    # Tous les groupes ACTIFS des profs supervisés, triés par nom de groupe.
+    groupes_assignes = Groupe.objects.filter(
+        prof__in=profs, statut='actif'
+    ).select_related('prof__user', 'creneau').order_by('nom')
 
     from django.contrib.auth import get_user_model
     User = get_user_model()
 
     return render(request, 'dashboard/superviseur_profil.html', {
         'superviseur': superviseur,
-        'groupes_par_prof': groupes_par_prof,
+        'groupes_assignes': groupes_assignes,
         'nb_profs': profs.count(),
         'nb_evaluations_en_attente': nb_evaluations_en_attente,
         'admins': User.objects.filter(role='admin'),
