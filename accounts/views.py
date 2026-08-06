@@ -55,21 +55,56 @@ def logout_view(request):
     return redirect('login')
 
 
+# Libellés arabes du rôle pour le message Telegram de mot_de_passe_oublie —
+# permet au مدير de savoir immédiatement à qui transmettre le nouveau mot de
+# passe, sans avoir à rouvrir la fiche du compte (Tâche du 2026-08-05).
+LIBELLES_ROLE_MDP_OUBLIE = {
+    'eleve': 'طالب',
+    'prof': 'أستاذ',
+    'superviseur': 'مؤطر',
+}
+
+
 def mot_de_passe_oublie(request):
     """"نسيت كلمة المرور ؟" (Tâche 22 Partie E du 2026-07-26) — pas d'envoi email
     (Brevo non fiable, voir Partie D) : le mot de passe généré est envoyé au
     مدير via le bot Telegram déjà utilisé pour les notifications d'inscription
     (core.utils.envoyer_notification_telegram), à charge pour lui de le
     transmettre au titulaire du compte. Message affiché identique que l'email
-    existe ou non, pour ne jamais révéler quels emails sont enregistrés."""
+    existe ou non, pour ne jamais révéler quels emails sont enregistrés (et
+    identique aussi entre élève/prof/مؤطر et مدير/مشرف, pour ne pas révéler le
+    rôle associé à un email).
+
+    Historique : Points 13/14/17 (décision du 2026-08-05) avaient retiré tout
+    moyen pour élève/prof/مؤطر de changer leur mot de passe, y compris ce
+    mécanisme. Nouvelle décision du même jour : "mot de passe oublié" est
+    réactivé pour ces 3 rôles, mais SANS repasser par le self-service classique
+    — même principe que la création de compte : mot de passe séquentiel
+    (zidanieilmanN@@, generer_mot_de_passe_sequentiel), appliqué immédiatement
+    (l'ancien devient invalide), jamais affiché au demandeur, jamais de
+    changement forcé à la prochaine connexion (doit_changer_mot_de_passe=False,
+    cohérent avec le reste du chantier mots de passe). مدير/مشرف gardent
+    exactement leur ancien comportement (mot de passe temporaire aléatoire,
+    changement forcé à la prochaine connexion) — flux séparé, inchangé."""
     from core.utils import envoyer_notification_telegram
-    from dashboard.views import generer_mot_de_passe_temporaire
+    from dashboard.views import generer_mot_de_passe_temporaire, generer_mot_de_passe_sequentiel
 
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
         User = get_user_model()
         user = User.objects.filter(email=email).first()
-        if user:
+        if user and user.role in ('eleve', 'prof', 'superviseur'):
+            nouveau_mot_de_passe = generer_mot_de_passe_sequentiel()
+            user.set_password(nouveau_mot_de_passe)
+            user.doit_changer_mot_de_passe = False
+            user.save()
+            envoyer_notification_telegram(
+                f'🔑 طلب كلمة مرور جديدة\n'
+                f'الحساب: {user.get_full_name()} ({LIBELLES_ROLE_MDP_OUBLIE[user.role]})\n'
+                f'البريد: {email}\n'
+                f'كلمة المرور الجديدة: {nouveau_mot_de_passe}'
+            )
+        elif user:
             nouveau_mot_de_passe = generer_mot_de_passe_temporaire()
             user.set_password(nouveau_mot_de_passe)
             user.doit_changer_mot_de_passe = True
@@ -82,8 +117,7 @@ def mot_de_passe_oublie(request):
             )
         messages.success(
             request,
-            'إذا كان هذا البريد الإلكتروني مسجلاً لدينا، فقد تم إشعار الإدارة لإنشاء كلمة '
-            'مرور جديدة — تواصل مع الإدارة للحصول عليها.'
+            'إذا كان هذا البريد مسجلاً لدينا، تواصل مع الإدارة للحصول على كلمة المرور الجديدة.'
         )
         # Reste sur la même page (au lieu de rediriger vers login) pour pouvoir
         # proposer tout de suite un contact direct avec le مدير (WhatsApp/email),
@@ -104,6 +138,13 @@ def reinitialiser_mon_mot_de_passe(request):
     profil. Déconnecte immédiatement (l'ancien mot de passe devient invalide)."""
     from core.utils import envoyer_notification_telegram
     from dashboard.views import generer_mot_de_passe_temporaire
+
+    # Points 13/14/17 (Tâche du 2026-08-04) : même retrait du self-service
+    # que password_change_view — élève/prof/مؤطر ne peuvent plus déclencher
+    # eux-mêmes un changement de leur mot de passe, sous aucune forme.
+    if request.user.role in ('eleve', 'prof', 'superviseur'):
+        messages.info(request, 'لتغيير كلمة المرور، يرجى التواصل مع الإدارة.')
+        return redirect_by_role(request.user)
 
     if request.method == 'POST':
         nouveau_mot_de_passe = generer_mot_de_passe_temporaire()
@@ -162,6 +203,18 @@ COULEUR_PAR_ROLE = {
 @login_required
 def password_change_view(request):
     changement_force = request.user.doit_changer_mot_de_passe
+
+    # Points 13/14/17 (décision du directeur du 2026-08-05) : élève/prof/مؤطر
+    # ne peuvent JAMAIS changer leur mot de passe depuis cette vue — ni en
+    # self-service, ni via un changement forcé (le changement forcé lui-même
+    # a été retiré pour ces 3 rôles, voir
+    # accounts.middleware.ForcerChangementMotDePasseMiddleware.ROLES_EXEMPTES
+    # et la création de compte qui ne met plus jamais doit_changer_mot_de_passe
+    # à True pour eux). Blocage inconditionnel ici en défense en profondeur,
+    # au cas où cette URL serait quand même atteinte directement.
+    if request.user.role in ('eleve', 'prof', 'superviseur'):
+        messages.info(request, 'لتغيير كلمة المرور، يرجى التواصل مع الإدارة.')
+        return redirect_by_role(request.user)
 
     if request.method == 'POST':
         ancien = request.POST.get('ancien_mot_de_passe')

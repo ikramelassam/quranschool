@@ -35,6 +35,7 @@ urlpatterns = [
     path('superviseur/profil/', views.superviseur_profil, name='superviseur_profil'),
     path('superviseur/profs/<int:prof_id>/', views.superviseur_prof_detail, name='superviseur_prof_detail'),
     path('superviseur/groupes/<int:groupe_id>/', views.superviseur_groupe_detail, name='superviseur_groupe_detail'),
+    path('superviseur/hakiba/', views.superviseur_hakiba, name='superviseur_hakiba'),
 
     # Confirmation partagée après création de compte (élève ou prof)
     path('admin/confirmation-compte/', views.confirmation_creation_compte, name='confirmation_creation_compte'),
@@ -55,6 +56,7 @@ urlpatterns = [
     path('mshrif/candidatures-profs/<int:inscription_id>/valider/', views.mshrif_valider_prof_final, name='mshrif_valider_prof_final'),
     path('mshrif/candidatures-profs/<int:inscription_id>/rejeter/', views.mshrif_rejeter_prof, name='mshrif_rejeter_prof'),
     path('mshrif/remuneration/', views.mshrif_remuneration, name='mshrif_remuneration'),
+    path('admin/profs/<int:prof_id>/remuneration/', views.admin_prof_remuneration_detail, name='admin_prof_remuneration_detail'),
     path('mshrif/charte/', views.mshrif_charte, name='mshrif_charte'),
     path('mshrif/logo/', views.mshrif_logo, name='mshrif_logo'),
 
@@ -68,8 +70,8 @@ urlpatterns = [
     path('admin/profs/', views.admin_profs, name='admin_profs'),
     path('admin/profs/<int:prof_id>/', views.admin_prof_detail, name='admin_prof_detail'),
     path('admin/profs/<int:prof_id>/infos-complementaires/', views.admin_prof_infos_complementaires_modifier, name='admin_prof_infos_complementaires_modifier'),
-    path('admin/profs/<int:prof_id>/hakiba/ajouter/', views.admin_hakiba_ajouter, name='admin_hakiba_ajouter'),
-    path('admin/hakiba/<int:element_id>/modifier/', views.admin_hakiba_modifier, name='admin_hakiba_modifier'),
+    path('admin/hakiba/', views.admin_hakiba_gestion, name='admin_hakiba_gestion'),
+    path('admin/hakiba/ajouter/', views.admin_hakiba_ajouter, name='admin_hakiba_ajouter'),
     path('admin/hakiba/<int:element_id>/supprimer/', views.admin_hakiba_supprimer, name='admin_hakiba_supprimer'),
     path('admin/profs/<int:prof_id>/donnees-actuelles/modifier/', views.admin_prof_donnees_actuelles_modifier, name='admin_prof_donnees_actuelles_modifier'),
     path('admin/profs/<int:prof_id>/disponibilites/', views.admin_prof_disponibilites, name='admin_prof_disponibilites'),
@@ -122,10 +124,13 @@ urlpatterns = [
 
     # Admin — modification d'email (n'importe quel utilisateur) et compte admin
     path('admin/utilisateurs/<int:user_id>/modifier-email/', views.admin_utilisateur_modifier_email, name='admin_utilisateur_modifier_email'),
+    path('admin/utilisateurs/<int:user_id>/reinitialiser-mot-de-passe/', views.admin_utilisateur_reinitialiser_mot_de_passe, name='admin_utilisateur_reinitialiser_mot_de_passe'),
     path('admin/mon-compte/', views.admin_mon_compte, name='admin_mon_compte'),
     path('admin/programme-general/', views.admin_programme_general, name='admin_programme_general'),
     path('admin/visibilite-prof/', views.admin_visibilite_prof, name='admin_visibilite_prof'),
     path('admin/gestion-inscriptions/', views.admin_gestion_inscriptions, name='admin_gestion_inscriptions'),
+    path('admin/reglage-lien-seance/', views.admin_reglage_lien_seance, name='admin_reglage_lien_seance'),
+    path('seances/<int:seance_id>/rejoindre/', views.rejoindre_seance, name='rejoindre_seance'),
 
     # Bilans mensuels élèves (prof: saisie ; مدير/مؤطر/مشرف: lecture seule)
     path('prof/evaluations/', views.prof_evaluations, name='prof_evaluations'),

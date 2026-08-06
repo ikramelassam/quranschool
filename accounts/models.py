@@ -29,9 +29,38 @@ class User(AbstractUser):
     # utilisateur avec ce champ à True vers le changement de mot de passe
     # avant tout accès au reste du site.
     doit_changer_mot_de_passe = models.BooleanField(default=True)
+    # Traçabilité de la réinitialisation par مدير/مشرف (Points 13/14/17,
+    # Tâche du 2026-08-04) — related_name='+' comme les autres FK d'audit du
+    # projet (ParametresInscriptions.derniere_modification_par), pas de
+    # related_name inverse nécessaire.
+    mot_de_passe_reinitialise_par = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='+'
+    )
+    date_reinitialisation_mot_de_passe = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+
+class CompteurMotDePasseSequentiel(models.Model):
+    """Fournit un compteur strictement croissant pour le nouveau format de
+    mot de passe "zidanieilman<N>@@" (élève/prof/مؤطر — décision du
+    directeur du 2026-08-05, remplace la génération aléatoire précédente).
+    Chaque appel à generer_mot_de_passe_sequentiel() crée une ligne ici et
+    utilise son id comme N — s'appuie sur l'auto-incrément natif de la base
+    (séquence Postgres), atomique et sans risque de collision même en cas
+    d'accès concurrents, plutôt qu'un simple COUNT() (non atomique, et qui
+    régresserait si un compte était supprimé). Compteur UNIQUE et PARTAGÉ
+    entre les 3 catégories (pas un compteur séparé par rôle) — choix le plus
+    simple à maintenir, aucune information de rôle n'est encodée dans le
+    mot de passe de toute façon. Les lignes ne sont jamais supprimées, même
+    si le mot de passe qu'elles ont servi à générer est ensuite remplacé —
+    seule leur existence compte, pas leur contenu."""
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Compteur de mot de passe séquentiel"
+        verbose_name_plural = "Compteur de mot de passe séquentiel"
 
 
 class EleveActifsManager(models.Manager):
@@ -168,24 +197,27 @@ class Prof(models.Model):
 
 
 class ElementHakiba(models.Model):
-    """Élément de la "حقيبة الأستاذ" ajouté par مدير/مشرف sur la fiche d'un prof
-    (Tâche du 2026-08-04, Point 1) — texte libre, fichier ou lien vidéo externe.
-    Un seul modèle avec un champ type_element (plutôt que 3 modèles séparés) :
-    plus simple à lister/trier ensemble par ordre chronologique, et l'ajout
-    d'un futur 4e type ne casserait pas la structure. Stocké via le storage
-    par défaut du projet (voir LogoConfig.logo ci-dessus). Affiché en lecture
-    seule au prof concerné sur prof_hakiba.html, section "أضيفت من طرف الإدارة"."""
-    TYPE_CHOICES = [
-        ('texte', 'نص'),
-        ('fichier', 'ملف'),
-        ('video', 'فيديو'),
-    ]
-    prof = models.ForeignKey(Prof, on_delete=models.CASCADE, related_name='elements_hakiba')
-    type_element = models.CharField(max_length=10, choices=TYPE_CHOICES)
-    titre = models.CharField(max_length=200)
+    """Élément de la "حقيبة الأستاذ" ajouté par مدير/مشرف depuis la page centrale
+    "إدارة حقيبة الأستاذ" (refonte du 2026-08-05, remplace la v1 du
+    2026-08-04 qui vivait sur la fiche de CHAQUE prof individuellement, avec
+    un choix de type texte/fichier/vidéo mutuellement exclusif).
+    Un élément peut désormais combiner titre + texte + fichier librement (au
+    moins texte OU fichier requis — validé côté vue, voir
+    dashboard.views._valider_fichier_hakiba et admin_hakiba_ajouter). La vidéo
+    n'est plus un type à part : une vidéo s'attache comme n'importe quel
+    fichier (voir EXTENSIONS_HAKIBA_AUTORISEES dans dashboard/views.py).
+    Ciblage : soit tous les profs (par défaut), soit une sélection précise via
+    profs_cibles — remplace l'ancien ForeignKey vers un seul prof (migration
+    0029, sans perte : aucune ligne n'existait encore en base au moment de la
+    refonte)."""
+    titre = models.CharField(max_length=200, blank=True)
     contenu_texte = models.TextField(blank=True)
     fichier = models.FileField(upload_to='hakiba_prof/', null=True, blank=True)
-    lien_video = models.URLField(blank=True)
+    # True = visible par tous les profs actifs (valeur par défaut, la plus
+    # courante d'après le besoin exprimé — ex: ميثاق التدريس, une note générale).
+    # False = uniquement les profs listés dans profs_cibles.
+    tous_les_profs = models.BooleanField(default=True)
+    profs_cibles = models.ManyToManyField(Prof, blank=True, related_name='elements_hakiba')
     # Trace qui a ajouté/modifié cet élément — مدير ET مشرف interviennent tous
     # les deux sur la même حقيبة, contrairement aux autres réglages du projet
     # où un seul rôle édite (voir ParametresInscriptions.derniere_modification_par,
@@ -197,7 +229,7 @@ class ElementHakiba(models.Model):
     date_modification = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.get_type_element_display()} — {self.titre}"
+        return self.titre or (self.contenu_texte[:40] if self.contenu_texte else 'عنصر بدون عنوان')
 
     class Meta:
         ordering = ['-date_ajout']

@@ -709,41 +709,169 @@ def _tranche_age_eleve(eleve):
     return tranche_age_depuis_naissance(eleve.inscription.date_naissance)
 
 
-def calculer_remuneration_prof(prof):
+def lien_seance_est_actif(seance):
+    """True si l'heure actuelle tombe dans la fenêtre [début - marge_avant,
+    fin + marge_apres] de cette séance — Point 15, Tâche du 2026-08-04.
+    Recalculé à CHAQUE appel à partir des valeurs actuelles en base (jamais
+    mis en cache) : un changement d'horaire de la séance ou du réglage de
+    marge se reflète immédiatement au prochain appel, sans action
+    supplémentaire. fin_datetime retombe sur debut_datetime si le groupe n'a
+    pas/plus de créneau (voir Seance.fin_datetime), donc la fenêtre se
+    réduit à [début - marge_avant, début + marge_apres] dans ce cas. False
+    si le groupe n'a aucun lien de réunion renseigné (rien à activer) ou si
+    la séance est annulée."""
+    import datetime
+    from .models import ReglageLienSeance
+
+    if not seance.groupe.lien_reunion or seance.statut == 'annulee':
+        return False
+
+    reglage, _ = ReglageLienSeance.objects.get_or_create(pk=1)
+    debut = seance.debut_datetime
+    fin = seance.fin_datetime or debut
+    fenetre_debut = debut - datetime.timedelta(minutes=reglage.marge_avant_minutes)
+    fenetre_fin = fin + datetime.timedelta(minutes=reglage.marge_apres_minutes)
+    return fenetre_debut <= timezone.now() <= fenetre_fin
+
+
+def calculer_remuneration_prof(prof, mois=None):
     """Rémunération mensuelle d'un prof selon la grille TarifRemuneration
-    (type_capacite du groupe × tranche d'âge de chaque élève actif). Détail
-    par groupe pour que le calcul soit vérifiable. Ne retourne QUE le calcul
-    de base de la grille — majoration_mensuelle (Prof) n'est ni lue ni
-    additionnée ici: elle ne doit jamais atteindre la page du prof, même
-    fondue dans un total, voir templates/dashboard/prof_remuneration.html."""
-    from .models import TarifRemuneration
+    (type_capacite du groupe × tranche d'âge). Détail par groupe pour que le
+    calcul soit vérifiable. Ne retourne QUE le calcul de base de la grille —
+    majoration_mensuelle (Prof) n'est ni lue ni additionnée ici: elle ne doit
+    jamais atteindre la page du prof, même fondue dans un total, voir
+    templates/dashboard/prof_remuneration.html.
+
+    Toujours "à la volée" sur l'état actuel, jamais historisé (voir
+    mshrif_remuneration) — donc pas de "mois passé" distinct à préserver ici :
+    chaque affichage de cette fonction, quelle que soit la date à laquelle on
+    la consulte, ne montre QUE le mois en cours.
+
+    Correction du 2026-08-04 (Point 6, bug signalé par le client) : pour un
+    groupe type_capacite='individuel', l'ancien calcul multipliait le tarif
+    par le nombre d'élèves ACTIFS actuels du groupe — un montant mensuel FIXE
+    par élève inscrit, peu importe le nombre de séances réellement tenues ce
+    mois-ci. Désormais compté PAR SÉANCE individuelle réellement tenue ce
+    mois (Seance.statut='terminee') ET où l'élève était marqué présent
+    (Presence.statut='present') — une séance individuelle annulée, restée
+    'planifiee', ou où l'unique élève était absent, n'est pas payée. Les
+    groupes (type_capacite='groupe') gardent EXACTEMENT l'ancien calcul
+    (nombre d'élèves actifs × tarif mensuel), volontairement inchangé.
+
+    Champs ajoutés le 2026-08-05 (chantier groupé, Point 2 — refonte de
+    راتبي) pour séparer clairement groupes/individuel à l'affichage, SANS
+    changer 'detail'/'total_calcule' (toujours le mélange complet, requis tel
+    quel par prof_remuneration.html, admin_prof_detail.html et
+    mshrif_remuneration — jamais retouchés ici) :
+    - detail_groupes : sous-ensemble de detail, uniquement type_capacite
+      != 'individuel' (affichage inchangé de "المجموعات الجماعية").
+    - a_des_groupes_individuels : condition d'affichage de la section
+      "الحصص الفردية" (absente si False — jamais un bloc vide/à 0).
+    - individuel_reel : somme des sous_total des groupes individuels
+      (= le montant déjà "gagné" ce mois, séances confirmées présentes).
+    - individuel_projection : "si toutes les séances prévues ce mois étaient
+      tenues" — basée sur les élèves ACTIFS actuels de chaque groupe
+      individuel (pas sur l'historique de présence) × le nombre de séances
+      programmées ce mois pour ce groupe (annulées exclues, elles ne seront
+      plus tenues).
+    - individuel_nb_seances_confirmees / individuel_nb_seances_prevues /
+      individuel_pourcentage : pour le ratio "X من Y حصص" et la barre de
+      progression.
+
+    mois (optionnel, 'AAAA-MM', Tâche du 2026-08-05, Point 3 — page مدير/مشرف
+    "متابعة رواتب الأساتذة") : None (défaut) = mois calendaire réel,
+    comportement inchangé. Un autre mois ne change QUE le calcul "الحصص
+    الفردية" (basé sur de vraies dates de Seance/Presence, donc exact pour
+    n'importe quel mois passé). "المجموعات الجماعية" reste TOUJOURS basé sur
+    les élèves ACTIFS actuels, quel que soit le mois choisi — aucune
+    historisation de l'appartenance aux groupes n'existe dans ce projet, donc
+    ce sous-total n'est jamais rétroactivement exact pour un mois passé.
+    Documenté explicitement dans l'UI (voir mshrif_remuneration.html) pour ne
+    jamais laisser croire à une vraie vue historique complète."""
+    from .models import TarifRemuneration, Presence, Seance
 
     tarifs = {
         (t.type_capacite, t.tranche_age): t.montant
         for t in TarifRemuneration.objects.all()
     }
+    aujourdhui = timezone.localdate()
+    if mois:
+        annee_str, _, mois_str = mois.partition('-')
+        annee_calc, mois_calc = int(annee_str), int(mois_str)
+    else:
+        annee_calc, mois_calc = aujourdhui.year, aujourdhui.month
 
     detail = []
     total_calcule = 0
-    for groupe in prof.groupes.all():
-        nb_enfants = 0
-        nb_adultes = 0
-        nb_age_inconnu = 0
-        for eleve in groupe.eleves.filter(statut='actif').select_related('inscription'):
-            tranche = _tranche_age_eleve(eleve)
-            if tranche == 'enfant':
-                nb_enfants += 1
-            elif tranche == 'adulte':
-                nb_adultes += 1
-            else:
-                nb_age_inconnu += 1
+    a_des_groupes_individuels = False
+    individuel_reel = 0
+    individuel_projection = 0
+    individuel_nb_seances_confirmees = 0
+    individuel_nb_seances_prevues = 0
 
+    for groupe in prof.groupes.all():
         tarif_enfant = tarifs.get((groupe.type_capacite, 'enfant'), 0)
         tarif_adulte = tarifs.get((groupe.type_capacite, 'adulte'), 0)
+
+        if groupe.type_capacite == 'individuel':
+            a_des_groupes_individuels = True
+            # Une ligne par séance individuelle réellement tenue ce mois-ci
+            # (présence confirmée par le prof), pas un montant mensuel fixe.
+            presences_mois = Presence.objects.filter(
+                seance__groupe=groupe, seance__statut='terminee', statut='present',
+                seance__date__year=annee_calc, seance__date__month=mois_calc,
+            ).select_related('eleve__inscription')
+            nb_enfants = 0
+            nb_adultes = 0
+            nb_age_inconnu = 0
+            for p in presences_mois:
+                tranche = _tranche_age_eleve(p.eleve)
+                if tranche == 'enfant':
+                    nb_enfants += 1
+                elif tranche == 'adulte':
+                    nb_adultes += 1
+                else:
+                    nb_age_inconnu += 1
+
+            # Projection : nombre de séances programmées ce mois (annulées
+            # exclues) × ce que rapporterait chacune si tenue par les élèves
+            # ACTIFS actuels du groupe.
+            nb_seances_prevues_groupe = Seance.objects.filter(
+                groupe=groupe, date__year=annee_calc, date__month=mois_calc,
+            ).exclude(statut='annulee').count()
+            nb_enfants_actifs = 0
+            nb_adultes_actifs = 0
+            for eleve in groupe.eleves.filter(statut='actif').select_related('inscription'):
+                tranche = _tranche_age_eleve(eleve)
+                if tranche == 'enfant':
+                    nb_enfants_actifs += 1
+                elif tranche == 'adulte':
+                    nb_adultes_actifs += 1
+            individuel_projection += nb_seances_prevues_groupe * (
+                nb_enfants_actifs * tarif_enfant + nb_adultes_actifs * tarif_adulte
+            )
+            individuel_nb_seances_confirmees += presences_mois.count()
+            individuel_nb_seances_prevues += nb_seances_prevues_groupe
+        else:
+            # Groupes — calcul INCHANGÉ (nombre d'élèves actifs × tarif mensuel).
+            nb_enfants = 0
+            nb_adultes = 0
+            nb_age_inconnu = 0
+            for eleve in groupe.eleves.filter(statut='actif').select_related('inscription'):
+                tranche = _tranche_age_eleve(eleve)
+                if tranche == 'enfant':
+                    nb_enfants += 1
+                elif tranche == 'adulte':
+                    nb_adultes += 1
+                else:
+                    nb_age_inconnu += 1
+
         montant_enfants = nb_enfants * tarif_enfant
         montant_adultes = nb_adultes * tarif_adulte
         sous_total = montant_enfants + montant_adultes
         total_calcule += sous_total
+        if groupe.type_capacite == 'individuel':
+            individuel_reel += sous_total
 
         detail.append({
             'groupe': groupe,
@@ -760,4 +888,135 @@ def calculer_remuneration_prof(prof):
     return {
         'detail': detail,
         'total_calcule': total_calcule,
+        'detail_groupes': [d for d in detail if d['groupe'].type_capacite != 'individuel'],
+        'a_des_groupes_individuels': a_des_groupes_individuels,
+        'individuel_reel': individuel_reel,
+        'individuel_projection': individuel_projection,
+        'individuel_nb_seances_confirmees': individuel_nb_seances_confirmees,
+        'individuel_nb_seances_prevues': individuel_nb_seances_prevues,
+        'individuel_pourcentage': (
+            round(individuel_nb_seances_confirmees / individuel_nb_seances_prevues * 100)
+            if individuel_nb_seances_prevues else 0
+        ),
+    }
+
+
+def navigation_mois_et_semaines(seances_qs, request, aujourdhui, borne_avant=True):
+    """Agenda groupé par semaine à l'intérieur d'un mois navigable — extrait
+    de dashboard_superviseur (Point 1, Tâche du 2026-08-05) pour être
+    réutilisé tel quel par dashboard_prof (Tâche du même jour, "آخر الحصص")
+    plutôt que de dupliquer cette logique deux fois, comme demandé.
+
+    seances_qs : queryset de Seance déjà filtré/scopé par l'appelant (par
+    prof, par مؤطر...), PAS encore borné par mois — cette fonction s'en
+    charge.
+    aujourdhui : timezone.localdate() de l'appelant (pas recalculé ici, pour
+    ne jamais désynchroniser "aujourd'hui" entre deux parties d'une même vue).
+    borne_avant : True (par défaut) = n'inclut que les séances strictement
+    passées (date__lt=aujourdhui) — usage "historique/آخر الحصص". False =
+    inclut tout le mois choisi sans restriction de date (utile si un futur
+    appelant veut aussi une vue "à venir" groupée par ce même mécanisme).
+
+    mois_nav (GET, format 'AAAA-MM') : mois courant par défaut. La navigation
+    "mois suivant" est bloquée au-delà du mois calendaire réel (pas de sens à
+    naviguer vers un mois qui n'a pas encore commencé pour une vue
+    "historique"). Retourne un dict prêt à fusionner dans le contexte du
+    template : semaines (plus récente en premier, chaque item = {debut, fin,
+    seances, nb}), mois_nav_date, mois_nav_param, mois_precedent_param,
+    mois_suivant_param, mois_suivant_autorise."""
+    import calendar
+
+    mois_nav_param = request.GET.get('mois_nav', '')
+    try:
+        annee_nav, mois_nav_num = map(int, mois_nav_param.split('-'))
+        mois_nav_date = datetime.date(annee_nav, mois_nav_num, 1)
+    except (ValueError, TypeError):
+        annee_nav, mois_nav_num = aujourdhui.year, aujourdhui.month
+        mois_nav_date = datetime.date(annee_nav, mois_nav_num, 1)
+
+    mois_precedent_date = (mois_nav_date - datetime.timedelta(days=1)).replace(day=1)
+    dernier_jour_mois_nav = calendar.monthrange(annee_nav, mois_nav_num)[1]
+    mois_suivant_date = datetime.date(annee_nav, mois_nav_num, dernier_jour_mois_nav) + datetime.timedelta(days=1)
+    mois_suivant_autorise = mois_suivant_date <= datetime.date(aujourdhui.year, aujourdhui.month, 1)
+
+    seances_mois_nav = seances_qs.filter(date__year=annee_nav, date__month=mois_nav_num)
+    if borne_avant:
+        seances_mois_nav = seances_mois_nav.filter(date__lt=aujourdhui)
+    seances_mois_nav = seances_mois_nav.order_by('-date', '-heure')
+
+    semaines_dict = {}
+    for s in seances_mois_nav:
+        debut_semaine = s.date - datetime.timedelta(days=s.date.isoweekday() - 1)
+        semaines_dict.setdefault(debut_semaine, []).append(s)
+
+    semaines = [
+        {
+            'debut': debut_semaine,
+            'fin': debut_semaine + datetime.timedelta(days=6),
+            'seances': semaines_dict[debut_semaine],
+            'nb': len(semaines_dict[debut_semaine]),
+        }
+        for debut_semaine in sorted(semaines_dict.keys(), reverse=True)
+    ]
+
+    return {
+        'semaines': semaines,
+        'mois_nav_date': mois_nav_date,
+        'mois_nav_param': f'{annee_nav}-{mois_nav_num:02d}',
+        'mois_precedent_param': f'{mois_precedent_date.year}-{mois_precedent_date.month:02d}',
+        'mois_suivant_param': f'{mois_suivant_date.year}-{mois_suivant_date.month:02d}',
+        'mois_suivant_autorise': mois_suivant_autorise,
+    }
+
+
+def regrouper_seances_a_venir(seances_qs, aujourdhui):
+    """Section "القادمة" — séances futures groupées par semaine, avec des
+    libellés relatifs ("بقية هذا الأسبوع" déplié, "الأسبوع القادم" replié)
+    plutôt que de simples dates brutes pour les 2 premières périodes — semble
+    plus lisible pour une vue "à venir" que pour "السجل السابق" (Tâche du
+    2026-08-05, Point 1 du chantier groupé). Réutilisé tel quel par
+    dashboard_superviseur ET dashboard_prof.
+
+    seances_qs : déjà scopé par l'appelant (par prof, par مؤطر, filtres GET
+    éventuels...), PAS encore borné aux séances futures — cette fonction
+    s'en charge (date__gt=aujourdhui, "aujourd'hui" est déjà couvert par la
+    section "اليوم"/"الحصة القادمة" ailleurs sur la page).
+
+    Ne PAS pré-exclure ici la séance déjà affichée séparément par le widget
+    "الحصة القادمة/التالية" — nb_semaine_courante doit rester le compte VRAI
+    de "cette semaine" (elle en fait partie). C'est à l'appelant de retirer
+    cette séance de bucket_semaine_courante avant de l'afficher, pour ne pas
+    la montrer deux fois, sans fausser le compteur.
+
+    Retourne : bucket_semaine_courante (liste, à afficher DÉPLIÉE),
+    semaines_suivantes (liste de {label, debut, fin, seances, nb} — la 1ère
+    a label="الأسبوع القادم", les suivantes label=None : le template affiche
+    alors la plage de dates, toutes REPLIÉES), nb_semaine_courante (compteur
+    "X qui vient cette semaine", "vrai" total, cohérent avec le libellé)."""
+    fin_semaine_courante = aujourdhui + datetime.timedelta(days=7 - aujourdhui.isoweekday())
+    seances_a_venir = list(seances_qs.filter(date__gt=aujourdhui).order_by('date', 'heure'))
+
+    bucket_semaine_courante = [s for s in seances_a_venir if s.date <= fin_semaine_courante]
+    reste = [s for s in seances_a_venir if s.date > fin_semaine_courante]
+
+    semaines_dict = {}
+    for s in reste:
+        debut_semaine = s.date - datetime.timedelta(days=s.date.isoweekday() - 1)
+        semaines_dict.setdefault(debut_semaine, []).append(s)
+
+    semaines_suivantes = [
+        {
+            'label': 'الأسبوع القادم' if i == 0 else None,
+            'debut': debut_semaine,
+            'fin': debut_semaine + datetime.timedelta(days=6),
+            'seances': semaines_dict[debut_semaine],
+            'nb': len(semaines_dict[debut_semaine]),
+        }
+        for i, debut_semaine in enumerate(sorted(semaines_dict.keys()))
+    ]
+
+    return {
+        'bucket_semaine_courante': bucket_semaine_courante,
+        'semaines_suivantes': semaines_suivantes,
+        'nb_semaine_courante': len(bucket_semaine_courante),
     }

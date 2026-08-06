@@ -36,8 +36,24 @@ ALPHABET_MOT_DE_PASSE_TEMPORAIRE = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvw
 def generer_mot_de_passe_temporaire(longueur=10):
     """Mot de passe temporaire aléatoire et imprévisible, propre à ce compte.
     secrets (pas random): générateur cryptographiquement sûr, adapté à un
-    secret de sécurité plutôt qu'à un simple tirage aléatoire."""
+    secret de sécurité plutôt qu'à un simple tirage aléatoire. Réservé
+    désormais aux flux مدير/مشرف uniquement (mot de passe oublié, self-
+    service) — voir generer_mot_de_passe_sequentiel ci-dessous pour
+    élève/prof/مؤطر (Points 13/14/17, décision du directeur du 2026-08-05)."""
     return ''.join(secrets.choice(ALPHABET_MOT_DE_PASSE_TEMPORAIRE) for _ in range(longueur))
+
+
+def generer_mot_de_passe_sequentiel():
+    """Mot de passe "zidanieilman<N>@@" pour élève/prof/مؤطر — remplace la
+    génération aléatoire pour ces 3 rôles (décision du directeur du
+    2026-08-05). N vient de accounts.models.CompteurMotDePasseSequentiel :
+    un compteur UNIQUE partagé entre les 3 catégories (pas un compteur par
+    rôle — plus simple à maintenir, aucun risque de collision, le format ne
+    code de toute façon aucune information de rôle), garanti strictement
+    croissant et atomique via l'auto-incrément natif de la base."""
+    from accounts.models import CompteurMotDePasseSequentiel
+    ligne = CompteurMotDePasseSequentiel.objects.create()
+    return f'zidanieilman{ligne.id}@@'
 
 
 def envoyer_email_bienvenue(request, email, password_temp, prenom_nom):
@@ -150,6 +166,7 @@ def _verifier_conflit_email(email):
 def dashboard_prof(request):
     from accounts.models import Prof
     from courses.models import Groupe, Seance
+    from courses.utils import navigation_mois_et_semaines, regrouper_seances_a_venir
     from django.utils import timezone
 
     try:
@@ -158,27 +175,63 @@ def dashboard_prof(request):
         return redirect('login')
 
     groupes = Groupe.objects.filter(prof=prof)
-    seances = Seance.objects.filter(
-        groupe__prof=prof
-    ).order_by('-date')[:5]
+    aujourdhui = timezone.localdate()
+
+    # "آخر الحصص" — refonte agenda groupée (Tâche du 2026-08-05), même
+    # traitement que "السجل السابق" côté مؤطر : réutilise
+    # courses.utils.navigation_mois_et_semaines (extraite de
+    # dashboard_superviseur) plutôt que de dupliquer la logique une 2e fois.
+    # Aperçu immédiat = 3 dernières séances passées à plat, exclues ensuite du
+    # regroupement par semaine pour ne jamais les afficher deux fois.
+    toutes_seances_prof = Seance.objects.filter(groupe__prof=prof).select_related('groupe')
+    apercu_seances = list(
+        toutes_seances_prof.filter(date__lt=aujourdhui).order_by('-date', '-heure')[:3]
+    )
+    seances_hors_apercu = toutes_seances_prof.exclude(id__in=[s.id for s in apercu_seances])
+    nav = navigation_mois_et_semaines(seances_hors_apercu, request, aujourdhui)
 
     # Encart dédié "prochaine séance" (Tâche 10/écart 1 du 2026-07-25) — même
     # intention que dashboard_eleve.prochaine_seance : identifiable d'un coup
     # d'œil, plutôt que noyée dans "آخر الحصص" qui mélange passé/futur trié
     # par date décroissante.
-    aujourdhui = timezone.localdate()
     prochaine_seance = Seance.objects.filter(
         groupe__prof=prof, date__gte=aujourdhui
     ).exclude(statut='terminee').select_related('groupe').order_by('date', 'heure').first()
 
+    # ===== "القادمة" — section manquante (Point 1 du chantier groupé du
+    # 2026-08-05) : avant ce correctif, seule "الحصة القادمة" (une séance
+    # unique) était visible côté prof, rien ne montrait le reste des séances
+    # à venir. Réutilise courses.utils.regrouper_seances_a_venir, partagée
+    # avec dashboard_superviseur (voir sa docstring pour le détail). Comme
+    # côté مؤطر : prochaine_seance retirée du "بقية هذا الأسبوع" pour ne pas
+    # l'afficher deux fois, sans fausser nb_semaine_courante.
+    a_venir = regrouper_seances_a_venir(toutes_seances_prof, aujourdhui)
+    id_a_exclure = prochaine_seance.id if prochaine_seance else None
+    bucket_semaine_courante = [
+        s for s in a_venir['bucket_semaine_courante'] if s.id != id_a_exclure
+    ]
+
     context = {
         'prof': prof,
         'groupes': groupes,
-        'seances': seances,
+        'apercu_seances': apercu_seances,
+        'bucket_semaine_courante': bucket_semaine_courante,
+        'semaines_a_venir': a_venir['semaines_suivantes'],
+        'nb_semaine_courante': a_venir['nb_semaine_courante'],
+        'semaines_agenda': nav['semaines'],
+        'mois_nav_date': nav['mois_nav_date'],
+        'mois_nav_param': nav['mois_nav_param'],
+        'mois_precedent_param': nav['mois_precedent_param'],
+        'mois_suivant_param': nav['mois_suivant_param'],
+        'mois_suivant_autorise': nav['mois_suivant_autorise'],
         'prochaine_seance': prochaine_seance,
         'aujourdhui': aujourdhui,
         'total_eleves': sum(g.eleves.exclude(statut='archive').count() for g in groupes),
         'total_groupes': groupes.count(),
+        # Remplace l'ancien len(seances[:5]) — comptait au mieux 5 même si le
+        # prof avait un historique bien plus long ; total réel, cohérent avec
+        # le fait que la liste ci-dessous n'est plus plafonnée à 5 non plus.
+        'total_seances_passees': toutes_seances_prof.filter(date__lt=aujourdhui).count(),
     }
     return render(request, 'dashboard/prof.html', context)
 
@@ -264,6 +317,92 @@ def prof_seances(request):
         'groupes': Groupe.objects.filter(prof=prof).order_by('nom'),
         'filtres': {'groupe': groupe_id},
     })
+
+
+# ==================== LIEN DE SÉANCE (Point 15, Tâche du 2026-08-04) ====================
+
+@role_required('admin', 'mshrif')
+def admin_reglage_lien_seance(request):
+    """Réglage global de la marge (minutes avant/après) pendant laquelle le
+    lien de réunion d'une séance est cliquable — مدير ET مشرف, même patron
+    que admin_gestion_inscriptions."""
+    from courses.models import get_reglage_lien_seance
+
+    reglage = get_reglage_lien_seance()
+    if request.method == 'POST':
+        try:
+            marge_avant = int(request.POST.get('marge_avant_minutes', 0))
+            marge_apres = int(request.POST.get('marge_apres_minutes', 0))
+        except ValueError:
+            messages.error(request, 'يرجى إدخال أرقام صحيحة.')
+            return redirect('admin_reglage_lien_seance')
+        if marge_avant < 0 or marge_apres < 0:
+            messages.error(request, 'لا يمكن أن يكون الهامش رقماً سالباً.')
+            return redirect('admin_reglage_lien_seance')
+        reglage.marge_avant_minutes = marge_avant
+        reglage.marge_apres_minutes = marge_apres
+        reglage.derniere_modification_par = request.user
+        reglage.save()
+        messages.success(request, 'تم تحديث إعدادات هامش رابط الحصص بنجاح.')
+        return redirect('admin_reglage_lien_seance')
+
+    context = {
+        'reglage': reglage,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_reglage_lien_seance.html', context)
+
+
+@role_required('admin', 'mshrif', 'superviseur', 'prof', 'eleve')
+def rejoindre_seance(request, seance_id):
+    """Passerelle serveur pour le lien de réunion d'une séance — jamais un
+    lien direct vers l'URL externe côté template : même si le bouton semble
+    "actif" côté HTML, la fenêtre [début - marge_avant, fin + marge_apres]
+    est revalidée ICI à CHAQUE accès (courses.utils.lien_seance_est_actif,
+    qui relit l'horaire de la séance et le réglage de marge en base à chaque
+    appel) avant toute redirection vers le lien réel. Un accès direct à
+    cette URL hors fenêtre ne redirige jamais, quel que soit l'état du
+    bouton côté client."""
+    from accounts.models import Prof, Eleve, Superviseur
+    from courses.models import Seance
+    from courses.utils import lien_seance_est_actif
+
+    seance = get_object_or_404(Seance, id=seance_id)
+
+    role = request.user.role
+    if role in ('admin', 'mshrif'):
+        autorise = True
+    elif role == 'prof':
+        autorise = Prof.objects.filter(user=request.user, groupes=seance.groupe).exists()
+    elif role == 'eleve':
+        autorise = Eleve.objects.filter(user=request.user, groupes=seance.groupe).exists()
+    elif role == 'superviseur':
+        autorise = (
+            seance.groupe.prof_id is not None
+            and Superviseur.objects.filter(user=request.user, profs_assignes=seance.groupe.prof).exists()
+        )
+    else:
+        autorise = False
+
+    if not autorise:
+        from django.http import Http404
+        raise Http404
+
+    if not lien_seance_est_actif(seance):
+        BASE_TEMPLATE_PAR_ROLE = {
+            'admin': 'dashboard/base_admin.html',
+            'mshrif': 'dashboard/base_mshrif.html',
+            'superviseur': 'dashboard/base_superviseur.html',
+            'prof': 'dashboard/base_prof.html',
+            'eleve': 'dashboard/base_eleve.html',
+        }
+        return render(request, 'dashboard/lien_seance_indisponible.html', {
+            'seance': seance,
+            'base_template': BASE_TEMPLATE_PAR_ROLE[role],
+        })
+
+    return redirect(seance.groupe.lien_reunion)
 
 
 @role_required('prof')
@@ -626,6 +765,7 @@ def prof_disponibilites(request):
 @role_required('prof')
 def prof_profil(request):
     from accounts.models import Prof
+    from courses.utils import calculer_remuneration_prof
     from django.contrib.auth import get_user_model
     User = get_user_model()
     prof = get_object_or_404(Prof, user=request.user)
@@ -634,6 +774,10 @@ def prof_profil(request):
         'superviseurs': prof.superviseurs.select_related('user').all(),
         'admins': User.objects.filter(role='admin'),
         'modifier_telephone': request.GET.get('modifier_telephone') == '1',
+        # Montant affiché directement sur le profil (Tâche du 2026-08-05,
+        # refonte visuelle) — même fonction que prof_remuneration, pas de
+        # nouveau calcul dupliqué.
+        'remuneration': calculer_remuneration_prof(prof),
     })
 
 
@@ -682,16 +826,21 @@ def prof_charte(request):
 def prof_hakiba(request):
     """Page d'atterrissage حقيبة الأستاذ — section "روابط ثابتة" (ميثاق التدريس +
     البرنامج العام, inchangés) + section "أضيفت من طرف الإدارة" listant les
-    ElementHakiba ajoutés par مدير/مشرف pour ce prof (Tâche du 2026-08-04,
-    Point 1 — décision explicite du client de fusionner le nouveau contenu
-    dans cette page existante plutôt que d'en créer une autre). Lecture seule :
-    la gestion (ajout/modification/suppression) se fait depuis admin_prof_detail,
-    jamais depuis ici."""
-    from accounts.models import Prof
+    ElementHakiba qui concernent ce prof : soit ciblant tous les profs
+    (tous_les_profs=True), soit le ciblant spécifiquement via profs_cibles
+    (Tâche du 2026-08-04, Point 1 — refonte du 2026-08-05 : la gestion se
+    fait désormais depuis la page centrale admin_hakiba_gestion, plus depuis
+    la fiche individuelle du prof). Lecture seule pour le prof : aucune
+    gestion possible depuis ici."""
+    from django.db.models import Q
+    from accounts.models import Prof, ElementHakiba
 
     prof = get_object_or_404(Prof, user=request.user)
+    elements = ElementHakiba.objects.filter(
+        Q(tous_les_profs=True) | Q(profs_cibles=prof)
+    ).distinct().order_by('-date_ajout')
     return render(request, 'dashboard/prof_hakiba.html', {
-        'elements_hakiba': prof.elements_hakiba.all(),
+        'elements_hakiba': elements,
     })
 
 
@@ -1166,6 +1315,37 @@ def bilans_mensuels_detail_seance(request, groupe_id, eleve_id):
         annee_ms, _, num_mois_ms = mois.partition('-')
         mois_reference = datetime.date(int(annee_ms), int(num_mois_ms), 1)
 
+    # Regroupement par mois (Point 3, refonte UX/UI du 2026-08-05) — UNIQUEMENT
+    # sur "عرض كل التاريخ" (aucun mois filtré) : calculer_progression_eleve
+    # restreint déjà "historique" à un seul mois quand mois= est fourni, donc
+    # rien à regrouper dans ce cas (comportement inchangé, voir template).
+    # Chaque mois replié par défaut — même limite de liste infinie que Point 1,
+    # pour un élève ancien avec des dizaines de séances cumulées.
+    historique_par_mois = None
+    if not mois:
+        from collections import OrderedDict
+        groupes_mois = OrderedDict()
+        # progression['historique'] est DÉJÀ trié du plus récent au plus ancien
+        # (calculer_progression_eleve fait list(reversed(historique)) en
+        # interne, pour que dashboard_eleve/admin_eleve_detail — qui réutilisent
+        # cette même fonction — affichent la séance la plus récente en premier).
+        # Parcouru tel quel (PAS re-reversé) : le premier mois rencontré est
+        # donc le plus récent, ce qui construit directement l'OrderedDict dans
+        # le bon ordre (plus récent -> plus ancien), séances de chaque mois
+        # elles-mêmes déjà les plus récentes en premier (cohérent avec le
+        # partial réutilisé tel quel ailleurs).
+        for h in progression['historique']:
+            cle = (h['date'].year, h['date'].month)
+            groupes_mois.setdefault(cle, []).append(h)
+        historique_par_mois = [
+            {
+                'date_ref': datetime.date(annee_h, mois_h, 1),
+                'seances': items,
+                'nb': len(items),
+            }
+            for (annee_h, mois_h), items in groupes_mois.items()
+        ]
+
     BASE_TEMPLATE_PAR_ROLE = {
         'admin': 'dashboard/base_admin.html',
         'superviseur': 'dashboard/base_superviseur.html',
@@ -1182,6 +1362,7 @@ def bilans_mensuels_detail_seance(request, groupe_id, eleve_id):
         'progression': progression,
         'mois': mois,
         'mois_reference': mois_reference,
+        'historique_par_mois': historique_par_mois,
         'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
         'couleur_role': COULEUR_PAR_ROLE[request.user.role],
     }
@@ -1268,9 +1449,18 @@ def confirmation_creation_compte(request):
     if not info:
         return redirect('dashboard_mshrif' if request.user.role == 'mshrif' else 'dashboard_admin')
 
+    # Texte exact fourni par le client (Tâche du 2026-08-05) — chaque ligne
+    # séparée par un retour à la ligne, email et mot de passe insérés après
+    # les deux lignes qui les annoncent.
     message_pret_a_envoyer = (
-        f"مرحبا {info['nom']}, معلومات الدخول ديالك: "
-        f"البريد الإلكتروني: {info['email']} — كلمة المرور: {info['password']}"
+        "السلام عليكم ورحمة الله وبركاته\n"
+        f"مرحبا {info['nom']}\n"
+        "هذا حسابك:\n"
+        f"{info['email']}\n"
+        "و هذه كلمة المرور الخاصة بك:\n"
+        f"{info['password']}\n"
+        "المرجو الحفاظ عليه..\n"
+        "بارك الله فيكم"
     )
 
     context = {
@@ -1315,7 +1505,7 @@ def admin_valider_eleve(request, inscription_id):
             )
         return redirect('admin_inscription_eleve_detail', inscription_id=inscription.id)
 
-    password_temp = generer_mot_de_passe_temporaire()
+    password_temp = generer_mot_de_passe_sequentiel()
 
     # Tout ou rien: si une étape échoue (ex: matrice de disponibilités malformée),
     # aucun compte à moitié créé ne doit rester en base — voir l'incident où une
@@ -1329,6 +1519,10 @@ def admin_valider_eleve(request, inscription_id):
         # (seule source qui les contient) pour que user.telephone/date_naissance
         # ne restent plus jamais vides sur les fiches admin/superviseur qui les
         # affichent directement (voir audit Tâche 2).
+        # doit_changer_mot_de_passe=False : élève ne passe JAMAIS par un
+        # changement de mot de passe forcé (Points 13/14/17, décision du
+        # directeur du 2026-08-05) — se connecte directement avec le mot de
+        # passe fourni.
         user = User.objects.create_user(
             username=inscription.email,
             email=inscription.email,
@@ -1336,7 +1530,8 @@ def admin_valider_eleve(request, inscription_id):
             first_name=inscription.nom,
             telephone=inscription.telephone,
             date_naissance=inscription.date_naissance,
-            role='eleve'
+            role='eleve',
+            doit_changer_mot_de_passe=False,
         )
 
         # Crée le profil Eleve
@@ -1613,11 +1808,12 @@ def mshrif_valider_prof_final(request, inscription_id):
             )
         return redirect('mshrif_inscription_prof_detail', inscription_id=inscription.id)
 
-    password_temp = generer_mot_de_passe_temporaire()
+    password_temp = generer_mot_de_passe_sequentiel()
 
     # Tout ou rien — voir le commentaire équivalent dans admin_valider_eleve.
     with transaction.atomic():
         # telephone/date_naissance copiés depuis l'inscription (voir audit Tâche 2).
+        # doit_changer_mot_de_passe=False : voir commentaire dans admin_valider_eleve.
         user = User.objects.create_user(
             username=inscription.email,
             email=inscription.email,
@@ -1626,7 +1822,8 @@ def mshrif_valider_prof_final(request, inscription_id):
             last_name=inscription.prenom,
             telephone=inscription.telephone,
             date_naissance=inscription.date_naissance,
-            role='prof'
+            role='prof',
+            doit_changer_mot_de_passe=False,
         )
         prof = Prof.objects.create(
             user=user,
@@ -1687,12 +1884,27 @@ def mshrif_rejeter_prof(request, inscription_id):
     return redirect('mshrif_inscriptions_profs')
 
 
-@role_required('mshrif')
+@role_required('admin', 'mshrif')
 def mshrif_remuneration(request):
-    """الاستحقاقات — vue tabulaire de tous les profs pour le مشرف: montant de base
-    (calculer_remuneration_prof) + majoration (visible ici, contrairement à la page prof
-    qui ne la montre jamais) + total. Pas de filtre par mois: le calcul est toujours "à la
-    volée" sur les élèves actifs actuels, aucune donnée mensuelle n'est historisée.
+    """متابعة رواتب الأساتذة (anciennement "الاستحقاقات", مشرف seul — élargi à
+    مدير le 2026-08-05, Point 3 du chantier groupé : مدير n'avait jusqu'ici
+    AUCUNE page pour voir combien chaque prof touche réellement, seulement le
+    réglage des tarifs). Vue tabulaire de tous les profs : montant de base
+    (calculer_remuneration_prof) + majoration (visible ici, contrairement à
+    la page prof qui ne la montre jamais) + total.
+
+    Profs ARCHIVÉS (Point 3) : jamais dans la liste normale, mais réaffichés
+    à part avec un badge "(مؤرشف)" SI leur montant total ce mois est encore
+    > 0 (ex: prof archivé mais dont les groupes ont encore des élèves actifs
+    non réassignés) — jamais masqués silencieusement, pour que l'argent dû
+    ne disparaisse jamais de cette vue par accident.
+
+    mois (GET, 'AAAA-MM', Point 3) : filtre optionnel — voir la docstring de
+    calculer_remuneration_prof pour sa portée EXACTE (ne change que "الحصص
+    الفردية", jamais "المجموعات الجماعية", faute d'historisation de
+    l'appartenance aux groupes dans ce projet — documenté aussi dans le
+    template pour ne jamais laisser croire à une vraie vue historique
+    complète).
 
     Intègre aussi, en section repliable (fermée par défaut), la grille de référence
     des tarifs (courses.models.TarifRemuneration) — auparavant une page séparée
@@ -1703,14 +1915,21 @@ def mshrif_remuneration(request):
     from accounts.models import Prof
     from courses.models import TarifRemuneration
     from courses.utils import calculer_remuneration_prof
+    from django.utils import timezone
+
+    aujourdhui = timezone.localdate()
+    mois_filtre = request.GET.get('mois', '')
+    if mois_filtre:
+        annee_str, _, mois_str = mois_filtre.partition('-')
+        mois_reference = datetime.date(int(annee_str), int(mois_str), 1)
+    else:
+        mois_reference = aujourdhui.replace(day=1)
 
     lignes = []
     total_base = 0
     total_majoration = 0
-    # Table de rémunération à verser (pas un historique) — un prof archivé n'a
-    # plus rien à toucher, chantier d'archivage du 2026-08-03.
     for prof in Prof.actifs.select_related('user').order_by('user__first_name'):
-        base = calculer_remuneration_prof(prof)['total_calcule']
+        base = calculer_remuneration_prof(prof, mois=mois_filtre or None)['total_calcule']
         majoration = prof.majoration_mensuelle or 0
         total_base += base
         total_majoration += majoration
@@ -1719,6 +1938,25 @@ def mshrif_remuneration(request):
             'base': base,
             'majoration': prof.majoration_mensuelle,
             'total': base + majoration,
+            'archive': False,
+        })
+
+    # Profs archivés : ajoutés à la suite, UNIQUEMENT s'ils ont encore un
+    # montant dû ce mois (voir docstring ci-dessus).
+    for prof in Prof.objects.filter(statut='archive').select_related('user').order_by('user__first_name'):
+        base = calculer_remuneration_prof(prof, mois=mois_filtre or None)['total_calcule']
+        majoration = prof.majoration_mensuelle or 0
+        total = base + majoration
+        if total <= 0:
+            continue
+        total_base += base
+        total_majoration += majoration
+        lignes.append({
+            'prof': prof,
+            'base': base,
+            'majoration': prof.majoration_mensuelle,
+            'total': total,
+            'archive': True,
         })
 
     context = {
@@ -1730,9 +1968,44 @@ def mshrif_remuneration(request):
         'total_majoration': total_majoration,
         'total_general': total_base + total_majoration,
         'tarifs': TarifRemuneration.objects.all().order_by('type_capacite', 'tranche_age'),
+        'mois_reference': mois_reference,
+        'mois_filtre': mois_filtre,
+        'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/mshrif_remuneration.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_prof_remuneration_detail(request, prof_id):
+    """Détail راتب d'UN prof, lecture seule pour مدير/مشرف — réutilise
+    EXACTEMENT la même structure que راتبي (dashboard/_remuneration_detail.html,
+    voir prof_remuneration) plutôt que de dupliquer le balisage groupes/
+    individuel (Point 3 du chantier groupé, 2026-08-05). Accessible depuis
+    chaque ligne de mshrif_remuneration."""
+    from accounts.models import Prof
+    from courses.utils import calculer_remuneration_prof
+    from django.utils import timezone
+
+    prof = get_object_or_404(Prof, id=prof_id)
+    aujourdhui = timezone.localdate()
+    mois_filtre = request.GET.get('mois', '')
+    if mois_filtre:
+        annee_str, _, mois_str = mois_filtre.partition('-')
+        mois_reference = datetime.date(int(annee_str), int(mois_str), 1)
+    else:
+        mois_reference = aujourdhui.replace(day=1)
+
+    context = {
+        'prof': prof,
+        'aujourdhui': aujourdhui,
+        'mois_reference': mois_reference,
+        'mois_filtre': mois_filtre,
+        'remuneration': calculer_remuneration_prof(prof, mois=mois_filtre or None),
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_prof_remuneration_detail.html', context)
 
 
 @role_required('admin', 'superviseur', 'mshrif')
@@ -2084,7 +2357,22 @@ def dashboard_superviseur(request):
     calculés côté serveur, aucun rechargement nécessaire.
     Ajout : "الحصة الحالية/التالية" (widget indépendant des filtres — le
     مؤطر doit toujours savoir quoi suivre maintenant, même s'il a filtré
-    la liste sur autre chose)."""
+    la liste sur autre chose).
+
+    Refonte UX/UI du 2026-08-05 (Point 1) : la liste plate "الماضية" devenait
+    interminable avec le temps. Remplacée par une vue agenda : 3 compteurs en
+    tête (اليوم/غير مقيّمة/هذا الشهر), section اليوم inchangée, et "السجل
+    السابق" — TOUTES les séances passées (متأخرة ET déjà évaluées confondues,
+    fusionnées en un seul flux plutôt qu'une liste "متأخرة" à part toujours
+    ouverte + une liste "traitées" à part — l'ancienne séparation ne facilitait
+    pas la fusion demandée) groupées par semaine à l'intérieur d'un mois
+    navigable (flèches précédent/suivant), chaque semaine repliée par défaut
+    avec un badge "X غير مقيّمة" si elle en contient encore. Le compteur rouge
+    en tête reste le signal "quelque chose à faire" à l'échelle de TOUT
+    l'historique (pas seulement le mois affiché) — choix arbitraire fait sans
+    confirmation : pas de bloc à part toujours déplié pour les séances en
+    retard (l'ancien comportement), pour respecter à la lettre la consigne
+    "chaque période passée repliée par défaut"."""
     from django.db.models import Exists, OuterRef
     from accounts.models import Superviseur
     from courses.models import Seance, Groupe
@@ -2125,22 +2413,47 @@ def dashboard_superviseur(request):
     # avec malgré tout un badge rouge "لم يتم تقييمها بعد" (le badge ne teste
     # jamais le statut) — décalage entre le chiffre de la bannière et le
     # nombre réel de cartes affichant ce badge/le bouton "تقييم الآن".
+    # Conservé comme COMPTEUR global (tête de page) — n'est plus affiché comme
+    # liste à part toujours ouverte, voir docstring ci-dessus.
     seances_retard = toutes_seances.filter(
         date__lt=aujourdhui, est_evaluee=False
     ).exclude(statut='annulee').order_by('-date', '-heure')
 
     # ===== Onglet "بالترتيب الزمني" (mirroir exact de prof_seances) =====
     seances_aujourdhui = toutes_seances.filter(date=aujourdhui).order_by('heure')
-    seances_a_venir_qs = toutes_seances.filter(date__gt=aujourdhui).order_by('date', 'heure')
-    nb_a_venir = seances_a_venir_qs.count()
-    seances_a_venir = seances_a_venir_qs[:10]
-    seances_a_venir_extra = seances_a_venir_qs[10:]
-    # Complémentaire STRICT de seances_retard (via id__in) plutôt qu'une
-    # condition dupliquée à la main — garantit qu'aucune séance ne peut
-    # apparaître ni manquer des deux côtés à la fois.
-    seances_passees_traitees = toutes_seances.filter(date__lt=aujourdhui).exclude(
-        id__in=seances_retard.values('id')
-    ).order_by('-date', '-heure')
+
+    nb_a_venir = toutes_seances.filter(date__gt=aujourdhui).count()
+
+    # ===== "السجل السابق" — agenda groupé par semaine, mois navigable =====
+    # Extrait dans courses.utils.navigation_mois_et_semaines (Tâche du
+    # 2026-08-05) — réutilisé tel quel par dashboard_prof ("آخر الحصص"),
+    # pour ne jamais dupliquer cette logique. borne_avant=True (défaut) :
+    # les jours futurs du mois courant relèvent de "القادمة", jamais de
+    # l'historique.
+    from courses.utils import navigation_mois_et_semaines
+
+    nav = navigation_mois_et_semaines(toutes_seances, request, aujourdhui)
+    mois_nav_date = nav['mois_nav_date']
+    mois_precedent_param = nav['mois_precedent_param']
+    mois_suivant_param = nav['mois_suivant_param']
+    mois_suivant_autorise = nav['mois_suivant_autorise']
+
+    # Badge "X غير مقيّمة" par semaine — spécifique au مؤطر (une notion qui
+    # n'existe pas côté prof), ajouté ici en post-traitement plutôt que dans
+    # le helper partagé, qui reste générique.
+    semaines_agenda = nav['semaines']
+    for semaine in semaines_agenda:
+        semaine['nb_non_evaluees'] = sum(
+            1 for s in semaine['seances'] if not s.est_evaluee and s.statut != 'annulee'
+        )
+
+    # "X هذا الشهر" (compteur de tête) : toujours le mois calendaire RÉEL,
+    # indépendant de la navigation ci-dessus (mois_nav ne fait naviguer QUE la
+    # section "السجل السابق") — un instantané stable, comme les 2 autres
+    # compteurs de tête.
+    nb_seances_mois_courant = toutes_seances.filter(
+        date__year=aujourdhui.year, date__month=aujourdhui.month
+    ).count()
 
     # ===== Onglet "حسب المعلم" (inchangé, alternative — plus affiché en même temps) =====
     profs_qs = profs_assignes.select_related('user').order_by('user__first_name')
@@ -2194,17 +2507,43 @@ def dashboard_superviseur(request):
         if debut > maintenant and seance_suivante is None:
             seance_suivante = s
 
+    # ===== "القادمة" — section manquante (Point 1 du chantier groupé du
+    # 2026-08-05) : avant ce correctif, seule LA prochaine séance
+    # ("الحصة الحالية/التالية" ci-dessus) était visible ; rien ne montrait le
+    # reste des séances à venir sur la période. Réutilise
+    # courses.utils.regrouper_seances_a_venir (partagée avec dashboard_prof,
+    # voir sa docstring) — scopée aux FILTRES actifs (prof/groupe/dates),
+    # contrairement au widget "الحصة الحالية/التالية" ci-dessus qui reste
+    # volontairement indépendant des filtres.
+    from courses.utils import regrouper_seances_a_venir
+
+    a_venir = regrouper_seances_a_venir(toutes_seances, aujourdhui)
+    # seance_suivante peut ne pas appartenir à toutes_seances (elle ignore les
+    # filtres GET) : le retirer si présente évite un doublon visuel sans
+    # jamais fausser nb_semaine_courante (compté AVANT ce retrait).
+    id_a_exclure = seance_suivante.id if seance_suivante else None
+    bucket_semaine_courante = [
+        s for s in a_venir['bucket_semaine_courante'] if s.id != id_a_exclure
+    ]
+    nb_semaine_courante = a_venir['nb_semaine_courante']
+
     return render(request, 'dashboard/superviseur.html', {
         'superviseur': superviseur,
         'aujourdhui': aujourdhui,
         'total_seances': toutes_seances.count(),
         'nb_retard': seances_retard.count(),
-        'seances_retard': seances_retard,
+        'nb_seances_mois_courant': nb_seances_mois_courant,
         'seances_aujourdhui': seances_aujourdhui,
-        'seances_a_venir': seances_a_venir,
-        'seances_a_venir_extra': seances_a_venir_extra,
+        'bucket_semaine_courante': bucket_semaine_courante,
+        'semaines_a_venir': a_venir['semaines_suivantes'],
+        'nb_semaine_courante': nb_semaine_courante,
         'nb_a_venir': nb_a_venir,
-        'seances_passees_traitees': paginer(request, seances_passees_traitees, 15),
+        'semaines_agenda': semaines_agenda,
+        'mois_nav_date': mois_nav_date,
+        'mois_nav_param': nav['mois_nav_param'],
+        'mois_precedent_param': mois_precedent_param,
+        'mois_suivant_param': mois_suivant_param,
+        'mois_suivant_autorise': mois_suivant_autorise,
         'seance_en_cours': seance_en_cours,
         'seance_suivante': seance_suivante,
         'fiches_profs': fiches_profs,
@@ -2308,16 +2647,86 @@ def superviseur_groupe_detail(request, groupe_id):
     prof_groupe_detail (Point 12, Tâche du 2026-08-04). Restriction stricte :
     prof__in=superviseur.profs_assignes.all() dans le get_object_or_404 lui-même,
     pas une vérification a posteriori — un accès direct par URL à un groupe hors
-    périmètre renvoie 404, jamais les données."""
+    périmètre renvoie 404, jamais les données (test IDOR dédié, voir script de
+    vérification).
+
+    Enrichie le 2026-08-05 (Point 2, refonte UX/UI) : cette page est désormais
+    LE point d'arrivée unique depuis "المجموعات المسندة" — elle regroupe ce
+    qui obligeait auparavant à naviguer vers 2 pages filtrées séparées
+    (dashboard_superviseur?groupe=X pour les séances, et nulle part pour un
+    compte d'évaluations en attente PROPRE à ce groupe, qui n'existait qu'à
+    l'échelle globale). Ajouts : avatar/badge de type dans l'en-tête,
+    compteurs adultes/enfants (tranche_age_depuis_naissance, même source que
+    la grille de rémunération), indicateur direct d'évaluations en attente
+    scopé à CE groupe, avatar+statut par élève."""
     from accounts.models import Superviseur
-    from courses.models import Groupe
+    from courses.models import Groupe, Seance
+    from courses.utils import tranche_age_depuis_naissance
+    from evaluations.models import Evaluation
+    from django.db.models import Exists, OuterRef
+    from django.utils import timezone
 
     superviseur = get_object_or_404(Superviseur, user=request.user)
     groupe = get_object_or_404(Groupe, id=groupe_id, prof__in=superviseur.profs_assignes.all())
+    aujourdhui = timezone.localdate()
+
+    eleves = list(groupe.eleves.select_related('user').all())
+    nb_adultes = nb_enfants = 0
+    lignes_eleves = []
+    for eleve in eleves:
+        tranche = None
+        if eleve.user.date_naissance:
+            tranche = tranche_age_depuis_naissance(eleve.user.date_naissance)
+            if tranche == 'adulte':
+                nb_adultes += 1
+            else:
+                nb_enfants += 1
+        lignes_eleves.append({'eleve': eleve, 'tranche': tranche})
+
+    seances_groupe = Seance.objects.filter(groupe=groupe).annotate(
+        est_evaluee=Exists(Evaluation.objects.filter(seance=OuterRef('pk')))
+    )
+    nb_non_evaluees = seances_groupe.filter(
+        date__lt=aujourdhui, est_evaluee=False
+    ).exclude(statut='annulee').count()
+    nb_seances_ce_mois = seances_groupe.filter(
+        date__year=aujourdhui.year, date__month=aujourdhui.month
+    ).count()
 
     return render(request, 'dashboard/superviseur_groupe_detail.html', {
         'groupe': groupe,
-        'eleves': groupe.eleves.all(),
+        'eleves': eleves,
+        'lignes_eleves': lignes_eleves,
+        'nb_adultes': nb_adultes,
+        'nb_enfants': nb_enfants,
+        'nb_non_evaluees': nb_non_evaluees,
+        'nb_seances_ce_mois': nb_seances_ce_mois,
+    })
+
+
+@role_required('superviseur')
+def superviseur_hakiba(request):
+    """حقيبة الأستاذ — vue LECTURE SEULE pour le مؤطر (Tâche du 2026-08-05,
+    Point 3 du 2e correctif) : aucun bouton d'ajout/modification/suppression
+    dans ce template, et les vues d'écriture (admin_hakiba_ajouter/
+    admin_hakiba_supprimer) restent décorées @role_required('admin', 'mshrif')
+    — 'superviseur' n'y figure pas, donc un POST direct est déjà bloqué
+    structurellement par le décorateur existant (redirigé vers son propre
+    dashboard, jamais traité), sans code supplémentaire à écrire ici.
+
+    TOUS les éléments (pas seulement ceux des profs supervisés) : décision du
+    2026-08-05 — la حقيبة est un contenu informationnel de l'administration
+    (ميثاق، consignes, ressources), pas une donnée rattachée à un prof précis.
+    La restreindre aux profs supervisés créerait une incohérence avec
+    prof_hakiba.html lui-même, où CHAQUE prof voit déjà tous les éléments
+    "tous les profs" indépendamment de qui le supervise."""
+    from accounts.models import ElementHakiba
+
+    elements = ElementHakiba.objects.select_related('ajoute_par').prefetch_related(
+        'profs_cibles__user'
+    ).all()
+    return render(request, 'dashboard/superviseur_hakiba.html', {
+        'elements_hakiba': elements,
     })
 
 
@@ -2629,11 +3038,8 @@ def admin_prof_detail(request, prof_id):
         'prof': prof,
         'inscription': prof.inscription,
         'remuneration': calculer_remuneration_prof(prof),
-        # حقيبة الأستاذ (Point 1, Tâche du 2026-08-04) — مدير ET مشرف peuvent
-        # tous deux ajouter/modifier/supprimer (voir conditionnels dans le
-        # template : contrairement à d'autres blocs de cette page, aucun n'est
-        # réservé à مدير seul ici).
-        'elements_hakiba': prof.elements_hakiba.select_related('ajoute_par').all(),
+        # حقيبة الأستاذ retirée de cette fiche depuis la refonte du 2026-08-05 :
+        # gestion désormais centralisée sur admin_hakiba_gestion, plus par prof.
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -2694,12 +3100,25 @@ def admin_prof_infos_complementaires_modifier(request, prof_id):
 
 
 # ==================== ADMIN/MSHRIF — حقيبة الأستاذ ====================
-# Tâche du 2026-08-04 (Point 1) — مدير ET مشرف peuvent tous deux ajouter/
-# modifier/supprimer, contrairement à la plupart des autres blocs de
-# admin_prof_detail.html réservés à مدير seul.
+# Refonte du 2026-08-05 (remplace la v1 du 2026-08-04, Point 1, qui vivait
+# sur la fiche de CHAQUE prof) — page centrale unique "إدارة حقيبة الأستاذ",
+# accessible depuis le dossier "حقيبة المدير" de la sidebar. مدير ET مشرف
+# peuvent tous deux ajouter/supprimer.
 
-EXTENSIONS_HAKIBA_AUTORISEES = ('.pdf', '.doc', '.docx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png')
-TAILLE_MAX_HAKIBA_OCTETS = 10 * 1024 * 1024  # 10 Mo
+EXTENSIONS_HAKIBA_AUTORISEES = (
+    # Documents
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt',
+    # Images
+    '.jpg', '.jpeg', '.png', '.gif', '.webp',
+    # Audio
+    '.mp3', '.wav', '.m4a', '.ogg',
+    # Vidéo
+    '.mp4', '.mov', '.avi', '.webm', '.mkv',
+)
+# 20 Mo — plafond volontairement plus haut que l'ancien (10 Mo) pour laisser
+# passer un enregistrement audio/vidéo court, sans ouvrir la porte à des
+# fichiers énormes. Aucun exécutable/script dans la liste blanche ci-dessus.
+TAILLE_MAX_HAKIBA_OCTETS = 20 * 1024 * 1024
 
 
 def _valider_fichier_hakiba(fichier):
@@ -2709,110 +3128,82 @@ def _valider_fichier_hakiba(fichier):
     import os
     extension = os.path.splitext(fichier.name)[1].lower()
     if extension not in EXTENSIONS_HAKIBA_AUTORISEES:
-        return f'صيغة الملف "{extension}" غير مقبولة. الصيغ المقبولة: PDF, Word, Excel, صور (JPG/PNG).'
+        return f'صيغة الملف "{extension}" غير مقبولة.'
     if fichier.size > TAILLE_MAX_HAKIBA_OCTETS:
-        return f'حجم الملف كبير جداً ({fichier.size // (1024 * 1024)} م.ب). الحد الأقصى 10 م.ب.'
+        return f'حجم الملف كبير جداً ({fichier.size // (1024 * 1024)} م.ب). الحد الأقصى 20 م.ب.'
     return None
 
 
 @role_required('admin', 'mshrif')
-def admin_hakiba_ajouter(request, prof_id):
-    from django.core.validators import URLValidator
-    from django.core.exceptions import ValidationError
+def admin_hakiba_gestion(request):
+    """Page centrale "إدارة حقيبة الأستاذ" — formulaire d'ajout + liste de
+    tous les éléments existants, tous profs confondus. Remplace la gestion
+    par fiche individuelle (admin_prof_detail) de la v1."""
     from accounts.models import Prof, ElementHakiba
 
-    prof = get_object_or_404(Prof, id=prof_id)
-
-    if request.method == 'POST':
-        type_element = request.POST.get('type_element', '')
-        titre = request.POST.get('titre', '').strip()
-
-        if type_element not in dict(ElementHakiba.TYPE_CHOICES):
-            messages.error(request, 'نوع العنصر غير صحيح.')
-            return redirect('admin_prof_detail', prof_id=prof.id)
-        if not titre:
-            messages.error(request, 'يرجى إدخال عنوان للعنصر.')
-            return redirect('admin_prof_detail', prof_id=prof.id)
-
-        element = ElementHakiba(prof=prof, type_element=type_element, titre=titre, ajoute_par=request.user)
-
-        if type_element == 'texte':
-            contenu = request.POST.get('contenu_texte', '').strip()
-            if not contenu:
-                messages.error(request, 'يرجى إدخال محتوى النص.')
-                return redirect('admin_prof_detail', prof_id=prof.id)
-            element.contenu_texte = contenu
-
-        elif type_element == 'video':
-            lien = request.POST.get('lien_video', '').strip()
-            try:
-                URLValidator()(lien)
-            except ValidationError:
-                messages.error(request, 'الرابط المدخل غير صحيح.')
-                return redirect('admin_prof_detail', prof_id=prof.id)
-            element.lien_video = lien
-
-        elif type_element == 'fichier':
-            fichier = request.FILES.get('fichier')
-            if not fichier:
-                messages.error(request, 'يرجى اختيار ملف.')
-                return redirect('admin_prof_detail', prof_id=prof.id)
-            erreur = _valider_fichier_hakiba(fichier)
-            if erreur:
-                messages.error(request, erreur)
-                return redirect('admin_prof_detail', prof_id=prof.id)
-            element.fichier = fichier
-
-        element.save()
-        messages.success(request, 'تمت إضافة العنصر إلى حقيبة الأستاذ بنجاح.')
-
-    return redirect('admin_prof_detail', prof_id=prof.id)
-
-
-@role_required('admin', 'mshrif')
-def admin_hakiba_modifier(request, element_id):
-    from django.core.validators import URLValidator
-    from django.core.exceptions import ValidationError
-    from accounts.models import ElementHakiba
-
-    element = get_object_or_404(ElementHakiba, id=element_id)
-
-    if request.method == 'POST':
-        titre = request.POST.get('titre', '').strip()
-        if not titre:
-            messages.error(request, 'يرجى إدخال عنوان للعنصر.')
-            return redirect('admin_hakiba_modifier', element_id=element.id)
-        element.titre = titre
-
-        if element.type_element == 'texte':
-            contenu = request.POST.get('contenu_texte', '').strip()
-            if not contenu:
-                messages.error(request, 'يرجى إدخال محتوى النص.')
-                return redirect('admin_hakiba_modifier', element_id=element.id)
-            element.contenu_texte = contenu
-        elif element.type_element == 'video':
-            lien = request.POST.get('lien_video', '').strip()
-            try:
-                URLValidator()(lien)
-            except ValidationError:
-                messages.error(request, 'الرابط المدخل غير صحيح.')
-                return redirect('admin_hakiba_modifier', element_id=element.id)
-            element.lien_video = lien
-        # type 'fichier' : seul le titre est modifiable ici (pas de ré-upload,
-        # pour garder ce formulaire simple — supprimer puis ré-ajouter pour
-        # remplacer le fichier lui-même).
-
-        element.ajoute_par = request.user
-        element.save()
-        messages.success(request, 'تم تعديل العنصر بنجاح.')
-        return redirect('admin_prof_detail', prof_id=element.prof_id)
-
+    elements = ElementHakiba.objects.select_related('ajoute_par').prefetch_related(
+        'profs_cibles__user'
+    ).all()
     context = {
-        'element': element,
+        'elements_hakiba': elements,
+        # Profs actifs seulement pour le sélecteur "أساتذة محددون" — cohérent
+        # avec le chantier d'archivage (un prof archivé ne doit plus recevoir
+        # de nouveau ciblage explicite, voir Prof.actifs).
+        'profs_disponibles': Prof.actifs.select_related('user').order_by('user__first_name', 'user__last_name'),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
-    return render(request, 'dashboard/admin_hakiba_modifier.html', context)
+    return render(request, 'dashboard/admin_hakiba_gestion.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_hakiba_ajouter(request):
+    from accounts.models import Prof, ElementHakiba
+
+    if request.method != 'POST':
+        return redirect('admin_hakiba_gestion')
+
+    titre = request.POST.get('titre', '').strip()
+    contenu_texte = request.POST.get('contenu_texte', '').strip()
+    fichier = request.FILES.get('fichier')
+    cible = request.POST.get('cible', 'tous')
+
+    # Au moins texte OU fichier requis — un élément complètement vide (même
+    # avec un titre) est refusé, conformément à la consigne explicite du
+    # 2026-08-05.
+    if not contenu_texte and not fichier:
+        messages.error(request, 'يجب إدخال نص أو إرفاق ملف على الأقل.')
+        return redirect('admin_hakiba_gestion')
+
+    if fichier:
+        erreur = _valider_fichier_hakiba(fichier)
+        if erreur:
+            messages.error(request, erreur)
+            return redirect('admin_hakiba_gestion')
+
+    tous_les_profs = (cible != 'specifique')
+    profs_selectionnes = []
+    if not tous_les_profs:
+        ids = [i for i in request.POST.getlist('profs_cibles') if i.isdigit()]
+        profs_selectionnes = list(Prof.objects.filter(id__in=ids))
+        if not profs_selectionnes:
+            messages.error(request, 'يرجى اختيار أستاذ واحد على الأقل عند اختيار "أساتذة محددون".')
+            return redirect('admin_hakiba_gestion')
+
+    element = ElementHakiba(
+        titre=titre,
+        contenu_texte=contenu_texte,
+        tous_les_profs=tous_les_profs,
+        ajoute_par=request.user,
+    )
+    if fichier:
+        element.fichier = fichier
+    element.save()
+    if not tous_les_profs:
+        element.profs_cibles.set(profs_selectionnes)
+
+    messages.success(request, 'تمت إضافة العنصر إلى حقيبة الأستاذ بنجاح.')
+    return redirect('admin_hakiba_gestion')
 
 
 @role_required('admin', 'mshrif')
@@ -2820,12 +3211,11 @@ def admin_hakiba_supprimer(request, element_id):
     from accounts.models import ElementHakiba
 
     element = get_object_or_404(ElementHakiba, id=element_id)
-    prof_id = element.prof_id
     if element.fichier:
         element.fichier.delete(save=False)
     element.delete()
     messages.success(request, 'تم حذف العنصر من حقيبة الأستاذ.')
-    return redirect('admin_prof_detail', prof_id=prof_id)
+    return redirect('admin_hakiba_gestion')
 
 
 @role_required('admin')
@@ -3546,16 +3936,18 @@ def admin_superviseur_ajouter(request):
                 'old_nom': nom, 'old_email': email, 'old_telephone': telephone,
             })
 
-        password_temp = generer_mot_de_passe_temporaire()
+        password_temp = generer_mot_de_passe_sequentiel()
 
         with transaction.atomic():
+            # doit_changer_mot_de_passe=False : voir commentaire dans admin_valider_eleve.
             user = User.objects.create_user(
                 username=email,
                 email=email,
                 password=password_temp,
                 first_name=nom,
                 telephone=telephone,
-                role='superviseur'
+                role='superviseur',
+                doit_changer_mot_de_passe=False,
             )
             Superviseur.objects.create(user=user)
 
@@ -3655,6 +4047,66 @@ def admin_utilisateur_modifier_email(request, user_id):
         'utilisateur': utilisateur,
         'next': next_url,
     })
+
+
+# ==================== ADMIN/MSHRIF — RÉINITIALISER UN MOT DE PASSE ====================
+# Points 13/14/17, Tâche du 2026-08-04.
+
+@role_required('admin', 'mshrif')
+def admin_utilisateur_reinitialiser_mot_de_passe(request, user_id):
+    """مدير ET مشرف peuvent réinitialiser le mot de passe d'un compte élève,
+    prof ou مؤطر — JAMAIS celui d'un autre مدير/مشرف (vérifié ici, côté
+    serveur, même si l'URL est appelée directement avec un ID manipulé).
+    Le nouveau mot de passe n'est affiché qu'UNE SEULE FOIS (patron
+    Post/Redirect/Get : généré au POST, stocké en session, lu puis
+    immédiatement effacé — session.pop — au GET qui suit ; un rechargement
+    de cette page ne le réaffiche jamais). Jamais stocké en clair : set_password
+    hashe immédiatement, seul le hash atteint la base — la valeur en clair ne
+    vit que le temps de cette requête + la traversée de session."""
+    from django.contrib.auth import get_user_model
+    from django.utils import timezone
+
+    User = get_user_model()
+    utilisateur = get_object_or_404(User, id=user_id)
+    next_url = _next_valide(request)
+
+    if utilisateur.role not in ('eleve', 'prof', 'superviseur'):
+        messages.error(request, 'لا يمكن إعادة تعيين كلمة مرور حساب مدير أو مشرف من هنا.')
+        return redirect(next_url)
+
+    if request.method == 'POST':
+        nouveau_mdp = generer_mot_de_passe_sequentiel()
+        utilisateur.set_password(nouveau_mdp)
+        # Forcé explicitement à False (pas juste "laissé tel quel") : un
+        # compte créé avant ce changement pourrait encore avoir True en
+        # base (voir accounts.middleware.ForcerChangementMotDePasseMiddleware.
+        # ROLES_EXEMPTES, qui l'ignore déjà pour ces 3 rôles, mais autant que
+        # le champ reflète la réalité) — élève/prof/مؤطر ne passent JAMAIS
+        # par un changement forcé, y compris après une réinitialisation.
+        utilisateur.doit_changer_mot_de_passe = False
+        utilisateur.mot_de_passe_reinitialise_par = request.user
+        utilisateur.date_reinitialisation_mot_de_passe = timezone.now()
+        utilisateur.save()
+        _invalider_sessions_utilisateur(utilisateur, request=request)
+        logger.info(
+            "Mot de passe reinitialise pour %s (id=%s, role=%s) par %s (id=%s)",
+            utilisateur.email, utilisateur.id, utilisateur.role, request.user.email, request.user.id,
+        )
+        request.session['mdp_reinitialise'] = {'user_id': utilisateur.id, 'mot_de_passe': nouveau_mdp}
+        return redirect('admin_utilisateur_reinitialiser_mot_de_passe', user_id=utilisateur.id)
+
+    mdp_genere = request.session.pop('mdp_reinitialise', None)
+    if not mdp_genere or mdp_genere.get('user_id') != utilisateur.id:
+        mdp_genere = None
+
+    context = {
+        'utilisateur': utilisateur,
+        'next': next_url,
+        'mdp_genere': mdp_genere.get('mot_de_passe') if mdp_genere else None,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_utilisateur_reinitialiser_mot_de_passe.html', context)
 
 
 # ==================== ADMIN — MON COMPTE ====================

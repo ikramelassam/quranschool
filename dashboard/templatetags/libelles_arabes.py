@@ -2,6 +2,15 @@ from django import template
 
 register = template.Library()
 
+
+@register.filter
+def lien_seance_actif(seance):
+    """Filtre gabarit pour courses.utils.lien_seance_est_actif — recalculé à
+    chaque rendu de page (jamais mis en cache), voir _meet_icon.html
+    (Point 15, Tâche du 2026-08-04)."""
+    from courses.utils import lien_seance_est_actif as _lien_seance_est_actif
+    return _lien_seance_est_actif(seance)
+
 # Ces champs (JSONField multi-valeurs, ou CharField sans choices=) n'ont pas
 # de get_FOO_display() Django — les codes viennent des boutons de sélection
 # des formulaires d'inscription (inscriptions/eleve_formulaire.html,
@@ -113,6 +122,46 @@ def tranche_age_ar(date_naissance):
     from courses.utils import tranche_age_depuis_naissance
 
     return 'بالغ' if tranche_age_depuis_naissance(date_naissance) == 'adulte' else 'طفل'
+
+
+# Icône + couleur du carré selon l'extension du fichier joint à un
+# ElementHakiba (refonte du 2026-08-05) — même liste blanche que
+# dashboard.views.EXTENSIONS_HAKIBA_AUTORISEES, reproduite ici uniquement
+# pour le choix visuel (icone_hakiba/couleur_hakiba ne valident rien).
+EXTENSIONS_ICONE_HAKIBA = {
+    'document': (('.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt'), '📄', '#2d5a1b'),
+    'image': (('.jpg', '.jpeg', '.png', '.gif', '.webp'), '🖼️', '#1a6b8c'),
+    'audio': (('.mp3', '.wav', '.m4a', '.ogg'), '🎵', '#7a3a9c'),
+    'video': (('.mp4', '.mov', '.avi', '.webm', '.mkv'), '🎬', '#b3261e'),
+}
+
+
+@register.filter
+def icone_hakiba(fichier):
+    """Icône emoji d'un élément حقيبة الأستاذ : selon l'extension du fichier
+    joint, ou 📝 si l'élément n'a que du texte (pas de fichier)."""
+    import os
+    if not fichier:
+        return '📝'
+    extension = os.path.splitext(str(fichier))[1].lower()
+    for _categorie, (extensions, icone, _couleur) in EXTENSIONS_ICONE_HAKIBA.items():
+        if extension in extensions:
+            return icone
+    return '📎'
+
+
+@register.filter
+def couleur_hakiba(fichier):
+    """Couleur du carré-icône associé (voir icone_hakiba ci-dessus) — doré
+    neutre pour un élément texte seul, gris pour une extension imprévue."""
+    import os
+    if not fichier:
+        return '#9c7a2d'
+    extension = os.path.splitext(str(fichier))[1].lower()
+    for _categorie, (extensions, _icone, couleur) in EXTENSIONS_ICONE_HAKIBA.items():
+        if extension in extensions:
+            return couleur
+    return '#666'
 
 
 @register.filter

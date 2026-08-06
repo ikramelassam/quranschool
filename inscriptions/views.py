@@ -62,12 +62,25 @@ MESSAGE_TELEPHONE_MISMATCH = 'رقم الهاتف وتأكيده غير متطا
 MESSAGE_TELEPHONE_INVALIDE = 'رقم الهاتف غير صحيح — يرجى التحقق من رمز الدولة والرقم المدخل.'
 
 
-def _normaliser_telephone(valeur):
-    """Retire espaces/tirets/parenthèses avant comparaison — même
-    normalisation que wa_normaliser() côté JS (_verification_whatsapp.html),
-    reproduite ici car le JS n'est qu'un confort visuel, jamais une garantie
-    (POST direct possible sans JS)."""
-    return re.sub(r'[\s\-()]', '', valeur or '')
+def _chiffres_significatifs(valeur, indicatif=''):
+    """Réduit un numéro de téléphone à ses chiffres significatifs SEULS, quel
+    que soit le format saisi — c'est la vraie "normalisation" (avant, cette
+    fonction ne retirait que les espaces/tirets/parenthèses, ce qui laissait
+    "0663394165" et "+212663394165" considérés comme différents alors que
+    c'est le même numéro ; corrigé suite au signalement du 2026-08-05).
+    Étapes : (1) ne garde que les chiffres (retire +, espaces, tirets,
+    parenthèses...), (2) si le résultat commence par l'indicatif du pays
+    actuellement sélectionné dans le formulaire, le retire (cas d'un candidat
+    qui colle son numéro déjà au format international dans le champ local),
+    (3) retire ensuite un éventuel zéro initial (préfixe national marocain
+    et autres). indicatif: code pays sans "+" (ex: '212'), optionnel — sans
+    lui, seules les étapes (1) et (3) s'appliquent."""
+    chiffres = re.sub(r'[^0-9]', '', valeur or '')
+    if indicatif and chiffres.startswith(indicatif):
+        chiffres = chiffres[len(indicatif):]
+    if chiffres.startswith('0'):
+        chiffres = chiffres[1:]
+    return chiffres
 
 
 def _construire_et_valider_telephone(request):
@@ -87,12 +100,11 @@ def _construire_et_valider_telephone(request):
     telephone_brut = request.POST.get('telephone', '')
     confirmation_brut = request.POST.get('telephone_confirmation', '')
 
-    if _normaliser_telephone(telephone_brut) != _normaliser_telephone(confirmation_brut):
-        return None, MESSAGE_TELEPHONE_MISMATCH
+    numero_local = _chiffres_significatifs(telephone_brut, indicatif)
+    numero_local_confirmation = _chiffres_significatifs(confirmation_brut, indicatif)
 
-    numero_local = re.sub(r'[^0-9]', '', telephone_brut)
-    if numero_local.startswith('0'):
-        numero_local = numero_local[1:]
+    if numero_local != numero_local_confirmation:
+        return None, MESSAGE_TELEPHONE_MISMATCH
 
     if not indicatif or not numero_local:
         return None, MESSAGE_TELEPHONE_INVALIDE
@@ -215,6 +227,7 @@ def inscription_eleve_formulaire(request, type_age):
             sexe=request.POST.get('sexe'),
             telephone=telephone_complet,
             email=email,
+            job_actuel=request.POST.get('job_actuel', '').strip(),
             programme=request.POST.get('programme'),
             riwaya=request.POST.get('riwaya'),
             outil=request.POST.get('outil'),

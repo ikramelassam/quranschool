@@ -65,6 +65,15 @@ class InscriptionEleve(models.Model):
     sexe = models.CharField(max_length=10)
     telephone = models.CharField(max_length=20)
     email = models.EmailField()
+    # Profession — un SEUL champ, pas deux colonnes séparées (Tâche du
+    # 2026-08-05) : sa signification ("العمل الحالي" du candidat lui-même, ou
+    # "عمل ولي الأمر" si c'est un enfant) se déduit sans ambiguïté de
+    # nom_parent (rempli <=> inscription enfant, même discriminant déjà
+    # utilisé partout ailleurs dans ce formulaire) — jamais les deux à la
+    # fois pour une même ligne, donc aucune perte de clarté à les fusionner.
+    # Optionnel (blank=True) : contrairement à InscriptionProf.job_actuel
+    # (obligatoire), rien ici n'a demandé de le rendre requis.
+    job_actuel = models.CharField(max_length=100, blank=True, default='')
 
     # Programme
     creneau_souhaite = models.ForeignKey(

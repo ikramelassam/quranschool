@@ -169,6 +169,40 @@ class Groupe(models.Model):
         verbose_name_plural = "Groupes"
 
 
+class ReglageLienSeance(models.Model):
+    """Marge (en minutes) autour de l'horaire réel d'une séance pendant
+    laquelle son lien de réunion (Groupe.lien_reunion) est cliquable —
+    Point 15, Tâche du 2026-08-04. Singleton, même patron que
+    ParametresInscriptions/VisibiliteProf (accounts.models). Valeurs par
+    défaut (10 min avant, 10 min après) : le comportement précédent
+    n'imposait AUCUNE restriction horaire, donc n'importe quelle valeur par
+    défaut change ce comportement — 10 min de chaque côté est la marge la
+    plus resserrée qui reste raisonnable (éviter un lien inutilisable pour
+    un léger retard de connexion, sans pour autant le laisser actif toute la
+    journée comme avant)."""
+    marge_avant_minutes = models.PositiveIntegerField(default=10)
+    marge_apres_minutes = models.PositiveIntegerField(default=10)
+    derniere_modification_par = models.ForeignKey(
+        'accounts.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+'
+    )
+    date_modification = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "إعدادات هامش رابط الحصص"
+
+    class Meta:
+        verbose_name = "Réglage du lien de séance"
+        verbose_name_plural = "Réglage du lien de séance"
+
+
+def get_reglage_lien_seance():
+    """Renvoie l'unique instance de ReglageLienSeance, en la créant (valeurs
+    par défaut 10/10) si elle n'existe pas encore — même patron singleton
+    que accounts.models.get_visibilite_prof()."""
+    reglage, _ = ReglageLienSeance.objects.get_or_create(pk=1)
+    return reglage
+
+
 class HistoriqueGroupeEleve(models.Model):
     """Trace le passage d'un élève dans un groupe (dates d'entrée/de sortie),
     en complément de Groupe.eleves (M2M simple, qui ne reflète que
