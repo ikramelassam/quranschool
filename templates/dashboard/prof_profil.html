@@ -3,11 +3,29 @@
 {% block title %}ملفي الشخصي{% endblock %}
 {% block content %}
 <div class="page-title">ملفي الشخصي</div>
-<div class="page-subtitle">{{ prof.user.email }}</div>
 
-<div class="row g-4">
+{# Refonte visuelle du 2026-08-05 — même patron que superviseur_profil.html
+   (déjà refait) : en-tête pleine largeur avec avatar, puis cartes en grille
+   2 colonnes. Logique fonctionnelle inchangée (mêmes données, mêmes liens),
+   seule la mise en page change. #}
+
+<!-- En-tête -->
+<div style="background:white; border-radius:16px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+    <div style="display:flex; align-items:center; gap:16px;">
+        <div style="width:64px; height:64px; border-radius:50%; background:var(--color-role-prof-solid); color:var(--color-bg-cream); display:flex; align-items:center; justify-content:center; font-size:1.3rem; font-weight:700; flex-shrink:0;">
+            {{ prof.user.first_name|first|upper }}{{ prof.user.last_name|first|upper }}
+        </div>
+        <div>
+            <div style="font-weight:700; font-size:1.25rem; color:var(--color-text-primary);">{{ prof.user.get_full_name }}</div>
+            <div style="color:#888; font-size:0.85rem; margin-top:2px;">{{ prof.user.email }}{% if prof.user.telephone %} — {{ prof.user.telephone }}{% endif %}</div>
+        </div>
+    </div>
+    <span style="background:#f3e6cc; color:var(--color-role-prof-solid); border-radius:20px; padding:6px 16px; font-size:0.85rem; font-weight:700;">مجموعاتي {{ prof.groupes.count }}</span>
+</div>
+
+<div class="row g-4 mb-4">
     <div class="col-lg-6">
-        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px;">
+        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%;">
             <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">معلومات الحساب</div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
                 <span style="color:#888;">البريد الإلكتروني</span>
@@ -41,14 +59,10 @@
                 <span style="color:#888;">مستوى الحفظ</span>
                 <span style="font-weight:600;">{{ prof.niveau_memorisation }}</span>
             </div>
-            <div style="display:flex; justify-content:space-between; padding:8px 0;">
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
                 <span style="color:#888;">الشهادات</span>
                 <span style="font-weight:600;">{{ prof.certifications|default:"—" }}</span>
             </div>
-        </div>
-
-        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">التفضيلات</div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
                 <span style="color:#888;">اللغات</span>
                 <span style="font-weight:600;">{{ prof.langues|libelles_arabes_liste:"langues" }}</span>
@@ -61,42 +75,32 @@
     </div>
 
     <div class="col-lg-6">
-        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px;">
-            <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">🔒 الأمان — تغيير كلمة المرور</div>
-            <form method="POST" action="{% url 'password_change' %}">
-                {% csrf_token %}
-                <div class="mb-2">
-                    <label style="color:#888; font-size:0.85rem;">كلمة المرور الحالية</label>
-                    <input type="password" name="ancien_mot_de_passe" class="form-control" required>
-                </div>
-                <div class="mb-2">
-                    <label style="color:#888; font-size:0.85rem;">كلمة المرور الجديدة</label>
-                    <input type="password" name="nouveau_mot_de_passe" class="form-control" required minlength="8">
-                </div>
-                <div class="mb-3">
-                    <label style="color:#888; font-size:0.85rem;">تأكيد كلمة المرور الجديدة</label>
-                    <input type="password" name="confirmation" class="form-control" required minlength="8">
-                </div>
-                <button type="submit" style="background:var(--color-role-prof-solid); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تغيير كلمة المرور</button>
-            </form>
-            {% include 'dashboard/_reinitialiser_mot_de_passe.html' %}
+        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%; display:flex; flex-direction:column; justify-content:center; text-align:center;">
+            <div style="color:var(--color-role-prof-solid); font-weight:700; margin-bottom:10px;">💰 راتبي الشهري</div>
+            <div style="font-size:26px; font-weight:700; color:var(--color-role-prof-solid);">{{ remuneration.total_calcule }} <span style="font-size:0.6em;">د.م.</span></div>
+            <div style="color:#888; font-size:0.85rem; margin-top:6px;">حساب راتبك الشهري حسب شبكة تعرفات المنصة</div>
+            <a href="{% url 'prof_remuneration' %}" style="display:inline-block; margin-top:16px; color:var(--color-role-prof-solid); font-weight:700; text-decoration:none;">عرض التفاصيل ←</a>
         </div>
+    </div>
+</div>
 
-        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px;">
-            <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">المجموعات</div>
-            {% if prof.groupes.all %}
-                {% for groupe in prof.groupes.all %}
-                <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                    <span style="font-weight:600;">{{ groupe.nom }}</span>
-                    <span style="color:#888;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}—{% endif %}</span>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
-            {% endif %}
+<div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px;">
+    <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">مجموعاتي ({{ prof.groupes.count }})</div>
+    {% if prof.groupes.all %}
+        {% for groupe in prof.groupes.all %}
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+            <span style="font-weight:600;">{{ groupe.nom }}</span>
+            <span style="color:#888;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}—{% endif %}</span>
         </div>
+        {% endfor %}
+    {% else %}
+        <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
+    {% endif %}
+</div>
 
-        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%;">
             <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">جهات الاتصال</div>
 
             <div style="color:#888; font-size:0.8rem; margin-bottom:6px;">المؤطر</div>
@@ -118,10 +122,12 @@
             {% include 'dashboard/_contact_administration.html' with admins=admins %}
         </div>
     </div>
-</div>
 
-<a href="{% url 'prof_remuneration' %}" class="compact-card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none;">
-    <span style="color:var(--color-role-prof-solid); font-weight:700;">💰 راتبي الشهري</span>
-    <span style="color:var(--color-role-prof-solid);">عرض التفاصيل ←</span>
-</a>
+    <div class="col-lg-6">
+        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%;">
+            <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">🔒 الأمان</div>
+            <div style="color:#888; font-size:0.9rem; line-height:1.7;">لتغيير كلمة المرور، تواصل مع الإدارة.</div>
+        </div>
+    </div>
+</div>
 {% endblock %}

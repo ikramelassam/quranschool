@@ -1,0 +1,28 @@
+{% extends base_template %}
+{% load libelles_arabes %}
+{% block title %}راتب {{ prof.user.get_full_name }}{% endblock %}
+{% block content %}
+<div class="page-title">راتب {{ prof.user.get_full_name }}</div>
+<div class="page-subtitle">{{ mois_reference|mois_annee_ar }} — عرض للاطلاع فقط، لا يمكن التعديل من هنا</div>
+
+<div style="background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); padding:28px 24px; text-align:center; margin-bottom:20px;">
+    <div style="font-size:2.6rem; font-weight:700; line-height:1; color:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif-solid){% else %}var(--color-role-admin-solid){% endif %};">{{ remuneration.total_calcule }}<span style="font-size:1.1rem; color:#b3a08c; font-weight:500;"> د.م.</span></div>
+    <div style="color:#888; font-size:0.85rem; margin-top:6px;">مجموع تقديري لهذا الشهر</div>
+</div>
+
+<form method="GET" style="background:white; border-radius:16px; padding:16px 24px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+    <div>
+        <label style="color:#888; font-size:0.8rem; display:block; margin-bottom:4px;">الشهر</label>
+        <input type="month" name="mois" class="form-control" value="{{ mois_filtre }}">
+    </div>
+    <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+</form>
+
+{% if request.user.role == 'mshrif' %}
+{% include 'dashboard/_remuneration_detail.html' with remuneration=remuneration couleur_accent='var(--color-role-mshrif-solid)' %}
+{% else %}
+{% include 'dashboard/_remuneration_detail.html' with remuneration=remuneration couleur_accent='var(--color-role-admin-solid)' %}
+{% endif %}
+
+<a href="{% url 'mshrif_remuneration' %}" style="color:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif-solid){% else %}var(--color-role-admin-solid){% endif %}; text-decoration:none;">← رجوع إلى متابعة رواتب الأساتذة</a>
+{% endblock %}

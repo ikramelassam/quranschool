@@ -1,5 +1,6 @@
-{% extends 'dashboard/base_mshrif.html' %}
-{% block title %}الاستحقاقات{% endblock %}
+{% extends base_template %}
+{% load libelles_arabes %}
+{% block title %}متابعة رواتب الأساتذة{% endblock %}
 {% block extra_css %}
 <style>
 .ref-details summary { list-style:none; cursor:pointer; }
@@ -12,13 +13,35 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="page-title">الاستحقاقات</div>
-<div class="page-subtitle">حسب شبكة التعرفات الحالية — المجموع العام: <strong style="color:var(--color-role-mshrif-solid);">{{ total_general }} د.م.</strong></div>
+<div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
+    <div>
+        <div class="page-title">متابعة رواتب الأساتذة</div>
+        <div class="page-subtitle">{{ mois_reference|mois_annee_ar }}</div>
+    </div>
+    <div style="background:white; border-radius:16px; padding:16px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-align:center;">
+        <div style="color:#888; font-size:0.8rem;">مجموع الرواتب التقديري</div>
+        <div style="font-size:1.6rem; font-weight:700; color:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif-solid){% else %}var(--color-role-admin-solid){% endif %};">{{ total_general }} د.م.</div>
+    </div>
+</div>
 
-<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow-x:auto;">
-<table style="width:100%; border-collapse:collapse; min-width:480px;">
+<form method="GET" style="background:white; border-radius:16px; padding:16px 24px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+    <div>
+        <label style="color:#888; font-size:0.8rem; display:block; margin-bottom:4px;">الشهر</label>
+        <input type="month" name="mois" class="form-control" value="{{ mois_filtre }}">
+    </div>
+    <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+    {% if mois_filtre %}
+    <a href="{% url 'mshrif_remuneration' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+    {% endif %}
+</form>
+<div style="background:var(--color-bg-cream); border-radius:8px; padding:10px 16px; margin-bottom:20px; color:var(--color-text-muted); font-size:0.78rem; max-width:700px;">
+    ℹ️ تصفية "الشهر" لا تؤثر إلا على قسم "الحصص الفردية" (مبني على تواريخ حصص حقيقية). قسم "المجموعات الجماعية" يبقى دائماً محسوباً حسب الطلاب النشطين حالياً، أياً كان الشهر المختار — لا يوجد أرشفة شهرية لعضوية المجموعات في هذا المشروع.
+</div>
+
+<div style="background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow-x:auto;">
+<table style="width:100%; border-collapse:collapse; min-width:520px;">
     <thead>
-        <tr style="background:var(--color-role-mshrif-solid); color:white;">
+        <tr style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif-solid){% else %}var(--color-role-admin-solid){% endif %}; color:white;">
             <th style="text-align:right; padding:12px 18px; font-size:0.85rem; font-weight:600;">المعلم</th>
             <th style="text-align:right; padding:12px 18px; font-size:0.85rem; font-weight:600;">المبلغ الأساسي</th>
             <th style="text-align:right; padding:12px 18px; font-size:0.85rem; font-weight:600;">المنحة</th>
@@ -29,7 +52,15 @@
         {% for ligne in lignes %}
         <tr style="border-bottom:1px solid #f0f0f0;">
             <td style="padding:14px 18px;">
-                <a href="{% url 'admin_prof_detail' ligne.prof.id %}" style="color:inherit; text-decoration:none; font-weight:600;">{{ ligne.prof.user.get_full_name }}</a>
+                <a href="{% url 'admin_prof_remuneration_detail' ligne.prof.id %}{% if mois_filtre %}?mois={{ mois_filtre }}{% endif %}" style="color:inherit; text-decoration:none; display:flex; align-items:center; gap:10px;">
+                    <div style="width:34px; height:34px; border-radius:50%; background:#f3e6cc; color:#8a5a2b; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700; flex-shrink:0;">
+                        {{ ligne.prof.user.first_name|first|upper }}{{ ligne.prof.user.last_name|first|upper }}
+                    </div>
+                    <span style="font-weight:600;">
+                        {{ ligne.prof.user.get_full_name }}
+                        {% if ligne.archive %}<span style="color:#999; font-weight:400; font-size:0.82rem;">(مؤرشف)</span>{% endif %}
+                    </span>
+                </a>
             </td>
             <td style="padding:14px 18px;">{{ ligne.base }} د.م.</td>
             <td style="padding:14px 18px;">
@@ -47,7 +78,7 @@
     </tbody>
     {% if lignes %}
     <tfoot>
-        <tr style="background:var(--color-bg-cream); font-weight:700; font-size:1.05rem; color:var(--color-role-mshrif-solid);">
+        <tr style="background:var(--color-bg-cream); font-weight:700; font-size:1.05rem; color:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif-solid){% else %}var(--color-role-admin-solid){% endif %};">
             <td style="padding:14px 18px;">المجموع العام</td>
             <td style="padding:14px 18px;">{{ total_base }} د.م.</td>
             <td style="padding:14px 18px;">{{ total_majoration }} د.م.</td>
@@ -59,12 +90,8 @@
 </div>
 {% include 'dashboard/_pagination.html' with page_obj=lignes %}
 
-<div style="background:var(--color-bg-cream); border-radius:8px; padding:10px 16px; margin-top:16px; color:var(--color-text-muted); font-size:0.78rem; max-width:700px;">
-    ℹ️ لا يوجد تصفية حسب الشهر: الحساب يتم دائماً "لحظياً" حسب الطلاب النشطين حالياً — لا يوجد سجل شهري محفوظ بعد.
-</div>
-
 <details class="ref-details" style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:20px; max-width:700px; overflow:hidden;">
-    <summary style="padding:16px 24px; font-weight:700; color:var(--color-role-mshrif-solid); display:flex; align-items:center; justify-content:space-between;">
+    <summary style="padding:16px 24px; font-weight:700; color:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif-solid){% else %}var(--color-role-admin-solid){% endif %}; display:flex; align-items:center; justify-content:space-between;">
         <span>
             <span class="label-closed">عرض شبكة التعرفات</span>
             <span class="label-open">إخفاء شبكة التعرفات</span>
