@@ -102,8 +102,10 @@
     {% endif %}
     {% if inscription.job_actuel %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        {# Libellé déduit de nom_parent (Tâche du 2026-08-05) : présent =>
-           inscription enfant => c'est le travail du tuteur, pas de l'élève. #}
+        {% comment %}
+        Libellé déduit de nom_parent (Tâche du 2026-08-05) : présent =>
+        inscription enfant => c'est le travail du tuteur, pas de l'élève.
+        {% endcomment %}
         <span style="color:#888;">{% if inscription.nom_parent %}عمل ولي الأمر{% else %}العمل الحالي{% endif %}</span>
         <span style="font-weight:600;">{{ inscription.job_actuel }}</span>
     </div>

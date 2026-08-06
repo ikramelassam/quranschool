@@ -74,6 +74,16 @@
         .page-title { color: var(--color-role-mshrif-solid); font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
         .page-subtitle { color: var(--color-text-muted); margin-bottom: 30px; }
 
+        /* .section-title / .compact-card : mêmes règles que base_eleve.html/base_prof.html
+           (Tâche du 2026-08-06 — corrige un bug réel : dashboard_mshrif.html, mshrif_charte.html,
+           mshrif_logo.html et les pages incluant _remuneration_detail.html utilisent ces classes
+           sans qu'elles soient jamais DÉFINIES ici, donc rendues sans aucun style. Jamais
+           dupliquées ailleurs que dans les 5 bases. */
+        .section-title { font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary); margin: 0 0 10px; }
+        .compact-card { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        a.compact-card, .compact-card.clickable { display: block; color: inherit; text-decoration: none; transition: box-shadow 0.15s; }
+        a.compact-card:hover, .compact-card.clickable:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+
         /* Menu mobile */
         .sidebar-toggle {
             display: none;
@@ -208,13 +218,15 @@
                class="menu-item {% if request.resolver_match.url_name == 'classement_mensuel_profs' %}active{% endif %}">
                 <span class="icon">📋</span> تقارير المؤطرين
             </a>
-            {# admin_criteres redirige automatiquement vers classement_mensuel_profs
-               pour مشرف (section repliable "معايير التقييم", lecture seule) — voir
-               dashboard.views.admin_criteres. Lien ajouté ici (chantier du 2026-08-06,
-               point 7) pour la découvrabilité : مشرف n'avait auparavant AUCUNE entrée
-               sidebar menant, même indirectement, à ces critères. Pas d'accès en
-               édition ajouté (admin_critere_ajouter/modifier restent réservées à مدير) —
-               cohérent avec l'architecture déjà en place. #}
+            {% comment %}
+            admin_criteres redirige automatiquement vers classement_mensuel_profs
+            pour مشرف (section repliable "معايير التقييم", lecture seule) — voir
+            dashboard.views.admin_criteres. Lien ajouté ici (chantier du 2026-08-06,
+            point 7) pour la découvrabilité : مشرف n'avait auparavant AUCUNE entrée
+            sidebar menant, même indirectement, à ces critères. Pas d'accès en
+            édition ajouté (admin_critere_ajouter/modifier restent réservées à مدير) —
+            cohérent avec l'architecture déjà en place.
+            {% endcomment %}
             <a href="{% url 'admin_criteres' %}" class="menu-item">
                 <span class="icon">📝</span> معايير تقييم المعلمين
             </a>

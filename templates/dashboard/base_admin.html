@@ -127,6 +127,16 @@
         .page-title { color: var(--color-role-admin-solid); font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
         .page-subtitle { color: var(--color-text-muted); margin-bottom: 30px; }
 
+        /* .section-title / .compact-card : mêmes règles que base_eleve.html/base_prof.html
+           (Tâche du 2026-08-06 — corrige un bug réel : ces classes étaient utilisées par
+           des pages incluses côté مدير (_remuneration_detail.html via
+           admin_prof_remuneration_detail.html) sans jamais être DÉFINIES ici, donc rendues
+           sans aucun style. Jamais dupliquées ailleurs que dans les 5 bases. */
+        .section-title { font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary); margin: 0 0 10px; }
+        .compact-card { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        a.compact-card, .compact-card.clickable { display: block; color: inherit; text-decoration: none; transition: box-shadow 0.15s; }
+        a.compact-card:hover, .compact-card.clickable:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+
         /* Icônes de contact rapide (WhatsApp/email) — voir dashboard/_whatsapp_icon.html et _email_icon.html.
            Halo de survol propre à chaque icône (vert WhatsApp / doré marque) via un modificateur. */
         .contact-icon-link { display: inline-flex; border-radius: 50%; transition: transform 150ms ease, box-shadow 150ms ease; }

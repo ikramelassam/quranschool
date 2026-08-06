@@ -2,12 +2,14 @@
 {% load libelles_arabes %}
 {% block title %}حقيبة الأستاذ{% endblock %}
 {% block content %}
-{# Copie fidèle du design de prof_hakiba.html (Tâche du 2026-08-05, complément
-   du Point 3) — mêmes 2 blocs, même mise en page, même palette (couleur de
-   rôle adaptée : --color-role-superviseur-solid au lieu de --color-role-prof-solid,
-   pour rester cohérent avec le reste des pages مؤطر). Lecture seule pour le
-   مؤطر : aucun bouton d'action, exactement comme prof_hakiba.html l'est déjà
-   pour le prof lui-même — rien à retirer, ce template n'en a jamais eu. #}
+{% comment %}
+Copie fidèle du design de prof_hakiba.html (Tâche du 2026-08-05, complément
+du Point 3) — mêmes 2 blocs, même mise en page, même palette (couleur de
+rôle adaptée : --color-role-superviseur-solid au lieu de --color-role-prof-solid,
+pour rester cohérent avec le reste des pages مؤطر). Lecture seule pour le
+مؤطر : aucun bouton d'action, exactement comme prof_hakiba.html l'est déjà
+pour le prof lui-même — rien à retirer, ce template n'en a jamais eu.
+{% endcomment %}
 <div class="page-title">حقيبة الأستاذ</div>
 <div class="page-subtitle">كل ما يحتاجه الأستاذ لمعرفة قواعد وبرنامج التدريس في المنصة — عرض للاطلاع فقط</div>
 

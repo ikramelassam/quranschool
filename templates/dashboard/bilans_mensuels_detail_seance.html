@@ -2,10 +2,12 @@
 {% load libelles_arabes %}
 {% block title %}{{ eleve.user.get_full_name }} — تقييم الطلاب{% endblock %}
 {% block content %}
-<div style="color:#888; font-size:0.85rem; margin-bottom:6px;">
-    <a href="{% url 'bilans_mensuels' %}" style="color:#888; text-decoration:none;">تقييم الطلاب</a>
-    ← <a href="{% url 'bilans_mensuels' %}?groupe={{ groupe.id }}" style="color:#888; text-decoration:none;">{{ groupe.nom }}</a>
-    ← {{ eleve.user.get_full_name }}
+<div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:0.82rem; margin-bottom:14px;">
+    <a href="{% url 'bilans_mensuels' %}" style="color:var(--color-text-muted); text-decoration:none; background:white; border-radius:20px; padding:4px 12px; box-shadow:0 1px 4px rgba(0,0,0,0.05);">تقييم الطلاب</a>
+    <span style="color:#ccc;">←</span>
+    <a href="{% url 'bilans_mensuels' %}?groupe={{ groupe.id }}" style="color:var(--color-text-muted); text-decoration:none; background:white; border-radius:20px; padding:4px 12px; box-shadow:0 1px 4px rgba(0,0,0,0.05);">{{ groupe.nom }}</a>
+    <span style="color:#ccc;">←</span>
+    <span style="color:{{ couleur_role }}; font-weight:700; background:white; border-radius:20px; padding:4px 12px; box-shadow:0 1px 4px rgba(0,0,0,0.05);">{{ eleve.user.get_full_name }}</span>
 </div>
 <div class="page-title">{{ eleve.user.get_full_name }}</div>
 <div class="page-subtitle">{{ groupe.nom }}</div>

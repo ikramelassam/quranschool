@@ -1,13 +1,15 @@
 {% load libelles_arabes %}
-{# Boutons d'envoi WhatsApp — extrait de confirmation_creation_compte.html
-   (Tâche du 2026-08-05) et partagé depuis le chantier du 2026-08-06 avec
-   admin_utilisateur_reinitialiser_mot_de_passe.html et
-   confirmation_modification_email.html — mêmes 2 destinataires possibles
-   (la personne concernée + le مدير, comme trace), même lien wa.me avec
-   message pré-rempli. Variables attendues : telephone_personne,
-   libelle_personne (ex: "مع الطالب"), texte_absence_personne (optionnel),
-   message (texte brut, jamais échappé HTML — urlencode s'en charge),
-   admins (queryset de User role='admin', optionnel). #}
+{% comment %}
+Boutons d'envoi WhatsApp — extrait de confirmation_creation_compte.html
+(Tâche du 2026-08-05) et partagé depuis le chantier du 2026-08-06 avec
+admin_utilisateur_reinitialiser_mot_de_passe.html et
+confirmation_modification_email.html — mêmes 2 destinataires possibles
+(la personne concernée + le مدير, comme trace), même lien wa.me avec
+message pré-rempli. Variables attendues : telephone_personne,
+libelle_personne (ex: "مع الطالب"), texte_absence_personne (optionnel),
+message (texte brut, jamais échappé HTML — urlencode s'en charge),
+admins (queryset de User role='admin', optionnel).
+{% endcomment %}
 <div style="max-width:640px; margin-bottom:20px;">
     <div style="font-weight:700; color:#555; font-size:0.9rem; margin-bottom:10px;">إرسال مباشر عبر واتساب</div>
     <div style="display:flex; gap:12px; flex-wrap:wrap;">
