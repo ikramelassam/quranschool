@@ -48,7 +48,10 @@
                     {{ prof.user.get_full_name }}
                     {% include 'dashboard/_badge_archive_prof.html' with prof=prof %}
                 </div>
-                <div style="color:#888; font-size:0.85rem; margin-top:2px;">{{ prof.ville }}</div>
+                <div style="color:#888; font-size:0.85rem; margin-top:2px;">
+                    {{ prof.ville }}
+                    {% if prof.id in profs_assignes_ids %} — {{ prof.nb_groupes }} مجموعة مسندة{% endif %}
+                </div>
             </label>
         </div>
         {% empty %}
