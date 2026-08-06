@@ -2482,30 +2482,55 @@ def dashboard_superviseur(request):
     if prof_id:
         profs_qs = profs_qs.filter(id=prof_id)
 
+    # Tâche du 2026-08-06 (audit de performance, point 8, suite) : avant,
+    # chaque prof re-filtrait toutes_seances SÉPARÉMENT (4 querysets) puis
+    # chacun était réévalué 2-3 fois (.exists(), .count(), slicing,
+    # itération template) — jusqu'à 9 requêtes SQL par prof, alors que
+    # toutes_seances est déjà chargée avec tout le select_related
+    # nécessaire (groupe__prof__user, groupe__creneau) plus haut. Un
+    # select_related/prefetch_related supplémentaire n'aurait rien changé
+    # ici (le coût n'est pas une relation manquante, c'est la RÉÉVALUATION
+    # répétée du même queryset filtré) : matérialisée UNE fois par prof
+    # (list()), puis tri/filtrage en Python sur les MÊMES conditions
+    # qu'avant (est_evaluee déjà annoté, donc déjà un attribut Python sur
+    # chaque objet — aucune requête supplémentaire pour le lire). Résultat
+    # affiché strictement identique (mêmes séances, mêmes compteurs) —
+    # vérifié séance par séance, pas seulement par comptage, voir script de
+    # vérification.
     fiches_profs = []
     for prof in profs_qs:
-        seances_prof = toutes_seances.filter(groupe__prof=prof)
-        retard_prof = seances_prof.filter(
-            date__lt=aujourdhui, est_evaluee=False
-        ).exclude(statut='annulee').order_by('-date', '-heure')
-        aujourdhui_prof = seances_prof.filter(date=aujourdhui).order_by('heure')
-        a_venir_prof = seances_prof.filter(date__gt=aujourdhui).order_by('date', 'heure')
-        traitees_prof = seances_prof.filter(date__lt=aujourdhui).exclude(
-            id__in=retard_prof.values('id')
-        ).order_by('-date', '-heure')
+        seances_prof_list = list(toutes_seances.filter(groupe__prof=prof))
 
-        if not (retard_prof.exists() or aujourdhui_prof.exists() or a_venir_prof.exists() or traitees_prof.exists()):
+        retard_prof = sorted(
+            (s for s in seances_prof_list if s.date < aujourdhui and not s.est_evaluee and s.statut != 'annulee'),
+            key=lambda s: (s.date, s.heure), reverse=True,
+        )
+        aujourdhui_prof = sorted(
+            (s for s in seances_prof_list if s.date == aujourdhui),
+            key=lambda s: s.heure,
+        )
+        a_venir_prof = sorted(
+            (s for s in seances_prof_list if s.date > aujourdhui),
+            key=lambda s: (s.date, s.heure),
+        )
+        retard_ids = {s.id for s in retard_prof}
+        traitees_prof = sorted(
+            (s for s in seances_prof_list if s.date < aujourdhui and s.id not in retard_ids),
+            key=lambda s: (s.date, s.heure), reverse=True,
+        )
+
+        if not (retard_prof or aujourdhui_prof or a_venir_prof or traitees_prof):
             continue
 
         fiches_profs.append({
             'prof': prof,
-            'nb_retard': retard_prof.count(),
+            'nb_retard': len(retard_prof),
             'seances_retard': retard_prof,
             'seances_aujourdhui': aujourdhui_prof,
             'seances_a_venir': a_venir_prof[:5],
-            'nb_a_venir': a_venir_prof.count(),
+            'nb_a_venir': len(a_venir_prof),
             'seances_traitees': traitees_prof[:5],
-            'nb_traitees': traitees_prof.count(),
+            'nb_traitees': len(traitees_prof),
         })
 
     # ===== "الحصة الحالية/التالية" — toujours calculé sur TOUTES les séances
