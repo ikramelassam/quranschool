@@ -980,12 +980,17 @@ def navigation_mois_et_semaines(seances_qs, request, aujourdhui, borne_avant=Tru
 
 
 def regrouper_seances_a_venir(seances_qs, aujourdhui):
-    """Section "القادمة" — séances futures groupées par semaine, avec des
-    libellés relatifs ("بقية هذا الأسبوع" déplié, "الأسبوع القادم" replié)
-    plutôt que de simples dates brutes pour les 2 premières périodes — semble
-    plus lisible pour une vue "à venir" que pour "السجل السابق" (Tâche du
-    2026-08-05, Point 1 du chantier groupé). Réutilisé tel quel par
-    dashboard_superviseur ET dashboard_prof.
+    """Section "القادمة" — séances futures (Tâche du 2026-08-05, Point 1,
+    RETRAVAILLÉE le 2026-08-06 suite à un signalement réel : l'ancienne
+    version groupait par SEMAINE indéfiniment — avec plusieurs mois de
+    séances programmées à l'avance, ça produisait une pile de 8+ accordéons
+    hebdomadaires, chacun individuellement repliable mais son EN-TÊTE
+    toujours visible : à l'écran, ça reste une liste à peu près aussi
+    "plate" que si rien n'était replié. Désormais : "بقية هذا الأسبوع" à
+    plat (inchangé), "الأسبوع القادم" seule semaine encore détaillée
+    (repliable mais OUVERTE par défaut), puis tout le reste regroupé en UN
+    SEUL résumé replié PAR MOIS calendaire (ex: "سبتمبر 2026 — 12 حصة").
+    Réutilisée telle quelle par dashboard_superviseur ET dashboard_prof.
 
     seances_qs : déjà scopé par l'appelant (par prof, par مؤطر, filtres GET
     éventuels...), PAS encore borné aux séances futures — cette fonction
@@ -995,38 +1000,51 @@ def regrouper_seances_a_venir(seances_qs, aujourdhui):
     Ne PAS pré-exclure ici la séance déjà affichée séparément par le widget
     "الحصة القادمة/التالية" — nb_semaine_courante doit rester le compte VRAI
     de "cette semaine" (elle en fait partie). C'est à l'appelant de retirer
-    cette séance de bucket_semaine_courante avant de l'afficher, pour ne pas
-    la montrer deux fois, sans fausser le compteur.
+    cette séance de bucket_semaine_courante avant de l'afficher, sans
+    fausser le compteur.
 
     Retourne : bucket_semaine_courante (liste, à afficher DÉPLIÉE),
-    semaines_suivantes (liste de {label, debut, fin, seances, nb} — la 1ère
-    a label="الأسبوع القادم", les suivantes label=None : le template affiche
-    alors la plage de dates, toutes REPLIÉES), nb_semaine_courante (compteur
-    "X qui vient cette semaine", "vrai" total, cohérent avec le libellé)."""
+    semaine_suivante ({debut, fin, seances, nb} ou None — à afficher
+    DÉPLIÉE par défaut, mais repliable), mois_suivants (liste de
+    {mois_ref, seances, nb} — un par mois calendaire au-delà de la semaine
+    suivante, triés chronologiquement, toutes REPLIÉES), nb_semaine_courante
+    (compteur "X qui vient cette semaine", "vrai" total, cohérent avec le
+    libellé)."""
     fin_semaine_courante = aujourdhui + datetime.timedelta(days=7 - aujourdhui.isoweekday())
+    fin_semaine_suivante = fin_semaine_courante + datetime.timedelta(days=7)
     seances_a_venir = list(seances_qs.filter(date__gt=aujourdhui).order_by('date', 'heure'))
 
     bucket_semaine_courante = [s for s in seances_a_venir if s.date <= fin_semaine_courante]
-    reste = [s for s in seances_a_venir if s.date > fin_semaine_courante]
+    apres_semaine_courante = [s for s in seances_a_venir if s.date > fin_semaine_courante]
+    seances_semaine_suivante = [s for s in apres_semaine_courante if s.date <= fin_semaine_suivante]
+    au_dela = [s for s in apres_semaine_courante if s.date > fin_semaine_suivante]
 
-    semaines_dict = {}
-    for s in reste:
-        debut_semaine = s.date - datetime.timedelta(days=s.date.isoweekday() - 1)
-        semaines_dict.setdefault(debut_semaine, []).append(s)
-
-    semaines_suivantes = [
-        {
-            'label': 'الأسبوع القادم' if i == 0 else None,
-            'debut': debut_semaine,
-            'fin': debut_semaine + datetime.timedelta(days=6),
-            'seances': semaines_dict[debut_semaine],
-            'nb': len(semaines_dict[debut_semaine]),
+    semaine_suivante = None
+    if seances_semaine_suivante:
+        semaine_suivante = {
+            'debut': fin_semaine_courante + datetime.timedelta(days=1),
+            'fin': fin_semaine_suivante,
+            'seances': seances_semaine_suivante,
+            'nb': len(seances_semaine_suivante),
         }
-        for i, debut_semaine in enumerate(sorted(semaines_dict.keys()))
+
+    mois_dict = {}
+    for s in au_dela:
+        cle = (s.date.year, s.date.month)
+        mois_dict.setdefault(cle, []).append(s)
+
+    mois_suivants = [
+        {
+            'mois_ref': datetime.date(annee, mois, 1),
+            'seances': mois_dict[(annee, mois)],
+            'nb': len(mois_dict[(annee, mois)]),
+        }
+        for (annee, mois) in sorted(mois_dict.keys())
     ]
 
     return {
         'bucket_semaine_courante': bucket_semaine_courante,
-        'semaines_suivantes': semaines_suivantes,
+        'semaine_suivante': semaine_suivante,
+        'mois_suivants': mois_suivants,
         'nb_semaine_courante': len(bucket_semaine_courante),
     }
