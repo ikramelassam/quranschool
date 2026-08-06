@@ -1475,7 +1475,13 @@ def confirmation_creation_compte(request):
         'message_pret_a_envoyer': message_pret_a_envoyer,
         'libelle_personne_contact': f"مع {LIBELLE_PERSONNE_CONTACT.get(info['type_compte'], '')}",
         'texte_absence_personne': f"لا يوجد رقم هاتف مسجَّل {'لهذا الطالب' if info['type_compte'] == 'eleve' else 'لهذا المعلم'}",
-        'admins': User.objects.filter(role='admin') if info['type_compte'] == 'prof' else None,
+        # .exclude(id=request.user.id) (Tâche du 2026-08-06) : si c'est مدير
+        # lui-même qui est connecté (pas le cas actuellement — cette branche
+        # n'est atteignable que par مشرف, voir mshrif_valider_prof_final —
+        # mais on ne veut jamais lui proposer de "se contacter lui-même" si
+        # ça devenait un jour possible), il ne doit pas apparaître dans sa
+        # propre liste de destinataires.
+        'admins': User.objects.filter(role='admin').exclude(id=request.user.id) if info['type_compte'] == 'prof' else None,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -4276,7 +4282,13 @@ def admin_utilisateur_reinitialiser_mot_de_passe(request, user_id):
         'mdp_genere': mot_de_passe_affiche,
         'message_pret_a_envoyer': message_pret_a_envoyer,
         'libelle_personne_contact': f"مع {LIBELLE_PERSONNE_CONTACT.get(utilisateur.role, '')}",
-        'admins': User.objects.filter(role='admin'),
+        # .exclude(id=request.user.id) (bug réel, Tâche du 2026-08-06) : cette
+        # vue est accessible à مدير ET مشرف (contrairement à la validation de
+        # compte ci-dessus) — sans cette exclusion, un مدير qui réinitialise
+        # lui-même un mot de passe se voyait proposer un bouton "تواصل مع
+        # المدير" pointant vers... lui-même. مشرف continue de voir le bouton
+        # normalement (jamais exclu, puisqu'il n'est jamais dans role='admin').
+        'admins': User.objects.filter(role='admin').exclude(id=request.user.id),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
