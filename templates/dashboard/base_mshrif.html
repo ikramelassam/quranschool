@@ -198,7 +198,7 @@
             <span class="icon">💰</span> متابعة رواتب الأساتذة
         </a>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' or request.resolver_match.url_name == 'classement_mensuel_profs' or request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' or request.resolver_match.url_name == 'admin_criteres_eleves' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' or request.resolver_match.url_name == 'classement_mensuel_profs' or request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' or request.resolver_match.url_name == 'admin_criteres_eleves' or request.resolver_match.url_name == 'admin_criteres' %}open{% endif %}>
             <summary>التقييم والمتابعة</summary>
             <a href="{% url 'admin_evaluations' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' %}active{% endif %}">
@@ -207,6 +207,16 @@
             <a href="{% url 'classement_mensuel_profs' %}"
                class="menu-item {% if request.resolver_match.url_name == 'classement_mensuel_profs' %}active{% endif %}">
                 <span class="icon">📋</span> تقارير المؤطرين
+            </a>
+            {# admin_criteres redirige automatiquement vers classement_mensuel_profs
+               pour مشرف (section repliable "معايير التقييم", lecture seule) — voir
+               dashboard.views.admin_criteres. Lien ajouté ici (chantier du 2026-08-06,
+               point 7) pour la découvrabilité : مشرف n'avait auparavant AUCUNE entrée
+               sidebar menant, même indirectement, à ces critères. Pas d'accès en
+               édition ajouté (admin_critere_ajouter/modifier restent réservées à مدير) —
+               cohérent avec l'architecture déjà en place. #}
+            <a href="{% url 'admin_criteres' %}" class="menu-item">
+                <span class="icon">📝</span> معايير تقييم المعلمين
             </a>
             <a href="{% url 'bilans_mensuels' %}"
                class="menu-item {% if request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' %}active{% endif %}">
