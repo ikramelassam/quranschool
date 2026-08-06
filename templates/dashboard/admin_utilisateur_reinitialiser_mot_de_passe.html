@@ -8,9 +8,12 @@
     {% if mdp_genere %}
     <div style="background:#fff3cd; border:2px solid #ffc107; border-radius:10px; padding:18px 20px; margin-bottom:20px;">
         <div style="font-weight:700; color:#7a5c00; margin-bottom:8px;">⚠️ انسخ كلمة المرور هذه الآن، لن تظهر مرة أخرى</div>
-        <div style="background:white; border-radius:8px; padding:12px 16px; font-family:monospace; font-size:1.2rem; font-weight:700; letter-spacing:1px; text-align:center; color:var(--color-text-primary,#222);">{{ mdp_genere }}</div>
-        <div style="color:#7a5c00; font-size:0.82rem; margin-top:10px;">يمكن لـ{{ utilisateur.get_full_name }} تسجيل الدخول مباشرة بهذه الكلمة، دون أي شاشة تغيير إجباري.</div>
+        <div dir="ltr" style="background:white; border-radius:8px; padding:12px 16px; font-family:monospace; font-size:1.2rem; font-weight:700; letter-spacing:1px; text-align:center; color:var(--color-text-primary,#222); unicode-bidi:isolate;">{{ mdp_genere }}</div>
+        <div style="color:#7a5c00; font-size:0.82rem; margin-top:10px;">يمكن لـ{{ utilisateur.get_full_name }} تسجيل الدخول مباشرة بهذه الكلمة، دون أي شاشة تغيير إجباري. لم يُرسَل أي بريد إلكتروني أو رسالة تلقائياً — استخدم الأزرار أدناه لإرسالها يدوياً.</div>
     </div>
+
+    {% include 'dashboard/_contacts_whatsapp.html' with telephone_personne=utilisateur.telephone libelle_personne=libelle_personne_contact texte_absence_personne='لا يوجد رقم هاتف مسجَّل لهذا الحساب' message=message_pret_a_envoyer admins=admins %}
+
     <a href="{{ next }}" style="color:var(--color-role-admin,#2d5a1b); text-decoration:none; font-weight:600;">← رجوع</a>
     {% else %}
     <form method="POST" onsubmit="return confirm('إعادة تعيين كلمة مرور {{ utilisateur.get_full_name|escapejs }}؟ سيتم تسجيل خروجه من جميع الأجهزة فوراً، ولن يتمكن من الدخول إلا بكلمة المرور الجديدة.');">
