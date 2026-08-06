@@ -1,5 +1,5 @@
 {% extends 'dashboard/base_prof.html' %}
-
+{% load libelles_arabes %}
 {% block title %}لوحة المعلم{% endblock %}
 
 {% block content %}
@@ -13,26 +13,35 @@
 </a>
 {% endif %}
 
-<!-- Stats -->
+<!-- Stats — "قادمة هذا الأسبوع" ajouté (chantier groupé du 2026-08-05) à côté
+     des 3 déjà en place, même choix que côté مؤطر (4 compteurs plutôt que
+     remplacer un existant). -->
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
+    <div class="col-6 col-md-3">
         <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
             <div style="color:#888; font-size:0.85rem;">مجموعاتي</div>
             <div style="color:var(--color-role-prof-solid); font-size:2rem; font-weight:700;">{{ total_groupes }}</div>
             <div style="color:#888; font-size:0.8rem;">👥</div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-6 col-md-3">
         <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
             <div style="color:#888; font-size:0.85rem;">إجمالي الطلاب</div>
             <div style="color:var(--color-role-prof-solid); font-size:2rem; font-weight:700;">{{ total_eleves }}</div>
             <div style="color:#888; font-size:0.8rem;">👤</div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-6 col-md-3">
+        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div style="color:#888; font-size:0.85rem;">قادمة هذا الأسبوع</div>
+            <div style="color:var(--color-role-prof-solid); font-size:2rem; font-weight:700;">{{ nb_semaine_courante }}</div>
+            <div style="color:#888; font-size:0.8rem;">📆</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
         <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
             <div style="color:#888; font-size:0.85rem;">آخر الحصص</div>
-            <div style="color:var(--color-role-prof-solid); font-size:2rem; font-weight:700;">{{ seances|length }}</div>
+            <div style="color:var(--color-role-prof-solid); font-size:2rem; font-weight:700;">{{ total_seances_passees }}</div>
             <div style="color:#888; font-size:0.8rem;">📋</div>
         </div>
     </div>
@@ -58,12 +67,73 @@
     {% endif %}
 </div>
 
-<!-- Dernières séances -->
+<!-- القادمة — section manquante avant ce chantier (Point 1، 2026-08-05) :
+     seule "الحصة القادمة" ci-dessus (une séance unique) était visible, rien
+     ne montrait le reste. "بقية هذا الأسبوع" à plat, "الأسبوع القادم" +
+     semaines suivantes groupées/repliées — même helper que مؤطر
+     (courses.utils.regrouper_seances_a_venir). -->
+{% if bucket_semaine_courante or semaines_a_venir %}
+<div class="section-title">القادمة</div>
+<div style="margin-bottom:24px;">
+    {% if bucket_semaine_courante %}
+    <div style="color:#888; font-size:0.85rem; margin-bottom:6px;">بقية هذا الأسبوع</div>
+    <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:10px;">
+    {% for seance in bucket_semaine_courante %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
+            <div>
+                <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                <div style="color:#999; font-size:0.85rem;">{{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}</div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                <a href="{% url 'prof_seance_detail' seance.id %}"
+                   style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
+            </div>
+        </div>
+    {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if semaines_a_venir %}
+    <div style="display:flex; flex-direction:column; gap:10px;">
+    {% for semaine in semaines_a_venir %}
+        <details class="compact-card" style="padding:0; overflow:hidden;">
+            <summary style="cursor:pointer; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; list-style:none;">
+                <span style="font-weight:700;">{% if semaine.label %}{{ semaine.label }}{% else %}الأسبوع من {{ semaine.debut|date:"d-m" }} إلى {{ semaine.fin|date:"d-m" }}{% endif %}</span>
+                <span style="color:#888; font-size:0.82rem;">{{ semaine.nb }} حصة</span>
+            </summary>
+            <div style="border-top:1px solid #f0f0f0; padding:4px 20px 8px;">
+                {% for seance in semaine.seances %}
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f5f5f5;{% endif %} flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                        <div style="color:#999; font-size:0.85rem;">{{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}</div>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                        <a href="{% url 'prof_seance_detail' seance.id %}"
+                           style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </details>
+    {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- آخر الحصص — refonte agenda groupée (Tâche du 2026-08-05), même logique
+     que "السجل السابق" côté مؤطر : aperçu immédiat (3 dernières séances à
+     plat) + reste groupé par semaine dans un mois navigable, replié par
+     défaut. -->
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div style="font-weight:700; font-size:1.1rem; color:#222; margin-bottom:16px;">آخر الحصص</div>
 
-    {% if seances %}
-        {% for seance in seances %}
+    {% if apercu_seances %}
+    <div style="margin-bottom:16px;">
+    {% for seance in apercu_seances %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f0f0f0;">
             <div>
                 <div style="font-weight:600;">{{ seance.groupe.nom }}</div>
@@ -72,21 +142,58 @@
                 </div>
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
-                {% if seance.statut == 'terminee' %}
-                    <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem;">منتهية ✅</span>
-                {% elif seance.statut == 'planifiee' %}
-                    <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">مخططة 📅</span>
-                    {% include 'dashboard/_meet_icon.html' with lien=seance.groupe.lien_reunion %}
-                {% else %}
-                    <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:3px 12px; font-size:0.8rem;">ملغاة ❌</span>
-                {% endif %}
+                {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
                 <a href="{% url 'prof_seance_detail' seance.id %}"
                    style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
             </div>
         </div>
-        {% endfor %}
-    {% else %}
+    {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+        <div style="color:#888; font-size:0.85rem;">السجل الكامل</div>
+        <div style="display:flex; align-items:center; gap:12px; background:var(--color-bg-cream); border-radius:10px; padding:5px 12px; font-size:0.85rem;">
+            <a href="?mois_nav={{ mois_precedent_param }}" style="color:var(--color-role-prof-solid); text-decoration:none; font-weight:700;">‹ الشهر السابق</a>
+            <span style="font-weight:700; min-width:100px; text-align:center;">{{ mois_nav_date|mois_annee_ar }}</span>
+            {% if mois_suivant_autorise %}
+            <a href="?mois_nav={{ mois_suivant_param }}" style="color:var(--color-role-prof-solid); text-decoration:none; font-weight:700;">الشهر التالي ›</a>
+            {% else %}
+            <span style="color:#ccc; font-weight:700;">الشهر التالي ›</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if semaines_agenda %}
+    <div style="display:flex; flex-direction:column; gap:10px;">
+    {% for semaine in semaines_agenda %}
+        <details class="compact-card" style="padding:0; overflow:hidden;">
+            <summary style="cursor:pointer; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; list-style:none;">
+                <span style="font-weight:700;">الأسبوع من {{ semaine.debut|date:"d-m" }} إلى {{ semaine.fin|date:"d-m" }}</span>
+                <span style="color:#888; font-size:0.82rem;">{{ semaine.nb }} حصة</span>
+            </summary>
+            <div style="border-top:1px solid #f0f0f0; padding:4px 20px 8px;">
+                {% for seance in semaine.seances %}
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f5f5f5;{% endif %} flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                        <div style="color:#999; font-size:0.85rem;">{{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}</div>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                        <a href="{% url 'prof_seance_detail' seance.id %}"
+                           style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </details>
+    {% endfor %}
+    </div>
+    {% elif not apercu_seances %}
         <div style="text-align:center; color:#aaa; padding:30px;">لا توجد حصص بعد</div>
+    {% else %}
+        <div style="text-align:center; color:#aaa; padding:20px;">لا توجد حصص أخرى في هذا الشهر</div>
     {% endif %}
 
     <div class="mt-3">

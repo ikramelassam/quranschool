@@ -4,10 +4,10 @@
     {% include 'dashboard/_badge_statut.html' with type='success' texte='تم التقييم ✅' %}
 {% elif seance.date > aujourdhui %}
     {% include 'dashboard/_badge_statut.html' with type='neutre' texte='لم تُدرَّس بعد 📌' %}
-    {% include 'dashboard/_meet_icon.html' with lien=seance.groupe.lien_reunion %}
+    {% include 'dashboard/_meet_icon.html' with seance=seance %}
 {% elif seance.date < aujourdhui %}
     {% include 'dashboard/_badge_statut.html' with type='danger' texte='لم يتم تقييمها بعد ⚠️' %}
 {% else %}
     {% include 'dashboard/_badge_statut.html' with type='warning' texte='لم يتم تقييمها بعد ⏳' %}
-    {% include 'dashboard/_meet_icon.html' with lien=seance.groupe.lien_reunion %}
+    {% include 'dashboard/_meet_icon.html' with seance=seance %}
 {% endif %}

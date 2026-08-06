@@ -50,24 +50,8 @@
 
     <div class="col-lg-6">
         <div class="compact-card mb-4">
-            <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin-bottom:12px;">🔒 الأمان — تغيير كلمة المرور</div>
-            <form method="POST" action="{% url 'password_change' %}">
-                {% csrf_token %}
-                <div class="mb-2">
-                    <label style="color:#888; font-size:0.85rem;">كلمة المرور الحالية</label>
-                    <input type="password" name="ancien_mot_de_passe" class="form-control" required>
-                </div>
-                <div class="mb-2">
-                    <label style="color:#888; font-size:0.85rem;">كلمة المرور الجديدة</label>
-                    <input type="password" name="nouveau_mot_de_passe" class="form-control" required minlength="8">
-                </div>
-                <div class="mb-3">
-                    <label style="color:#888; font-size:0.85rem;">تأكيد كلمة المرور الجديدة</label>
-                    <input type="password" name="confirmation" class="form-control" required minlength="8">
-                </div>
-                <button type="submit" style="background:var(--color-role-eleve-solid); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تغيير كلمة المرور</button>
-            </form>
-            {% include 'dashboard/_reinitialiser_mot_de_passe.html' %}
+            <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin-bottom:12px;">🔒 الأمان</div>
+            <div style="color:#888; font-size:0.9rem; line-height:1.7;">لتغيير كلمة المرور، تواصل مع الإدارة.</div>
         </div>
     </div>
 </div>

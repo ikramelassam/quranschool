@@ -13,7 +13,7 @@
         {% endif %}
     {% else %}
         <span style="background:#F7E8D4; color:var(--color-brand-gold-dark); border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">مخططة 📅</span>
-        {% include 'dashboard/_meet_icon.html' with lien=seance.groupe.lien_reunion %}
+        {% include 'dashboard/_meet_icon.html' with seance=seance %}
     {% endif %}
 {% else %}
     <span style="background:#FBE4E1; color:var(--color-danger); border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">ملغاة ❌</span>

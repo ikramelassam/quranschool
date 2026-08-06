@@ -20,46 +20,57 @@
     </div>
 </div>
 
+{% comment %}
+Bug corrigé le 2026-08-05 (Tâche de suivi) : ce commentaire utilisait la
+syntaxe {# ... #} sur PLUSIEURS lignes — Django n'accepte {# #} que sur une
+seule ligne (contrairement à {% comment %}), donc tout ce bloc s'affichait
+en texte brut sur la page au lieu d'être invisible. {% comment %} accepte le
+multi-ligne, d'où la correction ici.
+
+Carte "الترتيب الشهري للمعلمين" retirée le 2026-08-05 (Point 4, refonte
+UX/UI) — redondante avec le lien déjà présent dans la sidebar
+(classement_mensuel_profs). "معلومات عامة" passe donc seule sur la ligne :
+réorganisée en 2 colonnes internes (infos de contact / تواصل مع الإدارة)
+plutôt que de laisser son contenu s'étirer sur toute la largeur — choix
+arbitraire fait sans confirmation, confirmé par le client le 2026-08-05.
+{% endcomment %}
 <div class="row g-4 mb-4">
-    <div class="col-lg-6">
-        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%;">
-            <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
-            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">البريد الإلكتروني</span>
-                <span style="font-weight:600;">{{ superviseur.user.email }}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0;">
-                <span style="color:#888;">الهاتف</span>
-                {% if not modifier_telephone %}
-                <span style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-weight:600;">{{ superviseur.user.telephone|default:"—" }}</span>
-                    <a href="?modifier_telephone=1" style="color:var(--color-role-superviseur-solid); font-size:0.82rem; text-decoration:none;">✏️ تعديل</a>
-                </span>
-                {% endif %}
-            </div>
-            {% if modifier_telephone %}
-            <form method="POST" action="{% url 'modifier_telephone' %}" style="padding-top:10px;">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="{% url 'superviseur_profil' %}">
-                <input type="tel" name="telephone" class="form-control mb-2" value="{{ superviseur.user.telephone }}" placeholder="رقم الهاتف">
-                <div class="d-flex gap-2">
-                    <button type="submit" style="background:var(--color-role-superviseur-solid); color:white; border:none; border-radius:8px; padding:6px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">حفظ</button>
-                    <a href="{% url 'superviseur_profil' %}" style="color:#888; text-decoration:none; padding:6px;">إلغاء</a>
+    <div class="col-lg-12">
+        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
+                    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+                        <span style="color:#888;">البريد الإلكتروني</span>
+                        <span style="font-weight:600;">{{ superviseur.user.email }}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0;">
+                        <span style="color:#888;">الهاتف</span>
+                        {% if not modifier_telephone %}
+                        <span style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-weight:600;">{{ superviseur.user.telephone|default:"—" }}</span>
+                            <a href="?modifier_telephone=1" style="color:var(--color-role-superviseur-solid); font-size:0.82rem; text-decoration:none;">✏️ تعديل</a>
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% if modifier_telephone %}
+                    <form method="POST" action="{% url 'modifier_telephone' %}" style="padding-top:10px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{% url 'superviseur_profil' %}">
+                        <input type="tel" name="telephone" class="form-control mb-2" value="{{ superviseur.user.telephone }}" placeholder="رقم الهاتف">
+                        <div class="d-flex gap-2">
+                            <button type="submit" style="background:var(--color-role-superviseur-solid); color:white; border:none; border-radius:8px; padding:6px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">حفظ</button>
+                            <a href="{% url 'superviseur_profil' %}" style="color:#888; text-decoration:none; padding:6px;">إلغاء</a>
+                        </div>
+                    </form>
+                    {% endif %}
                 </div>
-            </form>
-            {% endif %}
-
-            <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:1px solid #f0f0f0; padding-bottom:6px; margin:20px 0 12px; font-size:0.9rem;">التواصل مع الإدارة</div>
-            {% include 'dashboard/_contact_administration.html' with admins=admins %}
+                <div class="col-md-6">
+                    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">التواصل مع الإدارة</div>
+                    {% include 'dashboard/_contact_administration.html' with admins=admins %}
+                </div>
+            </div>
         </div>
-    </div>
-
-    <div class="col-lg-6">
-        <a href="{% url 'classement_mensuel_profs' %}" style="display:block; text-decoration:none; color:inherit; background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%;">
-            <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">🏆 الترتيب الشهري للمعلمين</div>
-            <div style="color:#888; font-size:0.9rem; line-height:1.7;">اطّلع على ترتيب المعلمين المُسندين إليك هذا الشهر حسب معايير التقييم المفعّلة.</div>
-            <div style="color:var(--color-role-superviseur-solid); font-weight:700; margin-top:16px;">عرض التفاصيل ←</div>
-        </a>
     </div>
 </div>
 
@@ -95,25 +106,7 @@
 
 <!-- الأمان -->
 <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">🔒 الأمان — تغيير كلمة المرور</div>
-    <form method="POST" action="{% url 'password_change' %}">
-        {% csrf_token %}
-        <div class="row g-3">
-            <div class="col-md-4">
-                <label style="color:#888; font-size:0.85rem;">كلمة المرور الحالية</label>
-                <input type="password" name="ancien_mot_de_passe" class="form-control" required>
-            </div>
-            <div class="col-md-4">
-                <label style="color:#888; font-size:0.85rem;">كلمة المرور الجديدة</label>
-                <input type="password" name="nouveau_mot_de_passe" class="form-control" required minlength="8">
-            </div>
-            <div class="col-md-4">
-                <label style="color:#888; font-size:0.85rem;">تأكيد كلمة المرور الجديدة</label>
-                <input type="password" name="confirmation" class="form-control" required minlength="8">
-            </div>
-        </div>
-        <button type="submit" style="margin-top:16px; background:var(--color-role-superviseur-solid); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تغيير كلمة المرور</button>
-    </form>
-    {% include 'dashboard/_reinitialiser_mot_de_passe.html' %}
+    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">🔒 الأمان</div>
+    <div style="color:#888; font-size:0.9rem; line-height:1.7;">لتغيير كلمة المرور، تواصل مع الإدارة.</div>
 </div>
 {% endblock %}

@@ -1,10 +1,12 @@
 {% extends 'dashboard/base_superviseur.html' %}
+{% load libelles_arabes %}
 {% block title %}لوحة المؤطر{% endblock %}
 {% block content %}
 <div class="page-title">لوحة المؤطر</div>
 <div class="page-subtitle">مراقبة الحصص والتقييمات</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <input type="hidden" name="mois_nav" value="{{ mois_nav_param }}">
     <div class="row g-3 align-items-end">
         <div class="col-md-3">
             <label style="color:#888; font-size:0.8rem;">المعلم</label>
@@ -39,6 +41,38 @@
     </div>
 </form>
 
+{# ===== 4 compteurs — vue d'ensemble instantanée (Point 1، 2026-08-04/05) —
+   "قادمة هذا الأسبوع" ajouté (chantier groupé du 2026-08-05) à côté des 3
+   déjà en place, pas à la place de "هذا الشهر" (retrait non demandé
+   explicitement, information jugée toujours utile) — choix fait sans
+   confirmation, à ajuster si tu préfères n'en garder que 3. ===== #}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div style="background:white; border-radius:12px; padding:18px 22px; box-shadow:0 2px 12px rgba(0,0,0,0.06); border-right:4px solid var(--color-role-superviseur-solid);">
+            <div style="color:#888; font-size:0.82rem;">حصة اليوم</div>
+            <div style="font-size:1.7rem; font-weight:700; color:var(--color-role-superviseur-solid);">{{ seances_aujourdhui|length }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div style="background:white; border-radius:12px; padding:18px 22px; box-shadow:0 2px 12px rgba(0,0,0,0.06); border-right:4px solid {% if nb_retard > 0 %}#dc3545{% else %}var(--color-success){% endif %};">
+            <div style="color:#888; font-size:0.82rem;">غير مقيّمة</div>
+            <div style="font-size:1.7rem; font-weight:700; color:{% if nb_retard > 0 %}#dc3545{% else %}var(--color-success){% endif %};">{{ nb_retard }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div style="background:white; border-radius:12px; padding:18px 22px; box-shadow:0 2px 12px rgba(0,0,0,0.06); border-right:4px solid var(--color-role-superviseur-solid);">
+            <div style="color:#888; font-size:0.82rem;">قادمة هذا الأسبوع</div>
+            <div style="font-size:1.7rem; font-weight:700; color:var(--color-role-superviseur-solid);">{{ nb_semaine_courante }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div style="background:white; border-radius:12px; padding:18px 22px; box-shadow:0 2px 12px rgba(0,0,0,0.06); border-right:4px solid #999;">
+            <div style="color:#888; font-size:0.82rem;">هذا الشهر</div>
+            <div style="font-size:1.7rem; font-weight:700; color:#444;">{{ nb_seances_mois_courant }}</div>
+        </div>
+    </div>
+</div>
+
 {# ===== الحصة الحالية/التالية — toujours visible, indépendant des filtres ===== #}
 {% if seance_en_cours %}
 <div style="background:#fce4e4; border:1px solid #dc3545; border-right:5px solid #dc3545; border-radius:10px; padding:16px 20px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -55,7 +89,7 @@
         </div>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
-        {% include 'dashboard/_meet_icon.html' with lien=seance_en_cours.groupe.lien_reunion %}
+        {% include 'dashboard/_meet_icon.html' with seance=seance_en_cours %}
         <a href="{% url 'superviseur_seance_detail' seance_en_cours.id %}" style="color:white; background:#dc3545; text-decoration:none; font-size:0.85rem; padding:8px 16px; border-radius:8px; font-weight:600;">متابعة ←</a>
     </div>
 </div>
@@ -76,19 +110,10 @@
         </div>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
-        {% include 'dashboard/_meet_icon.html' with lien=seance_suivante.groupe.lien_reunion %}
+        {% include 'dashboard/_meet_icon.html' with seance=seance_suivante %}
         <a href="{% url 'superviseur_seance_detail' seance_suivante.id %}" style="color:var(--color-role-superviseur-solid); background:white; text-decoration:none; font-size:0.85rem; padding:8px 16px; border-radius:8px; font-weight:600; border:1px solid var(--color-role-superviseur);">عرض ←</a>
     </div>
 </div>
-{% endif %}
-
-{% if nb_retard > 0 %}
-<a href="#retard" style="text-decoration:none; display:block; margin-bottom:24px;">
-    <div style="background:#fff3e0; border:1px solid #ff9800; border-right:5px solid #ff9800; border-radius:10px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; color:#7a4a00;">
-        <span style="font-weight:700;">⚠️ {{ nb_retard }} حصة سابقة لم يتم تقييمها بعد</span>
-        <span style="font-size:0.85rem; white-space:nowrap;">عرض ↓</span>
-    </div>
-</a>
 {% endif %}
 
 <div class="d-flex gap-2 mb-3">
@@ -131,98 +156,76 @@
         {% endif %}
     </div>
 
-    {# ===== الماضية ===== #}
+    {# ===== السجل السابق — agenda groupé بالأسبوع، شهر قابل للتصفح (Point 1، 2026-08-05) ===== #}
     <div id="section-passees" style="margin-bottom:30px;">
-        <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">📂 الماضية</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+            <div style="font-weight:700; color:#555; font-size:1.1rem;">📂 السجل السابق</div>
+            <div style="display:flex; align-items:center; gap:12px; background:white; border-radius:10px; padding:6px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                <a href="?mois_nav={{ mois_precedent_param }}{% if filtres.prof %}&prof={{ filtres.prof }}{% endif %}{% if filtres.groupe %}&groupe={{ filtres.groupe }}{% endif %}{% if filtres.date_debut %}&date_debut={{ filtres.date_debut }}{% endif %}{% if filtres.date_fin %}&date_fin={{ filtres.date_fin }}{% endif %}"
+                   style="color:var(--color-role-superviseur-solid); text-decoration:none; font-weight:700;">‹ الشهر السابق</a>
+                <span style="font-weight:700; min-width:120px; text-align:center;">{{ mois_nav_date|mois_annee_ar }}</span>
+                {% if mois_suivant_autorise %}
+                <a href="?mois_nav={{ mois_suivant_param }}{% if filtres.prof %}&prof={{ filtres.prof }}{% endif %}{% if filtres.groupe %}&groupe={{ filtres.groupe }}{% endif %}{% if filtres.date_debut %}&date_debut={{ filtres.date_debut }}{% endif %}{% if filtres.date_fin %}&date_fin={{ filtres.date_fin }}{% endif %}"
+                   style="color:var(--color-role-superviseur-solid); text-decoration:none; font-weight:700;">الشهر التالي ›</a>
+                {% else %}
+                <span style="color:#ccc; font-weight:700;">الشهر التالي ›</span>
+                {% endif %}
+            </div>
+        </div>
 
-        {% if seances_retard %}
-        <div id="retard" style="margin-bottom:22px;">
-            <div style="font-weight:600; color:#ff9800; font-size:0.95rem; margin-bottom:8px;">متأخرة — بانتظار التقييم</div>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-            {% for seance in seances_retard %}
-                <div style="background:#fff8ec; border-radius:12px; padding:14px 20px; border-right:4px solid #ff9800; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                    <div>
-                        <div style="font-weight:600;">{{ seance.groupe.nom }}</div>
-                        <div style="color:#8a6d3b; font-size:0.85rem;">
-                            {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}
-                            <span style="display:inline-flex; gap:4px; align-items:center;">
-                                {% include 'dashboard/_email_icon.html' with email=seance.groupe.prof.user.email %}
-                                {% include 'dashboard/_whatsapp_icon.html' with telephone=seance.groupe.prof.user.telephone %}
-                            </span>
-                            {% else %}غير محدد{% endif %}
-                            — {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
+        {% if semaines_agenda %}
+        <div style="display:flex; flex-direction:column; gap:10px;">
+        {% for semaine in semaines_agenda %}
+            <details class="compact-card" {% if semaine.nb_non_evaluees > 0 %}open{% endif %} style="padding:0; overflow:hidden;">
+                <summary style="cursor:pointer; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; list-style:none;">
+                    <span style="font-weight:700;">الأسبوع من {{ semaine.debut|date:"d-m" }} إلى {{ semaine.fin|date:"d-m" }}</span>
+                    <span style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                        {% if semaine.nb_non_evaluees > 0 %}
+                        {% include 'dashboard/_badge_statut.html' with type='danger' texte=semaine.nb_non_evaluees|stringformat:"s"|add:" غير مقيّمة" %}
+                        {% endif %}
+                        <span style="color:#888; font-size:0.82rem;">{{ semaine.nb }} حصة</span>
+                    </span>
+                </summary>
+                <div style="border-top:1px solid #f0f0f0; padding:4px 20px 8px;">
+                    {% for seance in semaine.seances %}
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f5f5f5;{% endif %} flex-wrap:wrap; gap:8px;">
+                        <div>
+                            <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                            <div style="color:#999; font-size:0.85rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}
+                                <span style="display:inline-flex; gap:4px; align-items:center;">
+                                    {% include 'dashboard/_email_icon.html' with email=seance.groupe.prof.user.email %}
+                                    {% include 'dashboard/_whatsapp_icon.html' with telephone=seance.groupe.prof.user.telephone %}
+                                </span>
+                                {% else %}غير محدد{% endif %}
+                                — {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            {% include 'dashboard/_seance_evaluation_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                            <a href="{% url 'superviseur_seance_detail' seance.id %}"
+                               style="color:var(--color-role-superviseur-solid); text-decoration:none; font-size:0.85rem; font-weight:600;">{% if not seance.est_evaluee and seance.statut != 'annulee' %}تقييم الآن{% else %}عرض{% endif %} ←</a>
                         </div>
                     </div>
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        {% include 'dashboard/_seance_evaluation_badge.html' with seance=seance aujourdhui=aujourdhui %}
-                        <a href="{% url 'superviseur_seance_detail' seance.id %}"
-                           style="color:white; background:#ff9800; text-decoration:none; font-size:0.85rem; padding:6px 14px; border-radius:8px; font-weight:600;">تقييم الآن ←</a>
-                    </div>
+                    {% endfor %}
                 </div>
-            {% endfor %}
-            </div>
+            </details>
+        {% endfor %}
         </div>
-        {% endif %}
-
-        {% if seances_passees_traitees %}
-        <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            {% for seance in seances_passees_traitees %}
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px 12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} {% if seance.statut == 'annulee' %}border-right:4px solid #ccc;{% else %}border-right:4px solid var(--color-success);{% endif %} flex-wrap:wrap; gap:8px;">
-                <div>
-                    <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
-                    <div style="color:#999; font-size:0.85rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                        {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}
-                        <span style="display:inline-flex; gap:4px; align-items:center;">
-                            {% include 'dashboard/_email_icon.html' with email=seance.groupe.prof.user.email %}
-                            {% include 'dashboard/_whatsapp_icon.html' with telephone=seance.groupe.prof.user.telephone %}
-                        </span>
-                        {% else %}غير محدد{% endif %}
-                        — {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
-                    </div>
-                </div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                    {% include 'dashboard/_seance_evaluation_badge.html' with seance=seance aujourdhui=aujourdhui %}
-                    <a href="{% url 'superviseur_seance_detail' seance.id %}"
-                       style="color:var(--color-role-superviseur-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% include 'dashboard/_pagination.html' with page_obj=seances_passees_traitees %}
-        {% elif not seances_retard %}
-            <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص سابقة</div>
+        {% else %}
+            <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص في هذا الشهر</div>
         {% endif %}
     </div>
 
-    {# ===== القادمة ===== #}
+    {# ===== القادمة — "بقية هذا الأسبوع" à plat, "الأسبوع القادم" + semaines
+       suivantes groupées/repliées (chantier groupé du 2026-08-05, Point 1) ===== #}
     <div>
         <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">🔜 القادمة</div>
-        {% if seances_a_venir %}
-            <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            {% for seance in seances_a_venir %}
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last or seances_a_venir_extra %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
-                    <div>
-                        <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
-                        <div style="color:#999; font-size:0.85rem;">
-                            {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}
-                            <span style="display:inline-flex; gap:4px; align-items:center;">
-                                {% include 'dashboard/_email_icon.html' with email=seance.groupe.prof.user.email %}
-                                {% include 'dashboard/_whatsapp_icon.html' with telephone=seance.groupe.prof.user.telephone %}
-                            </span>
-                            {% else %}غير محدد{% endif %}
-                            — {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
-                        </div>
-                    </div>
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        {% include 'dashboard/_seance_evaluation_badge.html' with seance=seance aujourdhui=aujourdhui %}
-                        <a href="{% url 'superviseur_seance_detail' seance.id %}"
-                           style="color:var(--color-role-superviseur-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
-                    </div>
-                </div>
-            {% endfor %}
-            {% if seances_a_venir_extra %}
-            <div id="seances_a_venir_extra" style="display:none;">
-            {% for seance in seances_a_venir_extra %}
+        {% if bucket_semaine_courante or semaines_a_venir %}
+            {% if bucket_semaine_courante %}
+            <div style="color:#888; font-size:0.85rem; margin-bottom:6px;">بقية هذا الأسبوع</div>
+            <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:10px;">
+            {% for seance in bucket_semaine_courante %}
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
                     <div>
                         <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
@@ -245,10 +248,40 @@
             {% endfor %}
             </div>
             {% endif %}
-            </div>
-            {% if seances_a_venir_extra %}
-            <div style="text-align:center; margin-top:8px;">
-                <span id="toggle_a_venir_texte_sup" onclick="toggleSeancesAVenirSuperviseur()" style="cursor:pointer; color:var(--color-role-superviseur-solid); font-size:0.85rem; text-decoration:underline;">+ {{ nb_a_venir|add:"-10" }} حصة أخرى قادمة لاحقاً — عرض ↓</span>
+
+            {% if semaines_a_venir %}
+            <div style="display:flex; flex-direction:column; gap:10px;">
+            {% for semaine in semaines_a_venir %}
+                <details class="compact-card" style="padding:0; overflow:hidden;">
+                    <summary style="cursor:pointer; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; list-style:none;">
+                        <span style="font-weight:700;">{% if semaine.label %}{{ semaine.label }}{% else %}الأسبوع من {{ semaine.debut|date:"d-m" }} إلى {{ semaine.fin|date:"d-m" }}{% endif %}</span>
+                        <span style="color:#888; font-size:0.82rem;">{{ semaine.nb }} حصة</span>
+                    </summary>
+                    <div style="border-top:1px solid #f0f0f0; padding:4px 20px 8px;">
+                        {% for seance in semaine.seances %}
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f5f5f5;{% endif %} flex-wrap:wrap; gap:8px;">
+                            <div>
+                                <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                                <div style="color:#999; font-size:0.85rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}
+                                    <span style="display:inline-flex; gap:4px; align-items:center;">
+                                        {% include 'dashboard/_email_icon.html' with email=seance.groupe.prof.user.email %}
+                                        {% include 'dashboard/_whatsapp_icon.html' with telephone=seance.groupe.prof.user.telephone %}
+                                    </span>
+                                    {% else %}غير محدد{% endif %}
+                                    — {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                {% include 'dashboard/_seance_evaluation_badge.html' with seance=seance aujourdhui=aujourdhui %}
+                                <a href="{% url 'superviseur_seance_detail' seance.id %}"
+                                   style="color:var(--color-role-superviseur-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </details>
+            {% endfor %}
             </div>
             {% endif %}
         {% else %}
@@ -356,13 +389,5 @@
         document.getElementById('btn-onglet-profs').style.color = estZamani ? '#555' : 'white';
     }
     basculerOngletSuperviseur('zamani');
-
-    function toggleSeancesAVenirSuperviseur() {
-        const extra = document.getElementById('seances_a_venir_extra');
-        const texte = document.getElementById('toggle_a_venir_texte_sup');
-        const ouvert = extra.style.display !== 'none';
-        extra.style.display = ouvert ? 'none' : 'block';
-        texte.textContent = ouvert ? '+ {{ nb_a_venir|add:"-10" }} حصة أخرى قادمة لاحقاً — عرض ↓' : 'إخفاء ↑';
-    }
 </script>
 {% endblock %}

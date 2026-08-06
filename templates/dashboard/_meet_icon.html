@@ -1,12 +1,34 @@
-{% if lien %}
-<a href="{{ lien }}" target="_blank" rel="noopener"
-   title="الانضمام إلى الاجتماع" class="contact-icon-link contact-icon-meet">
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="12" fill="#1A73E8"/>
-        <rect x="5" y="8.5" width="9" height="7" rx="1.5" fill="#FFFFFF"/>
-        <path d="M15 10.7 19.2 8.3 19.2 15.7 15 13.3 Z" fill="#FFFFFF"/>
-    </svg>
-</a>
+{% load libelles_arabes %}
+{% comment %}
+Icône de lien de réunion pour une séance — passe désormais par la passerelle
+serveur rejoindre_seance (Point 15, Tâche du 2026-08-04) plutôt qu'un lien
+direct vers l'URL externe : le clic est TOUJOURS revalidé côté serveur (fenêtre
+[début-marge, fin+marge]), jamais une simple désactivation visuelle. L'icône
+reste grise si aucun lien_reunion n'est renseigné (comportement inchangé) OU si
+la fenêtre n'est pas active (nouveau) — dans les deux cas le clic mène à une
+page d'explication, jamais un lien mort silencieux.
+Usage : {% include 'dashboard/_meet_icon.html' with seance=seance %}
+{% endcomment %}
+{% if seance.groupe.lien_reunion %}
+    {% if seance|lien_seance_actif %}
+    <a href="{% url 'rejoindre_seance' seance.id %}" target="_blank" rel="noopener"
+       title="الانضمام إلى الاجتماع" class="contact-icon-link contact-icon-meet">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="12" fill="#1A73E8"/>
+            <rect x="5" y="8.5" width="9" height="7" rx="1.5" fill="#FFFFFF"/>
+            <path d="M15 10.7 19.2 8.3 19.2 15.7 15 13.3 Z" fill="#FFFFFF"/>
+        </svg>
+    </a>
+    {% else %}
+    <a href="{% url 'rejoindre_seance' seance.id %}"
+       title="الرابط غير متاح إلا قبل/بعد موعد الحصة بهامش محدد" class="contact-icon-link contact-icon-meet-disabled">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="12" fill="#C7C7C7"/>
+            <rect x="5" y="8.5" width="9" height="7" rx="1.5" fill="#FFFFFF"/>
+            <path d="M15 10.7 19.2 8.3 19.2 15.7 15 13.3 Z" fill="#FFFFFF"/>
+        </svg>
+    </a>
+    {% endif %}
 {% else %}
 <span onclick="alert('لم يقم المدير بإضافة رابط الاجتماع بعد.');"
       title="لم يتم إضافة رابط الاجتماع بعد" class="contact-icon-link contact-icon-meet-disabled" style="cursor:pointer;">
