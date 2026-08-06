@@ -734,7 +734,7 @@ def lien_seance_est_actif(seance):
     return fenetre_debut <= timezone.now() <= fenetre_fin
 
 
-def calculer_remuneration_prof(prof, mois=None):
+def calculer_remuneration_prof(prof, mois=None, tarifs=None):
     """Rémunération mensuelle d'un prof selon la grille TarifRemuneration
     (type_capacite du groupe × tranche d'âge). Détail par groupe pour que le
     calcul soit vérifiable. Ne retourne QUE le calcul de base de la grille —
@@ -787,13 +787,23 @@ def calculer_remuneration_prof(prof, mois=None):
     historisation de l'appartenance aux groupes n'existe dans ce projet, donc
     ce sous-total n'est jamais rétroactivement exact pour un mois passé.
     Documenté explicitement dans l'UI (voir mshrif_remuneration.html) pour ne
-    jamais laisser croire à une vraie vue historique complète."""
+    jamais laisser croire à une vraie vue historique complète.
+
+    tarifs (optionnel, dict {(type_capacite, tranche_age): montant}, Tâche
+    du 2026-08-06 — audit de performance, point 8) : évite de refaire
+    TarifRemuneration.objects.all() à CHAQUE appel quand cette fonction est
+    rappelée en boucle sur plusieurs profs (mshrif_remuneration) — la grille
+    tarifaire est la même pour tout le monde, un seul appelant qui boucle
+    peut la charger UNE fois et la transmettre ici. None (défaut) = ancien
+    comportement inchangé (requête interne), pour les appelants à un seul
+    prof (prof_remuneration, admin_prof_remuneration_detail)."""
     from .models import TarifRemuneration, Presence, Seance
 
-    tarifs = {
-        (t.type_capacite, t.tranche_age): t.montant
-        for t in TarifRemuneration.objects.all()
-    }
+    if tarifs is None:
+        tarifs = {
+            (t.type_capacite, t.tranche_age): t.montant
+            for t in TarifRemuneration.objects.all()
+        }
     aujourdhui = timezone.localdate()
     if mois:
         annee_str, _, mois_str = mois.partition('-')

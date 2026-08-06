@@ -124,6 +124,7 @@ urlpatterns = [
 
     # Admin — modification d'email (n'importe quel utilisateur) et compte admin
     path('admin/utilisateurs/<int:user_id>/modifier-email/', views.admin_utilisateur_modifier_email, name='admin_utilisateur_modifier_email'),
+    path('admin/utilisateurs/confirmation-modification-email/', views.confirmation_modification_email, name='confirmation_modification_email'),
     path('admin/utilisateurs/<int:user_id>/reinitialiser-mot-de-passe/', views.admin_utilisateur_reinitialiser_mot_de_passe, name='admin_utilisateur_reinitialiser_mot_de_passe'),
     path('admin/mon-compte/', views.admin_mon_compte, name='admin_mon_compte'),
     path('admin/programme-general/', views.admin_programme_general, name='admin_programme_general'),

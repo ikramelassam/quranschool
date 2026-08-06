@@ -7,6 +7,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
+from django.views.decorators.cache import never_cache
 from accounts.decorators import role_required
 from accounts.services import (
     invalider_sessions_utilisateur as _invalider_sessions_utilisateur,
@@ -1434,6 +1435,7 @@ def admin_inscriptions(request):
 
 
 @role_required('admin', 'mshrif')
+@never_cache
 def confirmation_creation_compte(request):
     """Page de confirmation affichée juste après la création d'un compte élève
     (par مدير) ou professeur (validation finale par مشرف) — remplace l'ancien
@@ -1441,7 +1443,11 @@ def confirmation_creation_compte(request):
     ni de lien WhatsApp, les messages Django étant échappés en HTML). Les
     infos transitent par la session, jamais par l'URL (mot de passe temporaire
     sensible) — lues puis immédiatement effacées (pop), donc un rafraîchissement
-    de cette page renvoie proprement vers la liste plutôt que de les réafficher."""
+    de cette page renvoie proprement vers la liste plutôt que de les réafficher.
+    @never_cache (Tâche du 2026-08-06) : même raison que sur
+    admin_utilisateur_reinitialiser_mot_de_passe — un mot de passe déjà
+    affiché ici ne doit jamais réapparaître via le bouton précédent du
+    navigateur après une action ultérieure qui l'aurait rendu obsolète."""
     from django.contrib.auth import get_user_model
     User = get_user_model()
 
@@ -1466,6 +1472,8 @@ def confirmation_creation_compte(request):
     context = {
         'info': info,
         'message_pret_a_envoyer': message_pret_a_envoyer,
+        'libelle_personne_contact': f"مع {LIBELLE_PERSONNE_CONTACT.get(info['type_compte'], '')}",
+        'texte_absence_personne': f"لا يوجد رقم هاتف مسجَّل {'لهذا الطالب' if info['type_compte'] == 'eleve' else 'لهذا المعلم'}",
         'admins': User.objects.filter(role='admin') if info['type_compte'] == 'prof' else None,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
@@ -1925,11 +1933,25 @@ def mshrif_remuneration(request):
     else:
         mois_reference = aujourdhui.replace(day=1)
 
+    # Chargée UNE fois et transmise à chaque appel (Tâche du 2026-08-06,
+    # audit de performance point 8) : calculer_remuneration_prof la
+    # rechargeait sinon à chaque prof (1 requête réseau — coûteuse, voir
+    # rapport — par prof, pour une donnée strictement identique).
+    tarifs_charges = {
+        (t.type_capacite, t.tranche_age): t.montant
+        for t in TarifRemuneration.objects.all()
+    }
+
     lignes = []
     total_base = 0
     total_majoration = 0
-    for prof in Prof.actifs.select_related('user').order_by('user__first_name'):
-        base = calculer_remuneration_prof(prof, mois=mois_filtre or None)['total_calcule']
+    # prefetch_related('groupes') : évite 1 requête par prof pour
+    # prof.groupes.all() à l'intérieur de calculer_remuneration_prof (même
+    # tâche) — le reste du calcul (élèves par groupe, séances individuelles)
+    # reste requêté normalement, changement plus structurel laissé de côté
+    # (voir rapport).
+    for prof in Prof.actifs.select_related('user').prefetch_related('groupes').order_by('user__first_name'):
+        base = calculer_remuneration_prof(prof, mois=mois_filtre or None, tarifs=tarifs_charges)['total_calcule']
         majoration = prof.majoration_mensuelle or 0
         total_base += base
         total_majoration += majoration
@@ -1943,8 +1965,8 @@ def mshrif_remuneration(request):
 
     # Profs archivés : ajoutés à la suite, UNIQUEMENT s'ils ont encore un
     # montant dû ce mois (voir docstring ci-dessus).
-    for prof in Prof.objects.filter(statut='archive').select_related('user').order_by('user__first_name'):
-        base = calculer_remuneration_prof(prof, mois=mois_filtre or None)['total_calcule']
+    for prof in Prof.objects.filter(statut='archive').select_related('user').prefetch_related('groupes').order_by('user__first_name'):
+        base = calculer_remuneration_prof(prof, mois=mois_filtre or None, tarifs=tarifs_charges)['total_calcule']
         majoration = prof.majoration_mensuelle or 0
         total = base + majoration
         if total <= 0:
@@ -2583,7 +2605,7 @@ def superviseur_profil(request):
     mensuel), le type enfants/adultes se lit depuis Creneau.age_min/age_max
     déjà en base (pas de nouvelle donnée), le nombre d'évaluations en attente
     réutilise le même filtre que dashboard_superviseur."""
-    from django.db.models import Exists, OuterRef
+    from django.db.models import Exists, OuterRef, Count
     from accounts.models import Superviseur
     from courses.models import Seance, Groupe
     from evaluations.models import Evaluation
@@ -2612,9 +2634,13 @@ def superviseur_profil(request):
     # donnait une hiérarchie visuelle prof→groupes non voulue ; chaque ligne
     # est maintenant un groupe, le prof affiché comme métadonnée dessus).
     # Tous les groupes ACTIFS des profs supervisés, triés par nom de groupe.
+    # nb_eleves annotée (pas .eleves.count() dans le template) : évite un N+1
+    # sur cette liste (chantier du 2026-08-06, point 8 — audit de performance).
     groupes_assignes = Groupe.objects.filter(
         prof__in=profs, statut='actif'
-    ).select_related('prof__user', 'creneau').order_by('nom')
+    ).select_related('prof__user', 'creneau').annotate(
+        nb_eleves=Count('eleves', distinct=True)
+    ).order_by('nom')
 
     from django.contrib.auth import get_user_model
     User = get_user_model()
@@ -3960,15 +3986,44 @@ def admin_superviseur_ajouter(request):
 
 
 @role_required('admin', 'mshrif')
+@never_cache
 def admin_superviseur_assignations(request, superviseur_id):
+    """Page d'assignation profs↔مؤطر — مدير édite (cases à cocher), مشرف
+    consulte en lecture seule (même template, 2 branches — voir
+    admin_superviseur_assignations.html). Redessinée le 2026-08-06 (chantier
+    groupé final, point 4) : avatar + nb de groupes déjà assignés en
+    métadonnée pour chaque prof (utile au مدير pour juger la charge de
+    travail avant d'assigner). @never_cache : même précaution que sur les
+    pages de mot de passe (point 1) — évite qu'un bouton précédent du
+    navigateur affiche un état d'assignation obsolète après une sauvegarde.
+
+    "x - ✅" (point 2) : bug rapporté à nouveau malgré un premier test qui ne
+    l'avait pas reproduit. Revérifié ici : le titre de admin_superviseur_
+    assignations.html utilise directement {{ superviseur.user.get_full_name }}
+    (aucune construction manuelle de chaîne, aucun "x" littéral nulle part
+    dans ce fichier ni dans les 2 autres templates référençant profs_assignes
+    — superviseur_profil.html, admin_superviseurs.html). Toujours pas
+    reproduit après ce 2e passage. Cette page est de toute façon entièrement
+    reconstruite ci-dessous (point 4) ; @never_cache ci-dessus élimine par
+    ailleurs la piste la plus plausible restante (page mise en cache par le
+    navigateur avant un correctif antérieur)."""
     from accounts.models import Superviseur, Prof
+    from django.db.models import Count
     superviseur = get_object_or_404(Superviseur, id=superviseur_id)
     # Prof.actifs exclut les archivés de la liste à cocher — SAUF ceux déjà
     # assignés à ce مؤطر (gardés visibles, étiquetés "مؤرشف" dans le template)
     # pour ne pas les faire disparaître silencieusement d'un formulaire qui
     # remplace toute la liste à chaque sauvegarde (chantier du 2026-08-03).
-    tous_les_profs = list(Prof.actifs.select_related('user').order_by('user__first_name'))
-    profs_assignes_archives = superviseur.profs_assignes.filter(statut='archive').select_related('user')
+    # nb_groupes annotée (pas .groupes.count() dans le template) : évite un
+    # N+1 sur cette liste (point 8, audit de performance du même chantier).
+    tous_les_profs = list(
+        Prof.actifs.select_related('user')
+        .annotate(nb_groupes=Count('groupes', distinct=True))
+        .order_by('user__first_name')
+    )
+    profs_assignes_archives = superviseur.profs_assignes.filter(statut='archive').select_related('user').annotate(
+        nb_groupes=Count('groupes', distinct=True)
+    )
     tous_les_profs += [p for p in profs_assignes_archives if p not in tous_les_profs]
 
     if request.method == 'POST':
@@ -4034,14 +4089,27 @@ def admin_utilisateur_modifier_email(request, user_id):
         utilisateur.username = nouvel_email
         utilisateur.save()
 
+        # invalider_sessions_utilisateur : déconnexion immédiate de tous les
+        # appareils — mécanisme réellement fonctionnel (vérifié par test réel,
+        # pas seulement lecture de code, chantier du 2026-08-06 point 6),
+        # gardé tel quel. envoyer_email_notification_changement_email reste
+        # tenté (fire-and-forget, comme envoyer_email_bienvenue) mais Brevo
+        # étant hors service actuellement, son résultat n'est plus utilisé
+        # pour promettre quoi que ce soit à l'écran — voir
+        # confirmation_modification_email, qui propose désormais un envoi
+        # manuel via WhatsApp (point 5/6) plutôt qu'une promesse d'email.
         _invalider_sessions_utilisateur(utilisateur, request=request)
-        email_envoye = envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, utilisateur.get_full_name())
+        envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, utilisateur.get_full_name())
 
-        if email_envoye:
-            messages.success(request, f'تم تغيير البريد الإلكتروني إلى {nouvel_email} بنجاح. تم إشعار المستخدم على بريده الجديد.')
-        else:
-            messages.warning(request, f'تم تغيير البريد الإلكتروني إلى {nouvel_email} بنجاح، لكن تعذر إرسال بريد الإشعار. بلّغ المستخدم يدوياً.')
-        return redirect(next_url)
+        request.session['confirmation_modification_email'] = {
+            'user_id': utilisateur.id,
+            'nom': utilisateur.get_full_name(),
+            'nouvel_email': nouvel_email,
+            'telephone': utilisateur.telephone,
+            'role': utilisateur.role,
+            'next': next_url,
+        }
+        return redirect('confirmation_modification_email')
 
     return render(request, 'dashboard/admin_utilisateur_modifier_email.html', {
         'utilisateur': utilisateur,
@@ -4049,10 +4117,50 @@ def admin_utilisateur_modifier_email(request, user_id):
     })
 
 
+@role_required('admin')
+@never_cache
+def confirmation_modification_email(request):
+    """Page de confirmation affichée juste après un changement d'email
+    (Tâche du 2026-08-06, point 6) — remplace la fausse promesse d'email
+    automatique ("سيصله إشعار على بريده الجديد") par un bouton WhatsApp,
+    Brevo étant hors service actuellement. Même patron PRG que
+    confirmation_creation_compte / admin_utilisateur_reinitialiser_mot_de_passe :
+    infos lues depuis la session puis immédiatement effacées. Réservée à
+    مدير (comme admin_utilisateur_modifier_email qui l'alimente — le
+    changement d'email n'est pas ouvert à مشرف)."""
+    info = request.session.pop('confirmation_modification_email', None)
+    if not info:
+        return redirect('dashboard_admin')
+
+    message_pret_a_envoyer = (
+        "السلام عليكم ورحمة الله وبركاته\n"
+        f"مرحبا {info['nom']}\n"
+        "تم تحديث البريد الإلكتروني لحسابك، بريدك الجديد هو:\n"
+        f"{info['nouvel_email']}\n"
+        "المرجو استعماله عند تسجيل الدخول من الآن فصاعداً.\n"
+        "بارك الله فيكم"
+    )
+
+    context = {
+        'info': info,
+        'message_pret_a_envoyer': message_pret_a_envoyer,
+        'libelle_personne_contact': f"مع {LIBELLE_PERSONNE_CONTACT.get(info['role'], '')}",
+    }
+    return render(request, 'dashboard/confirmation_modification_email.html', context)
+
+
 # ==================== ADMIN/MSHRIF — RÉINITIALISER UN MOT DE PASSE ====================
 # Points 13/14/17, Tâche du 2026-08-04.
+# Chantier du 2026-08-06 ("chantier groupé final", point 1) : never_cache
+# (une réinitialisation ultérieure invaliderait un mot de passe déjà affiché ici
+# — voir le bug ci-dessous) + boutons WhatsApp (point 5) + libellé de rôle
+# partagé avec confirmation_creation_compte et confirmation_modification_email.
+
+LIBELLE_PERSONNE_CONTACT = {'eleve': 'الطالب', 'prof': 'المعلم', 'superviseur': 'المؤطر'}
+
 
 @role_required('admin', 'mshrif')
+@never_cache
 def admin_utilisateur_reinitialiser_mot_de_passe(request, user_id):
     """مدير ET مشرف peuvent réinitialiser le mot de passe d'un compte élève,
     prof ou مؤطر — JAMAIS celui d'un autre مدير/مشرف (vérifié ici, côté
@@ -4062,7 +4170,29 @@ def admin_utilisateur_reinitialiser_mot_de_passe(request, user_id):
     immédiatement effacé — session.pop — au GET qui suit ; un rechargement
     de cette page ne le réaffiche jamais). Jamais stocké en clair : set_password
     hashe immédiatement, seul le hash atteint la base — la valeur en clair ne
-    vit que le temps de cette requête + la traversée de session."""
+    vit que le temps de cette requête + la traversée de session.
+
+    @never_cache (Tâche du 2026-08-06) : un compte réel (ahmed naim) s'est
+    retrouvé bloqué — ni son ancien ni son "nouveau" mot de passe ne
+    fonctionnaient. Cause confirmée par test réel (pas de lecture de code) :
+    le mécanisme lui-même est sain (une réinitialisation isolée invalide
+    bien l'ancien mot de passe et le nouveau fonctionne immédiatement,
+    prouvé par script de vérification avec un vrai login HTTP) — mais SI le
+    مدير/مشرف réinitialise deux fois de suite (ex: il recharge/revient en
+    arrière sur cette page après une première réinitialisation, croit que
+    "rien ne s'est affiché" donc reclique), le premier mot de passe généré
+    devient silencieusement invalide (le second l'écrase en base) sans
+    aucun avertissement — s'il communique par erreur le PREMIER mot de passe
+    (ex: via le bouton précédent du navigateur qui réaffiche une page mise
+    en cache), ni l'ancien ni ce premier mot de passe ne fonctionnent plus.
+    @never_cache empêche le navigateur de réafficher une version en cache de
+    cette page (bouton précédent inclus) ; combiné à l'avertissement ajouté
+    dans ForcerChangementMotDePasseMiddleware (autre cause possible de blocage
+    silencieux, également corrigée) et aux boutons WhatsApp ci-dessous (qui
+    évitent toute retranscription manuelle du mot de passe), ceci couvre les
+    3 scénarios plausibles identifiés. Un seul compte est concerné à ce jour
+    (vérifié : aucun autre compte n'a de mot_de_passe_reinitialise_par renseigné
+    depuis le chantier mots de passe — pas de réparation en masse nécessaire)."""
     from django.contrib.auth import get_user_model
     from django.utils import timezone
 
@@ -4098,11 +4228,28 @@ def admin_utilisateur_reinitialiser_mot_de_passe(request, user_id):
     mdp_genere = request.session.pop('mdp_reinitialise', None)
     if not mdp_genere or mdp_genere.get('user_id') != utilisateur.id:
         mdp_genere = None
+    mot_de_passe_affiche = mdp_genere.get('mot_de_passe') if mdp_genere else None
+
+    message_pret_a_envoyer = None
+    if mot_de_passe_affiche:
+        message_pret_a_envoyer = (
+            "السلام عليكم ورحمة الله وبركاته\n"
+            f"مرحبا {utilisateur.get_full_name()}\n"
+            "تم تحديث كلمة مرور حسابك:\n"
+            f"{utilisateur.email}\n"
+            "و هذه كلمة المرور الجديدة الخاصة بك:\n"
+            f"{mot_de_passe_affiche}\n"
+            "المرجو الحفاظ عليها..\n"
+            "بارك الله فيكم"
+        )
 
     context = {
         'utilisateur': utilisateur,
         'next': next_url,
-        'mdp_genere': mdp_genere.get('mot_de_passe') if mdp_genere else None,
+        'mdp_genere': mot_de_passe_affiche,
+        'message_pret_a_envoyer': message_pret_a_envoyer,
+        'libelle_personne_contact': f"مع {LIBELLE_PERSONNE_CONTACT.get(utilisateur.role, '')}",
+        'admins': User.objects.filter(role='admin'),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))

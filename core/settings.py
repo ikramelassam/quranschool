@@ -64,8 +64,13 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'accounts.middleware.ForcerChangementMotDePasseMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    # ForcerChangementMotDePasseMiddleware DOIT venir après MessageMiddleware
+    # (Tâche du 2026-08-06) : depuis qu'elle appelle messages.warning() en cas
+    # de blocage, elle a besoin de request._messages déjà posé par
+    # MessageMiddleware — sinon AttributeError/MessageFailure à chaque
+    # redirection (bug réel, trouvé par test, pas seulement en théorie).
+    'accounts.middleware.ForcerChangementMotDePasseMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
