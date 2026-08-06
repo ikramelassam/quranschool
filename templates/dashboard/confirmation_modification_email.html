@@ -1,0 +1,43 @@
+{% extends 'dashboard/base_admin.html' %}
+{% load libelles_arabes %}
+{% block title %}تم تغيير البريد الإلكتروني{% endblock %}
+{% block content %}
+<div class="page-title">✅ تم تغيير البريد الإلكتروني بنجاح</div>
+<div class="page-subtitle">{{ info.nom }} — البريد الجديد: {{ info.nouvel_email }}</div>
+
+<div style="background:white; border-radius:16px; padding:28px; max-width:640px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px;">
+    <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:10px;">📋 رسالة جاهزة للإرسال</div>
+    <textarea id="texte-modif-email" readonly rows="6"
+        style="width:100%; resize:none; border:1.5px solid #e5d9c3; border-radius:10px; padding:12px 14px; font-family:'Tajawal',sans-serif; font-size:0.92rem; background:#FFF8EF; color:var(--color-text-primary);">{{ message_pret_a_envoyer }}</textarea>
+    <button type="button" onclick="copierTexteModifEmail()"
+        style="margin-top:10px; background:var(--gradient-cta-gold); color:var(--color-cta-gold-text); border:none; border-radius:8px; padding:9px 20px; font-weight:700; font-size:0.88rem; cursor:pointer;">
+        📋 نسخ
+    </button>
+    <span id="confirmation-copie-email" style="display:none; margin-inline-start:10px; color:var(--color-success); font-size:0.85rem; font-weight:600;">✔ تم النسخ</span>
+    <div style="color:#999; font-size:0.78rem; margin-top:10px;">تم تسجيل خروج هذا المستخدم تلقائياً من جميع الأجهزة. لم يُرسَل أي بريد إلكتروني تلقائياً (Brevo متوقف حالياً) — أرسل الرسالة أعلاه يدوياً.</div>
+</div>
+
+{% include 'dashboard/_contacts_whatsapp.html' with telephone_personne=info.telephone libelle_personne=libelle_personne_contact texte_absence_personne='لا يوجد رقم هاتف مسجَّل لهذا الحساب' message=message_pret_a_envoyer %}
+
+<a href="{{ info.next }}" style="color:var(--color-brand-gold-dark); text-decoration:none; font-weight:600;">← رجوع</a>
+
+<script>
+function copierTexteModifEmail() {
+    const champ = document.getElementById('texte-modif-email');
+    const afficherConfirmation = () => {
+        const confirmation = document.getElementById('confirmation-copie-email');
+        confirmation.style.display = 'inline';
+        setTimeout(() => { confirmation.style.display = 'none'; }, 2500);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(champ.value).then(afficherConfirmation);
+    } else {
+        champ.removeAttribute('readonly');
+        champ.select();
+        document.execCommand('copy');
+        champ.setAttribute('readonly', 'readonly');
+        afficherConfirmation();
+    }
+}
+</script>
+{% endblock %}
