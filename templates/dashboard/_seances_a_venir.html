@@ -1,0 +1,131 @@
+{% load libelles_arabes %}
+{% comment %}
+Section "القادمة" — séances futures, partagée entre prof.html et
+superviseur.html (Tâche du 2026-08-06 — retravaillée : l'ancienne version
+groupait par semaine indéfiniment, jusqu'à 8+ accordéons hebdomadaires
+pour un planning chargé, "plat" à l'écran malgré le repliage individuel).
+
+Structure actuelle : "بقية هذا الأسبوع" à plat (inchangé), "الأسبوع
+القادم" seule semaine encore détaillée (repliable mais OUVERTE par
+défaut), puis tout le reste en UN résumé replié PAR MOIS calendaire.
+
+Variables attendues :
+- bucket_semaine_courante, semaine_suivante, mois_suivants : voir
+  courses.utils.regrouper_seances_a_venir (mêmes clés en sortie).
+- couleur_role : chaîne CSS (ex: 'var(--color-role-prof-solid)').
+- url_detail_name : nom de la route Django vers le détail d'une séance
+  (ex: 'prof_seance_detail' / 'superviseur_seance_detail').
+- badge_partial : chemin du partial de badge à inclure par séance
+  (diffère entre prof et مؤطر — statut vs évaluation).
+- afficher_prof : True côté مؤطر (qui supervise plusieurs profs, doit
+  savoir qui enseigne quoi) — affiche nom + email/WhatsApp du prof par
+  séance. False ou omis côté prof (déjà évident que c'est lui).
+- aujourdhui : déjà dans le contexte de la page appelante, transmis tel quel.
+- titre (optionnel) : texte de l'en-tête de section, emoji inclus si besoin
+  (ex: '🔜 القادمة' côté مؤطر). Défaut : 'القادمة' simple.
+{% endcomment %}
+{% if bucket_semaine_courante or semaine_suivante or mois_suivants %}
+<div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">{{ titre|default:"القادمة" }}</div>
+<div style="margin-bottom:24px;">
+    {% if bucket_semaine_courante %}
+    <div style="color:#888; font-size:0.85rem; margin-bottom:6px;">بقية هذا الأسبوع</div>
+    <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:10px;">
+    {% for seance in bucket_semaine_courante %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
+            <div>
+                <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                <div style="color:#999; font-size:0.85rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    {% if afficher_prof %}
+                    {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}
+                    <span style="display:inline-flex; gap:4px; align-items:center;">
+                        {% include 'dashboard/_email_icon.html' with email=seance.groupe.prof.user.email %}
+                        {% include 'dashboard/_whatsapp_icon.html' with telephone=seance.groupe.prof.user.telephone %}
+                    </span>
+                    {% else %}غير محدد{% endif %}
+                    —
+                    {% endif %}
+                    {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
+                </div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                {% include badge_partial with seance=seance aujourdhui=aujourdhui %}
+                <a href="{% url url_detail_name seance.id %}" style="color:{{ couleur_role }}; text-decoration:none; font-size:0.85rem;">عرض ←</a>
+            </div>
+        </div>
+    {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if semaine_suivante %}
+    <details class="compact-card" open style="padding:0; overflow:hidden; margin-bottom:10px;">
+        <summary style="cursor:pointer; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; list-style:none;">
+            <span style="font-weight:700;">الأسبوع القادم</span>
+            <span style="color:#888; font-size:0.82rem;">{{ semaine_suivante.nb }} حصة</span>
+        </summary>
+        <div style="border-top:1px solid #f0f0f0; padding:4px 20px 8px;">
+            {% for seance in semaine_suivante.seances %}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f5f5f5;{% endif %} flex-wrap:wrap; gap:8px;">
+                <div>
+                    <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                    <div style="color:#999; font-size:0.85rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        {% if afficher_prof %}
+                        {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}
+                        <span style="display:inline-flex; gap:4px; align-items:center;">
+                            {% include 'dashboard/_email_icon.html' with email=seance.groupe.prof.user.email %}
+                            {% include 'dashboard/_whatsapp_icon.html' with telephone=seance.groupe.prof.user.telephone %}
+                        </span>
+                        {% else %}غير محدد{% endif %}
+                        —
+                        {% endif %}
+                        {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    {% include badge_partial with seance=seance aujourdhui=aujourdhui %}
+                    <a href="{% url url_detail_name seance.id %}" style="color:{{ couleur_role }}; text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endif %}
+
+    {% if mois_suivants %}
+    <div style="display:flex; flex-direction:column; gap:10px;">
+    {% for bloc in mois_suivants %}
+        <details class="compact-card" style="padding:0; overflow:hidden;">
+            <summary style="cursor:pointer; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; list-style:none;">
+                <span style="font-weight:700;">{{ bloc.mois_ref|mois_annee_ar }}</span>
+                <span style="color:#888; font-size:0.82rem;">{{ bloc.nb }} حصة</span>
+            </summary>
+            <div style="border-top:1px solid #f0f0f0; padding:4px 20px 8px;">
+                {% for seance in bloc.seances %}
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f5f5f5;{% endif %} flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <div style="font-weight:500; color:#444;">{{ seance.groupe.nom }}</div>
+                        <div style="color:#999; font-size:0.85rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            {% if afficher_prof %}
+                            {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}
+                            <span style="display:inline-flex; gap:4px; align-items:center;">
+                                {% include 'dashboard/_email_icon.html' with email=seance.groupe.prof.user.email %}
+                                {% include 'dashboard/_whatsapp_icon.html' with telephone=seance.groupe.prof.user.telephone %}
+                            </span>
+                            {% else %}غير محدد{% endif %}
+                            —
+                            {% endif %}
+                            {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        {% include badge_partial with seance=seance aujourdhui=aujourdhui %}
+                        <a href="{% url url_detail_name seance.id %}" style="color:{{ couleur_role }}; text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </details>
+    {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
