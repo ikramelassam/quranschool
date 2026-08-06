@@ -237,7 +237,7 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' or request.resolver_match.url_name == 'suivi_paiements_eleves' or request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' or request.resolver_match.url_name == 'admin_tarifs_remuneration' or request.resolver_match.url_name == 'admin_tarif_remuneration_modifier' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' or request.resolver_match.url_name == 'suivi_paiements_eleves' or request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' or request.resolver_match.url_name == 'admin_tarifs_remuneration' or request.resolver_match.url_name == 'admin_tarif_remuneration_modifier' or request.resolver_match.url_name == 'mshrif_remuneration' or request.resolver_match.url_name == 'admin_prof_remuneration_detail' %}open{% endif %}>
             <summary>الماليات</summary>
             <a href="{% url 'admin_paiements' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' %}active{% endif %}">
@@ -254,6 +254,10 @@
             <a href="{% url 'admin_tarifs_remuneration' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_tarifs_remuneration' or request.resolver_match.url_name == 'admin_tarif_remuneration_modifier' %}active{% endif %}">
                 <span class="icon">💰</span> شبكة رواتب المعلمين
+            </a>
+            <a href="{% url 'mshrif_remuneration' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'mshrif_remuneration' or request.resolver_match.url_name == 'admin_prof_remuneration_detail' %}active{% endif %}">
+                <span class="icon">📊</span> متابعة رواتب الأساتذة
             </a>
         </details>
 
@@ -281,7 +285,7 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'admin_gestion_inscriptions' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'admin_gestion_inscriptions' or request.resolver_match.url_name == 'admin_reglage_lien_seance' or request.resolver_match.url_name == 'admin_hakiba_gestion' %}open{% endif %}>
             <summary>حقيبة المدير</summary>
             <a href="{% url 'mshrif_charte' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_charte' %}active{% endif %}">
@@ -298,6 +302,14 @@
             <a href="{% url 'admin_gestion_inscriptions' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_gestion_inscriptions' %}active{% endif %}">
                 <span class="icon">📝</span> إدارة فتح التسجيل
+            </a>
+            <a href="{% url 'admin_reglage_lien_seance' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_reglage_lien_seance' %}active{% endif %}">
+                <span class="icon">🔗</span> هامش رابط الحصص
+            </a>
+            <a href="{% url 'admin_hakiba_gestion' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_hakiba_gestion' %}active{% endif %}">
+                <span class="icon">🎒</span> إدارة حقيبة الأستاذ
             </a>
         </details>
 

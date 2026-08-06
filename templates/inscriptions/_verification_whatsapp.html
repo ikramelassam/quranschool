@@ -99,7 +99,28 @@ le format. Usage : {% include 'inscriptions/_verification_whatsapp.html' %}
     }
 
     function wa_normaliser(valeur) {
-        return valeur.replace(/[\s\-()]/g, '');
+        // Réduit aux chiffres significatifs seuls, comme
+        // inscriptions.views._chiffres_significatifs côté serveur : retire
+        // tout ce qui n'est pas un chiffre, puis un éventuel indicatif pays
+        // déjà collé dans le champ, puis un éventuel zéro initial — pour que
+        // "0663394165" et "+212663394165" soient reconnus comme identiques
+        // (corrigé suite au signalement du 2026-08-05). Ce JS n'est qu'un
+        // confort visuel ; la vraie garantie est côté serveur.
+        const select = document.getElementById('wa_indicatif');
+        let indicatif = select ? select.value : '';
+        if (indicatif === 'autre') {
+            const autre = document.getElementById('wa_indicatif_autre');
+            indicatif = autre ? autre.value : '';
+        }
+        indicatif = indicatif.replace(/[^0-9]/g, '');
+        let chiffres = (valeur || '').replace(/[^0-9]/g, '');
+        if (indicatif && chiffres.indexOf(indicatif) === 0) {
+            chiffres = chiffres.substring(indicatif.length);
+        }
+        if (chiffres.charAt(0) === '0') {
+            chiffres = chiffres.substring(1);
+        }
+        return chiffres;
     }
 
     function wa_verifierTelephoneMatch() {

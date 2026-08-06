@@ -134,6 +134,10 @@
            class="menu-item {% if request.resolver_match.url_name == 'programme_general_detail' %}active{% endif %}">
             <span class="icon">📘</span> البرنامج العام
         </a>
+        <a href="{% url 'superviseur_hakiba' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'superviseur_hakiba' %}active{% endif %}">
+            <span class="icon">🎒</span> حقيبة الأستاذ
+        </a>
         <a href="{% url 'bilans_mensuels' %}"
            class="menu-item {% if request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' %}active{% endif %}">
             <span class="icon">📝</span> تقييم الطلاب

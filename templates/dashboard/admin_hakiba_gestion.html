@@ -1,0 +1,196 @@
+{% extends base_template %}
+{% load libelles_arabes %}
+{% block title %}إدارة حقيبة الأستاذ{% endblock %}
+{% block content %}
+<style>
+.hk-card {
+    background:var(--color-bg-cream); border:1px solid rgba(139,75,0,0.15);
+    border-radius:14px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.05);
+    margin-bottom:22px; max-width:640px;
+}
+.hk-label { font-weight:700; color:var(--color-text-primary); font-size:0.9rem; margin-bottom:6px; display:block; }
+.hk-input, .hk-textarea {
+    width:100%; border-radius:8px; border:1px solid rgba(139,75,0,0.2); padding:9px 12px;
+    font-size:0.92rem; font-family:'Tajawal',sans-serif; background:white;
+}
+.hk-toggle { display:flex; border:1px solid rgba(139,75,0,0.25); border-radius:9px; overflow:hidden; width:fit-content; }
+.hk-toggle-opt {
+    padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer; background:white; color:#555;
+    user-select:none;
+}
+.hk-toggle-opt.active { background:var(--color-brand-gold-dark); color:white; }
+.hk-pill {
+    display:inline-flex; align-items:center; gap:6px; background:white; border:1px solid rgba(139,75,0,0.25);
+    border-radius:20px; padding:4px 10px 4px 6px; font-size:0.82rem; margin:3px;
+}
+.hk-pill-remove { cursor:pointer; color:var(--color-danger); font-weight:700; }
+.hk-item {
+    display:flex; gap:12px; align-items:flex-start; padding:12px 0; border-bottom:1px solid #f0f0f0;
+}
+.hk-item:last-child { border-bottom:none; }
+.hk-icone-carre {
+    flex-shrink:0; width:38px; height:38px; border-radius:10px; color:white;
+    display:flex; align-items:center; justify-content:center; font-size:1.15rem;
+}
+.hk-badge-cible {
+    display:inline-block; border-radius:14px; padding:2px 10px; font-size:0.75rem; font-weight:700; margin-top:4px;
+}
+.hk-badge-tous { background:#e3f2e1; color:#2d5a1b; }
+.hk-badge-specifique { background:#fdf1d6; color:#8a6200; }
+</style>
+
+<div class="page-title">إدارة حقيبة الأستاذ</div>
+<div class="page-subtitle">نصوص، ملفات وموارد تضيفها الإدارة — تظهر للأساتذة المعنيين في صفحة "حقيبة الأستاذ" الخاصة بهم (قراءة فقط)</div>
+
+<div class="hk-card">
+    <div style="font-weight:700; margin-bottom:14px;">عنصر جديد</div>
+    <form method="POST" action="{% url 'admin_hakiba_ajouter' %}" enctype="multipart/form-data" id="hakibaForm">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <input type="text" name="titre" class="hk-input" placeholder="عنوان (اختياري)">
+        </div>
+
+        <div class="mb-3">
+            <textarea name="contenu_texte" class="hk-textarea" rows="3" placeholder="اكتب ملاحظة أو نصا هنا مباشرة..."></textarea>
+        </div>
+
+        <div class="mb-3">
+            <input type="file" name="fichier" id="hakibaFichierInput" style="display:none;" onchange="hakibaFichierChange(this)">
+            <div id="hakibaFichierBouton" onclick="document.getElementById('hakibaFichierInput').click();"
+                 style="display:inline-block; cursor:pointer; background:white; border:1.5px solid var(--color-brand-gold-dark); color:var(--color-brand-gold-dark); border-radius:8px; padding:7px 16px; font-size:0.85rem; font-weight:600;">
+                📎 إرفاق ملف
+            </div>
+            <div id="hakibaFichierApercu" style="display:none; align-items:center; gap:10px; margin-top:8px; background:white; border:1px solid rgba(139,75,0,0.2); border-radius:8px; padding:8px 12px; max-width:fit-content;">
+                <span id="hakibaFichierIcone">📎</span>
+                <span id="hakibaFichierNom" style="font-size:0.85rem;"></span>
+                <span onclick="hakibaFichierRetirer()" style="cursor:pointer; color:var(--color-danger); font-weight:700; margin-right:6px;">✕</span>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="hk-label">الفئة المستهدفة</label>
+            <div class="hk-toggle">
+                <div class="hk-toggle-opt active" data-cible="tous" onclick="hakibaChoisirCible('tous')">كل الأساتذة</div>
+                <div class="hk-toggle-opt" data-cible="specifique" onclick="hakibaChoisirCible('specifique')">أساتذة محددون</div>
+            </div>
+            <input type="hidden" name="cible" id="hakibaCibleInput" value="tous">
+
+            <div id="hakibaZoneSpecifique" style="display:none; margin-top:12px;">
+                <input type="text" id="hakibaRecherche" class="hk-input" placeholder="ابحث عن أستاذ..." oninput="hakibaFiltrerListe()" autocomplete="off">
+                <div id="hakibaPills" style="margin-top:8px;"></div>
+                <div id="hakibaListeDeroulante" style="display:none; max-height:220px; overflow-y:auto; background:white; border:1px solid rgba(139,75,0,0.2); border-radius:8px; margin-top:6px;">
+                    {% for prof in profs_disponibles %}
+                    <div class="hakiba-option" data-id="{{ prof.id }}" data-nom="{{ prof.user.get_full_name }}"
+                         onclick="hakibaAjouterProf({{ prof.id }}, '{{ prof.user.get_full_name|escapejs }}')"
+                         style="padding:8px 12px; cursor:pointer; font-size:0.85rem; border-bottom:1px solid #f5f5f5;">
+                        {{ prof.user.get_full_name }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:9px 26px; font-family:'Tajawal',sans-serif; font-size:0.95rem; cursor:pointer;">حفظ ✅</button>
+    </form>
+</div>
+
+<div class="hk-card">
+    <div style="font-weight:700; margin-bottom:6px;">العناصر الحالية ({{ elements_hakiba|length }})</div>
+    {% for element in elements_hakiba %}
+    <div class="hk-item">
+        <div class="hk-icone-carre" style="background:{{ element.fichier|couleur_hakiba }};">{{ element.fichier|icone_hakiba }}</div>
+        <div style="min-width:0; flex:1;">
+            <div style="font-weight:600;">{{ element.titre|default:"بدون عنوان" }}</div>
+            <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">
+                {% if element.ajoute_par %}بواسطة {{ element.ajoute_par.get_full_name }} — {% endif %}{{ element.date_ajout|date:"d-m-Y" }}
+            </div>
+            {% if element.tous_les_profs %}
+            <div class="hk-badge-cible hk-badge-tous">كل الأساتذة</div>
+            {% else %}
+            <div class="hk-badge-cible hk-badge-specifique">{% for p in element.profs_cibles.all %}{{ p.user.get_full_name }}{% if not forloop.last %}، {% endif %}{% endfor %}</div>
+            {% endif %}
+        </div>
+        <a href="{% url 'admin_hakiba_supprimer' element.id %}"
+           onclick="return confirm('حذف هذا العنصر من حقيبة الأستاذ؟');"
+           style="flex-shrink:0; background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:5px 12px; text-decoration:none; font-size:0.8rem;">حذف 🗑️</a>
+    </div>
+    {% empty %}
+    <div style="color:#aaa; padding:12px 0;">لا توجد عناصر مضافة بعد</div>
+    {% endfor %}
+</div>
+
+<script>
+    const hakibaProfsSelectionnes = {}; // {id: nom}
+
+    function hakibaChoisirCible(cible) {
+        document.getElementById('hakibaCibleInput').value = cible;
+        document.querySelectorAll('.hk-toggle-opt').forEach(function (opt) {
+            opt.classList.toggle('active', opt.dataset.cible === cible);
+        });
+        document.getElementById('hakibaZoneSpecifique').style.display = (cible === 'specifique') ? 'block' : 'none';
+    }
+
+    function hakibaFiltrerListe() {
+        const terme = document.getElementById('hakibaRecherche').value.trim().toLowerCase();
+        const liste = document.getElementById('hakibaListeDeroulante');
+        liste.style.display = terme.length > 0 ? 'block' : 'none';
+        document.querySelectorAll('.hakiba-option').forEach(function (opt) {
+            const correspond = opt.dataset.nom.toLowerCase().indexOf(terme) !== -1;
+            const dejaChoisi = hakibaProfsSelectionnes.hasOwnProperty(opt.dataset.id);
+            opt.style.display = (correspond && !dejaChoisi) ? 'block' : 'none';
+        });
+    }
+
+    function hakibaAjouterProf(id, nom) {
+        hakibaProfsSelectionnes[id] = nom;
+        document.getElementById('hakibaRecherche').value = '';
+        document.getElementById('hakibaListeDeroulante').style.display = 'none';
+        hakibaRedessinerPills();
+    }
+
+    function hakibaRetirerProf(id) {
+        delete hakibaProfsSelectionnes[id];
+        hakibaRedessinerPills();
+    }
+
+    function hakibaRedessinerPills() {
+        const zone = document.getElementById('hakibaPills');
+        zone.innerHTML = '';
+        document.querySelectorAll('input[name="profs_cibles"]').forEach(function (i) { i.remove(); });
+        Object.keys(hakibaProfsSelectionnes).forEach(function (id) {
+            const pill = document.createElement('span');
+            pill.className = 'hk-pill';
+            pill.innerHTML = hakibaProfsSelectionnes[id] + ' <span class="hk-pill-remove" onclick="hakibaRetirerProf(' + id + ')">✕</span>';
+            zone.appendChild(pill);
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden'; hidden.name = 'profs_cibles'; hidden.value = id;
+            document.getElementById('hakibaForm').appendChild(hidden);
+        });
+    }
+
+    function hakibaIconePourExtension(nom) {
+        const ext = '.' + nom.split('.').pop().toLowerCase();
+        if (['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt'].includes(ext)) return '📄';
+        if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) return '🖼️';
+        if (['.mp3', '.wav', '.m4a', '.ogg'].includes(ext)) return '🎵';
+        if (['.mp4', '.mov', '.avi', '.webm', '.mkv'].includes(ext)) return '🎬';
+        return '📎';
+    }
+
+    function hakibaFichierChange(input) {
+        if (!input.files || !input.files[0]) return;
+        const nom = input.files[0].name;
+        document.getElementById('hakibaFichierIcone').textContent = hakibaIconePourExtension(nom);
+        document.getElementById('hakibaFichierNom').textContent = nom;
+        document.getElementById('hakibaFichierApercu').style.display = 'flex';
+        document.getElementById('hakibaFichierBouton').style.display = 'none';
+    }
+
+    function hakibaFichierRetirer() {
+        document.getElementById('hakibaFichierInput').value = '';
+        document.getElementById('hakibaFichierApercu').style.display = 'none';
+        document.getElementById('hakibaFichierBouton').style.display = 'inline-block';
+    }
+</script>
+{% endblock %}
