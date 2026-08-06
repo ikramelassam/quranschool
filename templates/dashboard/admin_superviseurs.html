@@ -48,6 +48,10 @@
                ✉️ البريد الإلكتروني
             </a>
             {% endif %}
+            <a href="{% url 'admin_utilisateur_reinitialiser_mot_de_passe' s.user.id %}?next={% url 'admin_superviseurs' %}"
+               style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
+               🔑 كلمة المرور
+            </a>
         </div>
     </div>
     {% empty %}
