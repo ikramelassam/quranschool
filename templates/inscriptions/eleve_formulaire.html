@@ -177,6 +177,20 @@
                    placeholder="البريد الإلكتروني" value="{{ old_email|default:'' }}" required>
         </div>
 
+        {% if type_age == 'enfant' %}
+        <div class="mb-3">
+            <label class="form-label">عمل ولي الأمر</label>
+            <input type="text" name="job_actuel" class="form-control"
+                   placeholder="عمل ولي الأمر">
+        </div>
+        {% else %}
+        <div class="mb-3">
+            <label class="form-label">العمل الحالي</label>
+            <input type="text" name="job_actuel" class="form-control"
+                   placeholder="العمل الحالي">
+        </div>
+        {% endif %}
+
         {% include 'inscriptions/_verification_whatsapp.html' %}
 
         <div class="mb-3">

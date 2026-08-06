@@ -6,45 +6,56 @@
     {% if request.user.role == 'mshrif' %}عرض للاطلاع فقط — لا يمكن التعديل من هنا{% else %}حدد المعلمين الذين يمكن لهذا المؤطر رؤيتهم وتقييمهم{% endif %}
 </div>
 
-<div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+<div style="background:white; border-radius:16px; padding:12px 32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     {% if request.user.role == 'mshrif' %}
         {% for prof in profs %}
-        <div class="mb-2" style="display:flex; align-items:center; gap:10px;">
+        <div style="display:flex; align-items:center; gap:12px; padding:14px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
+            <div style="width:38px; height:38px; border-radius:50%; background:#f3e6cc; color:#8a5a2b; display:flex; align-items:center; justify-content:center; font-size:0.85rem; font-weight:700; flex-shrink:0;">
+                {{ prof.user.first_name|first|upper }}{{ prof.user.last_name|first|upper }}
+            </div>
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:600; {% if prof.id not in profs_assignes_ids %}color:#aaa;{% endif %} display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    {{ prof.user.get_full_name }}
+                    {% include 'dashboard/_badge_archive_prof.html' with prof=prof %}
+                </div>
+                <div style="color:#888; font-size:0.85rem; margin-top:2px;">{{ prof.ville }}</div>
+            </div>
             {% if prof.id in profs_assignes_ids %}
-            <span style="color:var(--color-success);">✅</span>
+            <span style="color:var(--color-success); font-size:1.1rem; flex-shrink:0;">✅</span>
             {% else %}
-            <span style="color:#ccc;">▫️</span>
+            <span style="color:#ccc; font-size:1.1rem; flex-shrink:0;">▫️</span>
             {% endif %}
-            <span {% if prof.id not in profs_assignes_ids %}style="color:#aaa;"{% endif %}>
-                {{ prof.user.get_full_name }}
-                <span style="color:#888; font-size:0.85rem;">— {{ prof.ville }}</span>
-                {% include 'dashboard/_badge_archive_prof.html' with prof=prof %}
-            </span>
         </div>
         {% empty %}
-        <div style="text-align:center; color:#aaa; padding:20px;">لا يوجد معلمون بعد</div>
+        <div style="text-align:center; color:#aaa; padding:30px 0;">لا يوجد معلمون بعد</div>
         {% endfor %}
-        <div class="mt-4">
-            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        <div style="padding:16px 0 4px;">
+            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; font-size:0.9rem;">← رجوع</a>
         </div>
     {% else %}
     <form method="POST">
         {% csrf_token %}
         {% for prof in profs %}
-        <div class="form-check mb-2">
+        <div style="display:flex; align-items:center; gap:12px; padding:14px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
             <input type="checkbox" class="form-check-input" name="profs" value="{{ prof.id }}" id="prof_{{ prof.id }}"
+                   style="flex-shrink:0;"
                    {% if prof.id in profs_assignes_ids %}checked{% endif %}>
-            <label class="form-check-label" for="prof_{{ prof.id }}">
-                {{ prof.user.get_full_name }}
-                <span style="color:#888; font-size:0.85rem;">— {{ prof.ville }}</span>
-                {% include 'dashboard/_badge_archive_prof.html' with prof=prof %}
+            <div style="width:38px; height:38px; border-radius:50%; background:#f3e6cc; color:#8a5a2b; display:flex; align-items:center; justify-content:center; font-size:0.85rem; font-weight:700; flex-shrink:0;">
+                {{ prof.user.first_name|first|upper }}{{ prof.user.last_name|first|upper }}
+            </div>
+            <label class="form-check-label" for="prof_{{ prof.id }}" style="flex:1; min-width:0; cursor:pointer;">
+                <div style="font-weight:600; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    {{ prof.user.get_full_name }}
+                    {% include 'dashboard/_badge_archive_prof.html' with prof=prof %}
+                </div>
+                <div style="color:#888; font-size:0.85rem; margin-top:2px;">{{ prof.ville }}</div>
             </label>
         </div>
         {% empty %}
-        <div style="text-align:center; color:#aaa; padding:20px;">لا يوجد معلمون بعد</div>
+        <div style="text-align:center; color:#aaa; padding:30px 0;">لا يوجد معلمون بعد</div>
         {% endfor %}
 
-        <div class="d-flex gap-3 mt-4">
+        <div class="d-flex gap-3" style="padding:20px 0 4px;">
             <button type="submit"
                 style="background:var(--color-brand-gold-dark); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
                 حفظ الإسناد ✅
