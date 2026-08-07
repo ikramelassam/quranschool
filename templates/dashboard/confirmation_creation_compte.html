@@ -4,7 +4,9 @@
 {% block content %}
 <div class="page-title">✅ تم إنشاء الحساب بنجاح</div>
 <div class="page-subtitle">
-    {% if info.type_compte == 'eleve' %}تم قبول الطالب {{ info.nom }} وإنشاء حسابه.{% else %}تم قبول المعلم {{ info.nom }} نهائياً وإنشاء حسابه.{% endif %}
+    {% if info.type_compte == 'eleve' %}تم قبول الطالب {{ info.nom }} وإنشاء حسابه.
+    {% elif info.type_compte == 'superviseur' %}تمت إضافة المؤطر {{ info.nom }} وإنشاء حسابه.
+    {% else %}تم قبول المعلم {{ info.nom }} نهائياً وإنشاء حسابه.{% endif %}
 </div>
 
 <div style="background:white; border-radius:16px; padding:28px; max-width:640px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px;">

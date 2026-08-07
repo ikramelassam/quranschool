@@ -1456,32 +1456,26 @@ def confirmation_creation_compte(request):
     if not info:
         return redirect('dashboard_mshrif' if request.user.role == 'mshrif' else 'dashboard_admin')
 
-    # Texte exact fourni par le client (Tâche du 2026-08-05) — chaque ligne
-    # séparée par un retour à la ligne, email et mot de passe insérés après
-    # les deux lignes qui les annoncent.
-    message_pret_a_envoyer = (
-        "السلام عليكم ورحمة الله وبركاته\n"
-        f"مرحبا {info['nom']}\n"
-        "هذا حسابك:\n"
-        f"{info['email']}\n"
-        "و هذه كلمة المرور الخاصة بك:\n"
-        f"{info['password']}\n"
-        "المرجو الحفاظ عليه..\n"
-        "بارك الله فيكم"
-    )
+    # Gabarit UNIQUE (Tâche du 2026-08-06) — voir construire_message_mdp_whatsapp,
+    # réutilisé tel quel par l'écran de réinitialisation et de création مؤطر.
+    message_pret_a_envoyer = construire_message_mdp_whatsapp(info['email'], info['password'])
 
     context = {
         'info': info,
         'message_pret_a_envoyer': message_pret_a_envoyer,
         'libelle_personne_contact': f"مع {LIBELLE_PERSONNE_CONTACT.get(info['type_compte'], '')}",
-        'texte_absence_personne': f"لا يوجد رقم هاتف مسجَّل {'لهذا الطالب' if info['type_compte'] == 'eleve' else 'لهذا المعلم'}",
-        # .exclude(id=request.user.id) (Tâche du 2026-08-06) : si c'est مدير
-        # lui-même qui est connecté (pas le cas actuellement — cette branche
-        # n'est atteignable que par مشرف, voir mshrif_valider_prof_final —
-        # mais on ne veut jamais lui proposer de "se contacter lui-même" si
-        # ça devenait un jour possible), il ne doit pas apparaître dans sa
-        # propre liste de destinataires.
-        'admins': User.objects.filter(role='admin').exclude(id=request.user.id) if info['type_compte'] == 'prof' else None,
+        'texte_absence_personne': f"لا يوجد رقم هاتف مسجَّل لهذا {LIBELLE_PERSONNE_CONTACT.get(info['type_compte'], 'الحساب')}",
+        # Bouton "تواصل مع المدير" : affiché pour prof (مشرف valide, informe
+        # مدير) ET مؤطر (Tâche du 2026-08-06, point 4 — même écran désormais
+        # réutilisé pour la création مؤطر). Jamais pour eleve (مدير valide
+        # lui-même, rien à s'annoncer). .exclude(id=request.user.id) : si
+        # c'est مدير lui-même qui est connecté (le cas pour مؤطر — voir
+        # admin_superviseur_ajouter, role_required('admin') seul), il ne
+        # doit jamais apparaître dans sa propre liste de destinataires.
+        'admins': (
+            User.objects.filter(role='admin').exclude(id=request.user.id)
+            if info['type_compte'] in ('prof', 'superviseur') else None
+        ),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -3975,6 +3969,16 @@ def admin_superviseurs(request):
 
 @role_required('admin')
 def admin_superviseur_ajouter(request):
+    """Création directe d'un compte مؤطر par مدير — PAS de candidature/
+    InscriptionSuperviseur préalable (contrairement à élève/prof) : ce
+    formulaire crée le compte immédiatement. Corrigé le 2026-08-06 (manque
+    signalé par le client) : utilisait encore l'ANCIEN patron (mot de passe
+    affiché en clair dans un message flash Django, jamais de bouton WhatsApp)
+    — le seul des 3 flux de création à ne jamais avoir été migré vers
+    confirmation_creation_compte (PRG + WhatsApp) lors du chantier du
+    2026-08-05 qui avait migré élève/prof. Réutilise cette même page de
+    confirmation (type_compte='superviseur' déjà géré) plutôt que d'en
+    dupliquer une nouvelle."""
     from django.contrib.auth import get_user_model
     from accounts.models import Superviseur
     from inscriptions.views import _email_deja_utilise
@@ -4012,8 +4016,15 @@ def admin_superviseur_ajouter(request):
 
         envoyer_email_bienvenue(request, email, password_temp, nom)
 
-        messages.success(request, f'تمت إضافة المؤطر {nom}. كلمة المرور المؤقتة: {password_temp} — بلّغها له يدوياً (لا يوجد إرسال تلقائي موثوق عبر البريد الإلكتروني).')
-        return redirect('admin_superviseurs')
+        request.session['confirmation_creation_compte'] = {
+            'type_compte': 'superviseur',
+            'nom': nom,
+            'email': email,
+            'password': password_temp,
+            'telephone': telephone,
+            'redirect_url_name': 'admin_superviseurs',
+        }
+        return redirect('confirmation_creation_compte')
 
     return render(request, 'dashboard/admin_superviseur_ajouter.html')
 
@@ -4192,6 +4203,22 @@ def confirmation_modification_email(request):
 LIBELLE_PERSONNE_CONTACT = {'eleve': 'الطالب', 'prof': 'المعلم', 'superviseur': 'المؤطر'}
 
 
+def construire_message_mdp_whatsapp(email, mot_de_passe):
+    """Message WhatsApp UNIQUE pour tout écran communiquant un mot de passe
+    (création de compte élève/prof/مؤطر, réinitialisation par مدير/مشرف) —
+    Tâche du 2026-08-06 : un seul gabarit, jamais reformulé différemment
+    d'un écran à l'autre, pour garantir la cohérence si modifié plus tard.
+    Texte exact fourni par le client."""
+    return (
+        "السلام عليكم\n"
+        "حياك الله\n"
+        "هذا بريدك الالكتروني وهذه كلمة المرور\n"
+        f"{email}\n"
+        f"{mot_de_passe}\n"
+        "بارك الله فيكم.."
+    )
+
+
 @role_required('admin', 'mshrif')
 @never_cache
 def admin_utilisateur_reinitialiser_mot_de_passe(request, user_id):
@@ -4263,18 +4290,10 @@ def admin_utilisateur_reinitialiser_mot_de_passe(request, user_id):
         mdp_genere = None
     mot_de_passe_affiche = mdp_genere.get('mot_de_passe') if mdp_genere else None
 
+    # Gabarit UNIQUE (Tâche du 2026-08-06) — voir construire_message_mdp_whatsapp.
     message_pret_a_envoyer = None
     if mot_de_passe_affiche:
-        message_pret_a_envoyer = (
-            "السلام عليكم ورحمة الله وبركاته\n"
-            f"مرحبا {utilisateur.get_full_name()}\n"
-            "تم تحديث كلمة مرور حسابك:\n"
-            f"{utilisateur.email}\n"
-            "و هذه كلمة المرور الجديدة الخاصة بك:\n"
-            f"{mot_de_passe_affiche}\n"
-            "المرجو الحفاظ عليها..\n"
-            "بارك الله فيكم"
-        )
+        message_pret_a_envoyer = construire_message_mdp_whatsapp(utilisateur.email, mot_de_passe_affiche)
 
     context = {
         'utilisateur': utilisateur,
