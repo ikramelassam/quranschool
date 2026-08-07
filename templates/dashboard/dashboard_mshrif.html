@@ -28,6 +28,12 @@ a.compact-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12); }
     <div class="stat-card"><div class="l">المعلمون</div><div class="v">{{ nb_profs }}</div><div class="i">🎓</div></div>
     <div class="stat-card"><div class="l">المجموعات النشطة</div><div class="v">{{ nb_groupes_actifs }}</div><div class="i">👥</div></div>
     <div class="stat-card"><div class="l">نسبة الحضور هذا الشهر</div><div class="v">{{ taux_presence_mois }}%</div><div class="i">📊</div></div>
+    <!-- Tâche du 2026-08-07 : 5e carte compteur, même style que les 4
+         autres. .stat-grid est un flexbox avec flex-wrap déjà en place
+         (pas de grille figée à 4 colonnes) — un 5e .stat-card (flex:1 1
+         220px) se replie proprement sur une 2e ligne si la largeur ne
+         suffit pas, sans changement de CSS nécessaire. -->
+    <div class="stat-card"><div class="l">المؤطرون</div><div class="v">{{ nb_superviseurs }}</div><div class="i">👤</div></div>
 </div>
 
 <div class="section-title">الوصول السريع (قراءة فقط)</div>
@@ -41,6 +47,19 @@ a.compact-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12); }
     <a class="compact-card" href="{% url 'admin_profs' %}">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-weight:700;">🎓 قائمة المعلمين</span>
+            <span style="color:var(--color-role-mshrif-solid);">عرض القائمة الكاملة ←</span>
+        </div>
+    </a>
+    <!-- Tâche du 2026-08-07 : carte manquante — la vue admin_superviseurs
+         (liste des مؤطرين) existait déjà et était même liée plus bas dans
+         "كل ما يراه المدير..." (🧭 إسناد المؤطرين), mais PAS dans cette
+         section précise "الوصول السريع (قراءة فقط)", qui est un bloc
+         .row2/.compact-card différent du bloc .quick-links plus bas —
+         confusion des deux qui explique le rapport initial "toujours pas
+         ajoutée". -->
+    <a class="compact-card" href="{% url 'admin_superviseurs' %}">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700;">👤 قائمة المؤطرين</span>
             <span style="color:var(--color-role-mshrif-solid);">عرض القائمة الكاملة ←</span>
         </div>
     </a>

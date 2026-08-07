@@ -1713,7 +1713,7 @@ def admin_rejeter_prof(request, inscription_id):
 
 @role_required('mshrif')
 def dashboard_mshrif(request):
-    from accounts.models import Eleve, Prof
+    from accounts.models import Eleve, Prof, Superviseur
     from courses.models import Groupe, Presence
     from django.utils import timezone
 
@@ -1729,6 +1729,9 @@ def dashboard_mshrif(request):
         'nb_profs': Prof.actifs.count(),
         'nb_groupes_actifs': Groupe.objects.filter(statut='actif').count(),
         'taux_presence_mois': taux_presence,
+        # Pas de .actifs pour Superviseur : aucun champ de statut/archivage
+        # sur ce modèle (Tâche du 2026-08-07, voir docstring admin_superviseurs).
+        'nb_superviseurs': Superviseur.objects.count(),
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/dashboard_mshrif.html', context)
