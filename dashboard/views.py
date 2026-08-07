@@ -1375,7 +1375,7 @@ def bilans_mensuels_detail_seance(request, groupe_id, eleve_id):
 @role_required('admin', 'mshrif')
 def dashboard_admin(request):
     from inscriptions.models import InscriptionEleve, InscriptionProf
-    from accounts.models import Eleve, Prof
+    from accounts.models import Eleve, Prof, Superviseur
     from courses.models import Groupe
 
     dernieres_eleves = InscriptionEleve.objects.filter(
@@ -1392,6 +1392,9 @@ def dashboard_admin(request):
         'total_eleves': Eleve.actifs.count(),
         'total_profs': Prof.actifs.count(),
         'total_groupes': Groupe.objects.count(),
+        # Pas de .actifs pour Superviseur : aucun champ de statut/archivage
+        # sur ce modèle (voir docstring de admin_superviseurs) — total brut.
+        'total_superviseurs': Superviseur.objects.count(),
         'total_pending': InscriptionEleve.objects.filter(statut='en_attente').count() +
                          InscriptionProf.objects.filter(statut='en_attente').count(),
         'dernieres_eleves': dernieres_eleves,
@@ -3938,19 +3941,29 @@ def classement_mensuel_commentaire(request, prof_id):
 
 @role_required('admin', 'mshrif')
 def admin_superviseurs(request):
-    """Liste des مؤطرين — مдير et مشرف y ont déjà accès tous les deux (ce
-    dernier en lecture seule, voir le template), mais sans recherche ni
-    pagination jusqu'ici, contrairement à admin_eleves/admin_profs (Tâche du
-    2026-08-04, même patron appliqué ici). Pas de filtre par statut actif/
-    archivé : Superviseur n'a aucun champ de statut ni système d'archivage
-    (contrairement à Eleve/Prof) — ajouter ça serait un chantier à part
-    entière (statut, blocage de connexion, invalidation de session...), pas
-    juste un filtre de liste, donc volontairement laissé de côté ici."""
-    from django.db.models import Q
+    """Liste des مؤطرين, symétrique à admin_eleves/admin_profs (Tâche du
+    2026-08-07 : ajout recherche déjà existante + avatar + nb de groupes
+    total). مдير et مشرف y ont déjà accès tous les deux (ce dernier en
+    lecture seule, voir le template) ; chaque ligne pointe vers
+    admin_superviseur_assignations, qui sert AUSSI de page détail depuis le
+    chantier du 2026-08-06 (bloc info en lecture seule + liste de gestion) —
+    pas de page détail séparée créée ici, ça duplicerait ce bloc.
+
+    Volontairement PAS ajouté malgré la demande initiale, faute de champ en
+    base :
+    - Filtre par statut actif/archivé : Superviseur n'a aucun champ de statut
+      ni système d'archivage (contrairement à Eleve/Prof) — ajouter ça serait
+      un chantier à part entière (statut, blocage de connexion, invalidation
+      de session...), pas juste un filtre de liste.
+    - Colonne "ville" : ni Superviseur ni User n'ont de champ ville."""
+    from django.db.models import Q, Count
     from accounts.models import Superviseur
 
     q = request.GET.get('q', '').strip()
-    superviseurs = Superviseur.objects.select_related('user').prefetch_related('profs_assignes').order_by('user__first_name')
+    superviseurs = Superviseur.objects.select_related('user').annotate(
+        nb_profs_assignes=Count('profs_assignes', distinct=True),
+        nb_groupes_total=Count('profs_assignes__groupes', distinct=True),
+    ).order_by('user__first_name')
     if q:
         superviseurs = superviseurs.filter(
             Q(user__first_name__icontains=q) |
