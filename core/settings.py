@@ -33,6 +33,15 @@ AUTHENTICATION_BACKENDS = ['accounts.backend.EmailBackend']
 LOGIN_URL = '/accounts/login/'
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
 
+# Manquait entièrement (Tâche du 2026-08-07 — bug réel : "Bad Request (400)"
+# sur le nouveau sous-domaine app.zidanieilman.com, ALLOWED_HOSTS pas encore
+# à jour côté Render). Django n'a pas besoin de CSRF_TRUSTED_ORIGINS pour
+# qu'un domaine dans ALLOWED_HOSTS fonctionne en lecture, mais l'exige pour
+# les soumissions de formulaire (POST) une fois servi derrière le proxy
+# HTTPS de Render — même patron env.list que ALLOWED_HOSTS, mais avec le
+# schéma complet (https://...), pas juste le nom d'hôte.
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+
 # Render place le service derrière un proxy HTTPS : la requête arrive en HTTP
 # en interne avec un header indiquant le protocole d'origine.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
