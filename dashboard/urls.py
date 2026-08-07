@@ -139,4 +139,7 @@ urlpatterns = [
     path('bilans/', views.bilans_mensuels, name='bilans_mensuels'),
     path('bilans/groupe/<int:groupe_id>/eleve/<int:eleve_id>/', views.bilans_mensuels_detail_seance, name='bilans_mensuels_detail_seance'),
     path('bilans/<int:eleve_id>/<str:mois>/', views.bilan_mensuel_detail, name='bilan_mensuel_detail'),
+
+    # Tâche du 2026-08-07 : remplace la carte "نسبة الحضور هذا الشهر" (biaisée, voir diagnostic)
+    path('suivi-engagement/', views.suivi_engagement_mensuel, name='suivi_engagement_mensuel'),
 ]

@@ -1185,6 +1185,45 @@ def bilan_mensuel_detail(request, eleve_id, mois):
     return render(request, 'dashboard/bilan_mensuel_detail.html', context)
 
 
+@role_required('admin', 'mshrif')
+def suivi_engagement_mensuel(request):
+    """متابعة الالتزام الشهري (Tâche du 2026-08-07) — remplace la carte
+    "نسبة الحضور هذا الشهر" du tableau de bord مشرف, dont le calcul (au
+    niveau élève × séance, dénominateur = lignes Presence) donnait un 100%
+    non représentatif dès qu'une seule petite séance individuelle était
+    traitée (voir échange de clarification précédent). Cette page mesure la
+    couverture au niveau SÉANCE (décision explicite du client, plus lisible)
+    et distingue clairement 2 causes différentes : prof qui n'a pas rempli
+    sa feuille de présence (Zone 2) vs مؤطر qui n'a pas encore évalué une
+    séance déjà traitée (Zone 3) — tout le calcul vit dans
+    courses.utils.calculer_suivi_mensuel_engagement, voir sa docstring pour
+    le détail exact des périmètres.
+
+    mois (GET, 'AAAA-MM') : même patron que mshrif_remuneration/
+    bilans_mensuels — mois courant par défaut."""
+    from courses.utils import calculer_suivi_mensuel_engagement
+    from django.utils import timezone
+
+    aujourdhui = timezone.localdate()
+    mois_filtre = request.GET.get('mois', '')
+    if mois_filtre:
+        annee_str, _, mois_str = mois_filtre.partition('-')
+        mois_reference = datetime.date(int(annee_str), int(mois_str), 1)
+    else:
+        mois_reference = aujourdhui.replace(day=1)
+
+    donnees = calculer_suivi_mensuel_engagement(mois_reference)
+
+    context = {
+        'mois_filtre': mois_filtre,
+        'mois_reference': mois_reference,
+        'donnees': donnees,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/suivi_engagement_mensuel.html', context)
+
+
 @role_required('admin', 'superviseur', 'mshrif')
 def bilans_mensuels(request):
     """تقييم الطلاب — Niveau 1 (Point 11, Tâche du 2026-08-04) : parcours
@@ -1714,24 +1753,20 @@ def admin_rejeter_prof(request, inscription_id):
 @role_required('mshrif')
 def dashboard_mshrif(request):
     from accounts.models import Eleve, Prof, Superviseur
-    from courses.models import Groupe, Presence
-    from django.utils import timezone
-
-    aujourdhui = timezone.localdate()
-    presences_mois = Presence.objects.filter(seance__date__year=aujourdhui.year, seance__date__month=aujourdhui.month)
-    nb_presences_total = presences_mois.count()
-    nb_presences_ok = presences_mois.filter(statut='present').count()
-    taux_presence = round((nb_presences_ok / nb_presences_total) * 100) if nb_presences_total else 0
+    from courses.models import Groupe
 
     context = {
         'nb_eleves_actifs': Eleve.objects.filter(statut='actif').count(),
         # .actifs (exclut les archivés) — même décision que dashboard_admin.total_profs.
         'nb_profs': Prof.actifs.count(),
         'nb_groupes_actifs': Groupe.objects.filter(statut='actif').count(),
-        'taux_presence_mois': taux_presence,
         # Pas de .actifs pour Superviseur : aucun champ de statut/archivage
         # sur ce modèle (Tâche du 2026-08-07, voir docstring admin_superviseurs).
         'nb_superviseurs': Superviseur.objects.count(),
+        # taux_presence_mois retiré (Tâche du 2026-08-07) : son calcul (niveau
+        # élève × séance, dénominateur = lignes Presence) donnait un 100% non
+        # représentatif dès qu'une seule petite séance individuelle était
+        # traitée. Voir suivi_engagement_mensuel pour le remplacement.
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/dashboard_mshrif.html', context)

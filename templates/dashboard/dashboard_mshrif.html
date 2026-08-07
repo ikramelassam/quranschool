@@ -23,17 +23,29 @@ a.compact-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12); }
 <div class="page-title">أهلاً بك 👋</div>
 <div class="page-subtitle">نظرة عامة على المنصة</div>
 
+{% comment %}
+Tâche du 2026-08-07 : l'ancienne 5e carte de ce bloc retirée — son calcul
+(niveau élève × séance, dénominateur = lignes Presence) donnait un chiffre
+non représentatif dès qu'une seule petite séance individuelle était
+traitée (voir diagnostic). Remplacée par la page dédiée
+"متابعة الالتزام الشهري" (lien discret ci-dessous), avec 3 indicateurs
+au niveau séance, cohérents entre eux. Grille à 4 cartes désormais —
+.stat-grid reste un flexbox avec flex-wrap, pas de CSS à ajuster.
+
+Note : commentaire volontairement en {% comment %} et pas en <!-- --> —
+un commentaire HTML brut reste présent dans la réponse HTTP (juste invisible
+à l'écran), ce qui aurait recréé exactement la classe de bug des fuites de
+commentaires déjà corrigée ailleurs sur le site, ici en gardant le libellé
+retiré dans le code source de la page.
+{% endcomment %}
 <div class="stat-grid">
     <div class="stat-card"><div class="l">الطلاب النشطون</div><div class="v">{{ nb_eleves_actifs }}</div><div class="i">👤</div></div>
     <div class="stat-card"><div class="l">المعلمون</div><div class="v">{{ nb_profs }}</div><div class="i">🎓</div></div>
     <div class="stat-card"><div class="l">المجموعات النشطة</div><div class="v">{{ nb_groupes_actifs }}</div><div class="i">👥</div></div>
-    <div class="stat-card"><div class="l">نسبة الحضور هذا الشهر</div><div class="v">{{ taux_presence_mois }}%</div><div class="i">📊</div></div>
-    <!-- Tâche du 2026-08-07 : 5e carte compteur, même style que les 4
-         autres. .stat-grid est un flexbox avec flex-wrap déjà en place
-         (pas de grille figée à 4 colonnes) — un 5e .stat-card (flex:1 1
-         220px) se replie proprement sur une 2e ligne si la largeur ne
-         suffit pas, sans changement de CSS nécessaire. -->
     <div class="stat-card"><div class="l">المؤطرون</div><div class="v">{{ nb_superviseurs }}</div><div class="i">👤</div></div>
+</div>
+<div style="margin:-14px 0 24px;">
+    <a href="{% url 'suivi_engagement_mensuel' %}" style="color:var(--color-role-mshrif-solid); font-size:0.85rem; text-decoration:none;">📊 متابعة الالتزام الشهري (تسجيل الحضور والتقييم) ←</a>
 </div>
 
 <div class="section-title">الوصول السريع (قراءة فقط)</div>

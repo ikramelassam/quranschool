@@ -271,7 +271,7 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_criteres' or request.resolver_match.url_name == 'admin_critere_ajouter' or request.resolver_match.url_name == 'admin_critere_modifier' or request.resolver_match.url_name == 'admin_criteres_eleves' or request.resolver_match.url_name == 'admin_critere_eleve_ajouter' or request.resolver_match.url_name == 'admin_critere_eleve_modifier' or request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' or request.resolver_match.url_name == 'classement_mensuel_profs' or request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_criteres' or request.resolver_match.url_name == 'admin_critere_ajouter' or request.resolver_match.url_name == 'admin_critere_modifier' or request.resolver_match.url_name == 'admin_criteres_eleves' or request.resolver_match.url_name == 'admin_critere_eleve_ajouter' or request.resolver_match.url_name == 'admin_critere_eleve_modifier' or request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' or request.resolver_match.url_name == 'classement_mensuel_profs' or request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' or request.resolver_match.url_name == 'suivi_engagement_mensuel' %}open{% endif %}>
             <summary>التقييم والمتابعة</summary>
             <a href="{% url 'admin_criteres' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_criteres' or request.resolver_match.url_name == 'admin_critere_ajouter' or request.resolver_match.url_name == 'admin_critere_modifier' %}active{% endif %}">
@@ -292,6 +292,10 @@
             <a href="{% url 'bilans_mensuels' %}"
                class="menu-item {% if request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' %}active{% endif %}">
                 <span class="icon">📝</span> تقييم الطلاب
+            </a>
+            <a href="{% url 'suivi_engagement_mensuel' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'suivi_engagement_mensuel' %}active{% endif %}">
+                <span class="icon">✅</span> متابعة الالتزام الشهري
             </a>
         </details>
 

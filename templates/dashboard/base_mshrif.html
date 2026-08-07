@@ -208,7 +208,7 @@
             <span class="icon">💰</span> متابعة رواتب الأساتذة
         </a>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' or request.resolver_match.url_name == 'classement_mensuel_profs' or request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' or request.resolver_match.url_name == 'admin_criteres_eleves' or request.resolver_match.url_name == 'admin_criteres' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' or request.resolver_match.url_name == 'classement_mensuel_profs' or request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' or request.resolver_match.url_name == 'admin_criteres_eleves' or request.resolver_match.url_name == 'admin_criteres' or request.resolver_match.url_name == 'suivi_engagement_mensuel' %}open{% endif %}>
             <summary>التقييم والمتابعة</summary>
             <a href="{% url 'admin_evaluations' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' %}active{% endif %}">
@@ -237,6 +237,10 @@
             <a href="{% url 'admin_criteres_eleves' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_criteres_eleves' %}active{% endif %}">
                 <span class="icon">📋</span> معايير تقييم الطلاب
+            </a>
+            <a href="{% url 'suivi_engagement_mensuel' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'suivi_engagement_mensuel' %}active{% endif %}">
+                <span class="icon">✅</span> متابعة الالتزام الشهري
             </a>
         </details>
 

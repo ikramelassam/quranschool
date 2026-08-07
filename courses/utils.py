@@ -1048,3 +1048,112 @@ def regrouper_seances_a_venir(seances_qs, aujourdhui):
         'mois_suivants': mois_suivants,
         'nb_semaine_courante': len(bucket_semaine_courante),
     }
+
+
+def calculer_suivi_mensuel_engagement(mois):
+    """Page "متابعة الالتزام الشهري" (Tâche du 2026-08-07) — suite directe du
+    diagnostic sur "نسبة الحضور هذا الشهر" : ce chiffre mesurait "% de
+    présent PARMI les feuilles remplies" (dénominateur = lignes Presence,
+    donc élève × séance, avec le biais découvert : une seule séance
+    individuelle traitée suffit à afficher 100%). Remplacé ici par 3
+    indicateurs au niveau SÉANCE (pas élève × séance, décision explicite du
+    client pour rester lisible), qui mesurent la COUVERTURE réelle : combien
+    de séances passées ont eu leur présence enregistrée, et combien ont été
+    évaluées par un مؤطر.
+
+    mois : date au 1er jour du mois (même convention que
+    calculer_remuneration_prof/mshrif_remuneration).
+
+    "Séance passée" = date < aujourd'hui (aligné sur le filtre déjà utilisé
+    par superviseur_profil.nb_evaluations_en_attente), séances annulées
+    TOUJOURS exclues des 3 indicateurs (une séance annulée n'a pas à être
+    "traitée" par personne).
+
+    "حصص لم يقيّمها المؤطر" est volontairement plus strict que
+    nb_evaluations_en_attente (qui compte TOUTE séance passée non évaluée,
+    même jamais traitée par le prof) : ici on ne compte que les séances
+    DÉJÀ traitées (Presence existe) mais pas encore évaluées — sinon
+    l'indicateur mélangerait deux causes différentes (prof absent vs مؤطر
+    en retard).
+
+    Zone 2/3 (par prof / par مؤطر) : une boucle Python par entité (pas une
+    seule requête agrégée) car chaque ligne a besoin de la liste précise des
+    séances non traitées/non évaluées pour son accordéon déplié — accepté
+    tel quel vu le nombre réduit de profs/مؤطرين réels de cette école (même
+    ordre de grandeur que mshrif_remuneration, jamais identifié comme un
+    point chaud lors de l'audit de performance du 2026-08-06). À revisiter
+    si le nombre de profs grossit significativement."""
+    from django.db.models import Exists, OuterRef
+    from django.utils import timezone
+    from accounts.models import Prof, Superviseur
+    from courses.models import Seance, Presence
+    from evaluations.models import Evaluation
+
+    aujourdhui = timezone.localdate()
+    annee, mois_num = mois.year, mois.month
+
+    seances_passees = Seance.objects.filter(
+        date__year=annee, date__month=mois_num, date__lt=aujourdhui,
+    ).exclude(statut='annulee').annotate(
+        a_presence=Exists(Presence.objects.filter(seance=OuterRef('pk')))
+    )
+
+    nb_total_passees = seances_passees.count()
+    nb_traitees = seances_passees.filter(a_presence=True).count()
+    nb_non_traitees = nb_total_passees - nb_traitees
+    taux_couverture = round((nb_traitees / nb_total_passees) * 100) if nb_total_passees else None
+
+    nb_non_evaluees = seances_passees.filter(a_presence=True, evaluation__isnull=True).count()
+
+    # --- Zone 2 : تسجيل الحضور — الأساتذة ---
+    lignes_profs = []
+    for prof in Prof.objects.select_related('user').all():
+        qs_prof = seances_passees.filter(groupe__prof=prof)
+        total = qs_prof.count()
+        if total == 0:
+            continue
+        traitees = qs_prof.filter(a_presence=True).count()
+        lignes_profs.append({
+            'prof': prof,
+            'taux': round((traitees / total) * 100),
+            'nb_traitees': traitees,
+            'nb_total': total,
+            'seances_non_traitees': list(
+                qs_prof.filter(a_presence=False).select_related('groupe').order_by('date')
+            ),
+        })
+    lignes_profs.sort(key=lambda l: l['taux'])
+
+    # --- Zone 3 : تقييم الحصص — المؤطرون ---
+    lignes_superviseurs = []
+    for superviseur in Superviseur.objects.select_related('user').all():
+        # Périmètre = séances DÉJÀ traitées des profs qu'il supervise, comme défini
+        # par le client (pas les séances jamais traitées, qui ne dépendent pas de lui).
+        qs_sup = seances_passees.filter(
+            groupe__prof__in=superviseur.profs_assignes.all(), a_presence=True,
+        )
+        total = qs_sup.count()
+        if total == 0:
+            continue
+        evaluees = qs_sup.filter(evaluation__isnull=False).count()
+        lignes_superviseurs.append({
+            'superviseur': superviseur,
+            'taux': round((evaluees / total) * 100),
+            'nb_evaluees': evaluees,
+            'nb_total': total,
+            'seances_non_evaluees': list(
+                qs_sup.filter(evaluation__isnull=True).select_related('groupe', 'groupe__prof__user').order_by('date')
+            ),
+        })
+    lignes_superviseurs.sort(key=lambda l: l['taux'])
+
+    return {
+        'mois': mois,
+        'nb_total_passees': nb_total_passees,
+        'nb_traitees': nb_traitees,
+        'nb_non_traitees': nb_non_traitees,
+        'taux_couverture': taux_couverture,
+        'nb_non_evaluees': nb_non_evaluees,
+        'lignes_profs': lignes_profs,
+        'lignes_superviseurs': lignes_superviseurs,
+    }
