@@ -1,0 +1,47 @@
+{% comment %}
+Liste de groupes "المجموعات المسندة" — extraite de superviseur_profil.html
+(Tâche du 2026-08-06) pour être réutilisée telle quelle sur
+admin_superviseur_assignations.html (bloc d'info لecture seule au-dessus
+de la liste de gestion), plutôt que dupliquée. Même structure de données
+(groupes annotés nb_eleves), même style.
+
+Variables attendues :
+- groupes : queryset/liste de Groupe, chacun annoté nb_eleves (Count).
+- couleur_accent : chaîne CSS (ex: 'var(--color-role-superviseur-solid)').
+- url_detail_name : route vers le détail d'un groupe — diffère selon qui
+  consulte (superviseur_groupe_detail pour le مؤطر lui-même, scopé à
+  request.user ; admin_groupe_detail pour مدير/مشرف qui consultent le
+  profil d'un AUTRE مؤطر — superviseur_groupe_detail leur renverrait un
+  404, ce n'est pas leur propre compte).
+- lien_seances_jour (optionnel, bool) : ajoute "عرض حصص اليوم ←" vers
+  dashboard_superviseur?groupe=X — pertinent UNIQUEMENT quand le مؤطر
+  consulte SON PROPRE profil (superviseur_profil.html), pas depuis la vue
+  admin (dashboard_superviseur est aussi scopé à request.user).
+{% endcomment %}
+{% for groupe in groupes %}
+<div class="groupe-mesnad-ligne" style="{% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} padding:12px 4px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+        <a href="{% url url_detail_name groupe.id %}" style="text-decoration:none; color:inherit; flex:1; min-width:200px;">
+            <div style="font-weight:700;">{{ groupe.nom }}</div>
+            <div style="color:#888; font-size:0.82rem; margin-top:2px;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}غير محدد{% endif %}</div>
+        </a>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span style="background:{% if groupe.prof.statut == 'archive' %}#fce4e4{% else %}#f3e6cc{% endif %}; color:{% if groupe.prof.statut == 'archive' %}var(--color-danger){% else %}{{ couleur_accent }}{% endif %}; border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">
+                {{ groupe.prof.user.get_full_name|default:"— بدون أستاذ" }}{% if groupe.prof.statut == 'archive' %} (مؤرشف){% endif %}
+            </span>
+            <span style="color:#888; font-size:0.78rem; white-space:nowrap;">👤 {{ groupe.nb_eleves }} طالب</span>
+            {% if lien_seances_jour %}
+            <a href="{% url 'dashboard_superviseur' %}?groupe={{ groupe.id }}" style="color:{{ couleur_accent }}; font-size:0.78rem; text-decoration:none; white-space:nowrap;">عرض حصص اليوم ←</a>
+            {% endif %}
+        </div>
+    </div>
+    {% if groupe.prof.statut == 'archive' %}
+    <div style="color:var(--color-danger); font-size:0.82rem; margin-top:6px;">⚠ يجب تعيين أستاذ آخر لهذه المجموعة.</div>
+    {% endif %}
+</div>
+{% empty %}
+<div style="text-align:center; padding:40px; color:#aaa;">لا توجد مجموعات مسندة حاليا</div>
+{% endfor %}
+<style>
+    .groupe-mesnad-ligne:hover { background:var(--color-bg-cream); }
+</style>

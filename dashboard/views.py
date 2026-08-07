@@ -4052,8 +4052,20 @@ def admin_superviseur_assignations(request, superviseur_id):
     ailleurs la piste la plus plausible restante (page mise en cache par le
     navigateur avant un correctif antérieur)."""
     from accounts.models import Superviseur, Prof
+    from courses.models import Groupe
     from django.db.models import Count
     superviseur = get_object_or_404(Superviseur, id=superviseur_id)
+
+    # Bloc d'info لecture seule (Tâche du 2026-08-06) : même requête que
+    # superviseur_profil.html "المجموعات المسندة" (groupes_assignes), pour
+    # que مدير voie d'un coup d'œil la situation actuelle avant de modifier
+    # l'assignation en dessous. Réutilise dashboard/_liste_groupes_mesnad.html,
+    # jamais dupliqué.
+    groupes_actuels = Groupe.objects.filter(
+        prof__in=superviseur.profs_assignes.all(), statut='actif'
+    ).select_related('prof__user', 'creneau').annotate(
+        nb_eleves=Count('eleves', distinct=True)
+    ).order_by('nom')
     # Prof.actifs exclut les archivés de la liste à cocher — SAUF ceux déjà
     # assignés à ce مؤطر (gardés visibles, étiquetés "مؤرشف" dans le template)
     # pour ne pas les faire disparaître silencieusement d'un formulaire qui
@@ -4086,6 +4098,7 @@ def admin_superviseur_assignations(request, superviseur_id):
         'superviseur': superviseur,
         'profs': tous_les_profs,
         'profs_assignes_ids': profs_assignes_ids,
+        'groupes_actuels': groupes_actuels,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
