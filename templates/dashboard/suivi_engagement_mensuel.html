@@ -90,6 +90,9 @@ Palette gold/cream/brown existante, mêmes tokens que le reste du site
     <div class="suivi-carte-stat {% if donnees.nb_non_evaluees > 0 %}alerte{% endif %}">
         <div class="libelle">حصص لم يقيّمها المؤطر</div>
         <div class="valeur">{{ donnees.nb_non_evaluees }}</div>
+        {% if donnees.nb_non_evaluees_sans_superviseur > 0 %}
+        <div class="sous-texte">منها {{ donnees.nb_non_evaluees_sans_superviseur }} حصة بدون مؤطر مسؤول</div>
+        {% endif %}
     </div>
 </div>
 <div style="color:var(--color-text-muted); font-size:0.78rem; margin:-14px 0 24px;">
@@ -128,6 +131,28 @@ Palette gold/cream/brown existante, mêmes tokens que le reste du site
     {% empty %}
     <div class="suivi-vide">لا يوجد أي أستاذ في النظام</div>
     {% endfor %}
+    {% if donnees.ligne_sans_prof %}
+    {% with ligne=donnees.ligne_sans_prof %}
+    <details class="suivi-ligne">
+        <summary>
+            <div class="suivi-avatar" style="background:#fce4e4; color:var(--color-danger);">⚠</div>
+            <div class="suivi-nom">{{ ligne.label }}</div>
+            <div class="suivi-barre"><div class="suivi-barre-remplissage {% if ligne.taux < 50 %}faible{% else %}correct{% endif %}" style="width:{{ ligne.taux }}%;"></div></div>
+            <div class="suivi-pourcentage {% if ligne.taux < 50 %}faible{% endif %}">{{ ligne.taux }}%</div>
+        </summary>
+        <div class="suivi-detail">
+            <div class="suivi-detail-label">مجموعات بدون أستاذ معيّن — ({{ ligne.nb_total }} حصة، منها {{ ligne.nb_traitees }} مسجلة) :</div>
+            {% if ligne.seances_non_traitees %}
+                {% for s in ligne.seances_non_traitees %}
+                <div class="suivi-detail-seance">{{ s.date|date:"d-m-Y" }} — {{ s.groupe.nom }}</div>
+                {% endfor %}
+            {% else %}
+                <div class="suivi-detail-seance">جميع حصص هذه المجموعات مسجلة ✅</div>
+            {% endif %}
+        </div>
+    </details>
+    {% endwith %}
+    {% endif %}
 </div>
 
 <!-- Zone 3 -->
@@ -161,5 +186,22 @@ Palette gold/cream/brown existante, mêmes tokens que le reste du site
     {% empty %}
     <div class="suivi-vide">لا يوجد أي مؤطر في النظام</div>
     {% endfor %}
+    {% if donnees.ligne_sans_superviseur %}
+    {% with ligne=donnees.ligne_sans_superviseur %}
+    <details class="suivi-ligne">
+        <summary>
+            <div class="suivi-avatar" style="background:#fce4e4; color:var(--color-danger);">⚠</div>
+            <div class="suivi-nom">{{ ligne.label }}</div>
+            <div class="suivi-pourcentage" style="color:var(--color-danger);">{{ ligne.seances_non_evaluees|length }} حصة</div>
+        </summary>
+        <div class="suivi-detail">
+            <div class="suivi-detail-label">حصص معلَّمها بدون مؤطر مسؤول — يحتاج إسناد مؤطر لهذا المعلم:</div>
+            {% for s in ligne.seances_non_evaluees %}
+            <div class="suivi-detail-seance">{{ s.date|date:"d-m-Y" }} — {{ s.groupe.nom }} — {{ s.groupe.prof.user.get_full_name|default:"(بدون أستاذ)" }}</div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endwith %}
+    {% endif %}
 </div>
 {% endblock %}

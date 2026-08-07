@@ -1105,7 +1105,20 @@ def calculer_suivi_mensuel_engagement(mois):
     مؤطرين réels de cette école (même ordre de grandeur que
     mshrif_remuneration, jamais identifié comme un point chaud lors de
     l'audit de performance du 2026-08-06). À revisiter si le nombre de
-    profs grossit significativement."""
+    profs grossit significativement.
+
+    ligne_sans_prof / ligne_sans_superviseur (Tâche du 2026-08-07, 3e ronde) :
+    2 cas structurels distincts découverts en creusant un écart signalé par
+    le client entre le compteur du haut et la somme des listes détaillées —
+    (1) une séance dont le GROUPE n'a aucun prof (groupe.prof=NULL, comptait
+    dans nb_non_traitees sans apparaître dans aucune ligne de Zone 2, la
+    boucle étant indexée par prof), (2) une séance déjà traitée dont le prof
+    n'a AUCUN مؤطر assigné (compte dans nb_non_evaluees mais ne peut
+    structurellement apparaître dans aucune ligne de Zone 3, qui est scopée
+    par profs_assignes). Les 2 restent None/vide si aucun cas de ce type —
+    pas affichés en permanence comme les profs/مؤطرين réels, ce ne sont pas
+    des entités à suivre mais des anomalies à signaler seulement si elles
+    existent."""
     from django.db.models import Exists, OuterRef
     from django.utils import timezone
     from accounts.models import Prof, Superviseur
@@ -1126,7 +1139,22 @@ def calculer_suivi_mensuel_engagement(mois):
     nb_non_traitees = nb_total_passees - nb_traitees
     taux_couverture = round((nb_traitees / nb_total_passees) * 100) if nb_total_passees else None
 
-    nb_non_evaluees = seances_passees.filter(a_presence=True, evaluation__isnull=True).count()
+    # Détail complet des non-évaluées (pas juste le compte) : nécessaire pour
+    # distinguer, dans la liste elle-même, celles dont le prof n'a AUCUN
+    # مؤطر assigné (Tâche du 2026-08-07, 3e ronde — signalé par le client :
+    # ces séances comptaient dans le total global sans qu'on sache qu'aucun
+    # مؤطر ne peut structurellement les évaluer, laissant croire à un retard
+    # normal alors que personne n'en a la responsabilité).
+    seances_non_evaluees_toutes = list(
+        seances_passees.filter(a_presence=True, evaluation__isnull=True)
+        .select_related('groupe', 'groupe__prof__user')
+    )
+    nb_non_evaluees = len(seances_non_evaluees_toutes)
+    seances_non_evaluees_sans_superviseur = [
+        s for s in seances_non_evaluees_toutes
+        if s.groupe is None or s.groupe.prof is None or not s.groupe.prof.superviseurs.exists()
+    ]
+    nb_non_evaluees_sans_superviseur = len(seances_non_evaluees_sans_superviseur)
 
     # --- نسبة الحضور الفعلي (من الحصص المسجلة) : niveau élève × séance,
     # restreint aux mêmes séances passées/non-annulées que le reste de la
@@ -1156,6 +1184,29 @@ def calculer_suivi_mensuel_engagement(mois):
         })
     lignes_profs.sort(key=lambda l: (l['taux'] is None, l['taux'] if l['taux'] is not None else 0))
 
+    # Séances passées dont le GROUPE n'a aucun prof assigné (groupe.prof=NULL,
+    # SET_NULL — arrive si le prof est supprimé, ou données mal formées comme
+    # le "DbgGroupe" trouvé et nettoyé le 2026-08-07). Avant ce correctif,
+    # ces séances comptaient dans nb_non_traitees SANS apparaître dans aucune
+    # ligne de Zone 2 (la boucle est indexée par prof) — invisibles alors
+    # qu'elles pesaient dans le total affiché en haut. Ligne à part, affichée
+    # SEULEMENT si non vide (contrairement aux profs réels, "0 groupe sans
+    # prof" n'est pas une donnée utile à afficher en permanence).
+    qs_sans_prof = seances_passees.filter(groupe__prof__isnull=True)
+    total_sans_prof = qs_sans_prof.count()
+    ligne_sans_prof = None
+    if total_sans_prof:
+        traitees_sans_prof = qs_sans_prof.filter(a_presence=True).count()
+        ligne_sans_prof = {
+            'label': 'بدون أستاذ معيّن',
+            'taux': round((traitees_sans_prof / total_sans_prof) * 100),
+            'nb_traitees': traitees_sans_prof,
+            'nb_total': total_sans_prof,
+            'seances_non_traitees': list(
+                qs_sans_prof.filter(a_presence=False).select_related('groupe').order_by('date')
+            ),
+        }
+
     # --- Zone 3 : تقييم الحصص — المؤطرون ---
     lignes_superviseurs = []
     for superviseur in Superviseur.objects.select_related('user').all():
@@ -1177,6 +1228,19 @@ def calculer_suivi_mensuel_engagement(mois):
         })
     lignes_superviseurs.sort(key=lambda l: (l['taux'] is None, l['taux'] if l['taux'] is not None else 0))
 
+    # Séances déjà traitées mais dont le prof n'a AUCUN مؤطر assigné —
+    # comptent dans nb_non_evaluees (le total global reste inchangé, comme
+    # demandé) mais ne peuvent structurellement apparaître dans AUCUNE ligne
+    # ci-dessus (qs_sup est scopé par profs_assignes). Ligne à part pour que
+    # le مدير voie qu'il faut assigner un مؤطر, plutôt que de laisser croire
+    # à un retard d'évaluation normal. Affichée seulement si non vide.
+    ligne_sans_superviseur = None
+    if nb_non_evaluees_sans_superviseur:
+        ligne_sans_superviseur = {
+            'label': 'بدون مؤطر مسؤول',
+            'seances_non_evaluees': sorted(seances_non_evaluees_sans_superviseur, key=lambda s: s.date),
+        }
+
     return {
         'mois': mois,
         'nb_total_passees': nb_total_passees,
@@ -1184,9 +1248,12 @@ def calculer_suivi_mensuel_engagement(mois):
         'nb_non_traitees': nb_non_traitees,
         'taux_couverture': taux_couverture,
         'nb_non_evaluees': nb_non_evaluees,
+        'nb_non_evaluees_sans_superviseur': nb_non_evaluees_sans_superviseur,
         'taux_presence_reel': taux_presence_reel,
         'nb_present_reel': nb_present_reel,
         'nb_lignes_presence': nb_lignes_presence,
         'lignes_profs': lignes_profs,
+        'ligne_sans_prof': ligne_sans_prof,
         'lignes_superviseurs': lignes_superviseurs,
+        'ligne_sans_superviseur': ligne_sans_superviseur,
     }
