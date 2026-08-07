@@ -48,7 +48,7 @@
                 </div>
                 <div class="mb-3">
                     <label style="font-weight:600; color:#333;">كلمة المرور الحالية *</label>
-                    <input type="password" name="mot_de_passe_email" class="form-control mt-1" required>
+                    {% include 'dashboard/_champ_mot_de_passe.html' with name='mot_de_passe_email' id='id_amc_email_mdp' requis=True %}
                 </div>
                 <button type="submit"
                     style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
@@ -66,15 +66,15 @@
                 <input type="hidden" name="action" value="password">
                 <div class="mb-3">
                     <label style="font-weight:600; color:#333;">كلمة المرور الحالية *</label>
-                    <input type="password" name="ancien_mot_de_passe" class="form-control mt-1" required>
+                    {% include 'dashboard/_champ_mot_de_passe.html' with name='ancien_mot_de_passe' id='id_amc_ancien' requis=True %}
                 </div>
                 <div class="mb-3">
                     <label style="font-weight:600; color:#333;">كلمة المرور الجديدة *</label>
-                    <input type="password" name="nouveau_mot_de_passe" class="form-control mt-1" required minlength="8">
+                    {% include 'dashboard/_champ_mot_de_passe.html' with name='nouveau_mot_de_passe' id='id_amc_nouveau' requis=True minlength=8 %}
                 </div>
                 <div class="mb-3">
                     <label style="font-weight:600; color:#333;">تأكيد كلمة المرور الجديدة *</label>
-                    <input type="password" name="confirmation" class="form-control mt-1" required minlength="8">
+                    {% include 'dashboard/_champ_mot_de_passe.html' with name='confirmation' id='id_amc_confirmation' requis=True minlength=8 %}
                 </div>
                 <button type="submit"
                     style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">

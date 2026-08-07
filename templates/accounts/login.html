@@ -156,8 +156,7 @@
 
             <div class="mb-3">
                 <label class="form-label">كلمة المرور</label>
-                <input type="password" name="password" class="form-control"
-                       placeholder="أدخل كلمة المرور" required>
+                {% include 'dashboard/_champ_mot_de_passe.html' with name='password' id='id_login_password' placeholder='أدخل كلمة المرور' requis=True %}
             </div>
 
             <button type="submit" class="btn-login">تسجيل الدخول</button>
@@ -172,7 +171,7 @@
 
         <!-- Boutons inscription -->
         <a href="{% url 'inscription_eleve_choix' %}" class="btn-student">التسجيل كطالب</a>
-        <a href="{% url 'inscription_prof' %}"" class="btn-teacher">التسجيل كمعلم</a>
+        <a href="{% url 'inscription_prof' %}" class="btn-teacher">التسجيل كمعلم</a>
 
     </div>
 
