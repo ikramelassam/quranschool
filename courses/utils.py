@@ -1051,23 +1051,34 @@ def regrouper_seances_a_venir(seances_qs, aujourdhui):
 
 
 def calculer_suivi_mensuel_engagement(mois):
-    """Page "متابعة الالتزام الشهري" (Tâche du 2026-08-07) — suite directe du
-    diagnostic sur "نسبة الحضور هذا الشهر" : ce chiffre mesurait "% de
-    présent PARMI les feuilles remplies" (dénominateur = lignes Presence,
-    donc élève × séance, avec le biais découvert : une seule séance
-    individuelle traitée suffit à afficher 100%). Remplacé ici par 3
-    indicateurs au niveau SÉANCE (pas élève × séance, décision explicite du
-    client pour rester lisible), qui mesurent la COUVERTURE réelle : combien
-    de séances passées ont eu leur présence enregistrée, et combien ont été
-    évaluées par un مؤطر.
+    """Page "متابعة الالتزام الشهري" (Tâche du 2026-08-07, complétée le
+    2026-08-07 2e ronde) — suite directe du diagnostic sur "نسبة الحضور هذا
+    الشهر" : ce chiffre mesurait "% de présent PARMI les feuilles remplies"
+    (dénominateur = lignes Presence, donc élève × séance, avec le biais
+    découvert : une seule séance individuelle traitée suffit à afficher
+    100%). Remplacé par 4 indicateurs, 2 niveaux différents et volontairement
+    distincts (le client a insisté pour que les deux coexistent) :
+
+    - نسبة تغطية الحضور / حصص لم يسجلها الأستاذ / حصص لم يقيّمها المؤطر :
+      niveau SÉANCE (pas élève × séance, décision explicite du client pour
+      rester lisible) — mesurent la discipline administrative (est-ce
+      qu'une feuille a été remplie/évaluée), pas le contenu.
+    - نسبة الحضور الفعلي (من الحصص المسجلة) : niveau ÉLÈVE × SÉANCE
+      (volontairement différent des 3 premiers, c'est l'ancien calcul de
+      "نسبة الحضور هذا الشهر" mais explicitement RESTREINT aux séances déjà
+      enregistrées ce mois — le biais initial venait de l'appliquer à TOUT
+      le mois avec un dénominateur minuscule, pas du niveau de calcul en
+      lui-même, qui reste la bonne question une fois qu'on sait sur quoi il
+      porte réellement).
 
     mois : date au 1er jour du mois (même convention que
     calculer_remuneration_prof/mshrif_remuneration).
 
     "Séance passée" = date < aujourd'hui (aligné sur le filtre déjà utilisé
     par superviseur_profil.nb_evaluations_en_attente), séances annulées
-    TOUJOURS exclues des 3 indicateurs (une séance annulée n'a pas à être
-    "traitée" par personne).
+    TOUJOURS exclues de tous les indicateurs (une séance annulée n'a pas à
+    être "traitée" par personne, et ses éventuelles lignes Presence ne
+    reflètent pas une vraie présence).
 
     "حصص لم يقيّمها المؤطر" est volontairement plus strict que
     nb_evaluations_en_attente (qui compte TOUTE séance passée non évaluée,
@@ -1076,13 +1087,25 @@ def calculer_suivi_mensuel_engagement(mois):
     l'indicateur mélangerait deux causes différentes (prof absent vs مؤطر
     en retard).
 
-    Zone 2/3 (par prof / par مؤطر) : une boucle Python par entité (pas une
-    seule requête agrégée) car chaque ligne a besoin de la liste précise des
-    séances non traitées/non évaluées pour son accordéon déplié — accepté
-    tel quel vu le nombre réduit de profs/مؤطرين réels de cette école (même
-    ordre de grandeur que mshrif_remuneration, jamais identifié comme un
-    point chaud lors de l'audit de performance du 2026-08-06). À revisiter
-    si le nombre de profs grossit significativement."""
+    Zone 2/3 (par prof / par مؤطر) : TOUS les profs / TOUS les مؤطرين du
+    système apparaissent désormais (Bug signalé le 2026-08-07 : la version
+    précédente sautait toute entité à total=0, ce qui vidait quasi
+    entièrement la Zone 3 dès qu'un seul mois avait peu de séances traitées
+    — un مؤطر dont aucun prof supervisé n'a de séance traitée ce mois-ci
+    n'est pas "sans donnée à afficher", c'est une donnée en soi). 'taux' est
+    None quand nb_total=0 (aucun pourcentage n'a de sens sur 0/0) — à
+    l'appelant (template) de l'afficher comme "0 من 0", jamais comme un
+    faux 0% ou 100%. Le tri (croissant, pire en premier) place les None à
+    la fin : "pas de donnée" n'est pas la même chose que "mauvaise
+    performance mesurée".
+
+    Une boucle Python par entité (pas une seule requête agrégée) car chaque
+    ligne a besoin de la liste précise des séances manquantes pour son
+    accordéon déplié — accepté tel quel vu le nombre réduit de profs/
+    مؤطرين réels de cette école (même ordre de grandeur que
+    mshrif_remuneration, jamais identifié comme un point chaud lors de
+    l'audit de performance du 2026-08-06). À revisiter si le nombre de
+    profs grossit significativement."""
     from django.db.models import Exists, OuterRef
     from django.utils import timezone
     from accounts.models import Prof, Superviseur
@@ -1105,24 +1128,33 @@ def calculer_suivi_mensuel_engagement(mois):
 
     nb_non_evaluees = seances_passees.filter(a_presence=True, evaluation__isnull=True).count()
 
+    # --- نسبة الحضور الفعلي (من الحصص المسجلة) : niveau élève × séance,
+    # restreint aux mêmes séances passées/non-annulées que le reste de la
+    # page (pas tout le mois — c'est précisément ça qui biaisait l'ancien
+    # calcul). nb_traitees (déjà calculé ci-dessus) EST le "X" du texte
+    # "من أصل X حصة مسجلة" : c'est exactement le nombre de séances qui ont
+    # au moins une ligne Presence.
+    presences_sur_seances_traitees = Presence.objects.filter(seance__in=seances_passees)
+    nb_lignes_presence = presences_sur_seances_traitees.count()
+    nb_present_reel = presences_sur_seances_traitees.filter(statut='present').count()
+    taux_presence_reel = round((nb_present_reel / nb_lignes_presence) * 100) if nb_lignes_presence else None
+
     # --- Zone 2 : تسجيل الحضور — الأساتذة ---
     lignes_profs = []
     for prof in Prof.objects.select_related('user').all():
         qs_prof = seances_passees.filter(groupe__prof=prof)
         total = qs_prof.count()
-        if total == 0:
-            continue
         traitees = qs_prof.filter(a_presence=True).count()
         lignes_profs.append({
             'prof': prof,
-            'taux': round((traitees / total) * 100),
+            'taux': round((traitees / total) * 100) if total else None,
             'nb_traitees': traitees,
             'nb_total': total,
             'seances_non_traitees': list(
                 qs_prof.filter(a_presence=False).select_related('groupe').order_by('date')
-            ),
+            ) if total else [],
         })
-    lignes_profs.sort(key=lambda l: l['taux'])
+    lignes_profs.sort(key=lambda l: (l['taux'] is None, l['taux'] if l['taux'] is not None else 0))
 
     # --- Zone 3 : تقييم الحصص — المؤطرون ---
     lignes_superviseurs = []
@@ -1133,19 +1165,17 @@ def calculer_suivi_mensuel_engagement(mois):
             groupe__prof__in=superviseur.profs_assignes.all(), a_presence=True,
         )
         total = qs_sup.count()
-        if total == 0:
-            continue
         evaluees = qs_sup.filter(evaluation__isnull=False).count()
         lignes_superviseurs.append({
             'superviseur': superviseur,
-            'taux': round((evaluees / total) * 100),
+            'taux': round((evaluees / total) * 100) if total else None,
             'nb_evaluees': evaluees,
             'nb_total': total,
             'seances_non_evaluees': list(
                 qs_sup.filter(evaluation__isnull=True).select_related('groupe', 'groupe__prof__user').order_by('date')
-            ),
+            ) if total else [],
         })
-    lignes_superviseurs.sort(key=lambda l: l['taux'])
+    lignes_superviseurs.sort(key=lambda l: (l['taux'] is None, l['taux'] if l['taux'] is not None else 0))
 
     return {
         'mois': mois,
@@ -1154,6 +1184,9 @@ def calculer_suivi_mensuel_engagement(mois):
         'nb_non_traitees': nb_non_traitees,
         'taux_couverture': taux_couverture,
         'nb_non_evaluees': nb_non_evaluees,
+        'taux_presence_reel': taux_presence_reel,
+        'nb_present_reel': nb_present_reel,
+        'nb_lignes_presence': nb_lignes_presence,
         'lignes_profs': lignes_profs,
         'lignes_superviseurs': lignes_superviseurs,
     }

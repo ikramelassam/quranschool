@@ -3,18 +3,24 @@
 {% block title %}متابعة الالتزام الشهري{% endblock %}
 {% block extra_css %}
 <style>
-/* Tâche du 2026-08-07 — remplace "نسبة الحضور هذا الشهر" (biaisée, voir
-   diagnostic) par 3 indicateurs au niveau séance + 2 listes triées du pire
-   au meilleur. Palette gold/cream/brown existante, mêmes tokens que le
-   reste du site (aucune couleur inventée) — voir courses.utils.
-   calculer_suivi_mensuel_engagement pour le calcul exact. */
-.suivi-grille-stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:24px; }
-@media (max-width:768px) { .suivi-grille-stats { grid-template-columns:1fr; } }
+{% comment %}
+Tâche du 2026-08-07 (2e ronde) — remplace "نسبة الحضور هذا الشهر" (biaisée,
+voir diagnostic) par 4 indicateurs : 3 au niveau séance (couverture
+administrative) + 1 au niveau élève × séance (نسبة الحضور الفعلي, restreint
+aux séances déjà enregistrées — voir courses.utils.
+calculer_suivi_mensuel_engagement pour le détail exact de chaque calcul).
+Palette gold/cream/brown existante, mêmes tokens que le reste du site
+(aucune couleur inventée).
+{% endcomment %}
+.suivi-grille-stats { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:24px; }
+@media (max-width:1100px) { .suivi-grille-stats { grid-template-columns:repeat(2, 1fr); } }
+@media (max-width:600px) { .suivi-grille-stats { grid-template-columns:1fr; } }
 .suivi-carte-stat { border-radius:12px; padding:14px; background:var(--color-bg-cream); }
 .suivi-carte-stat.alerte { background:#fce4e4; }
 .suivi-carte-stat .libelle { font-size:11px; color:var(--color-text-muted); margin-bottom:6px; }
 .suivi-carte-stat .valeur { font-size:22px; font-weight:700; color:var(--color-text-primary); }
 .suivi-carte-stat.alerte .valeur { color:var(--color-danger); }
+.suivi-carte-stat .sous-texte { font-size:11px; color:var(--color-text-muted); margin-top:4px; }
 
 .suivi-liste-entite {
     background:white; border:1px solid #f0f0f0; border-radius:12px;
@@ -37,9 +43,11 @@
 .suivi-barre-remplissage { height:100%; border-radius:4px; }
 .suivi-barre-remplissage.faible { background:var(--color-danger); }
 .suivi-barre-remplissage.correct { background:var(--color-success); }
-.suivi-pourcentage { width:44px; text-align:left; font-weight:700; font-size:0.9rem; flex-shrink:0; }
+.suivi-pourcentage { min-width:44px; text-align:left; font-weight:700; font-size:0.9rem; flex-shrink:0; }
 .suivi-pourcentage.faible { color:var(--color-danger); }
+.suivi-pourcentage.aucune-donnee { color:var(--color-text-muted); font-weight:600; font-size:0.78rem; }
 .suivi-detail { padding:0 20px 16px 20px; }
+.suivi-detail-label { color:var(--color-text-muted); font-size:0.78rem; font-weight:700; margin:4px 0 8px 50px; }
 .suivi-detail-seance {
     padding:8px 12px; margin-right:50px; color:var(--color-text-muted); font-size:0.85rem;
     border-right:2px solid #f0e6d2; margin-bottom:4px;
@@ -68,6 +76,13 @@
         <div class="libelle">نسبة تغطية الحضور</div>
         <div class="valeur">{% if donnees.taux_couverture != None %}{{ donnees.taux_couverture }}%{% else %}—{% endif %}</div>
     </div>
+    <div class="suivi-carte-stat {% if donnees.taux_presence_reel != None and donnees.taux_presence_reel < 50 %}alerte{% endif %}">
+        <div class="libelle">نسبة الحضور الفعلي (من الحصص المسجلة)</div>
+        <div class="valeur">{% if donnees.taux_presence_reel != None %}{{ donnees.taux_presence_reel }}%{% else %}لا توجد بيانات كافية بعد{% endif %}</div>
+        {% if donnees.taux_presence_reel != None %}
+        <div class="sous-texte">من أصل {{ donnees.nb_traitees }} حصة مسجلة هذا الشهر</div>
+        {% endif %}
+    </div>
     <div class="suivi-carte-stat {% if donnees.nb_non_traitees > 0 %}alerte{% endif %}">
         <div class="libelle">حصص لم يسجلها الأستاذ</div>
         <div class="valeur">{{ donnees.nb_non_traitees }}</div>
@@ -79,6 +94,7 @@
 </div>
 <div style="color:var(--color-text-muted); font-size:0.78rem; margin:-14px 0 24px;">
     {{ donnees.nb_traitees }} من أصل {{ donnees.nb_total_passees }} حصة ماضية هذا الشهر (غير الملغاة) سُجّل حضورها.
+    نسبة تغطية الحضور تقيس هل الحصة سُجّلت (انضباط إداري) — نسبة الحضور الفعلي تقيس، من بين ما سُجّل فقط، هل الطلاب كانوا حاضرين فعلاً. مؤشران مختلفان ومكمّلان.
 </div>
 
 <!-- Zone 2 -->
@@ -89,11 +105,18 @@
         <summary>
             <div class="suivi-avatar">{{ ligne.prof.user.first_name|first|upper }}{{ ligne.prof.user.last_name|first|upper }}</div>
             <div class="suivi-nom">{{ ligne.prof.user.get_full_name }}</div>
+            {% if ligne.taux != None %}
             <div class="suivi-barre"><div class="suivi-barre-remplissage {% if ligne.taux < 50 %}faible{% else %}correct{% endif %}" style="width:{{ ligne.taux }}%;"></div></div>
             <div class="suivi-pourcentage {% if ligne.taux < 50 %}faible{% endif %}">{{ ligne.taux }}%</div>
+            {% else %}
+            <div class="suivi-pourcentage aucune-donnee">0 من 0</div>
+            {% endif %}
         </summary>
         <div class="suivi-detail">
-            {% if ligne.seances_non_traitees %}
+            {% if ligne.nb_total == 0 %}
+                <div class="suivi-detail-seance">لا توجد حصص ماضية هذا الشهر لهذا الأستاذ</div>
+            {% elif ligne.seances_non_traitees %}
+                <div class="suivi-detail-label">الحصص غير المسجلة:</div>
                 {% for s in ligne.seances_non_traitees %}
                 <div class="suivi-detail-seance">{{ s.date|date:"d-m-Y" }} — {{ s.groupe.nom }}</div>
                 {% endfor %}
@@ -103,7 +126,7 @@
         </div>
     </details>
     {% empty %}
-    <div class="suivi-vide">لا توجد حصص ماضية هذا الشهر لأي أستاذ</div>
+    <div class="suivi-vide">لا يوجد أي أستاذ في النظام</div>
     {% endfor %}
 </div>
 
@@ -115,11 +138,18 @@
         <summary>
             <div class="suivi-avatar">{{ ligne.superviseur.user.first_name|first|upper }}{{ ligne.superviseur.user.last_name|first|upper }}</div>
             <div class="suivi-nom">{{ ligne.superviseur.user.get_full_name }}</div>
+            {% if ligne.taux != None %}
             <div class="suivi-barre"><div class="suivi-barre-remplissage {% if ligne.taux < 50 %}faible{% else %}correct{% endif %}" style="width:{{ ligne.taux }}%;"></div></div>
             <div class="suivi-pourcentage {% if ligne.taux < 50 %}faible{% endif %}">{{ ligne.taux }}%</div>
+            {% else %}
+            <div class="suivi-pourcentage aucune-donnee">0 من 0</div>
+            {% endif %}
         </summary>
         <div class="suivi-detail">
-            {% if ligne.seances_non_evaluees %}
+            {% if ligne.nb_total == 0 %}
+                <div class="suivi-detail-seance">لا توجد حصص مسجلة بعد لدى المعلمين الذين يشرف عليهم هذا الشهر</div>
+            {% elif ligne.seances_non_evaluees %}
+                <div class="suivi-detail-label">الحصص غير المقيَّمة:</div>
                 {% for s in ligne.seances_non_evaluees %}
                 <div class="suivi-detail-seance">{{ s.date|date:"d-m-Y" }} — {{ s.groupe.nom }} — {{ s.groupe.prof.user.get_full_name }}</div>
                 {% endfor %}
@@ -129,7 +159,7 @@
         </div>
     </details>
     {% empty %}
-    <div class="suivi-vide">لا توجد حصص مسجلة هذا الشهر لأي مؤطر</div>
+    <div class="suivi-vide">لا يوجد أي مؤطر في النظام</div>
     {% endfor %}
 </div>
 {% endblock %}
