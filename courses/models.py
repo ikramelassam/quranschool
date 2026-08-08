@@ -75,6 +75,21 @@ class DemandeModificationDisponibilite(models.Model):
         return f"Demande de {self.prof} - {self.get_statut_display()}"
 
 
+class CreneauActifsManager(models.Manager):
+    """Exclut les créneaux archivés (Tâche du 2026-08-08) — même principe
+    que EleveActifsManager/ProfActifsManager (accounts.models) : à utiliser
+    pour toute liste/sélecteur où un créneau archivé ne doit jamais
+    apparaître par défaut. 'Archivé' ici réutilise le champ est_actif déjà
+    existant (est_actif=False) plutôt que d'ajouter un nouveau champ
+    redondant — il n'y a pas de distinction utile dans ce projet entre
+    'désactivé temporairement' et 'archivé', les deux ont toujours désigné
+    la même chose (ne plus apparaître dans les nouveaux formulaires/listes,
+    sans toucher aux groupes/séances déjà existants qui en dépendent).
+    Ne remplace PAS le manager par défaut (Creneau.objects reste complet)."""
+    def get_queryset(self):
+        return super().get_queryset().exclude(est_actif=False)
+
+
 class Creneau(models.Model):
     JOUR_CHOICES = [
         ('lun', 'الاثنين'),
@@ -115,6 +130,9 @@ class Creneau(models.Model):
     heure_fin_2 = models.TimeField()
     est_actif = models.BooleanField(default=True)
 
+    objects = models.Manager()
+    actifs = CreneauActifsManager()
+
     def __str__(self):
         return (
             f"{self.get_jour_1_display()} {self.heure_debut_1.strftime('%H:%M')}"
@@ -124,6 +142,18 @@ class Creneau(models.Model):
     class Meta:
         verbose_name = "Créneau"
         verbose_name_plural = "Créneaux"
+
+class GroupeActifsManager(models.Manager):
+    """Exclut les groupes archivés (Tâche du 2026-08-08) — même principe que
+    EleveActifsManager/ProfActifsManager (accounts.models). Groupe.statut a
+    déjà le choix 'archive' depuis le début (jamais exploité par un manager
+    dédié jusqu'ici, seulement modifiable via le formulaire d'édition) —
+    ajouté ici pour de vrai. Ne remplace PAS le manager par défaut
+    (Groupe.objects reste complet, une fiche/détail par ID déjà connu doit
+    rester accessible même pour un groupe archivé)."""
+    def get_queryset(self):
+        return super().get_queryset().exclude(statut='archive')
+
 
 class Groupe(models.Model):
     TYPE_CAPACITE_CHOICES = [
@@ -160,6 +190,9 @@ class Groupe(models.Model):
         default='actif'
     )
     lien_reunion = models.URLField(blank=True)
+
+    objects = models.Manager()
+    actifs = GroupeActifsManager()
 
     def __str__(self):
         return self.nom
@@ -551,3 +584,32 @@ class BilanMensuel(models.Model):
         mois_limite = total_mois % 12 + 1
         date_limite = datetime.date(annee_limite, mois_limite, 1)
         return timezone.localdate() < date_limite
+
+
+class JournalSuppression(models.Model):
+    """Trace toute suppression RÉELLE d'un Groupe/Creneau avec historique lié
+    (Tâche du 2026-08-08, point 2 — مدير uniquement) : la seule preuve qui
+    survit une fois que les séances/présences/évaluations liées ont été
+    réellement détruites. Jamais modifié ni supprimé une fois créé — pas de
+    manager particulier, pas de vue d'édition/suppression exposée nulle
+    part, volontairement (un journal qu'on peut altérer n'en est plus un)."""
+    TYPE_CHOICES = [
+        ('groupe', 'مجموعة'),
+        ('creneau', 'حلقة'),
+    ]
+    type_objet = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    nom_objet = models.CharField(max_length=200)
+    id_objet = models.IntegerField()
+    resume_donnees_perdues = models.TextField()
+    supprime_par = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+    date_suppression = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.get_type_objet_display()} \"{self.nom_objet}\" — {self.date_suppression:%Y-%m-%d}"
+
+    class Meta:
+        verbose_name = "سجل حذف"
+        verbose_name_plural = "سجل الحذف"
+        ordering = ['-date_suppression']

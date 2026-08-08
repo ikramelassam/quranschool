@@ -8,14 +8,60 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <div class="page-title">{{ groupe.nom }}</div>
-        <div class="page-subtitle">تفاصيل المجموعة</div>
+        <div class="page-subtitle">
+            تفاصيل المجموعة
+            {% if groupe.statut == 'archive' %}
+            <span style="background:#f0f0f0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; margin-right:8px;">مؤرشفة 🗄</span>
+            {% endif %}
+        </div>
     </div>
-    {% if request.user.role != 'mshrif' %}
-    <a href="{% url 'admin_groupe_modifier' groupe.id %}"
-       style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
-       تعديل
-    </a>
-    {% endif %}
+    <div class="d-flex gap-2">
+        {% comment %}
+        Tâche du 2026-08-08 : أرشفة/إعادة تفعيل accessible مدير + مشرف
+        (demande explicite de ce chantier — contrairement à
+        admin_prof_archiver/admin_eleve_archiver qui restent مدير
+        uniquement). Confirmation classique (confirm() JS), même patron
+        que ces 2 pages.
+        {% endcomment %}
+        {% if groupe.statut == 'archive' %}
+        <a href="{% url 'admin_groupe_reactiver' groupe.id %}"
+           onclick="return confirm('هل تريد إعادة تفعيل مجموعة \'{{ groupe.nom|escapejs }}\'؟');"
+           style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+           إعادة تفعيل ✅
+        </a>
+        {% else %}
+        <a href="{% url 'admin_groupe_archiver' groupe.id %}"
+           onclick="return confirm('هل تريد أرشفة مجموعة \'{{ groupe.nom|escapejs }}\'؟ سيبقى سجلها كاملاً ومحفوظاً، ولن تظهر في القوائم إلا عبر تصفية \'الحالة\'.');"
+           style="background:#f0f0f0; color:#666; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+           أرشفة 🗄
+        </a>
+        {% endif %}
+
+        {% if request.user.role != 'mshrif' %}
+        <a href="{% url 'admin_groupe_modifier' groupe.id %}"
+           style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+           تعديل
+        </a>
+        {% if peut_supprimer %}
+        {% comment %}
+        Tâche du 2026-08-08 : بouton "حذف" réel, visible UNIQUEMENT si
+        groupe_peut_etre_supprime (calculé dans la vue) — aucune séance, aucun
+        élève actuellement inscrit, aucune trace dans l'historique
+        d'appartenance. Sinon, seule l'archivage ci-dessus reste possible —
+        voir courses.utils.groupe_peut_etre_supprime pour le raisonnement
+        complet, y compris pourquoi Paiement n'est pas vérifiable ici.
+        {% endcomment %}
+        <form method="POST" action="{% url 'admin_groupe_supprimer' groupe.id %}"
+              onsubmit="return confirm('هل أنت متأكدة من حذف مجموعة \'{{ groupe.nom|escapejs }}\' نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.');">
+            {% csrf_token %}
+            <button type="submit"
+                style="background:#fce4e4; color:var(--color-danger); border:none; border-radius:8px; padding:10px 20px; font-weight:600; font-family:'Tajawal',sans-serif; cursor:pointer;">
+                حذف 🗑️
+            </button>
+        </form>
+        {% endif %}
+        {% endif %}
+    </div>
 </div>
 
 {% if groupe.prof.statut == 'archive' %}
@@ -177,4 +223,37 @@
 <div class="mt-3">
     <a href="{% url 'admin_groupes' %}" style="color:var(--color-role-admin-solid); text-decoration:none;">← العودة للمجموعات</a>
 </div>
+
+{% if request.user.role == 'admin' %}
+{% comment %}
+Tâche du 2026-08-08, point 2 — منطقة خطر : suppression DÉFINITIVE même
+avec historique lié (séances/حضور/تقييمات). Distincte visuellement de
+"حذف" ci-dessus (rouge foncé, section à part, confirmation par SAISIE du
+nom exact plutôt qu'une simple popup — cohérent avec la gravité de
+l'action). مدير uniquement. Un JournalSuppression est créé dans la même
+transaction que la suppression (voir courses.views.
+groupe_supprimer_definitivement) — seule trace qui survit.
+{% endcomment %}
+<div style="background:#fdf1f0; border:2px solid var(--color-danger); border-radius:12px; padding:24px; margin-top:32px;">
+    <div style="font-weight:700; color:var(--color-danger); margin-bottom:8px;">⚠️ منطقة خطر — حذف نهائي مع السجل</div>
+    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:16px;">
+        يحذف هذه المجموعة نهائياً <strong>حتى لو كانت مرتبطة بحصص أو حضور أو تقييمات</strong> — كل هذه البيانات
+        ستُحذف معها ولا يمكن استرجاعها. سيُحفظ سجل بهذا الحذف (بدون البيانات نفسها) لأغراض التتبع.
+        الأرشفة أعلاه هي الخيار الآمن في كل الحالات الأخرى.
+    </p>
+    <form method="POST" action="{% url 'admin_groupe_supprimer_definitivement' groupe.id %}"
+          onsubmit="return confirm('تأكيد أخير: سيتم حذف {{ groupe.seances.count }} حصة وكل ما يرتبط بها نهائياً. هل أنت متأكدة تماماً؟');"
+          class="d-flex gap-2 align-items-end flex-wrap">
+        {% csrf_token %}
+        <div>
+            <label style="color:#8a3b36; font-size:0.8rem; display:block; margin-bottom:4px;">اكتب اسم المجموعة "{{ groupe.nom }}" للتأكيد</label>
+            <input type="text" name="confirmation_nom" class="form-control" placeholder="{{ groupe.nom }}" required style="min-width:260px;">
+        </div>
+        <button type="submit"
+            style="background:var(--color-danger); color:white; border:none; border-radius:8px; padding:10px 20px; font-weight:700; font-family:'Tajawal',sans-serif; cursor:pointer;">
+            حذف نهائي مع السجل 🗑️⚠️
+        </button>
+    </form>
+</div>
+{% endif %}
 {% endblock %}

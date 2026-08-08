@@ -6,7 +6,7 @@ from django.utils import timezone
 from accounts.decorators import role_required
 from core.utils import paginer
 from .models import Groupe, Creneau, HistoriqueGroupeEleve
-from .utils import regenerer_pour_nouveau_creneau, creneaux_manquants_pour_prof, raison_incompatibilite_groupe, avertissements_groupe, avertissements_prof_creneau
+from .utils import regenerer_pour_nouveau_creneau, creneaux_manquants_pour_prof, raison_incompatibilite_groupe, avertissements_groupe, avertissements_prof_creneau, creneau_peut_etre_supprime, groupe_peut_etre_supprime
 from accounts.models import Prof, Eleve
 
 
@@ -42,6 +42,12 @@ def groupes_list(request):
     groupes = Groupe.objects.select_related('prof__user', 'creneau').order_by('id')
     if statut:
         groupes = groupes.filter(statut=statut)
+    else:
+        # Tâche du 2026-08-08 : les groupes archivés restent hors de la liste
+        # par défaut (statut réversible, pas une suppression) sauf recherche
+        # explicite via le menu "الحالة" — même principe qu'admin_eleves/
+        # admin_profs (Eleve.actifs/Prof.actifs).
+        groupes = groupes.exclude(statut='archive')
     if prof_id:
         groupes = groupes.filter(prof_id=prof_id)
     if creneau_id:
@@ -205,6 +211,10 @@ def groupe_detail(request, groupe_id):
         'avertissements_en_attente': avertissements_en_attente,
         'action_en_attente': action_en_attente,
         'destination_en_attente': destination_en_attente,
+        # Tâche du 2026-08-08 : même raisonnement que creneaux_list — calculé
+        # ici pour que le bouton "حذف" et la vérification serveur avant
+        # suppression utilisent EXACTEMENT le même critère.
+        'peut_supprimer': groupe_peut_etre_supprime(groupe),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -390,13 +400,29 @@ def creneaux_list(request):
         creneaux = creneaux.filter(sexe_cible=sexe_cible)
     if actif:
         creneaux = creneaux.filter(est_actif=(actif == '1'))
+    else:
+        # Tâche du 2026-08-08 : un créneau archivé (est_actif=False) reste hors
+        # de la liste par défaut, sauf recherche explicite via "الحالة" —
+        # même principe qu'admin_eleves/admin_profs/admin_groupes. Avant ce
+        # correctif, "الحالة" vide affichait TOUT (y compris les archivés),
+        # contrairement à Eleve/Prof/Groupe.
+        creneaux = creneaux.filter(est_actif=True)
     if type_seance:
         creneaux = creneaux.filter(type_seance=type_seance)
     if riwaya:
         creneaux = creneaux.filter(riwaya=riwaya)
 
+    creneaux_page = paginer(request, creneaux, 10)
+    # Tâche du 2026-08-08 : calculé une fois ici (pas dans le template) pour
+    # que la condition d'affichage du bouton "حذف" soit EXACTEMENT la même
+    # que celle vérifiée côté serveur avant la suppression réelle (voir
+    # courses.utils.creneau_peut_etre_supprime) — pas de risque de dérive
+    # entre les deux si l'un des deux change plus tard.
+    for c in creneaux_page:
+        c.peut_supprimer = creneau_peut_etre_supprime(c)
+
     context = {
-        'creneaux': paginer(request, creneaux, 10),
+        'creneaux': creneaux_page,
         'filtres': {
             'sexe_cible': sexe_cible,
             'actif': actif,
@@ -476,10 +502,183 @@ def creneau_modifier(request, creneau_id):
     })
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def creneau_toggle(request, creneau_id):
+    """Archive/réactive un créneau (Tâche du 2026-08-08 : élargi à مشرف,
+    auparavant admin uniquement — demande explicite du client pour ce
+    chantier précis, contrairement à Eleve/Prof où seul مدير peut
+    archiver/réactiver). Réutilise est_actif comme statut d'archivage (voir
+    CreneauActifsManager) plutôt que d'ajouter des vues أرشفة/تفعيل
+    séparées comme pour Groupe — un seul champ booléen, un seul bouton
+    bidirectionnel reste plus simple et sans redondance."""
     creneau = get_object_or_404(Creneau, id=creneau_id)
     creneau.est_actif = not creneau.est_actif
     creneau.save()
-    messages.info(request, 'تم تفعيل الحلقة.' if creneau.est_actif else 'تم تعطيل الحلقة.')
+    messages.info(request, 'تمت إعادة تفعيل الحلقة.' if creneau.est_actif else 'تمت أرشفة الحلقة — لن تظهر في القوائم إلا عبر تصفية "الحالة".')
+    return redirect('admin_creneaux')
+
+
+@role_required('admin')
+def creneau_supprimer(request, creneau_id):
+    """Suppression réelle (Tâche du 2026-08-08) — UNIQUEMENT si aucune
+    donnée n'est rattachée (voir courses.utils.creneau_peut_etre_supprime,
+    revérifié ici côté serveur, jamais en se fiant au seul bouton caché
+    côté template). Sinon, seule "تعطيل" (admin_creneau_toggle, existant)
+    reste possible. POST uniquement (formulaire + confirm() JS côté
+    template, même patron que _reinitialiser_mot_de_passe.html)."""
+    creneau = get_object_or_404(Creneau, id=creneau_id)
+    if not creneau_peut_etre_supprime(creneau):
+        messages.error(
+            request,
+            'تعذّر الحذف: هذه الحلقة مرتبطة بمجموعة أو طلب تسجيل — يمكنك تعطيلها بدلاً من ذلك.'
+        )
+        return redirect('admin_creneaux')
+
+    if request.method != 'POST':
+        return redirect('admin_creneaux')
+
+    label = str(creneau)
+    creneau.delete()
+    messages.success(request, f'تم حذف الحلقة "{label}" نهائياً.')
+    return redirect('admin_creneaux')
+
+
+@role_required('admin')
+def groupe_supprimer(request, groupe_id):
+    """Suppression réelle (Tâche du 2026-08-08) — UNIQUEMENT si aucune
+    donnée n'est rattachée (voir courses.utils.groupe_peut_etre_supprime,
+    revérifié ici côté serveur). Sinon, seule "تعطيل" (statut='archive' via
+    admin_groupe_modifier, existant) reste possible. POST uniquement."""
+    groupe = get_object_or_404(Groupe, id=groupe_id)
+    if not groupe_peut_etre_supprime(groupe):
+        messages.error(
+            request,
+            'تعذّر الحذف: هذه المجموعة مرتبطة بحصص أو طلاب أو سجل تاريخي — يمكنك أرشفتها بدلاً من ذلك (تعديل ← الحالة).'
+        )
+        return redirect('admin_groupe_detail', groupe_id=groupe.id)
+
+    if request.method != 'POST':
+        return redirect('admin_groupe_detail', groupe_id=groupe.id)
+
+    nom = groupe.nom
+    groupe.delete()
+    messages.success(request, f'تم حذف المجموعة "{nom}" نهائياً.')
+    return redirect('admin_groupes')
+
+
+# ==================== ARCHIVAGE GROUPE (Tâche du 2026-08-08) ====================
+# Groupe.statut avait déjà le choix 'archive' depuis le début, mais jamais
+# exploité par une action dédiée (seulement modifiable via le formulaire
+# d'édition) — voir GroupeActifsManager pour l'exclusion des listes.
+# Élargi à مدير + مشرف (demande explicite de ce chantier), contrairement à
+# admin_prof_archiver/admin_eleve_archiver qui restent مدير uniquement — pas
+# de blocage de connexion à gérer ici (un Groupe n'est pas un compte).
+
+@role_required('admin', 'mshrif')
+def groupe_archiver(request, groupe_id):
+    groupe = get_object_or_404(Groupe, id=groupe_id)
+    groupe.statut = 'archive'
+    groupe.save(update_fields=['statut'])
+    messages.info(request, f'تمت أرشفة المجموعة "{groupe.nom}" — لن تظهر في القوائم إلا عبر تصفية "الحالة". سجلها الكامل يبقى محفوظاً.')
+    return redirect('admin_groupe_detail', groupe_id=groupe.id)
+
+
+@role_required('admin', 'mshrif')
+def groupe_reactiver(request, groupe_id):
+    groupe = get_object_or_404(Groupe, id=groupe_id)
+    groupe.statut = 'actif'
+    groupe.save(update_fields=['statut'])
+    messages.success(request, f'تمت إعادة تفعيل المجموعة "{groupe.nom}".')
+    return redirect('admin_groupe_detail', groupe_id=groupe.id)
+
+
+# ==================== SUPPRESSION DÉFINITIVE AVEC HISTORIQUE (Tâche du 2026-08-08, point 2) ====================
+# Distincte de groupe_supprimer/creneau_supprimer (qui refusent tout net si
+# une donnée existe) : ici, on supprime QUAND MÊME, même avec des séances/
+# présences/évaluations liées — مدير UNIQUEMENT (pas مشرف, contrairement à
+# l'archivage ci-dessus), confirmation par saisie EXACTE du nom (aucune case
+# à cocher ne suffit pour une action de cette gravité), et un JournalSuppression
+# créé dans LA MÊME transaction que la suppression : soit les deux réussissent,
+# soit aucun des deux (jamais une suppression réelle sans trace conservée).
+
+@role_required('admin')
+def groupe_supprimer_definitivement(request, groupe_id):
+    from evaluations.models import Evaluation
+    from .models import Presence, JournalSuppression
+
+    groupe = get_object_or_404(Groupe, id=groupe_id)
+    if request.method != 'POST':
+        return redirect('admin_groupe_detail', groupe_id=groupe.id)
+
+    confirmation_nom = request.POST.get('confirmation_nom', '').strip()
+    if confirmation_nom != groupe.nom:
+        messages.error(request, 'الاسم المُدخل لا يطابق اسم المجموعة بالضبط — لم يتم حذف أي شيء.')
+        return redirect('admin_groupe_detail', groupe_id=groupe.id)
+
+    nb_seances = groupe.seances.count()
+    nb_presences = Presence.objects.filter(seance__groupe=groupe).count()
+    nb_evaluations = Evaluation.objects.filter(seance__groupe=groupe).count()
+    nb_eleves = groupe.eleves.count()
+    nom = groupe.nom
+
+    with transaction.atomic():
+        JournalSuppression.objects.create(
+            type_objet='groupe',
+            nom_objet=nom,
+            id_objet=groupe.id,
+            resume_donnees_perdues=(
+                f'{nb_seances} حصة، {nb_presences} سجل حضور، {nb_evaluations} تقييم، '
+                f'{nb_eleves} طالب مسجل وقت الحذف — الأستاذ: {groupe.prof or "—"} — الحلقة: {groupe.creneau or "—"}'
+            ),
+            supprime_par=request.user,
+        )
+        groupe.delete()
+
+    messages.success(
+        request,
+        f'تم حذف المجموعة "{nom}" نهائياً مع كامل سجلها ({nb_seances} حصة، {nb_presences} حضور، {nb_evaluations} تقييم). سجل بهذا الحذف محفوظ.'
+    )
+    return redirect('admin_groupes')
+
+
+@role_required('admin')
+def creneau_supprimer_definitivement(request, creneau_id):
+    """GET affiche la page de confirmation dédiée (saisie exacte du nom) —
+    pas de champ texte casé dans la liste, contrairement à
+    groupe_supprimer_definitivement qui a sa propre page détail où le
+    placer. POST traite la suppression."""
+    from .models import JournalSuppression
+
+    creneau = get_object_or_404(Creneau, id=creneau_id)
+    if request.method != 'POST':
+        return render(request, 'courses/admin_creneau_supprimer_definitivement.html', {
+            'creneau': creneau,
+            'nb_groupes': creneau.groupes.count(),
+            'nb_inscriptions': creneau.inscriptions.count(),
+            'base_template': _base_template_admin_ou_mshrif(request),
+        })
+
+    label = str(creneau)
+    confirmation_nom = request.POST.get('confirmation_nom', '').strip()
+    if confirmation_nom != label:
+        messages.error(request, 'النص المُدخل لا يطابق اسم الحلقة بالضبط — لم يتم حذف أي شيء.')
+        return redirect('admin_creneaux')
+
+    nb_groupes = creneau.groupes.count()
+    nb_inscriptions = creneau.inscriptions.count()
+
+    with transaction.atomic():
+        JournalSuppression.objects.create(
+            type_objet='creneau',
+            nom_objet=label,
+            id_objet=creneau.id,
+            resume_donnees_perdues=(
+                f'{nb_groupes} مجموعة كانت مرتبطة بهذه الحلقة (أصبحت بدون حلقة، لم تُحذف)، '
+                f'{nb_inscriptions} طلب تسجيل كان يشير إليها.'
+            ),
+            supprime_par=request.user,
+        )
+        creneau.delete()
+
+    messages.success(request, f'تم حذف الحلقة "{label}" نهائياً. سجل بهذا الحذف محفوظ.')
     return redirect('admin_creneaux')

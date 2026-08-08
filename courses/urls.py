@@ -10,10 +10,16 @@ urlpatterns = [
     path('groupes/<int:groupe_id>/ajouter-eleve/', views.groupe_ajouter_eleve, name='admin_groupe_ajouter_eleve'),
     path('groupes/<int:groupe_id>/retirer-eleve/<int:eleve_id>/', views.groupe_retirer_eleve, name='admin_groupe_retirer_eleve'),
     path('groupes/<int:groupe_id>/transferer-eleve/<int:eleve_id>/', views.groupe_transferer_eleve, name='admin_groupe_transferer_eleve'),
+    path('groupes/<int:groupe_id>/supprimer/', views.groupe_supprimer, name='admin_groupe_supprimer'),
+    path('groupes/<int:groupe_id>/archiver/', views.groupe_archiver, name='admin_groupe_archiver'),
+    path('groupes/<int:groupe_id>/reactiver/', views.groupe_reactiver, name='admin_groupe_reactiver'),
+    path('groupes/<int:groupe_id>/supprimer-definitivement/', views.groupe_supprimer_definitivement, name='admin_groupe_supprimer_definitivement'),
 
     # Créneaux
     path('creneaux/', views.creneaux_list, name='admin_creneaux'),
     path('creneaux/ajouter/', views.creneau_ajouter, name='admin_creneau_ajouter'),
     path('creneaux/<int:creneau_id>/modifier/', views.creneau_modifier, name='admin_creneau_modifier'),
     path('creneaux/<int:creneau_id>/toggle/', views.creneau_toggle, name='admin_creneau_toggle'),
+    path('creneaux/<int:creneau_id>/supprimer/', views.creneau_supprimer, name='admin_creneau_supprimer'),
+    path('creneaux/<int:creneau_id>/supprimer-definitivement/', views.creneau_supprimer_definitivement, name='admin_creneau_supprimer_definitivement'),
 ]

@@ -1257,3 +1257,47 @@ def calculer_suivi_mensuel_engagement(mois):
         'lignes_superviseurs': lignes_superviseurs,
         'ligne_sans_superviseur': ligne_sans_superviseur,
     }
+
+
+def creneau_peut_etre_supprime(creneau):
+    """Tâche du 2026-08-08 — un حذف réel n'est proposé que si ce créneau
+    n'est référencé nulle part : ni par un groupe (Groupe.creneau,
+    SET_NULL — donc pas d'erreur de contrainte possible, mais on bloque
+    quand même par précaution : orpheliner silencieusement le créneau
+    d'un groupe existant serait une perte de donnée invisible), ni par
+    une candidature en cours (InscriptionEleve.creneau_souhaite,
+    related_name='inscriptions', SET_NULL aussi — même raisonnement).
+    Sinon, "تعطيل" (est_actif=False, déjà existant) reste la seule
+    option — cohérent avec le principe déjà établi partout ailleurs
+    dans ce projet (archivage réversible plutôt que suppression dès
+    qu'une donnée réelle est en jeu)."""
+    return creneau.groupes.count() == 0 and creneau.inscriptions.count() == 0
+
+
+def groupe_peut_etre_supprime(groupe):
+    """Tâche du 2026-08-08 — un حذف réel n'est proposé que si ce groupe
+    n'a STRICTEMENT aucune trace d'activité :
+    - aucune séance (Seance.groupe est CASCADE — supprimer un groupe
+      avec des séances détruirait en cascade les Presence ET les
+      Evaluation liées, donc l'historique réel de cours ; c'est
+      exactement le cas qu'il faut bloquer) ;
+    - aucun élève actuellement inscrit (Groupe.eleves, M2M) — ajouté
+      au-delà de ce qui était explicitement demandé : un groupe à 0
+      séance peut quand même avoir des élèves déjà affectés (créé puis
+      jamais utilisé, mais pas vide), les désinscrire silencieusement
+      via un حذف serait une surprise ;
+    - aucune trace dans HistoriqueGroupeEleve (même un élève retiré
+      depuis reste une trace réelle d'activité, pas seulement
+      l'appartenance actuelle).
+
+    Note honnête : Paiement n'est PAS vérifiable ici — dans ce schéma,
+    Paiement est lié à Eleve, jamais directement à Groupe (aucune FK
+    Paiement→Groupe n'existe), donc "aucun paiement lié à ce groupe" ne
+    peut pas être vérifié littéralement. Les 3 critères ci-dessus
+    couvrent tout ce qui est réellement rattaché à un Groupe dans ce
+    schéma."""
+    return (
+        groupe.seances.count() == 0
+        and groupe.eleves.count() == 0
+        and groupe.historique_eleves.count() == 0
+    )
