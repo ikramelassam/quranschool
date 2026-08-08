@@ -42,24 +42,14 @@
            style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
            تعديل
         </a>
-        {% if peut_supprimer %}
         {% comment %}
-        Tâche du 2026-08-08 : بouton "حذف" réel, visible UNIQUEMENT si
-        groupe_peut_etre_supprime (calculé dans la vue) — aucune séance, aucun
-        élève actuellement inscrit, aucune trace dans l'historique
-        d'appartenance. Sinon, seule l'archivage ci-dessus reste possible —
-        voir courses.utils.groupe_peut_etre_supprime pour le raisonnement
-        complet, y compris pourquoi Paiement n'est pas vérifiable ici.
+        Tâche du 2026-08-08 (nettoyage UX) : ancien bouton "حذف" simple
+        (Option B du tout premier chantier) RETIRÉ — désormais redondant avec
+        "أرشفة" (ci-dessus) et "حذف نهائي" (منطقة خطر, en bas de page).
+        courses.views.groupe_supprimer et courses.utils.
+        groupe_peut_etre_supprime restent dans le code (retrait du bouton
+        uniquement, demandé explicitement).
         {% endcomment %}
-        <form method="POST" action="{% url 'admin_groupe_supprimer' groupe.id %}"
-              onsubmit="return confirm('هل أنت متأكدة من حذف مجموعة \'{{ groupe.nom|escapejs }}\' نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.');">
-            {% csrf_token %}
-            <button type="submit"
-                style="background:#fce4e4; color:var(--color-danger); border:none; border-radius:8px; padding:10px 20px; font-weight:600; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                حذف 🗑️
-            </button>
-        </form>
-        {% endif %}
         {% endif %}
     </div>
 </div>
@@ -226,23 +216,23 @@
 
 {% if request.user.role == 'admin' %}
 {% comment %}
-Tâche du 2026-08-08, point 2 — منطقة خطر : suppression DÉFINITIVE même
-avec historique lié (séances/حضور/تقييمات). Distincte visuellement de
-"حذف" ci-dessus (rouge foncé, section à part, confirmation par SAISIE du
-nom exact plutôt qu'une simple popup — cohérent avec la gravité de
-l'action). مدير uniquement. Un JournalSuppression est créé dans la même
-transaction que la suppression (voir courses.views.
-groupe_supprimer_definitivement) — seule trace qui survit.
+Tâche du 2026-08-08, point 2 (révisé le 2026-08-08) — منطقة خطر :
+suppression DÉFINITIVE même avec historique lié (séances/حضور/تقييمات).
+Distincte visuellement de "حذف" ci-dessus (rouge foncé, section à part,
+confirmation par SAISIE du nom exact plutôt qu'une simple popup — cohérent
+avec la gravité de l'action). مدير uniquement. AUCUNE trace conservée
+après coup (décision explicite du client — le JournalSuppression construit
+initialement a été retiré, voir courses.views.
+groupe_supprimer_definitivement).
 {% endcomment %}
 <div style="background:#fdf1f0; border:2px solid var(--color-danger); border-radius:12px; padding:24px; margin-top:32px;">
-    <div style="font-weight:700; color:var(--color-danger); margin-bottom:8px;">⚠️ منطقة خطر — حذف نهائي مع السجل</div>
+    <div style="font-weight:700; color:var(--color-danger); margin-bottom:8px;">⚠️ منطقة خطر — حذف نهائي</div>
     <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:16px;">
         يحذف هذه المجموعة نهائياً <strong>حتى لو كانت مرتبطة بحصص أو حضور أو تقييمات</strong> — كل هذه البيانات
-        ستُحذف معها ولا يمكن استرجاعها. سيُحفظ سجل بهذا الحذف (بدون البيانات نفسها) لأغراض التتبع.
-        الأرشفة أعلاه هي الخيار الآمن في كل الحالات الأخرى.
+        ستُحذف معها ولا يمكن استرجاعها، ولن يبقى أي أثر لهذا الحذف. الأرشفة أعلاه هي الخيار الآمن في كل الحالات الأخرى.
     </p>
     <form method="POST" action="{% url 'admin_groupe_supprimer_definitivement' groupe.id %}"
-          onsubmit="return confirm('تأكيد أخير: سيتم حذف {{ groupe.seances.count }} حصة وكل ما يرتبط بها نهائياً. هل أنت متأكدة تماماً؟');"
+          onsubmit="return confirm('تأكيد أخير: سيتم حذف {{ groupe.seances.count }} حصة وكل ما يرتبط بها نهائياً، بدون أي إمكانية للتراجع. هل أنت متأكدة تماماً؟');"
           class="d-flex gap-2 align-items-end flex-wrap">
         {% csrf_token %}
         <div>
@@ -251,7 +241,7 @@ groupe_supprimer_definitivement) — seule trace qui survit.
         </div>
         <button type="submit"
             style="background:var(--color-danger); color:white; border:none; border-radius:8px; padding:10px 20px; font-weight:700; font-family:'Tajawal',sans-serif; cursor:pointer;">
-            حذف نهائي مع السجل 🗑️⚠️
+            حذف نهائي 🗑️⚠️
         </button>
     </form>
 </div>

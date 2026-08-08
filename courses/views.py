@@ -592,19 +592,20 @@ def groupe_reactiver(request, groupe_id):
     return redirect('admin_groupe_detail', groupe_id=groupe.id)
 
 
-# ==================== SUPPRESSION DÉFINITIVE AVEC HISTORIQUE (Tâche du 2026-08-08, point 2) ====================
+# ==================== SUPPRESSION DÉFINITIVE AVEC HISTORIQUE (Tâche du 2026-08-08, point 2 — révisé le 2026-08-08) ====================
 # Distincte de groupe_supprimer/creneau_supprimer (qui refusent tout net si
 # une donnée existe) : ici, on supprime QUAND MÊME, même avec des séances/
 # présences/évaluations liées — مدير UNIQUEMENT (pas مشرف, contrairement à
 # l'archivage ci-dessus), confirmation par saisie EXACTE du nom (aucune case
-# à cocher ne suffit pour une action de cette gravité), et un JournalSuppression
-# créé dans LA MÊME transaction que la suppression : soit les deux réussissent,
-# soit aucun des deux (jamais une suppression réelle sans trace conservée).
+# à cocher ne suffit pour une action de cette gravité). Décision explicite du
+# client : AUCUNE trace conservée après coup (le JournalSuppression construit
+# initialement a été retiré — modèle supprimé du projet, voir migration
+# 0025_delete_journalsuppression) — la suppression est réellement définitive,
+# sans journal d'audit.
 
 @role_required('admin')
 def groupe_supprimer_definitivement(request, groupe_id):
-    from evaluations.models import Evaluation
-    from .models import Presence, JournalSuppression
+    from .models import Presence
 
     groupe = get_object_or_404(Groupe, id=groupe_id)
     if request.method != 'POST':
@@ -617,26 +618,14 @@ def groupe_supprimer_definitivement(request, groupe_id):
 
     nb_seances = groupe.seances.count()
     nb_presences = Presence.objects.filter(seance__groupe=groupe).count()
-    nb_evaluations = Evaluation.objects.filter(seance__groupe=groupe).count()
-    nb_eleves = groupe.eleves.count()
     nom = groupe.nom
 
     with transaction.atomic():
-        JournalSuppression.objects.create(
-            type_objet='groupe',
-            nom_objet=nom,
-            id_objet=groupe.id,
-            resume_donnees_perdues=(
-                f'{nb_seances} حصة، {nb_presences} سجل حضور، {nb_evaluations} تقييم، '
-                f'{nb_eleves} طالب مسجل وقت الحذف — الأستاذ: {groupe.prof or "—"} — الحلقة: {groupe.creneau or "—"}'
-            ),
-            supprime_par=request.user,
-        )
         groupe.delete()
 
     messages.success(
         request,
-        f'تم حذف المجموعة "{nom}" نهائياً مع كامل سجلها ({nb_seances} حصة، {nb_presences} حضور، {nb_evaluations} تقييم). سجل بهذا الحذف محفوظ.'
+        f'تم حذف المجموعة "{nom}" نهائياً مع كامل سجلها ({nb_seances} حصة، {nb_presences} حضور).'
     )
     return redirect('admin_groupes')
 
@@ -647,8 +636,6 @@ def creneau_supprimer_definitivement(request, creneau_id):
     pas de champ texte casé dans la liste, contrairement à
     groupe_supprimer_definitivement qui a sa propre page détail où le
     placer. POST traite la suppression."""
-    from .models import JournalSuppression
-
     creneau = get_object_or_404(Creneau, id=creneau_id)
     if request.method != 'POST':
         return render(request, 'courses/admin_creneau_supprimer_definitivement.html', {
@@ -664,21 +651,8 @@ def creneau_supprimer_definitivement(request, creneau_id):
         messages.error(request, 'النص المُدخل لا يطابق اسم الحلقة بالضبط — لم يتم حذف أي شيء.')
         return redirect('admin_creneaux')
 
-    nb_groupes = creneau.groupes.count()
-    nb_inscriptions = creneau.inscriptions.count()
-
     with transaction.atomic():
-        JournalSuppression.objects.create(
-            type_objet='creneau',
-            nom_objet=label,
-            id_objet=creneau.id,
-            resume_donnees_perdues=(
-                f'{nb_groupes} مجموعة كانت مرتبطة بهذه الحلقة (أصبحت بدون حلقة، لم تُحذف)، '
-                f'{nb_inscriptions} طلب تسجيل كان يشير إليها.'
-            ),
-            supprime_par=request.user,
-        )
         creneau.delete()
 
-    messages.success(request, f'تم حذف الحلقة "{label}" نهائياً. سجل بهذا الحذف محفوظ.')
+    messages.success(request, f'تم حذف الحلقة "{label}" نهائياً.')
     return redirect('admin_creneaux')

@@ -585,31 +585,8 @@ class BilanMensuel(models.Model):
         date_limite = datetime.date(annee_limite, mois_limite, 1)
         return timezone.localdate() < date_limite
 
-
-class JournalSuppression(models.Model):
-    """Trace toute suppression RÉELLE d'un Groupe/Creneau avec historique lié
-    (Tâche du 2026-08-08, point 2 — مدير uniquement) : la seule preuve qui
-    survit une fois que les séances/présences/évaluations liées ont été
-    réellement détruites. Jamais modifié ni supprimé une fois créé — pas de
-    manager particulier, pas de vue d'édition/suppression exposée nulle
-    part, volontairement (un journal qu'on peut altérer n'en est plus un)."""
-    TYPE_CHOICES = [
-        ('groupe', 'مجموعة'),
-        ('creneau', 'حلقة'),
-    ]
-    type_objet = models.CharField(max_length=20, choices=TYPE_CHOICES)
-    nom_objet = models.CharField(max_length=200)
-    id_objet = models.IntegerField()
-    resume_donnees_perdues = models.TextField()
-    supprime_par = models.ForeignKey(
-        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
-    )
-    date_suppression = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.get_type_objet_display()} \"{self.nom_objet}\" — {self.date_suppression:%Y-%m-%d}"
-
-    class Meta:
-        verbose_name = "سجل حذف"
-        verbose_name_plural = "سجل الحذف"
-        ordering = ['-date_suppression']
+# JournalSuppression (construit le 2026-08-08 pour tracer les suppressions
+# définitives de Groupe/Creneau) a été retiré le même jour, sur décision
+# explicite du client : la suppression définitive doit rester réellement
+# définitive, sans aucune trace conservée après coup. Voir la migration
+# 0025_delete_journalsuppression.

@@ -1,15 +1,17 @@
 {% extends base_template %}
 {% block title %}حذف نهائي — الحلقة{% endblock %}
 {% block content %}
-<div class="page-title">حذف نهائي مع السجل</div>
+<div class="page-title">حذف نهائي</div>
 <div class="page-subtitle">{{ creneau }}</div>
 
 {% comment %}
-Tâche du 2026-08-08, point 2 — page dédiée (pas un simple confirm() JS,
-vu la gravité) pour la suppression DÉFINITIVE d'une حلقة, même si des
-مجموعات ou طلبات تسجيل y font encore référence (SET_NULL — elles ne sont
-PAS supprimées, seulement leur champ créneau devient vide). مدير
-uniquement. Voir courses.views.creneau_supprimer_definitivement.
+Tâche du 2026-08-08, point 2 (révisé le 2026-08-08) — page dédiée (pas un
+simple confirm() JS, vu la gravité) pour la suppression DÉFINITIVE d'une
+حلقة, même si des مجموعات ou طلبات تسجيل y font encore référence
+(SET_NULL — elles ne sont PAS supprimées, seulement leur champ créneau
+devient vide). مدير uniquement. AUCUNE trace conservée après coup
+(décision explicite du client). Voir courses.views.
+creneau_supprimer_definitivement.
 {% endcomment %}
 <div style="background:#fdf1f0; border:2px solid var(--color-danger); border-radius:12px; padding:24px; max-width:600px;">
     <div style="font-weight:700; color:var(--color-danger); margin-bottom:12px;">⚠️ هذا الإجراء نهائي</div>
@@ -23,9 +25,9 @@ uniquement. Voir courses.views.creneau_supprimer_definitivement.
     <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:12px;">لا توجد مجموعة ولا طلب تسجيل مرتبط حالياً بهذه الحلقة.</p>
     {% endif %}
 
-    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:20px;">سيُحفظ سجل بهذا الحذف (بدون البيانات نفسها) لأغراض التتبع.</p>
+    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:20px;">لن يبقى أي أثر لهذا الحذف بعد تنفيذه.</p>
 
-    <form method="POST" onsubmit="return confirm('تأكيد أخير: هل أنت متأكدة تماماً من حذف هذه الحلقة نهائياً؟');">
+    <form method="POST" onsubmit="return confirm('تأكيد أخير: هل أنت متأكدة تماماً من حذف هذه الحلقة نهائياً، بدون أي إمكانية للتراجع؟');">
         {% csrf_token %}
         <label style="color:#8a3b36; font-size:0.85rem; display:block; margin-bottom:4px;">اكتب نص الحلقة التالي بالضبط للتأكيد:</label>
         <div style="background:white; border-radius:6px; padding:8px 12px; font-family:'Tajawal',sans-serif; margin-bottom:10px; border:1px solid #e0c4c2;">{{ creneau }}</div>
@@ -33,7 +35,7 @@ uniquement. Voir courses.views.creneau_supprimer_definitivement.
         <div class="d-flex gap-2">
             <button type="submit"
                 style="background:var(--color-danger); color:white; border:none; border-radius:8px; padding:10px 20px; font-weight:700; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                حذف نهائي مع السجل 🗑️⚠️
+                حذف نهائي 🗑️⚠️
             </button>
             <a href="{% url 'admin_creneaux' %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
         </div>

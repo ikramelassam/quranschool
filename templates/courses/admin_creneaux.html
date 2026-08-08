@@ -100,24 +100,17 @@
                تعديل ✏️
             </a>
 
-            {% if creneau.peut_supprimer %}
             {% comment %}
-            Tâche du 2026-08-08 : بouton "حذف" réel, visible UNIQUEMENT si
-            creneau_peut_etre_supprime (calculé dans la vue, pas ici) — aucun
-            groupe ni candidature liés. Sinon, "أرشفة" ci-dessus reste la
-            seule option (voir courses.utils.creneau_peut_etre_supprime pour
-            le raisonnement complet).
+            Tâche du 2026-08-08 (nettoyage UX) : ancien bouton "حذف" simple
+            (Option B du tout premier chantier) RETIRÉ — désormais redondant
+            avec les 2 options ci-dessous : "أرشفة" (cas sûr, réversible) et
+            "حذف نهائي" (cas destructif, avec confirmation par saisie du
+            nom). courses.views.creneau_supprimer et courses.utils.
+            creneau_peut_etre_supprime restent dans le code (pas supprimés,
+            volontairement — retrait du bouton uniquement, demandé
+            explicitement ; à supprimer en code mort dans un chantier séparé
+            si souhaité).
             {% endcomment %}
-            <form method="POST" action="{% url 'admin_creneau_supprimer' creneau.id %}"
-                  onsubmit="return confirm('هل أنت متأكدة من حذف هذه الحلقة نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.');"
-                  style="display:inline;">
-                {% csrf_token %}
-                <button type="submit"
-                    style="background:#fce4e4; color:var(--color-danger); border:none; border-radius:8px; padding:6px 14px; font-size:0.85rem; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                    حذف 🗑️
-                </button>
-            </form>
-            {% endif %}
 
             {% comment %}
             Tâche du 2026-08-08, point 2 — منطقة خطر : suppression DÉFINITIVE
