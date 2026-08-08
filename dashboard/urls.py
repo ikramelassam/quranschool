@@ -127,6 +127,7 @@ urlpatterns = [
     path('admin/utilisateurs/confirmation-modification-email/', views.confirmation_modification_email, name='confirmation_modification_email'),
     path('admin/utilisateurs/<int:user_id>/reinitialiser-mot-de-passe/', views.admin_utilisateur_reinitialiser_mot_de_passe, name='admin_utilisateur_reinitialiser_mot_de_passe'),
     path('admin/mon-compte/', views.admin_mon_compte, name='admin_mon_compte'),
+    path('mshrif/mon-compte/', views.mshrif_mon_compte, name='mshrif_mon_compte'),
     path('admin/programme-general/', views.admin_programme_general, name='admin_programme_general'),
     path('admin/visibilite-prof/', views.admin_visibilite_prof, name='admin_visibilite_prof'),
     path('admin/gestion-inscriptions/', views.admin_gestion_inscriptions, name='admin_gestion_inscriptions'),

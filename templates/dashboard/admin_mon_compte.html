@@ -33,56 +33,11 @@
     </div>
 
     <div class="col-md-6">
-        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:16px;">✉️ تغيير البريد الإلكتروني</div>
-            <form method="POST">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="email">
-                <div class="mb-3">
-                    <label style="font-weight:600; color:#333;">البريد الإلكتروني الجديد *</label>
-                    <input type="email" name="nouvel_email" class="form-control mt-1" required>
-                </div>
-                <div class="mb-3">
-                    <label style="font-weight:600; color:#333;">تأكيد البريد الإلكتروني *</label>
-                    <input type="email" name="confirmation_email" class="form-control mt-1" required>
-                </div>
-                <div class="mb-3">
-                    <label style="font-weight:600; color:#333;">كلمة المرور الحالية *</label>
-                    {% include 'dashboard/_champ_mot_de_passe.html' with name='mot_de_passe_email' id='id_amc_email_mdp' requis=True %}
-                </div>
-                <button type="submit"
-                    style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                    حفظ البريد الجديد ✅
-                </button>
-            </form>
-        </div>
+        {% include 'dashboard/_carte_changer_email.html' with couleur_label='var(--color-role-admin-solid)' couleur_bouton='var(--color-role-admin)' id_prefix='id_amc' %}
     </div>
 
     <div class="col-md-6">
-        <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:16px;">🔒 تغيير كلمة المرور</div>
-            <form method="POST">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="password">
-                <div class="mb-3">
-                    <label style="font-weight:600; color:#333;">كلمة المرور الحالية *</label>
-                    {% include 'dashboard/_champ_mot_de_passe.html' with name='ancien_mot_de_passe' id='id_amc_ancien' requis=True %}
-                </div>
-                <div class="mb-3">
-                    <label style="font-weight:600; color:#333;">كلمة المرور الجديدة *</label>
-                    {% include 'dashboard/_champ_mot_de_passe.html' with name='nouveau_mot_de_passe' id='id_amc_nouveau' requis=True minlength=8 %}
-                </div>
-                <div class="mb-3">
-                    <label style="font-weight:600; color:#333;">تأكيد كلمة المرور الجديدة *</label>
-                    {% include 'dashboard/_champ_mot_de_passe.html' with name='confirmation' id='id_amc_confirmation' requis=True minlength=8 %}
-                </div>
-                <button type="submit"
-                    style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                    حفظ كلمة المرور ✅
-                </button>
-            </form>
-            {% include 'dashboard/_reinitialiser_mot_de_passe.html' %}
-        </div>
+        {% include 'dashboard/_carte_changer_mot_de_passe.html' with couleur_label='var(--color-role-admin-solid)' couleur_bouton='var(--color-role-admin)' id_prefix='id_amc' afficher_reinitialiser=True %}
     </div>
 </div>
 {% endblock %}

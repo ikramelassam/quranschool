@@ -4378,12 +4378,50 @@ def admin_utilisateur_reinitialiser_mot_de_passe(request, user_id):
     return render(request, 'dashboard/admin_utilisateur_reinitialiser_mot_de_passe.html', context)
 
 
-# ==================== ADMIN — MON COMPTE ====================
+# ==================== ADMIN / مشرف — MON COMPTE ====================
+
+def _traiter_changement_email_compte(request):
+    """Logique de changement d'email en self-service — partagée entre
+    admin_mon_compte et mshrif_mon_compte (Tâche du 2026-08-08, point 1 :
+    le مشرف gagne la même capacité que le مدير) pour ne pas la dupliquer
+    une 2e fois. Pose les messages Django (succès/erreur), ne redirige
+    PAS elle-même — c'est à l'appelant de le faire vers SA propre page
+    ('admin_mon_compte' ou 'mshrif_mon_compte'), pour ne jamais renvoyer
+    un مشرف vers une page admin (et inversement) après un POST.
+
+    Ne touche PAS au changement de mot de passe forcé
+    (accounts.views.password_change_view) : flux et rôles différents
+    (bloque 3 rôles entiers, jamais atteint via cette page), volontairement
+    resté séparé plutôt que fusionné."""
+    from inscriptions.views import _email_deja_utilise
+
+    mot_de_passe = request.POST.get('mot_de_passe_email', '')
+    nouvel_email = request.POST.get('nouvel_email', '').strip()
+    confirmation_email = request.POST.get('confirmation_email', '').strip()
+
+    if not request.user.check_password(mot_de_passe):
+        messages.error(request, 'كلمة المرور غير صحيحة.')
+    elif not nouvel_email or nouvel_email != confirmation_email:
+        messages.error(request, 'البريدان الإلكترونيان غير متطابقين.')
+    elif nouvel_email == request.user.email:
+        messages.info(request, 'لم يتغير البريد الإلكتروني.')
+    elif _email_deja_utilise(nouvel_email, exclure_user_id=request.user.id):
+        messages.error(request, f'تعذر التغيير: البريد الإلكتروني {nouvel_email} مستخدم بالفعل.')
+    else:
+        ancien_email = request.user.email
+        request.user.email = nouvel_email
+        request.user.username = nouvel_email
+        request.user.save()
+        _invalider_sessions_utilisateur(request.user, request=request)
+        email_envoye = envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, request.user.get_full_name())
+        if email_envoye:
+            messages.success(request, f'تم تغيير بريدك الإلكتروني إلى {nouvel_email} بنجاح.')
+        else:
+            messages.warning(request, f'تم تغيير بريدك الإلكتروني إلى {nouvel_email} بنجاح، لكن تعذر إرسال بريد الإشعار.')
+
 
 @role_required('admin')
 def admin_mon_compte(request):
-    from inscriptions.views import _email_deja_utilise
-
     if request.method == 'POST' and request.POST.get('action') == 'contact':
         nom_complet = request.POST.get('nom_complet', '').strip()
         description_courte = request.POST.get('description_courte', '').strip()
@@ -4407,29 +4445,7 @@ def admin_mon_compte(request):
         return redirect('admin_mon_compte')
 
     if request.method == 'POST' and request.POST.get('action') == 'email':
-        mot_de_passe = request.POST.get('mot_de_passe_email', '')
-        nouvel_email = request.POST.get('nouvel_email', '').strip()
-        confirmation_email = request.POST.get('confirmation_email', '').strip()
-
-        if not request.user.check_password(mot_de_passe):
-            messages.error(request, 'كلمة المرور غير صحيحة.')
-        elif not nouvel_email or nouvel_email != confirmation_email:
-            messages.error(request, 'البريدان الإلكترونيان غير متطابقين.')
-        elif nouvel_email == request.user.email:
-            messages.info(request, 'لم يتغير البريد الإلكتروني.')
-        elif _email_deja_utilise(nouvel_email, exclure_user_id=request.user.id):
-            messages.error(request, f'تعذر التغيير: البريد الإلكتروني {nouvel_email} مستخدم بالفعل.')
-        else:
-            ancien_email = request.user.email
-            request.user.email = nouvel_email
-            request.user.username = nouvel_email
-            request.user.save()
-            _invalider_sessions_utilisateur(request.user, request=request)
-            email_envoye = envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, request.user.get_full_name())
-            if email_envoye:
-                messages.success(request, f'تم تغيير بريدك الإلكتروني إلى {nouvel_email} بنجاح.')
-            else:
-                messages.warning(request, f'تم تغيير بريدك الإلكتروني إلى {nouvel_email} بنجاح، لكن تعذر إرسال بريد الإشعار.')
+        _traiter_changement_email_compte(request)
         return redirect('admin_mon_compte')
 
     if request.method == 'POST' and request.POST.get('action') == 'password':
@@ -4453,3 +4469,45 @@ def admin_mon_compte(request):
         return redirect('admin_mon_compte')
 
     return render(request, 'dashboard/admin_mon_compte.html')
+
+
+@role_required('mshrif')
+def mshrif_mon_compte(request):
+    """حسابي — équivalent مشرف de admin_mon_compte (Tâche du 2026-08-08,
+    point 1). Le مشرف n'avait jusqu'ici accès qu'au changement de mot de
+    passe (accounts.views.password_change_view, page séparée, toujours
+    utilisée pour le changement FORCÉ — voir ForcerChangementMotDePasse
+    Middleware, inchangée) — sans aucune capacité de changer son email.
+    Fusionne email + mot de passe sur UNE page, comme pour le مدير, en
+    réutilisant les mêmes partials (_carte_changer_email.html,
+    _carte_changer_mot_de_passe.html) pour un rendu garanti identique.
+
+    PAS de section "معلومات التواصل" (contrairement à admin_mon_compte) :
+    volontairement absente — cette section alimente le bouton de contact
+    WhatsApp affiché aux élèves/profs/مؤطرين, qui ne voient QUE le مدير
+    (jamais le مشرف), donc sans objet ici."""
+    if request.method == 'POST' and request.POST.get('action') == 'email':
+        _traiter_changement_email_compte(request)
+        return redirect('mshrif_mon_compte')
+
+    if request.method == 'POST' and request.POST.get('action') == 'password':
+        from django.contrib.auth import update_session_auth_hash
+
+        ancien = request.POST.get('ancien_mot_de_passe')
+        nouveau = request.POST.get('nouveau_mot_de_passe')
+        confirmation = request.POST.get('confirmation')
+
+        if not request.user.check_password(ancien):
+            messages.error(request, 'كلمة المرور الحالية غير صحيحة.')
+        elif nouveau != confirmation:
+            messages.error(request, 'كلمتا المرور الجديدتان غير متطابقتين.')
+        elif len(nouveau) < 8:
+            messages.error(request, 'يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل.')
+        else:
+            request.user.set_password(nouveau)
+            request.user.save()
+            update_session_auth_hash(request, request.user)
+            messages.success(request, 'تم تغيير كلمة المرور بنجاح.')
+        return redirect('mshrif_mon_compte')
+
+    return render(request, 'dashboard/mshrif_mon_compte.html')

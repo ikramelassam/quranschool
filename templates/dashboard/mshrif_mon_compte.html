@@ -1,0 +1,16 @@
+{% extends 'dashboard/base_mshrif.html' %}
+{% block title %}حسابي{% endblock %}
+{% block content %}
+<div class="page-title">حسابي</div>
+<div class="page-subtitle">البريد الحالي: {{ request.user.email }}</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        {% include 'dashboard/_carte_changer_email.html' with couleur_label='var(--color-role-mshrif-solid)' couleur_bouton='var(--color-role-mshrif)' id_prefix='id_mmc' %}
+    </div>
+
+    <div class="col-md-6">
+        {% include 'dashboard/_carte_changer_mot_de_passe.html' with couleur_label='var(--color-role-mshrif-solid)' couleur_bouton='var(--color-role-mshrif)' id_prefix='id_mmc' %}
+    </div>
+</div>
+{% endblock %}

@@ -244,7 +244,7 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'admin_gestion_inscriptions' or request.resolver_match.url_name == 'admin_reglage_lien_seance' or request.resolver_match.url_name == 'admin_hakiba_gestion' or request.resolver_match.url_name == 'mshrif_logo' or request.resolver_match.url_name == 'password_change' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'admin_gestion_inscriptions' or request.resolver_match.url_name == 'admin_reglage_lien_seance' or request.resolver_match.url_name == 'admin_hakiba_gestion' or request.resolver_match.url_name == 'mshrif_logo' or request.resolver_match.url_name == 'mshrif_mon_compte' %}open{% endif %}>
             <summary>إعدادات المنصة</summary>
             <a href="{% url 'mshrif_charte' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_charte' %}active{% endif %}">
@@ -274,9 +274,9 @@
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_logo' %}active{% endif %}">
                 <span class="icon">🖼️</span> شعار المنصة
             </a>
-            <a href="{% url 'password_change' %}"
-               class="menu-item {% if request.resolver_match.url_name == 'password_change' %}active{% endif %}">
-                <span class="icon">⚙️</span> الإعدادات
+            <a href="{% url 'mshrif_mon_compte' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'mshrif_mon_compte' %}active{% endif %}">
+                <span class="icon">⚙️</span> حسابي
             </a>
         </details>
     </div>
