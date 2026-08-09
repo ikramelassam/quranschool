@@ -6,7 +6,7 @@ from django.utils import timezone
 from accounts.decorators import role_required
 from core.utils import paginer
 from .models import Groupe, Creneau, HistoriqueGroupeEleve
-from .utils import regenerer_pour_nouveau_creneau, creneaux_manquants_pour_prof, raison_incompatibilite_groupe, avertissements_groupe, avertissements_prof_creneau, creneau_peut_etre_supprime, groupe_peut_etre_supprime
+from .utils import regenerer_pour_nouveau_creneau, raison_incompatibilite_groupe, avertissements_groupe, avertissements_prof_creneau, creneau_peut_etre_supprime, groupe_peut_etre_supprime
 from accounts.models import Prof, Eleve
 
 
@@ -22,15 +22,6 @@ def _contexte_base_mshrif(request):
         return {}
     from inscriptions.models import InscriptionProf
     return {'nb_demandes_en_attente': InscriptionProf.objects.filter(statut='validee_directeur').count()}
-
-
-def _message_incompatibilite(prof, manquants):
-    jours_dict = dict(Creneau.JOUR_CHOICES)
-    details = '، '.join(f'{jours_dict.get(j, j)} {h.strftime("%H:%M")}' for j, h in manquants)
-    return (
-        f'لا يمكن إسناد {prof.user.get_full_name()} لهذه الحلقة: '
-        f'هذا المعلم غير متفرغ في الأوقات التالية حسب جدول تفرغه المعتمد: {details}.'
-    )
 
 
 @role_required('admin', 'mshrif')
@@ -98,14 +89,13 @@ def groupe_ajouter(request):
                     'profs': profs,
                 })
             creneau_obj = get_object_or_404(Creneau, id=creneau_id)
-            manquants = creneaux_manquants_pour_prof(prof_obj, creneau_obj)
-            if manquants:
-                messages.error(request, _message_incompatibilite(prof_obj, manquants))
-                return render(request, 'courses/admin_groupe_ajouter.html', {
-                    'creneaux': creneaux,
-                    'profs': profs,
-                })
-
+            # Tâche du 2026-08-09 : l'incompatibilité d'horaire n'est plus
+            # bloquante — elle est désormais remontée par
+            # avertissements_prof_creneau, au même titre que l'âge/le sexe
+            # (décision explicite du client). Avant cette date, un bloc
+            # séparé ici bloquait sans recours (creneaux_manquants_pour_prof
+            # + _message_incompatibilite, les deux retirés — le premier reste
+            # utilisé, mais depuis courses.utils.avertissements_prof_creneau).
             avertissements_prof = avertissements_prof_creneau(prof_obj, creneau_obj)
             if avertissements_prof and not confirme:
                 groupe_previsualise = Groupe(
@@ -333,15 +323,8 @@ def groupe_modifier(request, groupe_id):
                     'profs': profs,
                 })
             creneau_obj = get_object_or_404(Creneau, id=nouveau_creneau_id)
-            manquants = creneaux_manquants_pour_prof(prof_obj, creneau_obj)
-            if manquants:
-                messages.error(request, _message_incompatibilite(prof_obj, manquants))
-                return render(request, 'courses/admin_groupe_modifier.html', {
-                    'groupe': groupe,
-                    'creneaux': creneaux,
-                    'profs': profs,
-                })
-
+            # Tâche du 2026-08-09 : l'incompatibilité d'horaire n'est plus
+            # bloquante — voir le même commentaire dans groupe_ajouter.
             avertissements_prof = avertissements_prof_creneau(prof_obj, creneau_obj)
             if avertissements_prof and not confirme:
                 groupe_previsualise = Groupe(

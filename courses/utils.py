@@ -271,17 +271,43 @@ def _categorie_age_creneau(creneau):
 
 
 def avertissements_prof_creneau(prof, creneau):
-    """Avertissements non bloquants (Tâche 18, Partie C) si la tranche d'âge
-    ou le sexe cible du créneau ne correspond pas aux préférences déclarées
-    par le prof (Prof.type_eleve_preference / Prof.contrainte_genre, listes
-    multi-valeurs). Le blocage horaire (creneaux_manquants_pour_prof) reste
-    séparé et bloquant, inchangé.
+    """Avertissements non bloquants (Tâche 18, Partie C ; complété le
+    2026-08-09) si l'horaire, la tranche d'âge ou le sexe cible du créneau
+    ne correspondent pas à ce que le prof a déclaré. Dans les 3 cas, le
+    مدير peut confirmer et enregistrer quand même — voir groupe_ajouter/
+    groupe_modifier, qui affichent ces messages et exigent confirme='1'
+    avant d'enregistrer si la liste n'est pas vide.
 
-    Reste SILENCIEUX si le prof n'a rien déclaré (liste vide) — l'absence de
-    préférence renseignée n'est pas une preuve d'incompatibilité, seule une
-    contradiction explicite avec une valeur réellement cochée déclenche un
-    avertissement (confirmé par le client)."""
+    Historique du critère horaire : jusqu'au 2026-08-09, une
+    incompatibilité d'horaire (creneaux_manquants_pour_prof) bloquait
+    l'enregistrement sans recours, séparément de ces avertissements
+    (contrairement à l'âge/au sexe, déjà non bloquants). Décision
+    explicite du client : les 3 critères suivent désormais EXACTEMENT le
+    même mécanisme — creneaux_manquants_pour_prof reste la fonction qui
+    calcule l'incompatibilité, mais elle n'est plus jamais bloquante par
+    elle-même, seulement remontée ici comme avertissement.
+
+    Reste SILENCIEUX si le prof n'a rien déclaré (dispo vide, ou aucune
+    préférence d'âge/genre cochée) — l'absence de déclaration n'est pas une
+    preuve d'incompatibilité, seule une contradiction explicite avec une
+    valeur réellement déclarée déclenche un avertissement (confirmé par le
+    client pour l'âge/le genre ; même logique appliquée à l'horaire — un
+    prof qui n'a rempli AUCUNE case de sa matrice de disponibilités
+    n'affiche aucun avertissement horaire, cas couvert par
+    creneaux_manquants_pour_prof lui-même qui ne peut renvoyer de créneaux
+    manquants que là où le prof a au moins une disponibilité ailleurs)."""
+    from .models import Creneau
+
     avertissements = []
+
+    manquants = creneaux_manquants_pour_prof(prof, creneau)
+    if manquants and prof.disponibilites.exists():
+        jours_dict = dict(Creneau.JOUR_CHOICES)
+        details = '، '.join(f'{jours_dict.get(j, j)} {h.strftime("%H:%M")}' for j, h in manquants)
+        avertissements.append(
+            f'تنبيه: التوقيت المختار لا يتوافق بالكامل مع جدول تفرغ هذا الأستاذ المصرَّح به عند تسجيله — '
+            f'غير متفرغ حسب تصريحه في: {details}.'
+        )
 
     categorie = _categorie_age_creneau(creneau)
     if categorie != 'mixte' and prof.type_eleve_preference:
