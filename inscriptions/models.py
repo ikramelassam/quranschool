@@ -59,6 +59,20 @@ class InscriptionEleve(models.Model):
     ]
     # Infos personnelles
     nom = models.CharField(max_length=100)
+    # "nom" = NOM COMPLET (prénom + nom de famille ensemble) — le formulaire
+    # public (eleve_formulaire.html) ne demande qu'une seule case, labellisée
+    # "الاسم الكامل" ("nom complet"). Contrairement à InscriptionProf (où
+    # nom/prenom sont une vraie paire de champs séparés — voir sa docstring
+    # pour la confusion de nommage propre à ce modèle-là, hors sujet ici),
+    # côté élève "prenom" n'a jamais existé dans le formulaire : aucun input
+    # ne le cible, inscriptions/views.py ne le lit jamais depuis
+    # request.POST. Toujours vide en production (audit du 2026-08-09 :
+    # 0/26 candidatures avec prenom non vide). Ajouté puis retiré de
+    # l'affichage le même jour (admin_inscription_detail.html /
+    # admin_eleve_detail.html) pour la même raison que veut_contribuer plus
+    # bas : afficher un champ structurellement toujours vide serait
+    # trompeur. Champ laissé tel quel dans le modèle (pas de migration) —
+    # aucune régression à corriger, juste rien à faire avec pour l'instant.
     prenom = models.CharField(max_length=100, blank=True)
     nom_parent = models.CharField(max_length=100, blank=True)
     date_naissance = models.DateField()
@@ -90,6 +104,16 @@ class InscriptionEleve(models.Model):
 
     # Extras
     accepte_conditions = models.BooleanField(default=False)
+    # NOTE (audit du 2026-08-09) : ce champ n'est jamais rempli. Le formulaire
+    # public (templates/inscriptions/eleve_formulaire.html) ne pose pas cette
+    # question et inscriptions/views.py ne le lit jamais depuis request.POST
+    # à la création — il vaut donc toujours False, pour toute candidature,
+    # passée et future, tant que ces deux endroits ne sont pas modifiés
+    # ensemble. Volontairement PAS affiché sur les pages détail (candidature
+    # / fiche élève) : afficher "❌ لا" sur 100% des candidatures serait
+    # trompeur (ça a l'air d'une vraie réponse alors que la question n'a
+    # jamais été posée). Pour l'activer un jour : ajouter le champ au
+    # formulaire, le lire dans la vue, PUIS l'afficher.
     veut_contribuer = models.BooleanField(default=False)
     remarques = models.TextField(blank=True)
     disponibilites_libres = models.TextField(
