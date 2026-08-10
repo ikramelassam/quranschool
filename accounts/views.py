@@ -65,6 +65,15 @@ LIBELLES_ROLE_MDP_OUBLIE = {
 }
 
 
+def _normaliser_nom_pour_comparaison(nom):
+    """Espaces superflus réduits à un seul + casse ignorée (casefold, plus robuste
+    qu'un simple .lower() pour l'unicode/arabe) — évite qu'un espace en trop ou une
+    majuscule empêche une correspondance légitime. Cas réel trouvé en production au
+    moment d'écrire cette fonction : un nom de compte contient un double espace
+    ('عمران  بقاس') — sans cette normalisation, la comparaison aurait échoué."""
+    return ' '.join(nom.split()).casefold()
+
+
 def mot_de_passe_oublie(request):
     """"نسيت كلمة المرور ؟" (Tâche 22 Partie E du 2026-07-26) — pas d'envoi email
     (Brevo non fiable, voir Partie D) : le mot de passe généré est envoyé au
@@ -85,14 +94,36 @@ def mot_de_passe_oublie(request):
     changement forcé à la prochaine connexion (doit_changer_mot_de_passe=False,
     cohérent avec le reste du chantier mots de passe). مدير/مشرف gardent
     exactement leur ancien comportement (mot de passe temporaire aléatoire,
-    changement forcé à la prochaine connexion) — flux séparé, inchangé."""
+    changement forcé à la prochaine connexion) — flux séparé, inchangé.
+
+    Chantier du 2026-08-10 (partage d'email parent/enfant, voir
+    admin_valider_eleve) : un email peut désormais correspondre à PLUSIEURS
+    comptes élève. Contrairement à la connexion normale (où le mot de passe
+    fourni désambiguïse), "mot de passe oublié" n'a par définition aucun mot
+    de passe disponible — un 2e champ "nom complet" a donc été ajouté à CE
+    formulaire uniquement (la connexion normale reste à 2 champs, inchangée).
+    Comparaison insensible à la casse ET aux espaces superflus (voir
+    _normaliser_nom_pour_comparaison). Aucune correspondance exacte email+nom
+    -> même message générique que tout autre échec, aucune régénération —
+    protection contre l'énumération de comptes, inchangée. S'applique aussi
+    à مدير/مشرف (même formulaire unique pour tous les rôles) : sans risque,
+    tous les comptes existants ont un nom complet non vide (vérifié)."""
     from core.utils import envoyer_notification_telegram
     from dashboard.views import generer_mot_de_passe_temporaire, generer_mot_de_passe_sequentiel
 
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
+        nom_saisi = request.POST.get('nom_complet', '').strip()
         User = get_user_model()
-        user = User.objects.filter(email=email).first()
+
+        user = None
+        if email and nom_saisi:
+            nom_normalise = _normaliser_nom_pour_comparaison(nom_saisi)
+            for candidat in User.objects.filter(email=email):
+                if _normaliser_nom_pour_comparaison(candidat.get_full_name()) == nom_normalise:
+                    user = candidat
+                    break
+
         if user and user.role in ('eleve', 'prof', 'superviseur'):
             nouveau_mot_de_passe = generer_mot_de_passe_sequentiel()
             user.set_password(nouveau_mot_de_passe)

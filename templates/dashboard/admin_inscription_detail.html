@@ -157,7 +157,7 @@
         <span style="font-size:0.85rem;">بلّغها للطالب — سيُطلب منه تغييرها إجبارياً عند أول تسجيل دخول.</span>
     </div>
 
-    {% if conflit.conflit %}
+    {% if conflit.conflit and not peut_accepter %}
     <div style="background:#f8d7da; border-radius:8px; padding:16px; margin:20px 0; color:#721c24;">
         <div style="font-weight:700; margin-bottom:8px;">⚠️ تعذر القبول — تعارض في البريد الإلكتروني</div>
         {% if conflit.orphelin %}
@@ -181,13 +181,21 @@
         </div>
         {% endif %}
     </div>
+    {% elif conflit.conflit and peut_accepter %}
+    <!-- Chantier partage d'email (2026-08-10) : ce compte élève actif existe déjà avec le
+         même email — cas autorisé (fratrie/famille). Purement informatif, ne bloque pas
+         le bouton "قبول" ci-dessous. -->
+    <div style="background:#e8f0fe; border-radius:8px; padding:14px 18px; margin:20px 0; color:var(--color-role-admin-solid);">
+        ℹ️ هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب طالب آخر نشط ({{ conflit.user.get_full_name }}) —
+        على الأرجح فرد من نفس الأسرة. القبول سيُنشئ حساباً إضافياً مرتبطاً بنفس البريد الإلكتروني.
+    </div>
     {% endif %}
     {% endif %}
 
     <!-- Boutons -->
     <div class="d-flex gap-3 mt-4">
         {% if request.user.role != 'mshrif' %}
-        {% if not conflit.conflit %}
+        {% if peut_accepter %}
         <a href="{% url 'admin_valider_eleve' inscription.id %}"
            onclick="return confirm('هل أنت متأكد من قبول طلب {{ inscription.nom|escapejs }}؟ سيتم إنشاء حساب مستخدم فعلي له.');"
            style="background:var(--color-success); color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">✅ قبول</a>

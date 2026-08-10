@@ -144,6 +144,45 @@ def _email_deja_utilise(email, exclure_user_id=None):
     return False
 
 
+def _email_bloque_pour_candidature_eleve(email):
+    """Variante de _email_deja_utilise strictement scopée à la soumission du
+    formulaire élève (inscription_eleve_formulaire) — chantier du 2026-08-10
+    (partage d'email parent/enfant).
+
+    Pourquoi une fonction séparée plutôt que modifier _email_deja_utilise :
+    celle-ci reste utilisée TELLE QUELLE par les 3 autres sites d'appel
+    (candidature prof, modification email par مدير, changement d'email
+    self-service) — aucun ne doit être affecté par ce chantier.
+
+    Sans ce correctif, le partage d'email serait structurellement
+    inatteignable : _email_deja_utilise bloque la soumission d'une 2e
+    InscriptionEleve dès qu'une autre existe déjà avec le même email (encore
+    en_attente, ou déjà validée en User) — la 2e personne d'une même famille
+    ne pourrait jamais soumettre sa candidature, même si admin_valider_eleve
+    autoriserait ensuite la validation. Reprend donc EXACTEMENT la même règle
+    que le bypass déjà en place à la validation (dashboard.views.
+    admin_valider_eleve, via _verifier_conflit_email) : autorise dès qu'AU
+    MOINS UN compte élève actif partage déjà cet email (peu importe l'état
+    des AUTRES comptes du même groupe — voir `partage_eleve_possible`) —
+    bloque toujours pour un conflit prof, admin/مشرف, ou un groupe sans aucun
+    élève actif, exactement comme avant ce chantier."""
+    from dashboard.views import _verifier_conflit_email
+
+    conflit = _verifier_conflit_email(email)
+    if conflit['conflit']:
+        if not conflit['partage_eleve_possible']:
+            return True
+
+    # Une autre candidature PROF encore en attente avec cet email : hors scope
+    # (le partage reste réservé aux paires élève/élève), toujours bloqué.
+    if InscriptionProf.objects.filter(email=email, statut='en_attente').exists():
+        return True
+
+    # Une autre InscriptionEleve encore en attente avec cet email : c'est
+    # justement le cas qu'on autorise (2e candidature élève, même famille).
+    return False
+
+
 def inscription_eleve_choix(request):
     return render(request, 'inscriptions/eleve_choix.html')
 
@@ -178,7 +217,12 @@ def inscription_eleve_formulaire(request, type_age):
         disponibilites = request.POST.getlist('dispo')
         date_naissance_str = request.POST.get('date_naissance', '')
 
-        if _email_deja_utilise(email):
+        # _email_bloque_pour_candidature_eleve (pas _email_deja_utilise) : seul
+        # ce formulaire autorise un email déjà pris par un AUTRE compte/une
+        # autre candidature élève (chantier du 2026-08-10, partage parent/
+        # enfant) — voir sa docstring dans ce fichier. Bloque toujours pour
+        # prof/admin/مشرف/orphelin/archivé, exactement comme avant.
+        if _email_bloque_pour_candidature_eleve(email):
             return render(request, 'inscriptions/eleve_formulaire.html', {
                 'type_age': type_age,
                 'types_abonnement_json': types_abonnement_json,

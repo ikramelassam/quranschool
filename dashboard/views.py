@@ -143,24 +143,58 @@ def _contexte_base_mshrif(request):
 def _verifier_conflit_email(email):
     """Vérifie si un User existe déjà pour cet email et s'il a un profil Eleve/Prof.
     Utilisé pour bloquer la validation d'une inscription en cas de conflit
-    (voir bug connu #5 du CLAUDE.md: validation silencieuse sans création de compte)."""
+    (voir bug connu #5 du CLAUDE.md: validation silencieuse sans création de compte).
+
+    Correctif du 2026-08-10 (audit du chantier partage d'email) : depuis que plusieurs
+    comptes élève peuvent partager un même email (voir admin_valider_eleve), cette
+    fonction ne peut plus se contenter d'inspecter le PREMIER compte trouvé
+    (l'ancien `.first()`) — un email peut désormais correspondre à plusieurs comptes
+    dont les états diffèrent (ex: le compte le plus ancien archivé, un autre bien
+    actif). Bug confirmé par test réel avant ce correctif : un 1er compte archivé
+    masquait un 2e compte actif du même groupe familial et bloquait à tort la
+    candidature d'un 3e membre. `user`/`orphelin`/`archive` restent calculés sur le
+    même compte "représentatif" qu'avant (le premier par id, ordre inchangé) pour ne
+    rien changer aux messages d'erreur existants (toujours utilisés tels quels côté
+    prof, qui ne bénéficie d'aucun bypass) — seul le nouveau champ
+    `partage_eleve_possible` regarde tout le groupe, pour la décision de bypass élève."""
     from accounts.models import Eleve, Prof
     from django.contrib.auth import get_user_model
     User = get_user_model()
 
-    user_existant = User.objects.filter(email=email).first()
-    if not user_existant:
-        return {'conflit': False, 'user': None, 'orphelin': False, 'archive': False}
+    comptes_existants = list(User.objects.filter(email=email).order_by('pk'))
+    if not comptes_existants:
+        return {'conflit': False, 'user': None, 'orphelin': False, 'archive': False, 'partage_eleve_possible': False}
 
-    # .objects (non filtré) volontairement: un profil archivé compte comme "a un
-    # profil" (donc PAS orphelin) — l'archivage ne supprime jamais le compte,
-    # voir accounts.services.archiver_eleve/archiver_prof. 'archive' distingue ce
-    # cas pour un message d'erreur plus clair (chantier du 2026-08-03).
-    eleve_existant = Eleve.objects.filter(user=user_existant).first()
-    prof_existant = Prof.objects.filter(user=user_existant).first()
-    a_un_profil = eleve_existant is not None or prof_existant is not None
-    est_archive = (eleve_existant and eleve_existant.statut == 'archive') or (prof_existant and prof_existant.statut == 'archive')
-    return {'conflit': True, 'user': user_existant, 'orphelin': not a_un_profil, 'archive': bool(est_archive)}
+    # .objects (non filtré) volontairement pour chaque compte: un profil archivé
+    # compte comme "a un profil" (donc pas orphelin) — l'archivage ne supprime
+    # jamais le compte, voir accounts.services.archiver_eleve/archiver_prof.
+    infos = []
+    for u in comptes_existants:
+        eleve = Eleve.objects.filter(user=u).first()
+        prof = Prof.objects.filter(user=u).first()
+        a_un_profil = eleve is not None or prof is not None
+        est_archive = (eleve and eleve.statut == 'archive') or (prof and prof.statut == 'archive')
+        infos.append({'user': u, 'orphelin': not a_un_profil, 'archive': bool(est_archive)})
+
+    # Compte représentatif pour les champs historiques (messages d'erreur inchangés) :
+    # le premier par id, exactement comme l'ancien `.first()`.
+    principal = infos[0]
+
+    # Bypass élève : possible dès qu'AU MOINS UN compte du groupe est un élève actif
+    # (profil Eleve existant, non archivé) — peu importe l'état des AUTRES comptes
+    # partageant cet email.
+    partage_eleve_possible = any(
+        info['user'].role == 'eleve' and not info['orphelin'] and not info['archive']
+        for info in infos
+    )
+
+    return {
+        'conflit': True,
+        'user': principal['user'],
+        'orphelin': principal['orphelin'],
+        'archive': principal['archive'],
+        'partage_eleve_possible': partage_eleve_possible,
+    }
 
 
 @role_required('prof')
@@ -1500,7 +1534,7 @@ def confirmation_creation_compte(request):
 
     # Gabarit UNIQUE (Tâche du 2026-08-06) — voir construire_message_mdp_whatsapp,
     # réutilisé tel quel par l'écran de réinitialisation et de création مؤطر.
-    message_pret_a_envoyer = construire_message_mdp_whatsapp(info['email'], info['password'])
+    message_pret_a_envoyer = construire_message_mdp_whatsapp(info['email'], info['password'], nom=info.get('nom', ''))
 
     context = {
         'info': info,
@@ -1535,26 +1569,39 @@ def admin_valider_eleve(request, inscription_id):
 
     conflit = _verifier_conflit_email(inscription.email)
     if conflit['conflit']:
-        if conflit['orphelin']:
-            messages.error(
-                request,
-                f'تعذر القبول: يوجد حساب بهذا البريد الإلكتروني ({inscription.email}) '
-                f'بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). '
-                f'احذف الحساب اليتيم أولاً ثم أعد المحاولة.'
-            )
-        elif conflit['archive']:
-            messages.error(
-                request,
-                f'تعذر القبول: يوجد حساب مؤرشف بهذا البريد الإلكتروني ({inscription.email}). '
-                f'يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول طلب جديد بنفس البريد.'
-            )
-        else:
-            messages.error(
-                request,
-                f'تعذر القبول: يوجد حساب نشط بهذا البريد الإلكتروني ({inscription.email}) '
-                f'مرتبط بملف شخصي آخر — التعارض يجب حله يدوياً قبل المتابعة.'
-            )
-        return redirect('admin_inscription_eleve_detail', inscription_id=inscription.id)
+        # Chantier du 2026-08-10 (partage d'email parent/enfant) : le SEUL cas
+        # désormais autorisé à continuer est "un compte élève actif existe déjà
+        # avec cet email" — bypass strictement scopé ici, à cette vue, à ce
+        # rôle. _verifier_conflit_email elle-même reste inchangée et continue
+        # de bloquer partout ailleurs (mshrif_valider_prof_final notamment —
+        # 2 profs, ou un prof et un élève, ne peuvent toujours pas partager un
+        # email).
+        # Correctif du 2026-08-10 (audit) : `partage_eleve_possible` regarde TOUT
+        # le groupe de comptes partageant cet email, pas seulement le premier —
+        # un compte archivé ou orphelin AILLEURS dans le groupe ne doit plus
+        # bloquer à tort tant qu'au moins un compte élève actif y existe.
+        partage_email_autorise = conflit['partage_eleve_possible']
+        if not partage_email_autorise:
+            if conflit['orphelin']:
+                messages.error(
+                    request,
+                    f'تعذر القبول: يوجد حساب بهذا البريد الإلكتروني ({inscription.email}) '
+                    f'بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). '
+                    f'احذف الحساب اليتيم أولاً ثم أعد المحاولة.'
+                )
+            elif conflit['archive']:
+                messages.error(
+                    request,
+                    f'تعذر القبول: يوجد حساب مؤرشف بهذا البريد الإلكتروني ({inscription.email}). '
+                    f'يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول طلب جديد بنفس البريد.'
+                )
+            else:
+                messages.error(
+                    request,
+                    f'تعذر القبول: يوجد حساب نشط بهذا البريد الإلكتروني ({inscription.email}) '
+                    f'مرتبط بملف شخصي آخر (غير طالب) — التعارض يجب حله يدوياً قبل المتابعة.'
+                )
+            return redirect('admin_inscription_eleve_detail', inscription_id=inscription.id)
 
     password_temp = generer_mot_de_passe_sequentiel()
 
@@ -1566,6 +1613,22 @@ def admin_valider_eleve(request, inscription_id):
     # échouer ni retenir la transaction (appel réseau lent), et ne peut de toute façon
     # plus lever d'exception (voir envoyer_email_bienvenue).
     with transaction.atomic():
+        # select_for_update() : verrouille les lignes User existantes avec cet
+        # email le temps de la transaction — empêche 2 validations concurrentes
+        # du même email de calculer le même suffixe de username (vraie
+        # protection contre la race condition, pas juste "en pratique c'est rare").
+        # 0 compte existant (cas normal, 99% des validations) -> username = email,
+        # comportement IDENTIQUE à avant ce chantier. Nème compte (partage
+        # parent/enfant) -> username = "email__N", jamais affiché nulle part
+        # (ni templates, ni connexion : EmailBackend authentifie par le champ
+        # email, jamais par username — vérifié par audit avant ce chantier).
+        # email reste, lui, strictement identique et partagé entre les comptes.
+        nb_comptes_existants = User.objects.select_for_update().filter(email=inscription.email).count()
+        username_technique = (
+            inscription.email if nb_comptes_existants == 0
+            else f'{inscription.email}__{nb_comptes_existants + 1}'
+        )
+
         # Crée le User — telephone/date_naissance copiés depuis l'inscription
         # (seule source qui les contient) pour que user.telephone/date_naissance
         # ne restent plus jamais vides sur les fiches admin/superviseur qui les
@@ -1575,7 +1638,7 @@ def admin_valider_eleve(request, inscription_id):
         # directeur du 2026-08-05) — se connecte directement avec le mot de
         # passe fourni.
         user = User.objects.create_user(
-            username=inscription.email,
+            username=username_technique,
             email=inscription.email,
             password=password_temp,
             first_name=inscription.nom,
@@ -1636,12 +1699,22 @@ def admin_inscription_eleve_detail(request, inscription_id):
 
     inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
     if inscription.statut == 'valide':
-        conflit = {'conflit': False, 'user': None, 'orphelin': False, 'archive': False}
+        conflit = {'conflit': False, 'user': None, 'orphelin': False, 'archive': False, 'partage_eleve_possible': False}
     else:
         conflit = _verifier_conflit_email(inscription.email)
+    # Correctif du 2026-08-10 (audit du chantier partage d'email) : avant ce correctif,
+    # le bouton "قبول" restait caché dès que conflit.conflit était vrai, MÊME quand
+    # admin_valider_eleve aurait accepté (cas normal du partage d'email élève/élève) —
+    # confirmé par test réel : impossible de valider la candidature d'un 2e membre de
+    # la même famille depuis l'interface, alors que la même action fonctionnait via
+    # l'URL directe. `peut_accepter` reprend EXACTEMENT la même décision que
+    # admin_valider_eleve (conflit['partage_eleve_possible']) pour que ce que montre
+    # cette page corresponde toujours à ce que fera réellement le clic sur "قبول".
+    peut_accepter = (not conflit['conflit']) or conflit['partage_eleve_possible']
     context = {
         'inscription': inscription,
         'conflit': conflit,
+        'peut_accepter': peut_accepter,
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
         'valeurs_dispo': set(inscription.disponibilites),
@@ -1687,12 +1760,31 @@ def admin_inscription_prof_detail(request, inscription_id):
 @role_required('admin')
 def admin_supprimer_user_orphelin(request, user_id):
     """Supprime un compte User sans profil Eleve/Prof (compte orphelin, généralement issu
-    d'un test), pour débloquer une validation d'inscription bloquée par un conflit d'email."""
+    d'un test), pour débloquer une validation d'inscription bloquée par un conflit d'email.
+
+    Correctif du 2026-08-10 (audit du chantier partage d'email) : مدير/مشرف n'ont
+    STRUCTURELLEMENT jamais de profil Eleve/Prof (ce ne sont pas des rôles avec profil,
+    contrairement à élève/prof/مؤطر) — sans ce garde-fou, un vrai compte مدير/مشرف dont
+    l'email entre en collision avec une candidature était classé "orphelin de test" par
+    _verifier_conflit_email, et ce bouton le supprimait alors DÉFINITIVEMENT. Confirmé
+    par test réel avant ce correctif. Ces 2 rôles sont désormais refusés ici
+    explicitement, quel que soit leur état de profil (qui sera de toute façon toujours
+    absent pour eux — le refus est donc inconditionnel sur le rôle, pas une simple
+    reformulation de la vérification de profil existante)."""
     from accounts.models import Eleve, Prof
     from django.contrib.auth import get_user_model
     User = get_user_model()
 
     user = get_object_or_404(User, id=user_id)
+
+    if user.role in ('admin', 'mshrif'):
+        messages.error(
+            request,
+            f'تعذر الحذف: هذا الحساب ({user.email}) هو حساب مدير أو مشرف — '
+            f'لا يمكن حذفه من هنا مهما كانت حالته.'
+        )
+        return redirect(request.GET.get('next') or 'admin_inscriptions')
+
     a_un_profil = Eleve.objects.filter(user=user).exists() or Prof.objects.filter(user=user).exists()
 
     if a_un_profil:
@@ -4160,6 +4252,19 @@ def admin_superviseur_assignations(request, superviseur_id):
 
 @role_required('admin')
 def admin_utilisateur_modifier_email(request, user_id):
+    """Chantier du 2026-08-10 (partage d'email parent/enfant) : depuis
+    admin_valider_eleve, plusieurs comptes élève actifs peuvent désormais
+    partager le même email. Si le مدير change l'email de l'un d'eux, il faut
+    décider si ça s'applique à lui seul ou à tous les comptes qui partagent
+    actuellement son ANCIEN email — flux à 2 POST :
+      1er POST (pas de 'portee' dans request.POST) : si l'ancien email de ce
+      compte n'est partagé par personne, applique directement (comportement
+      identique à avant ce chantier, aucune étape ajoutée). S'il EST partagé,
+      n'applique rien encore — affiche un écran listant les autres comptes
+      concernés et demandant explicitement la portée.
+      2e POST ('portee' = 'un_seul' ou 'tous', renvoyé par cet écran) :
+      applique enfin, à un seul compte ou à tous ceux qui partageaient
+      l'ancien email, dans une transaction unique (tout ou rien)."""
     from django.contrib.auth import get_user_model
     from inscriptions.views import _email_deja_utilise
 
@@ -4170,6 +4275,7 @@ def admin_utilisateur_modifier_email(request, user_id):
     if request.method == 'POST':
         nouvel_email = request.POST.get('nouvel_email', '').strip()
         confirmation_email = request.POST.get('confirmation_email', '').strip()
+        portee = request.POST.get('portee')
 
         if not nouvel_email or nouvel_email != confirmation_email:
             messages.error(request, 'البريدان الإلكترونيان غير متطابقين.')
@@ -4192,10 +4298,36 @@ def admin_utilisateur_modifier_email(request, user_id):
                 'next': next_url,
             })
 
+        autres_comptes_meme_email = list(
+            User.objects.filter(email=utilisateur.email).exclude(id=utilisateur.id).select_related()
+        )
+
+        if autres_comptes_meme_email and portee not in ('un_seul', 'tous'):
+            # 1er POST sur un email partagé : rien n'est appliqué — on demande
+            # explicitement la portée avant de toucher à quoi que ce soit.
+            return render(request, 'dashboard/admin_utilisateur_modifier_email_confirmation_partage.html', {
+                'utilisateur': utilisateur,
+                'autres_comptes': autres_comptes_meme_email,
+                'nouvel_email': nouvel_email,
+                'next': next_url,
+            })
+
+        comptes_a_modifier = [utilisateur]
+        if portee == 'tous':
+            comptes_a_modifier += autres_comptes_meme_email
+
         ancien_email = utilisateur.email
-        utilisateur.email = nouvel_email
-        utilisateur.username = nouvel_email
-        utilisateur.save()
+
+        with transaction.atomic():
+            for compte in comptes_a_modifier:
+                # Préserve le suffixe technique du username (ex: "__2", voir
+                # admin_valider_eleve) en ne remplaçant que le préfixe email —
+                # username reste jamais affiché nulle part, mais doit rester
+                # unique (contrainte Django native sur ce champ).
+                compte.username = compte.username.replace(compte.email, nouvel_email, 1)
+                compte.email = nouvel_email
+                compte.save()
+                _invalider_sessions_utilisateur(compte, request=request)
 
         # invalider_sessions_utilisateur : déconnexion immédiate de tous les
         # appareils — mécanisme réellement fonctionnel (vérifié par test réel,
@@ -4206,7 +4338,9 @@ def admin_utilisateur_modifier_email(request, user_id):
         # pour promettre quoi que ce soit à l'écran — voir
         # confirmation_modification_email, qui propose désormais un envoi
         # manuel via WhatsApp (point 5/6) plutôt qu'une promesse d'email.
-        _invalider_sessions_utilisateur(utilisateur, request=request)
+        # Un seul envoi (au compte initialement ciblé), même si "tous" a été
+        # choisi — tous les comptes concernés partagent la MÊME nouvelle
+        # adresse, un 2e message à la même boîte serait redondant.
         envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, utilisateur.get_full_name())
 
         request.session['confirmation_modification_email'] = {
@@ -4216,6 +4350,7 @@ def admin_utilisateur_modifier_email(request, user_id):
             'telephone': utilisateur.telephone,
             'role': utilisateur.role,
             'next': next_url,
+            'nb_comptes_maj': len(comptes_a_modifier),
         }
         return redirect('confirmation_modification_email')
 
@@ -4267,15 +4402,25 @@ def confirmation_modification_email(request):
 LIBELLE_PERSONNE_CONTACT = {'eleve': 'الطالب', 'prof': 'المعلم', 'superviseur': 'المؤطر'}
 
 
-def construire_message_mdp_whatsapp(email, mot_de_passe):
+def construire_message_mdp_whatsapp(email, mot_de_passe, nom=''):
     """Message WhatsApp UNIQUE pour tout écran communiquant un mot de passe
     (création de compte élève/prof/مؤطر, réinitialisation par مدير/مشرف) —
     Tâche du 2026-08-06 : un seul gabarit, jamais reformulé différemment
     d'un écran à l'autre, pour garantir la cohérence si modifié plus tard.
-    Texte exact fourni par le client."""
+    Texte exact fourni par le client, à une exception près (voir nom
+    ci-dessous).
+
+    nom : ajouté au chantier du 2026-08-10 (partage d'email parent/enfant).
+    Depuis ce chantier, plusieurs comptes élève peuvent partager le même
+    بريد إلكتروني — sans le nom, le مدير qui envoie ce message ne peut plus
+    savoir avec certitude à quel compte précis ce mot de passe appartient.
+    Optionnel (nom='') pour ne rien changer aux appels qui n'ont pas cette
+    info sous la main — la ligne n'apparaît alors simplement pas."""
+    ligne_nom = f"الاسم: {nom}\n" if nom else ""
     return (
         "السلام عليكم\n"
         "حياك الله\n"
+        f"{ligne_nom}"
         "هذا بريدك الالكتروني وهذه كلمة المرور\n"
         f"{email}\n"
         f"{mot_de_passe}\n"
@@ -4357,7 +4502,9 @@ def admin_utilisateur_reinitialiser_mot_de_passe(request, user_id):
     # Gabarit UNIQUE (Tâche du 2026-08-06) — voir construire_message_mdp_whatsapp.
     message_pret_a_envoyer = None
     if mot_de_passe_affiche:
-        message_pret_a_envoyer = construire_message_mdp_whatsapp(utilisateur.email, mot_de_passe_affiche)
+        message_pret_a_envoyer = construire_message_mdp_whatsapp(
+            utilisateur.email, mot_de_passe_affiche, nom=utilisateur.get_full_name()
+        )
 
     context = {
         'utilisateur': utilisateur,
