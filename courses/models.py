@@ -1,9 +1,10 @@
 import datetime
 
+from django.core.cache import cache
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
-from accounts.models import Prof, Eleve, Superviseur
+from accounts.models import Prof, Eleve, Superviseur, DUREE_CACHE_SINGLETON_REGLAGES_SECONDES
 
 
 class DisponibiliteProf(models.Model):
@@ -223,6 +224,10 @@ class ReglageLienSeance(models.Model):
     def __str__(self):
         return "إعدادات هامش رابط الحصص"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        cache.delete('singleton_reglage_lien_seance')
+
     class Meta:
         verbose_name = "Réglage du lien de séance"
         verbose_name_plural = "Réglage du lien de séance"
@@ -231,8 +236,17 @@ class ReglageLienSeance(models.Model):
 def get_reglage_lien_seance():
     """Renvoie l'unique instance de ReglageLienSeance, en la créant (valeurs
     par défaut 10/10) si elle n'existe pas encore — même patron singleton
-    que accounts.models.get_visibilite_prof()."""
-    reglage, _ = ReglageLienSeance.objects.get_or_create(pk=1)
+    que accounts.models.get_visibilite_prof().
+
+    Mise en cache (2026-08-11) : appelée par courses.utils.lien_seance_est_actif,
+    elle-même appelée une fois PAR CARTE DE SÉANCE affichée (_meet_icon.html) —
+    c'était la cause confirmée des ~25 requêtes restantes mesurées sur
+    dashboard_prof après les corrections précédentes. Voir accounts.models.
+    get_charte() pour le détail de l'invalidation/TTL, identique ici."""
+    reglage = cache.get('singleton_reglage_lien_seance')
+    if reglage is None:
+        reglage, _ = ReglageLienSeance.objects.get_or_create(pk=1)
+        cache.set('singleton_reglage_lien_seance', reglage, DUREE_CACHE_SINGLETON_REGLAGES_SECONDES)
     return reglage
 
 

@@ -218,7 +218,7 @@ def dashboard_prof(request):
     # dashboard_superviseur) plutôt que de dupliquer la logique une 2e fois.
     # Aperçu immédiat = 3 dernières séances passées à plat, exclues ensuite du
     # regroupement par semaine pour ne jamais les afficher deux fois.
-    toutes_seances_prof = Seance.objects.filter(groupe__prof=prof).select_related('groupe')
+    toutes_seances_prof = Seance.objects.filter(groupe__prof=prof).select_related('groupe__creneau')
     apercu_seances = list(
         toutes_seances_prof.filter(date__lt=aujourdhui).order_by('-date', '-heure')[:3]
     )
@@ -231,7 +231,7 @@ def dashboard_prof(request):
     # par date décroissante.
     prochaine_seance = Seance.objects.filter(
         groupe__prof=prof, date__gte=aujourdhui
-    ).exclude(statut='terminee').select_related('groupe').order_by('date', 'heure').first()
+    ).exclude(statut='terminee').select_related('groupe__creneau').order_by('date', 'heure').first()
 
     # ===== "القادمة" — section manquante (Point 1 du chantier groupé du
     # 2026-08-05) : avant ce correctif, seule "الحصة القادمة" (une séance
@@ -2284,6 +2284,15 @@ def mshrif_logo(request):
             messages.error(request, 'الملف المرفوع ليس صورة صالحة.')
             return redirect('mshrif_logo')
 
+        # Supprime l'ANCIEN fichier du stockage avant de le remplacer (corrigé
+        # le 2026-08-11) — sinon il reste orphelin sur Cloudinary indéfiniment
+        # (Django ne supprime jamais automatiquement l'ancien fichier d'un
+        # FileField/ImageField réassigné). Même patron déjà utilisé et
+        # éprouvé dans admin_hakiba_supprimer (element.fichier.delete(save=False)).
+        # Aucun effet sur ce qui s'affiche : le nouveau logo est toujours
+        # celui sauvegardé juste après, exactement comme avant ce correctif.
+        if config.logo:
+            config.logo.delete(save=False)
         config.logo = fichier
         config.save()
         messages.success(request, 'تم تحديث شعار المنصة بنجاح — سيظهر الشعار الجديد في كل الصفحات.')
@@ -3011,7 +3020,7 @@ def admin_seance_deplacer(request, seance_id):
 
 @role_required('admin', 'mshrif')
 def admin_eleves(request):
-    from django.db.models import Q
+    from django.db.models import Q, Count, Exists, OuterRef
     from accounts.models import Eleve
     from courses.models import Groupe
 
@@ -3037,7 +3046,14 @@ def admin_eleves(request):
         # case "إظهار المؤرشفين" faisait doublon et a été retirée).
         eleves = eleves.exclude(statut='archive')
     if groupe_id:
-        eleves = eleves.filter(groupes__id=groupe_id)
+        # Exists() plutôt que filter(groupes__id=...) (corrigé lors de la
+        # vérification du 2026-08-11) : un filter() direct sur 'groupes'
+        # partage sa jointure SQL avec l'annotate(Count('groupes')) plus bas,
+        # faussant le total affiché (ne compterait plus que CE groupe, pas le
+        # nombre réel de groupes de l'élève) — piège confirmé par un test
+        # écrit spécifiquement pour ce cas, jamais par supposition. Exists()
+        # utilise une sous-requête séparée, sans jointure partagée.
+        eleves = eleves.filter(Exists(Groupe.objects.filter(pk=groupe_id, eleves=OuterRef('pk'))))
     # Remplace l'ancien statut 'nouveau' (une donnée qui devenait fausse avec
     # le temps sans job de rafraîchissement) par un vrai filtre sur la date
     # d'inscription, ajustable par le directeur.
@@ -3045,6 +3061,14 @@ def admin_eleves(request):
         eleves = eleves.filter(inscription__date_soumission__date__gte=date_debut)
     if date_fin:
         eleves = eleves.filter(inscription__date_soumission__date__lte=date_fin)
+
+    # annotate() placé APRÈS tous les filter()/exclude() ci-dessus (y compris
+    # celui sur groupes__id) — jamais entrelacé avec un filtre sur la même
+    # relation M2M, pour ne jamais fausser le compte (piège classique de
+    # l'ORM Django : filter()+annotate(Count()) sur la même M2M dans un ordre
+    # différent peut donner un total incorrect). distinct=True : même
+    # précaution que Count('eleves', distinct=True) dans superviseur_profil.
+    eleves = eleves.annotate(nb_groupes=Count('groupes', distinct=True))
 
     context = {
         'eleves': paginer(request, eleves, 10),
@@ -3179,13 +3203,18 @@ def admin_eleve_disponibilites(request, eleve_id):
 
 @role_required('admin', 'mshrif')
 def admin_profs(request):
-    from django.db.models import Q
+    from django.db.models import Q, Count
     from accounts.models import Prof
 
     q = request.GET.get('q', '').strip()
     statut = request.GET.get('statut', '')
 
-    profs = Prof.objects.all().select_related('user').order_by('id')
+    # nb_groupes annotée (pas prof.groupes.count dans le template) : évite une
+    # requête COUNT par ligne affichée — aucun filter() de cette vue ne porte
+    # sur 'groupes', donc pas de risque d'interférence filter()+annotate().
+    profs = Prof.objects.all().select_related('user').annotate(
+        nb_groupes=Count('groupes', distinct=True)
+    ).order_by('id')
     if q:
         profs = profs.filter(
             Q(user__first_name__icontains=q) |

@@ -9,6 +9,12 @@ from core.utils import paginer, envoyer_notification_telegram
 from accounts.models import Eleve
 from .models import Paiement
 
+# Plafond de taille pour un reçu de paiement (image/capture d'écran), ajouté
+# le 2026-08-11 — même patron que dashboard.views.TAILLE_MAX_LOGO_OCTETS/
+# TAILLE_MAX_HAKIBA_OCTETS. Un reçu est une simple image, 10 Mo est déjà
+# largement suffisant.
+TAILLE_MAX_RECU_PAIEMENT_OCTETS = 10 * 1024 * 1024  # 10 Mo
+
 
 def _base_template_admin_ou_mshrif(request):
     """Équivalent local de dashboard.views._base_template_admin_ou_mshrif — les
@@ -34,6 +40,11 @@ def eleve_paiements(request):
         # inatteignable pour lui — garde explicite malgré tout, chantier du 2026-08-03.
         if eleve.statut == 'archive':
             messages.error(request, 'حسابك مؤرشف — لا يمكن إرسال دفعات جديدة.')
+            return redirect('eleve_paiements')
+
+        fichier_recu = request.FILES.get('screenshot')
+        if fichier_recu and fichier_recu.size > TAILLE_MAX_RECU_PAIEMENT_OCTETS:
+            messages.error(request, 'حجم صورة الإثبات كبير جداً — الحد الأقصى 10 ميغابايت.')
             return redirect('eleve_paiements')
 
         from dashboard.templatetags.libelles_arabes import mois_annee_ar
@@ -279,7 +290,19 @@ def paiement_panel_sauvegarder(request):
         paiement.date_validation = timezone.now()
     paiement.statut = nouveau_statut
     if request.FILES.get('screenshot'):
-        paiement.screenshot = request.FILES['screenshot']
+        nouveau_fichier = request.FILES['screenshot']
+        if nouveau_fichier.size > TAILLE_MAX_RECU_PAIEMENT_OCTETS:
+            messages.error(request, 'حجم صورة الإثبات كبير جداً — الحد الأقصى 10 ميغابايت.')
+            return redirect(f"{reverse('suivi_paiements_eleves')}?panel_eleve={eleve.id}&panel_mois={mois_str}")
+        # Supprime l'ANCIEN reçu du stockage avant de le remplacer (corrigé le
+        # 2026-08-11, même patron que dashboard.views.mshrif_logo et
+        # dashboard.views.admin_hakiba_supprimer) — sinon il reste orphelin
+        # sur Cloudinary à chaque correction de reçu. paiement.screenshot est
+        # vide pour un nouveau Paiement (rien à supprimer) : if paiement.screenshot
+        # gère les deux cas sans distinction supplémentaire.
+        if paiement.screenshot:
+            paiement.screenshot.delete(save=False)
+        paiement.screenshot = nouveau_fichier
     paiement.save()
 
     messages.success(request, f'تم حفظ دفعة {eleve.user.get_full_name()}.')

@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Count
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.urls import reverse
@@ -30,7 +31,12 @@ def groupes_list(request):
     prof_id = request.GET.get('prof', '')
     creneau_id = request.GET.get('creneau', '')
 
-    groupes = Groupe.objects.select_related('prof__user', 'creneau').order_by('id')
+    # nb_eleves annotée (pas groupe.eleves.count dans le template) : évite une
+    # requête COUNT par ligne — aucun filter() ci-dessous ne porte sur
+    # 'eleves', donc pas de risque d'interférence filter()+annotate().
+    groupes = Groupe.objects.select_related('prof__user', 'creneau').annotate(
+        nb_eleves=Count('eleves', distinct=True)
+    ).order_by('id')
     if statut:
         groupes = groupes.filter(statut=statut)
     else:

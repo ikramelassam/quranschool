@@ -110,6 +110,18 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': env.db('DATABASE_URL')
 }
+# Inertes par défaut (0 / False = comportement inchangé) tant que les variables
+# d'environnement correspondantes ne sont pas définies — voir le diagnostic de
+# latence du 2026-08-11 : DATABASE_URL pointe aujourd'hui vers le pooler
+# Supabase en mode Transaction (port 6543), incompatible avec une connexion
+# persistante (CONN_MAX_AGE>0). Ne définir CONN_MAX_AGE qu'APRÈS avoir basculé
+# DATABASE_URL vers le pooler en mode Session (port 5432, même hôte) ou une
+# connexion directe — jamais sur l'URL actuelle telle quelle. CONN_HEALTH_CHECKS
+# (Django >= 4.1) : à activer en même temps que CONN_MAX_AGE, pour que Django
+# revérifie une connexion réutilisée avant de s'en servir plutôt que d'échouer
+# sur une connexion devenue invalide côté serveur.
+DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=0)
+DATABASES['default']['CONN_HEALTH_CHECKS'] = env.bool('CONN_HEALTH_CHECKS', default=False)
 
 
 # Password validation

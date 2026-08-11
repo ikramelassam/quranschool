@@ -1,5 +1,8 @@
 from django.conf import settings
+from django.core.cache import cache
 from django.db import models
+
+from accounts.models import DUREE_CACHE_SINGLETON_REGLAGES_SECONDES
 
 
 class TypeAbonnement(models.Model):
@@ -232,6 +235,10 @@ class ParametresInscriptions(models.Model):
     def __str__(self):
         return "إعدادات فتح/إغلاق التسجيل"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        cache.delete('singleton_parametres_inscriptions')
+
     class Meta:
         verbose_name = "Paramètres d'inscription"
         verbose_name_plural = "Paramètres d'inscription"
@@ -241,6 +248,21 @@ def get_parametres_inscriptions():
     """Renvoie l'unique instance de ParametresInscriptions, en la créant
     (valeurs par défaut: tout ouvert, comportement actuel préservé) si elle
     n'existe pas encore — même patron singleton que get_charte()/
-    get_programme_general()/get_visibilite_prof()."""
+    get_programme_general()/get_visibilite_prof(), y compris la mise en cache
+    (voir accounts.models.get_charte()).
+
+    Note spécifique à ce singleton (2026-08-11) : contrôle l'ouverture/
+    fermeture des formulaires publics d'inscription. Si مدير/مشرف ferme une
+    catégorie, la fermeture est immédiate sur le processus qui a enregistré
+    le changement (invalidation dans ParametresInscriptions.save() ci-dessus)
+    et au plus tard ~60s après sur un autre processus Gunicorn — jamais plus
+    tôt qu'avant (le comportement précédent, sans cache, était instantané
+    partout ; ce délai borné est le seul changement de comportement réel de
+    tout ce chantier de cache, documenté ici explicitement plutôt que
+    silencieusement)."""
+    parametres = cache.get('singleton_parametres_inscriptions')
+    if parametres is not None:
+        return parametres
     parametres, _ = ParametresInscriptions.objects.get_or_create(pk=1)
+    cache.set('singleton_parametres_inscriptions', parametres, DUREE_CACHE_SINGLETON_REGLAGES_SECONDES)
     return parametres

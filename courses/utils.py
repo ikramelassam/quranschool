@@ -426,6 +426,10 @@ def etendre_seances(groupe, horizon_semaines=HORIZON_SEMAINES):
         Seance.objects.bulk_create(a_creer)
 
 
+CLE_CACHE_HORIZON_SEANCES_ETENDU = 'seances_horizon_etendu'
+DUREE_CACHE_HORIZON_SEANCES_SECONDES = 3600  # 1h — voir docstring ci-dessous
+
+
 def etendre_toutes_les_seances():
     """Appelée à chaque visite des pages séances/calendrier admin: pousse l'horizon
     de génération de tous les groupes actifs ayant un créneau, sans jamais retoucher
@@ -435,8 +439,30 @@ def etendre_toutes_les_seances():
     plantage, mais plus aucune nouvelle séance générée pour un groupe sans prof
     actif — les séances déjà générées restent intactes, à annuler/reporter ou à
     faire reprendre par un nouveau prof manuellement (voir admin_prof_detail,
-    bannière d'avertissement affichée quand un prof archivé a encore des groupes)."""
+    bannière d'avertissement affichée quand un prof archivé a encore des groupes).
+
+    Garde-fou (audit de performance du 2026-08-11) : cette fonction relisait/
+    écrivait pour TOUS les groupes actifs à CHAQUE chargement de admin_calendrier
+    ou admin_seances, même quand rien n'avait besoin d'être étendu — mesuré à
+    ~2,4s/22 requêtes rien que pour vérifier, plus une écriture systématique tant
+    que l'horizon glissant de 8 semaines n'est pas rattrapé. Le cache par défaut
+    de Django (LocMemCache, actif sans configuration supplémentaire) sert de
+    verrou temporel simple : ne relance le vrai travail qu'au plus une fois par
+    heure. Effet secondaire assumé et sans risque : le bord de l'horizon glissant
+    (8 semaines à l'avance) peut avancer jusqu'à ~1h plus tard que si la fonction
+    tournait à chaque requête — jamais de séance déjà visible qui disparaît, et
+    la création/le changement de créneau d'un groupe continue de générer SES
+    séances immédiatement via regenerer_pour_nouveau_creneau (inchangé, appelé
+    séparément). Avec 2 workers Gunicorn, le verrou est par processus (LocMemCache
+    n'est pas partagé entre eux) : au pire, le vrai travail peut s'exécuter 2 fois
+    dans la même heure au lieu d'une seule — toujours une réduction massive par
+    rapport à "à chaque requête"."""
+    from django.core.cache import cache
     from .models import Groupe
+
+    if cache.get(CLE_CACHE_HORIZON_SEANCES_ETENDU):
+        return
+    cache.set(CLE_CACHE_HORIZON_SEANCES_ETENDU, True, DUREE_CACHE_HORIZON_SEANCES_SECONDES)
 
     groupes = Groupe.objects.filter(statut='actif', creneau__isnull=False).exclude(prof__statut='archive')
     for groupe in groupes:
@@ -738,21 +764,30 @@ def _tranche_age_eleve(eleve):
 def lien_seance_est_actif(seance):
     """True si l'heure actuelle tombe dans la fenêtre [début - marge_avant,
     fin + marge_apres] de cette séance — Point 15, Tâche du 2026-08-04.
-    Recalculé à CHAQUE appel à partir des valeurs actuelles en base (jamais
-    mis en cache) : un changement d'horaire de la séance ou du réglage de
-    marge se reflète immédiatement au prochain appel, sans action
-    supplémentaire. fin_datetime retombe sur debut_datetime si le groupe n'a
-    pas/plus de créneau (voir Seance.fin_datetime), donc la fenêtre se
-    réduit à [début - marge_avant, début + marge_apres] dans ce cas. False
-    si le groupe n'a aucun lien de réunion renseigné (rien à activer) ou si
-    la séance est annulée."""
+    L'horaire de la séance elle-même est toujours lu tel quel depuis l'objet
+    passé en argument (jamais mis en cache ici). Le réglage de marge (avant/
+    après) passe en revanche par get_reglage_lien_seance() depuis le
+    2026-08-11 — CORRIGÉ : cette fonction faisait auparavant son propre
+    ReglageLienSeance.objects.get_or_create(pk=1) séparé, doublon exact de
+    get_reglage_lien_seance() (models.py) qui court-circuitait sa mise en
+    cache. Appelée une fois PAR CARTE DE SÉANCE affichée (_meet_icon.html) —
+    c'était la cause confirmée des ~25 requêtes restantes mesurées sur
+    dashboard_prof. Effet de bord assumé de la mise en cache (voir
+    get_reglage_lien_seance()) : un changement de MARGE par l'admin peut
+    mettre jusqu'à ~60s à se refléter sur un autre processus Gunicorn que
+    celui qui a enregistré le changement — jamais plus, jamais pour
+    l'horaire de la séance elle-même. fin_datetime retombe sur debut_datetime
+    si le groupe n'a pas/plus de créneau (voir Seance.fin_datetime), donc la
+    fenêtre se réduit à [début - marge_avant, début + marge_apres] dans ce
+    cas. False si le groupe n'a aucun lien de réunion renseigné (rien à
+    activer) ou si la séance est annulée."""
     import datetime
-    from .models import ReglageLienSeance
+    from .models import get_reglage_lien_seance
 
     if not seance.groupe.lien_reunion or seance.statut == 'annulee':
         return False
 
-    reglage, _ = ReglageLienSeance.objects.get_or_create(pk=1)
+    reglage = get_reglage_lien_seance()
     debut = seance.debut_datetime
     fin = seance.fin_datetime or debut
     fenetre_debut = debut - datetime.timedelta(minutes=reglage.marge_avant_minutes)

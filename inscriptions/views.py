@@ -15,6 +15,13 @@ CATEGORIE_LABEL = {
     'prof': 'الأساتذة',
 }
 
+# Plafond de taille pour l'enregistrement audio de candidature prof (corrigé le
+# 2026-08-11) — ce formulaire est PUBLIC et non authentifié, contrairement au
+# logo (2 Mo, dashboard/views.py) et aux fichiers حقيبة (20 Mo), qui exigent
+# tous les deux une connexion admin/مشرف. Valeur alignée sur le plafond حقيبة
+# déjà existant, un ordre de grandeur raisonnable pour un enregistrement vocal.
+TAILLE_MAX_AUDIO_INSCRIPTION_OCTETS = 20 * 1024 * 1024  # 20 Mo
+
 
 def _reponse_categorie_fermee(request, categorie):
     """Écran public partagé affiché quand une catégorie d'inscription est
@@ -364,6 +371,18 @@ def inscription_prof(request):
         if champs_manquants:
             return render(request, 'inscriptions/prof_formulaire.html', {
                 'erreur_champs': 'الحقول التالية إلزامية ولم يتم تعبئتها: ' + '، '.join(champs_manquants),
+                'old_email': email,
+                'valeurs_form': set(disponibilites),
+                **contexte_grille,
+            })
+
+        # Plafond de taille (corrigé le 2026-08-11) — voir TAILLE_MAX_AUDIO_INSCRIPTION_OCTETS,
+        # même patron que dashboard.views._valider_fichier_hakiba. Vérifié ici,
+        # après le contrôle "champ manquant" ci-dessus (audio_enregistrement
+        # est garanti présent à ce stade).
+        if audio_enregistrement.size > TAILLE_MAX_AUDIO_INSCRIPTION_OCTETS:
+            return render(request, 'inscriptions/prof_formulaire.html', {
+                'erreur_champs': 'حجم التسجيل الصوتي كبير جداً — الحد الأقصى 20 ميغابايت.',
                 'old_email': email,
                 'valeurs_form': set(disponibilites),
                 **contexte_grille,

@@ -1,6 +1,19 @@
 
 from django.contrib.auth.models import AbstractUser
+from django.core.cache import cache
 from django.db import models
+
+# TTL des singletons de réglage mis en cache ci-dessous (get_charte,
+# get_programme_general, get_logo_config, get_visibilite_prof) — voir le
+# diagnostic de latence du 2026-08-11 (accounts.context_processors.logo_context
+# tourne sur CHAQUE page, ajoutant 1 requête site entier). Court délibérément
+# (60s) : chaque save() invalide déjà sa propre clé immédiatement (voir plus
+# bas), ce délai n'est qu'un filet de sécurité pour le cas rare où l'écriture
+# et la lecture suivante tombent sur 2 processus Gunicorn différents (le cache
+# par défaut de Django, LocMemCache, n'est pas partagé entre processus) — au
+# pire, jusqu'à 60s avant qu'un changement de réglage soit visible partout,
+# jamais plus.
+DUREE_CACHE_SINGLETON_REGLAGES_SECONDES = 60
 
 
 class User(AbstractUser):
@@ -285,6 +298,10 @@ class CharteEnseignement(models.Model):
     def __str__(self):
         return "ميثاق التدريس"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        cache.delete('singleton_charte_enseignement')
+
     class Meta:
         verbose_name = "Charte d'enseignement"
         verbose_name_plural = "Charte d'enseignement"
@@ -313,8 +330,17 @@ class CharteSanctionLigne(models.Model):
 
 def get_charte():
     """Renvoie l'unique instance de CharteEnseignement, en la créant (vide) si elle
-    n'existe pas encore — patron singleton simple (toujours pk=1)."""
-    charte, _ = CharteEnseignement.objects.get_or_create(pk=1)
+    n'existe pas encore — patron singleton simple (toujours pk=1).
+
+    Mise en cache (2026-08-11) : cette fonction est appelée à chaque page qui
+    affiche ou vérifie la charte — voir DUREE_CACHE_SINGLETON_REGLAGES_SECONDES
+    ci-dessus pour la justification et les limites du cache. Invalidée
+    immédiatement par CharteEnseignement.save() ci-dessus à chaque
+    modification par le مشرف — le TTL n'est qu'un filet de sécurité."""
+    charte = cache.get('singleton_charte_enseignement')
+    if charte is None:
+        charte, _ = CharteEnseignement.objects.get_or_create(pk=1)
+        cache.set('singleton_charte_enseignement', charte, DUREE_CACHE_SINGLETON_REGLAGES_SECONDES)
     return charte
 
 
@@ -341,6 +367,10 @@ class ProgrammeGeneral(models.Model):
     def __str__(self):
         return "البرنامج العام"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        cache.delete('singleton_programme_general')
+
     class Meta:
         verbose_name = "Programme général"
         verbose_name_plural = "Programme général"
@@ -348,8 +378,12 @@ class ProgrammeGeneral(models.Model):
 
 def get_programme_general():
     """Renvoie l'unique instance de ProgrammeGeneral, en la créant (vide) si elle
-    n'existe pas encore — même patron singleton que get_charte()."""
-    programme, _ = ProgrammeGeneral.objects.get_or_create(pk=1)
+    n'existe pas encore — même patron singleton que get_charte(), y compris la
+    mise en cache (voir sa docstring pour le détail)."""
+    programme = cache.get('singleton_programme_general')
+    if programme is None:
+        programme, _ = ProgrammeGeneral.objects.get_or_create(pk=1)
+        cache.set('singleton_programme_general', programme, DUREE_CACHE_SINGLETON_REGLAGES_SECONDES)
     return programme
 
 
@@ -367,6 +401,10 @@ class LogoConfig(models.Model):
     def __str__(self):
         return "شعار المنصة"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        cache.delete('singleton_logo_config')
+
     class Meta:
         verbose_name = "Logo de la plateforme"
         verbose_name_plural = "Logo de la plateforme"
@@ -374,8 +412,16 @@ class LogoConfig(models.Model):
 
 def get_logo_config():
     """Renvoie l'unique instance de LogoConfig, en la créant (vide -> logo=None,
-    donc fallback sur le logo statique par défaut) si elle n'existe pas encore."""
-    config, _ = LogoConfig.objects.get_or_create(pk=1)
+    donc fallback sur le logo statique par défaut) si elle n'existe pas encore.
+
+    Mise en cache (2026-08-11) : appelée par accounts.context_processors.
+    logo_context, donc sur LITTÉRALEMENT chaque page du site (y compris les
+    pages publiques) — la plus rentable des 6 mises en cache de ce fichier.
+    Voir get_charte() pour le détail de l'invalidation/TTL, identique ici."""
+    config = cache.get('singleton_logo_config')
+    if config is None:
+        config, _ = LogoConfig.objects.get_or_create(pk=1)
+        cache.set('singleton_logo_config', config, DUREE_CACHE_SINGLETON_REGLAGES_SECONDES)
     return config
 
 
@@ -410,6 +456,10 @@ class VisibiliteProf(models.Model):
     def __str__(self):
         return "إعدادات ظهور بيانات الأستاذ للطالب"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        cache.delete('singleton_visibilite_prof')
+
     class Meta:
         verbose_name = "Visibilité du profil professeur (élève)"
         verbose_name_plural = "Visibilité du profil professeur (élève)"
@@ -418,8 +468,12 @@ class VisibiliteProf(models.Model):
 def get_visibilite_prof():
     """Renvoie l'unique instance de VisibiliteProf, en la créant (valeurs par
     défaut: tout visible, comportement actuel préservé) si elle n'existe pas
-    encore — même patron singleton que get_charte()/get_programme_general()."""
-    visibilite, _ = VisibiliteProf.objects.get_or_create(pk=1)
+    encore — même patron singleton que get_charte()/get_programme_general(),
+    y compris la mise en cache (voir la docstring de get_charte())."""
+    visibilite = cache.get('singleton_visibilite_prof')
+    if visibilite is None:
+        visibilite, _ = VisibiliteProf.objects.get_or_create(pk=1)
+        cache.set('singleton_visibilite_prof', visibilite, DUREE_CACHE_SINGLETON_REGLAGES_SECONDES)
     return visibilite
 
 
