@@ -1,0 +1,58 @@
+{% extends base_template %}
+{% block title %}حذف نهائي — الأستاذ{% endblock %}
+{% block content %}
+<div class="page-title">حذف نهائي</div>
+<div class="page-subtitle">{{ prof.user.get_full_name }} — {{ prof.user.email }}</div>
+
+{% comment %}
+Chantier du 2026-08-12 — voir dashboard.views.prof_supprimer_definitivement.
+Contrairement à l'élève, rien ne bloque ici (aucune donnée financière
+stockée par prof) — mais le montant de رأتبي du mois en cours est affiché
+explicitement : il deviendra impossible à recalculer une fois ce compte
+supprimé (jamais historisé, voir courses.utils.calculer_remuneration_prof).
+{% endcomment %}
+
+<div style="background:#fdf1f0; border:2px solid var(--color-danger); border-radius:12px; padding:24px; max-width:600px;">
+    <div style="font-weight:700; color:var(--color-danger); margin-bottom:12px;">⚠️ هذا الإجراء نهائي</div>
+
+    {% if remuneration_mois_courant %}
+    <div style="background:#fff3cd; border-radius:8px; padding:12px 16px; margin-bottom:16px; color:#856404; font-weight:600;">
+        💰 مستحقات هذا الأستاذ للشهر الحالي (حسب الحساب الآلي): {{ remuneration_mois_courant }} د.م.
+        <div style="font-weight:400; font-size:0.85rem; margin-top:4px;">هذا المبلغ غير مُخزَّن في قاعدة البيانات (يُحسب آنياً) — بعد الحذف، لن يكون بالإمكان إعادة حسابه. تأكد من تسويته قبل المتابعة.</div>
+    </div>
+    {% endif %}
+
+    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:6px;">سيتم حذف ما يلي نهائياً مع هذا الحساب:</p>
+    <ul style="color:#8a3b36; font-size:0.9rem; margin-bottom:16px;">
+        <li>{{ nb_disponibilites }} خانة تفرغ</li>
+        <li>{{ nb_demandes_disponibilite }} طلب تعديل جدول</li>
+        <li>{{ nb_commentaires_mensuels }} ملاحظة شهرية عن أدائه</li>
+    </ul>
+
+    {% if nb_groupes_actifs > 0 %}
+    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:12px;">
+        ⚠ {{ nb_groupes_actifs }} مجموعة نشطة يُدرِّسها حالياً — لن تُحذف، لكنها ستصبح بدون أستاذ ويجب تعيين أستاذ آخر لها.
+    </p>
+    {% endif %}
+
+    <p style="color:#8a3b36; font-size:0.85rem; margin-bottom:20px;">
+        (البيانات الشهرية التي كتبها عن طلابه تبقى محفوظة على ملف كل طالب — فقط اسمه كمُحرِّر يختفي.<br>
+        طلب التسجيل الأصلي لا يُحذف — يبقى محفوظاً، لكن حالته تصبح "مرفوض" تلقائياً.)<br>
+        لن يبقى أي أثر لهذا الحذف بعد تنفيذه.
+    </p>
+
+    <form method="POST" onsubmit="return confirm('تأكيد أخير: هل أنت متأكدة تماماً من حذف حساب هذا الأستاذ نهائياً، بدون أي إمكانية للتراجع؟');">
+        {% csrf_token %}
+        <label style="color:#8a3b36; font-size:0.85rem; display:block; margin-bottom:4px;">اكتب البريد الإلكتروني التالي بالضبط للتأكيد:</label>
+        <div style="background:white; border-radius:6px; padding:8px 12px; font-family:'Tajawal',sans-serif; margin-bottom:10px; border:1px solid #e0c4c2;">{{ prof.user.email }}</div>
+        <input type="text" name="confirmation_nom" class="form-control mb-3" placeholder="{{ prof.user.email }}" required>
+        <div class="d-flex gap-2">
+            <button type="submit"
+                style="background:var(--color-danger); color:white; border:none; border-radius:8px; padding:10px 20px; font-weight:700; font-family:'Tajawal',sans-serif; cursor:pointer;">
+                حذف نهائي 🗑️⚠️
+            </button>
+            <a href="{% url 'admin_prof_detail' prof.id %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -10,7 +10,7 @@
     </span>
 </div>
 <div class="page-subtitle">
-    البيان الشهري — {{ mois_reference|mois_annee_ar }} — بقلم {{ prof.user.get_full_name }}
+    البيان الشهري — {{ mois_reference|mois_annee_ar }} — بقلم {% if prof %}{{ prof.user.get_full_name }}{% else %}[حساب محذوف]{% endif %}
     {% if lecture_seule %} — عرض للاطلاع فقط{% endif %}
 </div>
 

@@ -176,7 +176,7 @@ Palette gold/cream/brown existante, mêmes tokens que le reste du site
             {% elif ligne.seances_non_evaluees %}
                 <div class="suivi-detail-label">الحصص غير المقيَّمة:</div>
                 {% for s in ligne.seances_non_evaluees %}
-                <div class="suivi-detail-seance">{{ s.date|date:"d-m-Y" }} — {{ s.groupe.nom }} — {{ s.groupe.prof.user.get_full_name }}</div>
+                <div class="suivi-detail-seance">{{ s.date|date:"d-m-Y" }} — {{ s.groupe.nom }} — {{ s.groupe.prof.user.get_full_name|default:"(بدون أستاذ)" }}</div>
                 {% endfor %}
             {% else %}
                 <div class="suivi-detail-seance">جميع الحصص المسجلة هذا الشهر مُقيَّمة ✅</div>

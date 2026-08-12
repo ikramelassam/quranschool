@@ -1,0 +1,41 @@
+{% extends base_template %}
+{% block title %}حذف نهائي — المؤطر{% endblock %}
+{% block content %}
+<div class="page-title">حذف نهائي</div>
+<div class="page-subtitle">{{ superviseur.user.get_full_name }} — {{ superviseur.user.email }}</div>
+
+{% comment %}
+Chantier du 2026-08-12 — voir dashboard.views.superviseur_supprimer_definitivement.
+Après les migrations SET_NULL de ce chantier (Evaluation.superviseur), rien
+n'est réellement supprimé ici en dehors du compte lui-même — tout se détache
+proprement (profs_assignes, évaluations rédigées, séances suivies).
+{% endcomment %}
+
+<div style="background:#fdf1f0; border:2px solid var(--color-danger); border-radius:12px; padding:24px; max-width:600px;">
+    <div style="font-weight:700; color:var(--color-danger); margin-bottom:12px;">⚠️ هذا الإجراء نهائي</div>
+
+    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:12px;">
+        لا شيء يُحذف فعلياً هنا — فقط الحساب نفسه. كل ما يلي سيبقى محفوظاً، فقط الرابط بهذا المؤطر يُزال:
+    </p>
+    <ul style="color:#8a3b36; font-size:0.9rem; margin-bottom:20px;">
+        <li>{{ nb_profs_assignes }} أستاذ مُسند إليه حالياً — سيصبحون بدون مؤطر مسؤول (قابلين لإعادة الإسناد لاحقاً)</li>
+        <li>{{ nb_evaluations }} تقييم كتبه على أساتذة — يبقى محفوظاً على ملف كل أستاذ، فقط اسم المؤطر كمُحرِّر يختفي</li>
+    </ul>
+
+    <p style="color:#8a3b36; font-size:0.85rem; margin-bottom:20px;">لن يبقى أي أثر لهذا الحذف بعد تنفيذه.</p>
+
+    <form method="POST" onsubmit="return confirm('تأكيد أخير: هل أنت متأكدة تماماً من حذف حساب هذا المؤطر نهائياً، بدون أي إمكانية للتراجع؟');">
+        {% csrf_token %}
+        <label style="color:#8a3b36; font-size:0.85rem; display:block; margin-bottom:4px;">اكتب البريد الإلكتروني التالي بالضبط للتأكيد:</label>
+        <div style="background:white; border-radius:6px; padding:8px 12px; font-family:'Tajawal',sans-serif; margin-bottom:10px; border:1px solid #e0c4c2;">{{ superviseur.user.email }}</div>
+        <input type="text" name="confirmation_nom" class="form-control mb-3" placeholder="{{ superviseur.user.email }}" required>
+        <div class="d-flex gap-2">
+            <button type="submit"
+                style="background:var(--color-danger); color:white; border:none; border-radius:8px; padding:10px 20px; font-weight:700; font-family:'Tajawal',sans-serif; cursor:pointer;">
+                حذف نهائي 🗑️⚠️
+            </button>
+            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

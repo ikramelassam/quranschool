@@ -1178,7 +1178,11 @@ def bilan_mensuel_detail(request, eleve_id, mois):
     else:
         bilan = get_object_or_404(BilanMensuel, eleve=eleve, mois_reference=mois_reference)
         prof = bilan.prof
-        if request.user.role == 'superviseur':
+        # prof peut être None (compte supprimé définitivement, voir migration
+        # SET_NULL du 2026-08-12) — dans ce cas, ne pas bloquer la consultation
+        # par le مؤطر : il n'y a plus de prof à qui restreindre l'accès, le
+        # bilan doit rester consultable comme n'importe quelle donnée détachée.
+        if request.user.role == 'superviseur' and prof is not None:
             superviseur = get_object_or_404(Superviseur, user=request.user)
             if prof not in superviseur.profs_assignes.all():
                 return HttpResponseForbidden('هذا المعلم غير مسند إليك.')
@@ -3140,6 +3144,62 @@ def admin_eleve_archiver(request, eleve_id):
     return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
 
+# ==================== SUPPRESSION DÉFINITIVE (chantier du 2026-08-12) ====================
+# Distincte de admin_eleve_archiver/admin_prof_archiver (réversibles) : ici on
+# supprime le User pour de vrai — مدير UNIQUEMENT (pas مشرف), confirmation par
+# saisie EXACTE de l'email (identifiant garanti unique, contrairement au nom),
+# transaction.atomic(), AUCUNE trace conservée après coup — même contrat que
+# groupe_supprimer_definitivement/creneau_supprimer_definitivement (courses/
+# views.py). Le detail exact de ce qui est réellement supprimé vs détaché
+# (SET_NULL) a été audité champ par champ avant ce chantier — voir les 2
+# migrations SET_NULL (BilanMensuel.prof, Evaluation.superviseur) qui
+# l'accompagnent.
+
+@role_required('admin')
+def eleve_supprimer_definitivement(request, eleve_id):
+    """Paiement bloque volontairement la suppression (contrairement au reste,
+    qui est emporté avec un simple avertissement) : c'est un historique
+    financier, pas un simple journal d'activité — on ne le fait jamais
+    disparaître silencieusement. Le مدير doit d'abord archiver l'élève (déjà
+    possible, réversible) plutôt que de perdre la preuve de paiements reçus."""
+    from accounts.models import Eleve
+    from payments.models import Paiement
+
+    eleve = get_object_or_404(Eleve, id=eleve_id)
+    nb_paiements = Paiement.objects.filter(eleve=eleve).count()
+
+    if request.method != 'POST':
+        return render(request, 'dashboard/admin_eleve_supprimer_definitivement.html', {
+            'eleve': eleve,
+            'nb_paiements': nb_paiements,
+            'nb_presences': eleve.presences.count(),
+            'nb_bilans': eleve.bilans_mensuels.count(),
+            'nb_groupes_historique': eleve.historique_groupes.count(),
+            'nb_disponibilites': eleve.disponibilites.count(),
+            'base_template': _base_template_admin_ou_mshrif(request),
+        })
+
+    if nb_paiements > 0:
+        messages.error(
+            request,
+            f'تعذر الحذف: توجد {nb_paiements} عملية دفع مرتبطة بهذا الطالب — لا يمكن حذف السجل المالي نهائياً. '
+            f'يمكنك أرشفة الطالب بدل ذلك.'
+        )
+        return redirect('admin_eleve_detail', eleve_id=eleve.id)
+
+    confirmation = request.POST.get('confirmation_nom', '').strip()
+    if confirmation != eleve.user.email:
+        messages.error(request, 'البريد الإلكتروني المُدخل لا يطابق بالضبط — لم يتم حذف أي شيء.')
+        return redirect('admin_eleve_detail', eleve_id=eleve.id)
+
+    nom = eleve.user.get_full_name()
+    with transaction.atomic():
+        eleve.user.delete()
+
+    messages.success(request, f'تم حذف حساب الطالب {nom} نهائياً.')
+    return redirect('admin_eleves')
+
+
 @role_required('admin')
 def admin_eleve_disponibilites(request, eleve_id):
     from accounts.models import Eleve
@@ -3258,6 +3318,46 @@ def admin_prof_reactiver(request, prof_id):
     reactiver_prof(prof)
     messages.success(request, f'تمت إعادة تفعيل الأستاذ {prof.user.get_full_name()}.')
     return redirect('admin_prof_detail', prof_id=prof.id)
+
+
+@role_required('admin')
+def prof_supprimer_definitivement(request, prof_id):
+    """Rien ne bloque ici (contrairement à eleve, voir Paiement) : aucune
+    donnée financière n'est stockée par prof (la rémunération est calculée
+    à la volée, jamais historisée — voir courses.utils.calculer_remuneration_prof).
+    Le seul risque réel est que le montant actuellement dû pour le mois en
+    cours devienne impossible à recalculer une fois le compte supprimé —
+    affiché ici pour que le مدير le voie AVANT de confirmer, pas bloqué."""
+    from accounts.models import Prof
+    from courses.models import Groupe, DisponibiliteProf, DemandeModificationDisponibilite
+    from evaluations.models import CommentaireMensuel
+    from courses.utils import calculer_remuneration_prof
+
+    prof = get_object_or_404(Prof, id=prof_id)
+
+    if request.method != 'POST':
+        remuneration = calculer_remuneration_prof(prof)
+        return render(request, 'dashboard/admin_prof_supprimer_definitivement.html', {
+            'prof': prof,
+            'nb_groupes_actifs': Groupe.objects.filter(prof=prof, statut='actif').count(),
+            'nb_disponibilites': DisponibiliteProf.objects.filter(prof=prof).count(),
+            'nb_demandes_disponibilite': DemandeModificationDisponibilite.objects.filter(prof=prof).count(),
+            'nb_commentaires_mensuels': CommentaireMensuel.objects.filter(prof=prof).count(),
+            'remuneration_mois_courant': remuneration['total_calcule'],
+            'base_template': _base_template_admin_ou_mshrif(request),
+        })
+
+    confirmation = request.POST.get('confirmation_nom', '').strip()
+    if confirmation != prof.user.email:
+        messages.error(request, 'البريد الإلكتروني المُدخل لا يطابق بالضبط — لم يتم حذف أي شيء.')
+        return redirect('admin_prof_detail', prof_id=prof.id)
+
+    nom = prof.user.get_full_name()
+    with transaction.atomic():
+        prof.user.delete()
+
+    messages.success(request, f'تم حذف حساب الأستاذ {nom} نهائياً.')
+    return redirect('admin_profs')
 
 
 @role_required('admin')
@@ -4246,6 +4346,38 @@ def admin_superviseur_assignations(request, superviseur_id):
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_superviseur_assignations.html', context)
+
+
+@role_required('admin')
+def superviseur_supprimer_definitivement(request, superviseur_id):
+    """Rien ne bloque ici : après les migrations SET_NULL de ce chantier,
+    toutes les relations de Superviseur (profs_assignes, Evaluation.superviseur,
+    Seance.superviseur, CommentaireMensuel.redige_par) se détachent proprement
+    sans effacer aucune donnée appartenant à un autre compte."""
+    from accounts.models import Superviseur
+    from evaluations.models import Evaluation
+
+    superviseur = get_object_or_404(Superviseur, id=superviseur_id)
+
+    if request.method != 'POST':
+        return render(request, 'dashboard/admin_superviseur_supprimer_definitivement.html', {
+            'superviseur': superviseur,
+            'nb_profs_assignes': superviseur.profs_assignes.count(),
+            'nb_evaluations': Evaluation.objects.filter(superviseur=superviseur).count(),
+            'base_template': _base_template_admin_ou_mshrif(request),
+        })
+
+    confirmation = request.POST.get('confirmation_nom', '').strip()
+    if confirmation != superviseur.user.email:
+        messages.error(request, 'البريد الإلكتروني المُدخل لا يطابق بالضبط — لم يتم حذف أي شيء.')
+        return redirect('admin_superviseurs')
+
+    nom = superviseur.user.get_full_name()
+    with transaction.atomic():
+        superviseur.user.delete()
+
+    messages.success(request, f'تم حذف حساب المؤطر {nom} نهائياً.')
+    return redirect('admin_superviseurs')
 
 
 # ==================== ADMIN — MODIFIER L'EMAIL D'UN UTILISATEUR ====================

@@ -25,9 +25,16 @@ class Critere(models.Model):
 
 
 class Evaluation(models.Model):
+    # SET_NULL (pas CASCADE) depuis le chantier de suppression définitive du
+    # مؤطر (2026-08-12) : cette évaluation concerne le PROF évalué, pas le
+    # مؤطر qui l'a rédigée — le supprimer ne doit jamais effacer l'historique
+    # de performance d'un prof qui, lui, garde son compte. Reste visible sur
+    # la fiche du prof (via seance.groupe), avec un auteur devenu vide.
     superviseur = models.ForeignKey(
         Superviseur,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='evaluations'
     )
     seance = models.OneToOneField(

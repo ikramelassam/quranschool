@@ -67,6 +67,7 @@ urlpatterns = [
     path('admin/eleves/<int:eleve_id>/suspendre/', views.admin_eleve_suspendre, name='admin_eleve_suspendre'),
     path('admin/eleves/<int:eleve_id>/reactiver/', views.admin_eleve_reactiver, name='admin_eleve_reactiver'),
     path('admin/eleves/<int:eleve_id>/archiver/', views.admin_eleve_archiver, name='admin_eleve_archiver'),
+    path('admin/eleves/<int:eleve_id>/supprimer-definitivement/', views.eleve_supprimer_definitivement, name='eleve_supprimer_definitivement'),
     path('admin/profs/', views.admin_profs, name='admin_profs'),
     path('admin/profs/<int:prof_id>/', views.admin_prof_detail, name='admin_prof_detail'),
     path('admin/profs/<int:prof_id>/infos-complementaires/', views.admin_prof_infos_complementaires_modifier, name='admin_prof_infos_complementaires_modifier'),
@@ -78,6 +79,7 @@ urlpatterns = [
     path('admin/profs/<int:prof_id>/majoration/', views.admin_prof_majoration_modifier, name='admin_prof_majoration_modifier'),
     path('admin/profs/<int:prof_id>/archiver/', views.admin_prof_archiver, name='admin_prof_archiver'),
     path('admin/profs/<int:prof_id>/reactiver/', views.admin_prof_reactiver, name='admin_prof_reactiver'),
+    path('admin/profs/<int:prof_id>/supprimer-definitivement/', views.prof_supprimer_definitivement, name='prof_supprimer_definitivement'),
     path('admin/demandes-disponibilite/', views.admin_demandes_disponibilite, name='admin_demandes_disponibilite'),
     path('admin/demandes-disponibilite/<int:demande_id>/approuver/', views.admin_demande_disponibilite_approuver, name='admin_demande_disponibilite_approuver'),
     path('admin/demandes-disponibilite/<int:demande_id>/rejeter/', views.admin_demande_disponibilite_rejeter, name='admin_demande_disponibilite_rejeter'),
@@ -121,6 +123,7 @@ urlpatterns = [
     path('admin/superviseurs/', views.admin_superviseurs, name='admin_superviseurs'),
     path('admin/superviseurs/ajouter/', views.admin_superviseur_ajouter, name='admin_superviseur_ajouter'),
     path('admin/superviseurs/<int:superviseur_id>/assignations/', views.admin_superviseur_assignations, name='admin_superviseur_assignations'),
+    path('admin/superviseurs/<int:superviseur_id>/supprimer-definitivement/', views.superviseur_supprimer_definitivement, name='superviseur_supprimer_definitivement'),
 
     # Admin — modification d'email (n'importe quel utilisateur) et compte admin
     path('admin/utilisateurs/<int:user_id>/modifier-email/', views.admin_utilisateur_modifier_email, name='admin_utilisateur_modifier_email'),

@@ -79,7 +79,7 @@
 {% if evaluation %}
 <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div style="color:#888; font-size:0.85rem; margin-bottom:12px;">
-        بواسطة {{ evaluation.superviseur.user.get_full_name }} — {{ evaluation.date|date:"d-m-Y H:i" }}
+        بواسطة {% if evaluation.superviseur %}{{ evaluation.superviseur.user.get_full_name }}{% else %}[حساب محذوف]{% endif %} — {{ evaluation.date|date:"d-m-Y H:i" }}
     </div>
     {% for note in evaluation.notes.all %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">

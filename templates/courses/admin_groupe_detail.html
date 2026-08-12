@@ -54,7 +54,11 @@
     </div>
 </div>
 
-{% if groupe.prof.statut == 'archive' %}
+{% if not groupe.prof %}
+<div style="background:#fce4e4; color:var(--color-danger); border-radius:10px; padding:14px 18px; margin-bottom:16px; font-weight:600;">
+    ⚠️ هذه المجموعة بدون أستاذ (تمت أرشفة/حذف الأستاذ السابق أو لم يُعيَّن أحد بعد) — يجب تعيين أستاذ لها. لن يتم توليد حصص مستقبلية جديدة طالما هذا لم يُحل.
+</div>
+{% elif groupe.prof.statut == 'archive' %}
 <div style="background:#f0f0f0; color:#666; border-radius:10px; padding:14px 18px; margin-bottom:16px; font-weight:600;">
     ⚠️ الأستاذ {{ groupe.prof.user.get_full_name }} مؤرشف — يجب إعادة تعيين أستاذ آخر لهذه المجموعة. لن يتم توليد حصص مستقبلية جديدة طالما هذا لم يُحل.
 </div>

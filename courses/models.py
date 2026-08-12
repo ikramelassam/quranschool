@@ -557,7 +557,13 @@ class BilanMensuel(models.Model):
     un brouillon librement modifiable, pas une valeur recalculée en direct : une fois
     sauvegardé, le texte n'est plus jamais regénéré automatiquement."""
     eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name='bilans_mensuels')
-    prof = models.ForeignKey(Prof, on_delete=models.CASCADE, related_name='bilans_mensuels')
+    # SET_NULL (pas CASCADE) depuis le chantier de suppression définitive du prof
+    # (2026-08-12) : ce bilan concerne l'ÉLÈVE (côté eleve ci-dessus, resté en
+    # CASCADE à raison — c'est bien SON compte qui, si supprimé, doit tout
+    # emporter). Le prof n'en est que l'auteur — le supprimer ne doit jamais
+    # effacer un contenu qui appartient au dossier de l'élève. Le bilan reste
+    # donc visible sur la fiche de l'élève, avec un auteur devenu vide.
+    prof = models.ForeignKey(Prof, on_delete=models.SET_NULL, null=True, blank=True, related_name='bilans_mensuels')
     mois_reference = models.DateField()
     memorisation = models.TextField(blank=True)
     revision = models.TextField(blank=True)

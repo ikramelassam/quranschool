@@ -25,6 +25,8 @@
            onclick="return confirm('هل أنت متأكد من إعادة تفعيل الأستاذ {{ prof.user.get_full_name|escapejs }}؟');"
            style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">▶ إعادة تفعيل</a>
         {% endif %}
+        <a href="{% url 'prof_supprimer_definitivement' prof.id %}"
+           style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗑️ حذف نهائي</a>
     </div>
     {% endif %}
 

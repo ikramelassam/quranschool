@@ -1,0 +1,57 @@
+{% extends base_template %}
+{% block title %}حذف نهائي — الطالب{% endblock %}
+{% block content %}
+<div class="page-title">حذف نهائي</div>
+<div class="page-subtitle">{{ eleve.user.get_full_name }} — {{ eleve.user.email }}</div>
+
+{% comment %}
+Chantier du 2026-08-12 — même patron que courses/admin_creneau_supprimer_definitivement.html
+(مدير uniquement, confirmation par saisie exacte, transaction.atomic(), aucune
+trace conservée après coup). Ici la confirmation se fait par EMAIL (pas par
+nom) : un nom n'est pas garanti unique entre deux élèves, contrairement à
+Groupe.nom. Voir dashboard.views.eleve_supprimer_definitivement.
+{% endcomment %}
+
+{% if nb_paiements > 0 %}
+<div style="background:#fdf1f0; border:2px solid var(--color-danger); border-radius:12px; padding:24px; max-width:600px;">
+    <div style="font-weight:700; color:var(--color-danger); margin-bottom:12px;">⛔ الحذف النهائي غير ممكن حالياً</div>
+    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:12px;">
+        توجد {{ nb_paiements }} عملية دفع مرتبطة بهذا الطالب. لحماية السجل المالي، لا يمكن حذف حساب طالب لديه أي عملية دفع نهائياً.
+    </p>
+    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:20px;">
+        يمكنك أرشفة الطالب بدل ذلك — سجله الكامل (بما فيه المدفوعات) يبقى محفوظاً وقابلاً للاسترجاع.
+    </p>
+    <a href="{% url 'admin_eleve_detail' eleve.id %}" style="color:#888; text-decoration:none;">← رجوع</a>
+</div>
+{% else %}
+<div style="background:#fdf1f0; border:2px solid var(--color-danger); border-radius:12px; padding:24px; max-width:600px;">
+    <div style="font-weight:700; color:var(--color-danger); margin-bottom:12px;">⚠️ هذا الإجراء نهائي</div>
+
+    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:6px;">سيتم حذف ما يلي نهائياً مع هذا الحساب:</p>
+    <ul style="color:#8a3b36; font-size:0.9rem; margin-bottom:16px;">
+        <li>{{ nb_presences }} حصة حضور/تقييم</li>
+        <li>{{ nb_bilans }} بيان شهري</li>
+        <li>{{ nb_groupes_historique }} سجل انتماء سابق لمجموعات</li>
+        <li>{{ nb_disponibilites }} خانة تفرغ</li>
+    </ul>
+    <p style="color:#8a3b36; font-size:0.85rem; margin-bottom:20px;">
+        (طلب التسجيل الأصلي لا يُحذف — يبقى محفوظاً، لكن حالته تصبح "مرفوض" تلقائياً.)<br>
+        لن يبقى أي أثر لهذا الحذف بعد تنفيذه.
+    </p>
+
+    <form method="POST" onsubmit="return confirm('تأكيد أخير: هل أنت متأكدة تماماً من حذف حساب هذا الطالب نهائياً، بدون أي إمكانية للتراجع؟');">
+        {% csrf_token %}
+        <label style="color:#8a3b36; font-size:0.85rem; display:block; margin-bottom:4px;">اكتب البريد الإلكتروني التالي بالضبط للتأكيد:</label>
+        <div style="background:white; border-radius:6px; padding:8px 12px; font-family:'Tajawal',sans-serif; margin-bottom:10px; border:1px solid #e0c4c2;">{{ eleve.user.email }}</div>
+        <input type="text" name="confirmation_nom" class="form-control mb-3" placeholder="{{ eleve.user.email }}" required>
+        <div class="d-flex gap-2">
+            <button type="submit"
+                style="background:var(--color-danger); color:white; border:none; border-radius:8px; padding:10px 20px; font-weight:700; font-family:'Tajawal',sans-serif; cursor:pointer;">
+                حذف نهائي 🗑️⚠️
+            </button>
+            <a href="{% url 'admin_eleve_detail' eleve.id %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
+        </div>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

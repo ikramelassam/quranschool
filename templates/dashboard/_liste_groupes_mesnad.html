@@ -26,7 +26,7 @@ Variables attendues :
             <div style="color:#888; font-size:0.82rem; margin-top:2px;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}غير محدد{% endif %}</div>
         </a>
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <span style="background:{% if groupe.prof.statut == 'archive' %}#fce4e4{% else %}#f3e6cc{% endif %}; color:{% if groupe.prof.statut == 'archive' %}var(--color-danger){% else %}{{ couleur_accent }}{% endif %}; border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">
+            <span style="background:{% if not groupe.prof or groupe.prof.statut == 'archive' %}#fce4e4{% else %}#f3e6cc{% endif %}; color:{% if not groupe.prof or groupe.prof.statut == 'archive' %}var(--color-danger){% else %}{{ couleur_accent }}{% endif %}; border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">
                 {{ groupe.prof.user.get_full_name|default:"— بدون أستاذ" }}{% if groupe.prof.statut == 'archive' %} (مؤرشف){% endif %}
             </span>
             <span style="color:#888; font-size:0.78rem; white-space:nowrap;">👤 {{ groupe.nb_eleves }} طالب</span>
@@ -35,7 +35,7 @@ Variables attendues :
             {% endif %}
         </div>
     </div>
-    {% if groupe.prof.statut == 'archive' %}
+    {% if not groupe.prof or groupe.prof.statut == 'archive' %}
     <div style="color:var(--color-danger); font-size:0.82rem; margin-top:6px;">⚠ يجب تعيين أستاذ آخر لهذه المجموعة.</div>
     {% endif %}
 </div>
