@@ -3157,35 +3157,34 @@ def admin_eleve_archiver(request, eleve_id):
 
 @role_required('admin')
 def eleve_supprimer_definitivement(request, eleve_id):
-    """Paiement bloque volontairement la suppression (contrairement au reste,
-    qui est emporté avec un simple avertissement) : c'est un historique
-    financier, pas un simple journal d'activité — on ne le fait jamais
-    disparaître silencieusement. Le مدير doit d'abord archiver l'élève (déjà
-    possible, réversible) plutôt que de perdre la preuve de paiements reçus."""
+    """Paiement (montant + justificatif screenshot) est réellement emporté avec
+    le reste, sans exception — décision explicite et informée du client (Tâche
+    du 2026-08-12, revient sur le blocage initial de ce chantier) : le risque
+    de conservation légale a été signalé et assumé par le client. Le fichier
+    physique du justificatif est nettoyé du storage (Cloudinary en prod) via
+    payments.signals.supprimer_justificatif_a_la_suppression, qui se déclenche
+    automatiquement (post_delete) dès que chaque Paiement disparaît en cascade
+    — pas de fichier orphelin laissé derrière."""
+    from django.db.models import Sum
     from accounts.models import Eleve
     from payments.models import Paiement
 
     eleve = get_object_or_404(Eleve, id=eleve_id)
-    nb_paiements = Paiement.objects.filter(eleve=eleve).count()
+    paiements = Paiement.objects.filter(eleve=eleve)
+    nb_paiements = paiements.count()
+    total_paiements = paiements.aggregate(total=Sum('montant'))['total'] or 0
 
     if request.method != 'POST':
         return render(request, 'dashboard/admin_eleve_supprimer_definitivement.html', {
             'eleve': eleve,
             'nb_paiements': nb_paiements,
+            'total_paiements': total_paiements,
             'nb_presences': eleve.presences.count(),
             'nb_bilans': eleve.bilans_mensuels.count(),
             'nb_groupes_historique': eleve.historique_groupes.count(),
             'nb_disponibilites': eleve.disponibilites.count(),
             'base_template': _base_template_admin_ou_mshrif(request),
         })
-
-    if nb_paiements > 0:
-        messages.error(
-            request,
-            f'تعذر الحذف: توجد {nb_paiements} عملية دفع مرتبطة بهذا الطالب — لا يمكن حذف السجل المالي نهائياً. '
-            f'يمكنك أرشفة الطالب بدل ذلك.'
-        )
-        return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
     confirmation = request.POST.get('confirmation_nom', '').strip()
     if confirmation != eleve.user.email:

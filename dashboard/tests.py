@@ -1,4 +1,5 @@
 import datetime
+import time
 
 from django.conf import settings
 from django.test import TestCase, override_settings
@@ -22,6 +23,23 @@ _STORAGES_TEST = {
     **settings.STORAGES,
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
 }
+
+
+def _attendre_absence_fichier(storage, chemin, tentatives=5, delai=1.5):
+    """Cloudinary (storage réel utilisé en local via CLOUDINARY_CLOUD_NAME, voir
+    .env) n'est pas garanti strictement synchrone entre un DELETE et le EXISTS
+    qui suit — léger délai de propagation constaté en pratique (le test
+    isolé passe systématiquement, le même test au sein de la suite complète a
+    déjà échoué une fois sur un simple exists() trop rapide). Ce n'est pas une
+    tolérance sur notre code (le signal appelle bien storage.delete() de façon
+    synchrone, voir payments.signals) — uniquement sur la cohérence éventuelle
+    du service tiers. Échoue pour de vrai si le fichier est TOUJOURS là après
+    ~7.5s cumulées."""
+    for _ in range(tentatives):
+        if not storage.exists(chemin):
+            return True
+        time.sleep(delai)
+    return not storage.exists(chemin)
 
 
 def _creer_admin():
@@ -118,23 +136,44 @@ class EleveSuppressionDefinitiveTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(eleve.user.email, response.content.decode('utf-8'))
 
-    def test_bloque_si_paiements_existent(self):
-        eleve = _creer_eleve()
-        Paiement.objects.create(eleve=eleve, montant=80, mois_reference=datetime.date(2026, 8, 1))
+    def test_paiements_et_justificatif_reellement_supprimes(self):
+        """Correction du 2026-08-12 (décision explicite du client) : Paiement
+        n'est plus bloquant, il est emporté en cascade comme le reste — y
+        compris le fichier physique du justificatif sur le storage (pas
+        seulement la ligne en base), via payments.signals."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
 
-        # La page de confirmation elle-même doit refléter le blocage (pas de
-        # formulaire de saisie proposé), pas seulement le POST.
+        eleve = _creer_eleve()
+        justificatif = SimpleUploadedFile(
+            'recu_test_suppr.jpg', b'contenu-de-test-jetable', content_type='image/jpeg'
+        )
+        paiement = Paiement.objects.create(
+            eleve=eleve, montant=80, mois_reference=datetime.date(2026, 8, 1), screenshot=justificatif,
+        )
+        storage = paiement.screenshot.storage
+        chemin_fichier = paiement.screenshot.name
+        self.assertTrue(storage.exists(chemin_fichier))
+
+        # La page de confirmation avertit désormais du montant, sans bloquer.
         response_get = self.client.get(reverse('eleve_supprimer_definitivement', args=[eleve.id]))
         self.assertEqual(response_get.status_code, 200)
-        self.assertNotIn('name="confirmation_nom"', response_get.content.decode('utf-8'))
+        contenu_get = response_get.content.decode('utf-8')
+        self.assertIn('name="confirmation_nom"', contenu_get)
+        self.assertIn('80', contenu_get)
 
         response = self.client.post(
             reverse('eleve_supprimer_definitivement', args=[eleve.id]),
             {'confirmation_nom': 'eleve_test_suppr@zidni.test'},
         )
-        self.assertRedirects(response, reverse('admin_eleve_detail', args=[eleve.id]))
-        self.assertTrue(User.objects.filter(id=eleve.user_id).exists())
-        self.assertTrue(Eleve.objects.filter(id=eleve.id).exists())
+        self.assertRedirects(response, reverse('admin_eleves'))
+
+        self.assertFalse(User.objects.filter(id=eleve.user_id).exists())
+        self.assertFalse(Paiement.objects.filter(id=paiement.id).exists())
+        # Pas seulement détaché de la base : le fichier lui-même a disparu du storage.
+        self.assertTrue(
+            _attendre_absence_fichier(storage, chemin_fichier),
+            'le fichier justificatif existe encore sur le storage après suppression',
+        )
 
     def test_mauvais_email_ne_supprime_rien(self):
         eleve = _creer_eleve()
