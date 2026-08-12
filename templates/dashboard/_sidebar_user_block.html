@@ -1,0 +1,27 @@
+{% comment %}
+Bloc identité + déconnexion, en HAUT de la sidebar (Tâche du 2026-08-12) —
+remplace l'ancien lien "تسجيل الخروج" isolé en bas de page (hors zone visible
+sans scroll sur mobile). Un seul fichier partagé par les 5 bases (admin,
+mshrif, prof, eleve, superviseur) : garantit un traitement RIGOUREUSEMENT
+identique pour les 5 rôles — pas 5 copies qui pourraient diverger avec le
+temps. Les classes CSS (.sidebar-user-block, .sidebar-user-avatar,
+.btn-logout-top, ...) sont définies dans CHAQUE base_*.html (même patron que
+.compact-card/.section-title déjà dupliquées ainsi dans les 5 bases).
+
+Nom + icône du lien de déconnexion (pas juste une icône seule) : garde le
+même vocabulaire visuel que tout le reste de la sidebar (emoji + libellé
+texte partout, ex: "📊 لوحة التحكم") — aucune bibliothèque d'icônes séparée
+n'est utilisée sur le site, donc pas de rupture de cohérence à en introduire
+une ici.
+
+request.user est toujours disponible ici (déjà utilisé tel quel ailleurs,
+ex: admin_superviseur_assignations.html avec request.user.role) — pas besoin
+de le passer explicitement depuis chaque vue.
+{% endcomment %}
+<div class="sidebar-user-block">
+    <div class="sidebar-user-info">
+        <div class="sidebar-user-avatar">{{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}</div>
+        <div class="sidebar-user-name">{{ request.user.get_full_name }}</div>
+    </div>
+    <a href="{% url 'logout' %}" class="btn-logout-top" onclick="return confirm('هل تريد تسجيل الخروج؟');">🚪 تسجيل الخروج</a>
+</div>

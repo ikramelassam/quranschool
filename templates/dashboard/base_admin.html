@@ -49,6 +49,16 @@
         .sidebar-logo-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
         .sidebar-logo-text .title { color: #FBF3E4; font-weight: 500; font-size: 0.875rem; line-height: 1.3; }
         .sidebar-logo-text .subtitle { color: #D9B45C; font-size: 0.72rem; line-height: 1.2; }
+
+        /* Bloc identité + déconnexion, HAUT de sidebar (Tâche du 2026-08-12) —
+           voir dashboard/_sidebar_user_block.html, même bloc pour les 5 rôles. */
+        .sidebar-user-block { padding: 14px 22px 16px; border-bottom: 1px solid rgba(255,255,255,0.12); display: flex; flex-direction: column; gap: 10px; }
+        .sidebar-user-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .sidebar-user-avatar { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--color-brand-gold-dark); color: var(--color-text-inverse); display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; }
+        .sidebar-user-name { color: #FBF3E4; font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .btn-logout-top { display: inline-block; align-self: flex-start; color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.82rem; padding: 6px 10px; border-radius: 8px; transition: all 0.2s; }
+        .btn-logout-top:hover { background: rgba(255,255,255,0.12); color: white; }
+
         .sidebar-menu { padding: 16px 0; flex: 1; }
         .menu-item {
             display: flex;
@@ -97,25 +107,6 @@
             justify-content: center;
             margin-right: auto;
         }
-        .sidebar-footer {
-            padding: 16px 20px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-        .btn-logout {
-            display: block;
-            color: rgba(255,255,255,0.7);
-            text-decoration: none;
-            font-size: 0.9rem;
-            text-align: center;
-            padding: 8px;
-            border-radius: 8px;
-            transition: all 0.2s;
-        }
-        .btn-logout:hover {
-            background: rgba(255,255,255,0.1);
-            color: white;
-        }
-
         /* Main content */
         .main-content {
             margin-right: 240px;
@@ -196,6 +187,7 @@
 <!-- Sidebar -->
 <div class="sidebar">
     {% include 'dashboard/_sidebar_header.html' with subtitle='لوحة الإدارة' %}
+    {% include 'dashboard/_sidebar_user_block.html' %}
 
     <div class="sidebar-menu">
         <a href="{% url 'dashboard_admin' %}"
@@ -331,10 +323,6 @@
            class="menu-item {% if request.resolver_match.url_name == 'admin_mon_compte' %}active{% endif %}" style="margin-top:6px;">
             <span class="icon">⚙️</span> حسابي
         </a>
-    </div>
-
-    <div class="sidebar-footer">
-        <a href="{% url 'logout' %}" class="btn-logout">🚪 تسجيل الخروج</a>
     </div>
 </div>
 
