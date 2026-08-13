@@ -78,6 +78,9 @@
 <div style="font-weight:700; color:var(--color-brand-gold-dark); margin:28px 0 12px;">🧑‍🏫 تقييم المعلم (من طرف المؤطر)</div>
 {% if evaluation %}
 <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="color:#888; font-size:0.85rem; margin-bottom:4px;">
+        المعلم المُقيَّم: {% if evaluation.prof %}{{ evaluation.prof.user.get_full_name }}{% else %}[حساب محذوف]{% endif %}
+    </div>
     <div style="color:#888; font-size:0.85rem; margin-bottom:12px;">
         بواسطة {% if evaluation.superviseur %}{{ evaluation.superviseur.user.get_full_name }}{% else %}[حساب محذوف]{% endif %} — {{ evaluation.date|date:"d-m-Y H:i" }}
     </div>

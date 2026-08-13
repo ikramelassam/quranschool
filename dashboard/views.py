@@ -3155,7 +3155,7 @@ def admin_eleve_archiver(request, eleve_id):
 # migrations SET_NULL (BilanMensuel.prof, Evaluation.superviseur) qui
 # l'accompagnent.
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def eleve_supprimer_definitivement(request, eleve_id):
     """Paiement (montant + justificatif screenshot) est réellement emporté avec
     le reste, sans exception — décision explicite et informée du client (Tâche
@@ -3319,7 +3319,7 @@ def admin_prof_reactiver(request, prof_id):
     return redirect('admin_prof_detail', prof_id=prof.id)
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def prof_supprimer_definitivement(request, prof_id):
     """Rien ne bloque ici (contrairement à eleve, voir Paiement) : aucune
     donnée financière n'est stockée par prof (la rémunération est calculée
@@ -3995,7 +3995,7 @@ def admin_evaluations(request):
     ).order_by('-seance__date', '-seance__heure')
 
     evaluations_profs = Evaluation.objects.select_related(
-        'seance__groupe__prof__user', 'superviseur__user'
+        'seance__groupe__prof__user', 'superviseur__user', 'prof__user'
     ).prefetch_related('notes__critere').order_by('-seance__date')
 
     if groupe_id:
@@ -4003,7 +4003,11 @@ def admin_evaluations(request):
         evaluations_profs = evaluations_profs.filter(seance__groupe_id=groupe_id)
     if prof_id:
         presences = presences.filter(seance__groupe__prof_id=prof_id)
-        evaluations_profs = evaluations_profs.filter(seance__groupe__prof_id=prof_id)
+        # Filtre sur evaluation.prof (le prof réellement évalué, figé à la
+        # création — chantier du 2026-08-12), pas seance.groupe.prof (le prof
+        # ACTUEL du groupe, qui peut avoir changé depuis) : plus exact, et
+        # continue de fonctionner même si le groupe a changé de prof entretemps.
+        evaluations_profs = evaluations_profs.filter(prof_id=prof_id)
     if eleve_id:
         presences = presences.filter(eleve_id=eleve_id)
     if date_debut:
@@ -4347,7 +4351,7 @@ def admin_superviseur_assignations(request, superviseur_id):
     return render(request, 'dashboard/admin_superviseur_assignations.html', context)
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def superviseur_supprimer_definitivement(request, superviseur_id):
     """Rien ne bloque ici : après les migrations SET_NULL de ce chantier,
     toutes les relations de Superviseur (profs_assignes, Evaluation.superviseur,

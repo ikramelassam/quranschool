@@ -89,10 +89,16 @@ actuelle d'un coup d'œil avant de modifier l'assignation en dessous.
             <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
         </div>
     </form>
+    {% endif %}
+    {% comment %}
+    Bouton حذف نهائي, HORS du if/else مشرف/مدير ci-dessus (Tâche du
+    2026-08-12, point 4) : contrairement à l'édition de l'إسناد (qui reste
+    en lecture seule pour مشرف), la suppression définitive lui est désormais
+    ouverte — même raisonnement que admin_eleve_detail.html/admin_prof_detail.html.
+    {% endcomment %}
     <div style="padding:8px 0 4px; border-top:1px solid #f0f0f0; margin-top:12px;">
         <a href="{% url 'superviseur_supprimer_definitivement' superviseur.id %}"
            style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; display:inline-block; margin-top:12px;">🗑️ حذف نهائي</a>
     </div>
-    {% endif %}
 </div>
 {% endblock %}

@@ -42,6 +42,24 @@ class Evaluation(models.Model):
         on_delete=models.CASCADE,
         related_name='evaluation'
     )
+    # CASCADE (chantier du 2026-08-12, audit de cohérence) : contrairement à
+    # .superviseur ci-dessus (l'auteur), .prof est le SUJET réel de
+    # l'évaluation — l'écran s'appelle littéralement "تقييم المعلم" (évaluation
+    # DU prof), pas "évaluation de la séance". Si le prof est supprimé, son
+    # évaluation doit disparaître avec lui, comme Presence/BilanMensuel
+    # disparaissent avec l'élève qu'ils décrivent. Toujours renseigné à la
+    # création (voir evaluations.views.superviseur_evaluer, qui ne peut créer
+    # une évaluation que pour un groupe ayant un prof réel) — mais null=True
+    # conservé en permanence : Groupe.prof est lui-même SET_NULL, donc le
+    # backfill des évaluations déjà existantes (migration 0006) ne peut pas
+    # garantir un prof pour 100% des lignes historiques.
+    prof = models.ForeignKey(
+        Prof,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='evaluations_recues'
+    )
     commentaire = models.TextField()
     date = models.DateTimeField(auto_now_add=True)
 

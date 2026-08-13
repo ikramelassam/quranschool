@@ -185,17 +185,19 @@ class EleveSuppressionDefinitiveTests(TestCase):
         self.assertTrue(User.objects.filter(id=eleve.user_id).exists())
         self.assertTrue(Eleve.objects.filter(id=eleve.id).exists())
 
-    def test_mshrif_refuse(self):
+    def test_mshrif_autorise(self):
+        """مشرف a désormais accès aux 3 suppressions définitives (Tâche du
+        2026-08-13, point 3) — inversion assumée de l'ancien test_mshrif_refuse,
+        qui documentait le comportement opposé avant cette décision."""
         self.client.force_login(_creer_mshrif())
         eleve = _creer_eleve()
         response = self.client.post(
             reverse('eleve_supprimer_definitivement', args=[eleve.id]),
             {'confirmation_nom': 'eleve_test_suppr@zidni.test'},
         )
-        self.assertEqual(response.status_code, 302)
-        self.assertNotEqual(response.url, reverse('admin_eleves'))
-        self.assertTrue(User.objects.filter(id=eleve.user_id).exists())
-        self.assertTrue(Eleve.objects.filter(id=eleve.id).exists())
+        self.assertRedirects(response, reverse('admin_eleves'))
+        self.assertFalse(User.objects.filter(id=eleve.user_id).exists())
+        self.assertFalse(Eleve.objects.filter(id=eleve.id).exists())
 
 
 @override_settings(STORAGES=_STORAGES_TEST)
@@ -235,6 +237,45 @@ class ProfSuppressionDefinitiveTests(TestCase):
         self.assertIsNone(bilan.prof)
         self.assertEqual(bilan.eleve_id, eleve.id)
 
+    def test_evaluation_disparait_en_cascade_alors_que_presence_et_bilan_survivent(self):
+        """Tâche du 2026-08-13, point 6 — verrouille dans le MÊME test les deux
+        comportements opposés pour ne pas les confondre : Evaluation.prof est
+        CASCADE (le prof est le SUJET évalué, voir evaluations.models.Evaluation),
+        alors que Presence (via l'élève, jamais touché ici) et BilanMensuel.prof
+        (SET_NULL, voir courses.models.BilanMensuel) survivent tous les deux à
+        la suppression du même prof."""
+        prof = _creer_prof()
+        prof_id = prof.id
+        eleve = _creer_eleve('eleve_cascade_eval@zidni.test')
+        groupe = Groupe.objects.create(nom='مجموعة التقييم', prof=prof, statut='actif')
+        groupe.eleves.add(eleve)
+        seance = Seance.objects.create(groupe=groupe, date=datetime.date(2026, 8, 1), heure='14:00', type='normal')
+        superviseur = _creer_superviseur('superviseur_cascade_eval@zidni.test')
+
+        presence = Presence.objects.create(seance=seance, eleve=eleve, statut='present')
+        bilan = BilanMensuel.objects.create(eleve=eleve, prof=prof, mois_reference=datetime.date(2026, 8, 1))
+        evaluation = Evaluation.objects.create(
+            superviseur=superviseur, prof=prof, seance=seance, commentaire='ملاحظة',
+        )
+        evaluation_id = evaluation.id
+
+        response = self.client.post(
+            reverse('prof_supprimer_definitivement', args=[prof_id]),
+            {'confirmation_nom': 'prof_test_suppr@zidni.test'},
+        )
+        self.assertRedirects(response, reverse('admin_profs'))
+
+        # CASCADE : l'évaluation du prof disparaît avec lui.
+        self.assertFalse(Evaluation.objects.filter(id=evaluation_id).exists())
+
+        # SET_NULL / non concerné : Presence et BilanMensuel survivent, juste
+        # détachés pour le bilan (l'élève, lui, n'a pas bougé).
+        presence.refresh_from_db()
+        self.assertEqual(presence.eleve_id, eleve.id)
+        bilan.refresh_from_db()
+        self.assertIsNone(bilan.prof)
+        self.assertEqual(bilan.eleve_id, eleve.id)
+
     def test_page_confirmation_s_affiche_correctement(self):
         prof = _creer_prof()
         response = self.client.get(reverse('prof_supprimer_definitivement', args=[prof.id]))
@@ -250,16 +291,16 @@ class ProfSuppressionDefinitiveTests(TestCase):
         self.assertRedirects(response, reverse('admin_prof_detail', args=[prof.id]))
         self.assertTrue(Prof.objects.filter(id=prof.id).exists())
 
-    def test_mshrif_refuse(self):
+    def test_mshrif_autorise(self):
+        """Voir même commentaire que EleveSuppressionDefinitiveTests.test_mshrif_autorise."""
         self.client.force_login(_creer_mshrif())
         prof = _creer_prof()
         response = self.client.post(
             reverse('prof_supprimer_definitivement', args=[prof.id]),
             {'confirmation_nom': 'prof_test_suppr@zidni.test'},
         )
-        self.assertEqual(response.status_code, 302)
-        self.assertNotEqual(response.url, reverse('admin_profs'))
-        self.assertTrue(Prof.objects.filter(id=prof.id).exists())
+        self.assertRedirects(response, reverse('admin_profs'))
+        self.assertFalse(Prof.objects.filter(id=prof.id).exists())
 
 
 @override_settings(STORAGES=_STORAGES_TEST)
@@ -309,16 +350,16 @@ class SuperviseurSuppressionDefinitiveTests(TestCase):
         self.assertRedirects(response, reverse('admin_superviseurs'))
         self.assertTrue(Superviseur.objects.filter(id=superviseur.id).exists())
 
-    def test_mshrif_refuse(self):
+    def test_mshrif_autorise(self):
+        """Voir même commentaire que EleveSuppressionDefinitiveTests.test_mshrif_autorise."""
         self.client.force_login(_creer_mshrif())
         superviseur = _creer_superviseur()
         response = self.client.post(
             reverse('superviseur_supprimer_definitivement', args=[superviseur.id]),
             {'confirmation_nom': 'superviseur_test_suppr@zidni.test'},
         )
-        self.assertEqual(response.status_code, 302)
-        self.assertNotEqual(response.url, reverse('admin_superviseurs'))
-        self.assertTrue(Superviseur.objects.filter(id=superviseur.id).exists())
+        self.assertRedirects(response, reverse('admin_superviseurs'))
+        self.assertFalse(Superviseur.objects.filter(id=superviseur.id).exists())
 
 
 @override_settings(STORAGES=_STORAGES_TEST)

@@ -25,6 +25,15 @@
            onclick="return confirm('هل أنت متأكد من إعادة تفعيل الأستاذ {{ prof.user.get_full_name|escapejs }}؟');"
            style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">▶ إعادة تفعيل</a>
         {% endif %}
+    </div>
+    {% endif %}
+    {% if request.user.role == 'admin' or request.user.role == 'mshrif' %}
+    {% comment %}
+    Bouton حذف نهائي séparé (Tâche du 2026-08-12, point 4) — voir même
+    commentaire dans admin_eleve_detail.html : ouvert à مشرف, contrairement
+    à أرشفة/إعادة تفعيل ci-dessus qui restent مدير seul.
+    {% endcomment %}
+    <div style="padding:8px 0 16px;">
         <a href="{% url 'prof_supprimer_definitivement' prof.id %}"
            style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗑️ حذف نهائي</a>
     </div>

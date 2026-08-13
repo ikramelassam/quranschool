@@ -93,6 +93,10 @@ def superviseur_evaluer(request, seance_id):
             seance=seance,
             defaults={
                 'superviseur': superviseur,
+                # Toujours non-null ici : le queryset de `seance` ci-dessus
+                # (groupe__prof__in=superviseur.profs_assignes.all()) exige
+                # déjà un prof réel — voir evaluations.models.Evaluation.prof.
+                'prof': seance.groupe.prof,
                 'commentaire': commentaire,
             }
         )

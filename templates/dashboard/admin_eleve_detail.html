@@ -44,6 +44,18 @@
            onclick="return confirm('هل أنت متأكد من إعادة تفعيل الطالب {{ eleve.user.get_full_name|escapejs }}؟');"
            style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">▶ إعادة تفعيل</a>
         {% endif %}
+    </div>
+    {% endif %}
+    {% if request.user.role == 'admin' or request.user.role == 'mshrif' %}
+    {% comment %}
+    Bouton حذف نهائي séparé du bloc ci-dessus (Tâche du 2026-08-12, point 4) :
+    la suppression définitive est désormais ouverte à مشرف, contrairement à
+    إيقاف/أرشفة/إعادة تفعيل qui restent réservées à مدير seul (règle
+    inchangée pour ces 3 actions-là). La saisie de l'email exact +
+    confirm() JS sur l'écran suivant restent les 2 points de confirmation
+    — ce bouton lui-même ne porte plus aucune restriction de rôle.
+    {% endcomment %}
+    <div style="padding:8px 0;">
         <a href="{% url 'eleve_supprimer_definitivement' eleve.id %}"
            style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗑️ حذف نهائي</a>
     </div>
