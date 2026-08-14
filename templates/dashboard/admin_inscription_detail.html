@@ -195,9 +195,11 @@ pas seulement au moment du refus lui-même.
         {% endif %}
     </div>
     {% elif conflit.conflit and peut_accepter %}
-    <!-- Chantier partage d'email (2026-08-10) : ce compte élève actif existe déjà avec le
-         même email — cas autorisé (fratrie/famille). Purement informatif, ne bloque pas
-         le bouton "قبول" ci-dessous. -->
+    {% comment %}
+Chantier partage d'email (2026-08-10) : ce compte élève actif existe déjà avec le
+même email — cas autorisé (fratrie/famille). Purement informatif, ne bloque pas
+le bouton "قبول" ci-dessous.
+{% endcomment %}
     <div style="background:#e8f0fe; border-radius:8px; padding:14px 18px; margin:20px 0; color:var(--color-role-admin-solid);">
         ℹ️ هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب طالب آخر نشط ({{ conflit.user.get_full_name }}) —
         على الأرجح فرد من نفس الأسرة. القبول سيُنشئ حساباً إضافياً مرتبطاً بنفس البريد الإلكتروني.

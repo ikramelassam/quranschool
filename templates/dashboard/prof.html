@@ -13,9 +13,11 @@
 </a>
 {% endif %}
 
-<!-- Stats — "قادمة هذا الأسبوع" ajouté (chantier groupé du 2026-08-05) à côté
-     des 3 déjà en place, même choix que côté مؤطر (4 compteurs plutôt que
-     remplacer un existant). -->
+{% comment %}
+Stats — "قادمة هذا الأسبوع" ajouté (chantier groupé du 2026-08-05) à côté
+des 3 déjà en place, même choix que côté مؤطر (4 compteurs plutôt que
+remplacer un existant).
+{% endcomment %}
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
         <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
@@ -67,11 +69,13 @@
     {% endif %}
 </div>
 
-<!-- آخر الحصص — refonte agenda groupée (Tâche du 2026-08-05), même logique
-     que "السجل السابق" côté مؤطر : aperçu immédiat (3 dernières séances à
-     plat) + reste groupé par semaine dans un mois navigable, replié par
-     défaut. Placée AVANT "القادمة" (Tâche du 2026-08-06 — ordre inversé
-     par erreur jusqu'ici : passé avant futur, comme sur لوحة المؤطر). -->
+{% comment %}
+آخر الحصص — refonte agenda groupée (Tâche du 2026-08-05), même logique
+que "السجل السابق" côté مؤطر : aperçu immédiat (3 dernières séances à
+plat) + reste groupé par semaine dans un mois navigable, replié par
+défaut. Placée AVANT "القادمة" (Tâche du 2026-08-06 — ordre inversé
+par erreur jusqu'ici : passé avant futur, comme sur لوحة المؤطر).
+{% endcomment %}
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px;">
     <div style="font-weight:700; font-size:1.1rem; color:#222; margin-bottom:16px;">آخر الحصص</div>
 

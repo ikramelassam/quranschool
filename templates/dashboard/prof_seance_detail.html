@@ -253,8 +253,10 @@
                     </div>
                 </div>
 
-                <!-- Critères dynamiques /20 (Point 7, Tâche du 2026-08-04) — gérés
-                     depuis "معايير تقييم الطلاب", plus 4 champs fixes en dur. -->
+                {% comment %}
+                Critères dynamiques /20 (Point 7, Tâche du 2026-08-04) — gérés
+                depuis "معايير تقييم الطلاب", plus 4 champs fixes en dur.
+                {% endcomment %}
                 <div class="row g-3 mt-1">
                     {% for nc in item.notes_criteres %}
                     <div class="col-6 col-md-3">

@@ -86,12 +86,13 @@
             </div>
             <div class="mb-3">
                 <label class="form-label">الاسم الكامل</label>
-                <!-- Chantier du 2026-08-10 (partage d'email parent/enfant) : ce champ
-                     n'existe QUE sur ce formulaire — la connexion normale reste à 2
-                     champs (بريد + كلمة مرور), inchangée. Nécessaire ici car un même
-                     بريد peut désormais correspondre à plusieurs حسابات (طالب), et
-                     "نسيت كلمة المرور" n'a par définition aucune كلمة مرور pour
-                     départager — voir accounts.views.mot_de_passe_oublie. -->
+                {% comment %}
+                Ce champ n'existe QUE sur ce formulaire — la connexion normale reste à 2
+                champs (بريد + كلمة مرور), inchangée. Nécessaire ici car un même بريد
+                peut désormais correspondre à plusieurs حسابات (طالب), et "نسيت كلمة
+                المرور" n'a par définition aucune كلمة مرور pour départager — voir
+                accounts.views.mot_de_passe_oublie.
+                {% endcomment %}
                 <input type="text" name="nom_complet" class="form-control" placeholder="نفس الاسم المسجل في حسابك" required>
             </div>
             <button type="submit" class="btn-login">إرسال</button>

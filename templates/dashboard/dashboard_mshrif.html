@@ -62,13 +62,15 @@ retiré dans le code source de la page.
             <span style="color:var(--color-role-mshrif-solid);">عرض القائمة الكاملة ←</span>
         </div>
     </a>
-    <!-- Tâche du 2026-08-07 : carte manquante — la vue admin_superviseurs
-         (liste des مؤطرين) existait déjà et était même liée plus bas dans
-         "كل ما يراه المدير..." (🧭 إسناد المؤطرين), mais PAS dans cette
-         section précise "الوصول السريع (قراءة فقط)", qui est un bloc
-         .row2/.compact-card différent du bloc .quick-links plus bas —
-         confusion des deux qui explique le rapport initial "toujours pas
-         ajoutée". -->
+    {% comment %}
+    Tâche du 2026-08-07 : carte manquante — la vue admin_superviseurs
+    (liste des مؤطرين) existait déjà et était même liée plus bas dans
+    "كل ما يراه المدير..." (🧭 إسناد المؤطرين), mais PAS dans cette
+    section précise "الوصول السريع (قراءة فقط)", qui est un bloc
+    .row2/.compact-card différent du bloc .quick-links plus bas —
+    confusion des deux qui explique le rapport initial "toujours pas
+    ajoutée".
+    {% endcomment %}
     <a class="compact-card" href="{% url 'admin_superviseurs' %}">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-weight:700;">👤 قائمة المؤطرين</span>
