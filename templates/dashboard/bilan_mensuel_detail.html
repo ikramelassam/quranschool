@@ -14,9 +14,11 @@
     {% if lecture_seule %} — عرض للاطلاع فقط{% endif %}
 </div>
 
-{# Chantier du 2026-08-14 — بيان الغياب : identique pour les 5 rôles qui
-   atteignent cette page (élève/prof/مؤطر/مدير/مشرف), calculé en temps réel
-   à chaque affichage (voir la vue), pas figé. #}
+{% comment %}
+Chantier du 2026-08-14 — بيان الغياب : identique pour les 5 rôles qui
+atteignent cette page (élève/prof/مؤطر/مدير/مشرف), calculé en temps réel
+à chaque affichage (voir la vue), pas figé.
+{% endcomment %}
 <div class="compact-card" id="carte_absences" style="max-width:800px; margin-bottom:20px; cursor:pointer;" onclick="toggleCarteAbsences()">
     <div style="display:flex; justify-content:space-between; align-items:center;">
         <div style="font-weight:700; color:var(--color-brand-gold-dark);">📊 حصيلة الغياب</div>

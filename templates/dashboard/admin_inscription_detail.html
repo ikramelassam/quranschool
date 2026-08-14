@@ -7,8 +7,10 @@
 <div class="page-title">📋 تفاصيل طلب التسجيل</div>
 
 {% if inscription.statut == 'rejete' %}
-{# Chantier du 2026-08-14 (refus avec motif) — le motif est consultable ici même après coup,
-   pas seulement au moment du refus lui-même. #}
+{% comment %}
+Chantier du 2026-08-14 (refus avec motif) — le motif est consultable ici même après coup,
+pas seulement au moment du refus lui-même.
+{% endcomment %}
 <div style="background:#fdecea; border-radius:10px; padding:14px 20px; margin-bottom:20px; color:#842029; max-width:700px;">
     ❌ تم رفض هذا الطلب.
     {% if inscription.motif_refus %}

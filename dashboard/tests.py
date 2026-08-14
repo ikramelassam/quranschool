@@ -998,3 +998,59 @@ class BilanAbsencesTests(TestCase):
         self.client.force_login(self.eleve.user)
         html = self.client.get(reverse('eleve_profil')).content.decode('utf-8')
         self.assertIn(reverse('bilan_mensuel_detail', args=[self.eleve.id, self.mois]), html)
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class CommentairesTemplateInvisiblesTests(TestCase):
+    """Régression du 2026-08-14 — un commentaire Django multi-lignes écrit en
+    syntaxe {# ... #} (au lieu de {% comment %}...{% endcomment %}) n'est PAS
+    reconnu par le tokenizer de Django dès qu'il contient un retour à la
+    ligne (regex {#.*?#} sans re.DOTALL) : le texte du commentaire fuit alors
+    tel quel dans le HTML envoyé au navigateur. C'est exactement ce qui s'est
+    produit sur _recherche_globale.html, _select_cherchable.html,
+    bilan_mensuel_detail.html, admin_inscription_detail.html et
+    refuser_inscription.html (tous {% comment %} depuis correctif). Ce test
+    couvre les 5 base_*.html — donc, transitivement, les deux partials
+    (_recherche_globale, _select_cherchable) qu'ils incluent — pour empêcher
+    qu'un futur commentaire multi-lignes mal formé ne refuie en silence."""
+
+    MARQUEURS = [
+        'Chantier du 2026-08-14',
+        'UN SEUL composant',
+        'Amélioration progressive',
+        'PARTAGÉE par les 3 écrans',
+        'identique pour les 5 rôles',
+        'consultable ici même après coup',
+    ]
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+        self.prof = _creer_prof('prof_comment_test@zidni.test')
+        self.eleve = _creer_eleve('eleve_comment_test@zidni.test')
+        self.superviseur = _creer_superviseur('sup_comment_test@zidni.test')
+
+    def _assert_page_propre(self, user, url_name):
+        self.client.force_login(user)
+        html = self.client.get(reverse(url_name)).content.decode('utf-8')
+        for marqueur in self.MARQUEURS:
+            self.assertNotIn(
+                marqueur, html,
+                f"Le marqueur de commentaire '{marqueur}' fuit dans le HTML rendu "
+                f"pour {url_name} (rôle {user.role}) — commentaire Django mal formé."
+            )
+
+    def test_base_admin_ne_fuit_aucun_commentaire(self):
+        self._assert_page_propre(self.admin, 'dashboard_admin')
+
+    def test_base_mshrif_ne_fuit_aucun_commentaire(self):
+        self._assert_page_propre(self.mshrif, 'dashboard_mshrif')
+
+    def test_base_prof_ne_fuit_aucun_commentaire(self):
+        self._assert_page_propre(self.prof.user, 'dashboard_prof')
+
+    def test_base_eleve_ne_fuit_aucun_commentaire(self):
+        self._assert_page_propre(self.eleve.user, 'dashboard_eleve')
+
+    def test_base_superviseur_ne_fuit_aucun_commentaire(self):
+        self._assert_page_propre(self.superviseur.user, 'dashboard_superviseur')

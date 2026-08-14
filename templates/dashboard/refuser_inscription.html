@@ -2,10 +2,12 @@
 {% load libelles_arabes %}
 {% block title %}{{ titre_refus }}{% endblock %}
 {% block content %}
-{# Chantier du 2026-08-14 — page PARTAGÉE par les 3 écrans de refus
-   (admin_rejeter_eleve, admin_rejeter_prof, mshrif_rejeter_prof), pas trois
-   templates dupliqués : seul le contexte passé par la vue change (titre,
-   personne, liste de phrases scopée, url de retour). #}
+{% comment %}
+Chantier du 2026-08-14 — page PARTAGÉE par les 3 écrans de refus
+(admin_rejeter_eleve, admin_rejeter_prof, mshrif_rejeter_prof), pas trois
+templates dupliqués : seul le contexte passé par la vue change (titre,
+personne, liste de phrases scopée, url de retour).
+{% endcomment %}
 <div class="page-title">{{ titre_refus }}</div>
 <div class="page-subtitle">{{ nom_complet }}{% if telephone_personne %} — {{ telephone_personne }}{% endif %}</div>
 

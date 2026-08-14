@@ -1,22 +1,24 @@
-{# Selects cherchables (Chantier 2 du 2026-08-14) — UN SEUL composant, inclus
-   dans les 5 base_*.html, jamais dupliqué par page/rôle (B2). Amélioration
-   progressive : le <select> natif portant l'attribut data-select-cherchable
-   reste dans le DOM et fonctionnel tel quel (name, options, required, valeur
-   envoyée au formulaire — RIEN ne change côté backend, voir B4/B5) ; ce
-   script le rend juste visuellement/interactivement "cherchable" par-dessus.
-   Si le JS ne charge pas ou tarde (B6), le <select> natif reste VISIBLE et
-   pleinement utilisable (parcours/scroll classique) — il n'est masqué
-   qu'après que ce script ait fini de construire le composant de
-   remplacement, jamais avant.
+{% comment %}
+Selects cherchables (Chantier 2 du 2026-08-14) — UN SEUL composant, inclus
+dans les 5 base_*.html, jamais dupliqué par page/rôle (B2). Amélioration
+progressive : le <select> natif portant l'attribut data-select-cherchable
+reste dans le DOM et fonctionnel tel quel (name, options, required, valeur
+envoyée au formulaire — RIEN ne change côté backend, voir B4/B5) ; ce
+script le rend juste visuellement/interactivement "cherchable" par-dessus.
+Si le JS ne charge pas ou tarde (B6), le <select> natif reste VISIBLE et
+pleinement utilisable (parcours/scroll classique) — il n'est masqué
+qu'après que ce script ait fini de construire le composant de
+remplacement, jamais avant.
 
-   Filtrage : sous-chaîne insensible à la casse, correspondance exacte
-   remontée en premier (même esprit que le tri de dashboard.recherche pour
-   le Chantier 1, adapté en JS pur car aucun aller-retour serveur n'a de
-   sens ici — voir B3 : chargement complet à l'ouverture pour <~200 options,
-   qui est le volume actuel de toutes les listes converties dans ce
-   chantier). Point d'extension pour une recherche serveur si une liste
-   grossit un jour bien au-delà (SEUIL_BASCULE_SERVEUR ci-dessous, non
-   câblé — B3 : "pas à implémenter maintenant"). #}
+Filtrage : sous-chaîne insensible à la casse, correspondance exacte
+remontée en premier (même esprit que le tri de dashboard.recherche pour
+le Chantier 1, adapté en JS pur car aucun aller-retour serveur n'a de
+sens ici — voir B3 : chargement complet à l'ouverture pour <~200 options,
+qui est le volume actuel de toutes les listes converties dans ce
+chantier). Point d'extension pour une recherche serveur si une liste
+grossit un jour bien au-delà (SEUIL_BASCULE_SERVEUR ci-dessous, non
+câblé — B3 : "pas à implémenter maintenant").
+{% endcomment %}
 <style>
     .sc-original {
         position: absolute; opacity: 0; height: 1px; width: 1px;

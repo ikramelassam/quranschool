@@ -1,8 +1,10 @@
-{# Recherche globale (مدير/مشرف) — Chantier du 2026-08-14.
-   UN SEUL composant, inclus depuis base_admin.html ET base_mshrif.html (pas
-   deux implémentations séparées — voir dashboard.recherche pour le backend
-   partagé). Aucune différence de rôle ici : le filtrage مدير/مشرف se fait
-   entièrement côté serveur (dashboard.views.api_recherche_globale). #}
+{% comment %}
+Recherche globale (مدير/مشرف) — Chantier du 2026-08-14.
+UN SEUL composant, inclus depuis base_admin.html ET base_mshrif.html (pas
+deux implémentations séparées — voir dashboard.recherche pour le backend
+partagé). Aucune différence de rôle ici : le filtrage مدير/مشرف se fait
+entièrement côté serveur (dashboard.views.api_recherche_globale).
+{% endcomment %}
 <div class="recherche-globale-wrap">
     <div class="recherche-globale-input-wrap">
         <span class="recherche-globale-icone">🔍</span>
