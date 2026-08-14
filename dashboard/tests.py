@@ -877,18 +877,26 @@ class RefusInscriptionAvecMotifTests(TestCase):
         response = self.client.get(reverse('mshrif_rejeter_prof', args=[inscription.id]))
         self.assertEqual(response.status_code, 302)
 
-    # --- WhatsApp : présence des 2 boutons, contact مدير résolu ---
+    # --- WhatsApp : présence des boutons, contact مدير résolu ---
 
-    def test_deux_boutons_whatsapp_presents_avec_bon_numero(self):
-        self.client.force_login(self.admin)
-        # Admin de test avec téléphone renseigné = celui utilisé par _contact_admin_fixe
-        # (le plus ancien admin AVEC téléphone — celui créé dans setUp n'en a pas).
+    def test_deux_boutons_whatsapp_presents_avec_bon_numero_sur_mshrif_rejeter_prof(self):
+        """Correction du 2026-08-14 : le bouton "مراسلة المدير" n'a de sens
+        que lorsque مشرف agit (voir test_bouton_contacter_directeur_absent_
+        quand_cest_lui_qui_agit pour les 2 écrans où مدير agit sur lui-même) —
+        c'est donc ICI, sur mshrif_rejeter_prof, que les 2 numéros doivent
+        apparaître ensemble."""
         self.admin.telephone = '0611223344'
         self.admin.save()
+        inscription = _creer_inscription_prof(email='wa_test_mshrif@zidni.test', statut='validee_directeur')
+        self.client.force_login(self.mshrif)
+        html = self.client.get(reverse('mshrif_rejeter_prof', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn('212611223344', html)  # wa_number(0611223344) — contact مدير
+
+    def test_bouton_personne_whatsapp_present_avec_bon_numero_sur_admin_rejeter_eleve(self):
+        self.client.force_login(self.admin)
         inscription = _creer_inscription_eleve(email='wa_test@zidni.test', telephone='0699887766')
         html = self.client.get(reverse('admin_rejeter_eleve', args=[inscription.id])).content.decode('utf-8')
         self.assertIn('212699887766', html)  # wa_number(0699887766)
-        self.assertIn('212611223344', html)  # wa_number(0611223344)
 
     # --- Refonte UX du 2026-08-14 : gabarit de message centralisé ---
 
@@ -932,6 +940,47 @@ class RefusInscriptionAvecMotifTests(TestCase):
         code (dashboard.views), pas une par écran de refus."""
         self.assertIn('سبب الرفض', GABARIT_REFUS_AVANT_MOTIF)
         self.assertIn('نسأل الله', GABARIT_REFUS_APRES_MOTIF)
+
+    def test_variables_js_du_gabarit_correctement_quotees(self):
+        """Régression du 2026-08-14 (test manuel) : |escapejs échappe les
+        caractères spéciaux mais N'AJOUTE PAS les guillemets englobants — un
+        `var x = {{ v|escapejs }};` sans guillemets produit du JS invalide dès
+        que le texte contient un espace (ex: texte arabe), et une
+        SyntaxError silencieuse dans un <script> tue TOUT le reste du script
+        (dont majTout(), qui alimente l'aperçu ET les liens WhatsApp) — c'est
+        exactement pourquoi l'aperçu restait vide, confirmé par exécution JS
+        réelle (Node/jsdom) sur le HTML rendu. Vérifié ici de façon statique
+        (guillemets présents autour de {{ }}), le comportement réel étant
+        confirmé une fois manuellement hors suite (jsdom non disponible en
+        dépendance de test)."""
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='scope_apercu_quote@zidni.test')
+        html = self.client.get(reverse('admin_rejeter_eleve', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn("var gabaritAvant = '", html)
+        self.assertIn("var gabaritApres = '", html)
+        self.assertIn("var nomPersonne = '", html)
+
+    def test_bouton_contacter_directeur_absent_quand_cest_lui_qui_agit(self):
+        """Correction du 2026-08-14 (test manuel) : sur les 2 écrans où c'est
+        مدير lui-même qui rejette (élève, prof étape 1), "envoyer une copie
+        au مدير" n'a aucun sens — retiré. Conservé sur mshrif_rejeter_prof où
+        c'est bien مشرف qui agit et مدير une personne différente."""
+        self.admin.telephone = '0611223344'
+        self.admin.save()
+
+        self.client.force_login(self.admin)
+        ins_eleve = _creer_inscription_eleve(email='bouton_directeur_eleve@zidni.test')
+        html = self.client.get(reverse('admin_rejeter_eleve', args=[ins_eleve.id])).content.decode('utf-8')
+        self.assertNotIn('id="wa_admin"', html)
+
+        ins_prof1 = _creer_inscription_prof(email='bouton_directeur_prof1@zidni.test')
+        html = self.client.get(reverse('admin_rejeter_prof', args=[ins_prof1.id])).content.decode('utf-8')
+        self.assertNotIn('id="wa_admin"', html)
+
+        self.client.force_login(self.mshrif)
+        ins_prof2 = _creer_inscription_prof(email='bouton_directeur_prof2@zidni.test', statut='validee_directeur')
+        html = self.client.get(reverse('mshrif_rejeter_prof', args=[ins_prof2.id])).content.decode('utf-8')
+        self.assertIn('id="wa_admin"', html)
 
 
 @override_settings(STORAGES=_STORAGES_TEST)
@@ -1133,3 +1182,40 @@ class RechercheGlobalePresenteSurToutesLesPagesTests(TestCase):
         self.client.force_login(self.mshrif)
         for url_name in ['dashboard_mshrif', 'admin_eleves', 'admin_profs']:
             self._verifier_presente_avant_le_contenu(url_name)
+
+    # --- Correction du 2026-08-14 (test manuel) : EXCLUSION explicite sur les
+    # écrans d'action focalisée à une seule tâche (formulaire d'action, écran
+    # de confirmation) — la recherche globale y distrait de l'action en
+    # cours. base_admin.html/base_mshrif.html exposent {% block
+    # recherche_globale %} pour que ces écrans puissent l'écraser à vide,
+    # plutôt que de casser silencieusement le test ci-dessus si un écran
+    # de ce type était un jour ajouté à la liste testée plus haut. ---
+
+    def _assert_recherche_absente(self, url):
+        html = self.client.get(url).content.decode('utf-8')
+        self.assertNotIn(
+            'rechercheGlobaleInput', html,
+            f"La recherche globale ne doit PAS apparaître sur un écran d'action "
+            f"focalisée ({url}) — elle distrait de l'action en cours."
+        )
+
+    def test_recherche_absente_sur_ecran_de_refus(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='scope_refus@zidni.test')
+        self._assert_recherche_absente(reverse('admin_rejeter_eleve', args=[inscription.id]))
+
+    def test_recherche_absente_sur_ecran_de_suppression_definitive(self):
+        self.client.force_login(self.admin)
+        eleve = _creer_eleve('scope_suppr_def@zidni.test')
+        self._assert_recherche_absente(reverse('eleve_supprimer_definitivement', args=[eleve.id]))
+
+    def test_recherche_absente_sur_ecran_de_confirmation_creation_compte(self):
+        self.client.force_login(self.admin)
+        session = self.client.session
+        session['confirmation_creation_compte'] = {
+            'type_compte': 'eleve', 'nom': 'Scope Confirmation',
+            'email': 'scope_confirmation@zidni.test', 'password': 'xxxxxxxx',
+            'telephone': '', 'redirect_url_name': 'admin_inscriptions',
+        }
+        session.save()
+        self._assert_recherche_absente(reverse('confirmation_creation_compte'))

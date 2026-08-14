@@ -1,6 +1,11 @@
 {% extends base_template %}
 {% load libelles_arabes %}
 {% block title %}تم إنشاء الحساب{% endblock %}
+{% comment %}
+Écran d'action focalisée à une seule tâche (confirmation post-acceptation)
+— voir dashboard/admin_eleve_supprimer_definitivement.html (même principe).
+{% endcomment %}
+{% block recherche_globale %}{% endblock %}
 {% block content %}
 <div class="page-title">✅ تم إنشاء الحساب بنجاح</div>
 <div class="page-subtitle">

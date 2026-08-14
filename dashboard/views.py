@@ -1774,7 +1774,11 @@ def admin_rejeter_eleve(request, inscription_id):
         'telephone_personne': inscription.telephone,
         'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
         'phrases': PhraseRefus.objects.filter(contexte='refus_eleve'),
-        'admin_contact': _contact_admin_fixe(),
+        # Pas de bouton "مراسلة المدير" ici : c'est مدير lui-même qui rejette
+        # (correction du 2026-08-14, test manuel) — s'envoyer une copie à
+        # soi-même n'a aucun sens. Voir mshrif_rejeter_prof pour le cas où
+        # ce bouton garde son sens (مشرف rejette, peut prévenir مدير).
+        'afficher_contact_admin': False,
         'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF,
         'gabarit_apres_motif': GABARIT_REFUS_APRES_MOTIF,
         'titre_refus': 'رفض طلب الطالب',
@@ -1945,7 +1949,9 @@ def admin_rejeter_prof(request, inscription_id):
         'telephone_personne': inscription.telephone,
         'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
         'phrases': PhraseRefus.objects.filter(contexte='refus_prof_etape1'),
-        'admin_contact': _contact_admin_fixe(),
+        # Même raison qu'admin_rejeter_eleve : c'est مدير qui rejette ici
+        # (étape 1), pas de sens à "prévenir مدير".
+        'afficher_contact_admin': False,
         'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF,
         'gabarit_apres_motif': GABARIT_REFUS_APRES_MOTIF,
         'titre_refus': 'رفض طلب الأستاذ (المرحلة الأولى)',
@@ -2160,7 +2166,11 @@ def mshrif_rejeter_prof(request, inscription_id):
         'telephone_personne': inscription.telephone,
         'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
         'phrases': PhraseRefus.objects.filter(contexte='refus_prof_etape2'),
+        # Ici مشرف rejette et مدير est bien une personne différente — le
+        # bouton garde tout son sens (contrairement aux 2 écrans où c'est
+        # مدير qui agit sur lui-même, voir admin_rejeter_eleve/admin_rejeter_prof).
         'admin_contact': _contact_admin_fixe(),
+        'afficher_contact_admin': True,
         'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF,
         'gabarit_apres_motif': GABARIT_REFUS_APRES_MOTIF,
         'titre_refus': 'رفض طلب الأستاذ (المرحلة الثانية)',

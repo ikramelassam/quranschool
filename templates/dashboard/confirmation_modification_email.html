@@ -1,6 +1,11 @@
 {% extends 'dashboard/base_admin.html' %}
 {% load libelles_arabes %}
 {% block title %}تم تغيير البريد الإلكتروني{% endblock %}
+{% comment %}
+Écran d'action focalisée à une seule tâche (confirmation) — voir
+dashboard/admin_eleve_supprimer_definitivement.html (même principe).
+{% endcomment %}
+{% block recherche_globale %}{% endblock %}
 {% block content %}
 <div class="page-title">✅ تم تغيير البريد الإلكتروني بنجاح</div>
 <div class="page-subtitle">{{ info.nom }} — البريد الجديد: {{ info.nouvel_email }}</div>
