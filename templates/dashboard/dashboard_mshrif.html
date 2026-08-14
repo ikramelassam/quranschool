@@ -20,6 +20,12 @@ a.compact-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12); }
 </style>
 {% endblock %}
 {% block content %}
+{% comment %}
+Correction du 2026-08-14 (règle stricte) : voir le commentaire équivalent
+dans dashboard/admin.html — inclusion déplacée depuis base_mshrif.html,
+uniquement ici désormais.
+{% endcomment %}
+{% include 'dashboard/_recherche_globale.html' %}
 <div class="page-title">أهلاً بك 👋</div>
 <div class="page-subtitle">نظرة عامة على المنصة</div>
 

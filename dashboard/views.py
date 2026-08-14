@@ -1557,9 +1557,6 @@ def confirmation_creation_compte(request):
     admin_utilisateur_reinitialiser_mot_de_passe — un mot de passe déjà
     affiché ici ne doit jamais réapparaître via le bouton précédent du
     navigateur après une action ultérieure qui l'aurait rendu obsolète."""
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-
     info = request.session.pop('confirmation_creation_compte', None)
     if not info:
         return redirect('dashboard_mshrif' if request.user.role == 'mshrif' else 'dashboard_admin')
@@ -1567,6 +1564,20 @@ def confirmation_creation_compte(request):
     # Gabarit UNIQUE (Tâche du 2026-08-06) — voir construire_message_mdp_whatsapp,
     # réutilisé tel quel par l'écran de réinitialisation et de création مؤطر.
     message_pret_a_envoyer = construire_message_mdp_whatsapp(info['email'], info['password'], nom=info.get('nom', ''))
+
+    # Correction du 2026-08-14 (bug confirmé en test manuel) : UN SEUL contact
+    # مدير résolu via _contact_admin_fixe() (le plus ancien compte role='admin'
+    # avec téléphone renseigné) — pas TOUS les comptes role='admin'. Avant ce
+    # correctif, chaque compte admin en base (y compris des résidus de test
+    # jamais nettoyés) affichait son propre bouton "تواصل مع المدير",
+    # dupliqué et incohérent sur cet écran.
+    contact_admin = _contact_admin_fixe()
+    if contact_admin and contact_admin.id == request.user.id:
+        # مدير lui-même connecté (cas مؤطر — voir admin_superviseur_ajouter,
+        # role_required('admin') seul) et il se trouve être LE contact fixe
+        # résolu : s'envoyer une copie à soi-même n'a aucun sens (même
+        # principe qu'admin_rejeter_eleve/admin_rejeter_prof).
+        contact_admin = None
 
     context = {
         'info': info,
@@ -1576,18 +1587,67 @@ def confirmation_creation_compte(request):
         # Bouton "تواصل مع المدير" : affiché pour prof (مشرف valide, informe
         # مدير) ET مؤطر (Tâche du 2026-08-06, point 4 — même écran désormais
         # réutilisé pour la création مؤطر). Jamais pour eleve (مدير valide
-        # lui-même, rien à s'annoncer). .exclude(id=request.user.id) : si
-        # c'est مدير lui-même qui est connecté (le cas pour مؤطر — voir
-        # admin_superviseur_ajouter, role_required('admin') seul), il ne
-        # doit jamais apparaître dans sa propre liste de destinataires.
+        # lui-même, rien à s'annoncer).
         'admins': (
-            User.objects.filter(role='admin').exclude(id=request.user.id)
-            if info['type_compte'] in ('prof', 'superviseur') else None
+            [contact_admin] if contact_admin and info['type_compte'] in ('prof', 'superviseur') else []
         ),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/confirmation_creation_compte.html', context)
+
+
+@role_required('admin', 'mshrif')
+@never_cache
+def refus_confirme(request):
+    """Écran partagé affiché juste APRÈS la confirmation d'un refus (POST sur
+    admin_rejeter_eleve / admin_rejeter_prof / mshrif_rejeter_prof) — jamais
+    avant. Correction du 2026-08-14 (bug de logique constaté en test manuel) :
+    auparavant, les 2 boutons WhatsApp étaient déjà cliquables SUR le
+    formulaire de refus, donc avant même le clic sur 'تأكيد الرفض' — un
+    message de refus pouvait ainsi partir alors que la demande était encore
+    'en_attente' en base (si مدير/مشرف changeait d'avis après l'envoi mais
+    avant la confirmation). Reprend le pattern déjà en place pour
+    confirmation_creation_compte : infos minimales en session (jamais l'URL),
+    lues puis immédiatement effacées (pop) — un rafraîchissement renvoie
+    proprement vers la liste plutôt que de réafficher l'écran.
+
+    Le motif affiché ici est TOUJOURS relu depuis la base (inscription.
+    motif_refus), jamais transporté par la session : celle-ci ne porte que
+    l'identifiant du dossier, pas le texte du motif lui-même — impossible
+    donc d'afficher autre chose que ce qui a réellement été enregistré."""
+    from inscriptions.models import InscriptionEleve, InscriptionProf
+
+    info = request.session.pop('refus_confirme', None)
+    if not info:
+        return redirect('dashboard_mshrif' if request.user.role == 'mshrif' else 'dashboard_admin')
+
+    Modele = InscriptionEleve if info['type_demande'] == 'eleve' else InscriptionProf
+    inscription = get_object_or_404(Modele, id=info['inscription_id'])
+
+    # Garde de cohérence : ne construit un message de refus que si l'état en
+    # base correspond bien à un refus déjà confirmé avec un motif enregistré
+    # — ne devrait jamais échouer en usage normal (on vient de le confirmer
+    # dans la même requête POST), mais évite d'afficher un écran WhatsApp
+    # autour d'un motif vide/absent si l'état a changé entre-temps.
+    if inscription.statut != 'rejete' or not inscription.motif_refus:
+        return redirect(info['redirect_url_name'])
+
+    message = GABARIT_REFUS_AVANT_MOTIF + inscription.motif_refus + GABARIT_REFUS_APRES_MOTIF
+    admin_contact = _contact_admin_fixe() if info.get('afficher_contact_admin') else None
+
+    context = {
+        'nom_complet': info['nom_complet'],
+        'titre_refus': info['titre_refus'],
+        'telephone_personne': inscription.telephone,
+        'message': message,
+        'libelle_personne': f"مع {info['nom_complet']}",
+        'admins': [admin_contact] if admin_contact else [],
+        'redirect_url_name': info['redirect_url_name'],
+        'base_template': info['base_template'],
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/refus_confirme.html', context)
 
 
 @role_required('admin')
@@ -1764,8 +1824,20 @@ def admin_rejeter_eleve(request, inscription_id):
             inscription.save()
             if request.POST.get('enregistrer_phrase') == 'on':
                 PhraseRefus.objects.create(contexte='refus_eleve', texte=motif)
-            messages.info(request, f'تم رفض طلب {inscription.nom}.')
-            return redirect('admin_inscriptions')
+            # Redirection vers l'écran dédié refus_confirme (Correction du
+            # 2026-08-14) : le refus est déjà enregistré en base à cet instant
+            # (statut='rejete', motif_refus figé juste au-dessus) — les
+            # boutons WhatsApp n'apparaissent qu'à PARTIR de là, jamais avant.
+            request.session['refus_confirme'] = {
+                'type_demande': 'eleve',
+                'inscription_id': inscription.id,
+                'nom_complet': inscription.nom,
+                'titre_refus': 'تم رفض طلب الطالب',
+                'afficher_contact_admin': False,
+                'redirect_url_name': 'admin_inscriptions',
+                'base_template': 'dashboard/base_admin.html',
+            }
+            return redirect('refus_confirme')
         messages.error(request, 'يجب كتابة سبب الرفض قبل التأكيد.')
 
     context = {
@@ -1774,11 +1846,6 @@ def admin_rejeter_eleve(request, inscription_id):
         'telephone_personne': inscription.telephone,
         'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
         'phrases': PhraseRefus.objects.filter(contexte='refus_eleve'),
-        # Pas de bouton "مراسلة المدير" ici : c'est مدير lui-même qui rejette
-        # (correction du 2026-08-14, test manuel) — s'envoyer une copie à
-        # soi-même n'a aucun sens. Voir mshrif_rejeter_prof pour le cas où
-        # ce bouton garde son sens (مشرف rejette, peut prévenir مدير).
-        'afficher_contact_admin': False,
         'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF,
         'gabarit_apres_motif': GABARIT_REFUS_APRES_MOTIF,
         'titre_refus': 'رفض طلب الطالب',
@@ -1939,8 +2006,19 @@ def admin_rejeter_prof(request, inscription_id):
             inscription.save()
             if request.POST.get('enregistrer_phrase') == 'on':
                 PhraseRefus.objects.create(contexte='refus_prof_etape1', texte=motif)
-            messages.info(request, f'تم رفض طلب {inscription.nom}.')
-            return redirect('admin_inscriptions')
+            # Voir le commentaire équivalent dans admin_rejeter_eleve.
+            request.session['refus_confirme'] = {
+                'type_demande': 'prof',
+                'inscription_id': inscription.id,
+                'nom_complet': f'{inscription.nom} {inscription.prenom}',
+                'titre_refus': 'تم رفض طلب الأستاذ (المرحلة الأولى)',
+                # Même raison qu'avant ce refactor : c'est مدير qui rejette ici
+                # (étape 1), pas de sens à "prévenir مدير".
+                'afficher_contact_admin': False,
+                'redirect_url_name': 'admin_inscriptions',
+                'base_template': 'dashboard/base_admin.html',
+            }
+            return redirect('refus_confirme')
         messages.error(request, 'يجب كتابة سبب الرفض قبل التأكيد.')
 
     context = {
@@ -1949,9 +2027,6 @@ def admin_rejeter_prof(request, inscription_id):
         'telephone_personne': inscription.telephone,
         'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
         'phrases': PhraseRefus.objects.filter(contexte='refus_prof_etape1'),
-        # Même raison qu'admin_rejeter_eleve : c'est مدير qui rejette ici
-        # (étape 1), pas de sens à "prévenir مدير".
-        'afficher_contact_admin': False,
         'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF,
         'gabarit_apres_motif': GABARIT_REFUS_APRES_MOTIF,
         'titre_refus': 'رفض طلب الأستاذ (المرحلة الأولى)',
@@ -2003,6 +2078,26 @@ def mshrif_inscription_prof_detail(request, inscription_id):
     from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
 
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
+
+    # Garde d'état (correction du 2026-08-14, bug critique confirmé en test
+    # manuel) : مشرف ne doit voir QUE les dossiers que مدير a explicitement
+    # pré-validés ('validee_directeur') — jamais un dossier encore
+    # 'en_attente' (مدير ne l'a pas encore traité) ni un dossier 'rejete'
+    # (مدير l'a fermé définitivement, مشرف n'a plus rien à y faire). Avant ce
+    # correctif, seule la LISTE (mshrif_inscriptions_profs, déjà filtrée sur
+    # 'validee_directeur') protégeait مشرف — un accès direct par URL à cette
+    # fiche de détail restait possible sur n'importe quel dossier, quel que
+    # soit son statut. mshrif_valider_prof_final et mshrif_rejeter_prof
+    # avaient déjà chacun leur propre garde bloquant l'ACTION ; celle-ci
+    # bloque désormais aussi la simple CONSULTATION de la fiche.
+    if inscription.statut != 'validee_directeur':
+        messages.error(
+            request,
+            f'تعذر عرض هذا الطلب: حالة طلب {inscription.nom} ليست "بانتظار التصديق النهائي" '
+            f'(الحالة الحالية: {inscription.get_statut_display()}).'
+        )
+        return redirect('mshrif_inscriptions_profs')
+
     conflit = _verifier_conflit_email(inscription.email)
 
     audio_fichier_manquant = False
@@ -2043,13 +2138,17 @@ def mshrif_valider_prof_final(request, inscription_id):
     # le المشرف a ouvert cette fiche et celui où il clique "قبول نهائي" — sans ce
     # contrôle, la validation créerait quand même un compte réel et écraserait
     # silencieusement le rejet (race condition confirmée par l'audit de sécurité).
+    # Redirige vers la LISTE, pas vers la fiche de détail (correction du
+    # 2026-08-14) : mshrif_inscription_prof_detail porte désormais sa propre
+    # garde sur ce même statut — y rediriger produirait un second redirect
+    # immédiat vers la liste, avec un message d'erreur dupliqué.
     if inscription.statut != 'validee_directeur':
         messages.error(
             request,
             f'تعذر القبول النهائي: حالة طلب {inscription.nom} تغيّرت منذ فتح هذه الصفحة '
             f'(الحالة الحالية: {inscription.get_statut_display()}). لم يتم إنشاء أي حساب.'
         )
-        return redirect('mshrif_inscription_prof_detail', inscription_id=inscription.id)
+        return redirect('mshrif_inscriptions_profs')
 
     conflit = _verifier_conflit_email(inscription.email)
     if conflit['conflit']:
@@ -2156,8 +2255,20 @@ def mshrif_rejeter_prof(request, inscription_id):
             inscription.save()
             if request.POST.get('enregistrer_phrase') == 'on':
                 PhraseRefus.objects.create(contexte='refus_prof_etape2', texte=motif)
-            messages.info(request, f'تم رفض طلب {inscription.nom} نهائياً.')
-            return redirect('mshrif_inscriptions_profs')
+            # Voir le commentaire équivalent dans admin_rejeter_eleve.
+            request.session['refus_confirme'] = {
+                'type_demande': 'prof',
+                'inscription_id': inscription.id,
+                'nom_complet': f'{inscription.nom} {inscription.prenom}',
+                'titre_refus': 'تم رفض طلب الأستاذ (المرحلة الثانية)',
+                # Ici مشرف rejette et مدير est bien une personne différente —
+                # le bouton garde tout son sens (contrairement aux 2 écrans où
+                # c'est مدير qui agit sur lui-même).
+                'afficher_contact_admin': True,
+                'redirect_url_name': 'mshrif_inscriptions_profs',
+                'base_template': 'dashboard/base_mshrif.html',
+            }
+            return redirect('refus_confirme')
         messages.error(request, 'يجب كتابة سبب الرفض قبل التأكيد.')
 
     context = {
@@ -2166,11 +2277,6 @@ def mshrif_rejeter_prof(request, inscription_id):
         'telephone_personne': inscription.telephone,
         'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
         'phrases': PhraseRefus.objects.filter(contexte='refus_prof_etape2'),
-        # Ici مشرف rejette et مدير est bien une personne différente — le
-        # bouton garde tout son sens (contrairement aux 2 écrans où c'est
-        # مدير qui agit sur lui-même, voir admin_rejeter_eleve/admin_rejeter_prof).
-        'admin_contact': _contact_admin_fixe(),
-        'afficher_contact_admin': True,
         'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF,
         'gabarit_apres_motif': GABARIT_REFUS_APRES_MOTIF,
         'titre_refus': 'رفض طلب الأستاذ (المرحلة الثانية)',
@@ -4796,19 +4902,24 @@ def admin_utilisateur_reinitialiser_mot_de_passe(request, user_id):
             utilisateur.email, mot_de_passe_affiche, nom=utilisateur.get_full_name()
         )
 
+    contact_admin = _contact_admin_fixe()
+
     context = {
         'utilisateur': utilisateur,
         'next': next_url,
         'mdp_genere': mot_de_passe_affiche,
         'message_pret_a_envoyer': message_pret_a_envoyer,
         'libelle_personne_contact': f"مع {LIBELLE_PERSONNE_CONTACT.get(utilisateur.role, '')}",
-        # .exclude(id=request.user.id) (bug réel, Tâche du 2026-08-06) : cette
-        # vue est accessible à مدير ET مشرف (contrairement à la validation de
-        # compte ci-dessus) — sans cette exclusion, un مدير qui réinitialise
-        # lui-même un mot de passe se voyait proposer un bouton "تواصل مع
-        # المدير" pointant vers... lui-même. مشرف continue de voir le bouton
+        # Correction du 2026-08-14 (même bug qu'ailleurs, confirmé en test
+        # manuel) : UN SEUL contact مدير résolu via _contact_admin_fixe() (le
+        # plus ancien compte role='admin' avec téléphone renseigné) — pas TOUS
+        # les comptes role='admin'. La comparaison d'id ci-dessous remplace
+        # l'ancien .exclude(id=request.user.id) : cette vue est accessible à
+        # مدير ET مشرف — sans elle, un مدير qui réinitialise lui-même un
+        # mot de passe se verrait proposer un bouton "تواصل مع المدير"
+        # pointant vers... lui-même. مشرف continue de voir le bouton
         # normalement (jamais exclu, puisqu'il n'est jamais dans role='admin').
-        'admins': User.objects.filter(role='admin').exclude(id=request.user.id),
+        'admins': [contact_admin] if contact_admin and contact_admin.id != request.user.id else [],
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))

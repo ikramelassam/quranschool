@@ -341,7 +341,15 @@
 <!-- Main content -->
 <div class="main-content">
     {% include 'dashboard/_messages.html' %}
-    {% block recherche_globale %}{% include 'dashboard/_recherche_globale.html' %}{% endblock %}
+    {% comment %}
+    Correction du 2026-08-14 (règle stricte) : la recherche globale n'est
+    plus incluse ici (base commune à TOUTE page مدير) — elle n'apparaît
+    désormais QUE sur لوحة التحكم elle-même (voir dashboard/admin.html,
+    tout en haut de {% block content %}). Avant ce correctif, un {% block
+    recherche_globale %} ici permettait aux écrans d'action de l'écraser
+    à vide au cas par cas ; ce n'est plus nécessaire : par défaut, plus
+    aucune page (consultation ou action) ne l'affiche.
+    {% endcomment %}
     {% include 'dashboard/_select_cherchable.html' %}
     {% block content %}
     {% endblock %}

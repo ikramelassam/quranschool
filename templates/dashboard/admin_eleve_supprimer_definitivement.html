@@ -2,11 +2,12 @@
 {% block title %}حذف نهائي — الطالب{% endblock %}
 {% comment %}
 Écran d'action focalisée à une seule tâche (confirmation de suppression
-définitive) — Correction du 2026-08-14 : la recherche globale distrait de
-l'action en cours sur ce type d'écran, retirée ici comme sur
-refuser_inscription.html et les écrans de confirmation similaires.
+définitive). Correction du 2026-08-14 : la recherche globale ne
+s'affichait ici QUE parce qu'un {% block recherche_globale %} pouvait
+l'écraser à vide — inutile depuis le resserrement de la règle le même
+jour (elle n'est plus incluse que sur لوحة التحكم elle-même, voir
+dashboard/admin.html), donc plus de bloc à écraser ici.
 {% endcomment %}
-{% block recherche_globale %}{% endblock %}
 {% block content %}
 <div class="page-title">حذف نهائي</div>
 <div class="page-subtitle">{{ eleve.user.get_full_name }} — {{ eleve.user.email }}</div>

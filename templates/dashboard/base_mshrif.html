@@ -286,7 +286,11 @@
 </div>
 <div class="main-content">
     {% include 'dashboard/_messages.html' %}
-    {% block recherche_globale %}{% include 'dashboard/_recherche_globale.html' %}{% endblock %}
+    {% comment %}
+    Correction du 2026-08-14 (règle stricte) : voir le commentaire équivalent
+    dans base_admin.html — la recherche globale n'apparaît plus que sur
+    لوحة المشرف elle-même (dashboard/dashboard_mshrif.html).
+    {% endcomment %}
     {% include 'dashboard/_select_cherchable.html' %}
     {% block content %}{% endblock %}
 </div>

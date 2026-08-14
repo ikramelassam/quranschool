@@ -40,6 +40,10 @@ urlpatterns = [
     # Confirmation partagée après création de compte (élève ou prof)
     path('admin/confirmation-compte/', views.confirmation_creation_compte, name='confirmation_creation_compte'),
 
+    # Écran partagé post-refus (élève ou prof, étape 1 ou 2) — affiché
+    # SEULEMENT après confirmation en base (voir refus_confirme).
+    path('admin/refus-confirme/', views.refus_confirme, name='refus_confirme'),
+
     # Admin — inscriptions
     path('admin/inscriptions/', views.admin_inscriptions, name='admin_inscriptions'),
     path('admin/inscriptions/eleve/<int:inscription_id>/', views.admin_inscription_eleve_detail, name='admin_inscription_eleve_detail'),

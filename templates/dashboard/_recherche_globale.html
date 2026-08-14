@@ -1,8 +1,14 @@
 {% comment %}
-Recherche globale (مدير/مشرف) — UN SEUL composant, inclus depuis
-base_admin.html ET base_mshrif.html, avant {% block content %} (donc présent
-sur TOUTE page مدير/مشرف, pas seulement l'accueil — voir
-dashboard.tests.RechercheGlobalePresenteSurToutesLesPagesTests).
+Recherche globale (مدير/مشرف) — UN SEUL composant, inclus UNIQUEMENT depuis
+dashboard/admin.html ET dashboard/dashboard_mshrif.html (لوحة التحكم de
+chaque rôle), en tout début de {% block content %} — voir
+dashboard.tests.RechercheGlobalePresenteSurToutesLesPagesTests.
+
+Règle resserrée le 2026-08-14 (correction du même jour) : d'abord incluse
+depuis base_admin.html/base_mshrif.html (présente sur TOUTE page), puis
+retirée des écrans d'action focalisée, et enfin restreinte à la seule
+page d'accueil — plus aucune autre page (consultation ou action) ne
+l'affiche désormais.
 
 Refonte visuelle du 2026-08-14 (contraste du champ, état "focus sans texte
 tapé", rotation du placeholder, dropdown restylé) — comportement

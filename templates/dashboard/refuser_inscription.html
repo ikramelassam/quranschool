@@ -1,13 +1,10 @@
 {% extends base_template %}
-{% load libelles_arabes %}
 {% block title %}{{ titre_refus }}{% endblock %}
 {% comment %}
-Écran d'action focalisée à une seule tâche (formulaire de refus) —
-Correction du 2026-08-14 (test manuel) : la recherche globale distrait de
-l'action en cours, retirée ici comme sur les autres écrans du même type
-(voir dashboard/admin_eleve_supprimer_definitivement.html).
+Écran d'action focalisée à une seule tâche — voir
+dashboard/admin_eleve_supprimer_definitivement.html (et sa note du
+2026-08-14 sur le retrait du {% block recherche_globale %}).
 {% endcomment %}
-{% block recherche_globale %}{% endblock %}
 {% block content %}
 {% comment %}
 Page PARTAGÉE par les 3 écrans de refus (admin_rejeter_eleve, admin_rejeter_prof,
@@ -16,10 +13,17 @@ la vue change (titre, personne, liste de phrases scopée, url de retour, gabarit
 
 Refonte UX du 2026-08-14 : gabarit de message CENTRALISÉ dans dashboard.views
 (GABARIT_REFUS_AVANT_MOTIF / GABARIT_REFUS_APRES_MOTIF, une seule définition
-pour les 3 écrans) — ce template ne fait qu'assembler avant + motif + après,
-jamais ne réécrit ce texte lui-même. motif_refus en base ne stocke, lui, QUE
-le motif seul (voir les 3 vues) — le gabarit complet ne sert qu'à l'aperçu et
-aux messages WhatsApp, jamais à ce qui est persisté.
+pour les 3 écrans) — ce template ne fait qu'assembler avant + motif + après
+pour l'APERÇU (lecture seule), jamais ne réécrit ce texte lui-même. motif_refus
+en base ne stocke, lui, QUE le motif seul (voir les 3 vues).
+
+Correction du 2026-08-14 (bug de logique, test manuel) : les 2 boutons
+WhatsApp qui vivaient auparavant sur CET écran ont été déplacés vers l'écran
+dédié dashboard/refus_confirme.html, affiché seulement APRÈS le clic sur
+"تأكيد الرفض" — avant ce correctif, un message de refus pouvait partir vers
+WhatsApp alors que la demande était encore 'en_attente' en base (si
+مدير/مشرف changeait d'avis après l'envoi mais avant la confirmation). Cet
+écran-ci ne fait plus qu'assembler l'aperçu texte, sans aucun lien d'envoi.
 {% endcomment %}
 
 <div class="rf-entete">
@@ -62,31 +66,6 @@ aux messages WhatsApp, jamais à ce qui est persisté.
         <div class="rf-apercu">
             <div class="rf-apercu-titre">👁️ معاينة الرسالة الكاملة</div>
             <div class="rf-apercu-corps" id="id_apercu_message" dir="rtl"></div>
-        </div>
-
-        <div class="rf-wa-section">
-            <div class="rf-wa-titre">📱 تواصل عبر واتساب (اختياري — لا يُرسل شيئاً تلقائياً، يفتح فقط محادثة جاهزة بالرسالة الكاملة أعلاه)</div>
-            <div class="rf-wa-boutons">
-                {% if telephone_personne %}
-                <a href="https://wa.me/{{ telephone_personne|wa_number }}" id="wa_personne" target="_blank" rel="noopener" class="rf-wa-btn">
-                    <svg width="20" height="20" viewBox="0 0 448 512" aria-hidden="true"><path fill="white" d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>
-                    <span>إرسال إلى {{ nom_complet }}</span>
-                </a>
-                {% else %}
-                <div class="rf-wa-btn rf-wa-btn-desactive">لا يوجد رقم هاتف مسجَّل لهذا الشخص</div>
-                {% endif %}
-
-                {% if afficher_contact_admin %}
-                    {% if admin_contact.telephone %}
-                    <a href="https://wa.me/{{ admin_contact.telephone|wa_number }}" id="wa_admin" target="_blank" rel="noopener" class="rf-wa-btn">
-                        <svg width="20" height="20" viewBox="0 0 448 512" aria-hidden="true"><path fill="white" d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>
-                        <span>إرسال نسخة إلى المدير</span>
-                    </a>
-                    {% else %}
-                    <div class="rf-wa-btn rf-wa-btn-desactive">لا يوجد رقم إدارة مسجَّل</div>
-                    {% endif %}
-                {% endif %}
-            </div>
         </div>
 
         <div class="rf-actions">
@@ -138,22 +117,6 @@ aux messages WhatsApp, jamais à ce qui est persisté.
         color: var(--color-text-primary); text-align: right;
     }
 
-    .rf-wa-section {
-        background: var(--color-bg-cream); border-radius: 10px; padding: 16px 18px; margin-bottom: 22px;
-    }
-    .rf-wa-titre { font-weight: 600; font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 12px; }
-    .rf-wa-boutons { display: flex; flex-wrap: wrap; gap: 12px; }
-    .rf-wa-btn {
-        flex: 1 1 220px; display: flex; align-items: center; justify-content: center; gap: 10px;
-        background: #25D366; color: white; text-decoration: none; border-radius: 10px;
-        padding: 12px 16px; font-weight: 600; font-size: 0.88rem; font-family: 'Tajawal', sans-serif;
-        transition: filter 0.15s; text-align: center;
-    }
-    .rf-wa-btn:hover { filter: brightness(0.95); color: white; }
-    .rf-wa-btn-desactive {
-        background: #eee; color: #999; cursor: not-allowed; font-size: 0.82rem;
-    }
-
     .rf-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
     .rf-btn-confirmer {
         background: var(--color-danger); color: white; border: none; border-radius: 8px;
@@ -166,7 +129,6 @@ aux messages WhatsApp, jamais à ce qui est persisté.
 
     @media (max-width: 576px) {
         .rf-carte { padding: 18px; }
-        .rf-wa-btn { flex-basis: 100%; }
     }
 </style>
 
@@ -179,19 +141,17 @@ aux messages WhatsApp, jamais à ce qui est persisté.
     var motifInput = document.getElementById('id_motif');
     var phraseSelect = document.getElementById('id_phrase_select');
     var apercuEl = document.getElementById('id_apercu_message');
-    var waPersonne = document.getElementById('wa_personne');
-    var waAdmin = document.getElementById('wa_admin');
 
     function messageComplet() {
         var motif = motifInput.value.trim() || '...';
         return gabaritAvant + motif + gabaritApres;
     }
 
+    // Correction du 2026-08-14 : plus de liens WhatsApp à mettre à jour ici
+    // (déplacés vers dashboard/refus_confirme.html, affiché seulement après
+    // confirmation) — cette fonction ne met plus à jour que l'aperçu texte.
     function majTout() {
-        var message = messageComplet();
-        apercuEl.textContent = message;
-        if (waPersonne) waPersonne.href = waPersonne.href.split('?')[0] + '?text=' + encodeURIComponent(message);
-        if (waAdmin) waAdmin.href = waAdmin.href.split('?')[0] + '?text=' + encodeURIComponent(message);
+        apercuEl.textContent = messageComplet();
     }
 
     if (phraseSelect) {

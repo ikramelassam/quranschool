@@ -2,9 +2,9 @@
 {% block title %}تأكيد نطاق التغيير{% endblock %}
 {% comment %}
 Écran d'action focalisée à une seule tâche (confirmation avant action) —
-voir dashboard/admin_eleve_supprimer_definitivement.html (même principe).
+voir dashboard/admin_eleve_supprimer_definitivement.html (même principe, et
+la note du 2026-08-14 sur le retrait du {% block recherche_globale %}).
 {% endcomment %}
-{% block recherche_globale %}{% endblock %}
 {% block content %}
 <div class="page-title">هذا البريد مشترك مع حسابات أخرى</div>
 <div class="page-subtitle">{{ utilisateur.get_full_name }} — البريد الحالي: {{ utilisateur.email }}</div>

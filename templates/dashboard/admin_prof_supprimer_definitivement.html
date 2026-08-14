@@ -1,9 +1,10 @@
 {% extends base_template %}
 {% block title %}حذف نهائي — الأستاذ{% endblock %}
 {% comment %}
-Écran d'action focalisée à une seule tâche — voir admin_eleve_supprimer_definitivement.html.
+Écran d'action focalisée à une seule tâche — voir
+admin_eleve_supprimer_definitivement.html (et sa note du 2026-08-14 sur
+le retrait du {% block recherche_globale %}).
 {% endcomment %}
-{% block recherche_globale %}{% endblock %}
 {% block content %}
 <div class="page-title">حذف نهائي</div>
 <div class="page-subtitle">{{ prof.user.get_full_name }} — {{ prof.user.email }}</div>

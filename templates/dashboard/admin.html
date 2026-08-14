@@ -3,6 +3,12 @@
 {% block title %}لوحة التحكم{% endblock %}
 
 {% block content %}
+{% comment %}
+Correction du 2026-08-14 (règle stricte) : la recherche globale est
+désormais incluse UNIQUEMENT ici — لوحة التحكم — et plus dans base_admin.html
+(qui s'appliquait à toute page مدير). Voir le commentaire dans base_admin.html.
+{% endcomment %}
+{% include 'dashboard/_recherche_globale.html' %}
 <div class="page-title">لوحة التحكم</div>
 <div class="page-subtitle">نظرة شاملة على المنصة</div>
 

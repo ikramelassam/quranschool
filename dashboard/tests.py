@@ -13,7 +13,7 @@ from courses.models import (
 from evaluations.models import Evaluation, CommentaireMensuel
 from inscriptions.models import InscriptionEleve, InscriptionProf, PhraseRefus
 from payments.models import Paiement
-from dashboard.views import GABARIT_REFUS_AVANT_MOTIF, GABARIT_REFUS_APRES_MOTIF
+from dashboard.views import GABARIT_REFUS_AVANT_MOTIF, GABARIT_REFUS_APRES_MOTIF, _contact_admin_fixe
 
 
 # Chantier du 2026-08-12 — suppression définitive de Eleve/Prof/Superviseur.
@@ -877,26 +877,31 @@ class RefusInscriptionAvecMotifTests(TestCase):
         response = self.client.get(reverse('mshrif_rejeter_prof', args=[inscription.id]))
         self.assertEqual(response.status_code, 302)
 
-    # --- WhatsApp : présence des boutons, contact مدير résolu ---
+    # --- WhatsApp : plus AUCUN bouton sur le formulaire lui-même (Correction
+    # du 2026-08-14, bug de logique) — voir RefusConfirmeOrdreLogiqueTests
+    # pour la présence des boutons APRÈS confirmation, sur refus_confirme. ---
 
-    def test_deux_boutons_whatsapp_presents_avec_bon_numero_sur_mshrif_rejeter_prof(self):
-        """Correction du 2026-08-14 : le bouton "مراسلة المدير" n'a de sens
-        que lorsque مشرف agit (voir test_bouton_contacter_directeur_absent_
-        quand_cest_lui_qui_agit pour les 2 écrans où مدير agit sur lui-même) —
-        c'est donc ICI, sur mshrif_rejeter_prof, que les 2 numéros doivent
-        apparaître ensemble."""
+    def test_aucun_lien_whatsapp_sur_le_formulaire_de_refus_avant_confirmation(self):
+        """Avant ce correctif, les 2 boutons WhatsApp étaient déjà cliquables
+        SUR ce formulaire — donc avant même le clic sur 'تأكيد الرفض'. Verrou
+        structurel : plus aucun lien wa.me, sur aucun des 3 écrans, tant que
+        le refus n'a pas été confirmé (POST)."""
         self.admin.telephone = '0611223344'
         self.admin.save()
-        inscription = _creer_inscription_prof(email='wa_test_mshrif@zidni.test', statut='validee_directeur')
-        self.client.force_login(self.mshrif)
-        html = self.client.get(reverse('mshrif_rejeter_prof', args=[inscription.id])).content.decode('utf-8')
-        self.assertIn('212611223344', html)  # wa_number(0611223344) — contact مدير
 
-    def test_bouton_personne_whatsapp_present_avec_bon_numero_sur_admin_rejeter_eleve(self):
         self.client.force_login(self.admin)
-        inscription = _creer_inscription_eleve(email='wa_test@zidni.test', telephone='0699887766')
-        html = self.client.get(reverse('admin_rejeter_eleve', args=[inscription.id])).content.decode('utf-8')
-        self.assertIn('212699887766', html)  # wa_number(0699887766)
+        ins_eleve = _creer_inscription_eleve(email='pas_de_wa_eleve@zidni.test', telephone='0699887766')
+        html = self.client.get(reverse('admin_rejeter_eleve', args=[ins_eleve.id])).content.decode('utf-8')
+        self.assertNotIn('wa.me/', html)
+
+        ins_prof1 = _creer_inscription_prof(email='pas_de_wa_prof1@zidni.test')
+        html = self.client.get(reverse('admin_rejeter_prof', args=[ins_prof1.id])).content.decode('utf-8')
+        self.assertNotIn('wa.me/', html)
+
+        self.client.force_login(self.mshrif)
+        ins_prof2 = _creer_inscription_prof(email='pas_de_wa_prof2@zidni.test', statut='validee_directeur')
+        html = self.client.get(reverse('mshrif_rejeter_prof', args=[ins_prof2.id])).content.decode('utf-8')
+        self.assertNotIn('wa.me/', html)
 
     # --- Refonte UX du 2026-08-14 : gabarit de message centralisé ---
 
@@ -914,12 +919,15 @@ class RefusInscriptionAvecMotifTests(TestCase):
         self.assertNotIn('السلام عليكم', inscription.motif_refus)
         self.assertNotIn('نسأل الله', inscription.motif_refus)
 
-    def test_gabarit_complet_transmis_a_la_page_pour_lapercu_et_whatsapp(self):
+    def test_gabarit_complet_transmis_a_la_page_pour_lapercu(self):
         """Le gabarit complet (salutation + clôture fixes, fournies par le
-        client) doit être présent sur la page — c'est lui qui alimente à la
-        fois l'aperçu live et les 2 liens WhatsApp, tous deux calculés en JS
-        à partir des MÊMES constantes Python, jamais réécrites dans le
-        template ni dupliquées entre les 3 écrans de refus."""
+        client) doit être présent sur la page — c'est lui qui alimente
+        l'aperçu live (calculé en JS à partir des MÊMES constantes Python,
+        jamais réécrites dans le template ni dupliquées entre les 3 écrans).
+        Depuis la correction du 2026-08-14 (ordre logique), ce même gabarit
+        sert aussi à construire le message final sur refus_confirme — mais
+        recalculé côté serveur à partir du motif en base, pas transmis
+        depuis cette page (voir RefusConfirmeOrdreLogiqueTests)."""
         self.client.force_login(self.admin)
         inscription = _creer_inscription_eleve(email='gabarit_complet@zidni.test')
         html = self.client.get(reverse('admin_rejeter_eleve', args=[inscription.id])).content.decode('utf-8')
@@ -947,12 +955,11 @@ class RefusInscriptionAvecMotifTests(TestCase):
         `var x = {{ v|escapejs }};` sans guillemets produit du JS invalide dès
         que le texte contient un espace (ex: texte arabe), et une
         SyntaxError silencieuse dans un <script> tue TOUT le reste du script
-        (dont majTout(), qui alimente l'aperçu ET les liens WhatsApp) — c'est
-        exactement pourquoi l'aperçu restait vide, confirmé par exécution JS
-        réelle (Node/jsdom) sur le HTML rendu. Vérifié ici de façon statique
-        (guillemets présents autour de {{ }}), le comportement réel étant
-        confirmé une fois manuellement hors suite (jsdom non disponible en
-        dépendance de test)."""
+        (dont majTout(), qui alimente l'aperçu) — c'est exactement pourquoi
+        l'aperçu restait vide, confirmé par exécution JS réelle (Node/jsdom)
+        sur le HTML rendu. Vérifié ici de façon statique (guillemets présents
+        autour de {{ }}), le comportement réel étant confirmé une fois
+        manuellement hors suite (jsdom non disponible en dépendance de test)."""
         self.client.force_login(self.admin)
         inscription = _creer_inscription_eleve(email='scope_apercu_quote@zidni.test')
         html = self.client.get(reverse('admin_rejeter_eleve', args=[inscription.id])).content.decode('utf-8')
@@ -960,27 +967,360 @@ class RefusInscriptionAvecMotifTests(TestCase):
         self.assertIn("var gabaritApres = '", html)
         self.assertIn("var nomPersonne = '", html)
 
-    def test_bouton_contacter_directeur_absent_quand_cest_lui_qui_agit(self):
-        """Correction du 2026-08-14 (test manuel) : sur les 2 écrans où c'est
-        مدير lui-même qui rejette (élève, prof étape 1), "envoyer une copie
-        au مدير" n'a aucun sens — retiré. Conservé sur mshrif_rejeter_prof où
-        c'est bien مشرف qui agit et مدير une personne différente."""
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class RefusConfirmeOrdreLogiqueTests(TestCase):
+    """Correction du 2026-08-14 (bug de logique constaté en test manuel) :
+    les 2 boutons WhatsApp étaient cliquables AVANT même la confirmation du
+    refus (avant le clic sur 'تأكيد الرفض'), ce qui permettait d'envoyer un
+    message de refus à quelqu'un alors que la demande était encore
+    'en_attente' en base. Nouveau flux : POST confirme le refus en base puis
+    redirige vers l'écran dédié refus_confirme, qui seul affiche les
+    boutons WhatsApp — voir aussi RefusInscriptionAvecMotifTests pour la
+    preuve que ces boutons sont absents AVANT confirmation."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def test_confirmation_refus_eleve_redirige_vers_refus_confirme_avec_whatsapp(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='ordre_eleve@zidni.test', telephone='0699887766')
+        response = self.client.post(
+            reverse('admin_rejeter_eleve', args=[inscription.id]),
+            {'motif': 'الملف غير مكتمل'},
+        )
+        # fetch_redirect_response=False : par défaut assertRedirects fait elle-même
+        # un GET sur l'URL cible pour vérifier son code 200 — vu que refus_confirme
+        # POP la session dès sa première lecture (comme confirmation_creation_compte),
+        # ce GET interne consommerait la session avant notre propre GET ci-dessous
+        # et ferait échouer l'assertion suivante avec une page vide (redirigée).
+        self.assertRedirects(response, reverse('refus_confirme'), fetch_redirect_response=False)
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.statut, 'rejete')  # déjà en base avant même d'afficher WhatsApp
+
+        html = self.client.get(reverse('refus_confirme')).content.decode('utf-8')
+        self.assertIn('wa.me/212699887766', html)  # bouton vers la personne
+        # Pas de sens à "مراسلة المدير" ici : c'est مدير lui-même qui a rejeté.
+        self.assertNotIn('تواصل مع المدير', html)
+
+    def test_confirmation_refus_prof_etape1_redirige_avec_whatsapp_sans_bouton_directeur(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_prof(email='ordre_prof1@zidni.test', telephone='0688776655')
+        response = self.client.post(
+            reverse('admin_rejeter_prof', args=[inscription.id]),
+            {'motif': 'خبرة غير كافية'},
+        )
+        self.assertRedirects(response, reverse('refus_confirme'), fetch_redirect_response=False)
+        html = self.client.get(reverse('refus_confirme')).content.decode('utf-8')
+        self.assertIn('wa.me/212688776655', html)
+        self.assertNotIn('تواصل مع المدير', html)
+
+    def test_confirmation_refus_prof_etape2_redirige_avec_whatsapp_et_bouton_directeur(self):
+        """Ici مشرف rejette et مدير est bien une personne différente — le
+        bouton 'تواصل مع المدير' garde tout son sens (contrairement aux 2
+        écrans où c'est مدير qui agit sur lui-même)."""
         self.admin.telephone = '0611223344'
         self.admin.save()
+        self.client.force_login(self.mshrif)
+        inscription = _creer_inscription_prof(
+            email='ordre_prof2@zidni.test', telephone='0677665544', statut='validee_directeur'
+        )
+        response = self.client.post(
+            reverse('mshrif_rejeter_prof', args=[inscription.id]),
+            {'motif': 'ملف غير مطابق'},
+        )
+        self.assertRedirects(response, reverse('refus_confirme'), fetch_redirect_response=False)
+        html = self.client.get(reverse('refus_confirme')).content.decode('utf-8')
+        self.assertIn('wa.me/212677665544', html)  # la personne
+        self.assertIn('تواصل مع المدير', html)
+        self.assertIn('wa.me/212611223344', html)  # le مدير
 
+    def test_motif_affiche_sur_refus_confirme_est_relu_depuis_la_base(self):
+        """Le motif affiché doit TOUJOURS être inscription.motif_refus tel
+        qu'il est en base au moment de l'affichage — jamais une valeur
+        transportée par la session ou figée au moment du formulaire. Preuve :
+        on modifie motif_refus EN BASE entre la confirmation (POST, sans
+        suivre la redirection) et l'affichage de refus_confirme (GET
+        séparé) — le texte affiché doit refléter la modification, pas le
+        texte initialement tapé dans le formulaire."""
         self.client.force_login(self.admin)
-        ins_eleve = _creer_inscription_eleve(email='bouton_directeur_eleve@zidni.test')
-        html = self.client.get(reverse('admin_rejeter_eleve', args=[ins_eleve.id])).content.decode('utf-8')
-        self.assertNotIn('id="wa_admin"', html)
+        inscription = _creer_inscription_eleve(email='motif_relu_base@zidni.test')
 
-        ins_prof1 = _creer_inscription_prof(email='bouton_directeur_prof1@zidni.test')
-        html = self.client.get(reverse('admin_rejeter_prof', args=[ins_prof1.id])).content.decode('utf-8')
-        self.assertNotIn('id="wa_admin"', html)
+        response = self.client.post(
+            reverse('admin_rejeter_eleve', args=[inscription.id]),
+            {'motif': 'TEXTE_ORIGINAL_DU_FORMULAIRE'},
+            follow=False,
+        )
+        self.assertRedirects(response, reverse('refus_confirme'), fetch_redirect_response=False)
+
+        # Modification directe en base, simulant un état différent de ce qui
+        # a été tapé dans le formulaire au moment du POST. refresh_from_db()
+        # d'abord : l'objet Python `inscription` date d'avant le POST (encore
+        # 'en_attente' en mémoire) — un save() sans ce refresh réécrirait TOUS
+        # les champs avec ces valeurs périmées, y compris statut, et
+        # écraserait le 'rejete' que la vue vient d'enregistrer.
+        inscription.refresh_from_db()
+        inscription.motif_refus = 'TEXTE_MODIFIE_EN_BASE'
+        inscription.save(update_fields=['motif_refus'])
+
+        html = self.client.get(reverse('refus_confirme')).content.decode('utf-8')
+        self.assertIn('TEXTE_MODIFIE_EN_BASE', html)
+        self.assertNotIn('TEXTE_ORIGINAL_DU_FORMULAIRE', html)
+
+    def test_rafraichissement_de_refus_confirme_ne_reaffiche_rien(self):
+        """Comme confirmation_creation_compte : la session est POP'ée à la
+        première lecture — un rafraîchissement renvoie vers le dashboard
+        plutôt que de réafficher indéfiniment le même écran WhatsApp."""
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='refus_confirme_refresh@zidni.test')
+        self.client.post(
+            reverse('admin_rejeter_eleve', args=[inscription.id]),
+            {'motif': 'motif quelconque'},
+        )
+        self.client.get(reverse('refus_confirme'))  # 1re lecture : consomme la session
+        response = self.client.get(reverse('refus_confirme'))  # rafraîchissement
+        self.assertRedirects(response, reverse('dashboard_admin'))
+
+    def test_acces_direct_a_lancienne_url_du_formulaire_apres_refus_deja_confirme(self):
+        """Régression demandée : une fois le refus confirmé (statut='rejete'
+        en base), un accès direct à l'ANCIENNE URL du formulaire
+        (admin_rejeter_eleve/<id>/) ne doit plus jamais afficher de boutons
+        WhatsApp dans le mauvais contexte — la garde d'état existante (statut
+        != 'en_attente') empêche déjà le formulaire de se réafficher, ce test
+        verrouille ce comportement explicitement pour les 3 écrans."""
+        self.client.force_login(self.admin)
+        ins_eleve = _creer_inscription_eleve(email='ancienne_url_eleve@zidni.test', telephone='0699887766')
+        self.client.post(reverse('admin_rejeter_eleve', args=[ins_eleve.id]), {'motif': 'x'})
+
+        response = self.client.get(reverse('admin_rejeter_eleve', args=[ins_eleve.id]))
+        self.assertRedirects(response, reverse('admin_inscriptions'))
+        html_suivi = self.client.get(reverse('admin_rejeter_eleve', args=[ins_eleve.id]), follow=True).content.decode('utf-8')
+        self.assertNotIn('wa.me/', html_suivi)
 
         self.client.force_login(self.mshrif)
-        ins_prof2 = _creer_inscription_prof(email='bouton_directeur_prof2@zidni.test', statut='validee_directeur')
-        html = self.client.get(reverse('mshrif_rejeter_prof', args=[ins_prof2.id])).content.decode('utf-8')
-        self.assertIn('id="wa_admin"', html)
+        ins_prof = _creer_inscription_prof(
+            email='ancienne_url_prof2@zidni.test', telephone='0677665544', statut='validee_directeur'
+        )
+        self.client.post(reverse('mshrif_rejeter_prof', args=[ins_prof.id]), {'motif': 'y'})
+
+        response = self.client.get(reverse('mshrif_rejeter_prof', args=[ins_prof.id]))
+        self.assertRedirects(response, reverse('mshrif_inscriptions_profs'))
+        html_suivi = self.client.get(reverse('mshrif_rejeter_prof', args=[ins_prof.id]), follow=True).content.decode('utf-8')
+        self.assertNotIn('wa.me/', html_suivi)
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class ContactAdminFixeUnSeulResultatTests(TestCase):
+    """Bug confirmé en test manuel (2026-08-14) : plusieurs comptes
+    role='admin' en base (dont des résidus de test jamais nettoyés, ex.
+    'TEST_Admin Manuel') faisaient afficher plusieurs boutons "تواصل مع
+    المدير" superposés et incohérents sur les écrans post-action
+    (confirmation_creation_compte, réinitialisation mot de passe). Cause :
+    ces 2 écrans construisaient 'admins' avec
+    User.objects.filter(role='admin').exclude(...) — TOUS les comptes admin
+    — au lieu de résoudre un seul contact via _contact_admin_fixe(), déjà
+    utilisée ailleurs (refus_confirme). Corrigé en les alignant sur
+    _contact_admin_fixe() partout. Verrou : cette fonction doit TOUJOURS
+    renvoyer UN SEUL compte (ou None), jamais un queryset/liste, quel que
+    soit le nombre de comptes role='admin' en base."""
+
+    def test_contact_admin_fixe_retourne_un_seul_compte_le_plus_ancien_avec_telephone(self):
+        # 3 comptes admin avec des téléphones variés (dont un vide, comme le
+        # résidu de test réel constaté) — créés dans le désordre, puis
+        # date_joined forcée explicitement pour ne pas dépendre du timing
+        # réel de création (auto_now_add).
+        plus_recent_avec_tel = User.objects.create_user(
+            username='admin_recent@zidni.test', email='admin_recent@zidni.test',
+            password='xX!test12345', role='admin', telephone='0611110001',
+        )
+        sans_telephone = User.objects.create_user(
+            username='admin_sans_tel@zidni.test', email='admin_sans_tel@zidni.test',
+            password='xX!test12345', role='admin', telephone='',
+        )
+        plus_ancien_avec_tel = User.objects.create_user(
+            username='admin_ancien@zidni.test', email='admin_ancien@zidni.test',
+            password='xX!test12345', role='admin', telephone='0611110002',
+        )
+        User.objects.filter(id=plus_recent_avec_tel.id).update(
+            date_joined=datetime.datetime(2026, 8, 10, tzinfo=datetime.timezone.utc))
+        User.objects.filter(id=sans_telephone.id).update(
+            date_joined=datetime.datetime(2026, 8, 5, tzinfo=datetime.timezone.utc))
+        User.objects.filter(id=plus_ancien_avec_tel.id).update(
+            date_joined=datetime.datetime(2026, 8, 1, tzinfo=datetime.timezone.utc))
+
+        resultat = _contact_admin_fixe()
+        self.assertIsInstance(resultat, User)  # UN SEUL objet, jamais un queryset/liste
+        self.assertEqual(resultat.id, plus_ancien_avec_tel.id)  # le plus ancien AVEC téléphone
+
+    def test_contact_admin_fixe_retourne_none_si_aucun_admin_na_de_telephone(self):
+        User.objects.create_user(
+            username='admin_sans_tel_seul@zidni.test', email='admin_sans_tel_seul@zidni.test',
+            password='xX!test12345', role='admin', telephone='',
+        )
+        self.assertIsNone(_contact_admin_fixe())
+
+    def test_confirmation_creation_compte_affiche_un_seul_bloc_contact_admin(self):
+        """Reproduction du bug rapporté : avec PLUSIEURS comptes admin en
+        base (dont un sans téléphone, dont un qui aurait été un résidu de
+        test), l'écran affiché après validation finale d'un prof par مشرف
+        n'affiche qu'UN SEUL bloc "تواصل مع المدير" — pas un par compte
+        admin trouvé. Marqueur 'تواصل مع المدير<br>' : texte exact du label
+        du bouton (WhatsApp ou repli mailto) dans _contacts_whatsapp.html —
+        distinct de la phrase d'aide en prose plus bas sur la même page qui
+        contient aussi ces mots mais jamais suivis de <br>."""
+        admin_sans_tel = _creer_admin()
+        User.objects.create_user(
+            username='admin_extra1@zidni.test', email='admin_extra1@zidni.test',
+            password='xX!test12345', role='admin', telephone='0622220001',
+        )
+        User.objects.create_user(
+            username='admin_extra2@zidni.test', email='admin_extra2@zidni.test',
+            password='xX!test12345', role='admin', telephone='0622220002',
+        )
+        mshrif = _creer_mshrif()
+        inscription = _creer_inscription_prof(email='contact_admin_unique@zidni.test')
+
+        self.client.force_login(admin_sans_tel)
+        self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
+
+        self.client.force_login(mshrif)
+        response = self.client.get(reverse('mshrif_valider_prof_final', args=[inscription.id]), follow=True)
+        html = response.content.decode('utf-8')
+        self.assertEqual(html.count('تواصل مع المدير<br>'), 1)
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class MshrifNeVoitJamaisUnDossierFermeTests(TestCase):
+    """Bug critique confirmé en test manuel (2026-08-14) : un prof déjà refusé
+    par مدير (statut='rejete') apparaissait quand même côté مشرف, qui pouvait
+    alors agir dessus. Règle métier : مشرف ne voit QUE les dossiers
+    'validee_directeur' (explicitement pré-validés par مدير) — jamais un
+    dossier 'rejete' (fermé définitivement) ni 'en_attente' (pas encore
+    traité par مدير du tout).
+
+    Diagnostic : mshrif_inscriptions_profs (la liste) filtrait déjà
+    correctement sur statut='validee_directeur' — voir le queryset dans
+    dashboard.views. Le vrai trou : mshrif_inscription_prof_detail n'avait
+    AUCUNE garde d'état, contrairement à mshrif_valider_prof_final et
+    mshrif_rejeter_prof qui en avaient déjà une chacune — un accès direct par
+    URL à la fiche de détail restait donc possible quel que soit le statut.
+    Corrigé en ajoutant la même garde à mshrif_inscription_prof_detail."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def _absent_de_la_liste(self, inscription):
+        # logout() d'abord : si مدير vient d'agir (pré-validation, rejet...)
+        # dans CE MÊME test.client, un message flash Django (session) portant
+        # le nom de l'inscription peut encore être en attente d'affichage —
+        # sans ce logout, force_login(mshrif) réutilise la même session et ce
+        # message flash apparaîtrait sur la page مشرف, faussant l'assertion
+        # ci-dessous (faux positif : le nom serait "trouvé", mais dans un
+        # message de مدير, pas dans une ligne de la liste مشرف elle-même).
+        self.client.logout()
+        self.client.force_login(self.mshrif)
+        html = self.client.get(reverse('mshrif_inscriptions_profs')).content.decode('utf-8')
+        self.assertNotIn(inscription.nom, html)
+
+    def _acces_direct_bloque_sur_les_3_vues(self, inscription):
+        """Consultation, acceptation et refus doivent tous les 3 rediriger
+        vers la liste sans rien changer en base — même en accès direct par
+        URL, sans jamais passer par la liste elle-même."""
+        self.client.logout()  # même raison que dans _absent_de_la_liste.
+        self.client.force_login(self.mshrif)
+
+        response = self.client.get(reverse('mshrif_inscription_prof_detail', args=[inscription.id]))
+        self.assertRedirects(response, reverse('mshrif_inscriptions_profs'))
+
+        response = self.client.get(reverse('mshrif_valider_prof_final', args=[inscription.id]))
+        self.assertRedirects(response, reverse('mshrif_inscriptions_profs'))
+        self.assertFalse(User.objects.filter(email=inscription.email, role='prof').exists())
+
+        statut_avant = inscription.statut
+        motif_avant = inscription.motif_refus
+        response = self.client.post(
+            reverse('mshrif_rejeter_prof', args=[inscription.id]), {'motif': 'tentative مشرف'}
+        )
+        self.assertRedirects(response, reverse('mshrif_inscriptions_profs'))
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.statut, statut_avant)  # inchangé
+        self.assertEqual(inscription.motif_refus, motif_avant)  # jamais écrasé par مشرف
+
+    def test_prof_rejete_directement_depuis_en_attente_invisible_et_bloque_cote_mshrif(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_prof(email='bug_critique_rejet_direct@zidni.test')
+        self.client.post(reverse('admin_rejeter_prof', args=[inscription.id]), {'motif': 'خبرة غير كافية'})
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.statut, 'rejete')
+
+        self._absent_de_la_liste(inscription)
+        self._acces_direct_bloque_sur_les_3_vues(inscription)
+
+    def test_prof_pre_valide_puis_rejete_par_directeur_invisible_et_bloque_cote_mshrif(self):
+        """Scénario exact du bug rapporté : مدير pré-valide (le dossier devient
+        momentanément visible pour مشرف), PUIS se ravise et rejette avant que
+        مشرف n'ait agi — le dossier doit redevenir invisible et fermé, pas
+        rester accessible via un lien/onglet que مشرف aurait déjà ouvert."""
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_prof(email='bug_critique_rejet_apres_prevalidation@zidni.test')
+        self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.statut, 'validee_directeur')  # visible pour مشرف à ce stade précis
+
+        self.client.post(reverse('admin_rejeter_prof', args=[inscription.id]), {'motif': 'ملف غير مطابق'})  # ravisement du مدير
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.statut, 'rejete')
+
+        self._absent_de_la_liste(inscription)
+        self._acces_direct_bloque_sur_les_3_vues(inscription)
+
+    def test_prof_encore_en_attente_jamais_traite_par_directeur_invisible_cote_mshrif(self):
+        """Sens inverse explicitement demandé : un dossier que مدير n'a même
+        pas encore regardé ('en_attente') n'est pas plus visible côté مشرف
+        qu'un dossier rejeté — seul 'validee_directeur' doit apparaître."""
+        inscription = _creer_inscription_prof(email='bug_critique_jamais_traite@zidni.test')
+        self.assertEqual(inscription.statut, 'en_attente')
+
+        self._absent_de_la_liste(inscription)
+        self._acces_direct_bloque_sur_les_3_vues(inscription)
+
+    def test_reproduction_complete_du_scenario_rapporte(self):
+        """Reproduction fidèle du test manuel rapporté, de bout en bout avec
+        django.test.Client : création → rejet مدير → connexion مشرف →
+        absence totale de la liste ET les 3 actions bloquées en accès direct."""
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_prof(
+            nom='بوغلاب', prenom='محمد', email='bug_critique_reproduction@zidni.test'
+        )
+        response = self.client.post(
+            reverse('admin_rejeter_prof', args=[inscription.id]),
+            {'motif': 'الملف غير مكتمل'},
+        )
+        self.assertRedirects(response, reverse('refus_confirme'), fetch_redirect_response=False)
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.statut, 'rejete')
+        self.client.logout()
+
+        self.client.force_login(self.mshrif)
+        html_liste = self.client.get(reverse('mshrif_inscriptions_profs')).content.decode('utf-8')
+        self.assertNotIn('بوغلاب', html_liste)
+
+        response_detail = self.client.get(reverse('mshrif_inscription_prof_detail', args=[inscription.id]))
+        self.assertRedirects(response_detail, reverse('mshrif_inscriptions_profs'))
+
+        response_accepter = self.client.get(reverse('mshrif_valider_prof_final', args=[inscription.id]))
+        self.assertRedirects(response_accepter, reverse('mshrif_inscriptions_profs'))
+        self.assertFalse(User.objects.filter(email='bug_critique_reproduction@zidni.test', role='prof').exists())
+
+        response_refuser = self.client.post(
+            reverse('mshrif_rejeter_prof', args=[inscription.id]), {'motif': 'tentative'}
+        )
+        self.assertRedirects(response_refuser, reverse('mshrif_inscriptions_profs'))
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.statut, 'rejete')  # toujours fermé
+        self.assertEqual(inscription.motif_refus, 'الملف غير مكتمل')  # motif du مدير jamais écrasé
 
 
 @override_settings(STORAGES=_STORAGES_TEST)
@@ -1151,17 +1491,20 @@ class CommentairesTemplateInvisiblesTests(TestCase):
 
 @override_settings(STORAGES=_STORAGES_TEST)
 class RechercheGlobalePresenteSurToutesLesPagesTests(TestCase):
-    """Régression du 2026-08-14 — la barre de recherche globale est incluse
-    dans base_admin.html/base_mshrif.html eux-mêmes (avant {% block content
-    %}), pas dans une page précise : elle doit donc apparaître sur TOUTE page
-    مدير/مشرف, pas seulement l'accueil. Couvre 3+ pages par rôle, au-delà de
-    RechercheGlobaleTests qui ne teste que l'endpoint API lui-même."""
+    """Règle resserrée le 2026-08-14 (correction du même jour, plus stricte que
+    la version précédente de ce test) : la recherche globale n'est plus incluse
+    dans base_admin.html/base_mshrif.html — elle n'apparaît désormais QUE sur
+    لوحة التحكم de chaque rôle (dashboard/admin.html et
+    dashboard/dashboard_mshrif.html, tout en haut de {% block content %}).
+    Absente PARTOUT ailleurs, consultation ET action confondues — ce test
+    couvre donc l'inverse de l'ancienne version : présente sur 2 pages
+    précises, absente sur toutes les autres."""
 
     def setUp(self):
         self.admin = _creer_admin()
         self.mshrif = _creer_mshrif()
 
-    def _verifier_presente_avant_le_contenu(self, url_name):
+    def _assert_recherche_presente(self, url_name):
         html = self.client.get(reverse(url_name)).content.decode('utf-8')
         idx_recherche = html.find('rechercheGlobaleInput')
         idx_contenu = html.find('class="page-title"')
@@ -1169,35 +1512,43 @@ class RechercheGlobalePresenteSurToutesLesPagesTests(TestCase):
         self.assertNotEqual(idx_contenu, -1, f"Repère de contenu introuvable sur {url_name}.")
         self.assertLess(
             idx_recherche, idx_contenu,
-            f"La barre de recherche doit apparaître AVANT le contenu propre à la "
-            f"page {url_name} (donc faire partie du layout commun, pas du contenu)."
+            f"La barre de recherche doit apparaître AVANT le reste du contenu de {url_name}."
         )
-
-    def test_admin_recherche_presente_sur_3_pages_differentes(self):
-        self.client.force_login(self.admin)
-        for url_name in ['dashboard_admin', 'admin_eleves', 'admin_profs']:
-            self._verifier_presente_avant_le_contenu(url_name)
-
-    def test_mshrif_recherche_presente_sur_3_pages_differentes(self):
-        self.client.force_login(self.mshrif)
-        for url_name in ['dashboard_mshrif', 'admin_eleves', 'admin_profs']:
-            self._verifier_presente_avant_le_contenu(url_name)
-
-    # --- Correction du 2026-08-14 (test manuel) : EXCLUSION explicite sur les
-    # écrans d'action focalisée à une seule tâche (formulaire d'action, écran
-    # de confirmation) — la recherche globale y distrait de l'action en
-    # cours. base_admin.html/base_mshrif.html exposent {% block
-    # recherche_globale %} pour que ces écrans puissent l'écraser à vide,
-    # plutôt que de casser silencieusement le test ci-dessus si un écran
-    # de ce type était un jour ajouté à la liste testée plus haut. ---
 
     def _assert_recherche_absente(self, url):
         html = self.client.get(url).content.decode('utf-8')
         self.assertNotIn(
             'rechercheGlobaleInput', html,
-            f"La recherche globale ne doit PAS apparaître sur un écran d'action "
-            f"focalisée ({url}) — elle distrait de l'action en cours."
+            f"La recherche globale ne doit PAS apparaître sur {url} — règle "
+            f"resserrée du 2026-08-14 : seule لوحة التحكم l'affiche."
         )
+
+    # --- Présente : لوحة التحكم des 2 rôles, et seulement elle ---
+
+    def test_admin_recherche_presente_sur_louha_at_tahakoum(self):
+        self.client.force_login(self.admin)
+        self._assert_recherche_presente('dashboard_admin')
+
+    def test_mshrif_recherche_presente_sur_louha_at_tahakoum(self):
+        self.client.force_login(self.mshrif)
+        self._assert_recherche_presente('dashboard_mshrif')
+
+    # --- Absente : pages de consultation (listes) — nouveauté de la règle
+    # stricte, ces pages affichaient la recherche avant ce correctif ---
+
+    def test_admin_recherche_absente_sur_pages_de_consultation(self):
+        self.client.force_login(self.admin)
+        for url_name in ['admin_eleves', 'admin_profs']:
+            self._assert_recherche_absente(reverse(url_name))
+
+    def test_mshrif_recherche_absente_sur_pages_de_consultation(self):
+        self.client.force_login(self.mshrif)
+        for url_name in ['admin_eleves', 'admin_profs']:
+            self._assert_recherche_absente(reverse(url_name))
+
+    # --- Absente : écrans d'action focalisée à une seule tâche (déjà exclus
+    # par la correction précédente du même jour, toujours vrai avec la règle
+    # stricte — ces tests restent valides tels quels) ---
 
     def test_recherche_absente_sur_ecran_de_refus(self):
         self.client.force_login(self.admin)
@@ -1219,3 +1570,22 @@ class RechercheGlobalePresenteSurToutesLesPagesTests(TestCase):
         }
         session.save()
         self._assert_recherche_absente(reverse('confirmation_creation_compte'))
+
+    def test_recherche_absente_sur_ecran_refus_confirme(self):
+        """Nouvel écran (correction du 2026-08-14, ordre logique refus/WhatsApp)
+        — même règle que confirmation_creation_compte : un écran post-action
+        n'affiche pas la recherche globale."""
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='scope_refus_confirme@zidni.test')
+        session = self.client.session
+        session['refus_confirme'] = {
+            'type_demande': 'eleve', 'inscription_id': inscription.id,
+            'nom_complet': inscription.nom, 'titre_refus': 'رفض طلب الطالب',
+            'afficher_contact_admin': False, 'redirect_url_name': 'admin_inscriptions',
+            'base_template': 'dashboard/base_admin.html',
+        }
+        session.save()
+        inscription.statut = 'rejete'
+        inscription.motif_refus = 'سبب اختبار'
+        inscription.save()
+        self._assert_recherche_absente(reverse('refus_confirme'))
