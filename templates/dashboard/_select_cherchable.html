@@ -1,0 +1,267 @@
+{# Selects cherchables (Chantier 2 du 2026-08-14) — UN SEUL composant, inclus
+   dans les 5 base_*.html, jamais dupliqué par page/rôle (B2). Amélioration
+   progressive : le <select> natif portant l'attribut data-select-cherchable
+   reste dans le DOM et fonctionnel tel quel (name, options, required, valeur
+   envoyée au formulaire — RIEN ne change côté backend, voir B4/B5) ; ce
+   script le rend juste visuellement/interactivement "cherchable" par-dessus.
+   Si le JS ne charge pas ou tarde (B6), le <select> natif reste VISIBLE et
+   pleinement utilisable (parcours/scroll classique) — il n'est masqué
+   qu'après que ce script ait fini de construire le composant de
+   remplacement, jamais avant.
+
+   Filtrage : sous-chaîne insensible à la casse, correspondance exacte
+   remontée en premier (même esprit que le tri de dashboard.recherche pour
+   le Chantier 1, adapté en JS pur car aucun aller-retour serveur n'a de
+   sens ici — voir B3 : chargement complet à l'ouverture pour <~200 options,
+   qui est le volume actuel de toutes les listes converties dans ce
+   chantier). Point d'extension pour une recherche serveur si une liste
+   grossit un jour bien au-delà (SEUIL_BASCULE_SERVEUR ci-dessous, non
+   câblé — B3 : "pas à implémenter maintenant"). #}
+<style>
+    .sc-original {
+        position: absolute; opacity: 0; height: 1px; width: 1px;
+        overflow: hidden; pointer-events: none; margin: -1px;
+    }
+    .sc-wrap { position: relative; width: 100%; }
+    .sc-control {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        width: 100%; background: white; border: 1px solid #dee2e6; border-radius: 8px;
+        padding: 8px 14px; font-family: 'Tajawal', sans-serif; font-size: 0.92rem;
+        color: var(--color-text-primary, #2C1500); cursor: pointer; text-align: right;
+    }
+    .sc-control:focus, .sc-control.sc-open { outline: none; border-color: var(--color-brand-gold-dark, #8B4B00); }
+    .sc-control-text.sc-placeholder { color: #888; }
+    .sc-control-arrow { font-size: 0.75rem; opacity: 0.55; flex-shrink: 0; transition: transform 0.15s; }
+    .sc-control.sc-open .sc-control-arrow { transform: rotate(180deg); }
+    .sc-control.sc-erreur { border-color: #dc3545; }
+    .sc-erreur-msg { color: #dc3545; font-size: 0.75rem; margin-top: 3px; display: none; }
+    .sc-erreur-msg.sc-visible { display: block; }
+    .sc-panel {
+        position: absolute; top: calc(100% + 4px); right: 0; left: 0; z-index: 400;
+        background: white; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.16);
+        max-height: 280px; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .sc-panel[hidden] { display: none; }
+    .sc-filtre {
+        border: none; border-bottom: 1px solid #f0f0f0; outline: none; padding: 10px 14px;
+        font-family: 'Tajawal', sans-serif; font-size: 0.88rem; flex-shrink: 0;
+    }
+    .sc-liste { overflow-y: auto; }
+    .sc-option {
+        padding: 8px 14px; font-size: 0.88rem; cursor: pointer; color: var(--color-text-primary, #2C1500);
+    }
+    .sc-option:hover, .sc-option.sc-active { background: var(--color-bg-cream, #FFF8EF); }
+    .sc-option.sc-selected { font-weight: 700; }
+    .sc-vide { padding: 14px; text-align: center; color: #888; font-size: 0.85rem; }
+</style>
+<script>
+(function () {
+    var SEUIL_BASCULE_SERVEUR = 200; // au-delà : envisager une recherche serveur (non implémenté ici, B3)
+
+    function texteOption(option) {
+        return option.textContent.trim();
+    }
+
+    function creerWidget(select) {
+        if (select.dataset.scEnhanced) return;
+        select.dataset.scEnhanced = '1';
+
+        var options = Array.prototype.map.call(select.options, function (o) {
+            return { value: o.value, texte: texteOption(o) };
+        });
+        if (options.length > SEUIL_BASCULE_SERVEUR) {
+            // Volume au-delà de ce qui a été pensé pour du filtrage 100% client
+            // (voir docstring) — laisse le <select> natif tel quel plutôt que de
+            // charger une liste énorme dans le DOM sans pagination.
+            return;
+        }
+
+        var wrap = document.createElement('div');
+        wrap.className = 'sc-wrap';
+
+        var control = document.createElement('button');
+        control.type = 'button';
+        control.className = 'sc-control';
+        control.setAttribute('aria-haspopup', 'listbox');
+
+        var controlText = document.createElement('span');
+        controlText.className = 'sc-control-text';
+        control.appendChild(controlText);
+
+        var arrow = document.createElement('span');
+        arrow.className = 'sc-control-arrow';
+        arrow.textContent = '▾';
+        control.appendChild(arrow);
+
+        var erreurMsg = document.createElement('div');
+        erreurMsg.className = 'sc-erreur-msg';
+        erreurMsg.textContent = 'هذا الحقل مطلوب';
+
+        var panel = document.createElement('div');
+        panel.className = 'sc-panel';
+        panel.hidden = true;
+
+        var filtre = document.createElement('input');
+        filtre.type = 'text';
+        filtre.className = 'sc-filtre';
+        filtre.placeholder = 'بحث...';
+        filtre.setAttribute('aria-label', 'تصفية القائمة');
+        panel.appendChild(filtre);
+
+        var liste = document.createElement('div');
+        liste.className = 'sc-liste';
+        liste.setAttribute('role', 'listbox');
+        panel.appendChild(liste);
+
+        wrap.appendChild(control);
+        wrap.appendChild(panel);
+        wrap.appendChild(erreurMsg);
+
+        select.classList.add('sc-original');
+        select.parentNode.insertBefore(wrap, select.nextSibling);
+
+        var indexActif = -1;
+        var elementsListe = [];
+
+        function majControleAffiche() {
+            var opt = options.find(function (o) { return o.value === select.value; });
+            if (!opt || opt.value === '') {
+                var placeholder = options.length ? options[0] : null;
+                controlText.textContent = (placeholder && placeholder.value === '') ? placeholder.texte : 'اختر...';
+                controlText.classList.add('sc-placeholder');
+            } else {
+                controlText.textContent = opt.texte;
+                controlText.classList.remove('sc-placeholder');
+            }
+        }
+
+        function rendreListe(terme) {
+            liste.innerHTML = '';
+            elementsListe = [];
+            indexActif = -1;
+            var termeNorm = (terme || '').trim().toLowerCase();
+            var filtrees = options.filter(function (o) {
+                if (o.value === '') return true; // "الكل"/placeholder toujours visible
+                return !termeNorm || o.texte.toLowerCase().indexOf(termeNorm) !== -1;
+            });
+            // Correspondance exacte en tête (même esprit que le Chantier 1).
+            filtrees.sort(function (a, b) {
+                if (!termeNorm) return 0;
+                var aExact = a.texte.toLowerCase() === termeNorm;
+                var bExact = b.texte.toLowerCase() === termeNorm;
+                if (aExact === bExact) return 0;
+                return aExact ? -1 : 1;
+            });
+            if (filtrees.length === 0) {
+                var vide = document.createElement('div');
+                vide.className = 'sc-vide';
+                vide.textContent = 'لا توجد نتائج';
+                liste.appendChild(vide);
+                return;
+            }
+            filtrees.forEach(function (o) {
+                var el = document.createElement('div');
+                el.className = 'sc-option';
+                if (o.value === select.value) el.classList.add('sc-selected');
+                el.textContent = o.texte;
+                el.setAttribute('role', 'option');
+                el.addEventListener('click', function () {
+                    choisir(o);
+                });
+                liste.appendChild(el);
+                elementsListe.push({ el: el, option: o });
+            });
+        }
+
+        function choisir(option) {
+            select.value = option.value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            majControleAffiche();
+            fermer();
+            effacerErreur();
+        }
+
+        function ouvrir() {
+            panel.hidden = false;
+            control.classList.add('sc-open');
+            filtre.value = '';
+            rendreListe('');
+            filtre.focus();
+        }
+
+        function fermer() {
+            panel.hidden = true;
+            control.classList.remove('sc-open');
+        }
+
+        function effacerErreur() {
+            control.classList.remove('sc-erreur');
+            erreurMsg.classList.remove('sc-visible');
+        }
+
+        function surligner(i) {
+            elementsListe.forEach(function (item, idx) {
+                item.el.classList.toggle('sc-active', idx === i);
+            });
+            if (elementsListe[i]) elementsListe[i].el.scrollIntoView({ block: 'nearest' });
+        }
+
+        control.addEventListener('click', function () {
+            if (panel.hidden) ouvrir(); else fermer();
+        });
+
+        filtre.addEventListener('input', function () {
+            rendreListe(filtre.value);
+        });
+
+        filtre.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                fermer();
+                control.focus();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (elementsListe.length) { indexActif = Math.min(indexActif + 1, elementsListe.length - 1); surligner(indexActif); }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (elementsListe.length) { indexActif = Math.max(indexActif - 1, 0); surligner(indexActif); }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (indexActif >= 0 && elementsListe[indexActif]) choisir(elementsListe[indexActif].option);
+            }
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!wrap.contains(e.target)) fermer();
+        });
+
+        // Validation "required" côté widget : le <select> natif est masqué
+        // visuellement (sc-original), certains navigateurs n'exécutent alors
+        // plus la validation HTML5 standard dessus — filet de sécurité manuel.
+        if (select.required) {
+            var form = select.closest('form');
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    if (!select.value) {
+                        e.preventDefault();
+                        control.classList.add('sc-erreur');
+                        erreurMsg.classList.add('sc-visible');
+                        control.focus();
+                    }
+                });
+            }
+        }
+
+        majControleAffiche();
+    }
+
+    function initTout() {
+        document.querySelectorAll('select[data-select-cherchable]').forEach(creerWidget);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTout);
+    } else {
+        initTout();
+    }
+})();
+</script>

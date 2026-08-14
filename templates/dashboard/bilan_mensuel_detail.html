@@ -14,6 +14,38 @@
     {% if lecture_seule %} — عرض للاطلاع فقط{% endif %}
 </div>
 
+{# Chantier du 2026-08-14 — بيان الغياب : identique pour les 5 rôles qui
+   atteignent cette page (élève/prof/مؤطر/مدير/مشرف), calculé en temps réel
+   à chaque affichage (voir la vue), pas figé. #}
+<div class="compact-card" id="carte_absences" style="max-width:800px; margin-bottom:20px; cursor:pointer;" onclick="toggleCarteAbsences()">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:700; color:var(--color-brand-gold-dark);">📊 حصيلة الغياب</div>
+        <span id="fleche_absences" style="transition:transform 0.2s; color:#888;">▾</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; margin-top:10px; flex-wrap:wrap;">
+        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            {% for p in presences_du_mois %}
+            <span title="{{ p.seance.date|date:'d-m-Y' }}" style="width:11px; height:11px; border-radius:50%; display:inline-block; background:{% if p.statut == 'present' %}#28a745{% elif p.statut == 'absent_excuse' %}#c9a227{% else %}#dc3545{% endif %};"></span>
+            {% endfor %}
+        </div>
+        <span style="font-size:0.88rem; color:#666;">
+            {{ nb_present }} حضور · {{ absences_du_mois|length }} غياب · {{ presences_du_mois|length }} حصص
+        </span>
+    </div>
+    <div id="detail_absences" style="display:none; margin-top:16px; border-top:1px solid #f0f0f0; padding-top:12px;" onclick="event.stopPropagation();">
+        {% for p in absences_du_mois %}
+        <div style="display:flex; justify-content:space-between; padding:8px 0; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %}">
+            <span>{{ p.seance.date|date:"d-m-Y" }}</span>
+            <span style="font-weight:600; color:{% if p.statut == 'absent_excuse' %}#c9a227{% else %}#dc3545{% endif %};">
+                {% if p.statut == 'absent_excuse' %}غياب مبرر{% else %}غياب غير مبرر{% endif %}
+            </span>
+        </div>
+        {% empty %}
+        <div style="color:#aaa; text-align:center; padding:12px 0;">لا يوجد غياب هذا الشهر 🎉</div>
+        {% endfor %}
+    </div>
+</div>
+
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:800px;">
     <form method="POST">
         {% csrf_token %}
@@ -37,4 +69,14 @@
         {% endif %}
     </form>
 </div>
+
+<script>
+function toggleCarteAbsences() {
+    var detail = document.getElementById('detail_absences');
+    var fleche = document.getElementById('fleche_absences');
+    var ouvert = detail.style.display !== 'none';
+    detail.style.display = ouvert ? 'none' : 'block';
+    fleche.style.transform = ouvert ? '' : 'rotate(180deg)';
+}
+</script>
 {% endblock %}

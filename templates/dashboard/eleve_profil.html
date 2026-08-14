@@ -88,6 +88,19 @@
 </div>
 {% endif %}
 
+{% if bilans_mensuels %}
+<div class="section-title">بياناتي الشهرية</div>
+<div class="compact-card" style="padding:4px 20px;">
+    {% for b in bilans_mensuels %}
+    <a href="{% url 'bilan_mensuel_detail' eleve.id b.mois_reference|date:'Y-m' %}"
+       style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; color:inherit; text-decoration:none; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %}">
+        <span style="font-weight:600;">{{ b.mois_reference|mois_annee_ar }}</span>
+        <span style="color:var(--color-role-eleve-solid); font-size:0.85rem;">عرض ←</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
 <div class="section-title">التواصل مع الإدارة</div>
 <div class="compact-card" style="padding:4px 20px;">
     {% include 'dashboard/_contact_administration.html' with admins=admins %}

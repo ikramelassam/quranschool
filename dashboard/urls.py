@@ -146,4 +146,7 @@ urlpatterns = [
 
     # Tâche du 2026-08-07 : remplace la carte "نسبة الحضور هذا الشهر" (biaisée, voir diagnostic)
     path('suivi-engagement/', views.suivi_engagement_mensuel, name='suivi_engagement_mensuel'),
+
+    # Recherche globale (مدير/مشرف) — Chantier du 2026-08-14
+    path('api/recherche-globale/', views.api_recherche_globale, name='api_recherche_globale'),
 ]

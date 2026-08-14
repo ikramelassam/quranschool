@@ -12,7 +12,7 @@
     <div class="row g-3 align-items-end">
         <div class="col-md-4">
             <label style="color:#888; font-size:0.8rem;">المجموعة</label>
-            <select name="groupe" class="form-select">
+            <select name="groupe" class="form-select" data-select-cherchable>
                 <option value="">الكل</option>
                 {% for g in groupes %}
                 <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
@@ -21,7 +21,7 @@
         </div>
         <div class="col-md-4">
             <label style="color:#888; font-size:0.8rem;">المعلم</label>
-            <select name="prof" class="form-select">
+            <select name="prof" class="form-select" data-select-cherchable>
                 <option value="">الكل</option>
                 {% for p in profs %}
                 <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}{% if p.statut == 'archive' %} (مؤرشف){% endif %}</option>

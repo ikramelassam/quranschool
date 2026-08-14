@@ -171,7 +171,7 @@
                     {% if request.user.role != 'mshrif' %}
                     <form method="POST" action="{% url 'admin_groupe_transferer_eleve' groupe.id eleve.id %}" class="d-flex gap-1">
                         {% csrf_token %}
-                        <select name="destination_id" class="form-select form-select-sm" style="font-size:0.8rem;" required>
+                        <select name="destination_id" class="form-select form-select-sm" style="font-size:0.8rem;" required data-select-cherchable>
                             <option value="">نقل إلى...</option>
                             {% for g in autres_groupes_actifs %}
                             <option value="{{ g.id }}">{{ g.nom }}</option>
@@ -196,7 +196,7 @@
                 <div style="font-weight:600; margin-bottom:10px;">إضافة طالب</div>
                 <form method="POST" action="{% url 'admin_groupe_ajouter_eleve' groupe.id %}" class="d-flex gap-2">
                     {% csrf_token %}
-                    <select name="eleve_id" class="form-select">
+                    <select name="eleve_id" class="form-select" data-select-cherchable>
                         <option value="">اختر طالباً</option>
                         {% for eleve in eleves_disponibles %}
                         <option value="{{ eleve.id }}">{{ eleve.user.get_full_name }}</option>

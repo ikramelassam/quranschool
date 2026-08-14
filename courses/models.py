@@ -1,5 +1,6 @@
 import datetime
 
+from django.contrib.postgres.indexes import GinIndex
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
@@ -200,6 +201,10 @@ class Groupe(models.Model):
     class Meta:
         verbose_name = "Groupe"
         verbose_name_plural = "Groupes"
+        # Recherche globale (Chantier du 2026-08-14) — voir accounts.models.User.Meta.indexes.
+        indexes = [
+            GinIndex(fields=['nom'], name='courses_groupe_nom_trgm', opclasses=['gin_trgm_ops']),
+        ]
 
 
 class ReglageLienSeance(models.Model):

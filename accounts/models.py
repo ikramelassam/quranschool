@@ -1,5 +1,6 @@
 
 from django.contrib.auth.models import AbstractUser
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 
@@ -40,6 +41,20 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+    class Meta:
+        # Recherche globale (Chantier du 2026-08-14) : un index GIN trigram
+        # par champ (pas un seul multi-colonnes) — trigram_similar/similarity
+        # opèrent colonne par colonne, et first_name/last_name/email/telephone
+        # sont recherchés indépendamment (voir dashboard.recherche). Nécessite
+        # l'extension pg_trgm, activée par la migration qui précède celle-ci
+        # (accounts.migrations : TrigramExtension avant tout AddIndex ici).
+        indexes = [
+            GinIndex(fields=['first_name'], name='accounts_user_fn_trgm', opclasses=['gin_trgm_ops']),
+            GinIndex(fields=['last_name'], name='accounts_user_ln_trgm', opclasses=['gin_trgm_ops']),
+            GinIndex(fields=['email'], name='accounts_user_email_trgm', opclasses=['gin_trgm_ops']),
+            GinIndex(fields=['telephone'], name='accounts_user_tel_trgm', opclasses=['gin_trgm_ops']),
+        ]
 
 
 class CompteurMotDePasseSequentiel(models.Model):
@@ -194,6 +209,10 @@ class Prof(models.Model):
     class Meta:
         verbose_name = "Professeur"
         verbose_name_plural = "Professeurs"
+        # Recherche globale (Chantier du 2026-08-14) — voir User.Meta.indexes.
+        indexes = [
+            GinIndex(fields=['ville'], name='accounts_prof_ville_trgm', opclasses=['gin_trgm_ops']),
+        ]
 
 
 class ElementHakiba(models.Model):

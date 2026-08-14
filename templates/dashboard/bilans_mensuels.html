@@ -43,7 +43,7 @@
     </div>
     <div>
         <label style="color:#888; font-size:0.8rem;">المعلم</label>
-        <select name="prof" class="form-select">
+        <select name="prof" class="form-select" data-select-cherchable>
             <option value="">الكل</option>
             {% for prof in profs %}
             <option value="{{ prof.id }}" {% if filtres.prof == prof.id|stringformat:"s" %}selected{% endif %}>{{ prof.user.get_full_name }}</option>
@@ -52,7 +52,7 @@
     </div>
     <div>
         <label style="color:#888; font-size:0.8rem;">المجموعة</label>
-        <select name="groupe" class="form-select">
+        <select name="groupe" class="form-select" data-select-cherchable>
             <option value="">الكل</option>
             {% for g in groupes_filtre %}
             <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>

@@ -6,6 +6,17 @@
 {% block content %}
 <div class="page-title">📋 تفاصيل طلب التسجيل</div>
 
+{% if inscription.statut == 'rejete' %}
+{# Chantier du 2026-08-14 (refus avec motif) — le motif est consultable ici même après coup,
+   pas seulement au moment du refus lui-même. #}
+<div style="background:#fdecea; border-radius:10px; padding:14px 20px; margin-bottom:20px; color:#842029; max-width:700px;">
+    ❌ تم رفض هذا الطلب.
+    {% if inscription.motif_refus %}
+    <div style="margin-top:6px; font-weight:600;">السبب: {{ inscription.motif_refus }}</div>
+    {% endif %}
+</div>
+{% endif %}
+
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
     <!-- Infos personnelles -->
@@ -194,14 +205,13 @@
 
     <!-- Boutons -->
     <div class="d-flex gap-3 mt-4">
-        {% if request.user.role != 'mshrif' %}
+        {% if request.user.role != 'mshrif' and inscription.statut == 'en_attente' %}
         {% if peut_accepter %}
         <a href="{% url 'admin_valider_eleve' inscription.id %}"
            onclick="return confirm('هل أنت متأكد من قبول طلب {{ inscription.nom|escapejs }}؟ سيتم إنشاء حساب مستخدم فعلي له.');"
            style="background:var(--color-success); color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">✅ قبول</a>
         {% endif %}
         <a href="{% url 'admin_rejeter_eleve' inscription.id %}"
-           onclick="return confirm('هل أنت متأكد من رفض طلب {{ inscription.nom|escapejs }}؟ لا يمكن التراجع عن هذا الإجراء.');"
            style="background:#dc3545; color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">❌ رفض</a>
         {% endif %}
         <a href="{% url 'admin_inscriptions' %}"

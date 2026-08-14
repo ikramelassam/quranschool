@@ -26,9 +26,12 @@ def _contexte_base_mshrif(request):
 
 @role_required('admin', 'mshrif')
 def groupes_list(request):
+    from django.db.models import Q
+
     statut = request.GET.get('statut', '')
     prof_id = request.GET.get('prof', '')
     creneau_id = request.GET.get('creneau', '')
+    q = request.GET.get('q', '').strip()
 
     groupes = Groupe.objects.select_related('prof__user', 'creneau').order_by('id')
     if statut:
@@ -43,6 +46,14 @@ def groupes_list(request):
         groupes = groupes.filter(prof_id=prof_id)
     if creneau_id:
         groupes = groupes.filter(creneau_id=creneau_id)
+    if q:
+        # Même logique que dashboard.recherche._filtrer (Chantier recherche
+        # globale du 2026-08-14) : icontains (sous-chaîne, cas courant) OU
+        # trigram_similar (fautes de frappe, utilise l'index GIN déjà posé
+        # sur Groupe.nom — migration courses.0027) — pas une 3e logique de
+        # recherche recodée à part, le lien "عرض كل النتائج" de la recherche
+        # globale pointe justement ici avec ce même paramètre ?q=.
+        groupes = groupes.filter(Q(nom__icontains=q) | Q(nom__trigram_similar=q))
 
     context = {
         'groupes': paginer(request, groupes, 10),
@@ -53,6 +64,7 @@ def groupes_list(request):
             'statut': statut,
             'prof': prof_id,
             'creneau': creneau_id,
+            'q': q,
         },
         'base_template': _base_template_admin_ou_mshrif(request),
     }

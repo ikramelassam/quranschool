@@ -147,6 +147,10 @@ class ChampsInscriptionVisiblesTests(TestCase):
             'email', 'job_actuel', 'creneau_souhaite', 'programme', 'riwaya',
             'outil', 'abonnement', 'accepte_conditions', 'remarques',
             'disponibilites_libres', 'date_soumission',
+            # Chantier du 2026-08-14 (refus avec motif) — affiché
+            # conditionnellement (statut='rejete' seulement), voir
+            # test_motif_refus_affiche_quand_rejete ci-dessous.
+            'motif_refus',
         }
         champs_connus = champs_verifies_affiches | set(self.CHAMPS_EXCLUS_ELEVE)
         champs_nouveaux = champs_reels - champs_connus
@@ -156,6 +160,19 @@ class ChampsInscriptionVisiblesTests(TestCase):
             "Ajoute-le à champs_verifies_affiches (+ un test de rendu) ou à "
             "CHAMPS_EXCLUS_ELEVE (+ la raison)."
         )
+
+    def test_motif_refus_eleve_affiche_quand_rejete(self):
+        """Chantier du 2026-08-14 (refus avec motif) — le motif n'est affiché
+        que pour un dossier rejeté (voir admin_inscription_detail.html), donc
+        vérifié séparément de test_page_candidature_eleve_affiche_les_champs_attendus
+        ci-dessus (qui teste une inscription 'en_attente', où motif_refus est
+        toujours vide et n'a rien à afficher)."""
+        inscription = self._creer_inscription_eleve(
+            statut='rejete', motif_refus='MotifRefusMarqueurQ3k7',
+        )
+        url = reverse('admin_inscription_eleve_detail', args=[inscription.id])
+        contenu = self.client.get(url).content.decode('utf-8')
+        self.assertIn('MotifRefusMarqueurQ3k7', contenu)
 
     # ------------------------------------------------------------------
     # InscriptionProf
@@ -262,6 +279,10 @@ class ChampsInscriptionVisiblesTests(TestCase):
             'parcours_enseignant', 'compte_bancaire', 'rib', 'agence_bancaire',
             'audio_enregistrement', 'gestion_eleve_faible', 'gestion_eleve_absent',
             'email', 'date_soumission',
+            # Chantier du 2026-08-14 (refus avec motif) — affiché
+            # conditionnellement (statut='rejete' seulement), voir
+            # test_motif_refus_affiche_quand_rejete ci-dessous.
+            'motif_refus',
         }
         champs_connus = champs_verifies_affiches | set(self.CHAMPS_EXCLUS_PROF)
         champs_nouveaux = champs_reels - champs_connus
@@ -271,3 +292,13 @@ class ChampsInscriptionVisiblesTests(TestCase):
             "Ajoute-le à champs_verifies_affiches (+ un test de rendu) ou à "
             "CHAMPS_EXCLUS_PROF (+ la raison)."
         )
+
+    def test_motif_refus_prof_affiche_quand_rejete(self):
+        """Chantier du 2026-08-14 (refus avec motif) — voir le même test côté
+        InscriptionEleve pour le principe (affiché seulement si rejete)."""
+        inscription = self._creer_inscription_prof(
+            statut='rejete', motif_refus='MotifRefusProfMarqueurR5j9',
+        )
+        url = reverse('admin_inscription_prof_detail', args=[inscription.id])
+        contenu = self.client.get(url).content.decode('utf-8')
+        self.assertIn('MotifRefusProfMarqueurR5j9', contenu)

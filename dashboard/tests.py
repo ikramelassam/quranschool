@@ -11,7 +11,7 @@ from courses.models import (
     DisponibiliteEleve, DisponibiliteProf, DemandeModificationDisponibilite,
 )
 from evaluations.models import Evaluation, CommentaireMensuel
-from inscriptions.models import InscriptionEleve
+from inscriptions.models import InscriptionEleve, InscriptionProf, PhraseRefus
 from payments.models import Paiement
 
 
@@ -405,3 +405,596 @@ class AffichageDonneesDetacheesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         contenu = response.content.decode('utf-8')
         self.assertIn('[حساب محذوف]', contenu)
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class RechercheGlobaleTests(TestCase):
+    """Chantier 1 du 2026-08-14 — recherche globale (مدير/مشرف)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+
+    def _rechercher(self, q):
+        return self.client.get(reverse('api_recherche_globale'), {'q': q})
+
+    def test_resultats_exacts_par_categorie(self):
+        self.client.force_login(self.admin)
+        eleve = _creer_eleve('eleve_recherche@zidni.test')
+        eleve.user.first_name, eleve.user.last_name = 'أحمد', 'الفاسي'
+        eleve.user.save()
+        prof = _creer_prof('prof_recherche@zidni.test')
+        prof.user.first_name, prof.user.last_name = 'كريم', 'العلمي'
+        prof.user.save()
+        prof.ville = 'الدار البيضاء'
+        prof.save()
+        superviseur = _creer_superviseur('superviseur_recherche@zidni.test')
+        superviseur.user.first_name, superviseur.user.last_name = 'سعيد', 'بنعلي'
+        superviseur.user.save()
+        groupe = Groupe.objects.create(nom='مجموعة الفجر الفريدة', statut='actif')
+
+        data = self._rechercher('الفاسي').json()
+        cat = next(c for c in data['categories'] if c['cle'] == 'eleves')
+        self.assertEqual(len(cat['resultats']), 1)
+        self.assertEqual(cat['resultats'][0]['id'], eleve.id)
+
+        data = self._rechercher('الدار البيضاء').json()
+        cat = next(c for c in data['categories'] if c['cle'] == 'profs')
+        self.assertEqual([r['id'] for r in cat['resultats']], [prof.id])
+
+        data = self._rechercher('بنعلي').json()
+        cat = next(c for c in data['categories'] if c['cle'] == 'superviseurs')
+        self.assertEqual([r['id'] for r in cat['resultats']], [superviseur.id])
+
+        data = self._rechercher('الفجر الفريدة').json()
+        cat = next(c for c in data['categories'] if c['cle'] == 'groupes')
+        self.assertEqual([r['id'] for r in cat['resultats']], [groupe.id])
+
+    def test_voir_tout_groupes_transmet_q_et_filtre_reellement(self):
+        """Correction du 2026-08-14 : le lien 'voir tous les résultats' de la
+        catégorie groupes doit transmettre ?q= à admin_groupes (courses.
+        groupes_list), comme les autres catégories le font déjà — et cette
+        page doit réellement filtrer, pas juste accepter le paramètre sans
+        effet."""
+        self.client.force_login(self.admin)
+        for i in range(7):
+            Groupe.objects.create(nom=f'مجموعة الفجر الفريدة {i}', statut='actif')
+        Groupe.objects.create(nom='مجموعة بدون علاقة بالبحث', statut='actif')
+
+        data = self._rechercher('الفجر الفريدة').json()
+        cat = next(c for c in data['categories'] if c['cle'] == 'groupes')
+        self.assertTrue(cat['a_plus'])
+        self.assertIsNotNone(cat['voir_tout_url'])
+        self.assertIn('?q=', cat['voir_tout_url'])
+
+        response = self.client.get(cat['voir_tout_url'])
+        self.assertEqual(response.status_code, 200)
+        contenu = response.content.decode('utf-8')
+        self.assertIn('الفجر الفريدة', contenu)
+        self.assertNotIn('مجموعة بدون علاقة بالبحث', contenu)
+
+    def test_tolerance_aux_fautes_de_frappe_via_trigram(self):
+        """icontains seul ne matcherait PAS 'Ahmad' contre 'Ahmed' — ce test
+        échouerait si le trigram_similar était retiré du filtrage."""
+        self.client.force_login(self.admin)
+        eleve = _creer_eleve('eleve_trigram@zidni.test')
+        eleve.user.first_name, eleve.user.last_name = 'Ahmed', 'Test'
+        eleve.user.save()
+
+        data = self._rechercher('Ahmad').json()
+        cat = next(c for c in data['categories'] if c['cle'] == 'eleves')
+        self.assertIn(eleve.id, [r['id'] for r in cat['resultats']])
+
+    def test_match_exact_en_tete(self):
+        self.client.force_login(self.admin)
+        exact = _creer_eleve('exact_recherche@zidni.test')
+        exact.user.first_name, exact.user.last_name = 'Nour', 'Amrani'
+        exact.user.save()
+        approche = _creer_eleve('approche_recherche@zidni.test')
+        approche.user.first_name, approche.user.last_name = 'Nourane', 'Amranioui'
+        approche.user.save()
+
+        data = self._rechercher('Nour Amrani').json()
+        cat = next(c for c in data['categories'] if c['cle'] == 'eleves')
+        ids = [r['id'] for r in cat['resultats']]
+        self.assertIn(exact.id, ids)
+        # Le match exact (iexact sur au moins un champ n'existe pas ici sur le nom
+        # complet, mais first_name='Nour' est exact pour `exact`) doit sortir
+        # avant l'approximatif s'il apparaît aussi dans les résultats.
+        if approche.id in ids:
+            self.assertLess(ids.index(exact.id), ids.index(approche.id))
+
+    def test_mshrif_voit_exactement_les_memes_resultats_que_admin(self):
+        """مشرف n'est PAS scopé différemment de مدير sur Eleve/Prof/Superviseur/
+        Groupe (vérifié dans admin_eleves/admin_profs/admin_superviseurs —
+        aucune des 3 vues ne filtre par rôle sur le queryset). Ce test
+        verrouille cette identité pour la recherche globale aussi, contre une
+        future régression accidentelle."""
+        eleve = _creer_eleve('eleve_scope_recherche@zidni.test')
+        eleve.user.first_name = 'ScopeTest'
+        eleve.user.save()
+
+        self.client.force_login(self.admin)
+        resultats_admin = self._rechercher('ScopeTest').json()
+
+        self.client.logout()
+        self.client.force_login(_creer_mshrif())
+        resultats_mshrif = self._rechercher('ScopeTest').json()
+
+        self.assertEqual(resultats_admin['categories'], resultats_mshrif['categories'])
+
+    def test_autres_roles_refuses(self):
+        eleve_connecte = _creer_eleve('eleve_acces_recherche@zidni.test')
+        self.client.force_login(eleve_connecte.user)
+        response = self._rechercher('test')
+        # role_required redirige vers le dashboard du rôle, pas de JSON renvoyé.
+        self.assertEqual(response.status_code, 302)
+
+    def test_requete_vide_courte_et_speciale_sans_crash(self):
+        self.client.force_login(self.admin)
+        for q in ['', 'a', "%_'; DROP TABLE accounts_user;--", 'x' * 500]:
+            response = self._rechercher(q)
+            self.assertEqual(response.status_code, 200)
+        data = self._rechercher('').json()
+        self.assertEqual(data['categories'], [])
+
+    def test_detection_du_mois(self):
+        self.client.force_login(self.admin)
+        for q in ['07/2026', '2026-07']:
+            data = self._rechercher(q).json()
+            self.assertIsNotNone(data['mois'])
+            self.assertEqual(data['mois']['valeur'], '2026-07')
+        # Une requête normale ne doit jamais être prise pour un mois.
+        data = self._rechercher('Ahmed').json()
+        self.assertIsNone(data['mois'])
+
+    def test_une_seule_requete_sql_quel_que_soit_le_nombre_de_categories(self):
+        """LE vrai verrou de perf, déterministe (contrairement au chrono
+        ci-dessous, sensible à la latence réseau — voir sa docstring) :
+        rechercher_tout doit toujours tenir en 1 aller-retour SQL (union() de
+        4 projections), jamais 4 requêtes séparées (1 par modèle) ni un N+1
+        caché dans la construction titre/contexte. Mesuré sur l'appel direct
+        à rechercher_tout (pas via self.client) : passer par le Client ajoute
+        2 requêtes de session/auth (session_key puis get_user) qui ne sont
+        pas spécifiques à cette vue — n'importe quelle page authentifiée les
+        paie, ça brouillerait la mesure de CE composant précis."""
+        eleve = _creer_eleve('eleve_nb_requetes@zidni.test')
+        eleve.user.first_name = 'NbRequetesTest'
+        eleve.user.save()
+
+        from dashboard.recherche import rechercher_tout
+        with self.assertNumQueries(1):
+            mois, categories = rechercher_tout('NbRequetesTest')
+        self.assertTrue(any(c['resultats'] for c in categories))
+
+    def test_temps_de_reponse_mesure(self):
+        """Chrono informatif, PAS le verrou principal (voir le test précédent,
+        déterministe) : la base de dev/test est un Postgres DISTANT (Supabase,
+        pooler eu-west-1 — voir docstring perf de dashboard.recherche), donc
+        chaque mesure inclut une latence réseau réelle et variable, hors du
+        contrôle du code applicatif (mesuré manuellement entre 150ms et
+        ~2400ms selon les conditions réseau du moment — dépassé une fois les
+        2000ms initiaux au sein de la suite complète, probablement de la
+        contention réseau avec les tests voisins — pour une même requête
+        après optimisation à 1 seul aller-retour SQL). Seuil volontairement
+        très généreux (5s) : sert à attraper une VRAIE régression grossière
+        (ex: un retour accidentel à 4 requêtes séparées, ou un N+1), pas à
+        garantir un SLA réseau que ce test ne peut pas contrôler — c'est
+        test_une_seule_requete_sql_... ci-dessus qui verrouille réellement
+        la performance, de façon déterministe."""
+        self.client.force_login(self.admin)
+        for i in range(15):
+            e = _creer_eleve(f'perf_recherche_{i}@zidni.test')
+            e.user.first_name = f'PerfTest{i}'
+            e.user.save()
+
+        debut = time.monotonic()
+        response = self._rechercher('PerfTest')
+        duree_ms = (time.monotonic() - debut) * 1000
+        self.assertEqual(response.status_code, 200)
+        self.assertLess(duree_ms, 5000, f"recherche anormalement lente : {duree_ms:.0f}ms")
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class SelectsCherchablesTests(TestCase):
+    """Chantier 2 du 2026-08-14 — selects cherchables. Le comportement de
+    filtrage lui-même est du JS pur (voir templates/dashboard/_select_cherchable.html) :
+    non testable ici sans navigateur (aucun outil de ce type disponible dans
+    cette session). Ce qui EST vérifié côté serveur : le composant est bien
+    inclus dans les 5 bases (une seule fois, pas dupliqué), l'attribut
+    data-select-cherchable est bien posé sur les <select> validés au B1, et
+    la soumission de formulaire reste identique à avant (aucune régression
+    backend — l'attribut est inerte côté serveur, il ne change ni le name ni
+    la value envoyés)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+
+    def test_composant_inclus_une_seule_fois_par_page_sur_les_5_roles(self):
+        cas = [
+            (self.admin, 'admin_eleves', {}),
+            (_creer_mshrif(), 'admin_evaluations', {}),
+        ]
+        for user, url_name, kwargs in cas:
+            self.client.force_login(user)
+            response = self.client.get(reverse(url_name, kwargs=kwargs))
+            self.assertEqual(response.status_code, 200)
+            contenu = response.content.decode('utf-8')
+            self.assertEqual(
+                contenu.count('sc-wrap { position: relative'), 1,
+                f"composant _select_cherchable dupliqué ou absent sur {url_name}",
+            )
+
+        prof = _creer_prof('prof_sc_test@zidni.test')
+        self.client.force_login(prof.user)
+        response = self.client.get(reverse('prof_seances'))
+        self.assertEqual(response.content.decode('utf-8').count('sc-wrap { position: relative'), 1)
+
+        eleve = _creer_eleve('eleve_sc_test@zidni.test')
+        self.client.force_login(eleve.user)
+        response = self.client.get(reverse('dashboard_eleve'))
+        # Aucun select converti côté élève (voir B1), mais le composant reste
+        # inclus par cohérence des 5 bases (DRY) — présent même sans select à activer.
+        self.assertEqual(response.content.decode('utf-8').count('sc-wrap { position: relative'), 1)
+
+        superviseur = _creer_superviseur('superviseur_sc_test@zidni.test')
+        self.client.force_login(superviseur.user)
+        response = self.client.get(reverse('dashboard_superviseur'))
+        self.assertEqual(response.content.decode('utf-8').count('sc-wrap { position: relative'), 1)
+
+    def test_marqueur_present_sur_les_selects_valides_au_b1(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('admin_evaluations'))
+        contenu = response.content.decode('utf-8')
+        for name in ['groupe', 'prof', 'eleve']:
+            self.assertIn(
+                f'<select name="{name}" class="form-select" data-select-cherchable>', contenu,
+            )
+
+    def test_marqueur_absent_des_listes_a_choix_fixes(self):
+        """Contre-preuve : un select exclu au B1 (statut, choix figé court) ne
+        doit PAS porter le marqueur."""
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('admin_eleves'))
+        contenu = response.content.decode('utf-8')
+        self.assertIn('<select name="statut" class="form-select">', contenu)
+        self.assertNotIn('<select name="statut" class="form-select" data-select-cherchable>', contenu)
+
+    def test_soumission_transfert_eleve_identique_a_avant_sans_destination(self):
+        """L'attribut data-select-cherchable est inerte côté serveur : le
+        comportement (name=destination_id, required) est inchangé — vérifié
+        ici sur le chemin d'erreur existant (déjà présent avant ce chantier),
+        qui doit rester identique."""
+        self.client.force_login(self.admin)
+        groupe = Groupe.objects.create(nom='مجموعة SC مصدر')
+        eleve = _creer_eleve('eleve_transfert_sc@zidni.test')
+        response = self.client.post(
+            reverse('admin_groupe_transferer_eleve', args=[groupe.id, eleve.id]),
+            {},  # pas de destination_id, exactement comme un select vide avant ce chantier
+        )
+        self.assertRedirects(response, reverse('admin_groupe_detail', args=[groupe.id]))
+
+    def test_soumission_ajout_eleve_identique_a_avant(self):
+        """Même principe : le name="eleve_id" et sa valeur POST sont
+        inchangés, la validation métier existante (ici : pas de créneau sur
+        le groupe, donc rejet) réagit exactement comme avant ce chantier."""
+        self.client.force_login(self.admin)
+        groupe = Groupe.objects.create(nom='مجموعة SC destination')
+        eleve = _creer_eleve('eleve_ajout_sc@zidni.test')
+        response = self.client.post(
+            reverse('admin_groupe_ajouter_eleve', args=[groupe.id]),
+            {'eleve_id': str(eleve.id)},
+        )
+        self.assertRedirects(response, reverse('admin_groupe_detail', args=[groupe.id]))
+        self.assertFalse(groupe.eleves.filter(id=eleve.id).exists())  # rejeté : pas de créneau, comme avant
+
+    def test_permissions_inchangees_mshrif_ne_voit_toujours_pas_les_actions_edition(self):
+        """La conversion en select cherchable ne doit RIEN changer aux règles
+        de permission déjà en place — même bloc {% if role != 'mshrif' %}
+        qu'avant ce chantier, non touché."""
+        mshrif = _creer_mshrif()
+        self.client.force_login(mshrif)
+        groupe = Groupe.objects.create(nom='مجموعة SC مشرف')
+        response = self.client.get(reverse('admin_groupe_detail', args=[groupe.id]))
+        contenu = response.content.decode('utf-8')
+        self.assertNotIn('name="eleve_id"', contenu)
+        self.assertNotIn('name="destination_id"', contenu)
+
+        # مشرف garde bien accès aux FILTRES cherchables qui lui sont destinés.
+        response = self.client.get(reverse('admin_evaluations'))
+        self.assertIn('data-select-cherchable', response.content.decode('utf-8'))
+
+
+def _creer_inscription_eleve(**overrides):
+    valeurs = dict(
+        nom='طالب مرشح للاختبار', date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+        telephone='0600000010', email='candidat_e_refus@zidni.test',
+        programme='hifz', riwaya='hafs', outil='whatsapp', abonnement='groupe_1mois',
+    )
+    valeurs.update(overrides)
+    return InscriptionEleve.objects.create(**valeurs)
+
+
+def _creer_inscription_prof(**overrides):
+    valeurs = dict(
+        nom='أستاذ مرشح', prenom='للاختبار', date_naissance=datetime.date(1990, 1, 1),
+        telephone='0600000011', ville='الرباط', statut_familial='married', job_actuel='enseignant',
+        certifications='x', niveau_memorisation='كامل', parcours_scolaire='x', parcours_enseignant='x',
+        compte_bancaire='x', rib='x', agence_bancaire='x', gestion_eleve_faible='x', gestion_eleve_absent='x',
+        email='candidat_p_refus@zidni.test',
+    )
+    valeurs.update(overrides)
+    return InscriptionProf.objects.create(**valeurs)
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class RefusInscriptionAvecMotifTests(TestCase):
+    """Chantier 3 du 2026-08-14 — refus avec motif + phrases réutilisables + WhatsApp."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    # --- C1 : motif figé, indépendant des phrases-modèles ---
+
+    def test_motif_fige_meme_apres_suppression_de_la_phrase_liee(self):
+        self.client.force_login(self.admin)
+        phrase = PhraseRefus.objects.create(contexte='refus_eleve', texte='دخل غير كافٍ حالياً')
+        inscription = _creer_inscription_eleve()
+
+        self.client.post(
+            reverse('admin_rejeter_eleve', args=[inscription.id]),
+            {'motif': phrase.texte},
+        )
+        phrase.delete()  # la phrase-modèle disparaît...
+
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.motif_refus, 'دخل غير كافٍ حالياً')  # ...le motif figé survit intact
+        self.assertEqual(inscription.statut, 'rejete')
+
+    # --- C2/C3 : 3 listes de phrases strictement cloisonnées par contexte ---
+
+    def test_chaque_contexte_ne_voit_que_sa_propre_liste_de_phrases(self):
+        PhraseRefus.objects.create(contexte='refus_eleve', texte='PHRASE_ELEVE')
+        PhraseRefus.objects.create(contexte='refus_prof_etape1', texte='PHRASE_PROF_ETAPE1')
+        PhraseRefus.objects.create(contexte='refus_prof_etape2', texte='PHRASE_PROF_ETAPE2')
+
+        self.client.force_login(self.admin)
+        ins_eleve = _creer_inscription_eleve(email='cloison_e@zidni.test')
+        html = self.client.get(reverse('admin_rejeter_eleve', args=[ins_eleve.id])).content.decode('utf-8')
+        self.assertIn('PHRASE_ELEVE', html)
+        self.assertNotIn('PHRASE_PROF_ETAPE1', html)
+        self.assertNotIn('PHRASE_PROF_ETAPE2', html)
+
+        ins_prof1 = _creer_inscription_prof(email='cloison_p1@zidni.test')
+        html = self.client.get(reverse('admin_rejeter_prof', args=[ins_prof1.id])).content.decode('utf-8')
+        self.assertIn('PHRASE_PROF_ETAPE1', html)
+        self.assertNotIn('PHRASE_ELEVE', html)
+        self.assertNotIn('PHRASE_PROF_ETAPE2', html)
+
+        self.client.force_login(self.mshrif)
+        ins_prof2 = _creer_inscription_prof(email='cloison_p2@zidni.test', statut='validee_directeur')
+        html = self.client.get(reverse('mshrif_rejeter_prof', args=[ins_prof2.id])).content.decode('utf-8')
+        self.assertIn('PHRASE_PROF_ETAPE2', html)
+        self.assertNotIn('PHRASE_ELEVE', html)
+        self.assertNotIn('PHRASE_PROF_ETAPE1', html)
+
+    def test_enregistrer_phrase_la_place_dans_le_bon_contexte_uniquement(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_prof(email='save_phrase@zidni.test')
+        self.client.post(
+            reverse('admin_rejeter_prof', args=[inscription.id]),
+            {'motif': 'NOUVELLE_PHRASE_TEST', 'enregistrer_phrase': 'on'},
+        )
+        self.assertTrue(PhraseRefus.objects.filter(contexte='refus_prof_etape1', texte='NOUVELLE_PHRASE_TEST').exists())
+        self.assertFalse(PhraseRefus.objects.filter(contexte='refus_eleve', texte='NOUVELLE_PHRASE_TEST').exists())
+        self.assertFalse(PhraseRefus.objects.filter(contexte='refus_prof_etape2', texte='NOUVELLE_PHRASE_TEST').exists())
+
+    def test_sans_cocher_la_case_aucune_phrase_nest_enregistree(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='no_save_phrase@zidni.test')
+        self.client.post(
+            reverse('admin_rejeter_eleve', args=[inscription.id]),
+            {'motif': 'MOTIF_SANS_SAUVEGARDE'},  # pas de enregistrer_phrase
+        )
+        self.assertFalse(PhraseRefus.objects.filter(texte='MOTIF_SANS_SAUVEGARDE').exists())
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.motif_refus, 'MOTIF_SANS_SAUVEGARDE')  # le motif, lui, est bien figé
+
+    # --- C10 : gardes d'état préservées avec le passage en formulaire POST ---
+
+    def test_garde_etat_refus_eleve_deja_traite(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='garde_e@zidni.test', statut='valide')
+        response = self.client.post(
+            reverse('admin_rejeter_eleve', args=[inscription.id]),
+            {'motif': 'trop tard'},
+        )
+        self.assertRedirects(response, reverse('admin_inscriptions'))
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.statut, 'valide')  # inchangé
+        self.assertEqual(inscription.motif_refus, '')
+
+    def test_garde_etat_refus_prof_etape1_deja_rejete(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_prof(email='garde_p1@zidni.test', statut='rejete')
+        response = self.client.post(
+            reverse('admin_rejeter_prof', args=[inscription.id]),
+            {'motif': 'trop tard'},
+        )
+        self.assertRedirects(response, reverse('admin_inscriptions'))
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.motif_refus, '')
+
+    def test_garde_etat_refus_prof_etape2_pas_encore_pre_valide(self):
+        self.client.force_login(self.mshrif)
+        inscription = _creer_inscription_prof(email='garde_p2@zidni.test', statut='en_attente')
+        response = self.client.post(
+            reverse('mshrif_rejeter_prof', args=[inscription.id]),
+            {'motif': 'trop tôt'},
+        )
+        self.assertRedirects(response, reverse('mshrif_inscriptions_profs'))
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.statut, 'en_attente')
+        self.assertEqual(inscription.motif_refus, '')
+
+    def test_motif_vide_ne_rejette_rien_et_reaffiche_le_formulaire(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='motif_vide@zidni.test')
+        response = self.client.post(
+            reverse('admin_rejeter_eleve', args=[inscription.id]),
+            {'motif': '   '},  # blanc pur
+        )
+        self.assertEqual(response.status_code, 200)  # réaffiche le formulaire, pas de redirect
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.statut, 'en_attente')
+
+    # --- Permissions par rôle sur chacun des 3 écrans ---
+
+    def test_permissions_eleve_connecte_refuse_sur_les_3_ecrans(self):
+        eleve = _creer_eleve('eleve_refus_perm@zidni.test')
+        ins_eleve = _creer_inscription_eleve(email='perm_e@zidni.test')
+        ins_prof = _creer_inscription_prof(email='perm_p@zidni.test', statut='validee_directeur')
+        self.client.force_login(eleve.user)
+        self.assertEqual(self.client.get(reverse('admin_rejeter_eleve', args=[ins_eleve.id])).status_code, 302)
+        self.assertEqual(self.client.get(reverse('admin_rejeter_prof', args=[ins_prof.id])).status_code, 302)
+        self.assertEqual(self.client.get(reverse('mshrif_rejeter_prof', args=[ins_prof.id])).status_code, 302)
+
+    def test_permissions_mshrif_ne_peut_pas_refuser_a_letape_1(self):
+        """L'étape 1 (admin_rejeter_prof) reste strictement مدير — مشرف n'agit
+        qu'à l'étape 2 (mshrif_rejeter_prof), même avec ce nouveau formulaire."""
+        self.client.force_login(self.mshrif)
+        inscription = _creer_inscription_prof(email='perm_mshrif_e1@zidni.test')
+        response = self.client.get(reverse('admin_rejeter_prof', args=[inscription.id]))
+        self.assertEqual(response.status_code, 302)
+        self.assertNotEqual(response.url, reverse('admin_rejeter_prof', args=[inscription.id]))
+
+    def test_permissions_admin_ne_peut_pas_utiliser_lecran_etape2(self):
+        """admin_rejeter_prof (étape 1) et mshrif_rejeter_prof (étape 2) restent
+        deux vues séparées avec des décorateurs de rôle distincts."""
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_prof(email='perm_admin_e2@zidni.test', statut='validee_directeur')
+        response = self.client.get(reverse('mshrif_rejeter_prof', args=[inscription.id]))
+        self.assertEqual(response.status_code, 302)
+
+    # --- WhatsApp : présence des 2 boutons, contact مدير résolu ---
+
+    def test_deux_boutons_whatsapp_presents_avec_bon_numero(self):
+        self.client.force_login(self.admin)
+        # Admin de test avec téléphone renseigné = celui utilisé par _contact_admin_fixe
+        # (le plus ancien admin AVEC téléphone — celui créé dans setUp n'en a pas).
+        self.admin.telephone = '0611223344'
+        self.admin.save()
+        inscription = _creer_inscription_eleve(email='wa_test@zidni.test', telephone='0699887766')
+        html = self.client.get(reverse('admin_rejeter_eleve', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn('212699887766', html)  # wa_number(0699887766)
+        self.assertIn('212611223344', html)  # wa_number(0611223344)
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class BilanAbsencesTests(TestCase):
+    """Chantier 4 du 2026-08-14 — carte de bilan d'absences sur bilan_mensuel_detail."""
+
+    def setUp(self):
+        self.prof = _creer_prof('prof_bilan_abs@zidni.test')
+        self.eleve = _creer_eleve('eleve_bilan_abs@zidni.test')
+        self.groupe = Groupe.objects.create(nom='مجموعة بيان الغياب', prof=self.prof)
+        self.groupe.eleves.add(self.eleve)
+        self.mois = '2026-08'
+        self.mois_reference = datetime.date(2026, 8, 1)
+        # 2 présences, 1 absence non-excusée, 1 absence excusée.
+        dates_statuts = [
+            (datetime.date(2026, 8, 1), 'present'),
+            (datetime.date(2026, 8, 3), 'absent'),
+            (datetime.date(2026, 8, 5), 'present'),
+            (datetime.date(2026, 8, 8), 'absent_excuse'),
+        ]
+        for date, statut in dates_statuts:
+            seance = Seance.objects.create(groupe=self.groupe, date=date, heure='14:00', type='normal')
+            Presence.objects.create(seance=seance, eleve=self.eleve, statut=statut)
+        BilanMensuel.objects.create(eleve=self.eleve, prof=self.prof, mois_reference=self.mois_reference)
+
+    def _bloc_absences(self, html):
+        debut = html.find('id="detail_absences"')
+        fin = html.find('</div>', html.find('</div>', debut) + 1)
+        return html[debut:fin]
+
+    def test_total_present_absent_correct(self):
+        self.client.force_login(self.eleve.user)
+        html = self.client.get(reverse('bilan_mensuel_detail', args=[self.eleve.id, self.mois])).content.decode('utf-8')
+        self.assertIn('2 حضور', html)
+        self.assertIn('2 غياب', html)
+        self.assertIn('4 حصص', html)
+
+    def test_seules_les_absences_apparaissent_dans_le_detail_deplie(self):
+        self.client.force_login(self.eleve.user)
+        html = self.client.get(reverse('bilan_mensuel_detail', args=[self.eleve.id, self.mois])).content.decode('utf-8')
+        bloc = self._bloc_absences(html)
+        self.assertIn('03-08-2026', bloc)  # absent
+        self.assertIn('08-08-2026', bloc)  # absent_excuse
+        self.assertNotIn('01-08-2026', bloc)  # present — ne doit JAMAIS apparaître ici
+        self.assertNotIn('05-08-2026', bloc)  # present — ne doit JAMAIS apparaître ici
+
+    def test_distinction_excuse_non_excuse_dans_le_detail(self):
+        self.client.force_login(self.eleve.user)
+        html = self.client.get(reverse('bilan_mensuel_detail', args=[self.eleve.id, self.mois])).content.decode('utf-8')
+        bloc = self._bloc_absences(html)
+        self.assertIn('غياب مبرر', bloc)
+        self.assertIn('غياب غير مبرر', bloc)
+
+    def test_contenu_identique_pour_les_3_roles_qui_consultent(self):
+        """D4 : élève, prof, مؤطر doivent voir EXACTEMENT le même total et le
+        même détail d'absences — aucune donnée cachée entre eux."""
+        superviseur = _creer_superviseur('sup_bilan_abs@zidni.test')
+        superviseur.profs_assignes.add(self.prof)
+
+        blocs = {}
+        for user, label in [(self.eleve.user, 'eleve'), (self.prof.user, 'prof'), (superviseur.user, 'superviseur')]:
+            self.client.force_login(user)
+            html = self.client.get(reverse('bilan_mensuel_detail', args=[self.eleve.id, self.mois])).content.decode('utf-8')
+            blocs[label] = self._bloc_absences(html)
+
+        self.assertEqual(blocs['eleve'], blocs['prof'])
+        self.assertEqual(blocs['prof'], blocs['superviseur'])
+
+    def test_calcul_en_temps_reel_reflete_un_changement_de_presence(self):
+        """D5 : pas de valeur figée — une Presence modifiée après coup doit
+        immédiatement changer le total au prochain affichage."""
+        self.client.force_login(self.eleve.user)
+        url = reverse('bilan_mensuel_detail', args=[self.eleve.id, self.mois])
+        html_avant = self.client.get(url).content.decode('utf-8')
+        self.assertIn('2 غياب', html_avant)
+
+        # Un absent_excuse redevient present.
+        Presence.objects.filter(eleve=self.eleve, statut='absent_excuse').update(statut='present')
+
+        html_apres = self.client.get(url).content.decode('utf-8')
+        self.assertIn('1 غياب', html_apres)
+        self.assertIn('3 حضور', html_apres)
+
+    # --- D6 : permissions héritées, aucune nouvelle règle ---
+
+    def test_permission_eleve_ne_voit_que_son_propre_bilan(self):
+        autre_eleve = _creer_eleve('autre_eleve_bilan_abs@zidni.test')
+        self.client.force_login(autre_eleve.user)
+        response = self.client.get(reverse('bilan_mensuel_detail', args=[self.eleve.id, self.mois]))
+        self.assertEqual(response.status_code, 403)
+
+    def test_permission_prof_hors_de_ses_groupes_refuse(self):
+        """Comportement déjà en place (branche 'prof' de la vue), pas une
+        nouvelle règle : un prof dont l'élève n'est dans AUCUN de ses
+        groupes reçoit 403, avant même d'atteindre la logique de la carte."""
+        autre_prof = _creer_prof('autre_prof_bilan_abs@zidni.test')
+        self.client.force_login(autre_prof.user)
+        response = self.client.get(reverse('bilan_mensuel_detail', args=[self.eleve.id, self.mois]))
+        self.assertEqual(response.status_code, 403)
+
+    def test_permission_superviseur_non_assigne_refuse(self):
+        superviseur_non_assigne = _creer_superviseur('sup_non_assigne_bilan_abs@zidni.test')
+        self.client.force_login(superviseur_non_assigne.user)
+        response = self.client.get(reverse('bilan_mensuel_detail', args=[self.eleve.id, self.mois]))
+        self.assertEqual(response.status_code, 403)
+
+    def test_lien_depuis_le_profil_eleve_pointe_vers_le_bon_mois(self):
+        self.client.force_login(self.eleve.user)
+        html = self.client.get(reverse('eleve_profil')).content.decode('utf-8')
+        self.assertIn(reverse('bilan_mensuel_detail', args=[self.eleve.id, self.mois]), html)

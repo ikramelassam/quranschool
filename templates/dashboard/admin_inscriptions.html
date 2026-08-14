@@ -51,7 +51,6 @@
                    ✅ قبول
                 </a>
                 <a href="{% url 'admin_rejeter_eleve' ins.id %}"
-                   onclick="return confirm('هل أنت متأكد من رفض طلب {{ ins.nom|escapejs }}؟ لا يمكن التراجع عن هذا الإجراء.');"
                    style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
                    ❌ رفض
                 </a>
@@ -68,7 +67,6 @@
                    ✅ قبول
                 </a>
                 <a href="{% url 'admin_rejeter_prof' ins.id %}"
-                   onclick="return confirm('هل أنت متأكد من رفض طلب {{ ins.nom|escapejs }} {{ ins.prenom|escapejs }}؟ لا يمكن التراجع عن هذا الإجراء.');"
                    style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
                    ❌ رفض
                 </a>

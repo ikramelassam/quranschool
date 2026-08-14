@@ -1,6 +1,16 @@
 {% load libelles_arabes %}
 {% if telephone %}
-<a href="https://wa.me/{{ telephone|wa_number }}" target="_blank" rel="noopener"
+{% comment %}
+texte (optionnel, Chantier du 2026-08-14) : message pré-rempli dans la
+conversation WhatsApp (paramètre ?text= standard de wa.me/Click-to-Chat —
+ouvre toujours juste la conversation, n'envoie jamais rien automatiquement).
+id (optionnel) : permet à du JS de la page appelante de recalculer l'URL en
+direct (ex: motif de refus tapé au clavier) — voir refuser_inscription.html.
+Aucun des deux n'est requis : les ~10 usages existants restent inchangés.
+{% endcomment %}
+<a href="https://wa.me/{{ telephone|wa_number }}{% if texte %}?text={{ texte|urlencode }}{% endif %}"
+   {% if id %}id="{{ id }}"{% endif %}
+   target="_blank" rel="noopener"
    title="مراسلة عبر واتساب" class="contact-icon-link contact-icon-wa">
     <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="12" fill="#25D366"/>

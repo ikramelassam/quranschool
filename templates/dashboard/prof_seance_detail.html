@@ -209,7 +209,7 @@
                             <div class="notation-titre">الحفظ</div>
                             <div class="row g-2 ayah-pair">
                                 <div class="col-6">
-                                    <select name="sourate_memo_{{ eleve.id }}" class="form-select form-select-sm">
+                                    <select name="sourate_memo_{{ eleve.id }}" class="form-select form-select-sm" data-select-cherchable>
                                         <option value="">— السورة —</option>
                                         {% for numero, nom, nb_ayat in sourates %}
                                         <option value="{{ numero }}" {% if presence.sourate_memorisee == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
@@ -233,7 +233,7 @@
                             <div class="notation-titre">المراجعة</div>
                             <div class="row g-2 ayah-pair">
                                 <div class="col-6">
-                                    <select name="sourate_rev_{{ eleve.id }}" class="form-select form-select-sm">
+                                    <select name="sourate_rev_{{ eleve.id }}" class="form-select form-select-sm" data-select-cherchable>
                                         <option value="">— السورة —</option>
                                         {% for numero, nom, nb_ayat in sourates %}
                                         <option value="{{ numero }}" {% if presence.sourate_revisee == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>

@@ -22,7 +22,7 @@
         </div>
         <div class="col-md-3">
             <label style="color:#888; font-size:0.8rem;">الحلقة</label>
-            <select name="groupe" class="form-select">
+            <select name="groupe" class="form-select" data-select-cherchable>
                 <option value="">الكل</option>
                 {% for g in groupes %}
                 <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>

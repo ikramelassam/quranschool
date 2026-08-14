@@ -1,0 +1,94 @@
+{% extends base_template %}
+{% load libelles_arabes %}
+{% block title %}{{ titre_refus }}{% endblock %}
+{% block content %}
+{# Chantier du 2026-08-14 — page PARTAGÉE par les 3 écrans de refus
+   (admin_rejeter_eleve, admin_rejeter_prof, mshrif_rejeter_prof), pas trois
+   templates dupliqués : seul le contexte passé par la vue change (titre,
+   personne, liste de phrases scopée, url de retour). #}
+<div class="page-title">{{ titre_refus }}</div>
+<div class="page-subtitle">{{ nom_complet }}{% if telephone_personne %} — {{ telephone_personne }}{% endif %}</div>
+
+<div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:700px;">
+    <form method="POST">
+        {% csrf_token %}
+
+        <label style="font-weight:600; color:#333;">✍️ صيغة جاهزة (اختياري)</label>
+        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">اختيار صيغة يملأ الحقل أدناه تلقائياً — يبقى قابلاً للتعديل بحرية بعد ذلك</div>
+        <select id="id_phrase_select" class="form-select mb-3" data-select-cherchable>
+            <option value="">— بدون صيغة جاهزة —</option>
+            {% for phrase in phrases %}
+            <option value="{{ phrase.texte }}">{{ phrase.texte|truncatechars:80 }}</option>
+            {% endfor %}
+        </select>
+
+        <label style="font-weight:600; color:#333;">📝 سبب الرفض <span style="color:#dc3545;">*</span></label>
+        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">نص حر — يُحفظ نهائياً مع هذا الطلب، ولا يتغيّر أبداً لاحقاً حتى لو عُدّلت أو حُذفت الصيغة الجاهزة المستخدمة أعلاه</div>
+        <textarea id="id_motif" name="motif" rows="5" class="form-control mb-2" required
+                  placeholder="اكتب سبب الرفض هنا...">{{ motif_saisi }}</textarea>
+
+        <div class="form-check mb-3">
+            <input type="checkbox" class="form-check-input" name="enregistrer_phrase" id="id_enregistrer_phrase">
+            <label class="form-check-label" for="id_enregistrer_phrase" style="font-size:0.85rem; color:#666;">
+                💾 احفظ هذا النص كصيغة جاهزة لاستخدامها لاحقاً
+            </label>
+        </div>
+
+        <div style="background:var(--color-bg-cream); border-radius:10px; padding:14px 16px; margin-bottom:20px;">
+            <div style="font-weight:600; font-size:0.85rem; color:#666; margin-bottom:10px;">📱 تواصل عبر واتساب (اختياري — لا يُرسل شيئاً تلقائياً، يفتح فقط محادثة جاهزة)</div>
+            <div class="d-flex flex-wrap gap-3">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    {% include 'dashboard/_whatsapp_icon.html' with telephone=telephone_personne texte='' id='wa_personne' %}
+                    <span style="font-size:0.85rem;">مراسلة {{ nom_complet }}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    {% include 'dashboard/_whatsapp_icon.html' with telephone=admin_contact.telephone texte='' id='wa_admin' %}
+                    <span style="font-size:0.85rem;">مراسلة الإدارة{% if not admin_contact %} (لا يوجد رقم مسجَّل){% endif %}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit"
+                    style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;"
+                    onclick="return confirm('هل أنت متأكد من رفض طلب {{ nom_complet|escapejs }}؟ لا يمكن التراجع عن هذا الإجراء.');">
+                ❌ تأكيد الرفض
+            </button>
+            <a href="{{ retour_url }}" style="color:#888; text-decoration:none; padding:10px 16px;">← رجوع بدون رفض</a>
+        </div>
+    </form>
+</div>
+
+<script>
+(function () {
+    var nomPersonne = {{ nom_complet|default:''|escapejs }};
+    var motifInput = document.getElementById('id_motif');
+    var phraseSelect = document.getElementById('id_phrase_select');
+    var waPersonne = document.getElementById('wa_personne');
+    var waAdmin = document.getElementById('wa_admin');
+
+    function majLiensWhatsapp() {
+        var motif = motifInput.value.trim();
+        var msgPersonne = motif
+            ? ('مرحباً ' + nomPersonne + '، بخصوص طلب التسجيل الخاص بكم: ' + motif)
+            : ('مرحباً ' + nomPersonne + '، بخصوص طلب التسجيل الخاص بكم.');
+        var msgAdmin = motif
+            ? ('بخصوص رفض طلب ' + nomPersonne + ': ' + motif)
+            : ('بخصوص رفض طلب ' + nomPersonne + '.');
+        if (waPersonne) waPersonne.href = waPersonne.href.split('?')[0] + '?text=' + encodeURIComponent(msgPersonne);
+        if (waAdmin) waAdmin.href = waAdmin.href.split('?')[0] + '?text=' + encodeURIComponent(msgAdmin);
+    }
+
+    if (phraseSelect) {
+        phraseSelect.addEventListener('change', function () {
+            if (this.value) {
+                motifInput.value = this.value;
+                majLiensWhatsapp();
+            }
+        });
+    }
+    motifInput.addEventListener('input', majLiensWhatsapp);
+    majLiensWhatsapp();
+})();
+</script>
+{% endblock %}

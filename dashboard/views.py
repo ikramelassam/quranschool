@@ -3,6 +3,7 @@ import logging
 import secrets
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib import messages
@@ -1144,12 +1145,15 @@ def prof_bilans_mensuels(request):
     })
 
 
-@role_required('prof', 'admin', 'superviseur', 'mshrif')
+@role_required('prof', 'admin', 'superviseur', 'mshrif', 'eleve')
 def bilan_mensuel_detail(request, eleve_id, mois):
-    """Page de saisie/consultation d'un bilan mensuel — unique pour les 4 rôles :
-    le prof le crée/modifie (tant que modifiable_par_prof), les 3 autres rôles le
-    consultent en lecture seule (le مؤطر scopé à ses profs assignés, comme pour le
-    classement mensuel)."""
+    """Page de saisie/consultation d'un bilan mensuel — unique pour les 5 rôles
+    (élève ajouté au Chantier du 2026-08-14, bilan d'absences — absent du
+    décorateur jusque-là malgré la docstring d'origine qui prétendait "les
+    3 autres rôles" en plus du prof, ce qui était déjà inexact) : le prof le
+    crée/modifie (tant que modifiable_par_prof), les 4 autres rôles le
+    consultent en lecture seule (le مؤطر scopé à ses profs assignés, comme
+    pour le classement mensuel ; l'élève scopé à SON PROPRE bilan uniquement)."""
     from accounts.models import Eleve, Prof, Superviseur
     from courses.models import BilanMensuel
     from courses.utils import generer_brouillon_bilan_mensuel
@@ -1158,6 +1162,10 @@ def bilan_mensuel_detail(request, eleve_id, mois):
     eleve = get_object_or_404(Eleve, id=eleve_id)
     annee, _, num_mois = mois.partition('-')
     mois_reference = datetime.date(int(annee), int(num_mois), 1)
+
+    if request.user.role == 'eleve':
+        if eleve.user_id != request.user.id:
+            return HttpResponseForbidden('هذا ليس بيانك الشهري.')
 
     if request.user.role == 'prof':
         prof = get_object_or_404(Prof, user=request.user)
@@ -1189,6 +1197,21 @@ def bilan_mensuel_detail(request, eleve_id, mois):
 
     lecture_seule = request.user.role != 'prof' or not bilan.modifiable_par_prof
 
+    # Chantier du 2026-08-14 (bilan d'absences) — calculé en temps réel à
+    # CHAQUE affichage à partir de Presence, jamais figé/mis en cache : pas
+    # scopé au prof de CE bilan (Presence.eleve suffit), pour rester correct
+    # même si l'élève a changé de groupe/prof en cours de mois. Identique
+    # pour les 5 rôles qui peuvent atteindre cette page — aucune donnée
+    # cachée entre eux, le contexte est construit une seule fois ci-dessous.
+    from courses.models import Presence
+    presences_du_mois = list(
+        Presence.objects.filter(
+            eleve=eleve, seance__date__year=mois_reference.year, seance__date__month=mois_reference.month,
+        ).select_related('seance').order_by('seance__date')
+    )
+    nb_present = sum(1 for p in presences_du_mois if p.statut == 'present')
+    absences_du_mois = [p for p in presences_du_mois if p.statut != 'present']
+
     if request.method == 'POST' and not lecture_seule:
         bilan.memorisation = request.POST.get('memorisation', '')
         bilan.revision = request.POST.get('revision', '')
@@ -1202,12 +1225,14 @@ def bilan_mensuel_detail(request, eleve_id, mois):
         'admin': 'dashboard/base_admin.html',
         'superviseur': 'dashboard/base_superviseur.html',
         'mshrif': 'dashboard/base_mshrif.html',
+        'eleve': 'dashboard/base_eleve.html',
     }
     COULEUR_PAR_ROLE = {
         'prof': 'var(--color-role-prof)',
         'admin': 'var(--color-role-admin)',
         'superviseur': 'var(--color-role-superviseur)',
         'mshrif': 'var(--color-role-mshrif)',
+        'eleve': 'var(--color-role-eleve)',
     }
     context = {
         'eleve': eleve,
@@ -1216,6 +1241,9 @@ def bilan_mensuel_detail(request, eleve_id, mois):
         'mois': mois,
         'mois_reference': mois_reference,
         'lecture_seule': lecture_seule,
+        'presences_du_mois': presences_du_mois,
+        'nb_present': nb_present,
+        'absences_du_mois': absences_du_mois,
         'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
         'couleur_role': COULEUR_PAR_ROLE[request.user.role],
     }
@@ -1679,22 +1707,61 @@ def admin_valider_eleve(request, inscription_id):
     }
     return redirect('confirmation_creation_compte')
 
+def _contact_admin_fixe():
+    """Le compte مدير 'fixe' à contacter (Chantier du 2026-08-14, refus avec
+    motif) : le plus ancien compte role='admin' AVEC un numéro renseigné —
+    même champ User.telephone déjà utilisé par _contact_administration.html
+    (Tâche 23 du 2026-07-26), pas un nouveau champ inventé. Peut retourner
+    None si aucun compte admin n'a de téléphone renseigné — le bouton
+    WhatsApp correspondant ne s'affiche simplement pas dans ce cas (voir
+    _whatsapp_icon.html, qui gère déjà telephone=None/vide)."""
+    from accounts.models import User
+    return User.objects.filter(role='admin').exclude(telephone='').order_by('date_joined').first()
+
+
 @role_required('admin')
 def admin_rejeter_eleve(request, inscription_id):
+    """Chantier du 2026-08-14 (refus avec motif) : GET affiche un formulaire
+    (phrase-modèle réutilisable + texte libre modifiable + 2 boutons
+    WhatsApp), POST l'enregistre. La garde d'état (dossier déjà traité) est
+    vérifiée AVANT toute chose, pour GET comme pour POST — jamais de
+    formulaire affiché ni de traitement accepté sur un dossier déjà
+    accepté/rejeté entre-temps (même principe que l'ancienne version, juste
+    appliqué aux deux méthodes HTTP maintenant qu'il y en a deux)."""
+    from inscriptions.models import PhraseRefus
+
     inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
-    # Garde d'état: empêche de rejeter un dossier déjà traité (déjà accepté ou déjà
-    # rejeté par un autre clic/onglet) — voir l'incident équivalent côté prof où une
-    # candidature déjà rejetée pouvait être validée quand même faute de ce contrôle.
     if inscription.statut != 'en_attente':
         messages.error(
             request,
             f'تعذر الرفض: طلب {inscription.nom} لم يعد قيد الانتظار (تمت معالجته بالفعل).'
         )
         return redirect('admin_inscriptions')
-    inscription.statut = 'rejete'
-    inscription.save()
-    messages.info(request, f'تم رفض طلب {inscription.nom}.')
-    return redirect('admin_inscriptions')
+
+    if request.method == 'POST':
+        motif = request.POST.get('motif', '').strip()
+        if motif:
+            inscription.statut = 'rejete'
+            inscription.motif_refus = motif
+            inscription.save()
+            if request.POST.get('enregistrer_phrase') == 'on':
+                PhraseRefus.objects.create(contexte='refus_eleve', texte=motif)
+            messages.info(request, f'تم رفض طلب {inscription.nom}.')
+            return redirect('admin_inscriptions')
+        messages.error(request, 'يجب كتابة سبب الرفض قبل التأكيد.')
+
+    context = {
+        'inscription': inscription,
+        'nom_complet': inscription.nom,
+        'telephone_personne': inscription.telephone,
+        'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
+        'phrases': PhraseRefus.objects.filter(contexte='refus_eleve'),
+        'admin_contact': _contact_admin_fixe(),
+        'titre_refus': 'رفض طلب الطالب',
+        'retour_url': reverse('admin_inscription_eleve_detail', args=[inscription.id]),
+        'base_template': 'dashboard/base_admin.html',
+    }
+    return render(request, 'dashboard/refuser_inscription.html', context)
 
 
 @role_required('admin', 'mshrif')
@@ -1820,7 +1887,11 @@ def admin_valider_prof(request, inscription_id):
 
 @role_required('admin')
 def admin_rejeter_prof(request, inscription_id):
-    from inscriptions.models import InscriptionProf
+    """Chantier du 2026-08-14 (refus avec motif) — voir la docstring de
+    admin_rejeter_eleve pour le principe général (GET=formulaire,
+    POST=enregistrement, garde d'état vérifiée avant tout)."""
+    from inscriptions.models import InscriptionProf, PhraseRefus
+
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
     # Garde d'état: le مدير peut encore rejeter une candidature qu'il a lui-même déjà
     # pré-validée ('validee_directeur') — ex: il repère un problème avant que le المشرف
@@ -1835,10 +1906,31 @@ def admin_rejeter_prof(request, inscription_id):
             f'(الحالة الحالية: {inscription.get_statut_display()}).'
         )
         return redirect('admin_inscriptions')
-    inscription.statut = 'rejete'
-    inscription.save()
-    messages.info(request, f'تم رفض طلب {inscription.nom}.')
-    return redirect('admin_inscriptions')
+
+    if request.method == 'POST':
+        motif = request.POST.get('motif', '').strip()
+        if motif:
+            inscription.statut = 'rejete'
+            inscription.motif_refus = motif
+            inscription.save()
+            if request.POST.get('enregistrer_phrase') == 'on':
+                PhraseRefus.objects.create(contexte='refus_prof_etape1', texte=motif)
+            messages.info(request, f'تم رفض طلب {inscription.nom}.')
+            return redirect('admin_inscriptions')
+        messages.error(request, 'يجب كتابة سبب الرفض قبل التأكيد.')
+
+    context = {
+        'inscription': inscription,
+        'nom_complet': f'{inscription.nom} {inscription.prenom}',
+        'telephone_personne': inscription.telephone,
+        'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
+        'phrases': PhraseRefus.objects.filter(contexte='refus_prof_etape1'),
+        'admin_contact': _contact_admin_fixe(),
+        'titre_refus': 'رفض طلب الأستاذ (المرحلة الأولى)',
+        'retour_url': reverse('admin_inscription_prof_detail', args=[inscription.id]),
+        'base_template': 'dashboard/base_admin.html',
+    }
+    return render(request, 'dashboard/refuser_inscription.html', context)
 
 
 # ==================== المشرف (mshrif) ====================
@@ -2013,7 +2105,10 @@ def mshrif_valider_prof_final(request, inscription_id):
 
 @role_required('mshrif')
 def mshrif_rejeter_prof(request, inscription_id):
-    from inscriptions.models import InscriptionProf
+    """Chantier du 2026-08-14 (refus avec motif) — voir la docstring de
+    admin_rejeter_eleve pour le principe général."""
+    from inscriptions.models import InscriptionProf, PhraseRefus
+
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
     # Garde d'état: même principe que mshrif_valider_prof_final — évite de rejeter
     # un dossier déjà traité entre-temps (déjà validé, ou déjà rejeté par un autre clic).
@@ -2024,10 +2119,31 @@ def mshrif_rejeter_prof(request, inscription_id):
             f'(الحالة الحالية: {inscription.get_statut_display()}).'
         )
         return redirect('mshrif_inscriptions_profs')
-    inscription.statut = 'rejete'
-    inscription.save()
-    messages.info(request, f'تم رفض طلب {inscription.nom} نهائياً.')
-    return redirect('mshrif_inscriptions_profs')
+
+    if request.method == 'POST':
+        motif = request.POST.get('motif', '').strip()
+        if motif:
+            inscription.statut = 'rejete'
+            inscription.motif_refus = motif
+            inscription.save()
+            if request.POST.get('enregistrer_phrase') == 'on':
+                PhraseRefus.objects.create(contexte='refus_prof_etape2', texte=motif)
+            messages.info(request, f'تم رفض طلب {inscription.nom} نهائياً.')
+            return redirect('mshrif_inscriptions_profs')
+        messages.error(request, 'يجب كتابة سبب الرفض قبل التأكيد.')
+
+    context = {
+        'inscription': inscription,
+        'nom_complet': f'{inscription.nom} {inscription.prenom}',
+        'telephone_personne': inscription.telephone,
+        'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
+        'phrases': PhraseRefus.objects.filter(contexte='refus_prof_etape2'),
+        'admin_contact': _contact_admin_fixe(),
+        'titre_refus': 'رفض طلب الأستاذ (المرحلة الثانية)',
+        'retour_url': reverse('mshrif_inscription_prof_detail', args=[inscription.id]),
+        'base_template': 'dashboard/base_mshrif.html',
+    }
+    return render(request, 'dashboard/refuser_inscription.html', context)
 
 
 @role_required('admin', 'mshrif')
@@ -2436,6 +2552,7 @@ def eleve_seance_detail(request, presence_id):
 @role_required('eleve')
 def eleve_profil(request):
     from accounts.models import Eleve
+    from courses.models import BilanMensuel
     from django.contrib.auth import get_user_model
     User = get_user_model()
     eleve = get_object_or_404(Eleve, user=request.user)
@@ -2446,6 +2563,10 @@ def eleve_profil(request):
         # Bouton "تعديل" du téléphone — même pattern que Tâche 5 (lecture seule
         # par défaut, édition seulement après clic explicite).
         'modifier_telephone': request.GET.get('modifier_telephone') == '1',
+        # Chantier du 2026-08-14 (bilan d'absences, accès élève ajouté) —
+        # point d'entrée vers bilan_mensuel_detail, qui n'était accessible à
+        # aucun rôle élève auparavant (aucun lien nulle part côté élève).
+        'bilans_mensuels': BilanMensuel.objects.filter(eleve=eleve).order_by('-mois_reference'),
     })
 
 
@@ -4793,3 +4914,40 @@ def mshrif_mon_compte(request):
         return redirect('mshrif_mon_compte')
 
     return render(request, 'dashboard/mshrif_mon_compte.html')
+
+
+# ==================== RECHERCHE GLOBALE (مدير/مشرف) — Chantier du 2026-08-14 ====================
+
+@role_required('admin', 'mshrif')
+def api_recherche_globale(request):
+    """Endpoint UNIQUE (A3) — dispatche côté serveur sur les 4 modèles via
+    dashboard.recherche.rechercher_tout (toute la logique de filtrage/tri y
+    vit, ce module ne fait que l'appeler et sérialiser). Permission déjà
+    garantie par le décorateur : mدير et مشرف ont un accès identique aux 4
+    querysets sous-jacents (voir docstring de dashboard.recherche), donc rien
+    à filtrer en plus ici selon request.user.role.
+
+    GET ?q=<terme> — pas de POST, pas d'effet de bord, safe à appeler depuis
+    toutes les pages du dashboard (barre de recherche dans le template de
+    base, voir base_admin.html/base_mshrif.html)."""
+    from django.http import JsonResponse
+
+    from dashboard.recherche import rechercher_tout
+    from dashboard.templatetags.libelles_arabes import MOIS_AR
+
+    q = request.GET.get('q', '')
+    mois, categories = rechercher_tout(q)
+
+    mois_payload = None
+    if mois:
+        annee, num_mois = mois.split('-')
+        mois_payload = {
+            'valeur': mois,
+            'libelle': f'{MOIS_AR.get(int(num_mois), num_mois)} {annee}',
+            'url': f"{reverse('bilans_mensuels')}?mois={mois}",
+        }
+
+    return JsonResponse({
+        'mois': mois_payload,
+        'categories': categories,
+    })

@@ -21,7 +21,7 @@
 
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">المعلم</label>
-            <select name="prof" class="form-select mt-1">
+            <select name="prof" class="form-select mt-1" data-select-cherchable>
                 <option value="">بدون معلم</option>
                 {% for prof in profs %}
                 <option value="{{ prof.id }}" {% if groupe.prof == prof %}selected{% endif %}>

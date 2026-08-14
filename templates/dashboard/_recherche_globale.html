@@ -1,0 +1,186 @@
+{# Recherche globale (مدير/مشرف) — Chantier du 2026-08-14.
+   UN SEUL composant, inclus depuis base_admin.html ET base_mshrif.html (pas
+   deux implémentations séparées — voir dashboard.recherche pour le backend
+   partagé). Aucune différence de rôle ici : le filtrage مدير/مشرف se fait
+   entièrement côté serveur (dashboard.views.api_recherche_globale). #}
+<div class="recherche-globale-wrap">
+    <div class="recherche-globale-input-wrap">
+        <span class="recherche-globale-icone">🔍</span>
+        <input type="text"
+               id="rechercheGlobaleInput"
+               class="recherche-globale-input"
+               placeholder="ابحث عن طالب، أستاذ، مؤطر، مجموعة..."
+               autocomplete="off"
+               aria-label="بحث شامل">
+    </div>
+    <div id="rechercheGlobaleDropdown" class="recherche-globale-dropdown" hidden></div>
+</div>
+
+<style>
+    .recherche-globale-wrap { position: relative; max-width: 480px; margin-bottom: 24px; }
+    .recherche-globale-input-wrap {
+        display: flex; align-items: center; gap: 8px;
+        background: white; border-radius: 10px; padding: 10px 14px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        border: 1px solid transparent;
+        transition: border-color 0.15s;
+    }
+    .recherche-globale-input-wrap:focus-within { border-color: var(--color-brand-gold-dark); }
+    .recherche-globale-icone { font-size: 0.95rem; opacity: 0.55; flex-shrink: 0; }
+    .recherche-globale-input {
+        border: none; outline: none; flex: 1; font-family: 'Tajawal', sans-serif;
+        font-size: 0.92rem; color: var(--color-text-primary); background: transparent;
+    }
+    .recherche-globale-input::placeholder { color: var(--color-text-muted); }
+    .recherche-globale-dropdown {
+        position: absolute; top: calc(100% + 6px); right: 0; left: 0;
+        background: white; border-radius: 10px;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.16);
+        max-height: 70vh; overflow-y: auto; z-index: 500;
+    }
+    .rg-categorie { border-bottom: 1px solid #f0f0f0; }
+    .rg-categorie:last-child { border-bottom: none; }
+    .rg-categorie-titre {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 16px 6px; font-size: 0.78rem; font-weight: 700;
+        color: var(--color-text-muted);
+    }
+    .rg-categorie-badge {
+        background: var(--color-bg-cream); color: var(--color-text-muted);
+        border-radius: 20px; padding: 1px 9px; font-size: 0.72rem; font-weight: 700;
+    }
+    .rg-resultat {
+        display: block; padding: 9px 16px; text-decoration: none; color: inherit;
+        transition: background 0.1s;
+    }
+    .rg-resultat:hover, .rg-resultat.rg-active { background: var(--color-bg-cream); }
+    .rg-resultat-titre { font-weight: 600; font-size: 0.9rem; color: var(--color-text-primary); }
+    .rg-resultat-contexte { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 1px; }
+    .rg-voir-tout {
+        display: block; text-align: center; padding: 8px; font-size: 0.82rem;
+        color: var(--color-brand-gold-dark); text-decoration: none; font-weight: 600;
+    }
+    .rg-voir-tout:hover { text-decoration: underline; }
+    .rg-mois-bandeau {
+        display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+        background: var(--color-bg-cream); text-decoration: none; color: var(--color-text-primary);
+        border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; font-weight: 600;
+    }
+    .rg-mois-bandeau:hover { background: #ece4d4; }
+    .rg-vide { padding: 20px 16px; text-align: center; color: var(--color-text-muted); font-size: 0.88rem; }
+</style>
+
+<script>
+(function () {
+    const CATEGORIE_ICONES = { eleves: '👤', profs: '🎓', superviseurs: '🧭', groupes: '👥' };
+
+    const input = document.getElementById('rechercheGlobaleInput');
+    const dropdown = document.getElementById('rechercheGlobaleDropdown');
+    let debounceTimer = null;
+    let requeteEnCours = null;
+    let elementsActifs = [];
+    let indexActif = -1;
+
+    function fermerDropdown() {
+        dropdown.hidden = true;
+        dropdown.innerHTML = '';
+        elementsActifs = [];
+        indexActif = -1;
+    }
+
+    function echapperHtml(texte) {
+        const div = document.createElement('div');
+        div.textContent = texte == null ? '' : texte;
+        return div.innerHTML;
+    }
+
+    function afficherResultats(data, q) {
+        let html = '';
+
+        if (data.mois) {
+            html += `<a class="rg-mois-bandeau" href="${data.mois.url}">
+                📅 عرض البيانات الشهرية لـ ${echapperHtml(data.mois.libelle)}
+            </a>`;
+        }
+
+        const categoriesAvecResultats = data.categories.filter(c => c.resultats.length > 0);
+
+        if (categoriesAvecResultats.length === 0 && !data.mois) {
+            html += `<div class="rg-vide">لا توجد نتائج لـ «${echapperHtml(q)}»</div>`;
+        } else {
+            for (const cat of categoriesAvecResultats) {
+                html += `<div class="rg-categorie">
+                    <div class="rg-categorie-titre">
+                        <span>${CATEGORIE_ICONES[cat.cle] || '•'}</span>
+                        <span>${echapperHtml(cat.libelle)}</span>
+                        <span class="rg-categorie-badge">${cat.resultats.length}${cat.a_plus ? '+' : ''}</span>
+                    </div>`;
+                for (const r of cat.resultats) {
+                    html += `<a class="rg-resultat" href="${r.url}">
+                        <div class="rg-resultat-titre">${echapperHtml(r.titre)}</div>
+                        ${r.contexte ? `<div class="rg-resultat-contexte">${echapperHtml(r.contexte)}</div>` : ''}
+                    </a>`;
+                }
+                if (cat.a_plus && cat.voir_tout_url) {
+                    html += `<a class="rg-voir-tout" href="${cat.voir_tout_url}">عرض كل النتائج ←</a>`;
+                }
+                html += `</div>`;
+            }
+        }
+
+        dropdown.innerHTML = html;
+        dropdown.hidden = false;
+        elementsActifs = Array.from(dropdown.querySelectorAll('a'));
+        indexActif = -1;
+    }
+
+    function lancerRecherche(q) {
+        if (requeteEnCours) requeteEnCours.abort();
+        const controleur = new AbortController();
+        requeteEnCours = controleur;
+
+        fetch(`/dashboard/api/recherche-globale/?q=${encodeURIComponent(q)}`, { signal: controleur.signal })
+            .then(r => r.json())
+            .then(data => {
+                afficherResultats(data, q);
+            })
+            .catch(err => {
+                if (err.name !== 'AbortError') fermerDropdown();
+            });
+    }
+
+    input.addEventListener('input', function () {
+        const q = input.value.trim();
+        clearTimeout(debounceTimer);
+        if (q.length < 2) {
+            fermerDropdown();
+            return;
+        }
+        debounceTimer = setTimeout(() => lancerRecherche(q), 300);
+    });
+
+    input.addEventListener('keydown', function (e) {
+        if (dropdown.hidden || elementsActifs.length === 0) return;
+        if (e.key === 'Escape') {
+            fermerDropdown();
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            indexActif = Math.min(indexActif + 1, elementsActifs.length - 1);
+            elementsActifs.forEach((el, i) => el.classList.toggle('rg-active', i === indexActif));
+            elementsActifs[indexActif].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            indexActif = Math.max(indexActif - 1, 0);
+            elementsActifs.forEach((el, i) => el.classList.toggle('rg-active', i === indexActif));
+            elementsActifs[indexActif].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter' && indexActif >= 0) {
+            e.preventDefault();
+            elementsActifs[indexActif].click();
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.recherche-globale-wrap')) fermerDropdown();
+    });
+})();
+</script>

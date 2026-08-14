@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 
@@ -129,6 +130,12 @@ class InscriptionEleve(models.Model):
     # Statut
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente')
     date_soumission = models.DateTimeField(auto_now_add=True)
+    # Chantier du 2026-08-14 (refus avec motif) : texte FIGÉ au moment du
+    # refus — totalement indépendant de PhraseRefus (voir ce modèle plus
+    # bas). Même si la phrase-modèle qui a servi de base est modifiée ou
+    # supprimée ensuite, ce texte-ci ne change jamais : il est COPIÉ, pas
+    # référencé (aucune FK vers PhraseRefus).
+    motif_refus = models.TextField(blank=True)
 
     def __str__(self):
         return f"{self.nom} {self.prenom}"
@@ -148,6 +155,12 @@ class InscriptionEleve(models.Model):
     class Meta:
         verbose_name = "Inscription Élève"
         verbose_name_plural = "Inscriptions Élèves"
+        # Recherche globale (Chantier du 2026-08-14) — nom_parent recherché via
+        # Eleve.inscription (FK nullable, SET_NULL) pour le "nom du parent" de
+        # la fiche élève. Voir accounts.models.User.Meta.indexes.
+        indexes = [
+            GinIndex(fields=['nom_parent'], name='inscriptions_ins_parent_trgm', opclasses=['gin_trgm_ops']),
+        ]
 
 
 class InscriptionProf(models.Model):
@@ -190,6 +203,13 @@ class InscriptionProf(models.Model):
     )
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente')
     date_soumission = models.DateTimeField(auto_now_add=True)
+    # Chantier du 2026-08-14 — voir InscriptionEleve.motif_refus (même
+    # principe exact : texte figé, indépendant de PhraseRefus). Un seul
+    # champ ici même si le refus peut survenir à 2 étapes différentes
+    # (مدير étape 1, مشرف étape 2) : un dossier n'est jamais refusé aux
+    # DEUX étapes (voir docstring de PhraseRefus) — un seul refus possible
+    # par dossier, donc un seul motif à stocker.
+    motif_refus = models.TextField(blank=True)
 
     def __str__(self):
         return f"{self.nom} {self.prenom}"
@@ -244,3 +264,40 @@ def get_parametres_inscriptions():
     get_programme_general()/get_visibilite_prof()."""
     parametres, _ = ParametresInscriptions.objects.get_or_create(pk=1)
     return parametres
+
+class PhraseRefus(models.Model):
+    """Phrase-modèle réutilisable pour motiver un refus de candidature —
+    Chantier du 2026-08-14. Liée au CONTEXTE (donc au RÔLE qui l'utilise, pas
+    à un compte individuel) : si plusieurs comptes مدير existent un jour, ils
+    partagent la même liste pour un même contexte — aucune FK vers User.
+
+    3 contextes strictement cloisonnés, correspondant exactement aux 3
+    endroits où un refus peut avoir lieu (voir InscriptionEleve.motif_refus/
+    InscriptionProf.motif_refus — un dossier n'est JAMAIS refusé à 2 endroits,
+    donc ces 3 listes ne se recoupent jamais pour un même refus) :
+    - refus_eleve : مدير refuse une candidature élève (seul palier, définitif).
+    - refus_prof_etape1 : مدير refuse une candidature prof à l'étape 1
+      (définitif — le مشرف ne voit jamais ce dossier si refusé ici).
+    - refus_prof_etape2 : مشرف refuse une candidature prof déjà pré-validée
+      par مدير, à l'étape 2 (définitif aussi, pas de retour au مدير).
+
+    Totalement indépendant du texte figé sur motif_refus une fois un refus
+    effectué : le texte y est COPIÉ au moment du refus, jamais référencé par
+    FK — supprimer une phrase ici n'affecte donc jamais l'historique des
+    refus déjà passés."""
+    CONTEXTE_CHOICES = [
+        ('refus_eleve', 'رفض طلب طالب (المدير)'),
+        ('refus_prof_etape1', 'رفض طلب أستاذ - المرحلة الأولى (المدير)'),
+        ('refus_prof_etape2', 'رفض طلب أستاذ - المرحلة الثانية (المشرف)'),
+    ]
+    contexte = models.CharField(max_length=30, choices=CONTEXTE_CHOICES)
+    texte = models.TextField()
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.texte[:60]
+
+    class Meta:
+        ordering = ['-date_creation']
+        verbose_name = "Phrase de refus"
+        verbose_name_plural = "Phrases de refus"
