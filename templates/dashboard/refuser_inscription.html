@@ -3,94 +3,198 @@
 {% block title %}{{ titre_refus }}{% endblock %}
 {% block content %}
 {% comment %}
-Chantier du 2026-08-14 — page PARTAGÉE par les 3 écrans de refus
-(admin_rejeter_eleve, admin_rejeter_prof, mshrif_rejeter_prof), pas trois
-templates dupliqués : seul le contexte passé par la vue change (titre,
-personne, liste de phrases scopée, url de retour).
-{% endcomment %}
-<div class="page-title">{{ titre_refus }}</div>
-<div class="page-subtitle">{{ nom_complet }}{% if telephone_personne %} — {{ telephone_personne }}{% endif %}</div>
+Page PARTAGÉE par les 3 écrans de refus (admin_rejeter_eleve, admin_rejeter_prof,
+mshrif_rejeter_prof), pas trois templates dupliqués : seul le contexte passé par
+la vue change (titre, personne, liste de phrases scopée, url de retour, gabarit).
 
-<div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:700px;">
+Refonte UX du 2026-08-14 : gabarit de message CENTRALISÉ dans dashboard.views
+(GABARIT_REFUS_AVANT_MOTIF / GABARIT_REFUS_APRES_MOTIF, une seule définition
+pour les 3 écrans) — ce template ne fait qu'assembler avant + motif + après,
+jamais ne réécrit ce texte lui-même. motif_refus en base ne stocke, lui, QUE
+le motif seul (voir les 3 vues) — le gabarit complet ne sert qu'à l'aperçu et
+aux messages WhatsApp, jamais à ce qui est persisté.
+{% endcomment %}
+
+<div class="rf-entete">
+    <div class="page-title" style="margin-bottom:6px;">{{ titre_refus }}</div>
+    <div class="rf-entete-personne">
+        <span class="rf-entete-nom">👤 {{ nom_complet }}</span>
+        {% if telephone_personne %}<span class="rf-entete-tel">📞 {{ telephone_personne }}</span>{% endif %}
+    </div>
+</div>
+
+<div class="rf-carte">
     <form method="POST">
         {% csrf_token %}
 
-        <label style="font-weight:600; color:#333;">✍️ صيغة جاهزة (اختياري)</label>
-        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">اختيار صيغة يملأ الحقل أدناه تلقائياً — يبقى قابلاً للتعديل بحرية بعد ذلك</div>
-        <select id="id_phrase_select" class="form-select mb-3" data-select-cherchable>
-            <option value="">— بدون صيغة جاهزة —</option>
-            {% for phrase in phrases %}
-            <option value="{{ phrase.texte }}">{{ phrase.texte|truncatechars:80 }}</option>
-            {% endfor %}
-        </select>
+        <div class="rf-champ-groupe">
+            <label class="rf-label">✍️ صيغة جاهزة (اختياري)</label>
+            <div class="rf-aide">اختيار صيغة يملأ الحقل أدناه تلقائياً — يبقى قابلاً للتعديل بحرية بعد ذلك</div>
+            <select id="id_phrase_select" class="form-select" data-select-cherchable>
+                <option value="">— بدون صيغة جاهزة —</option>
+                {% for phrase in phrases %}
+                <option value="{{ phrase.texte }}">{{ phrase.texte|truncatechars:80 }}</option>
+                {% endfor %}
+            </select>
 
-        <label style="font-weight:600; color:#333;">📝 سبب الرفض <span style="color:#dc3545;">*</span></label>
-        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">نص حر — يُحفظ نهائياً مع هذا الطلب، ولا يتغيّر أبداً لاحقاً حتى لو عُدّلت أو حُذفت الصيغة الجاهزة المستخدمة أعلاه</div>
-        <textarea id="id_motif" name="motif" rows="5" class="form-control mb-2" required
-                  placeholder="اكتب سبب الرفض هنا...">{{ motif_saisi }}</textarea>
+            <div class="rf-connecteur">↓ يُدرَج تلقائياً في الحقل أدناه</div>
 
-        <div class="form-check mb-3">
-            <input type="checkbox" class="form-check-input" name="enregistrer_phrase" id="id_enregistrer_phrase">
-            <label class="form-check-label" for="id_enregistrer_phrase" style="font-size:0.85rem; color:#666;">
-                💾 احفظ هذا النص كصيغة جاهزة لاستخدامها لاحقاً
-            </label>
-        </div>
+            <label class="rf-label">📝 سبب الرفض <span class="rf-requis">*</span></label>
+            <div class="rf-aide">نص حر — يُحفظ نهائياً مع هذا الطلب، ولا يتغيّر أبداً لاحقاً حتى لو عُدّلت أو حُذفت الصيغة الجاهزة المستخدمة أعلاه</div>
+            <textarea id="id_motif" name="motif" rows="6" class="form-control rf-motif" required
+                      placeholder="اكتب سبب الرفض هنا بوضوح — سيظهر هذا النص للشخص المعني...">{{ motif_saisi }}</textarea>
 
-        <div style="background:var(--color-bg-cream); border-radius:10px; padding:14px 16px; margin-bottom:20px;">
-            <div style="font-weight:600; font-size:0.85rem; color:#666; margin-bottom:10px;">📱 تواصل عبر واتساب (اختياري — لا يُرسل شيئاً تلقائياً، يفتح فقط محادثة جاهزة)</div>
-            <div class="d-flex flex-wrap gap-3">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    {% include 'dashboard/_whatsapp_icon.html' with telephone=telephone_personne texte='' id='wa_personne' %}
-                    <span style="font-size:0.85rem;">مراسلة {{ nom_complet }}</span>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    {% include 'dashboard/_whatsapp_icon.html' with telephone=admin_contact.telephone texte='' id='wa_admin' %}
-                    <span style="font-size:0.85rem;">مراسلة الإدارة{% if not admin_contact %} (لا يوجد رقم مسجَّل){% endif %}</span>
-                </div>
+            <div class="form-check rf-checkbox">
+                <input type="checkbox" class="form-check-input" name="enregistrer_phrase" id="id_enregistrer_phrase">
+                <label class="form-check-label" for="id_enregistrer_phrase">
+                    💾 احفظ هذا النص كصيغة جاهزة لاستخدامها لاحقاً
+                </label>
             </div>
         </div>
 
-        <div class="d-flex flex-wrap gap-2">
-            <button type="submit"
-                    style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;"
+        <div class="rf-apercu">
+            <div class="rf-apercu-titre">👁️ معاينة الرسالة الكاملة</div>
+            <div class="rf-apercu-corps" id="id_apercu_message" dir="rtl"></div>
+        </div>
+
+        <div class="rf-wa-section">
+            <div class="rf-wa-titre">📱 تواصل عبر واتساب (اختياري — لا يُرسل شيئاً تلقائياً، يفتح فقط محادثة جاهزة بالرسالة الكاملة أعلاه)</div>
+            <div class="rf-wa-boutons">
+                {% if telephone_personne %}
+                <a href="https://wa.me/{{ telephone_personne|wa_number }}" id="wa_personne" target="_blank" rel="noopener" class="rf-wa-btn">
+                    <svg width="20" height="20" viewBox="0 0 448 512" aria-hidden="true"><path fill="white" d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>
+                    <span>إرسال إلى {{ nom_complet }}</span>
+                </a>
+                {% else %}
+                <div class="rf-wa-btn rf-wa-btn-desactive">لا يوجد رقم هاتف مسجَّل لهذا الشخص</div>
+                {% endif %}
+
+                {% if admin_contact.telephone %}
+                <a href="https://wa.me/{{ admin_contact.telephone|wa_number }}" id="wa_admin" target="_blank" rel="noopener" class="rf-wa-btn">
+                    <svg width="20" height="20" viewBox="0 0 448 512" aria-hidden="true"><path fill="white" d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>
+                    <span>إرسال نسخة إلى المدير</span>
+                </a>
+                {% else %}
+                <div class="rf-wa-btn rf-wa-btn-desactive">لا يوجد رقم إدارة مسجَّل</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="rf-actions">
+            <button type="submit" class="rf-btn-confirmer"
                     onclick="return confirm('هل أنت متأكد من رفض طلب {{ nom_complet|escapejs }}؟ لا يمكن التراجع عن هذا الإجراء.');">
                 ❌ تأكيد الرفض
             </button>
-            <a href="{{ retour_url }}" style="color:#888; text-decoration:none; padding:10px 16px;">← رجوع بدون رفض</a>
+            <a href="{{ retour_url }}" class="rf-btn-retour">← رجوع بدون رفض</a>
         </div>
     </form>
 </div>
 
+<style>
+    .rf-entete { max-width: 700px; margin-bottom: 20px; }
+    .rf-entete-personne {
+        display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+        background: white; border-radius: 12px; padding: 12px 18px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .rf-entete-nom { font-weight: 700; color: var(--color-text-primary); font-size: 0.98rem; }
+    .rf-entete-tel { color: var(--color-text-muted); font-size: 0.9rem; }
+
+    .rf-carte {
+        background: white; border-radius: 12px; padding: 26px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06); max-width: 700px;
+    }
+
+    .rf-label { display: block; font-weight: 700; color: var(--color-text-primary); margin-top: 6px; }
+    .rf-requis { color: var(--color-danger); }
+    .rf-aide { color: var(--color-text-muted); font-size: 0.8rem; margin-bottom: 8px; }
+
+    .rf-connecteur {
+        text-align: center; color: var(--color-brand-gold-dark); font-size: 0.78rem;
+        padding: 6px 0; margin-bottom: 4px; opacity: 0.85;
+    }
+
+    .rf-motif { font-size: 0.95rem; }
+
+    .rf-checkbox { margin-top: 10px; margin-bottom: 6px; }
+    .rf-checkbox .form-check-label { font-size: 0.85rem; color: var(--color-text-muted); }
+
+    .rf-apercu {
+        background: var(--color-bg-cream); border: 1px dashed var(--color-brand-gold);
+        border-radius: 10px; padding: 16px 18px; margin: 20px 0;
+    }
+    .rf-apercu-titre { font-weight: 700; font-size: 0.85rem; color: var(--color-brand-gold-dark); margin-bottom: 10px; }
+    .rf-apercu-corps {
+        white-space: pre-wrap; font-size: 0.92rem; line-height: 1.8;
+        color: var(--color-text-primary); text-align: right;
+    }
+
+    .rf-wa-section {
+        background: var(--color-bg-cream); border-radius: 10px; padding: 16px 18px; margin-bottom: 22px;
+    }
+    .rf-wa-titre { font-weight: 600; font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 12px; }
+    .rf-wa-boutons { display: flex; flex-wrap: wrap; gap: 12px; }
+    .rf-wa-btn {
+        flex: 1 1 220px; display: flex; align-items: center; justify-content: center; gap: 10px;
+        background: #25D366; color: white; text-decoration: none; border-radius: 10px;
+        padding: 12px 16px; font-weight: 600; font-size: 0.88rem; font-family: 'Tajawal', sans-serif;
+        transition: filter 0.15s; text-align: center;
+    }
+    .rf-wa-btn:hover { filter: brightness(0.95); color: white; }
+    .rf-wa-btn-desactive {
+        background: #eee; color: #999; cursor: not-allowed; font-size: 0.82rem;
+    }
+
+    .rf-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .rf-btn-confirmer {
+        background: var(--color-danger); color: white; border: none; border-radius: 8px;
+        padding: 12px 30px; font-family: 'Tajawal', sans-serif; font-size: 1rem; font-weight: 700;
+        cursor: pointer;
+    }
+    .rf-btn-confirmer:hover { filter: brightness(0.92); }
+    .rf-btn-retour { color: var(--color-text-muted); text-decoration: none; padding: 10px 16px; font-size: 0.9rem; }
+    .rf-btn-retour:hover { text-decoration: underline; }
+
+    @media (max-width: 576px) {
+        .rf-carte { padding: 18px; }
+        .rf-wa-btn { flex-basis: 100%; }
+    }
+</style>
+
 <script>
 (function () {
+    var gabaritAvant = {{ gabarit_avant_motif|escapejs }};
+    var gabaritApres = {{ gabarit_apres_motif|escapejs }};
     var nomPersonne = {{ nom_complet|default:''|escapejs }};
+
     var motifInput = document.getElementById('id_motif');
     var phraseSelect = document.getElementById('id_phrase_select');
+    var apercuEl = document.getElementById('id_apercu_message');
     var waPersonne = document.getElementById('wa_personne');
     var waAdmin = document.getElementById('wa_admin');
 
-    function majLiensWhatsapp() {
-        var motif = motifInput.value.trim();
-        var msgPersonne = motif
-            ? ('مرحباً ' + nomPersonne + '، بخصوص طلب التسجيل الخاص بكم: ' + motif)
-            : ('مرحباً ' + nomPersonne + '، بخصوص طلب التسجيل الخاص بكم.');
-        var msgAdmin = motif
-            ? ('بخصوص رفض طلب ' + nomPersonne + ': ' + motif)
-            : ('بخصوص رفض طلب ' + nomPersonne + '.');
-        if (waPersonne) waPersonne.href = waPersonne.href.split('?')[0] + '?text=' + encodeURIComponent(msgPersonne);
-        if (waAdmin) waAdmin.href = waAdmin.href.split('?')[0] + '?text=' + encodeURIComponent(msgAdmin);
+    function messageComplet() {
+        var motif = motifInput.value.trim() || '...';
+        return gabaritAvant + motif + gabaritApres;
+    }
+
+    function majTout() {
+        var message = messageComplet();
+        apercuEl.textContent = message;
+        if (waPersonne) waPersonne.href = waPersonne.href.split('?')[0] + '?text=' + encodeURIComponent(message);
+        if (waAdmin) waAdmin.href = waAdmin.href.split('?')[0] + '?text=' + encodeURIComponent(message);
     }
 
     if (phraseSelect) {
         phraseSelect.addEventListener('change', function () {
             if (this.value) {
                 motifInput.value = this.value;
-                majLiensWhatsapp();
+                majTout();
             }
         });
     }
-    motifInput.addEventListener('input', majLiensWhatsapp);
-    majLiensWhatsapp();
+    motifInput.addEventListener('input', majTout);
+    majTout();
 })();
 </script>
 {% endblock %}

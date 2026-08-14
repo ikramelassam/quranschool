@@ -1707,6 +1707,24 @@ def admin_valider_eleve(request, inscription_id):
     }
     return redirect('confirmation_creation_compte')
 
+# Gabarit de message de refus (Chantier du 2026-08-14, refonte UX) — texte
+# fourni par le client, salutation et clôture FIXES, seul le motif varie.
+# UNE SEULE définition, réutilisée par les 3 écrans de refus (admin_rejeter_eleve,
+# admin_rejeter_prof, mshrif_rejeter_prof) via leur contexte commun — jamais
+# recopiée en dur dans un template ou dupliquée par écran. Le template
+# (refuser_inscription.html) assemble avant/motif/après pour l'aperçu live ET
+# pour les liens WhatsApp, sans jamais réécrire ce texte lui-même.
+GABARIT_REFUS_AVANT_MOTIF = (
+    'السلام عليكم ورحمة الله وبركاته\n'
+    'حياكم الله،\n'
+    'نشكر لكم اهتمامكم وتقدمكم، ونأسف لإبلاغكم بأنه لم يتم قبول طلبكم في هذه المرحلة.\n'
+    'سبب الرفض:\n'
+)
+GABARIT_REFUS_APRES_MOTIF = (
+    '\nنسأل الله أن يوفقكم ويكتب لكم الخير فيما هو قادم، وبارك الله فيكم.'
+)
+
+
 def _contact_admin_fixe():
     """Le compte مدير 'fixe' à contacter (Chantier du 2026-08-14, refus avec
     motif) : le plus ancien compte role='admin' AVEC un numéro renseigné —
@@ -1757,6 +1775,8 @@ def admin_rejeter_eleve(request, inscription_id):
         'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
         'phrases': PhraseRefus.objects.filter(contexte='refus_eleve'),
         'admin_contact': _contact_admin_fixe(),
+        'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF,
+        'gabarit_apres_motif': GABARIT_REFUS_APRES_MOTIF,
         'titre_refus': 'رفض طلب الطالب',
         'retour_url': reverse('admin_inscription_eleve_detail', args=[inscription.id]),
         'base_template': 'dashboard/base_admin.html',
@@ -1926,6 +1946,8 @@ def admin_rejeter_prof(request, inscription_id):
         'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
         'phrases': PhraseRefus.objects.filter(contexte='refus_prof_etape1'),
         'admin_contact': _contact_admin_fixe(),
+        'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF,
+        'gabarit_apres_motif': GABARIT_REFUS_APRES_MOTIF,
         'titre_refus': 'رفض طلب الأستاذ (المرحلة الأولى)',
         'retour_url': reverse('admin_inscription_prof_detail', args=[inscription.id]),
         'base_template': 'dashboard/base_admin.html',
@@ -2139,6 +2161,8 @@ def mshrif_rejeter_prof(request, inscription_id):
         'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
         'phrases': PhraseRefus.objects.filter(contexte='refus_prof_etape2'),
         'admin_contact': _contact_admin_fixe(),
+        'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF,
+        'gabarit_apres_motif': GABARIT_REFUS_APRES_MOTIF,
         'titre_refus': 'رفض طلب الأستاذ (المرحلة الثانية)',
         'retour_url': reverse('mshrif_inscription_prof_detail', args=[inscription.id]),
         'base_template': 'dashboard/base_mshrif.html',

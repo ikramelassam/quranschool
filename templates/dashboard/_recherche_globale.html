@@ -1,93 +1,173 @@
 {% comment %}
-Recherche globale (مدير/مشرف) — Chantier du 2026-08-14.
-UN SEUL composant, inclus depuis base_admin.html ET base_mshrif.html (pas
-deux implémentations séparées — voir dashboard.recherche pour le backend
-partagé). Aucune différence de rôle ici : le filtrage مدير/مشرف se fait
-entièrement côté serveur (dashboard.views.api_recherche_globale).
+Recherche globale (مدير/مشرف) — UN SEUL composant, inclus depuis
+base_admin.html ET base_mshrif.html, avant {% block content %} (donc présent
+sur TOUTE page مدير/مشرف, pas seulement l'accueil — voir
+dashboard.tests.RechercheGlobalePresenteSurToutesLesPagesTests).
+
+Refonte visuelle du 2026-08-14 (contraste du champ, état "focus sans texte
+tapé", rotation du placeholder, dropdown restylé) — comportement
+fonctionnel INCHANGÉ : debounce 300ms, seuil 2 caractères, permissions et
+endpoint (dashboard.views.api_recherche_globale), scoring (dashboard.
+recherche) — rien de tout cela ne bouge ici, uniquement présentation.
 {% endcomment %}
 <div class="recherche-globale-wrap">
-    <div class="recherche-globale-input-wrap">
+    <div class="recherche-globale-input-wrap" id="rechercheGlobaleInputWrap">
         <span class="recherche-globale-icone">🔍</span>
         <input type="text"
                id="rechercheGlobaleInput"
                class="recherche-globale-input"
-               placeholder="ابحث عن طالب، أستاذ، مؤطر، مجموعة..."
                autocomplete="off"
                aria-label="بحث شامل">
+    </div>
+    <div id="rechercheGlobaleAide" class="recherche-globale-aide" hidden>
+        <div class="rg-aide-titre">يمكنك البحث عن:</div>
+        <div class="rg-aide-categories">
+            <span class="rg-aide-cat">👤 الطلاب</span>
+            <span class="rg-aide-cat">🎓 الأساتذة</span>
+            <span class="rg-aide-cat">🧭 المؤطرون</span>
+            <span class="rg-aide-cat">👥 المجموعات</span>
+        </div>
     </div>
     <div id="rechercheGlobaleDropdown" class="recherche-globale-dropdown" hidden></div>
 </div>
 
 <style>
-    .recherche-globale-wrap { position: relative; max-width: 480px; margin-bottom: 24px; }
+    .recherche-globale-wrap { position: relative; width: 100%; max-width: 480px; margin-bottom: 24px; }
+
     .recherche-globale-input-wrap {
-        display: flex; align-items: center; gap: 8px;
-        background: white; border-radius: 10px; padding: 10px 14px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-        border: 1px solid transparent;
-        transition: border-color 0.15s;
+        display: flex; align-items: center; gap: 10px;
+        /* Fond légèrement teinté (pas blanc pur) : sur le fond crème de
+           l'appli (--color-bg-cream, #FFF8EF), un champ blanc pur se
+           distinguait à peine des cards blanches du contenu — c'est
+           exactement ce qui le rendait "invisible" sur certaines pages. */
+        background: #F7EFE0;
+        border-radius: 12px; /* même rayon que .compact-card */
+        padding: 11px 16px;
+        border: 1px solid rgba(139, 75, 0, 0.16);
+        box-shadow: 0 1px 3px rgba(44, 21, 0, 0.06);
+        transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
     }
-    .recherche-globale-input-wrap:focus-within { border-color: var(--color-brand-gold-dark); }
-    .recherche-globale-icone { font-size: 0.95rem; opacity: 0.55; flex-shrink: 0; }
+    .recherche-globale-input-wrap:focus-within {
+        background: white;
+        border-color: var(--color-brand-gold-dark);
+        box-shadow: 0 0 0 3px rgba(139, 75, 0, 0.14);
+    }
+    .recherche-globale-icone { font-size: 0.95rem; opacity: 0.6; flex-shrink: 0; }
     .recherche-globale-input {
         border: none; outline: none; flex: 1; font-family: 'Tajawal', sans-serif;
         font-size: 0.92rem; color: var(--color-text-primary); background: transparent;
     }
     .recherche-globale-input::placeholder { color: var(--color-text-muted); }
-    .recherche-globale-dropdown {
-        position: absolute; top: calc(100% + 6px); right: 0; left: 0;
-        background: white; border-radius: 10px;
-        box-shadow: 0 8px 28px rgba(0,0,0,0.16);
-        max-height: 70vh; overflow-y: auto; z-index: 500;
+
+    .recherche-globale-aide {
+        position: absolute; top: calc(100% + 6px); right: 0; left: 0; z-index: 480;
+        background: white; border-radius: 12px; padding: 14px 18px;
+        box-shadow: 0 8px 28px rgba(44, 21, 0, 0.14);
     }
-    .rg-categorie { border-bottom: 1px solid #f0f0f0; }
+    .rg-aide-titre { font-size: 0.78rem; font-weight: 700; color: var(--color-text-muted); margin-bottom: 9px; }
+    .rg-aide-categories { display: flex; flex-wrap: wrap; gap: 8px; }
+    .rg-aide-cat {
+        background: var(--color-bg-cream); color: var(--color-text-primary);
+        border-radius: 20px; padding: 5px 13px; font-size: 0.8rem; font-weight: 600;
+    }
+
+    .recherche-globale-dropdown {
+        position: absolute; top: calc(100% + 6px); right: 0; left: 0; z-index: 500;
+        background: white; border-radius: 12px;
+        box-shadow: 0 8px 28px rgba(44, 21, 0, 0.16);
+        max-height: 70vh; overflow-y: auto;
+    }
+    .rg-categorie { border-bottom: 1px solid #F1E7D6; }
     .rg-categorie:last-child { border-bottom: none; }
     .rg-categorie-titre {
         display: flex; align-items: center; gap: 8px;
-        padding: 10px 16px 6px; font-size: 0.78rem; font-weight: 700;
-        color: var(--color-text-muted);
+        padding: 12px 18px 7px; font-size: 0.78rem; font-weight: 700;
+        color: var(--color-brand-gold-dark);
     }
     .rg-categorie-badge {
         background: var(--color-bg-cream); color: var(--color-text-muted);
         border-radius: 20px; padding: 1px 9px; font-size: 0.72rem; font-weight: 700;
     }
     .rg-resultat {
-        display: block; padding: 9px 16px; text-decoration: none; color: inherit;
+        display: block; padding: 10px 18px; text-decoration: none; color: inherit;
         transition: background 0.1s;
     }
     .rg-resultat:hover, .rg-resultat.rg-active { background: var(--color-bg-cream); }
     .rg-resultat-titre { font-weight: 600; font-size: 0.9rem; color: var(--color-text-primary); }
-    .rg-resultat-contexte { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 1px; }
+    .rg-resultat-contexte { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 2px; }
     .rg-voir-tout {
-        display: block; text-align: center; padding: 8px; font-size: 0.82rem;
-        color: var(--color-brand-gold-dark); text-decoration: none; font-weight: 600;
+        display: block; text-align: center; padding: 10px; font-size: 0.82rem;
+        color: var(--color-brand-gold-dark); text-decoration: none; font-weight: 700;
     }
     .rg-voir-tout:hover { text-decoration: underline; }
     .rg-mois-bandeau {
-        display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+        display: flex; align-items: center; gap: 8px; padding: 13px 18px;
         background: var(--color-bg-cream); text-decoration: none; color: var(--color-text-primary);
-        border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; font-weight: 600;
+        border-bottom: 1px solid #F1E7D6; font-size: 0.88rem; font-weight: 600;
     }
-    .rg-mois-bandeau:hover { background: #ece4d4; }
-    .rg-vide { padding: 20px 16px; text-align: center; color: var(--color-text-muted); font-size: 0.88rem; }
+    .rg-mois-bandeau:hover { background: #F0E4CC; }
+    .rg-vide { padding: 28px 16px; text-align: center; color: var(--color-text-muted); font-size: 0.88rem; }
+    .rg-vide-icone { display: block; font-size: 1.6rem; margin-bottom: 6px; opacity: 0.5; }
+
+    @media (max-width: 576px) {
+        .recherche-globale-wrap { max-width: 100%; }
+        .recherche-globale-dropdown, .recherche-globale-aide { max-height: 60vh; }
+    }
 </style>
 
 <script>
 (function () {
     const CATEGORIE_ICONES = { eleves: '👤', profs: '🎓', superviseurs: '🧭', groupes: '👥' };
+    const PLACEHOLDERS = ['ابحث عن طالب...', 'ابحث عن أستاذ...', 'ابحث عن مؤطر...', 'ابحث عن مجموعة...'];
 
     const input = document.getElementById('rechercheGlobaleInput');
     const dropdown = document.getElementById('rechercheGlobaleDropdown');
+    const aide = document.getElementById('rechercheGlobaleAide');
     let debounceTimer = null;
     let requeteEnCours = null;
     let elementsActifs = [];
     let indexActif = -1;
+
+    // --- Placeholder rotatif (exemples de recherche), en pause pendant l'interaction ---
+    let indexPlaceholder = 0;
+    let rotationTimer = null;
+
+    function appliquerPlaceholder() {
+        input.placeholder = PLACEHOLDERS[indexPlaceholder];
+    }
+
+    function demarrerRotation() {
+        arreterRotation();
+        rotationTimer = setInterval(function () {
+            indexPlaceholder = (indexPlaceholder + 1) % PLACEHOLDERS.length;
+            appliquerPlaceholder();
+        }, 2500);
+    }
+
+    function arreterRotation() {
+        if (rotationTimer) clearInterval(rotationTimer);
+        rotationTimer = null;
+    }
+
+    appliquerPlaceholder();
+    demarrerRotation();
 
     function fermerDropdown() {
         dropdown.hidden = true;
         dropdown.innerHTML = '';
         elementsActifs = [];
         indexActif = -1;
+    }
+
+    function fermerAide() {
+        aide.hidden = true;
+    }
+
+    function ouvrirAideSiVide() {
+        if (input.value.trim().length === 0) {
+            fermerDropdown();
+            aide.hidden = false;
+        }
     }
 
     function echapperHtml(texte) {
@@ -108,7 +188,7 @@ entièrement côté serveur (dashboard.views.api_recherche_globale).
         const categoriesAvecResultats = data.categories.filter(c => c.resultats.length > 0);
 
         if (categoriesAvecResultats.length === 0 && !data.mois) {
-            html += `<div class="rg-vide">لا توجد نتائج لـ «${echapperHtml(q)}»</div>`;
+            html += `<div class="rg-vide"><span class="rg-vide-icone">🗂️</span>لا توجد نتائج لـ «${echapperHtml(q)}»</div>`;
         } else {
             for (const cat of categoriesAvecResultats) {
                 html += `<div class="rg-categorie">
@@ -151,9 +231,24 @@ entièrement côté serveur (dashboard.views.api_recherche_globale).
             });
     }
 
+    input.addEventListener('focus', function () {
+        arreterRotation();
+        ouvrirAideSiVide();
+    });
+
+    input.addEventListener('blur', function () {
+        demarrerRotation();
+    });
+
     input.addEventListener('input', function () {
         const q = input.value.trim();
         clearTimeout(debounceTimer);
+        if (q.length === 0) {
+            fermerDropdown();
+            ouvrirAideSiVide();
+            return;
+        }
+        fermerAide();
         if (q.length < 2) {
             fermerDropdown();
             return;
@@ -182,7 +277,10 @@ entièrement côté serveur (dashboard.views.api_recherche_globale).
     });
 
     document.addEventListener('click', function (e) {
-        if (!e.target.closest('.recherche-globale-wrap')) fermerDropdown();
+        if (!e.target.closest('.recherche-globale-wrap')) {
+            fermerDropdown();
+            fermerAide();
+        }
     });
 })();
 </script>

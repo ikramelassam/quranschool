@@ -13,6 +13,7 @@ from courses.models import (
 from evaluations.models import Evaluation, CommentaireMensuel
 from inscriptions.models import InscriptionEleve, InscriptionProf, PhraseRefus
 from payments.models import Paiement
+from dashboard.views import GABARIT_REFUS_AVANT_MOTIF, GABARIT_REFUS_APRES_MOTIF
 
 
 # Chantier du 2026-08-12 — suppression définitive de Eleve/Prof/Superviseur.
@@ -889,6 +890,49 @@ class RefusInscriptionAvecMotifTests(TestCase):
         self.assertIn('212699887766', html)  # wa_number(0699887766)
         self.assertIn('212611223344', html)  # wa_number(0611223344)
 
+    # --- Refonte UX du 2026-08-14 : gabarit de message centralisé ---
+
+    def test_motif_refus_stocke_en_base_est_le_motif_seul_jamais_le_gabarit(self):
+        """La colonne motif_refus ne doit JAMAIS contenir la salutation/clôture
+        du gabarit — uniquement le texte tapé par l'utilisateur."""
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='gabarit_motif_seul@zidni.test')
+        self.client.post(
+            reverse('admin_rejeter_eleve', args=[inscription.id]),
+            {'motif': 'الملف غير مكتمل'},
+        )
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.motif_refus, 'الملف غير مكتمل')
+        self.assertNotIn('السلام عليكم', inscription.motif_refus)
+        self.assertNotIn('نسأل الله', inscription.motif_refus)
+
+    def test_gabarit_complet_transmis_a_la_page_pour_lapercu_et_whatsapp(self):
+        """Le gabarit complet (salutation + clôture fixes, fournies par le
+        client) doit être présent sur la page — c'est lui qui alimente à la
+        fois l'aperçu live et les 2 liens WhatsApp, tous deux calculés en JS
+        à partir des MÊMES constantes Python, jamais réécrites dans le
+        template ni dupliquées entre les 3 écrans de refus."""
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='gabarit_complet@zidni.test')
+        html = self.client.get(reverse('admin_rejeter_eleve', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn('السلام عليكم ورحمة الله وبركاته', html)
+        self.assertIn('نسأل الله أن يوفقكم', html)
+        # Même gabarit sur les 3 écrans — pas 3 textes différents recopiés à la main.
+        inscription_prof = _creer_inscription_prof(email='gabarit_complet_prof1@zidni.test')
+        html_prof1 = self.client.get(reverse('admin_rejeter_prof', args=[inscription_prof.id])).content.decode('utf-8')
+        self.assertIn('السلام عليكم ورحمة الله وبركاته', html_prof1)
+
+        self.client.force_login(self.mshrif)
+        inscription_prof2 = _creer_inscription_prof(email='gabarit_complet_prof2@zidni.test', statut='validee_directeur')
+        html_prof2 = self.client.get(reverse('mshrif_rejeter_prof', args=[inscription_prof2.id])).content.decode('utf-8')
+        self.assertIn('السلام عليكم ورحمة الله وبركاته', html_prof2)
+
+    def test_gabarit_est_bien_une_constante_python_unique(self):
+        """Verrou structurel : une seule définition du gabarit dans tout le
+        code (dashboard.views), pas une par écran de refus."""
+        self.assertIn('سبب الرفض', GABARIT_REFUS_AVANT_MOTIF)
+        self.assertIn('نسأل الله', GABARIT_REFUS_APRES_MOTIF)
+
 
 @override_settings(STORAGES=_STORAGES_TEST)
 class BilanAbsencesTests(TestCase):
@@ -1054,3 +1098,38 @@ class CommentairesTemplateInvisiblesTests(TestCase):
 
     def test_base_superviseur_ne_fuit_aucun_commentaire(self):
         self._assert_page_propre(self.superviseur.user, 'dashboard_superviseur')
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class RechercheGlobalePresenteSurToutesLesPagesTests(TestCase):
+    """Régression du 2026-08-14 — la barre de recherche globale est incluse
+    dans base_admin.html/base_mshrif.html eux-mêmes (avant {% block content
+    %}), pas dans une page précise : elle doit donc apparaître sur TOUTE page
+    مدير/مشرف, pas seulement l'accueil. Couvre 3+ pages par rôle, au-delà de
+    RechercheGlobaleTests qui ne teste que l'endpoint API lui-même."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def _verifier_presente_avant_le_contenu(self, url_name):
+        html = self.client.get(reverse(url_name)).content.decode('utf-8')
+        idx_recherche = html.find('rechercheGlobaleInput')
+        idx_contenu = html.find('class="page-title"')
+        self.assertNotEqual(idx_recherche, -1, f"Barre de recherche absente sur {url_name}.")
+        self.assertNotEqual(idx_contenu, -1, f"Repère de contenu introuvable sur {url_name}.")
+        self.assertLess(
+            idx_recherche, idx_contenu,
+            f"La barre de recherche doit apparaître AVANT le contenu propre à la "
+            f"page {url_name} (donc faire partie du layout commun, pas du contenu)."
+        )
+
+    def test_admin_recherche_presente_sur_3_pages_differentes(self):
+        self.client.force_login(self.admin)
+        for url_name in ['dashboard_admin', 'admin_eleves', 'admin_profs']:
+            self._verifier_presente_avant_le_contenu(url_name)
+
+    def test_mshrif_recherche_presente_sur_3_pages_differentes(self):
+        self.client.force_login(self.mshrif)
+        for url_name in ['dashboard_mshrif', 'admin_eleves', 'admin_profs']:
+            self._verifier_presente_avant_le_contenu(url_name)
