@@ -37,6 +37,21 @@ MESSAGE_AGE_NE_CORRESPOND_PAS = {
     'enfant': 'يبدو أنك طفل (أقل من 18 سنة) — يرجى استخدام نموذج التسجيل الخاص بالأطفال.',
 }
 
+MESSAGE_DATE_NAISSANCE_INVALIDE = 'يرجى إدخال تاريخ ميلاد صحيح.'
+# Corrige un 500 en production (Chantier du 2026-08-15) : date_naissance était
+# lu deux fois — une fois parsé/validé (date_naissance ci-dessous, utilisé
+# uniquement pour la vérification d'âge côté élève) puis, à la création de
+# l'objet, RE-LU brut depuis request.POST.get('date_naissance') sans passer
+# par cette validation. Un champ vide ou un format non-ISO (navigateur/
+# webview sans support natif de <input type="date">, ou le JS existant qui
+# laisse volontairement passer un champ vide — voir verifierAgeCategorie()
+# dans eleve_formulaire.html) atteignait donc directement
+# InscriptionEleve/InscriptionProf.objects.create(), où date_naissance est un
+# DateField non-nullable : Django lève une ValidationError non rattrapée en
+# tentant d'adapter la valeur pour l'INSERT SQL, jamais interceptée par cette
+# vue -> 500 pour l'utilisateur. Reproduit et confirmé (traceback identique)
+# avant correctif, pour les 2 formulaires (élève ET prof).
+
 
 # Longueurs plausibles (min, max) du numéro LOCAL (indicatif exclu, zéro
 # initial déjà retiré) par indicatif — couvre la liste déroulante de
@@ -252,22 +267,38 @@ def inscription_eleve_formulaire(request, type_age):
         except ValueError:
             date_naissance = None
 
-        if date_naissance is not None:
-            categorie_reelle = tranche_age_depuis_naissance(date_naissance)
-            if categorie_reelle != type_age:
-                return render(request, 'inscriptions/eleve_formulaire.html', {
-                    'type_age': type_age,
-                    'types_abonnement_json': types_abonnement_json,
-                    'erreur_age': MESSAGE_AGE_NE_CORRESPOND_PAS[categorie_reelle],
-                    'old_email': email,
-                    'valeurs_form': set(disponibilites),
-                    **contexte_grille,
-                })
+        # Corrige le 500 de production (voir MESSAGE_DATE_NAISSANCE_INVALIDE
+        # ci-dessus) : un champ vide/invalide était auparavant silencieusement
+        # toléré ICI (date_naissance=None ne faisait que sauter la
+        # vérification d'âge juste en dessous) puis provoquait un crash plus
+        # loin, à la création de l'objet. Bloqué explicitement maintenant,
+        # même pattern que erreur_email/erreur_telephone/erreur_age juste
+        # au-dessus/en-dessous.
+        if date_naissance is None:
+            return render(request, 'inscriptions/eleve_formulaire.html', {
+                'type_age': type_age,
+                'types_abonnement_json': types_abonnement_json,
+                'erreur_date_naissance': MESSAGE_DATE_NAISSANCE_INVALIDE,
+                'old_email': email,
+                'valeurs_form': set(disponibilites),
+                **contexte_grille,
+            })
+
+        categorie_reelle = tranche_age_depuis_naissance(date_naissance)
+        if categorie_reelle != type_age:
+            return render(request, 'inscriptions/eleve_formulaire.html', {
+                'type_age': type_age,
+                'types_abonnement_json': types_abonnement_json,
+                'erreur_age': MESSAGE_AGE_NE_CORRESPOND_PAS[categorie_reelle],
+                'old_email': email,
+                'valeurs_form': set(disponibilites),
+                **contexte_grille,
+            })
 
         inscription = InscriptionEleve.objects.create(
             nom=request.POST.get('nom'),
             nom_parent=request.POST.get('nom_parent', ''),
-            date_naissance=request.POST.get('date_naissance'),
+            date_naissance=date_naissance,
             sexe=request.POST.get('sexe'),
             telephone=telephone_complet,
             email=email,
@@ -328,6 +359,16 @@ def inscription_prof(request):
         job_actuel = request.POST.get('job_actuel', '').strip()
         audio_enregistrement = request.FILES.get('audio_enregistrement')
 
+        # Corrige un 500 en production — voir MESSAGE_DATE_NAISSANCE_INVALIDE
+        # (même bug qu'inscription_eleve_formulaire, jamais de garde ici
+        # avant ce correctif) : un champ vide/invalide était envoyé tel quel
+        # à InscriptionProf.objects.create() (DateField non-nullable) et
+        # provoquait une ValidationError non rattrapée -> 500.
+        try:
+            date_naissance = datetime.date.fromisoformat(request.POST.get('date_naissance', ''))
+        except ValueError:
+            date_naissance = None
+
         if _email_deja_utilise(email):
             return render(request, 'inscriptions/prof_formulaire.html', {
                 'erreur_email': MESSAGE_EMAIL_DEJA_UTILISE,
@@ -360,6 +401,8 @@ def inscription_prof(request):
             champs_manquants.append('العمل الحالي')
         if not audio_enregistrement:
             champs_manquants.append('التسجيل الصوتي')
+        if date_naissance is None:
+            champs_manquants.append('تاريخ الميلاد')
 
         if champs_manquants:
             return render(request, 'inscriptions/prof_formulaire.html', {
@@ -372,7 +415,7 @@ def inscription_prof(request):
         inscription = InscriptionProf.objects.create(
             nom=request.POST.get('nom'),
             prenom=request.POST.get('prenom'),
-            date_naissance=request.POST.get('date_naissance'),
+            date_naissance=date_naissance,
             telephone=telephone_complet,
             ville=request.POST.get('ville'),
             statut_familial=request.POST.get('statut_familial'),

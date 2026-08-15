@@ -302,3 +302,109 @@ class ChampsInscriptionVisiblesTests(TestCase):
         url = reverse('admin_inscription_prof_detail', args=[inscription.id])
         contenu = self.client.get(url).content.decode('utf-8')
         self.assertIn('MotifRefusProfMarqueurR5j9', contenu)
+
+
+@override_settings(STORAGES={
+    **settings.STORAGES,
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class InscriptionPubliqueDateNaissanceTests(TestCase):
+    """Régression — bug 500 en production (signalé par le client, Chantier du
+    2026-08-15) : un élève ou un prof qui tentait de s'inscrire recevait
+    parfois une erreur serveur. Cause confirmée par reproduction directe
+    (traceback identique en local) : date_naissance était relu BRUT depuis
+    request.POST.get('date_naissance') au moment de InscriptionEleve/
+    InscriptionProf.objects.create() — jamais le date_naissance déjà
+    parsé/validé plus haut dans la vue (élève) ni validé du tout (prof).
+    DateField est non-nullable sur les deux modèles : un champ vide (ex.
+    JS désactivé, ou verifierAgeCategorie() qui laisse volontairement
+    passer une valeur vide) ou un format non-ISO (navigateurs/webviews sans
+    support natif de <input type="date">, qui dégrade en simple champ texte
+    libre) atteignait donc directement l'INSERT SQL et levait une
+    ValidationError jamais rattrapée -> 500 pour l'utilisateur, sans aucune
+    trace exploitable côté client.
+
+    Ces tests couvrent le POST réel sur les 2 vues publiques
+    (inscription_eleve_formulaire / inscription_prof), pas seulement les
+    pages admin de consultation déjà testées plus haut dans ce fichier."""
+
+    DONNEES_ELEVE_BASE = {
+        'nom': 'RegressionDateEleve',
+        'sexe': 'homme',
+        'indicatif_pays': '212',
+        'telephone': '612345601',
+        'telephone_confirmation': '612345601',
+        'programme': 'hifz',
+        'riwaya': 'hafs',
+        'outil': 'whatsapp',
+        'abonnement': 'groupe_1mois',
+        'accepte_conditions': 'oui',
+    }
+
+    def _donnees_prof(self, **overrides):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        valeurs = {
+            'nom': 'RegressionDateProf', 'prenom': 'Test',
+            'indicatif_pays': '212', 'telephone': '612345602', 'telephone_confirmation': '612345602',
+            'ville': 'Rabat', 'statut_familial': 'celibataire', 'job_actuel': 'ingenieur',
+            'certifications': 'ijaza', 'niveau_memorisation': 'juz_30',
+            'parcours_scolaire': 'bac', 'parcours_enseignant': '2 ans',
+            'gestion_eleve_faible': 'suivi', 'gestion_eleve_absent': 'contact',
+            'compte_bancaire': '011780000012345', 'rib': '230780000012345012', 'agence_bancaire': 'agence test',
+            'email': 'regression.date.prof@zidni.test',
+            'audio_enregistrement': SimpleUploadedFile('t.mp3', b'fake', content_type='audio/mpeg'),
+        }
+        valeurs.update(overrides)
+        return valeurs
+
+    # ------------------------------------------------------------------
+    # Le bug lui-même : ne doit JAMAIS lever d'exception non gérée (500)
+    # ------------------------------------------------------------------
+
+    def test_eleve_date_naissance_vide_ne_leve_pas_500(self):
+        donnees = dict(self.DONNEES_ELEVE_BASE, date_naissance='', email='regression.date.eleve.vide@zidni.test')
+        reponse = self.client.post(reverse('inscription_eleve_formulaire', args=['adulte']), donnees)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, 'يرجى إدخال تاريخ ميلاد صحيح')
+        self.assertFalse(InscriptionEleve.objects.filter(email='regression.date.eleve.vide@zidni.test').exists())
+
+    def test_eleve_date_naissance_format_non_iso_ne_leve_pas_500(self):
+        """Cas concret : navigateur/webview sans support natif de <input
+        type="date">, dégradé en champ texte libre — un candidat peut taper
+        un format local (ex. jj/mm/aaaa) plutôt que AAAA-MM-JJ."""
+        donnees = dict(self.DONNEES_ELEVE_BASE, date_naissance='25/12/1995', email='regression.date.eleve.format@zidni.test')
+        reponse = self.client.post(reverse('inscription_eleve_formulaire', args=['adulte']), donnees)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(InscriptionEleve.objects.filter(email='regression.date.eleve.format@zidni.test').exists())
+
+    def test_prof_date_naissance_vide_ne_leve_pas_500(self):
+        donnees = self._donnees_prof(date_naissance='', email='regression.date.prof.vide@zidni.test')
+        reponse = self.client.post(reverse('inscription_prof'), donnees)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, 'تاريخ الميلاد')
+        self.assertFalse(InscriptionProf.objects.filter(email='regression.date.prof.vide@zidni.test').exists())
+
+    def test_prof_date_naissance_format_non_iso_ne_leve_pas_500(self):
+        donnees = self._donnees_prof(date_naissance='25/12/1990', email='regression.date.prof.format@zidni.test')
+        reponse = self.client.post(reverse('inscription_prof'), donnees)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(InscriptionProf.objects.filter(email='regression.date.prof.format@zidni.test').exists())
+
+    # ------------------------------------------------------------------
+    # Non-régression : le chemin nominal doit toujours fonctionner et
+    # enregistrer la VRAIE date (pas juste ne pas planter)
+    # ------------------------------------------------------------------
+
+    def test_eleve_date_naissance_valide_cree_bien_la_candidature(self):
+        donnees = dict(self.DONNEES_ELEVE_BASE, date_naissance='1995-05-20', email='regression.date.eleve.ok@zidni.test')
+        reponse = self.client.post(reverse('inscription_eleve_formulaire', args=['adulte']), donnees)
+        self.assertEqual(reponse.status_code, 302)
+        inscription = InscriptionEleve.objects.get(email='regression.date.eleve.ok@zidni.test')
+        self.assertEqual(inscription.date_naissance.isoformat(), '1995-05-20')
+
+    def test_prof_date_naissance_valide_cree_bien_la_candidature(self):
+        donnees = self._donnees_prof(date_naissance='1990-01-01', email='regression.date.prof.ok@zidni.test')
+        reponse = self.client.post(reverse('inscription_prof'), donnees)
+        self.assertEqual(reponse.status_code, 302)
+        inscription = InscriptionProf.objects.get(email='regression.date.prof.ok@zidni.test')
+        self.assertEqual(inscription.date_naissance.isoformat(), '1990-01-01')

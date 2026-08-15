@@ -139,6 +139,12 @@
     </div>
     {% endif %}
 
+    {% if erreur_date_naissance %}
+    <div style="background:#f8d7da; border-radius:8px; padding:14px 18px; margin-bottom:20px; color:#721c24;">
+        ⚠️ {{ erreur_date_naissance }}
+    </div>
+    {% endif %}
+
     {% if erreur_telephone %}
     <div style="background:#f8d7da; border-radius:8px; padding:14px 18px; margin-bottom:20px; color:#721c24;">
         ⚠️ {{ erreur_telephone }}
