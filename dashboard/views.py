@@ -413,6 +413,38 @@ def admin_reglage_lien_seance(request):
     return render(request, 'dashboard/admin_reglage_lien_seance.html', context)
 
 
+@role_required('admin')
+def admin_reglage_retention_chat(request):
+    """Réglage de la durée de conservation des messages du chat (Point 12/35 du
+    chantier chat) — مدير UNIQUEMENT (contrairement à la plupart des réglages
+    voisins comme admin_reglage_lien_seance, ouverts à مشرف aussi) : le مشرف
+    n'a de toute façon aucun accès au chat lui-même, donc pas de raison qu'il
+    en règle la rétention. Même patron que ci-dessus (singleton, formulaire
+    simple)."""
+    from chat.models import get_configuration_chat
+
+    config = get_configuration_chat()
+    if request.method == 'POST':
+        try:
+            duree = int(request.POST.get('duree_retention_jours', 0))
+        except ValueError:
+            messages.error(request, 'يرجى إدخال رقم صحيح.')
+            return redirect('admin_reglage_retention_chat')
+        if duree < 1:
+            messages.error(request, 'يجب أن تكون المدة يوماً واحداً على الأقل.')
+            return redirect('admin_reglage_retention_chat')
+        config.duree_retention_jours = duree
+        config.derniere_modification_par = request.user
+        config.save()
+        messages.success(request, 'تم تحديث مدة الاحتفاظ برسائل الدردشة بنجاح.')
+        return redirect('admin_reglage_retention_chat')
+
+    return render(request, 'dashboard/admin_reglage_retention_chat.html', {
+        'config': config,
+        'base_template': 'dashboard/base_admin.html',
+    })
+
+
 @role_required('admin', 'mshrif', 'superviseur', 'prof', 'eleve')
 def rejoindre_seance(request, seance_id):
     """Passerelle serveur pour le lien de réunion d'une séance — jamais un

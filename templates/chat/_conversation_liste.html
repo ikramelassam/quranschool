@@ -1,0 +1,40 @@
+{% load chat_extras %}
+{% if not conversations %}
+<div class="chat-vide">
+    <div class="chat-vide-icone" aria-hidden="true">💬</div>
+    <p>لا توجد محادثات متاحة حالياً.</p>
+</div>
+{% else %}
+{% for conversation in conversations %}
+<a href="{% url 'chat_conversation' conversation.groupe_id %}"
+   class="chat-item {% if conversation.groupe_id == groupe_ouvert_id %}active{% endif %}"
+   data-groupe-id="{{ conversation.groupe_id }}">
+    <div class="chat-item-avatar" aria-hidden="true">{{ conversation.groupe.nom|first|upper }}</div>
+    <div class="chat-item-corps">
+        <div class="chat-item-ligne1">
+            <span class="chat-item-nom">{{ conversation.groupe.nom }}</span>
+            {% if conversation.dernier_message %}
+            <span class="chat-item-heure">{{ conversation.dernier_message.date_envoi|heure_message }}</span>
+            {% endif %}
+        </div>
+        <div class="chat-item-ligne2">
+            <span class="chat-item-apercu">
+                {% if conversation.dernier_message %}
+                    {% if conversation.dernier_message.type_message == 'audio' %}🎤 رسالة صوتية
+                    {% elif conversation.dernier_message.type_message == 'fichier' %}📎 ملف مرفق
+                    {% else %}{{ conversation.dernier_message.contenu|default:"—"|truncatechars:40 }}{% endif %}
+                {% else %}
+                    لا توجد رسائل بعد
+                {% endif %}
+            </span>
+            {% if conversation.nb_non_lus %}
+            <span class="chat-badge">{{ conversation.nb_non_lus|abrege_badge }}</span>
+            {% endif %}
+        </div>
+        {% if conversation.groupe.prof %}
+        <div class="chat-item-prof">{{ conversation.groupe.prof.user.get_full_name }}</div>
+        {% endif %}
+    </div>
+</a>
+{% endfor %}
+{% endif %}

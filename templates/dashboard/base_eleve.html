@@ -1,4 +1,4 @@
-{% load static %}
+{% load static chat_extras %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -64,6 +64,7 @@
         .menu-item:hover { background: rgba(255,255,255,0.1); color: white; }
         .menu-item.active { background: rgba(255,255,255,0.15); color: white; font-weight: 600; }
         .menu-item .icon { margin-left: 10px; font-size: 1.1rem; }
+        .menu-badge { background: var(--color-danger); color: white; border-radius: 20px; min-width: 20px; height: 20px; padding: 0 6px; font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-right: auto; }
         .main-content { margin-right: 240px; min-height: 100vh; padding: 32px; }
         .page-title { color: var(--color-role-eleve-solid); font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
         .page-subtitle { color: var(--color-text-muted); margin-bottom: 30px; }
@@ -181,6 +182,12 @@
         <a href="{% url 'dashboard_eleve' %}"
            class="menu-item {% if request.resolver_match.url_name == 'dashboard_eleve' %}active{% endif %}">
             <span class="icon">📊</span> لوحة التحكم
+        </a>
+
+        <a href="{% url 'chat_liste' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'chat_liste' or request.resolver_match.url_name == 'chat_conversation' %}active{% endif %}">
+            <span class="icon">💬</span> الرسائل
+            {% if chat_non_lus_total %}<span class="menu-badge" id="chatSidebarBadge">{{ chat_non_lus_total|abrege_badge }}</span>{% endif %}
         </a>
         <a href="{% url 'eleve_seances' %}"
            class="menu-item {% if request.resolver_match.url_name == 'eleve_seances' %}active{% endif %}">

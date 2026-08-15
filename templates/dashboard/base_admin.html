@@ -1,4 +1,4 @@
-{% load static %}
+{% load static chat_extras %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -101,10 +101,12 @@
         .menu-badge {
             background: #dc3545;
             color: white;
-            border-radius: 50%;
-            width: 20px;
+            border-radius: 20px;
+            min-width: 20px;
             height: 20px;
+            padding: 0 6px;
             font-size: 0.7rem;
+            font-weight: 700;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -196,6 +198,12 @@
         <a href="{% url 'dashboard_admin' %}"
            class="menu-item {% if request.resolver_match.url_name == 'dashboard_admin' %}active{% endif %}">
             <span class="icon">📊</span> لوحة التحكم
+        </a>
+
+        <a href="{% url 'chat_liste' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'chat_liste' or request.resolver_match.url_name == 'chat_conversation' %}active{% endif %}">
+            <span class="icon">💬</span> الرسائل
+            {% if chat_non_lus_total %}<span class="menu-badge" id="chatSidebarBadge">{{ chat_non_lus_total|abrege_badge }}</span>{% endif %}
         </a>
 
         <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_eleves' or request.resolver_match.url_name == 'admin_profs' or request.resolver_match.url_name == 'admin_inscriptions' or request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}open{% endif %}>
@@ -294,7 +302,7 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'admin_gestion_inscriptions' or request.resolver_match.url_name == 'admin_reglage_lien_seance' or request.resolver_match.url_name == 'admin_hakiba_gestion' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'admin_gestion_inscriptions' or request.resolver_match.url_name == 'admin_reglage_lien_seance' or request.resolver_match.url_name == 'admin_reglage_retention_chat' or request.resolver_match.url_name == 'admin_hakiba_gestion' %}open{% endif %}>
             <summary>حقيبة المدير</summary>
             <a href="{% url 'mshrif_charte' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_charte' %}active{% endif %}">
@@ -315,6 +323,10 @@
             <a href="{% url 'admin_reglage_lien_seance' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_reglage_lien_seance' %}active{% endif %}">
                 <span class="icon">🔗</span> هامش رابط الحصص
+            </a>
+            <a href="{% url 'admin_reglage_retention_chat' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_reglage_retention_chat' %}active{% endif %}">
+                <span class="icon">🗑️</span> مدة الاحتفاظ برسائل الدردشة
             </a>
             <a href="{% url 'admin_hakiba_gestion' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_hakiba_gestion' %}active{% endif %}">

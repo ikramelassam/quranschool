@@ -1,0 +1,33 @@
+{% load chat_extras %}
+{% for message in messages %}
+{% ifchanged message.date_envoi|repere_jour_message %}
+<div class="chat-day-sep"><span>{{ message.date_envoi|repere_jour_message }}</span></div>
+{% endifchanged %}
+<div class="chat-row {% if message.auteur_id == user.id %}chat-row-mine{% else %}chat-row-theirs{% endif %}" data-message-id="{{ message.id }}">
+    <div class="chat-bubble">
+        {% if message.auteur_id != user.id %}
+        <div class="chat-bubble-auteur">{{ message.auteur_nom }} <span class="chat-bubble-role">{{ message.auteur_role_label }}</span></div>
+        {% endif %}
+
+        {% if message.type_message == 'audio' %}
+        <div class="chat-bubble-audio">
+            <audio controls preload="none" src="{% url 'chat_fichier' groupe_id message.id %}"></audio>
+        </div>
+        {% elif message.type_message == 'fichier' %}
+        <a class="chat-bubble-fichier" href="{% url 'chat_fichier' groupe_id message.id %}" target="_blank" rel="noopener">
+            <span class="chat-fichier-icone" aria-hidden="true">📎</span>
+            <span class="chat-fichier-infos">
+                <span class="chat-fichier-nom">{{ message.nom_fichier_original|default:"ملف مرفق" }}</span>
+                <span class="chat-fichier-taille">{{ message.taille_fichier_octets|taille_lisible }}</span>
+            </span>
+        </a>
+        {% endif %}
+
+        {% if message.contenu %}
+        <div class="chat-bubble-texte">{{ message.contenu|linebreaksbr }}</div>
+        {% endif %}
+
+        <div class="chat-bubble-heure">{{ message.date_envoi|heure_message }}</div>
+    </div>
+</div>
+{% endfor %}

@@ -1,0 +1,528 @@
+{% extends base_template %}
+{% load chat_extras %}
+{% block title %}الرسائل{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-content:has(.chat-shell) { padding: 0 !important; }
+    @media (max-width: 768px) {
+        .main-content:has(.chat-shell) { padding: 0 !important; }
+    }
+
+    .chat-shell {
+        display: flex;
+        height: calc(100vh - 0px);
+        background: var(--color-bg-cream);
+        overflow: hidden;
+    }
+
+    /* ---------- Colonne liste ---------- */
+    .chat-liste-col {
+        width: 350px;
+        flex-shrink: 0;
+        background: #fff;
+        border-left: 1px solid rgba(0,0,0,0.08);
+        display: flex;
+        flex-direction: column;
+    }
+    .chat-liste-header {
+        padding: 20px 20px 14px;
+        border-bottom: 1px solid rgba(0,0,0,0.06);
+        flex-shrink: 0;
+    }
+    .chat-liste-header h2 { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); }
+    #chatListeContenu { overflow-y: auto; flex: 1; }
+
+    .chat-item {
+        display: flex;
+        gap: 12px;
+        padding: 12px 20px;
+        text-decoration: none;
+        color: inherit;
+        border-bottom: 1px solid rgba(0,0,0,0.04);
+        transition: background 0.12s ease;
+    }
+    .chat-item:hover { background: #FBF3E4; }
+    .chat-item.active { background: #FBF3E4; box-shadow: inset 3px 0 0 var(--color-brand-gold-dark); }
+    .chat-item-avatar {
+        flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%;
+        background: var(--gradient-cta-gold); color: var(--color-cta-gold-text);
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 1.1rem;
+    }
+    .chat-item-corps { min-width: 0; flex: 1; }
+    .chat-item-ligne1 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .chat-item-nom { font-weight: 700; font-size: 0.92rem; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-item-heure { font-size: 0.72rem; color: var(--color-text-muted); flex-shrink: 0; }
+    .chat-item-ligne2 { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; }
+    .chat-item-apercu { font-size: 0.82rem; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-item-prof { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 2px; opacity: 0.85; }
+    .chat-badge {
+        flex-shrink: 0; background: var(--color-danger); color: #fff; border-radius: 20px;
+        min-width: 20px; height: 20px; padding: 0 6px; font-size: 0.7rem; font-weight: 700;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .chat-vide { padding: 40px 20px; text-align: center; color: var(--color-text-muted); }
+    .chat-vide-icone { font-size: 2.4rem; margin-bottom: 10px; opacity: 0.6; }
+
+    /* ---------- Colonne panneau ---------- */
+    .chat-panneau-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    #chatPanneauContenu { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+    .chat-empty-state {
+        flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        color: var(--color-text-muted); text-align: center; padding: 20px;
+    }
+    .chat-empty-icone { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
+    .chat-empty-state h3 { color: var(--color-text-primary); margin: 0 0 6px; }
+
+    .chat-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    .chat-panel-header {
+        display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+        border-bottom: 1px solid rgba(0,0,0,0.08); background: #fff; flex-shrink: 0;
+    }
+    .chat-btn-retour { display: none; background: none; border: none; color: var(--color-text-primary); cursor: pointer; padding: 6px; }
+    .chat-panel-avatar {
+        width: 42px; height: 42px; border-radius: 50%; background: var(--gradient-cta-gold);
+        color: var(--color-cta-gold-text); display: flex; align-items: center; justify-content: center;
+        font-weight: 700; flex-shrink: 0;
+    }
+    .chat-panel-titre { min-width: 0; flex: 1; }
+    .chat-panel-nom { font-weight: 700; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-panel-sous-titre { font-size: 0.78rem; color: var(--color-text-muted); }
+    .chat-btn-membres { background: none; border: none; color: var(--color-text-muted); cursor: pointer; padding: 6px; flex-shrink: 0; }
+    .chat-btn-membres:hover { color: var(--color-brand-gold-dark); }
+
+    .chat-panel-membres { background: #FFFDF8; border-bottom: 1px solid rgba(0,0,0,0.08); padding: 12px 20px; flex-shrink: 0; }
+    .chat-membres-titre { font-size: 0.78rem; font-weight: 700; color: var(--color-text-muted); margin-bottom: 8px; }
+    .chat-membre-ligne { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 0.85rem; }
+    .chat-membre-nom { font-weight: 600; color: var(--color-text-primary); }
+    .chat-membre-role { color: var(--color-text-muted); font-size: 0.75rem; background: #F0EAD9; padding: 1px 8px; border-radius: 10px; }
+    .chat-membre-contact { margin-right: auto; display: flex; gap: 6px; }
+
+    .chat-messages {
+        flex: 1; overflow-y: auto; padding: 16px 22px; display: flex; flex-direction: column; gap: 4px;
+        background: repeating-linear-gradient(135deg, #FFF8EF 0px, #FFF8EF 40px, #FEF4E4 40px, #FEF4E4 80px);
+    }
+    .chat-chargement-haut { display: flex; justify-content: center; padding: 8px 0; }
+    .chat-spinner {
+        width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(139,75,0,0.25);
+        border-top-color: var(--color-brand-gold-dark); display: inline-block; animation: chat-spin 0.7s linear infinite;
+    }
+    @keyframes chat-spin { to { transform: rotate(360deg); } }
+
+    .chat-vide-messages { margin: auto; text-align: center; color: var(--color-text-muted); }
+    .chat-vide-messages-sous { font-size: 0.82rem; opacity: 0.8; }
+
+    .chat-day-sep { display: flex; justify-content: center; margin: 10px 0; }
+    .chat-day-sep span { background: rgba(0,0,0,0.06); color: var(--color-text-muted); font-size: 0.72rem; padding: 3px 12px; border-radius: 12px; }
+
+    .chat-row { display: flex; margin: 2px 0; }
+    .chat-row-mine { justify-content: flex-end; }
+    .chat-row-theirs { justify-content: flex-start; }
+    .chat-bubble {
+        max-width: min(72%, 480px); padding: 8px 12px; border-radius: 14px; position: relative;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.08); word-wrap: break-word;
+    }
+    .chat-row-theirs .chat-bubble { background: #fff; border-bottom-right-radius: 4px; }
+    .chat-row-mine .chat-bubble { background: #FCEBC7; border-bottom-left-radius: 4px; }
+    .chat-bubble-auteur { font-size: 0.76rem; font-weight: 700; color: var(--color-brand-gold-dark); margin-bottom: 2px; }
+    .chat-bubble-role { font-weight: 400; color: var(--color-text-muted); font-size: 0.7rem; }
+    .chat-bubble-texte { font-size: 0.92rem; color: var(--color-text-primary); white-space: pre-wrap; }
+    .chat-bubble-heure { font-size: 0.66rem; color: var(--color-text-muted); text-align: left; margin-top: 3px; }
+    .chat-bubble-audio audio { max-width: 260px; height: 38px; }
+    .chat-bubble-fichier { display: flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; background: rgba(0,0,0,0.03); border-radius: 10px; padding: 8px 10px; }
+    .chat-fichier-icone { font-size: 1.3rem; }
+    .chat-fichier-infos { display: flex; flex-direction: column; min-width: 0; }
+    .chat-fichier-nom { font-size: 0.84rem; font-weight: 600; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+    .chat-fichier-taille { font-size: 0.7rem; color: var(--color-text-muted); }
+
+    .chat-composer {
+        display: flex; align-items: flex-end; gap: 8px; padding: 12px 16px;
+        background: #fff; border-top: 1px solid rgba(0,0,0,0.08); flex-shrink: 0;
+    }
+    .chat-btn-icone {
+        flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; border: none;
+        background: #F0EAD9; color: var(--color-brand-gold-dark); font-size: 1.15rem;
+        display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .chat-btn-icone:hover { background: #E9DFC4; }
+    .chat-composer textarea {
+        flex: 1; resize: none; border: 1px solid rgba(0,0,0,0.12); border-radius: 20px;
+        padding: 10px 16px; font-family: inherit; font-size: 0.92rem; max-height: 120px;
+        line-height: 1.4; background: var(--color-bg-cream);
+    }
+    .chat-composer textarea:focus { outline: none; border-color: var(--color-brand-gold-dark); }
+    .chat-btn-envoyer {
+        flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; border: none;
+        background: var(--gradient-cta-gold); color: var(--color-cta-gold-text);
+        display: flex; align-items: center; justify-content: center; cursor: pointer;
+        transition: opacity 0.15s;
+    }
+    .chat-btn-envoyer:disabled { opacity: 0.4; cursor: default; }
+
+    .chat-apercu-fichier {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        margin: 0 16px 10px; padding: 8px 14px; background: #FBF3E4; border: 1px solid var(--color-brand-gold-dark);
+        border-radius: 10px; font-size: 0.82rem; color: var(--color-text-primary);
+    }
+    .chat-apercu-fichier button { background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--color-danger); }
+
+    .chat-enregistrement {
+        display: flex; align-items: center; gap: 10px; margin: 0 16px 10px; padding: 8px 14px;
+        background: #FCE9E7; border-radius: 10px; font-size: 0.85rem; color: var(--color-danger);
+    }
+    .chat-enregistrement-point { width: 10px; height: 10px; border-radius: 50%; background: var(--color-danger); animation: chat-pulse 1s infinite; }
+    @keyframes chat-pulse { 50% { opacity: 0.25; } }
+
+    /* ---------- Mobile ---------- */
+    @media (max-width: 768px) {
+        .chat-shell { position: fixed; inset: 0; z-index: 50; height: 100vh; }
+        .chat-liste-col { width: 100%; }
+        .chat-panneau-col { display: none; position: fixed; inset: 0; z-index: 60; background: var(--color-bg-cream); }
+        .chat-shell.chat-mobile-panel-open .chat-liste-col { display: none; }
+        .chat-shell.chat-mobile-panel-open .chat-panneau-col { display: flex; }
+        .chat-btn-retour { display: flex; align-items: center; justify-content: center; }
+        .chat-btn-icone, .chat-btn-envoyer { width: 44px; height: 44px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-shell {% if conversation_ouverte %}chat-mobile-panel-open{% endif %}" id="chatShell"
+     data-liste-partial-url="{% url 'chat_liste_partial' %}"
+     data-groupe-ouvert="{% if conversation_ouverte %}{{ conversation_ouverte.groupe_id }}{% endif %}">
+    <div class="chat-liste-col" id="chatListeCol">
+        <div class="chat-liste-header"><h2>الرسائل</h2></div>
+        <div id="chatListeContenu">
+            {% include 'chat/_conversation_liste.html' with conversations=conversations groupe_ouvert_id=conversation_ouverte.groupe_id %}
+        </div>
+    </div>
+    <div class="chat-panneau-col" id="chatPanneauCol">
+        <div id="chatPanneauContenu">
+            {% if conversation_ouverte %}
+                {% include 'chat/_panel.html' %}
+            {% else %}
+                {% include 'chat/_empty_state.html' %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    'use strict';
+
+    const shell = document.getElementById('chatShell');
+    const listeContenu = document.getElementById('chatListeContenu');
+    const panneauContenu = document.getElementById('chatPanneauContenu');
+    const listePartialUrl = shell.dataset.listePartialUrl;
+
+    let groupeOuvertId = shell.dataset.groupeOuvert || null;
+    let pollTimer = null;
+    let listeTimer = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let dureeInterval = null;
+
+    function csrfToken() {
+        const input = panneauContenu.querySelector('[name=csrfmiddlewaretoken]');
+        return input ? input.value : '';
+    }
+
+    function scrollBas(container) {
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // ---------- Ouverture d'une conversation (AJAX, sans recharger la page) ----------
+    function ouvrirConversation(groupeId, pousserHistorique) {
+        fetch(`/chat/${groupeId}/panneau/`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => {
+                if (!r.ok) { throw new Error('forbidden'); }
+                return r.json();
+            })
+            .then(data => {
+                panneauContenu.innerHTML = data.html;
+                groupeOuvertId = String(groupeId);
+                shell.dataset.groupeOuvert = groupeOuvertId;
+                shell.classList.add('chat-mobile-panel-open');
+                initPanel();
+                const messagesDiv = document.getElementById('chatMessages');
+                if (messagesDiv) { scrollBas(messagesDiv); }
+                marquerBadgeCommeLu();
+                if (pousserHistorique) {
+                    window.history.pushState({ groupeId }, '', `/chat/${groupeId}/`);
+                }
+                rafraichirListe();
+                redemarrerPolling();
+            })
+            .catch(() => {
+                window.location.href = `/chat/${groupeId}/`;
+            });
+    }
+
+    document.getElementById('chatListeContenu').addEventListener('click', function (e) {
+        const item = e.target.closest('.chat-item');
+        if (!item) { return; }
+        e.preventDefault();
+        ouvrirConversation(item.dataset.groupeId, true);
+    });
+
+    window.addEventListener('popstate', function (e) {
+        if (e.state && e.state.groupeId) {
+            ouvrirConversation(e.state.groupeId, false);
+        }
+    });
+
+    // ---------- Rafraîchissement de la liste (aperçus + badges non lus) ----------
+    function rafraichirListe() {
+        fetch(`${listePartialUrl}?ouverte=${groupeOuvertId || ''}`)
+            .then(r => r.json())
+            .then(data => { listeContenu.innerHTML = data.html; })
+            .catch(() => {});
+    }
+
+    function redemarrerListeTimer() {
+        if (listeTimer) { clearInterval(listeTimer); }
+        listeTimer = setInterval(rafraichirListe, 10000);
+    }
+    redemarrerListeTimer();
+
+    function marquerBadgeCommeLu() {
+        const badge = document.getElementById('chatSidebarBadge');
+        if (badge) { badge.remove(); }
+    }
+
+    // ---------- Panneau de conversation courant ----------
+    function initPanel() {
+        const panel = document.getElementById('chatPanel');
+        if (!panel) { return; }
+        const groupeId = panel.dataset.groupeId;
+
+        const btnRetour = document.getElementById('chatBtnRetour');
+        if (btnRetour) {
+            btnRetour.addEventListener('click', function () {
+                shell.classList.remove('chat-mobile-panel-open');
+                shell.dataset.groupeOuvert = '';
+                groupeOuvertId = null;
+                arreterPolling();
+                window.history.pushState({}, '', '/chat/');
+            });
+        }
+
+        const btnMembres = document.getElementById('chatBtnMembres');
+        const panneauMembres = document.getElementById('chatPanelMembres');
+        if (btnMembres && panneauMembres) {
+            btnMembres.addEventListener('click', function () {
+                panneauMembres.hidden = !panneauMembres.hidden;
+            });
+        }
+
+        const messagesDiv = document.getElementById('chatMessages');
+        messagesDiv.addEventListener('scroll', function () {
+            if (messagesDiv.scrollTop < 40 && panel.dataset.aPlusAncien === '1') {
+                chargerAnciens(groupeId);
+            }
+        });
+
+        // ---- Composer ----
+        const texteInput = document.getElementById('chatTexteInput');
+        const fichierInput = document.getElementById('chatFichierInput');
+        const audioInput = document.getElementById('chatAudioInput');
+        const typeInput = document.getElementById('chatTypeInput');
+        const btnEnvoyer = document.getElementById('chatBtnEnvoyer');
+        const btnFichier = document.getElementById('chatBtnFichier');
+        const btnAudioMic = document.getElementById('chatBtnAudio');
+        const apercu = document.getElementById('chatApercuFichier');
+        const apercuTexte = document.getElementById('chatApercuTexte');
+        const apercuAnnuler = document.getElementById('chatApercuAnnuler');
+        let fichierEnAttente = null;
+
+        function majEtatEnvoyer() {
+            btnEnvoyer.disabled = !texteInput.value.trim() && !fichierEnAttente;
+        }
+        texteInput.addEventListener('input', function () {
+            texteInput.style.height = 'auto';
+            texteInput.style.height = Math.min(texteInput.scrollHeight, 120) + 'px';
+            majEtatEnvoyer();
+        });
+        texteInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!btnEnvoyer.disabled) { document.getElementById('chatComposer').requestSubmit(); }
+            }
+        });
+
+        function definirFichierEnAttente(fichier, type) {
+            fichierEnAttente = fichier;
+            typeInput.value = type;
+            apercuTexte.textContent = `${type === 'audio' ? '🎤' : '📎'} ${fichier.name}`;
+            apercu.hidden = false;
+            majEtatEnvoyer();
+        }
+        function annulerFichier() {
+            fichierEnAttente = null;
+            fichierInput.value = '';
+            audioInput.value = '';
+            typeInput.value = 'texte';
+            apercu.hidden = true;
+            majEtatEnvoyer();
+        }
+        apercuAnnuler.addEventListener('click', annulerFichier);
+
+        btnFichier.addEventListener('click', function () { fichierInput.click(); });
+        fichierInput.addEventListener('change', function () {
+            if (fichierInput.files[0]) { definirFichierEnAttente(fichierInput.files[0], 'fichier'); }
+        });
+        audioInput.addEventListener('change', function () {
+            if (audioInput.files[0]) { definirFichierEnAttente(audioInput.files[0], 'audio'); }
+        });
+
+        // ---- Enregistrement audio (MediaRecorder si dispo, sinon repli sur fichier) ----
+        const zoneEnregistrement = document.getElementById('chatEnregistrement');
+        const dureeSpan = document.getElementById('chatDureeEnregistrement');
+
+        btnAudioMic.addEventListener('click', function () {
+            if (!(navigator.mediaDevices && window.MediaRecorder)) {
+                audioInput.click();
+                return;
+            }
+            demarrerEnregistrement();
+        });
+
+        function demarrerEnregistrement() {
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+                audioChunks = [];
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.addEventListener('dataavailable', function (e) { audioChunks.push(e.data); });
+                mediaRecorder.addEventListener('stop', function () {
+                    stream.getTracks().forEach(t => t.stop());
+                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const fichier = new File([blob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
+                    definirFichierEnAttente(fichier, 'audio');
+                });
+                mediaRecorder.start();
+                zoneEnregistrement.hidden = false;
+                let secondes = 0;
+                dureeSpan.textContent = '00:00';
+                dureeInterval = setInterval(function () {
+                    secondes += 1;
+                    const m = String(Math.floor(secondes / 60)).padStart(2, '0');
+                    const s = String(secondes % 60).padStart(2, '0');
+                    dureeSpan.textContent = `${m}:${s}`;
+                }, 1000);
+            }).catch(function () {
+                audioInput.click();
+            });
+        }
+        function arreterEnregistrement(annuler) {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                if (annuler) { audioChunks = []; }
+                mediaRecorder.stop();
+            }
+            zoneEnregistrement.hidden = true;
+            clearInterval(dureeInterval);
+            if (annuler) { annulerFichier(); }
+        }
+        document.getElementById('chatArreterEnregistrement').addEventListener('click', function () { arreterEnregistrement(false); });
+        document.getElementById('chatAnnulerEnregistrement').addEventListener('click', function () { arreterEnregistrement(true); });
+
+        // ---- Envoi ----
+        document.getElementById('chatComposer').addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (btnEnvoyer.disabled) { return; }
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', csrfToken());
+            formData.append('contenu', texteInput.value.trim());
+            formData.append('type_message', typeInput.value);
+            if (fichierEnAttente) { formData.append('fichier', fichierEnAttente); }
+
+            btnEnvoyer.disabled = true;
+            const envoyerUrl = document.getElementById('chatComposer').dataset.envoyerUrl;
+            fetch(envoyerUrl, {
+                method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            })
+                .then(r => { if (!r.ok) { throw new Error('erreur'); } return r.json(); })
+                .then(data => {
+                    document.getElementById('chatMessagesVide').innerHTML = '';
+                    document.getElementById('chatMessagesListe').insertAdjacentHTML('beforeend', data.html);
+                    panel.dataset.dernierId = data.id;
+                    texteInput.value = '';
+                    texteInput.style.height = 'auto';
+                    annulerFichier();
+                    scrollBas(messagesDiv);
+                    rafraichirListe();
+                })
+                .catch(() => { alert('تعذّر إرسال الرسالة. حاول مرة أخرى.'); })
+                .finally(() => { majEtatEnvoyer(); });
+        });
+
+        majEtatEnvoyer();
+        redemarrerPolling();
+    }
+
+    function chargerAnciens(groupeId) {
+        const panel = document.getElementById('chatPanel');
+        const messagesDiv = document.getElementById('chatMessages');
+        const chargement = document.getElementById('chatChargementHaut');
+        const premierId = panel.dataset.premierId;
+        if (!premierId || chargement.dataset.enCours === '1') { return; }
+        chargement.hidden = false;
+        chargement.dataset.enCours = '1';
+        fetch(`/chat/${groupeId}/messages/?avant=${premierId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.nb_messages > 0) {
+                    const ancienneHauteur = messagesDiv.scrollHeight;
+                    document.getElementById('chatMessagesListe').insertAdjacentHTML('afterbegin', data.html);
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight - ancienneHauteur;
+                    panel.dataset.premierId = data.premier_id;
+                }
+                panel.dataset.aPlusAncien = data.a_plus_ancien ? '1' : '0';
+            })
+            .finally(() => { chargement.hidden = true; chargement.dataset.enCours = '0'; });
+    }
+
+    // ---------- Polling des nouveaux messages ----------
+    function poll() {
+        const panel = document.getElementById('chatPanel');
+        if (!panel) { return; }
+        const groupeId = panel.dataset.groupeId;
+        const dernierId = panel.dataset.dernierId || '0';
+        fetch(`/chat/${groupeId}/messages/?apres=${dernierId}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.nb_messages > 0) {
+                    const messagesDiv = document.getElementById('chatMessages');
+                    const proche = messagesDiv.scrollHeight - messagesDiv.scrollTop - messagesDiv.clientHeight < 120;
+                    document.getElementById('chatMessagesVide').innerHTML = '';
+                    document.getElementById('chatMessagesListe').insertAdjacentHTML('beforeend', data.html);
+                    panel.dataset.dernierId = data.dernier_id;
+                    if (proche) { scrollBas(messagesDiv); }
+                    fetch(`/chat/${groupeId}/lu/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken() },
+                    }).then(rafraichirListe);
+                }
+            })
+            .catch(() => {});
+    }
+
+    function redemarrerPolling() {
+        arreterPolling();
+        pollTimer = setInterval(poll, 8000);
+    }
+    function arreterPolling() {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    }
+
+    if (document.getElementById('chatPanel')) {
+        initPanel();
+        const messagesDiv = document.getElementById('chatMessages');
+        if (messagesDiv) { scrollBas(messagesDiv); }
+    }
+})();
+</script>
+{% endblock %}
