@@ -9,9 +9,11 @@ from courses.models import Groupe
 from .models import Conversation, Message, LectureConversation, get_configuration_chat
 from .permissions import can_access_conversation, get_conversations_accessibles
 from .services import (
+    annoter_separateurs_jour, backfiller_conversations_manquantes,
     conversations_avec_apercu, total_messages_non_lus, marquer_comme_lu,
     purger_messages_expires,
 )
+from .views import NB_MESSAGES_PAR_PAGE
 
 MOT_DE_PASSE = 'xX!test12345'
 
@@ -79,6 +81,73 @@ class CreationAutomatiqueConversationTests(TestCase):
         groupe.nom = 'مجموعة العصر المعدّلة'
         groupe.save()
         self.assertEqual(Conversation.objects.filter(groupe=groupe).count(), 1)
+
+
+class BackfillConversationsExistantesTests(TestCase):
+    """Couvre le finding CRITIQUE de l'audit du 2026-08-15 : un groupe créé
+    AVANT ce chantier n'a aucune Conversation (le signal ne se déclenche
+    qu'à la création). Simule cette situation en supprimant la Conversation
+    auto-créée juste après coup — c'est exactement l'état d'un vieux groupe
+    en base (backfillé une fois par chat/migrations/0002_backfill_conversations_existantes.py,
+    voir aussi chat.services.backfiller_conversations_manquantes qu'elle réplique)."""
+
+    def _simuler_groupe_preexistant(self, nom):
+        groupe = Groupe.objects.create(nom=nom)
+        Conversation.objects.filter(groupe=groupe).delete()
+        self.assertFalse(Conversation.objects.filter(groupe=groupe).exists())
+        return groupe
+
+    def test_backfill_cree_une_conversation_pour_chaque_groupe_orphelin(self):
+        groupe1 = self._simuler_groupe_preexistant('مجموعة قديمة 1')
+        groupe2 = self._simuler_groupe_preexistant('مجموعة قديمة 2')
+        groupe_recent = Groupe.objects.create(nom='مجموعة حديثة')  # a déjà sa conversation
+
+        nb_crees = backfiller_conversations_manquantes()
+
+        self.assertEqual(nb_crees, 2)
+        self.assertTrue(Conversation.objects.filter(groupe=groupe1).exists())
+        self.assertTrue(Conversation.objects.filter(groupe=groupe2).exists())
+        self.assertEqual(Conversation.objects.filter(groupe=groupe_recent).count(), 1)
+
+    def test_backfill_idempotent_aucun_doublon_si_rejoue(self):
+        groupe = self._simuler_groupe_preexistant('مجموعة قديمة 3')
+        premier_passage = backfiller_conversations_manquantes()
+        deuxieme_passage = backfiller_conversations_manquantes()
+
+        self.assertEqual(premier_passage, 1)
+        self.assertEqual(deuxieme_passage, 0)
+        self.assertEqual(Conversation.objects.filter(groupe=groupe).count(), 1)
+
+    def test_aucun_groupe_ne_possede_deux_conversations_apres_backfill(self):
+        for i in range(5):
+            self._simuler_groupe_preexistant(f'مجموعة قديمة {i}')
+        Groupe.objects.create(nom='مجموعة حديثة أخرى')
+
+        backfiller_conversations_manquantes()
+
+        from django.db.models import Count
+        doublons = (
+            Conversation.objects.values('groupe_id')
+            .annotate(n=Count('id'))
+            .filter(n__gt=1)
+        )
+        self.assertEqual(list(doublons), [])
+
+    def test_groupe_backfille_devient_accessible_a_ses_membres(self):
+        """Vérifie bout en bout que le backfill résout réellement le bug
+        constaté : un élève de ce groupe pouvait accéder au groupe mais pas
+        à son chat avant le backfill (Conversation.DoesNotExist -> 404)."""
+        eleve = _creer_eleve()
+        groupe = self._simuler_groupe_preexistant('مجموعة قديمة يملكها طالب')
+        groupe.eleves.add(eleve)
+
+        client = Client()
+        _connecter(client, eleve.user)
+        self.assertEqual(client.get(f'/chat/{groupe.id}/').status_code, 404)
+
+        backfiller_conversations_manquantes()
+
+        self.assertEqual(client.get(f'/chat/{groupe.id}/').status_code, 200)
 
 
 class PermissionsEleveTests(TestCase):
@@ -195,7 +264,11 @@ class PermissionsAdminEtMshrifTests(TestCase):
         self.assertNotEqual(response.url, '/chat/')
 
 
-class IdorTests(TestCase):
+class IdorHttpEleveTests(TestCase):
+    """Vérification IDOR par de VRAIES requêtes HTTP (pas seulement
+    can_access_conversation() en direct) sur TOUS les endpoints sensibles du
+    chat, pour le rôle élève (Point 4 de l'audit du 2026-08-15)."""
+
     def setUp(self):
         self.eleve = _creer_eleve()
         self.mon_groupe = Groupe.objects.create(nom='مجموعتي')
@@ -216,9 +289,18 @@ class IdorTests(TestCase):
         response = self.client.get(f'/chat/{self.autre_groupe.id}/messages/')
         self.assertEqual(response.status_code, 403)
 
+    def test_chargement_historique_refuse(self):
+        response = self.client.get(f'/chat/{self.autre_groupe.id}/messages/?avant=999999')
+        self.assertEqual(response.status_code, 403)
+
+    def test_polling_apres_refuse(self):
+        response = self.client.get(f'/chat/{self.autre_groupe.id}/messages/?apres=0')
+        self.assertEqual(response.status_code, 403)
+
     def test_envoi_message_refuse(self):
         response = self.client.post(f'/chat/{self.autre_groupe.id}/envoyer/', {'contenu': 'salut'})
         self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.autre_groupe.conversation.messages.count(), 0)
 
     def test_marquage_lu_refuse(self):
         response = self.client.post(f'/chat/{self.autre_groupe.id}/lu/')
@@ -237,6 +319,167 @@ class IdorTests(TestCase):
 
     def test_page_conversation_de_mon_groupe_autorisee(self):
         response = self.client.get(f'/chat/{self.mon_groupe.id}/')
+        self.assertEqual(response.status_code, 200)
+
+    def test_fichier_de_mon_propre_groupe_autorise(self):
+        """Chemin positif manquant dans l'audit précédent : seul le refus était
+        testé, jamais l'accès réussi à un fichier légitime."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        fichier = SimpleUploadedFile('rapport.pdf', b'%PDF-1.4 x', content_type='application/pdf')
+        message = Message.objects.create(
+            conversation=self.mon_groupe.conversation, auteur=self.eleve.user,
+            auteur_nom='طالب', auteur_role='eleve', type_message='fichier',
+            contenu='', fichier=fichier, nom_fichier_original='rapport.pdf',
+        )
+        response = self.client.get(f'/chat/{self.mon_groupe.id}/fichier/{message.id}/')
+        self.assertEqual(response.status_code, 302)
+        message.fichier.delete(save=False)
+
+    def test_acces_perdu_apres_retrait_du_groupe_y_compris_fichier(self):
+        """Point 13 : "un utilisateur qui n'a plus accès à une conversation ne
+        doit pas pouvoir récupérer un fichier appartenant à cette
+        conversation" — vérifié en conditions réelles : accès OK avant
+        retrait, refusé immédiatement après, sur la page ET sur le fichier."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        fichier = SimpleUploadedFile('doc.pdf', b'%PDF-1.4 x', content_type='application/pdf')
+        message = Message.objects.create(
+            conversation=self.mon_groupe.conversation, auteur=self.eleve.user,
+            auteur_nom='طالب', auteur_role='eleve', type_message='fichier',
+            contenu='', fichier=fichier, nom_fichier_original='doc.pdf',
+        )
+        self.assertEqual(self.client.get(f'/chat/{self.mon_groupe.id}/').status_code, 200)
+        self.assertEqual(self.client.get(f'/chat/{self.mon_groupe.id}/fichier/{message.id}/').status_code, 302)
+
+        self.mon_groupe.eleves.remove(self.eleve)
+
+        self.assertEqual(self.client.get(f'/chat/{self.mon_groupe.id}/').status_code, 403)
+        self.assertEqual(self.client.get(f'/chat/{self.mon_groupe.id}/fichier/{message.id}/').status_code, 403)
+        message.fichier.delete(save=False)
+
+
+class IdorHttpProfTests(TestCase):
+    """Même couverture que IdorHttpEleveTests, pour le rôle prof — l'audit du
+    2026-08-15 notait que seul le rôle élève était vérifié par de vraies
+    requêtes HTTP."""
+
+    def setUp(self):
+        self.prof = _creer_prof()
+        self.autre_prof = _creer_prof(email='autre_prof_idor@zidni.test')
+        self.mon_groupe = Groupe.objects.create(nom='مجموعة أستاذي', prof=self.prof)
+        self.autre_groupe = Groupe.objects.create(nom='مجموعة أستاذ آخر', prof=self.autre_prof)
+        self.client = Client()
+        _connecter(self.client, self.prof.user)
+
+    def test_page_groupe_dont_il_est_le_prof_autorisee(self):
+        self.assertEqual(self.client.get(f'/chat/{self.mon_groupe.id}/').status_code, 200)
+
+    def test_page_groupe_dun_autre_prof_refusee(self):
+        self.assertEqual(self.client.get(f'/chat/{self.autre_groupe.id}/').status_code, 403)
+
+    def test_panneau_dun_autre_prof_refuse(self):
+        self.assertEqual(self.client.get(f'/chat/{self.autre_groupe.id}/panneau/').status_code, 403)
+
+    def test_messages_dun_autre_prof_refuses(self):
+        self.assertEqual(self.client.get(f'/chat/{self.autre_groupe.id}/messages/').status_code, 403)
+        self.assertEqual(self.client.get(f'/chat/{self.autre_groupe.id}/messages/?avant=999').status_code, 403)
+        self.assertEqual(self.client.get(f'/chat/{self.autre_groupe.id}/messages/?apres=0').status_code, 403)
+
+    def test_envoi_dans_groupe_dun_autre_prof_refuse(self):
+        response = self.client.post(f'/chat/{self.autre_groupe.id}/envoyer/', {'contenu': 'test'})
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.autre_groupe.conversation.messages.count(), 0)
+
+    def test_envoi_dans_son_propre_groupe_autorise(self):
+        response = self.client.post(f'/chat/{self.mon_groupe.id}/envoyer/', {'contenu': 'مرحباً بالطلاب'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.mon_groupe.conversation.messages.count(), 1)
+
+    def test_marquage_lu_dun_autre_prof_refuse(self):
+        self.assertEqual(self.client.post(f'/chat/{self.autre_groupe.id}/lu/').status_code, 403)
+
+    def test_fichier_dun_autre_prof_refuse(self):
+        message = Message.objects.create(
+            conversation=self.autre_groupe.conversation, auteur=self.autre_prof.user,
+            auteur_nom='أستاذ آخر', auteur_role='prof', type_message='texte', contenu='سري',
+        )
+        self.assertEqual(self.client.get(f'/chat/{self.autre_groupe.id}/fichier/{message.id}/').status_code, 403)
+
+    def test_changement_de_groupe_recalcule_laccess_http(self):
+        """Le prof change de groupe -> perd l'accès HTTP à l'ancien, gagne
+        l'accès HTTP au nouveau (Point 9/16)."""
+        self.assertEqual(self.client.get(f'/chat/{self.mon_groupe.id}/').status_code, 200)
+        self.mon_groupe.prof = self.autre_prof
+        self.mon_groupe.save()
+        self.assertEqual(self.client.get(f'/chat/{self.mon_groupe.id}/').status_code, 403)
+
+
+class IdorHttpSuperviseurTests(TestCase):
+    """Même couverture, pour le rôle مؤطر — accès basé sur profs_assignes
+    ACTUEL, vérifié via de vraies requêtes HTTP."""
+
+    def setUp(self):
+        self.prof_supervise = _creer_prof(email='prof_supervise_idor@zidni.test')
+        self.prof_non_supervise = _creer_prof(email='prof_non_supervise_idor@zidni.test')
+        self.superviseur = _creer_superviseur()
+        self.superviseur.profs_assignes.add(self.prof_supervise)
+        self.groupe_supervise = Groupe.objects.create(nom='مجموعة مؤطرة', prof=self.prof_supervise)
+        self.groupe_non_supervise = Groupe.objects.create(nom='مجموعة غير مؤطرة', prof=self.prof_non_supervise)
+        self.client = Client()
+        _connecter(self.client, self.superviseur.user)
+
+    def test_page_groupe_supervise_autorisee(self):
+        self.assertEqual(self.client.get(f'/chat/{self.groupe_supervise.id}/').status_code, 200)
+
+    def test_page_groupe_non_supervise_refusee(self):
+        self.assertEqual(self.client.get(f'/chat/{self.groupe_non_supervise.id}/').status_code, 403)
+
+    def test_messages_groupe_non_supervise_refuses(self):
+        self.assertEqual(self.client.get(f'/chat/{self.groupe_non_supervise.id}/messages/').status_code, 403)
+
+    def test_envoi_groupe_non_supervise_refuse(self):
+        response = self.client.post(f'/chat/{self.groupe_non_supervise.id}/envoyer/', {'contenu': 'test'})
+        self.assertEqual(response.status_code, 403)
+
+    def test_fichier_groupe_non_supervise_refuse(self):
+        message = Message.objects.create(
+            conversation=self.groupe_non_supervise.conversation, auteur=self.prof_non_supervise.user,
+            auteur_nom='أستاذ', auteur_role='prof', type_message='texte', contenu='سري',
+        )
+        self.assertEqual(
+            self.client.get(f'/chat/{self.groupe_non_supervise.id}/fichier/{message.id}/').status_code, 403
+        )
+
+    def test_changement_de_supervision_recalcule_laccess_http(self):
+        self.assertEqual(self.client.get(f'/chat/{self.groupe_supervise.id}/').status_code, 200)
+        self.superviseur.profs_assignes.remove(self.prof_supervise)
+        self.assertEqual(self.client.get(f'/chat/{self.groupe_supervise.id}/').status_code, 403)
+        self.superviseur.profs_assignes.add(self.prof_non_supervise)
+        self.assertEqual(self.client.get(f'/chat/{self.groupe_non_supervise.id}/').status_code, 200)
+
+
+class IdorHttpAdminTests(TestCase):
+    """Le مدير a un accès HTTP global — vérifié par de vraies requêtes, pas
+    seulement can_access_conversation()."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.prof = _creer_prof()
+        self.groupe_avec_prof = Groupe.objects.create(nom='مجموعة 1', prof=self.prof)
+        self.groupe_sans_prof = Groupe.objects.create(nom='مجموعة 2')
+        self.client = Client()
+        _connecter(self.client, self.admin)
+
+    def test_page_nimporte_quel_groupe_autorisee(self):
+        self.assertEqual(self.client.get(f'/chat/{self.groupe_avec_prof.id}/').status_code, 200)
+        self.assertEqual(self.client.get(f'/chat/{self.groupe_sans_prof.id}/').status_code, 200)
+
+    def test_liste_conversations_inclut_tous_les_groupes(self):
+        response = self.client.get('/chat/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['conversations']), 2)
+
+    def test_envoi_dans_nimporte_quel_groupe_autorise(self):
+        response = self.client.post(f'/chat/{self.groupe_sans_prof.id}/envoyer/', {'contenu': 'من المدير'})
         self.assertEqual(response.status_code, 200)
 
 
@@ -446,3 +689,224 @@ class PerformanceTests(TestCase):
         with self.assertNumQueries(0):
             deuxieme = total_messages_non_lus(eleve.user)
         self.assertEqual(premier, deuxieme)
+
+
+class PollingLimiteTests(TestCase):
+    """Couvre le finding HIGH de l'audit du 2026-08-15 : la branche `apres=`
+    de chat_messages (polling) n'était bornée par AUCUNE limite, contrairement
+    aux 2 autres branches — un curseur périmé pouvait renvoyer tout
+    l'historique restant d'une conversation en une seule réponse."""
+
+    def setUp(self):
+        self.eleve = _creer_eleve()
+        self.groupe = Groupe.objects.create(nom='مجموعة الاستقصاء')
+        self.groupe.eleves.add(self.eleve)
+        self.client = Client()
+        _connecter(self.client, self.eleve.user)
+
+    def _creer_messages(self, n):
+        for i in range(n):
+            Message.objects.create(
+                conversation=self.groupe.conversation, auteur=self.eleve.user,
+                auteur_nom='طالب', auteur_role='eleve', type_message='texte', contenu=f'رسالة {i}',
+            )
+
+    def test_apres_est_borne_a_nb_messages_par_page(self):
+        self._creer_messages(NB_MESSAGES_PAR_PAGE + 15)
+        data = self.client.get(f'/chat/{self.groupe.id}/messages/?apres=0').json()
+        self.assertEqual(data['nb_messages'], NB_MESSAGES_PAR_PAGE)
+        self.assertTrue(data['a_plus_recent'])
+
+    def test_curseur_perime_ne_charge_jamais_tout_lhistorique_en_un_lot(self):
+        """Simule un onglet resté inactif longtemps : le curseur pointe vers le
+        tout début, alors qu'il existe largement plus de messages que la
+        limite d'une page."""
+        self._creer_messages(NB_MESSAGES_PAR_PAGE * 3)
+        data = self.client.get(f'/chat/{self.groupe.id}/messages/?apres=0').json()
+        self.assertLessEqual(data['nb_messages'], NB_MESSAGES_PAR_PAGE)
+
+    def test_peu_de_nouveaux_messages_najoute_pas_a_plus_recent(self):
+        self._creer_messages(3)
+        data = self.client.get(f'/chat/{self.groupe.id}/messages/?apres=0').json()
+        self.assertEqual(data['nb_messages'], 3)
+        self.assertFalse(data['a_plus_recent'])
+
+    def test_plusieurs_lots_permettent_de_tout_rattraper(self):
+        """"Si nécessaire, gérer correctement le cas où plusieurs lots sont
+        nécessaires" — un client qui rejoue apres=<dernier_id> jusqu'à
+        a_plus_recent=False finit par recevoir la totalité des messages, sans
+        jamais recevoir plus de NB_MESSAGES_PAR_PAGE en une seule réponse."""
+        total = NB_MESSAGES_PAR_PAGE + 10
+        self._creer_messages(total)
+        dernier_id = 0
+        recus = 0
+        for _ in range(10):  # garde-fou anti-boucle-infinie en cas de régression
+            data = self.client.get(f'/chat/{self.groupe.id}/messages/?apres={dernier_id}').json()
+            self.assertLessEqual(data['nb_messages'], NB_MESSAGES_PAR_PAGE)
+            recus += data['nb_messages']
+            if data['nb_messages']:
+                dernier_id = data['dernier_id']
+            if not data['a_plus_recent']:
+                break
+        else:
+            self.fail("le rattrapage n'a jamais atteint a_plus_recent=False")
+        self.assertEqual(recus, total)
+
+
+def _dt(annee, mois, jour, heure=12):
+    return timezone.make_aware(datetime.datetime(annee, mois, jour, heure))
+
+
+class SeparateurJourAnnotationTests(TestCase):
+    """Tests unitaires de chat.services.annoter_separateurs_jour — couvre le
+    finding MEDIUM de l'audit du 2026-08-15 : {% ifchanged %} n'avait aucune
+    mémoire entre deux rendus HTML indépendants (un lot de polling ou un lot
+    d'historique ancien), donc réaffichait le séparateur de jour à chaque lot
+    même sans changement de jour réel."""
+
+    def test_premier_message_recoit_un_separateur_sans_ancre(self):
+        m1 = Message(date_envoi=_dt(2026, 8, 10, 9))
+        annoter_separateurs_jour([m1], jour_precedent=None)
+        self.assertEqual(m1.jour_separateur, datetime.date(2026, 8, 10))
+
+    def test_messages_du_meme_jour_un_seul_separateur(self):
+        m1 = Message(date_envoi=_dt(2026, 8, 10, 9))
+        m2 = Message(date_envoi=_dt(2026, 8, 10, 15))
+        annoter_separateurs_jour([m1, m2], jour_precedent=None)
+        self.assertIsNotNone(m1.jour_separateur)
+        self.assertIsNone(m2.jour_separateur)
+
+    def test_changement_de_jour_a_linterieur_du_lot_redeclenche_un_separateur(self):
+        m1 = Message(date_envoi=_dt(2026, 8, 10, 23))
+        m2 = Message(date_envoi=_dt(2026, 8, 11, 1))
+        annoter_separateurs_jour([m1, m2], jour_precedent=None)
+        self.assertIsNotNone(m1.jour_separateur)
+        self.assertIsNotNone(m2.jour_separateur)
+        self.assertNotEqual(m1.jour_separateur, m2.jour_separateur)
+
+    def test_jour_precedent_identique_supprime_le_separateur_redondant(self):
+        """Cœur du correctif polling : le lot commence le même jour que ce qui
+        est déjà affiché côté client -> pas de séparateur redondant."""
+        m1 = Message(date_envoi=_dt(2026, 8, 10, 15))
+        annoter_separateurs_jour([m1], jour_precedent=datetime.date(2026, 8, 10))
+        self.assertIsNone(m1.jour_separateur)
+
+    def test_jour_precedent_different_declenche_le_separateur(self):
+        m1 = Message(date_envoi=_dt(2026, 8, 11, 1))
+        annoter_separateurs_jour([m1], jour_precedent=datetime.date(2026, 8, 10))
+        self.assertIsNotNone(m1.jour_separateur)
+
+
+class SeparateurJourHttpTests(TestCase):
+    """Vérifie côté HTTP que le HTML de polling ne contient pas de séparateur
+    redondant quand le nouveau lot commence le même jour que le message-ancre
+    (`apres=`), et en contient bien un quand le jour a réellement changé."""
+
+    def setUp(self):
+        self.eleve = _creer_eleve()
+        self.groupe = Groupe.objects.create(nom='مجموعة الفواصل')
+        self.groupe.eleves.add(self.eleve)
+        self.client = Client()
+        _connecter(self.client, self.eleve.user)
+
+    def test_polling_meme_jour_najoute_pas_de_separateur_redondant(self):
+        m1 = Message.objects.create(
+            conversation=self.groupe.conversation, auteur=self.eleve.user,
+            auteur_nom='طالب', auteur_role='eleve', type_message='texte', contenu='الأول',
+        )
+        Message.objects.create(
+            conversation=self.groupe.conversation, auteur=self.eleve.user,
+            auteur_nom='طالب', auteur_role='eleve', type_message='texte', contenu='الثاني',
+        )
+        html = self.client.get(f'/chat/{self.groupe.id}/messages/?apres={m1.id}').json()['html']
+        self.assertNotIn('chat-day-sep', html)
+
+    def test_polling_jour_different_ajoute_un_separateur(self):
+        m1 = Message.objects.create(
+            conversation=self.groupe.conversation, auteur=self.eleve.user,
+            auteur_nom='طالب', auteur_role='eleve', type_message='texte', contenu='الأول',
+        )
+        Message.objects.filter(id=m1.id).update(date_envoi=timezone.now() - datetime.timedelta(days=2))
+        Message.objects.create(
+            conversation=self.groupe.conversation, auteur=self.eleve.user,
+            auteur_nom='طالب', auteur_role='eleve', type_message='texte', contenu='الثاني',
+        )
+        html = self.client.get(f'/chat/{self.groupe.id}/messages/?apres={m1.id}').json()['html']
+        self.assertIn('chat-day-sep', html)
+
+
+class RetentionConfigViewTests(TestCase):
+    """Couvre le finding MEDIUM de l'audit du 2026-08-15 :
+    admin_reglage_retention_chat n'avait aucun test."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.client = Client()
+
+    def test_valeur_par_defaut_7_jours(self):
+        self.assertEqual(get_configuration_chat().duree_retention_jours, 7)
+
+    def test_admin_peut_consulter(self):
+        _connecter(self.client, self.admin)
+        response = self.client.get('/dashboard/admin/reglage-retention-chat/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['config'].duree_retention_jours, 7)
+
+    def test_admin_peut_modifier_une_valeur_valide(self):
+        _connecter(self.client, self.admin)
+        response = self.client.post('/dashboard/admin/reglage-retention-chat/', {'duree_retention_jours': '30'})
+        self.assertRedirects(response, '/dashboard/admin/reglage-retention-chat/')
+        config = get_configuration_chat()
+        self.assertEqual(config.duree_retention_jours, 30)
+        self.assertEqual(config.derniere_modification_par, self.admin)
+
+    def test_valeur_invalide_zero_rejetee(self):
+        _connecter(self.client, self.admin)
+        self.client.post('/dashboard/admin/reglage-retention-chat/', {'duree_retention_jours': '0'})
+        self.assertEqual(get_configuration_chat().duree_retention_jours, 7)
+
+    def test_valeur_invalide_negative_rejetee(self):
+        _connecter(self.client, self.admin)
+        self.client.post('/dashboard/admin/reglage-retention-chat/', {'duree_retention_jours': '-5'})
+        self.assertEqual(get_configuration_chat().duree_retention_jours, 7)
+
+    def test_valeur_invalide_non_numerique_rejetee(self):
+        _connecter(self.client, self.admin)
+        self.client.post('/dashboard/admin/reglage-retention-chat/', {'duree_retention_jours': 'abc'})
+        self.assertEqual(get_configuration_chat().duree_retention_jours, 7)
+
+    def test_non_admin_ne_peut_pas_consulter(self):
+        comptes = [
+            _creer_eleve(email='eleve_retention_view@zidni.test').user,
+            _creer_prof(email='prof_retention_view@zidni.test').user,
+            _creer_superviseur(email='sup_retention_view@zidni.test').user,
+            _creer_mshrif(email='mshrif_retention_view@zidni.test'),
+        ]
+        for user in comptes:
+            with self.subTest(role=user.role):
+                client = Client()
+                _connecter(client, user)
+                self.assertEqual(client.get('/dashboard/admin/reglage-retention-chat/').status_code, 302)
+
+    def test_non_admin_ne_peut_pas_modifier(self):
+        eleve = _creer_eleve(email='eleve_retention_modif@zidni.test')
+        client = Client()
+        _connecter(client, eleve.user)
+        client.post('/dashboard/admin/reglage-retention-chat/', {'duree_retention_jours': '99'})
+        self.assertEqual(get_configuration_chat().duree_retention_jours, 7)
+
+    def test_valeur_configuree_reellement_utilisee_par_la_purge(self):
+        _connecter(self.client, self.admin)
+        self.client.post('/dashboard/admin/reglage-retention-chat/', {'duree_retention_jours': '2'})
+
+        eleve = _creer_eleve(email='eleve_retention_purge@zidni.test')
+        groupe = Groupe.objects.create(nom='مجموعة اختبار المدة')
+        groupe.eleves.add(eleve)
+        message = Message.objects.create(
+            conversation=groupe.conversation, auteur=eleve.user,
+            auteur_nom='طالب', auteur_role='eleve', type_message='texte', contenu='رسالة',
+        )
+        Message.objects.filter(id=message.id).update(date_envoi=timezone.now() - datetime.timedelta(days=3))
+
+        nb = purger_messages_expires()
+        self.assertEqual(nb, 1)

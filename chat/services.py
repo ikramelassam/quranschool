@@ -12,7 +12,68 @@ from django.utils import timezone
 from .models import Conversation, Message, LectureConversation, get_configuration_chat
 from .permissions import get_conversations_accessibles
 
-EPOCH = timezone.make_aware(datetime.datetime(1970, 1, 1))
+
+def backfiller_conversations_manquantes():
+    """Crée une Conversation pour chaque Groupe qui n'en a pas encore —
+    nécessaire pour les groupes créés AVANT ce chantier (le signal
+    chat.signals.creer_conversation_pour_nouveau_groupe ne se déclenche qu'à
+    la création, jamais rétroactivement). Idempotent : filtre déjà sur
+    conversation__isnull=True, ET get_or_create en ceinture supplémentaire —
+    rejouer cette fonction (ou la migration de données qui réplique cette
+    même logique sur les modèles historiques, voir
+    chat/migrations/0002_backfill_conversations_existantes.py) ne crée jamais
+    de doublon, la contrainte UNIQUE sur Conversation.groupe l'empêchant de
+    toute façon. Retourne le nombre de conversations réellement créées.
+
+    Fonction séparée de la migration de données (qui, elle, utilise les
+    modèles historiques via apps.get_model — bonne pratique Django pour ne
+    jamais dépendre du code applicatif réel dans une migration) : celle-ci
+    reste appelable/testable directement avec les vrais modèles, ex. pour un
+    outil d'exploitation ou un test."""
+    from courses.models import Groupe
+
+    nb_crees = 0
+    for groupe in Groupe.objects.filter(conversation__isnull=True):
+        _, cree = Conversation.objects.get_or_create(groupe=groupe)
+        if cree:
+            nb_crees += 1
+    return nb_crees
+
+
+def annoter_separateurs_jour(messages, jour_precedent=None):
+    """Attache `.jour_separateur` (objet date() à afficher au-dessus de ce
+    message, ou None si aucun séparateur n'est nécessaire) à chaque message
+    d'une liste déjà triée chronologiquement (date_envoi croissante).
+
+    Remplace l'ancien tag {% ifchanged %} de _message_bubbles.html : ce tag
+    n'a AUCUNE mémoire entre deux rendus HTML indépendants (chaque lot de
+    polling ou chaque lot d'historique ancien est produit par un appel
+    séparé à render_to_string) et réaffichait donc un séparateur au sommet
+    de CHAQUE lot, même quand le jour n'avait pas réellement changé
+    (finding MEDIUM de l'audit du 2026-08-15).
+
+    `jour_precedent` : date du dernier message déjà visible côté client
+    AVANT ce lot (None si inconnu — chargement initial, ou lot "avant=" où
+    le point de départ est par nature une nouvelle plage jamais affichée).
+    Pour le polling ("apres="), l'appelant (chat.views.chat_messages) le
+    calcule à partir du message ancre (`apres_id`) lui-même — le serveur n'a
+    donc besoin d'aucune information supplémentaire fournie par le client."""
+    dernier_jour = jour_precedent
+    for message in messages:
+        jour = timezone.localtime(message.date_envoi).date()
+        message.jour_separateur = jour if jour != dernier_jour else None
+        dernier_jour = jour
+    return messages
+
+
+def jour_du_message(message_id):
+    """Jour (date, en heure locale) du message donné, ou None s'il n'existe
+    plus (ex: purgé entre-temps) — sert d'ancre à annoter_separateurs_jour
+    pour le polling (voir chat.views.chat_messages)."""
+    date_envoi = Message.objects.filter(id=message_id).values_list('date_envoi', flat=True).first()
+    if date_envoi is None:
+        return None
+    return timezone.localtime(date_envoi).date()
 
 
 def conversations_avec_apercu(user):

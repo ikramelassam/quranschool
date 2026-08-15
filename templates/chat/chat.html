@@ -4,10 +4,18 @@
 
 {% block extra_css %}
 <style>
-    .main-content:has(.chat-shell) { padding: 0 !important; }
-    @media (max-width: 768px) {
-        .main-content:has(.chat-shell) { padding: 0 !important; }
-    }
+    /* .main-content (ancêtre défini dans base_*.html, hors de portée de ce
+       template enfant) doit perdre son padding sur la page chat pour que
+       .chat-shell occupe toute la hauteur/largeur disponible. Un sélecteur
+       CSS :has() ferait l'affaire mais n'est supporté que depuis Chrome/
+       Safari 2023 et Firefox 121 (déc. 2023) — aucun autre usage de :has()
+       dans le projet, donc pas de base de compatibilité déjà établie à
+       laquelle s'aligner. À la place : un script inline minuscule, exécuté
+       en tout premier dans le bloc "content" ci-dessous, pose une classe sur
+       l'ancêtre via document.currentScript (fonctionne dans TOUS les
+       navigateurs, y compris les plus anciens) — voir son appel juste avant
+       .chat-shell ci-dessous.*/
+    .main-content.chat-sans-padding { padding: 0 !important; }
 
     .chat-shell {
         display: flex;
@@ -100,10 +108,22 @@
     .chat-membre-role { color: var(--color-text-muted); font-size: 0.75rem; background: #F0EAD9; padding: 1px 8px; border-radius: 10px; }
     .chat-membre-contact { margin-right: auto; display: flex; gap: 6px; }
 
+    /* Point 3 du passage UX du 2026-08-15 : enveloppe .chat-messages (qui
+       défile) dans un conteneur non-scrollable et positionné, pour pouvoir y
+       épingler le bouton "↓ رسائل جديدة" à un endroit fixe de l'écran plutôt
+       que de le faire défiler avec le contenu. */
+    .chat-messages-zone { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
     .chat-messages {
         flex: 1; overflow-y: auto; padding: 16px 22px; display: flex; flex-direction: column; gap: 4px;
         background: repeating-linear-gradient(135deg, #FFF8EF 0px, #FFF8EF 40px, #FEF4E4 40px, #FEF4E4 80px);
     }
+    .chat-nouveaux-messages {
+        position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 5;
+        background: var(--color-brand-gold-dark); color: #fff; border: none; border-radius: 20px;
+        padding: 8px 16px; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+        display: flex; align-items: center; gap: 6px; box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    }
+    .chat-nouveaux-messages:hover { filter: brightness(1.08); }
     .chat-chargement-haut { display: flex; justify-content: center; padding: 8px 0; }
     .chat-spinner {
         width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(139,75,0,0.25);
@@ -111,31 +131,70 @@
     }
     @keyframes chat-spin { to { transform: rotate(360deg); } }
 
+    /* Point 7 : bandeau discret quand le polling échoue plusieurs fois de
+       suite (coupure réseau) — pas une erreur "grave" (pas de rouge), juste
+       une indication sobre que la mise à jour est en pause. */
+    .chat-banniere-connexion {
+        flex-shrink: 0; text-align: center; padding: 8px 16px; margin: 0 16px 8px;
+        background: #F0EAD9; color: var(--color-text-muted); border-radius: 10px;
+        font-size: 0.8rem; font-weight: 600;
+    }
+
+    /* Point 15 : focus clavier visible sur les boutons icônes du chat — le
+       reste du site s'appuie sur l'anneau de focus par défaut du navigateur,
+       resté suffisant partout ailleurs, mais les boutons ronds ici (fond
+       clair sur fond clair) le rendent trop peu visible sans ce renfort. */
+    .chat-btn-icone:focus-visible, .chat-btn-envoyer:focus-visible,
+    .chat-btn-retour:focus-visible, .chat-btn-membres:focus-visible,
+    .chat-item:focus-visible, .chat-nouveaux-messages:focus-visible {
+        outline: 2px solid var(--color-brand-gold-dark); outline-offset: 2px;
+    }
+
     .chat-vide-messages { margin: auto; text-align: center; color: var(--color-text-muted); }
     .chat-vide-messages-sous { font-size: 0.82rem; opacity: 0.8; }
 
     .chat-day-sep { display: flex; justify-content: center; margin: 10px 0; }
     .chat-day-sep span { background: rgba(0,0,0,0.06); color: var(--color-text-muted); font-size: 0.72rem; padding: 3px 12px; border-radius: 12px; }
 
+    /* Point 1 du passage UX du 2026-08-15 (CRITIQUE) : sous dir="rtl" (hérité
+       du <html> des base_*.html), flexbox suit le sens de lecture — donc
+       "justify-content: flex-start" aligne à DROITE et "flex-end" aligne à
+       GAUCHE (l'inverse de leur sens en LTR). Les valeurs ci-dessous étaient
+       inversées : les messages "mine" (les miens) sortaient à gauche et
+       "theirs" (les autres) à droite — l'opposé de la convention WhatsApp/
+       Messenger/Telegram (mes messages toujours à droite, quelle que soit la
+       langue de l'interface). Corrigé : mine -> flex-start (= droite en
+       RTL), theirs -> flex-end (= gauche en RTL) — et les coins arrondis de
+       la "pointe" de bulle swappés en miroir pour rester cohérents avec la
+       nouvelle position de chaque bulle. */
     .chat-row { display: flex; margin: 2px 0; }
-    .chat-row-mine { justify-content: flex-end; }
-    .chat-row-theirs { justify-content: flex-start; }
+    .chat-row-mine { justify-content: flex-start; }
+    .chat-row-theirs { justify-content: flex-end; }
     .chat-bubble {
         max-width: min(72%, 480px); padding: 8px 12px; border-radius: 14px; position: relative;
         box-shadow: 0 1px 2px rgba(0,0,0,0.08); word-wrap: break-word;
     }
-    .chat-row-theirs .chat-bubble { background: #fff; border-bottom-right-radius: 4px; }
-    .chat-row-mine .chat-bubble { background: #FCEBC7; border-bottom-left-radius: 4px; }
-    .chat-bubble-auteur { font-size: 0.76rem; font-weight: 700; color: var(--color-brand-gold-dark); margin-bottom: 2px; }
-    .chat-bubble-role { font-weight: 400; color: var(--color-text-muted); font-size: 0.7rem; }
+    .chat-row-theirs .chat-bubble { background: #fff; border-bottom-left-radius: 4px; }
+    .chat-row-mine .chat-bubble { background: #FCEBC7; border-bottom-right-radius: 4px; }
+    .chat-bubble-auteur { font-size: 0.8rem; font-weight: 700; color: var(--color-brand-gold-dark); margin-bottom: 2px; }
+    .chat-bubble-role { font-weight: 400; color: var(--color-text-muted); font-size: 0.74rem; }
     .chat-bubble-texte { font-size: 0.92rem; color: var(--color-text-primary); white-space: pre-wrap; }
-    .chat-bubble-heure { font-size: 0.66rem; color: var(--color-text-muted); text-align: left; margin-top: 3px; }
+    .chat-bubble-heure { font-size: 0.7rem; color: var(--color-text-muted); text-align: left; margin-top: 3px; }
     .chat-bubble-audio audio { max-width: 260px; height: 38px; }
     .chat-bubble-fichier { display: flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; background: rgba(0,0,0,0.03); border-radius: 10px; padding: 8px 10px; }
     .chat-fichier-icone { font-size: 1.3rem; }
     .chat-fichier-infos { display: flex; flex-direction: column; min-width: 0; }
     .chat-fichier-nom { font-size: 0.84rem; font-weight: 600; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
     .chat-fichier-taille { font-size: 0.7rem; color: var(--color-text-muted); }
+
+    /* Bandeau "accès révoqué" (Point 6 de l'audit du 2026-08-15) — affiché en
+       bas du panneau quand les permissions changent pendant que la
+       conversation est ouverte (ex: élève retiré du groupe). */
+    .chat-acces-revoque {
+        flex-shrink: 0; text-align: center; padding: 10px 16px; margin: 0 16px 12px;
+        background: #FCE9E7; color: var(--color-danger); border-radius: 10px;
+        font-size: 0.85rem; font-weight: 600;
+    }
 
     .chat-composer {
         display: flex; align-items: flex-end; gap: 8px; padding: 12px 16px;
@@ -189,6 +248,7 @@
 {% endblock %}
 
 {% block content %}
+<script>document.currentScript.closest('.main-content').classList.add('chat-sans-padding');</script>
 <div class="chat-shell {% if conversation_ouverte %}chat-mobile-panel-open{% endif %}" id="chatShell"
      data-liste-partial-url="{% url 'chat_liste_partial' %}"
      data-groupe-ouvert="{% if conversation_ouverte %}{{ conversation_ouverte.groupe_id }}{% endif %}">
@@ -236,13 +296,89 @@
         container.scrollTop = container.scrollHeight;
     }
 
+    // Gestion d'erreur commune à tous les fetch du chat (Point 6 de l'audit du
+    // 2026-08-15) : distingue explicitement "accès refusé" (403 — les
+    // permissions ont changé pendant que la page était ouverte) de toute
+    // autre erreur (réseau, 500...), pour que chaque appelant réagisse
+    // correctement au lieu de laisser une Promise rejetée non gérée.
+    //
+    // Point 4 du passage UX du 2026-08-15 : pour un 400 (validation refusée
+    // côté serveur — fichier trop volumineux, extension interdite...), le
+    // corps de la réponse contient déjà le message arabe précis (voir
+    // chat.views.chat_envoyer/valider_piece_jointe) — on le récupère ici
+    // (erreur.messageServeur) pour que l'appelant l'affiche tel quel au lieu
+    // d'un "حاول مرة أخرى" générique qui n'explique rien.
+    function reponseOuErreur(r) {
+        if (r.status === 403) {
+            const erreur = new Error('acces-refuse');
+            erreur.accesRefuse = true;
+            throw erreur;
+        }
+        if (!r.ok) {
+            return r.text().then(texte => {
+                const erreur = new Error('reponse-non-ok');
+                erreur.messageServeur = texte;
+                throw erreur;
+            });
+        }
+        return r.json();
+    }
+
+    // Un séparateur de jour peut légitimement apparaître deux fois de suite
+    // dans le DOM quand deux lots rendus INDÉPENDAMMENT se rejoignent (ex:
+    // défilement remontant qui charge de l'historique du même jour que ce
+    // qui est déjà affiché juste en dessous — voir chat.services.
+    // annoter_separateurs_jour, qui gère déjà correctement le cas du
+    // polling côté serveur mais ne peut pas connaître l'état du DOM pour le
+    // chargement d'historique). Passe générique, appelée après chaque
+    // insertion : ne garde que le premier des deux séparateurs adjacents
+    // portant la même date.
+    function dedupliquerSeparateursJour() {
+        const liste = document.getElementById('chatMessagesListe');
+        if (!liste) { return; }
+        let dernierJour = null;
+        liste.querySelectorAll('.chat-day-sep').forEach(function (separateur) {
+            const jour = separateur.dataset.jour;
+            if (jour && jour === dernierJour) {
+                separateur.remove();
+            } else {
+                dernierJour = jour;
+            }
+        });
+    }
+
+    // Accès révoqué en cours de session (ex: élève retiré du groupe pendant
+    // qu'il a la conversation ouverte) : on arrête le polling, on désactive
+    // la zone de composition (aucun nouvel envoi possible) et on affiche un
+    // message explicite — les messages déjà affichés restent visibles (ils
+    // ont été récupérés légitimement quand l'accès était encore valide),
+    // mais plus aucune donnée nouvelle n'est demandée ni affichée.
+    function gererAccesRevoque() {
+        arreterPolling();
+        const panel = document.getElementById('chatPanel');
+        if (!panel || panel.dataset.accesRevoqueAffiche === '1') { return; }
+        panel.dataset.accesRevoqueAffiche = '1';
+        const composer = document.getElementById('chatComposer');
+        if (composer) {
+            composer.querySelectorAll('button, textarea, input').forEach(function (el) { el.disabled = true; });
+        }
+        const bandeau = document.createElement('div');
+        bandeau.className = 'chat-acces-revoque';
+        bandeau.textContent = 'لم يعد بإمكانك الوصول إلى هذه المحادثة.';
+        panel.appendChild(bandeau);
+        rafraichirListe();
+    }
+
     // ---------- Ouverture d'une conversation (AJAX, sans recharger la page) ----------
     function ouvrirConversation(groupeId, pousserHistorique) {
+        // Point 6 du passage UX du 2026-08-15 : remplace IMMÉDIATEMENT le
+        // contenu par un état de chargement, avant même que le fetch parte —
+        // sans ça, les messages du groupe PRÉCÉDENT restent affichés le temps
+        // de la requête, ce qui peut donner l'impression trompeuse qu'ils
+        // appartiennent au nouveau groupe qu'on vient de sélectionner.
+        panneauContenu.innerHTML = '<div class="chat-empty-state"><span class="chat-spinner" style="width:28px;height:28px;border-width:3px;"></span></div>';
         fetch(`/chat/${groupeId}/panneau/`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(r => {
-                if (!r.ok) { throw new Error('forbidden'); }
-                return r.json();
-            })
+            .then(reponseOuErreur)
             .then(data => {
                 panneauContenu.innerHTML = data.html;
                 groupeOuvertId = String(groupeId);
@@ -321,10 +457,22 @@
         }
 
         const messagesDiv = document.getElementById('chatMessages');
+        const pillNouveaux = document.getElementById('chatNouveauxMessages');
+        if (pillNouveaux) {
+            pillNouveaux.addEventListener('click', function () {
+                scrollBas(messagesDiv);
+                pillNouveaux.hidden = true;
+            });
+        }
         messagesDiv.addEventListener('scroll', function () {
             if (messagesDiv.scrollTop < 40 && panel.dataset.aPlusAncien === '1') {
                 chargerAnciens(groupeId);
             }
+            // Point 3 : dès que l'utilisateur revient près du bas de la
+            // conversation (par un scroll manuel), le repère "nouveaux
+            // messages" n'a plus lieu d'être — même s'il a cliqué à côté.
+            const presDuBas = messagesDiv.scrollHeight - messagesDiv.scrollTop - messagesDiv.clientHeight < 60;
+            if (presDuBas && pillNouveaux) { pillNouveaux.hidden = true; }
         });
 
         // ---- Composer ----
@@ -444,10 +592,11 @@
             fetch(envoyerUrl, {
                 method: 'POST', body: formData, headers: { 'X-Requested-With': 'XMLHttpRequest' },
             })
-                .then(r => { if (!r.ok) { throw new Error('erreur'); } return r.json(); })
+                .then(reponseOuErreur)
                 .then(data => {
                     document.getElementById('chatMessagesVide').innerHTML = '';
                     document.getElementById('chatMessagesListe').insertAdjacentHTML('beforeend', data.html);
+                    dedupliquerSeparateursJour();
                     panel.dataset.dernierId = data.id;
                     texteInput.value = '';
                     texteInput.style.height = 'auto';
@@ -455,7 +604,18 @@
                     scrollBas(messagesDiv);
                     rafraichirListe();
                 })
-                .catch(() => { alert('تعذّر إرسال الرسالة. حاول مرة أخرى.'); })
+                .catch(erreur => {
+                    if (erreur && erreur.accesRefuse) {
+                        gererAccesRevoque();
+                    } else if (erreur && erreur.messageServeur) {
+                        // Point 4 : message précis calculé par le serveur
+                        // (extension refusée, fichier trop volumineux...)
+                        // plutôt qu'un "حاول مرة أخرى" qui n'explique rien.
+                        alert(erreur.messageServeur);
+                    } else {
+                        alert('تعذّر إرسال الرسالة — تحقّق من اتصالك بالإنترنت وحاول مرة أخرى.');
+                    }
+                })
                 .finally(() => { majEtatEnvoyer(); });
         });
 
@@ -472,17 +632,45 @@
         chargement.hidden = false;
         chargement.dataset.enCours = '1';
         fetch(`/chat/${groupeId}/messages/?avant=${premierId}`)
-            .then(r => r.json())
+            .then(reponseOuErreur)
             .then(data => {
                 if (data.nb_messages > 0) {
                     const ancienneHauteur = messagesDiv.scrollHeight;
                     document.getElementById('chatMessagesListe').insertAdjacentHTML('afterbegin', data.html);
+                    dedupliquerSeparateursJour();
                     messagesDiv.scrollTop = messagesDiv.scrollHeight - ancienneHauteur;
                     panel.dataset.premierId = data.premier_id;
                 }
                 panel.dataset.aPlusAncien = data.a_plus_ancien ? '1' : '0';
             })
+            .catch(function (erreur) {
+                if (erreur && erreur.accesRefuse) { gererAccesRevoque(); }
+                // Erreur réseau/autre : rien à faire ici, un nouveau défilement
+                // vers le haut redéclenchera simplement un nouvel essai.
+            })
             .finally(() => { chargement.hidden = true; chargement.dataset.enCours = '0'; });
+    }
+
+    // Point 7 du passage UX du 2026-08-15 : bandeau discret affiché seulement
+    // après plusieurs échecs de polling CONSÉCUTIFS (pas au 1er, qui peut
+    // n'être qu'un blip réseau normal) — jamais de popup, juste un texte
+    // sobre qui disparaît tout seul dès que le polling refonctionne.
+    let echecsPollingConsecutifs = 0;
+    const SEUIL_ECHECS_AVANT_BANNIERE = 3;
+    function afficherBanniereConnexion(visible) {
+        const panel = document.getElementById('chatPanel');
+        if (!panel) { return; }
+        let banniere = document.getElementById('chatBanniereConnexion');
+        if (visible && !banniere) {
+            banniere = document.createElement('div');
+            banniere.id = 'chatBanniereConnexion';
+            banniere.className = 'chat-banniere-connexion';
+            banniere.textContent = 'تعذّر الاتصال بالخادم، جارٍ إعادة المحاولة…';
+            const zoneMessages = panel.querySelector('.chat-messages-zone');
+            panel.insertBefore(banniere, zoneMessages || panel.lastElementChild);
+        } else if (!visible && banniere) {
+            banniere.remove();
+        }
     }
 
     // ---------- Polling des nouveaux messages ----------
@@ -492,26 +680,60 @@
         const groupeId = panel.dataset.groupeId;
         const dernierId = panel.dataset.dernierId || '0';
         fetch(`/chat/${groupeId}/messages/?apres=${dernierId}`)
-            .then(r => r.json())
+            .then(reponseOuErreur)
             .then(data => {
+                echecsPollingConsecutifs = 0;
+                afficherBanniereConnexion(false);
                 if (data.nb_messages > 0) {
                     const messagesDiv = document.getElementById('chatMessages');
                     const proche = messagesDiv.scrollHeight - messagesDiv.scrollTop - messagesDiv.clientHeight < 120;
                     document.getElementById('chatMessagesVide').innerHTML = '';
                     document.getElementById('chatMessagesListe').insertAdjacentHTML('beforeend', data.html);
+                    dedupliquerSeparateursJour();
                     panel.dataset.dernierId = data.dernier_id;
-                    if (proche) { scrollBas(messagesDiv); }
+                    if (proche) {
+                        scrollBas(messagesDiv);
+                    } else {
+                        // Point 3 : l'utilisateur est remonté dans l'historique —
+                        // ne pas le ramener de force en bas, mais lui signaler
+                        // qu'il y a du nouveau plutôt que de l'ajouter en silence.
+                        const pillNouveaux = document.getElementById('chatNouveauxMessages');
+                        if (pillNouveaux) { pillNouveaux.hidden = false; }
+                    }
                     fetch(`/chat/${groupeId}/lu/`, {
                         method: 'POST',
                         headers: { 'X-CSRFToken': csrfToken() },
-                    }).then(rafraichirListe);
+                    }).then(rafraichirListe).catch(() => {});
+                }
+                if (data.a_plus_recent) {
+                    // Rattrapage immédiat : il restait plus de NB_MESSAGES_PAR_PAGE
+                    // messages depuis le curseur (ex: onglet resté inactif
+                    // longtemps) — on ré-interroge tout de suite avec le nouveau
+                    // dernier_id plutôt que d'attendre le prochain tick (Point 2
+                    // de l'audit du 2026-08-15), jusqu'à rattraper le retard.
+                    setTimeout(poll, 50);
                 }
             })
-            .catch(() => {});
+            .catch(function (erreur) {
+                if (erreur && erreur.accesRefuse) {
+                    afficherBanniereConnexion(false);
+                    gererAccesRevoque();
+                    return;
+                }
+                // Erreur réseau/autre : le prochain tick réessaiera de toute façon —
+                // on se contente de signaler la coupure après plusieurs échecs
+                // de suite, sans transformer ça en système d'alerte complexe.
+                echecsPollingConsecutifs += 1;
+                if (echecsPollingConsecutifs >= SEUIL_ECHECS_AVANT_BANNIERE) {
+                    afficherBanniereConnexion(true);
+                }
+            });
     }
 
     function redemarrerPolling() {
         arreterPolling();
+        echecsPollingConsecutifs = 0;
+        afficherBanniereConnexion(false);
         pollTimer = setInterval(poll, 8000);
     }
     function arreterPolling() {

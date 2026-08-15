@@ -6,7 +6,12 @@
      data-a-plus-ancien="{{ a_plus_ancien|yesno:'1,0' }}">
     <div class="chat-panel-header">
         <button type="button" class="chat-btn-retour" id="chatBtnRetour" aria-label="العودة إلى قائمة المحادثات">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            {% comment %}
+            Point 2 du passage UX du 2026-08-15 : flèche pointant vers la
+            DROITE (miroir de la version LTR) — convention RTL pour "retour"
+            (l'inverse pointait à gauche, convention LTR laissée par erreur).
+            {% endcomment %}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 19 19 12 12 5"></polyline></svg>
         </button>
         <div class="chat-panel-avatar" aria-hidden="true">{{ groupe.nom|first|upper }}</div>
         <div class="chat-panel-titre">
@@ -36,21 +41,29 @@
         {% endfor %}
     </div>
 
-    <div class="chat-messages" id="chatMessages">
-        <div class="chat-chargement-haut" id="chatChargementHaut" hidden>
-            <span class="chat-spinner"></span>
-        </div>
-        <div id="chatMessagesVide">
-            {% if not messages %}
-            <div class="chat-vide-messages">
-                <p>لا توجد رسائل بعد</p>
-                <p class="chat-vide-messages-sous">كن أول من يبدأ المحادثة في هذه المجموعة.</p>
+    {% comment %}
+    .chat-messages-zone (Point 3 du passage UX du 2026-08-15) : enveloppe non-
+    scrollable qui permet d'épingler le bouton "↓ رسائل جديدة" à un endroit
+    fixe du panneau, indépendamment du défilement de .chat-messages.
+    {% endcomment %}
+    <div class="chat-messages-zone">
+        <div class="chat-messages" id="chatMessages">
+            <div class="chat-chargement-haut" id="chatChargementHaut" hidden>
+                <span class="chat-spinner"></span>
             </div>
-            {% endif %}
+            <div id="chatMessagesVide">
+                {% if not messages %}
+                <div class="chat-vide-messages">
+                    <p>لا توجد رسائل بعد</p>
+                    <p class="chat-vide-messages-sous">كن أول من يبدأ المحادثة في هذه المجموعة.</p>
+                </div>
+                {% endif %}
+            </div>
+            <div id="chatMessagesListe">
+                {% include 'chat/_message_bubbles.html' with groupe_id=groupe.id %}
+            </div>
         </div>
-        <div id="chatMessagesListe">
-            {% include 'chat/_message_bubbles.html' with groupe_id=groupe.id %}
-        </div>
+        <button type="button" id="chatNouveauxMessages" class="chat-nouveaux-messages" hidden>↓ رسائل جديدة</button>
     </div>
 
     <form class="chat-composer" id="chatComposer" data-envoyer-url="{% url 'chat_envoyer' groupe.id %}">

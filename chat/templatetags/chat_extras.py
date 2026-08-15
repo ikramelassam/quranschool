@@ -26,21 +26,22 @@ def heure_message(date_envoi):
 
 
 @register.filter
-def repere_jour_message(date_envoi):
-    """Séparateur de jour au-dessus d'un groupe de messages : "اليوم" / "أمس" /
-    date complète — même esprit que dashboard.templatetags.libelles_arabes.
-    jours_depuis, mais formulé pour un repère de conversation plutôt qu'une
-    ancienneté relative continue."""
-    if not date_envoi:
+def repere_jour_message(jour):
+    """Libellé d'un séparateur de jour : "اليوم" / "أمس" / date complète — même
+    esprit que dashboard.templatetags.libelles_arabes.jours_depuis, mais
+    formulé pour un repère de conversation plutôt qu'une ancienneté relative
+    continue. Prend un objet date() déjà résolu (pas un datetime) : le jour
+    en heure locale est calculé UNE SEULE FOIS par message, côté serveur,
+    par chat.services.annoter_separateurs_jour — pas ici à chaque rendu."""
+    if not jour:
         return ''
-    date_locale = timezone.localtime(date_envoi).date()
     aujourdhui = timezone.localdate()
-    difference = (aujourdhui - date_locale).days
+    difference = (aujourdhui - jour).days
     if difference == 0:
         return 'اليوم'
     if difference == 1:
         return 'أمس'
-    return date_locale.strftime('%Y-%m-%d')
+    return jour.strftime('%Y-%m-%d')
 
 
 @register.filter

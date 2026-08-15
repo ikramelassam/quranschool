@@ -1,14 +1,15 @@
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
+from django.utils import timezone
 from django.views.decorators.http import require_POST, require_GET
 
 from accounts.decorators import role_required
 from .models import Conversation, Message
 from .permissions import can_access_conversation, participants_conversation
 from .services import (
-    conversations_avec_apercu, marquer_comme_lu, purge_opportuniste,
-    valider_piece_jointe,
+    annoter_separateurs_jour, conversations_avec_apercu, jour_du_message,
+    marquer_comme_lu, purge_opportuniste, valider_piece_jointe,
 )
 
 NB_MESSAGES_PAR_PAGE = 30
@@ -54,6 +55,7 @@ def _contexte_messages_initiaux(conversation, request):
         conversation.messages.order_by('-date_envoi')[:NB_MESSAGES_PAR_PAGE]
     )
     messages_recents.reverse()
+    annoter_separateurs_jour(messages_recents)
     return {
         'conversation': conversation,
         'groupe': conversation.groupe,
@@ -132,14 +134,24 @@ def chat_panel(request, groupe_id):
 @role_required(*ROLES_AVEC_CHAT)
 @require_GET
 def chat_messages(request, groupe_id):
-    """Pagination par curseur (Point 17) :
+    """Pagination par curseur (Point 17), les 3 branches BORNÉES à
+    NB_MESSAGES_PAR_PAGE (finding HIGH de l'audit du 2026-08-15 : la branche
+    `apres=` ne l'était pas — un curseur périmé pouvait renvoyer tout
+    l'historique restant d'un coup) :
     - `avant=<id>` : jusqu'à NB_MESSAGES_PAR_PAGE messages plus anciens que cet
       id (défilement remontant dans l'historique) ;
-    - `apres=<id>` : tous les messages plus récents que cet id, en ordre
-      chronologique (polling — la prochaine requête ne redemande jamais les
-      messages déjà reçus, voir le paramètre `dernierId` côté JS) ;
+    - `apres=<id>` : jusqu'à NB_MESSAGES_PAR_PAGE messages plus récents que cet
+      id, en ordre chronologique (polling). `a_plus_recent=true` dans la
+      réponse signale qu'il reste d'autres messages au-delà de ce lot — le JS
+      ré-interroge alors immédiatement avec le nouveau dernier_id au lieu
+      d'attendre le prochain tick (voir templates/chat/chat.html, poll()) ;
     - aucun des deux : les NB_MESSAGES_PAR_PAGE derniers messages (identique
-      au chargement initial, utilisé si le JS a perdu son curseur)."""
+      au chargement initial, utilisé si le JS a perdu son curseur).
+
+    Chaque message reçoit aussi `.jour_separateur` (chat.services.
+    annoter_separateurs_jour) pour que le séparateur de jour ne soit émis
+    qu'une seule fois par vraie transition de jour, jamais rejoué au sommet
+    de chaque lot indépendant (finding MEDIUM du même audit)."""
     conversation, erreur = _conversation_ou_403(request, groupe_id)
     if erreur:
         return erreur
@@ -147,18 +159,28 @@ def chat_messages(request, groupe_id):
     avant_id = request.GET.get('avant')
     apres_id = request.GET.get('apres')
     base_qs = conversation.messages.all()
+    a_plus_recent = False
 
     if apres_id and apres_id.isdigit():
-        messages = list(base_qs.filter(id__gt=int(apres_id)).order_by('date_envoi'))
+        # +1 : "sonde" bon marché pour savoir s'il reste d'autres messages
+        # au-delà de ce lot, sans requête COUNT séparée — tronqué juste après.
+        lot = list(base_qs.filter(id__gt=int(apres_id)).order_by('date_envoi')[:NB_MESSAGES_PAR_PAGE + 1])
+        a_plus_recent = len(lot) > NB_MESSAGES_PAR_PAGE
+        messages = lot[:NB_MESSAGES_PAR_PAGE]
         a_plus_ancien = False
+        jour_precedent = jour_du_message(int(apres_id))
     elif avant_id and avant_id.isdigit():
         messages = list(base_qs.filter(id__lt=int(avant_id)).order_by('-date_envoi')[:NB_MESSAGES_PAR_PAGE])
         a_plus_ancien = len(messages) == NB_MESSAGES_PAR_PAGE
         messages.reverse()
+        jour_precedent = None
     else:
         messages = list(base_qs.order_by('-date_envoi')[:NB_MESSAGES_PAR_PAGE])
         a_plus_ancien = len(messages) == NB_MESSAGES_PAR_PAGE
         messages.reverse()
+        jour_precedent = None
+
+    annoter_separateurs_jour(messages, jour_precedent=jour_precedent)
 
     html = render_to_string('chat/_message_bubbles.html', {
         'messages': messages,
@@ -169,6 +191,7 @@ def chat_messages(request, groupe_id):
     return JsonResponse({
         'html': html,
         'a_plus_ancien': a_plus_ancien,
+        'a_plus_recent': a_plus_recent,
         'premier_id': messages[0].id if messages else None,
         'dernier_id': messages[-1].id if messages else None,
         'nb_messages': len(messages),
@@ -204,6 +227,14 @@ def chat_envoyer(request, groupe_id):
         if erreur_validation:
             return HttpResponseBadRequest(erreur_validation)
 
+    # Jour du dernier message AVANT celui-ci (pour le séparateur — voir
+    # chat.services.annoter_separateurs_jour) : capturé avant la création,
+    # sinon la nouvelle ligne se retrouverait à comparer à elle-même.
+    message_precedent = conversation.messages.order_by('-date_envoi').first()
+    jour_precedent = (
+        timezone.localtime(message_precedent.date_envoi).date() if message_precedent else None
+    )
+
     message = Message.objects.create(
         conversation=conversation,
         auteur=request.user,
@@ -219,6 +250,7 @@ def chat_envoyer(request, groupe_id):
     # L'expéditeur a par définition déjà "lu" son propre message.
     marquer_comme_lu(conversation, request.user)
 
+    annoter_separateurs_jour([message], jour_precedent=jour_precedent)
     html = render_to_string('chat/_message_bubbles.html', {
         'messages': [message],
         'user': request.user,

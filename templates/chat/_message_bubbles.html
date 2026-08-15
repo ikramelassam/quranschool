@@ -1,8 +1,8 @@
 {% load chat_extras %}
 {% for message in messages %}
-{% ifchanged message.date_envoi|repere_jour_message %}
-<div class="chat-day-sep"><span>{{ message.date_envoi|repere_jour_message }}</span></div>
-{% endifchanged %}
+{% if message.jour_separateur %}
+<div class="chat-day-sep" data-jour="{{ message.jour_separateur|date:'Y-m-d' }}"><span>{{ message.jour_separateur|repere_jour_message }}</span></div>
+{% endif %}
 <div class="chat-row {% if message.auteur_id == user.id %}chat-row-mine{% else %}chat-row-theirs{% endif %}" data-message-id="{{ message.id }}">
     <div class="chat-bubble">
         {% if message.auteur_id != user.id %}
