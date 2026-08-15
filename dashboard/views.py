@@ -58,23 +58,45 @@ def generer_mot_de_passe_sequentiel():
     return f'zidanieilman{ligne.id}@@'
 
 
-def envoyer_email_bienvenue(request, email, password_temp, prenom_nom):
-    """Envoie le mot de passe temporaire + le lien de connexion au nouvel utilisateur (élève ou prof).
-    Retourne True si l'email est parti, False sinon — une panne SMTP (identifiants, réseau...) ne doit
-    jamais empêcher la création du compte, qui a déjà eu lieu au moment de l'appel."""
-    from django.urls import reverse
+URL_PLATEFORME = 'app.zidanieilman.com'
+# Domaine affiché tel quel dans les messages d'acceptation (email + WhatsApp)
+# -- Chantier du 2026-08-15 (refonte du texte d'acceptation, style fourni par
+# le client) : domaine FIXE demandé explicitement, plutôt que
+# request.build_absolute_uri (qui dépend de l'hôte de la requête -- pas
+# garanti pointer vers ce sous-domaine précis, ex. en local).
 
-    lien_connexion = request.build_absolute_uri(reverse('login'))
+
+def envoyer_email_bienvenue(request, email, password_temp, prenom_nom):
+    """Envoie le message d'acceptation (identifiants de connexion) au nouvel
+    utilisateur (élève, prof ou مؤطر) par email. Retourne True si l'email est
+    parti, False sinon -- une panne SMTP (identifiants, réseau...) ne doit
+    jamais empêcher la création du compte, qui a déjà eu lieu au moment de
+    l'appel.
+
+    Texte mis à jour le 2026-08-15 (refonte du message d'acceptation, style
+    fourni par le client -- voir aussi construire_message_acceptation_
+    whatsapp, même texte pour le canal WhatsApp). `request` n'est plus
+    utilisé pour construire le lien de connexion (voir URL_PLATEFORME,
+    domaine fixe désormais) mais reste dans la signature pour ne pas devoir
+    modifier les 3 appelants (admin_valider_eleve, mshrif_valider_prof_final,
+    admin_superviseur_ajouter) pour un changement qui ne concerne que le
+    contenu du message."""
     try:
         send_mail(
             subject='مرحباً بك في منصة زدني علماً - معلومات الدخول',
             message=(
-                f'مرحباً {prenom_nom},\n\n'
-                f'تم قبول ملفك. يمكنك الآن تسجيل الدخول باستخدام:\n'
-                f'البريد الإلكتروني: {email}\n'
-                f'كلمة المرور المؤقتة: {password_temp}\n\n'
-                f'رابط تسجيل الدخول: {lien_connexion}\n\n'
-                f'ننصحك بتغيير كلمة المرور بعد أول تسجيل دخول.'
+                f'السلام عليكم ورحمة الله وبركاته،\n\n'
+                f'حياك الله {prenom_nom}،\n\n'
+                f'يسرنا إخبارك بأنه تم قبولك للانضمام إلى منصة زدني علماً، ونسأل الله أن يوفقك ويبارك في جهودك.\n\n'
+                f'يمكنك الدخول إلى المنصة عبر الرابط:\n\n'
+                f'{URL_PLATEFORME}\n\n'
+                f'بيانات الدخول الخاصة بك:\n\n'
+                f'البريد الإلكتروني:\n'
+                f'{email}\n\n'
+                f'كلمة المرور:\n'
+                f'{password_temp}\n\n'
+                f'نسعد بانضمامك إلى زدني علماً، ونسأل الله أن يجعلها خطوة مباركة ونافعة.\n\n'
+                f'بارك الله فيكم.'
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[email],
@@ -1561,9 +1583,14 @@ def confirmation_creation_compte(request):
     if not info:
         return redirect('dashboard_mshrif' if request.user.role == 'mshrif' else 'dashboard_admin')
 
-    # Gabarit UNIQUE (Tâche du 2026-08-06) — voir construire_message_mdp_whatsapp,
-    # réutilisé tel quel par l'écran de réinitialisation et de création مؤطر.
-    message_pret_a_envoyer = construire_message_mdp_whatsapp(info['email'], info['password'], nom=info.get('nom', ''))
+    # Message d'acceptation (Chantier du 2026-08-15) — construire_message_
+    # acceptation_whatsapp, PAS construire_message_mdp_whatsapp : cette page
+    # n'affiche QUE des comptes qui viennent d'être créés/acceptés (jamais une
+    # réinitialisation de mot de passe, qui reste sur construire_message_mdp_
+    # whatsapp — même texte générique qu'avant, volontairement distinct).
+    message_pret_a_envoyer = construire_message_acceptation_whatsapp(
+        info.get('nom', ''), info['email'], info['password']
+    )
 
     # Correction du 2026-08-14 (bug confirmé en test manuel) : UN SEUL contact
     # مدير résolu via _contact_admin_fixe() (le plus ancien compte role='admin'
@@ -1633,7 +1660,11 @@ def refus_confirme(request):
     if inscription.statut != 'rejete' or not inscription.motif_refus:
         return redirect(info['redirect_url_name'])
 
-    message = GABARIT_REFUS_AVANT_MOTIF + inscription.motif_refus + GABARIT_REFUS_APRES_MOTIF
+    message = (
+        GABARIT_REFUS_AVANT_MOTIF.format(nom=info['nom_complet'])
+        + inscription.motif_refus
+        + GABARIT_REFUS_APRES_MOTIF
+    )
     admin_contact = _contact_admin_fixe() if info.get('afficher_contact_admin') else None
 
     context = {
@@ -1767,21 +1798,28 @@ def admin_valider_eleve(request, inscription_id):
     }
     return redirect('confirmation_creation_compte')
 
-# Gabarit de message de refus (Chantier du 2026-08-14, refonte UX) — texte
-# fourni par le client, salutation et clôture FIXES, seul le motif varie.
+# Gabarit de message de refus (Chantier du 2026-08-14, refonte UX ; texte mis à
+# jour le 2026-08-15) — texte fourni par le client, salutation et clôture
+# FIXES à l'exception du nom (placeholder {nom}) et du motif, qui varient.
 # UNE SEULE définition, réutilisée par les 3 écrans de refus (admin_rejeter_eleve,
 # admin_rejeter_prof, mshrif_rejeter_prof) via leur contexte commun — jamais
 # recopiée en dur dans un template ou dupliquée par écran. Le template
 # (refuser_inscription.html) assemble avant/motif/après pour l'aperçu live ET
 # pour les liens WhatsApp, sans jamais réécrire ce texte lui-même.
+#
+# GABARIT_REFUS_AVANT_MOTIF contient {nom} — chacun des 4 points d'assemblage
+# (les 3 vues ci-dessous + refus_confirme) appelle .format(nom=...) AVANT de
+# concaténer avec le motif, jamais après : le nom fait partie du gabarit fixe,
+# jamais du texte libre tapé par مدير/مشرف.
 GABARIT_REFUS_AVANT_MOTIF = (
-    'السلام عليكم ورحمة الله وبركاته\n'
-    'حياكم الله،\n'
-    'نشكر لكم اهتمامكم وتقدمكم، ونأسف لإبلاغكم بأنه لم يتم قبول طلبكم في هذه المرحلة.\n'
-    'سبب الرفض:\n'
+    'السلام عليكم ورحمة الله وبركاته،\n\n'
+    'حياك الله {nom}،\n\n'
+    'نشكر لك اهتمامك وتقدمك للانضمام إلى منصة زدني علماً.\n\n'
+    'نأسف لإبلاغك بأنه لم يتم قبول طلبك في هذه المرحلة.\n\n'
+    'سبب عدم القبول:\n'
 )
 GABARIT_REFUS_APRES_MOTIF = (
-    '\nنسأل الله أن يوفقكم ويكتب لكم الخير فيما هو قادم، وبارك الله فيكم.'
+    '\n\nنسأل الله أن يوفقك ويكتب لك الخير حيث كان، وبارك الله فيكم.'
 )
 
 
@@ -1846,7 +1884,7 @@ def admin_rejeter_eleve(request, inscription_id):
         'telephone_personne': inscription.telephone,
         'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
         'phrases': PhraseRefus.objects.filter(contexte='refus_eleve'),
-        'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF,
+        'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF.format(nom=inscription.nom),
         'gabarit_apres_motif': GABARIT_REFUS_APRES_MOTIF,
         'titre_refus': 'رفض طلب الطالب',
         'retour_url': reverse('admin_inscription_eleve_detail', args=[inscription.id]),
@@ -2027,7 +2065,7 @@ def admin_rejeter_prof(request, inscription_id):
         'telephone_personne': inscription.telephone,
         'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
         'phrases': PhraseRefus.objects.filter(contexte='refus_prof_etape1'),
-        'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF,
+        'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF.format(nom=f'{inscription.nom} {inscription.prenom}'),
         'gabarit_apres_motif': GABARIT_REFUS_APRES_MOTIF,
         'titre_refus': 'رفض طلب الأستاذ (المرحلة الأولى)',
         'retour_url': reverse('admin_inscription_prof_detail', args=[inscription.id]),
@@ -2277,7 +2315,7 @@ def mshrif_rejeter_prof(request, inscription_id):
         'telephone_personne': inscription.telephone,
         'motif_saisi': request.POST.get('motif', '') if request.method == 'POST' else '',
         'phrases': PhraseRefus.objects.filter(contexte='refus_prof_etape2'),
-        'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF,
+        'gabarit_avant_motif': GABARIT_REFUS_AVANT_MOTIF.format(nom=f'{inscription.nom} {inscription.prenom}'),
         'gabarit_apres_motif': GABARIT_REFUS_APRES_MOTIF,
         'titre_refus': 'رفض طلب الأستاذ (المرحلة الثانية)',
         'retour_url': reverse('mshrif_inscription_prof_detail', args=[inscription.id]),
@@ -4796,6 +4834,35 @@ def confirmation_modification_email(request):
 # partagé avec confirmation_creation_compte et confirmation_modification_email.
 
 LIBELLE_PERSONNE_CONTACT = {'eleve': 'الطالب', 'prof': 'المعلم', 'superviseur': 'المؤطر'}
+
+
+def construire_message_acceptation_whatsapp(nom, email, mot_de_passe):
+    """Message WhatsApp d'acceptation — Chantier du 2026-08-15, texte fourni
+    par le client. UNE SEULE définition, utilisée uniquement par
+    confirmation_creation_compte (le seul écran qui affiche un compte qui
+    vient d'être créé/accepté) — JAMAIS confondue avec construire_message_
+    mdp_whatsapp (réutilisée, elle, par la réinitialisation de mot de passe :
+    un mot de passe réinitialisé ne concerne pas une acceptation, le texte
+    « تم قبولك للانضمام » n'y aurait aucun sens).
+
+    Même texte que l'email d'acceptation (voir envoyer_email_bienvenue) —
+    deux fonctions séparées car deux canaux avec des mécanismes d'envoi
+    différents (send_mail vs lien wa.me pré-rempli affiché à l'écran), pas
+    deux textes différents."""
+    return (
+        f"السلام عليكم ورحمة الله وبركاته،\n\n"
+        f"حياك الله {nom}،\n\n"
+        f"يسرنا إخبارك بأنه تم قبولك للانضمام إلى منصة زدني علماً، ونسأل الله أن يوفقك ويبارك في جهودك.\n\n"
+        f"يمكنك الدخول إلى المنصة عبر الرابط:\n\n"
+        f"{URL_PLATEFORME}\n\n"
+        f"بيانات الدخول الخاصة بك:\n\n"
+        f"البريد الإلكتروني:\n"
+        f"{email}\n\n"
+        f"كلمة المرور:\n"
+        f"{mot_de_passe}\n\n"
+        f"نسعد بانضمامك إلى زدني علماً، ونسأل الله أن يجعلها خطوة مباركة ونافعة.\n\n"
+        f"بارك الله فيكم."
+    )
 
 
 def construire_message_mdp_whatsapp(email, mot_de_passe, nom=''):

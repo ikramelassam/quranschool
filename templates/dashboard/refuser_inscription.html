@@ -17,6 +17,11 @@ pour les 3 écrans) — ce template ne fait qu'assembler avant + motif + après
 pour l'APERÇU (lecture seule), jamais ne réécrit ce texte lui-même. motif_refus
 en base ne stocke, lui, QUE le motif seul (voir les 3 vues).
 
+Texte mis à jour le 2026-08-15 : gabarit_avant_motif reçu ici est déjà
+personnalisé (le {nom} du gabarit est substitué côté vue via .format(),
+AVANT que le contexte soit construit) — ce template continue de le traiter
+comme une chaîne opaque, jamais de substitution de nom côté template/JS.
+
 Correction du 2026-08-14 (bug de logique, test manuel) : les 2 boutons
 WhatsApp qui vivaient auparavant sur CET écran ont été déplacés vers l'écran
 dédié dashboard/refus_confirme.html, affiché seulement APRÈS le clic sur

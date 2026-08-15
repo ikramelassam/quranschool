@@ -2,6 +2,7 @@ import datetime
 import time
 
 from django.conf import settings
+from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -13,7 +14,10 @@ from courses.models import (
 from evaluations.models import Evaluation, CommentaireMensuel
 from inscriptions.models import InscriptionEleve, InscriptionProf, PhraseRefus
 from payments.models import Paiement
-from dashboard.views import GABARIT_REFUS_AVANT_MOTIF, GABARIT_REFUS_APRES_MOTIF, _contact_admin_fixe
+from dashboard.views import (
+    GABARIT_REFUS_AVANT_MOTIF, GABARIT_REFUS_APRES_MOTIF, _contact_admin_fixe,
+    URL_PLATEFORME, construire_message_acceptation_whatsapp,
+)
 
 
 # Chantier du 2026-08-12 — suppression définitive de Eleve/Prof/Superviseur.
@@ -932,7 +936,12 @@ class RefusInscriptionAvecMotifTests(TestCase):
         inscription = _creer_inscription_eleve(email='gabarit_complet@zidni.test')
         html = self.client.get(reverse('admin_rejeter_eleve', args=[inscription.id])).content.decode('utf-8')
         self.assertIn('السلام عليكم ورحمة الله وبركاته', html)
-        self.assertIn('نسأل الله أن يوفقكم', html)
+        self.assertIn('نسأل الله أن يوفقك ويكتب لك الخير حيث كان', html)
+        # Texte mis à jour le 2026-08-15 : le nom de la personne fait
+        # désormais partie du gabarit fixe (placeholder {nom}) — vérifie
+        # qu'il est bien substitué dans l'aperçu, pas laissé tel quel.
+        self.assertIn(f'حياك الله {inscription.nom}', html)
+        self.assertNotIn('{nom}', html)
         # Même gabarit sur les 3 écrans — pas 3 textes différents recopiés à la main.
         inscription_prof = _creer_inscription_prof(email='gabarit_complet_prof1@zidni.test')
         html_prof1 = self.client.get(reverse('admin_rejeter_prof', args=[inscription_prof.id])).content.decode('utf-8')
@@ -946,7 +955,8 @@ class RefusInscriptionAvecMotifTests(TestCase):
     def test_gabarit_est_bien_une_constante_python_unique(self):
         """Verrou structurel : une seule définition du gabarit dans tout le
         code (dashboard.views), pas une par écran de refus."""
-        self.assertIn('سبب الرفض', GABARIT_REFUS_AVANT_MOTIF)
+        self.assertIn('سبب عدم القبول', GABARIT_REFUS_AVANT_MOTIF)
+        self.assertIn('{nom}', GABARIT_REFUS_AVANT_MOTIF)  # placeholder, jamais figé en dur
         self.assertIn('نسأل الله', GABARIT_REFUS_APRES_MOTIF)
 
     def test_variables_js_du_gabarit_correctement_quotees(self):
@@ -1321,6 +1331,155 @@ class MshrifNeVoitJamaisUnDossierFermeTests(TestCase):
         inscription.refresh_from_db()
         self.assertEqual(inscription.statut, 'rejete')  # toujours fermé
         self.assertEqual(inscription.motif_refus, 'الملف غير مكتمل')  # motif du مدير jamais écrasé
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class MessagesAcceptationEtRefusTests(TestCase):
+    """Chantier du 2026-08-15 — refonte du texte des messages d'acceptation
+    et de refus (style fourni par le client, ton islamique chaleureux, sans
+    "أستاذ/أستاذة/طالب/طالبة" devant le nom, sans emoji, نطاق fixe
+    app.zidanieilman.com). Vérifie le contenu RÉELLEMENT reçu (corps d'email
+    capturé par django.core.mail.outbox, HTML réellement rendu) — pas
+    seulement que les fonctions ne plantent pas.
+
+    Acceptation : DEUX canaux distincts pour le MÊME texte —
+    envoyer_email_bienvenue (email réel) et construire_message_acceptation_
+    whatsapp (texte affiché sur confirmation_creation_compte, prêt à copier/
+    envoyer). Un SEUL message d'acceptation existe par compte, envoyé
+    uniquement quand le compte est réellement créé — pour un prof (workflow
+    2 étapes), c'est donc à l'étape 2 (مشرف, mshrif_valider_prof_final),
+    JAMAIS à l'étape 1 (مدير, admin_valider_prof, qui ne fait que
+    pré-valider sans créer de compte ni envoyer aucun message)."""
+
+    MOTS_INTERDITS = ['أستاذ', 'أستاذة', 'طالب', 'طالبة']
+    EMOJIS_COURANTS = ['📋', '✅', '🎉', '📱', '❌', '👤', '📞', '💡', '🔑', '⚠️', '😊']
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    # --- Acceptation élève (validation en 1 seule étape par مدير) ---
+
+    def test_email_acceptation_eleve_contient_nom_email_mot_de_passe_et_lien(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='accept_email_eleve@zidni.test', nom='زينب الفاسي')
+        mail.outbox.clear()
+        self.client.get(reverse('admin_valider_eleve', args=[inscription.id]))
+
+        self.assertEqual(len(mail.outbox), 1)
+        corps = mail.outbox[0].body
+        self.assertIn('حياك الله زينب الفاسي،', corps)
+        self.assertIn('accept_email_eleve@zidni.test', corps)
+        self.assertIn(URL_PLATEFORME, corps)
+        self.assertIn('يسرنا إخبارك بأنه تم قبولك للانضمام إلى منصة زدني علماً', corps)
+        self.assertIn('زدني علماً', corps)  # nom exact de la plateforme
+        # Le mot de passe temporaire réellement généré doit être dans le corps
+        # — pas une valeur figée : on le relit depuis Eleve fraîchement créé.
+        eleve = Eleve.objects.get(user__email='accept_email_eleve@zidni.test')
+        # Pas d'accès direct au mot de passe en clair depuis le modèle (hashé) —
+        # on vérifie sa PRÉSENCE structurelle via le motif "كلمة المرور:\n" suivi
+        # d'une valeur non vide, garanti par le format du gabarit lui-même.
+        self.assertIn('كلمة المرور:\n', corps)
+        self.assertTrue(eleve.user.check_password(corps.split('كلمة المرور:\n')[1].split('\n')[0]))
+
+    def test_email_acceptation_ne_contient_aucun_prefixe_de_role_ni_emoji(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='accept_sans_prefixe@zidni.test', nom='كريم بنعلي')
+        mail.outbox.clear()
+        self.client.get(reverse('admin_valider_eleve', args=[inscription.id]))
+        corps = mail.outbox[0].body
+        for mot in self.MOTS_INTERDITS:
+            self.assertNotIn(mot, corps, f"'{mot}' ne doit jamais apparaître dans le message d'acceptation.")
+        for emoji in self.EMOJIS_COURANTS:
+            self.assertNotIn(emoji, corps, f"emoji '{emoji}' ne doit jamais apparaître dans le message d'acceptation.")
+
+    # --- Acceptation prof (workflow 2 étapes) : message envoyé UNE SEULE
+    # fois, à l'étape 2 (مشرف), jamais à l'étape 1 (مدير) ---
+
+    def test_etape1_prevalidation_directeur_nenvoie_aucun_message_dacceptation(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_prof(email='accept_prof_etape1@zidni.test')
+        mail.outbox.clear()
+        self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.statut, 'validee_directeur')  # pré-validé...
+        self.assertEqual(len(mail.outbox), 0)  # ...mais AUCUN message envoyé
+        self.assertFalse(User.objects.filter(email='accept_prof_etape1@zidni.test').exists())  # ni compte créé
+
+    def test_etape2_validation_finale_mshrif_envoie_le_message_dacceptation(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_prof(email='accept_prof_etape2@zidni.test', nom='حسن', prenom='العلوي')
+        self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
+
+        self.client.force_login(self.mshrif)
+        mail.outbox.clear()
+        response = self.client.get(reverse('mshrif_valider_prof_final', args=[inscription.id]), follow=True)
+
+        self.assertEqual(len(mail.outbox), 1)
+        corps = mail.outbox[0].body
+        self.assertIn('حياك الله حسن العلوي،', corps)
+        self.assertIn('accept_prof_etape2@zidni.test', corps)
+
+        # Le même texte est aussi affiché sur l'écran (canal WhatsApp,
+        # construire_message_acceptation_whatsapp) — vérifie que les 2 canaux
+        # ne divergent pas.
+        html = response.content.decode('utf-8')
+        self.assertIn('حياك الله حسن العلوي،', html)
+        self.assertIn('accept_prof_etape2@zidni.test', html)
+        self.assertIn(URL_PLATEFORME, html)
+
+    def test_message_whatsapp_acceptation_identique_a_lemail_pour_les_memes_donnees(self):
+        """Les 2 canaux (email, WhatsApp) partagent le même texte — vérifié
+        directement sur la fonction dédiée, sans dépendre d'un flux HTTP."""
+        message = construire_message_acceptation_whatsapp('سارة أمين', 'sara@zidni.test', 'zidanieilman42@@')
+        self.assertIn('حياك الله سارة أمين،', message)
+        self.assertIn('sara@zidni.test', message)
+        self.assertIn('zidanieilman42@@', message)
+        self.assertIn(URL_PLATEFORME, message)
+        self.assertIn('يسرنا إخبارك بأنه تم قبولك للانضمام إلى منصة زدني علماً', message)
+        for mot in self.MOTS_INTERDITS:
+            self.assertNotIn(mot, message)
+        for emoji in self.EMOJIS_COURANTS:
+            self.assertNotIn(emoji, message)
+
+    # --- Refus : motif dynamique correctement inséré ---
+
+    def test_gabarit_refus_avec_nom_et_motif_assembles_correctement(self):
+        """Vérifie l'assemblage exact GABARIT_REFUS_AVANT_MOTIF.format(nom=...)
+        + motif + GABARIT_REFUS_APRES_MOTIF, tel que fait par refus_confirme —
+        le nom et le motif doivent apparaître, dans le bon ordre, sans rien
+        d'autre entre "سبب عدم القبول:" et le motif lui-même."""
+        message = (
+            GABARIT_REFUS_AVANT_MOTIF.format(nom='ياسين مرادي')
+            + 'الملف غير مكتمل، الرجاء إعادة التقديم لاحقاً'
+            + GABARIT_REFUS_APRES_MOTIF
+        )
+        self.assertIn('حياك الله ياسين مرادي،', message)
+        self.assertIn('سبب عدم القبول:\nالملف غير مكتمل', message)
+        self.assertIn('نسأل الله أن يوفقك ويكتب لك الخير حيث كان', message)
+        self.assertIn('زدني علماً', message)
+
+    def test_ecran_refus_confirme_affiche_bien_le_nom_et_le_motif_reels(self):
+        """Reproduction bout en bout (django.test.Client) : le nom et le motif
+        réellement enregistrés apparaissent sur l'écran final — pas une
+        valeur générique ni un placeholder non substitué."""
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_eleve(email='refus_nom_motif@zidni.test', nom='نور الهدى')
+        self.client.post(
+            reverse('admin_rejeter_eleve', args=[inscription.id]),
+            {'motif': 'العمر لا يطابق شروط الحلقة المطلوبة'},
+        )
+        html = self.client.get(reverse('refus_confirme')).content.decode('utf-8')
+        self.assertIn('حياك الله نور الهدى،', html)
+        self.assertIn('العمر لا يطابق شروط الحلقة المطلوبة', html)
+        self.assertNotIn('{nom}', html)  # placeholder jamais laissé tel quel
+
+    def test_messages_de_refus_ne_contiennent_aucun_prefixe_de_role_ni_emoji(self):
+        message_brut = GABARIT_REFUS_AVANT_MOTIF.format(nom='X') + 'motif' + GABARIT_REFUS_APRES_MOTIF
+        for mot in self.MOTS_INTERDITS:
+            self.assertNotIn(mot, message_brut, f"'{mot}' ne doit jamais apparaître dans le message de refus.")
+        for emoji in self.EMOJIS_COURANTS:
+            self.assertNotIn(emoji, message_brut, f"emoji '{emoji}' ne doit jamais apparaître dans le message de refus.")
 
 
 @override_settings(STORAGES=_STORAGES_TEST)
