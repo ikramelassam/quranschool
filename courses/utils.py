@@ -616,6 +616,34 @@ def generer_brouillon_bilan_mensuel(eleve, prof, mois_reference):
     }
 
 
+def compter_absences_par_eleve(eleve_ids, annee, mois, groupe=None):
+    """Nombre d'absences du mois par élève — {eleve_id: nb} — via UNE seule
+    requête groupée (pas une par élève, voir prof_bilans_mensuels/
+    bilans_mensuels dans dashboard.views). Même définition d'absence que le
+    bilan_mensuel_detail (Chantier du 2026-08-14) : statut != 'present'
+    (absent_excuse ET absent comptent tous les deux). groupe=None (par
+    défaut) compte TOUTES les Presence de l'élève ce mois-là, quel que soit
+    le groupe — même choix que bilan_mensuel_detail ("reste correct même si
+    l'élève a changé de groupe/prof en cours de mois"). groupe=<Groupe>
+    restreint aux séances de ce groupe précis — utilisé par bilans_mensuels
+    (accordéon مؤطر/مدير/مشرف) qui affiche déjà ses autres statistiques
+    (moyennes) par (élève, groupe), pour qu'un élève présent dans plusieurs
+    groupes supervisés n'affiche pas deux fois le même total sous deux
+    groupes différents."""
+    from django.db.models import Count
+    from .models import Presence
+
+    qs = Presence.objects.filter(
+        eleve_id__in=eleve_ids,
+        seance__date__year=annee,
+        seance__date__month=mois,
+    ).exclude(statut='present')
+    if groupe is not None:
+        qs = qs.filter(seance__groupe=groupe)
+    compte = qs.values('eleve_id').annotate(nb=Count('id'))
+    return {row['eleve_id']: row['nb'] for row in compte}
+
+
 RING_CIRCONFERENCE_HIZB = 452.39  # 2*pi*72, rayon du cercle SVG (voir templates/dashboard/_ring_hizb.html)
 
 FRACTION_QUART = {1: '1/4', 2: '1/2', 3: '3/4'}

@@ -6,6 +6,26 @@
 <div class="page-title">حصصي وتقييماتي</div>
 <div class="page-subtitle">سجل جميع حصصك</div>
 
+{# ===== حصيلة الغياب الشهرية (Chantier du 2026-08-15) ===== #}
+<div class="compact-card" style="max-width:500px; margin-bottom:24px;">
+    <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:10px;">📊 حصيلة الغياب الشهرية</div>
+    <form method="GET" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap; margin-bottom:12px;">
+        <div>
+            <label style="color:#888; font-size:0.8rem;">الشهر</label>
+            <input type="month" name="mois" class="form-control" value="{{ mois_absences }}">
+        </div>
+        <button type="submit" style="background:var(--color-role-eleve-solid); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+    </form>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span style="color:#666; font-size:0.9rem;">{{ mois_reference_absences|mois_annee_ar }}:</span>
+        {% if nb_absences_mois %}
+        <span style="background:#fdecea; color:#c0392b; border-radius:20px; padding:4px 14px; font-weight:700;">🚫 {{ nb_absences_mois }} غياب</span>
+        {% else %}
+        <span style="background:#e8f5e9; color:#1b5e20; border-radius:20px; padding:4px 14px; font-weight:700;">✅ لا غياب هذا الشهر</span>
+        {% endif %}
+    </div>
+</div>
+
 {# ===== الماضية (أولوية العرض: التقييمات التي يجب مراجعتها) ===== #}
 <div style="margin-bottom:30px;">
     <div class="section-title" style="font-size:1.05rem; color:var(--color-role-eleve-solid);">📂 الحصص الماضية</div>

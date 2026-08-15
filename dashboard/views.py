@@ -1142,6 +1142,7 @@ def prof_bilans_mensuels(request):
     bilan mensuel — point d'entrée pour remplir/consulter (voir bilan_mensuel_detail)."""
     from accounts.models import Prof, Eleve
     from courses.models import BilanMensuel
+    from courses.utils import compter_absences_par_eleve
     from django.utils import timezone
 
     prof = get_object_or_404(Prof, user=request.user)
@@ -1158,7 +1159,18 @@ def prof_bilans_mensuels(request):
     eleves = Eleve.actifs.filter(groupes__prof=prof).distinct().select_related('user').order_by('user__first_name')
     bilans = {b.eleve_id: b for b in BilanMensuel.objects.filter(prof=prof, mois_reference=mois_reference)}
 
-    lignes = [{'eleve': eleve, 'bilan': bilans.get(eleve.id)} for eleve in eleves]
+    # حصيلة الغياب الشهرية (voir courses.utils.compter_absences_par_eleve) —
+    # une seule requête groupée pour tous les élèves de la liste, pas une par
+    # carte. Même définition d'absence que bilan_mensuel_detail (statut !=
+    # 'present'), non filtrée par groupe (l'élève peut être absent d'une
+    # séance d'un autre de ses groupes, comptée quand même — voir la
+    # docstring du helper).
+    absences = compter_absences_par_eleve([e.id for e in eleves], annee, num_mois)
+
+    lignes = [
+        {'eleve': eleve, 'bilan': bilans.get(eleve.id), 'nb_absences': absences.get(eleve.id, 0)}
+        for eleve in eleves
+    ]
 
     return render(request, 'dashboard/prof_bilans_mensuels.html', {
         'lignes': lignes,
@@ -1326,8 +1338,10 @@ def bilans_mensuels(request):
     filtre que classement_mensuel_profs) — appliqué ici au niveau des GROUPES
     eux-mêmes (queryset de base), pas juste des données affichées."""
     from django.db.models import Avg
+    from django.utils import timezone
     from accounts.models import Prof, Superviseur
     from courses.models import BilanMensuel, Groupe, NotePresence
+    from courses.utils import compter_absences_par_eleve
 
     mois = request.GET.get('mois', '')
     prof_id = request.GET.get('prof', '')
@@ -1349,9 +1363,28 @@ def bilans_mensuels(request):
         annee_str, _, mois_str = mois.partition('-')
         annee, mois_num = int(annee_str), int(mois_str)
 
+    # حصيلة الغياب الشهرية : contrairement à moyennes/bilan_texte ci-dessous
+    # (qui restent volontairement "tout l'historique" tant qu'aucun mois
+    # n'est choisi — comportement existant, inchangé), l'absence est
+    # toujours affichée pour UN mois précis (défaut = mois en cours, voir la
+    # demande) — jamais "toutes les absences depuis toujours" qui n'aurait
+    # aucun sens pour une carte "غياب هذا الشهر".
+    aujourdhui = timezone.localdate()
+    annee_absences = annee or aujourdhui.year
+    mois_absences = mois_num or aujourdhui.month
+    mois_reference_absences = datetime.date(annee_absences, mois_absences, 1)
+
     groupes_accordeon = []
     for groupe in groupes:
         lignes_eleves = []
+        # Une seule requête groupée par groupe (pas une par élève) — voir
+        # courses.utils.compter_absences_par_eleve. Scopée à CE groupe
+        # (groupe=groupe) : un élève présent dans 2 groupes supervisés ne
+        # doit pas afficher le même total sous les 2 accordéons (Point 6,
+        # éviter le double comptage).
+        absences_groupe = compter_absences_par_eleve(
+            [e.id for e in groupe.eleves.all()], annee_absences, mois_absences, groupe=groupe,
+        )
         for eleve in groupe.eleves.all():
             moyennes_qs = NotePresence.objects.filter(
                 presence__eleve=eleve, presence__seance__groupe=groupe, critere__est_actif=True,
@@ -1380,6 +1413,7 @@ def bilans_mensuels(request):
                 'eleve': eleve,
                 'moyennes': moyennes,
                 'bilan_texte': bilan_texte,
+                'nb_absences': absences_groupe.get(eleve.id, 0),
             })
 
         groupes_accordeon.append({
@@ -1407,6 +1441,7 @@ def bilans_mensuels(request):
         'profs': Prof.objects.filter(groupes__in=groupes_scope).distinct().order_by('user__first_name')
                  if request.user.role == 'superviseur' else Prof.objects.select_related('user').order_by('user__first_name'),
         'groupes_filtre': groupes_scope,
+        'mois_reference_absences': mois_reference_absences,
         'base_template': BASE_TEMPLATE_PAR_ROLE[request.user.role],
         'couleur_role': COULEUR_PAR_ROLE[request.user.role],
     }
@@ -2672,10 +2707,28 @@ def dashboard_eleve(request):
 def eleve_seances(request):
     from accounts.models import Eleve
     from courses.models import Presence, Seance
+    from courses.utils import compter_absences_par_eleve
     from django.utils import timezone
 
     eleve = get_object_or_404(Eleve, user=request.user)
     aujourdhui = timezone.localdate()
+
+    # حصيلة الغياب الشهرية (Chantier du 2026-08-15) — l'élève choisit un mois
+    # (défaut = mois en cours), scopé à SON PROPRE compte uniquement (eleve
+    # vient de request.user ci-dessus, jamais d'un paramètre d'URL/GET —
+    # aucun risque de fuite vers un autre élève). Même définition d'absence
+    # que bilan_mensuel_detail/prof_bilans_mensuels/bilans_mensuels : statut
+    # != 'present', non filtrée par groupe (voir courses.utils.
+    # compter_absences_par_eleve).
+    mois_absences = request.GET.get('mois', '')
+    if mois_absences:
+        annee_abs_str, _, mois_abs_str = mois_absences.partition('-')
+        annee_absences, num_mois_absences = int(annee_abs_str), int(mois_abs_str)
+    else:
+        annee_absences, num_mois_absences = aujourdhui.year, aujourdhui.month
+        mois_absences = f'{annee_absences:04d}-{num_mois_absences:02d}'
+    mois_reference_absences = datetime.date(annee_absences, num_mois_absences, 1)
+    nb_absences_mois = compter_absences_par_eleve([eleve.id], annee_absences, num_mois_absences).get(eleve.id, 0)
 
     # Cette page n'affichait auparavant que l'historique (via Presence, qui
     # n'existe qu'une fois la séance remplie par le prof). Une séance à venir
@@ -2709,6 +2762,9 @@ def eleve_seances(request):
         'seances_a_venir_extra': seances_a_venir_extra,
         'nb_a_venir': nb_a_venir,
         'presences': paginer(request, presences, 10),
+        'mois_absences': mois_absences,
+        'mois_reference_absences': mois_reference_absences,
+        'nb_absences_mois': nb_absences_mois,
     })
 
 

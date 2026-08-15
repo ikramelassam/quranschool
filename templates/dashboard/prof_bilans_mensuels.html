@@ -17,13 +17,22 @@
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
     {% for ligne in lignes %}
     <div class="col">
-        <a href="{% url 'bilan_mensuel_detail' ligne.eleve.id mois %}" class="compact-card" style="display:flex; justify-content:space-between; align-items:center; text-decoration:none; color:inherit; height:100%;">
-            <span style="font-weight:700;">{{ ligne.eleve.user.get_full_name }}</span>
-            {% if ligne.bilan %}
-                {% include 'dashboard/_badge_statut.html' with type='success' texte='تم التحرير ✅' %}
-            {% else %}
-                {% include 'dashboard/_badge_statut.html' with type='warning' texte='لم يُحرَّر بعد ⏳' %}
-            {% endif %}
+        <a href="{% url 'bilan_mensuel_detail' ligne.eleve.id mois %}" class="compact-card" style="display:flex; flex-direction:column; gap:8px; text-decoration:none; color:inherit; height:100%;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <span style="font-weight:700;">{{ ligne.eleve.user.get_full_name }}</span>
+                {% if ligne.bilan %}
+                    {% include 'dashboard/_badge_statut.html' with type='success' texte='تم التحرير ✅' %}
+                {% else %}
+                    {% include 'dashboard/_badge_statut.html' with type='warning' texte='لم يُحرَّر بعد ⏳' %}
+                {% endif %}
+            </div>
+            <div>
+                {% if ligne.nb_absences %}
+                <span style="background:#fdecea; color:#c0392b; border-radius:20px; padding:3px 12px; font-size:0.78rem; font-weight:600;">🚫 {{ ligne.nb_absences }} غياب هذا الشهر</span>
+                {% else %}
+                <span style="background:#e8f5e9; color:#1b5e20; border-radius:20px; padding:3px 12px; font-size:0.78rem; font-weight:600;">✅ لا غياب هذا الشهر</span>
+                {% endif %}
+            </div>
         </a>
     </div>
     {% empty %}

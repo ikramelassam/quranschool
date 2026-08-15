@@ -35,6 +35,7 @@
 
 <div class="page-title">تقييم الطلاب</div>
 <div class="page-subtitle">عرض للاطلاع فقط — التحرير من صلاحية المعلم</div>
+<div class="page-subtitle" style="margin-top:-14px;">🚫 حصيلة الغياب المعروضة على كل طالب تخص شهر <strong>{{ mois_reference_absences|mois_annee_ar }}</strong> — اختر شهراً آخر من الفلتر أدناه لتغييرها</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
     <div>
@@ -75,6 +76,11 @@
         <div class="ligne1">
             <span style="font-weight:600;">{{ ligne.eleve.user.get_full_name }}</span>
             <span class="moyennes">
+                {% if ligne.nb_absences %}
+                <span class="badge-note" style="background:#fdecea; color:#c0392b;">🚫 {{ ligne.nb_absences }} غياب</span>
+                {% else %}
+                <span class="badge-note" style="background:#e8f5e9; color:#1b5e20;">✅ لا غياب</span>
+                {% endif %}
                 {% for m in ligne.moyennes %}<span class="badge-note">{{ m.nom_ar }}: {{ m.moyenne }}/20</span>{% endfor %}
             </span>
         </div>
