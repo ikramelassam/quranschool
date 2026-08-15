@@ -1,18 +1,27 @@
 {% comment %}
-Bloc identité + déconnexion, en HAUT de la sidebar (Tâche du 2026-08-12) —
-remplace l'ancien lien "تسجيل الخروج" isolé en bas de page (hors zone visible
-sans scroll sur mobile). Un seul fichier partagé par les 5 bases (admin,
-mshrif, prof, eleve, superviseur) : garantit un traitement RIGOUREUSEMENT
-identique pour les 5 rôles — pas 5 copies qui pourraient diverger avec le
-temps. Les classes CSS (.sidebar-user-block, .sidebar-user-avatar,
-.btn-logout-top, ...) sont définies dans CHAQUE base_*.html (même patron que
-.compact-card/.section-title déjà dupliquées ainsi dans les 5 bases).
+Bloc identité + déconnexion, en HAUT de la sidebar (Tâche du 2026-08-12,
+redesign du 2026-08-15 — demande client : bouton pas assez repérable en test
+manuel mobile) — remplace l'ancien lien "تسجيل الخروج" isolé en bas de page
+(hors zone visible sans scroll sur mobile). Un seul fichier partagé par les 5
+bases (admin, mshrif, prof, eleve, superviseur) : garantit un traitement
+RIGOUREUSEMENT identique pour les 5 rôles — pas 5 copies qui pourraient
+diverger avec le temps. Les classes CSS (.sidebar-user-block,
+.sidebar-user-avatar, .btn-logout-top, ...) sont définies dans CHAQUE
+base_*.html (même patron que .compact-card/.section-title déjà dupliquées
+ainsi dans les 5 bases).
 
-Nom + icône du lien de déconnexion (pas juste une icône seule) : garde le
-même vocabulaire visuel que tout le reste de la sidebar (emoji + libellé
-texte partout, ex: "📊 لوحة التحكم") — aucune bibliothèque d'icônes séparée
-n'est utilisée sur le site, donc pas de rupture de cohérence à en introduire
-une ici.
+Redesign 2026-08-15 : le lien texte "🚪 تسجيل الخروج" (texte discret,
+opacité 75%, sans fond hors survol — donc invisible au doigt sur mobile, pas
+de :hover) est remplacé par un bouton rond dédié : pictogramme "porte de
+sortie + flèche" (SVG inline, tracé Feather "log-out", licence MIT — pas de
+bibliothèque d'icônes ajoutée, juste un tracé statique comme tout le reste du
+site n'utilise aucun asset externe pour ses icônes), zone de clic 44x44px
+(norme d'accessibilité tactile), fond dégradé --gradient-cta-gold + icône
+--color-cta-gold-text — MÊME paire de tokens que les CTA des pages publiques
+(login/inscription), déjà validée AA (6.85:1 minimum, voir tokens.css) donc
+pas de nouvelle combinaison de couleurs à auditer. Le texte visible est
+retiré (demande client : icône seule) mais aria-label + title conservent le
+libellé pour les lecteurs d'écran et l'infobulle desktop.
 
 request.user est toujours disponible ici (déjà utilisé tel quel ailleurs,
 ex: admin_superviseur_assignations.html avec request.user.role) — pas besoin
@@ -23,5 +32,11 @@ de le passer explicitement depuis chaque vue.
         <div class="sidebar-user-avatar">{{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}</div>
         <div class="sidebar-user-name">{{ request.user.get_full_name }}</div>
     </div>
-    <a href="{% url 'logout' %}" class="btn-logout-top" onclick="return confirm('هل تريد تسجيل الخروج؟');">🚪 تسجيل الخروج</a>
+    <a href="{% url 'logout' %}" class="btn-logout-top" onclick="return confirm('هل تريد تسجيل الخروج؟');" aria-label="تسجيل الخروج" title="تسجيل الخروج">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+    </a>
 </div>

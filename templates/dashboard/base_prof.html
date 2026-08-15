@@ -50,12 +50,15 @@
 
         /* Bloc identité + déconnexion, HAUT de sidebar (Tâche du 2026-08-12) —
            voir dashboard/_sidebar_user_block.html, même bloc pour les 5 rôles. */
-        .sidebar-user-block { padding: 14px 22px 16px; border-bottom: 1px solid rgba(255,255,255,0.12); display: flex; flex-direction: column; gap: 10px; }
-        .sidebar-user-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .sidebar-user-block { padding: 14px 16px 16px; border-bottom: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .sidebar-user-info { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
         .sidebar-user-avatar { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: var(--color-brand-gold-dark); color: var(--color-text-inverse); display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; }
         .sidebar-user-name { color: #FBF3E4; font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .btn-logout-top { display: inline-block; align-self: flex-start; color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.82rem; padding: 6px 10px; border-radius: 8px; transition: all 0.2s; }
-        .btn-logout-top:hover { background: rgba(255,255,255,0.12); color: white; }
+        /* Bouton déconnexion : icône seule, zone de clic 44x44 (norme tactile), fond
+           --gradient-cta-gold + icône --color-cta-gold-text — même paire de tokens que
+           les CTA publics (login/inscription), déjà validée AA (voir tokens.css). */
+        .btn-logout-top { flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; background: var(--gradient-cta-gold); color: var(--color-cta-gold-text); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.28); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+        .btn-logout-top:hover, .btn-logout-top:active { transform: scale(1.07); box-shadow: 0 3px 14px rgba(0,0,0,0.38); }
 
         .sidebar-menu { padding: 16px 0; flex: 1; }
         .menu-item {
