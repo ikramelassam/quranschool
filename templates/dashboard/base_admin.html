@@ -206,6 +206,11 @@
             {% if chat_non_lus_total %}<span class="menu-badge" id="chatSidebarBadge">{{ chat_non_lus_total|abrege_badge }}</span>{% endif %}
         </a>
 
+        <a href="{% url 'annonces_gestion' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'annonces_gestion' %}active{% endif %}">
+            <span class="icon">📢</span> الإعلانات
+        </a>
+
         <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_eleves' or request.resolver_match.url_name == 'admin_profs' or request.resolver_match.url_name == 'admin_inscriptions' or request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}open{% endif %}>
             <summary>إدارة المستخدمين</summary>
             <a href="{% url 'admin_eleves' %}"

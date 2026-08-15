@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'evaluations',
     'dashboard',
     'chat',
+    'annonces',
 ]
 
 MIDDLEWARE = [
@@ -99,6 +100,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'accounts.context_processors.logo_context',
                 'chat.context_processors.chat_badge_context',
+                'annonces.context_processors.annonces_badge_context',
             ],
         },
     },

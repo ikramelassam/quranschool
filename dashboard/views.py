@@ -2717,6 +2717,17 @@ def dashboard_eleve(request):
         'seance__groupe'
     ).order_by('-seance__date', '-seance__heure').first()
 
+    # Bannière "📢 إعلانات جديدة" (Chantier du 2026-08-15) : uniquement les
+    # annonces de LA catégorie de cet élève (voir courses.utils.
+    # cible_annonce_pour_eleve) pas encore lues — la page /annonces/mes-annonces/
+    # (lien "عرض الكل") les marque lues à la visite, elles disparaissent alors
+    # d'ici automatiquement. Import local (même convention que les autres
+    # imports d'apps métier dans cette vue, ex: courses.models ci-dessus).
+    from annonces.services import annonces_visibles_pour_eleve
+    annonces_recentes = annonces_visibles_pour_eleve(eleve).exclude(
+        lectures__user=request.user
+    ).order_by('-date_creation')[:3]
+
     context = {
         'eleve': eleve,
         'groupe_principal': groupes.first(),
@@ -2731,6 +2742,7 @@ def dashboard_eleve(request):
         'prochaine_seance': prochaine_seance,
         'dernieres_evaluations': dernieres_evaluations,
         'derniere_avec_consignes': derniere_avec_consignes,
+        'annonces_recentes': annonces_recentes,
     }
     return render(request, 'dashboard/eleve.html', context)
 

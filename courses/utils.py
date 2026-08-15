@@ -763,6 +763,27 @@ def _tranche_age_eleve(eleve):
     return tranche_age_depuis_naissance(eleve.inscription.date_naissance)
 
 
+def cible_annonce_pour_eleve(eleve):
+    """Catégorie de ciblage des annonces (annonces.models.Annonce.CIBLE_CHOICES)
+    pour cet Eleve : 'mineurs' (< AGE_SEUIL_ADULTE, filles ET garçons ensemble
+    — aucune séparation par sexe pour les mineurs, décision explicite du
+    client, Chantier du 2026-08-15), sinon 'femmes_adultes'/'hommes_adultes'
+    selon Eleve.sexe. None si l'âge est inconnu (même garde-fou que
+    _tranche_age_eleve — pas d'inscription liée ou date de naissance
+    manquante) ou si le sexe d'un élève adulte n'est ni 'homme' ni 'femme'
+    (jamais une supposition silencieuse sur qui reçoit une annonce)."""
+    tranche = _tranche_age_eleve(eleve)
+    if tranche is None:
+        return None
+    if tranche == 'enfant':
+        return 'mineurs'
+    if eleve.sexe == 'femme':
+        return 'femmes_adultes'
+    if eleve.sexe == 'homme':
+        return 'hommes_adultes'
+    return None
+
+
 def lien_seance_est_actif(seance):
     """True si l'heure actuelle tombe dans la fenêtre [début - marge_avant,
     fin + marge_apres] de cette séance — Point 15, Tâche du 2026-08-04.

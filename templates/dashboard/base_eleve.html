@@ -189,6 +189,12 @@
             <span class="icon">💬</span> الرسائل
             {% if chat_non_lus_total %}<span class="menu-badge" id="chatSidebarBadge">{{ chat_non_lus_total|abrege_badge }}</span>{% endif %}
         </a>
+
+        <a href="{% url 'eleve_annonces' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'eleve_annonces' %}active{% endif %}">
+            <span class="icon">📢</span> الإعلانات
+            {% if annonces_non_lues_total %}<span class="menu-badge">{{ annonces_non_lues_total|abrege_badge }}</span>{% endif %}
+        </a>
         <a href="{% url 'eleve_seances' %}"
            class="menu-item {% if request.resolver_match.url_name == 'eleve_seances' %}active{% endif %}">
             <span class="icon">📋</span> حصصي وتقييماتي
