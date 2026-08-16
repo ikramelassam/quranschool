@@ -9,8 +9,6 @@
     {% include 'examens/_statut_badge.html' with statut=examen.statut %}
 </div>
 
-{% include 'dashboard/_messages.html' %}
-
 <div style="background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin:20px 0; display:flex; flex-wrap:wrap; gap:24px;">
     <div><div style="color:#aaa; font-size:0.78rem;">المتاح من</div><div style="font-weight:600;">{{ examen.date_debut|date:"d-m-Y H:i" }}</div></div>
     <div><div style="color:#aaa; font-size:0.78rem;">إلى غاية</div><div style="font-weight:600;">{{ examen.date_limite|date:"d-m-Y H:i" }}</div></div>

@@ -711,6 +711,25 @@ class WorkflowEleveHttpTests(TestCase):
         self.assertEqual(copie.statut, 'soumise')
         self.assertFalse(copie.soumission_automatique)
 
+    def test_page_resultat_naffiche_pas_la_banniere_de_succes_en_double(self):
+        """Régression (2026-08-16) : eleve_resultat.html incluait
+        dashboard/_messages.html une 2e fois EN PLUS de celui déjà rendu par
+        base_eleve.html — le message "تم تسليم إجاباتك بنجاح" apparaissait
+        donc 2 fois en bannière, plus une 3e fois dans la carte de statut
+        dédiée de cette même page ("📩 تم تسليم إجاباتك"). Corrigé en 2 temps :
+        suppression de l'include redondant (structurel, tout le module
+        examens était concerné) + suppression du messages.success() devenu
+        inutile ici puisque la carte de statut dit déjà la même chose."""
+        self.client.post(reverse('examens_eleve_avant', args=[self.examen.id]))
+        copie = Copie.objects.get(examen=self.examen, eleve=self.eleve)
+        reponse = self.client.post(reverse('examens_soumettre', args=[copie.id]), follow=True)
+        html = reponse.content.decode('utf-8')
+        self.assertEqual(html.count('تم تسليم إجاباتك بنجاح'), 0)  # plus émis du tout (carte suffit)
+        self.assertEqual(html.count('📩 تم تسليم إجاباتك'), 1)     # la carte, une seule fois
+        # Le conteneur de bannière lui-même (dashboard/_messages.html) ne doit
+        # apparaître qu'une fois dans le HTML, même s'il n'y a rien à afficher.
+        self.assertEqual(html.count('aria-label="إغلاق"'), 0)      # aucun message en attente -> pas de bannière du tout ici
+
     def test_double_soumission_ne_change_rien(self):
         self.client.post(reverse('examens_eleve_avant', args=[self.examen.id]))
         copie = Copie.objects.get(examen=self.examen, eleve=self.eleve)

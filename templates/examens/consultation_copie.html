@@ -4,8 +4,6 @@
 <div class="page-title">نسخة {{ copie.eleve.user.get_full_name }}</div>
 <div class="page-subtitle">{{ examen.titre }} — {{ examen.groupe.nom }}</div>
 
-{% include 'dashboard/_messages.html' %}
-
 <div style="margin:16px 0;">
     <a href="{% url 'examens_consultation_detail' examen.id %}" style="color:var(--color-brand-gold-dark); text-decoration:none; font-size:0.9rem;">← رجوع إلى الاختبار</a>
 </div>

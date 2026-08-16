@@ -4,8 +4,6 @@
 <div class="page-title">{{ examen.titre }}</div>
 <div class="page-subtitle">{{ examen.groupe.nom }}</div>
 
-{% include 'dashboard/_messages.html' %}
-
 <div style="background:white; border-radius:14px; padding:26px 28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:20px; max-width:560px;">
     {% if examen.instructions %}
     <div style="color:#555; margin-bottom:20px; white-space:pre-wrap;">{{ examen.instructions }}</div>

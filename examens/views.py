@@ -575,7 +575,12 @@ def examen_soumettre(request, copie_id):
         return redirect('examens_eleve_resultat', copie.id)
 
     copie = soumettre_copie(copie, automatique=False)
-    messages.success(request, 'تم تسليم إجاباتك بنجاح.')
+    # Pas de messages.success() ici (bug de duplication du 2026-08-16) :
+    # examens_eleve_resultat affiche déjà sa propre carte de statut
+    # ("📩 تم تسليم إجاباتك" / note si déjà corrigée) — une bannière de
+    # succès en plus aurait fait doublon avec cette carte, en plus du
+    # doublon structurel qu'avait la page elle-même (voir templates/
+    # examens/eleve_resultat.html, qui incluait _messages.html deux fois).
     return redirect('examens_eleve_resultat', copie.id)
 
 

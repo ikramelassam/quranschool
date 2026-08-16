@@ -4,8 +4,6 @@
 <div class="page-title">{% if question %}تعديل السؤال{% else %}إضافة سؤال جديد{% endif %}</div>
 <div class="page-subtitle">{{ examen.titre }}</div>
 
-{% include 'dashboard/_messages.html' %}
-
 <form method="POST" style="background:white; border-radius:12px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:20px; max-width:680px;">
     {% csrf_token %}
 

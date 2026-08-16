@@ -4,8 +4,6 @@
 <div class="page-title">{% if examen %}تعديل الاختبار{% else %}إنشاء اختبار جديد{% endif %}</div>
 <div class="page-subtitle">{% if examen %}{{ examen.titre }}{% else %}الخطوة 1: المعلومات العامة — أضف الأسئلة بعد الحفظ{% endif %}</div>
 
-{% include 'dashboard/_messages.html' %}
-
 <form method="POST" style="background:white; border-radius:12px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:20px; max-width:640px;">
     {% csrf_token %}
 

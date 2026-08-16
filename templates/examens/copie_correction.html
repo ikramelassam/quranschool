@@ -4,8 +4,6 @@
 <div class="page-title">تصحيح نسخة {{ copie.eleve.user.get_full_name }}</div>
 <div class="page-subtitle">{{ examen.titre }}</div>
 
-{% include 'dashboard/_messages.html' %}
-
 <div style="margin:12px 0 20px;">
     <a href="{% url 'examens_prof_copies' examen.id %}" style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.9rem;">← رجوع إلى قائمة النسخ</a>
 </div>
