@@ -1,8 +1,13 @@
 {% load chat_extras %}
-{% with dernier_message=messages|last %}
+{% comment %}
+Correctif du 2026-08-16 : la clé de contexte est 'messages_conversation'
+(PAS 'messages', qui écrasait les messages flash Django — voir la docstring
+de chat.views._contexte_messages_initiaux pour le détail du bug corrigé).
+{% endcomment %}
+{% with dernier_message=messages_conversation|last %}
 <div class="chat-panel" id="chatPanel" data-groupe-id="{{ groupe.id }}"
      data-dernier-id="{% if dernier_message %}{{ dernier_message.id }}{% endif %}"
-     data-premier-id="{% if messages %}{{ messages.0.id }}{% endif %}"
+     data-premier-id="{% if messages_conversation %}{{ messages_conversation.0.id }}{% endif %}"
      data-a-plus-ancien="{{ a_plus_ancien|yesno:'1,0' }}">
     <div class="chat-panel-header">
         <button type="button" class="chat-btn-retour" id="chatBtnRetour" aria-label="العودة إلى قائمة المحادثات">
@@ -52,7 +57,7 @@
                 <span class="chat-spinner"></span>
             </div>
             <div id="chatMessagesVide">
-                {% if not messages %}
+                {% if not messages_conversation %}
                 <div class="chat-vide-messages">
                     <p>لا توجد رسائل بعد</p>
                     <p class="chat-vide-messages-sous">كن أول من يبدأ المحادثة في هذه المجموعة.</p>
@@ -60,7 +65,7 @@
                 {% endif %}
             </div>
             <div id="chatMessagesListe">
-                {% include 'chat/_message_bubbles.html' with groupe_id=groupe.id %}
+                {% include 'chat/_message_bubbles.html' with groupe_id=groupe.id messages=messages_conversation %}
             </div>
         </div>
         <button type="button" id="chatNouveauxMessages" class="chat-nouveaux-messages" hidden>↓ رسائل جديدة</button>

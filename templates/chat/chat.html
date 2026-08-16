@@ -60,7 +60,15 @@
     }
     .chat-item-corps { min-width: 0; flex: 1; }
     .chat-item-ligne1 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-    .chat-item-nom { font-weight: 700; font-size: 0.92rem; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    {% comment %}
+    Correctif du 2026-08-16 : le nom n'était PAS conditionné au statut lu/non
+    lu (toujours en gras) — comportement WhatsApp/Messenger demandé : gras
+    UNIQUEMENT tant que la conversation a des messages non lus, poids normal
+    une fois lue. Voir templates/chat/_conversation_liste.html (classe
+    "non-lu" ajoutée seulement si conversation.nb_non_lus).
+    {% endcomment %}
+    .chat-item-nom { font-weight: 500; font-size: 0.92rem; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-item-nom.non-lu { font-weight: 700; }
     .chat-item-heure { font-size: 0.72rem; color: var(--color-text-muted); flex-shrink: 0; }
     .chat-item-ligne2 { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; }
     .chat-item-apercu { font-size: 0.82rem; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

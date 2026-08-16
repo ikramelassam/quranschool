@@ -12,7 +12,7 @@
     <div class="chat-item-avatar" aria-hidden="true">{{ conversation.groupe.nom|first|upper }}</div>
     <div class="chat-item-corps">
         <div class="chat-item-ligne1">
-            <span class="chat-item-nom">{{ conversation.groupe.nom }}</span>
+            <span class="chat-item-nom{% if conversation.nb_non_lus %} non-lu{% endif %}">{{ conversation.groupe.nom }}</span>
             {% if conversation.dernier_message %}
             <span class="chat-item-heure">{{ conversation.dernier_message.date_envoi|heure_message }}</span>
             {% endif %}

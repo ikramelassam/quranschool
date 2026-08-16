@@ -46,7 +46,23 @@ def _contexte_messages_initiaux(conversation, request):
     """Les NB_MESSAGES_PAR_PAGE derniers messages, dans l'ordre chronologique
     (Point 17 : jamais tout l'historique) — utilisé pour le chargement
     initial d'une conversation, que ce soit la page complète ou le panneau
-    rechargé en AJAX."""
+    rechargé en AJAX.
+
+    Clé 'messages_conversation' (PAS 'messages' — correctif du 2026-08-16,
+    bug CRITIQUE trouvé par script de vérification) : ce contexte est fusionné
+    tel quel dans celui de chat_conversation, qui rend chat/chat.html — donc
+    un template de base (base_admin.html etc.) COMPLET, lequel inclut
+    dashboard/_messages.html juste avant {% block content %}.
+    django.contrib.messages.context_processors.messages injecte DÉJÀ une
+    variable de contexte nommée 'messages' (les messages flash Django) dans
+    CHAQUE rendu de template — une clé 'messages' ici l'écrasait silencieusement
+    avec la liste des Message du chat, faisant boucler _messages.html sur ces
+    objets et afficher {{ message }} (donc str(Message), ex: "Auteur —
+    محادثة Nom du groupe (date)") dans une bannière Bootstrap .alert en haut
+    de CHAQUE page /chat/<id>/ — le "toast" signalé, un par message affiché,
+    à chaque chargement/rechargement complet de la page. templates/chat/
+    _panel.html (seul autre consommateur de ce dict) a été mis à jour en
+    conséquence."""
     # Pas de select_related('auteur') : le template n'affiche jamais de champ live
     # de l'auteur (email/téléphone interdits de toute façon) — seulement les
     # instantanés auteur_nom/auteur_role figés sur le Message lui-même (voir
@@ -59,7 +75,7 @@ def _contexte_messages_initiaux(conversation, request):
     return {
         'conversation': conversation,
         'groupe': conversation.groupe,
-        'messages': messages_recents,
+        'messages_conversation': messages_recents,
         'a_plus_ancien': len(messages_recents) == NB_MESSAGES_PAR_PAGE,
         'participants': participants_conversation(conversation),
         'user': request.user,
