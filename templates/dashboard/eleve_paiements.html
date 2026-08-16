@@ -7,7 +7,7 @@
 
 <div class="compact-card mb-4">
     <div style="font-weight:700; color:var(--color-role-eleve-solid); margin-bottom:16px;">إرسال دفعة جديدة</div>
-    <form method="POST" enctype="multipart/form-data" class="row g-3">
+    <form method="POST" enctype="multipart/form-data" class="row g-3" id="formPaiement">
         {% csrf_token %}
         <div class="col-md-3">
             <label style="font-weight:600; color:#333; font-size:0.9rem;">الشهر المعني</label>
@@ -22,12 +22,24 @@
             <input type="file" name="screenshot" class="form-control mt-1" accept="image/*" required>
         </div>
         <div class="col-md-2 d-flex align-items-end">
-            <button type="submit"
+            <button type="submit" id="btnEnvoyerPaiement"
                 style="background:var(--color-role-eleve); color:white; border:none; border-radius:8px; padding:10px 20px; font-family:'Tajawal',sans-serif; cursor:pointer; width:100%;">
                 إرسال
             </button>
         </div>
     </form>
+    <script>
+        // Anti-double-soumission côté client : désactive le bouton dès le
+        // premier submit valide pour empêcher un 2e clic d'envoyer la même
+        // preuve deux fois pendant que la requête part (voir aussi la garde
+        // serveur dans payments.views.eleve_paiements).
+        document.getElementById('formPaiement').addEventListener('submit', function () {
+            var btn = document.getElementById('btnEnvoyerPaiement');
+            if (btn.disabled) { return; }
+            btn.disabled = true;
+            btn.textContent = 'جاري الإرسال...';
+        });
+    </script>
 </div>
 
 <div class="section-title" style="font-size:1.05rem;">سجل المدفوعات</div>

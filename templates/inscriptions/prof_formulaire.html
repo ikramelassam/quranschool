@@ -320,6 +320,16 @@ function toggleMulti(el, field, value) {
         document.querySelector('form').appendChild(input);
     });
 }
+
+// Anti-double-soumission : désactive le bouton dès le premier submit pour
+// empêcher un 2e clic d'envoyer la même candidature deux fois pendant que la
+// requête part (voir aussi la garde serveur dans inscriptions.views.inscription_prof).
+document.querySelector('form').addEventListener('submit', function (e) {
+    const btn = document.querySelector('.btn-submit');
+    if (btn.disabled) { e.preventDefault(); return; }
+    btn.disabled = true;
+    btn.textContent = 'جارٍ الإرسال...';
+});
 </script>
 </body>
 </html>

@@ -4,10 +4,20 @@ import re
 from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 from .models import InscriptionEleve, InscriptionProf, TypeAbonnement, get_parametres_inscriptions
 from core.utils import envoyer_notification_telegram
 from courses.utils import AGE_SEUIL_ADULTE, tranche_age_depuis_naissance
 import json
+
+# Anti-double-soumission (chantier du 2026-08-16, séparé du fix de
+# duplication des messages) : une candidature avec les mêmes champs-clés
+# soumise il y a moins de ce délai par la même personne est traitée comme un
+# rejeu du même clic (double clic, onglet dupliqué, re-soumission réseau),
+# jamais comme une 2e candidature distincte. Volontairement court et étroit —
+# ne touche PAS à _email_bloque_pour_candidature_eleve/_email_deja_utilise
+# (règles métier de blocage/partage d'email, inchangées).
+FENETRE_ANTI_DOUBLON_SECONDES = 5
 
 CATEGORIE_LABEL = {
     'adulte': 'الطلاب البالغون',
@@ -295,6 +305,17 @@ def inscription_eleve_formulaire(request, type_age):
                 **contexte_grille,
             })
 
+        # Garde anti-double-soumission : une InscriptionEleve avec les mêmes
+        # email+nom+date_naissance vient d'être créée il y a quelques
+        # secondes -> on renvoie directement vers la confirmation sans
+        # insérer un doublon ni renvoyer une 2e notification Telegram.
+        seuil_anti_doublon = timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_SECONDES)
+        if InscriptionEleve.objects.filter(
+            email=email, nom=request.POST.get('nom'), date_naissance=date_naissance,
+            date_soumission__gte=seuil_anti_doublon,
+        ).exists():
+            return redirect('inscription_confirmation')
+
         inscription = InscriptionEleve.objects.create(
             nom=request.POST.get('nom'),
             nom_parent=request.POST.get('nom_parent', ''),
@@ -411,6 +432,15 @@ def inscription_prof(request):
                 'valeurs_form': set(disponibilites),
                 **contexte_grille,
             })
+
+        # Garde anti-double-soumission — même principe que
+        # inscription_eleve_formulaire ci-dessus, clé email+nom+prenom.
+        seuil_anti_doublon = timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_SECONDES)
+        if InscriptionProf.objects.filter(
+            email=email, nom=request.POST.get('nom'), prenom=request.POST.get('prenom'),
+            date_soumission__gte=seuil_anti_doublon,
+        ).exists():
+            return redirect('inscription_confirmation')
 
         inscription = InscriptionProf.objects.create(
             nom=request.POST.get('nom'),

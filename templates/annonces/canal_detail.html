@@ -324,6 +324,18 @@
             document.getElementById('pubTitreInput').focus({ preventScroll: true });
         });
     }
+
+    // ---- Anti-double-soumission : désactive le bouton "نشر" dès le premier
+    // submit valide pour empêcher un 2e clic de publier le même contenu deux
+    // fois pendant que la requête part (voir aussi la garde serveur dans
+    // annonces.views.annonce_ajouter).
+    const formulaire = document.getElementById('pubFormulaire');
+    const btnPublier = formulaire.querySelector('.pub-form-submit');
+    formulaire.addEventListener('submit', function () {
+        if (btnPublier.disabled) { return; }
+        btnPublier.disabled = true;
+        btnPublier.textContent = 'جارٍ النشر...';
+    });
 })();
 </script>
 {% endblock %}

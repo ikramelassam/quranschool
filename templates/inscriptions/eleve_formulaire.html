@@ -395,7 +395,17 @@
         if (!verifierAgeCategorie()) {
             e.preventDefault();
             document.getElementById('date_naissance').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
         }
+        // Anti-double-soumission : désactive le bouton uniquement une fois la
+        // validation passée (sinon un 2e essai après correction resterait
+        // bloqué) — empêche un 2e clic d'envoyer la même candidature deux
+        // fois pendant que la requête part (voir aussi la garde serveur dans
+        // inscriptions.views.inscription_eleve_formulaire).
+        const btn = document.querySelector('.btn-submit');
+        if (btn.disabled) { e.preventDefault(); return; }
+        btn.disabled = true;
+        btn.textContent = 'جارٍ الإرسال...';
     });
 </script>
 </body>

@@ -1,6 +1,9 @@
+import datetime
+
 from django.contrib import messages
 from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
+from django.utils import timezone
 
 from accounts.decorators import role_required
 from .models import Annonce
@@ -11,6 +14,15 @@ from .services import (
 )
 
 CIBLES_VALIDES = {code for code, _ in Annonce.CIBLE_CHOICES}
+
+# Anti-double-soumission (chantier du 2026-08-16, séparé du fix de
+# duplication des messages) : un même contenu (titre+contenu+cible) publié
+# par le même utilisateur il y a moins de ce délai est traité comme un rejeu
+# du même clic (double clic, onglet dupliqué, re-soumission réseau) plutôt
+# que comme une 2e publication distincte. Volontairement court — ne bloque
+# jamais une vraie republication délibérée du même texte quelques minutes
+# plus tard.
+FENETRE_ANTI_DOUBLON_SECONDES = 5
 
 
 def _base_template_admin_ou_mshrif(request):
@@ -100,6 +112,18 @@ def annonce_ajouter(request):
         if erreur:
             messages.error(request, erreur)
             return redirect(destination, *destination_args)
+
+    # Garde anti-double-soumission : si CE même utilisateur vient de publier
+    # EXACTEMENT le même contenu dans le même canal il y a quelques secondes,
+    # on ne recrée pas une 2e Annonce — on se comporte comme si la publication
+    # avait réussi (même message, même redirection) sans rien insérer de plus.
+    recente = Annonce.objects.filter(
+        cree_par=request.user, titre=titre, contenu=contenu, cible=cible,
+        date_creation__gte=timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_SECONDES),
+    ).exists()
+    if recente:
+        messages.success(request, 'تم نشر الإعلان بنجاح.')
+        return redirect(destination, *destination_args)
 
     Annonce.objects.create(
         titre=titre, contenu=contenu, cible=cible, cree_par=request.user,

@@ -2,12 +2,22 @@ import datetime
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from django.utils import timezone
 from django.contrib import messages
 from accounts.decorators import role_required
 from accounts.services import eleves_pour_filtre
 from core.utils import paginer, envoyer_notification_telegram
 from accounts.models import Eleve
 from .models import Paiement
+
+# Anti-double-soumission (chantier du 2026-08-16, séparé du fix de
+# duplication des messages) : un même élève, même montant, même mois soumis
+# il y a moins de ce délai est traité comme un rejeu du même clic — jamais
+# comme une 2e preuve de paiement distincte. Évite aussi, en pratique, de
+# heurter la contrainte unique_together (eleve, mois_reference) du modèle
+# Paiement en cas de double-clic rapide (qui lèverait sinon une IntegrityError
+# non rattrapée -> erreur 500).
+FENETRE_ANTI_DOUBLON_SECONDES = 5
 
 
 def _base_template_admin_ou_mshrif(request):
@@ -37,6 +47,18 @@ def eleve_paiements(request):
             return redirect('eleve_paiements')
 
         from dashboard.templatetags.libelles_arabes import mois_annee_ar
+
+        # Garde anti-double-soumission : une preuve identique (même élève,
+        # même montant, même mois) vient d'être envoyée il y a quelques
+        # secondes -> on se comporte comme si l'envoi avait réussi, sans
+        # insérer de 2e ligne ni renvoyer une 2e notification Telegram.
+        seuil_anti_doublon = timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_SECONDES)
+        if Paiement.objects.filter(
+            eleve=eleve, montant=request.POST.get('montant'), mois_reference=request.POST.get('mois_reference'),
+            date__gte=seuil_anti_doublon,
+        ).exists():
+            messages.success(request, 'تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة.')
+            return redirect('eleve_paiements')
 
         paiement = Paiement.objects.create(
             eleve=eleve,
