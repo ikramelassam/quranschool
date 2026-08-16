@@ -1,0 +1,82 @@
+{% extends 'dashboard/base_prof.html' %}
+{% block title %}{% if question %}تعديل سؤال{% else %}إضافة سؤال{% endif %}{% endblock %}
+{% block content %}
+<div class="page-title">{% if question %}تعديل السؤال{% else %}إضافة سؤال جديد{% endif %}</div>
+<div class="page-subtitle">{{ examen.titre }}</div>
+
+{% include 'dashboard/_messages.html' %}
+
+<form method="POST" style="background:white; border-radius:12px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:20px; max-width:680px;">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label style="color:#888; font-size:0.85rem; display:block; margin-bottom:4px;">نوع السؤال</label>
+        {# Le 2e opérande de |default: est un ARGUMENT de filtre, jamais protégé par le mécanisme silencieux de Django (contrairement à la variable principale) — question.type_question y faisait planter le rendu dès que question=None. firstof résout chaque candidat avec ignore_failures=True (comme {% if %}), donc plus jamais de crash. #}
+        {% firstof valeurs.type_question question.type_question "choix" as type_actuel %}
+        <select name="type_question" id="type_question" class="form-select" onchange="basculerNoeSection()" required>
+            <option value="choix" {% if type_actuel == 'choix' %}selected{% endif %}>اختيار من متعدد</option>
+            <option value="vrai_faux" {% if type_actuel == 'vrai_faux' %}selected{% endif %}>صح / خطأ</option>
+            <option value="texte" {% if type_actuel == 'texte' %}selected{% endif %}>إجابة نصية (تصحيح يدوي)</option>
+            <option value="audio" {% if type_actuel == 'audio' %}selected{% endif %}>إجابة صوتية (تصحيح يدوي)</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label style="color:#888; font-size:0.85rem; display:block; margin-bottom:4px;">نص السؤال</label>
+        <textarea name="enonce" class="form-control" rows="2" required>{% if valeurs %}{{ valeurs.enonce }}{% elif question %}{{ question.enonce }}{% endif %}</textarea>
+    </div>
+
+    <div class="mb-3">
+        <label style="color:#888; font-size:0.85rem; display:block; margin-bottom:4px;">عدد النقاط</label>
+        <input type="number" name="points" min="1" class="form-control" style="max-width:120px;"
+               value="{% if valeurs %}{{ valeurs.points }}{% elif question %}{{ question.points }}{% else %}1{% endif %}" required>
+    </div>
+
+    {# ===== اختيار من متعدد ===== #}
+    <div id="section-choix" style="display:none; background:#f9f7f2; border-radius:10px; padding:16px 18px; margin-top:16px;">
+        <div style="color:#888; font-size:0.85rem; margin-bottom:10px;">أدخل المقترحات (مقترحان على الأقل) وحدّد الإجابة الصحيحة</div>
+        {% for ligne in lignes_choix %}
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <input type="radio" name="choix_correct" value="{{ ligne.index }}" {% if ligne.correct %}checked{% endif %}>
+            <input type="text" name="choix_texte_{{ ligne.index }}" class="form-control" placeholder="مقترح {{ forloop.counter }}" value="{{ ligne.texte }}">
+        </div>
+        {% endfor %}
+        <div style="color:#aaa; font-size:0.78rem; margin-top:4px;">✓ حدّد الدائرة بجانب المقترح الصحيح.</div>
+    </div>
+
+    {# ===== صح / خطأ ===== #}
+    <div id="section-vrai-faux" style="display:none; background:#f9f7f2; border-radius:10px; padding:16px 18px; margin-top:16px;">
+        <div style="color:#888; font-size:0.85rem; margin-bottom:10px;">الإجابة الصحيحة</div>
+        {% with bool_actuel=valeurs.reponse_correcte_bool %}
+        <label style="display:inline-flex; align-items:center; gap:6px; margin-left:24px;">
+            <input type="radio" name="reponse_correcte_bool" value="true"
+                   {% if bool_actuel == 'true' or question.reponse_correcte_bool == True %}checked{% endif %}> صح
+        </label>
+        <label style="display:inline-flex; align-items:center; gap:6px;">
+            <input type="radio" name="reponse_correcte_bool" value="false"
+                   {% if bool_actuel == 'false' or question.reponse_correcte_bool == False %}checked{% endif %}> خطأ
+        </label>
+        {% endwith %}
+    </div>
+
+    {# ===== نصية / صوتية ===== #}
+    <div id="section-manuelle" style="display:none; background:#f9f7f2; border-radius:10px; padding:16px 18px; margin-top:16px; color:#8a6d00; font-size:0.85rem;">
+        ℹ️ لا يوجد تصحيح تلقائي لهذا النوع من الأسئلة — ستقوم بتصحيحها يدوياً بعد تسليم الطالب لإجابته.
+    </div>
+
+    <div style="display:flex; gap:12px; margin-top:24px;">
+        <button type="submit" style="background:var(--color-role-prof); color:white; border:none; border-radius:8px; padding:10px 28px; font-weight:600;">حفظ السؤال</button>
+        <a href="{% url 'examens_prof_detail' examen.id %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
+    </div>
+</form>
+
+<script>
+function basculerNoeSection() {
+    const type = document.getElementById('type_question').value;
+    document.getElementById('section-choix').style.display = (type === 'choix') ? 'block' : 'none';
+    document.getElementById('section-vrai-faux').style.display = (type === 'vrai_faux') ? 'block' : 'none';
+    document.getElementById('section-manuelle').style.display = (type === 'texte' || type === 'audio') ? 'block' : 'none';
+}
+basculerNoeSection();
+</script>
+{% endblock %}

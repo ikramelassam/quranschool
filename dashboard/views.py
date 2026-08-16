@@ -163,6 +163,46 @@ def _contexte_base_mshrif(request):
     return {'nb_demandes_en_attente': InscriptionProf.objects.filter(statut='validee_directeur').count()}
 
 
+def _notifications_messages(user, limite=10):
+    """Notifications de type 'message' pour la zone "🔔 الإشعارات" en bas de
+    لوحة التحكم élève/prof (Chantier UX du 2026-08-16, Point 3). Dérivée
+    EXCLUSIVEMENT de chat.services.conversations_avec_apercu — déjà utilisée
+    par /chat/ pour le panneau de gauche (aperçu + nb_non_lus déjà calculés,
+    déjà triée par activité la plus récente) — aucun nouveau compteur, aucune
+    requête supplémentaire au-delà de ce que cette fonction fait déjà. Ne
+    garde que les conversations avec au moins un message non lu ; le tri
+    étant déjà décroissant par récence, un simple troncage à `limite` suffit,
+    pas besoin de re-trier ici.
+
+    Retourne une liste de dicts {icone, titre, sous_titre, date, url, badge}
+    — format générique partagé avec l'entrée 'annonce' ajoutée séparément par
+    dashboard_eleve (voir templates/dashboard/_notifications_zone.html)."""
+    from chat.services import conversations_avec_apercu
+
+    LABELS_APERCU_NON_TEXTE = {'audio': '🎙️ رسالة صوتية', 'fichier': '📎 ملف مرفق'}
+
+    items = []
+    for conversation in conversations_avec_apercu(user):
+        if not conversation.nb_non_lus or not conversation.dernier_message:
+            continue
+        dernier = conversation.dernier_message
+        apercu = (
+            dernier['contenu'] if dernier['type_message'] == 'texte'
+            else LABELS_APERCU_NON_TEXTE.get(dernier['type_message'], '')
+        )
+        items.append({
+            'icone': '💬',
+            'titre': conversation.groupe.nom,
+            'sous_titre': apercu,
+            'date': dernier['date_envoi'],
+            'url': reverse('chat_conversation', args=[conversation.groupe_id]),
+            'badge': conversation.nb_non_lus,
+        })
+        if len(items) >= limite:
+            break
+    return items
+
+
 def _verifier_conflit_email(email):
     """Vérifie si un User existe déjà pour cet email et s'il a un profil Eleve/Prof.
     Utilisé pour bloquer la validation d'une inscription en cas de conflit
@@ -269,6 +309,11 @@ def dashboard_prof(request):
         s for s in a_venir['bucket_semaine_courante'] if s.id != id_a_exclure
     ]
 
+    # Zone "🔔 الإشعارات" en bas de page (Chantier UX du 2026-08-16, Point 3) —
+    # messages non lus uniquement côté prof (pas d'annonces le concernant, le
+    # système Annonces ne cible que les élèves — voir rapport du chantier).
+    notifications = _notifications_messages(request.user, limite=5)
+
     context = {
         'prof': prof,
         'groupes': groupes,
@@ -291,6 +336,7 @@ def dashboard_prof(request):
         # prof avait un historique bien plus long ; total réel, cohérent avec
         # le fait que la liste ci-dessous n'est plus plafonnée à 5 non plus.
         'total_seances_passees': toutes_seances_prof.filter(date__lt=aujourdhui).count(),
+        'notifications': notifications,
     }
     return render(request, 'dashboard/prof.html', context)
 
@@ -2723,10 +2769,33 @@ def dashboard_eleve(request):
     # (lien "عرض الكل") les marque lues à la visite, elles disparaissent alors
     # d'ici automatiquement. Import local (même convention que les autres
     # imports d'apps métier dans cette vue, ex: courses.models ci-dessus).
+    # Récupérée UNE SEULE fois (liste, pas queryset tronqué) et réutilisée à
+    # la fois pour cette bannière ET pour la zone "🔔 الإشعارات" plus bas
+    # (Chantier UX du 2026-08-16, Point 3) — pas une 2e requête pour la même
+    # information.
     from annonces.services import annonces_visibles_pour_eleve
-    annonces_recentes = annonces_visibles_pour_eleve(eleve).exclude(
-        lectures__user=request.user
-    ).order_by('-date_creation')[:3]
+    annonces_non_lues = list(
+        annonces_visibles_pour_eleve(eleve).exclude(lectures__user=request.user).order_by('-date_creation')
+    )
+    annonces_recentes = annonces_non_lues[:3]
+
+    # Zone "🔔 الإشعارات" en bas de page : fusionne messages non lus (voir
+    # _notifications_messages) et annonces non lues (une seule entrée-résumé,
+    # pour ne pas répéter le contenu déjà détaillé dans la bannière
+    # ci-dessus — pas de duplication visuelle) en UNE liste triée par
+    # récence, la plus récente en tête.
+    notifications = _notifications_messages(request.user)
+    if annonces_non_lues:
+        notifications.append({
+            'icone': '📢',
+            'titre': annonces_non_lues[0].titre if len(annonces_non_lues) == 1 else f'{len(annonces_non_lues)} إعلانات جديدة',
+            'sous_titre': annonces_non_lues[0].contenu if len(annonces_non_lues) == 1 else '',
+            'date': annonces_non_lues[0].date_creation,
+            'url': reverse('eleve_annonces'),
+            'badge': len(annonces_non_lues) if len(annonces_non_lues) > 1 else None,
+        })
+    notifications.sort(key=lambda n: n['date'], reverse=True)
+    notifications = notifications[:5]
 
     context = {
         'eleve': eleve,
@@ -2743,6 +2812,7 @@ def dashboard_eleve(request):
         'dernieres_evaluations': dernieres_evaluations,
         'derniere_avec_consignes': derniere_avec_consignes,
         'annonces_recentes': annonces_recentes,
+        'notifications': notifications,
     }
     return render(request, 'dashboard/eleve.html', context)
 

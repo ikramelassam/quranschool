@@ -1,0 +1,180 @@
+{% load chat_extras %}
+{% comment %}
+Raccourcis "الإعلانات"/"الرسائل" — mini-toolbar en tête du contenu principal
+(`.main-content`), visuellement séparée de la sidebar (Chantier UX header du
+2026-08-16, plusieurs retouches le même jour — voir historique ci-dessous).
+Purement présentationnel : réutilise TEL QUEL chat_non_lus_total /
+annonces_non_lues_total, déjà injectés dans le contexte de CHAQUE page par
+chat.context_processors.chat_badge_context / annonces.context_processors.
+annonces_badge_context (voir core/settings.py, TEMPLATES.context_processors —
+non modifiés ici), et les routes déjà existantes (chat_liste,
+annonces_gestion/eleve_annonces). Aucune nouvelle donnée, aucun nouveau
+compteur, aucune notification/cloche — seulement 2 raccourcis.
+
+Historique des retouches (même journée) :
+1. lien texte isolé -> 2 vraies cards (fond blanc, radius 12px, ombre douce,
+   icône dans un cercle, badge en chevauchement de coin).
+2. positionnement : groupe entier poussé à GAUCHE (RTL natif, voir plus bas).
+3. .dashboard-header-zone : bandeau distinct avec séparateur bas, ancré SANS
+   aucun padding-inline propre (donc aligné sur le même repère gauche/droit
+   que .page-title/.compact-card/les cards stat — tous enfants nus de
+   .main-content, qui porte déjà padding:32px).
+4. le groupe de raccourcis et la barre de recherche globale
+   (dashboard/admin.html et dashboard/dashboard_mshrif.html UNIQUEMENT,
+   règle stricte du 2026-08-14 inchangée) doivent être sur LA MÊME ligne,
+   centrés verticalement l'un par rapport à l'autre — recherche à DROITE,
+   raccourcis à GAUCHE. La recherche est donc incluse ICI (dans
+   .header-topbar), gatée par request.resolver_match.url_name — même repère
+   déjà utilisé partout ailleurs dans ce projet pour l'état actif de la
+   sidebar — plutôt que par admin.html/dashboard_mshrif.html eux-mêmes :
+   le comportement "recherche visible UNIQUEMENT sur لوحة التحكم de chaque
+   rôle, absente partout ailleurs" reste strictement identique (voir
+   dashboard.tests.RechercheGlobalePresenteSurToutesLesPagesTests, toujours
+   valide).
+5. CE correctif : ce partial n'est plus inclus depuis les base_ROLE.html
+   (donc plus sur CHAQUE page du site) mais uniquement depuis la page
+   d'accueil de chaque rôle — dashboard/admin.html, dashboard/
+   dashboard_mshrif.html, dashboard/eleve.html, dashboard/prof.html,
+   dashboard/superviseur.html, en tout début de leur bloc content respectif
+   — pour que les raccourcis n'apparaissent QUE sur
+   لوحة التحكم/dashboard de chaque rôle, jamais sur les autres pages (listes,
+   fiches détail, formulaires...). Le check request.resolver_match.url_name
+   pour la recherche (point 4 ci-dessus) reste donc toujours vrai en
+   pratique désormais pour مدير/مشرف, mais conservé tel quel : il documente
+   explicitement la règle et protège si ce partial était un jour réinclus
+   ailleurs par erreur.
+
+Paramètres — DÉCIDÉS par chaque page d'accueil qui inclut ce partial (voir
+point 5 ci-dessus), avec les MÊMES booléens que ceux qui déterminent déjà
+la présence du lien correspondant dans la sidebar de ce même rôle (pas de
+détection de rôle ici : un rôle sans accès aux annonces ou au chat
+aujourd'hui n'en gagne pas un artificiellement demain si sa sidebar
+changeait sans que ce partial soit mis à jour en parallèle — le lien de
+sidebar reste la seule source de vérité sur qui a accès à quoi) :
+- afficher_messages : True si ce rôle a 'chat_liste' dans sa sidebar.
+- afficher_annonces : True si ce rôle a un accès annonces dans sa sidebar.
+- url_annonces : nom de route vers LA page annonces de ce rôle
+  ('annonces_gestion' pour مدير/مشرف, 'eleve_annonces' pour l'élève).
+- couleur_role : ex. 'var(--color-role-admin-solid)' — même variable que
+  celle déjà utilisée par .page-title dans chaque base_ROLE.html, reprise
+  uniquement pour l'anneau de focus clavier (accessibilité), pas pour l'état
+  hover (voir .raccourci-btn:hover, qui suit exactement le même traitement
+  que .compact-card:hover déjà utilisé partout ailleurs dans le dashboard).
+{% endcomment %}
+<div class="dashboard-header-zone">
+    <div class="header-topbar">
+        {% if request.resolver_match.url_name == 'dashboard_admin' or request.resolver_match.url_name == 'dashboard_mshrif' %}
+        {% include 'dashboard/_recherche_globale.html' %}
+        {% endif %}
+        <div class="header-raccourcis">
+            {% if afficher_annonces %}
+            <a href="{% url url_annonces %}" class="raccourci-btn" style="--raccourci-accent:{{ couleur_role }};"
+               aria-label="الإعلانات{% if annonces_non_lues_total %} — {{ annonces_non_lues_total }} إعلانات غير مقروءة{% endif %}">
+                <span class="raccourci-icone-frame">
+                    <span class="raccourci-icone" aria-hidden="true">📣</span>
+                    {% if annonces_non_lues_total %}<span class="raccourci-badge">{{ annonces_non_lues_total|abrege_badge }}</span>{% endif %}
+                </span>
+                <span class="raccourci-texte">الإعلانات</span>
+            </a>
+            {% endif %}
+            {% if afficher_messages %}
+            <a href="{% url 'chat_liste' %}" class="raccourci-btn" style="--raccourci-accent:{{ couleur_role }};"
+               aria-label="الرسائل{% if chat_non_lus_total %} — {{ chat_non_lus_total }} رسائل غير مقروءة{% endif %}">
+                <span class="raccourci-icone-frame">
+                    <span class="raccourci-icone" aria-hidden="true">✉️</span>
+                    {% if chat_non_lus_total %}<span class="raccourci-badge">{{ chat_non_lus_total|abrege_badge }}</span>{% endif %}
+                </span>
+                <span class="raccourci-texte">الرسائل</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    /* .dashboard-header-zone reste un enfant NU de .main-content (aucun
+       padding/margin-inline propre) : c'est ce qui garantit que le bord
+       gauche du bandeau tombe exactement sur le même repère que
+       .page-title/.compact-card/les cards stat plus bas — tous héritent du
+       même padding:32px de .main-content, sans wrapper .container
+       intermédiaire (aucun template dashboard n'en utilise). Séparateur bas
+       pour lire ce bandeau comme une vraie zone d'en-tête, pas un élément
+       collé au reste. */
+    .dashboard-header-zone {
+        padding-bottom: 20px;
+        margin-bottom: 24px;
+        border-bottom: 1px solid rgba(44, 21, 0, 0.07);
+    }
+
+    /* .header-topbar est LE conteneur commun recherche+raccourcis (correctif
+       du 2026-08-16) : display:flex + align-items:center centre
+       verticalement les deux groupes l'un par rapport à l'autre, quelle que
+       soit leur hauteur respective (cards raccourcis plus hautes que le
+       champ de recherche) — leurs AXES centraux tombent sur la même
+       horizontale, pas leurs bords. La recherche (quand présente) reste le
+       1er enfant du DOM -> flex-start -> bord DROIT en RTL. .header-raccourcis
+       porte margin-inline-start:auto (au lieu d'un justify-content:
+       space-between sur le conteneur) : cette marge auto absorbe tout
+       l'espace restant et pousse le groupe de raccourcis jusqu'au bord
+       GAUCHE — visuellement identique à space-between quand la recherche
+       est présente, mais reste correct aussi sur TOUTES les autres pages
+       (élève/prof/مؤطر, et pages مدير/مشرف autres que لوحة التحكم) où la
+       recherche est absente : les raccourcis, seuls dans .header-topbar,
+       sont quand même poussés au bord gauche par cette même marge auto —
+       aucune classe/logique conditionnelle supplémentaire nécessaire, et
+       toujours zéro position:absolute. */
+    .header-topbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+    .header-raccourcis { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-inline-start: auto; }
+
+    /* Même formule que .compact-card / les cards statistiques de prof.html
+       et eleve.html (fond blanc, radius 12px, box-shadow 0 2px 12px
+       rgba(0,0,0,0.06)) — pas un lien-pilule isolé, une vraie card cliquable
+       du même langage visuel que le reste du dashboard. */
+    .raccourci-btn {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 6px; min-width: 92px;
+        background: white; border-radius: 12px; padding: 13px 16px 11px;
+        text-decoration: none; color: var(--color-text-primary);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        transition: box-shadow 0.15s ease, transform 0.15s ease;
+    }
+    /* Même traitement hover que .compact-card:hover (assombrissement doux de
+       l'ombre) — cohérence stricte avec les autres cards cliquables du
+       dashboard plutôt qu'un effet inventé pour ce composant seul. */
+    .raccourci-btn:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); transform: translateY(-1px); color: var(--color-text-primary); }
+    .raccourci-btn:active { transform: translateY(0) scale(0.97); }
+    .raccourci-btn:focus-visible {
+        outline: 2px solid var(--raccourci-accent, var(--color-brand-gold-dark));
+        outline-offset: 3px;
+    }
+
+    .raccourci-icone-frame {
+        position: relative; width: 34px; height: 34px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--color-bg-cream);
+    }
+    .raccourci-icone { font-size: 1.15rem; line-height: 1; }
+    .raccourci-texte { font-size: 0.78rem; font-weight: 700; color: var(--color-text-primary); white-space: nowrap; }
+
+    /* Badge : même couple couleur/texte que .menu-badge (sidebar) —
+       var(--color-danger) + texte blanc, seule différence : positionné en
+       chevauchement du coin de l'icône (liseré blanc de séparation) plutôt
+       qu'aligné en fin de ligne, pour ressembler à un vrai badge de
+       notification d'icône et non à un simple chiffre entre parenthèses. */
+    .raccourci-badge {
+        position: absolute; top: -6px; inset-inline-end: -8px;
+        background: var(--color-danger); color: white; border-radius: 20px;
+        min-width: 18px; height: 18px; padding: 0 5px; font-size: 0.68rem; font-weight: 700;
+        display: flex; align-items: center; justify-content: center;
+        border: 2px solid white;
+    }
+
+    @media (max-width: 576px) {
+        .raccourci-btn { min-width: 76px; padding: 10px 10px 9px; gap: 4px; }
+        .raccourci-icone-frame { width: 30px; height: 30px; }
+        .raccourci-icone { font-size: 1.05rem; }
+        .raccourci-texte { font-size: 0.7rem; }
+        .raccourci-badge { top: -5px; inset-inline-end: -6px; }
+    }
+</style>

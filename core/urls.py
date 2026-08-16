@@ -32,6 +32,7 @@ urlpatterns = [
     path('evaluations/', include('evaluations.urls')),
     path('chat/', include('chat.urls')),
     path('annonces/', include('annonces.urls')),
+    path('examens/', include('examens.urls')),
 
     # Tâche du 2026-08-07 — URLs publiques d'inscription renommées en anglais,
     # propres et mémorisables (demande explicite du client). Montées ici, à la

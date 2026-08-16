@@ -1,0 +1,68 @@
+{% load annonces_extras %}
+{% comment %}
+Une publication d'un canal — utilisé identique par canal_detail.html (مدير/
+مشرف) et eleve_annonces.html (élève), pour que le rendu d'une pièce jointe
+(image/vidéo/audio/document) ne soit écrit qu'à UN seul endroit. C'est un
+FEED, jamais une conversation : pas de bulle "moi/l'autre", pas d'auteur mis
+en avant comme dans le chat — juste titre/contenu/pièce jointe/date, comme
+un post de canal WhatsApp/Telegram.
+
+`peut_gerer` (optionnel, False par défaut) : True seulement sur
+canal_detail.html — affiche le bouton إخفاء/إظهار. Jamais sur la page élève.
+{% endcomment %}
+<article class="pub-carte {% if not annonce.active %}pub-inactive{% endif %}">
+    <div class="pub-entete">
+        <div class="pub-titre">{{ annonce.titre }}</div>
+        <div class="pub-date">{{ annonce.date_creation|date:"d-m-Y H:i" }}</div>
+    </div>
+
+    {% if peut_gerer and annonce.cree_par %}
+    {# Identité du membre du staff qui a publié — visible مدير/مشرف SEULEMENT
+       (jamais côté élève) : ce n'est pas un abonné, voir Point C5. #}
+    <div class="pub-auteur">بواسطة {{ annonce.cree_par.get_full_name }}</div>
+    {% endif %}
+
+    {% if annonce.contenu %}
+    <div class="pub-texte">{{ annonce.contenu|linebreaksbr }}</div>
+    {% endif %}
+
+    {% if annonce.fichier %}
+        {% if annonce.type_fichier == 'image' %}
+        <a class="pub-image-lien" href="{% url 'annonce_fichier' annonce.id %}" target="_blank" rel="noopener">
+            <img class="pub-image" src="{% url 'annonce_fichier' annonce.id %}" alt="{{ annonce.nom_fichier_original }}" loading="lazy">
+        </a>
+        {% elif annonce.type_fichier == 'video' %}
+        <div class="pub-video">
+            <video controls preload="none" src="{% url 'annonce_fichier' annonce.id %}"></video>
+        </div>
+        {% elif annonce.type_fichier == 'audio' %}
+        <div class="pub-audio">
+            <span class="pub-audio-icone" aria-hidden="true">🎧</span>
+            <audio controls preload="none" src="{% url 'annonce_fichier' annonce.id %}"></audio>
+        </div>
+        {% else %}
+        <a class="pub-document" href="{% url 'annonce_fichier' annonce.id %}" target="_blank" rel="noopener">
+            <span class="pub-document-icone" aria-hidden="true">📄</span>
+            <span class="pub-document-infos">
+                <span class="pub-document-nom">{{ annonce.nom_fichier_original|default:"مستند" }}</span>
+                <span class="pub-document-taille">{{ annonce.taille_fichier_octets|taille_lisible }}</span>
+            </span>
+            <span class="pub-document-ouvrir" aria-hidden="true">فتح ↓</span>
+        </a>
+        {% endif %}
+    {% endif %}
+
+    {% if peut_gerer %}
+    <div class="pub-pied">
+        {% if not annonce.active %}<span class="pub-badge-masque">مخفي عن الطلاب</span>{% endif %}
+        <form method="POST" action="{% url 'annonce_toggle' annonce.id %}">
+            {% csrf_token %}
+            {% if annonce.active %}
+            <button type="submit" class="pub-btn-toggle pub-btn-masquer">إخفاء</button>
+            {% else %}
+            <button type="submit" class="pub-btn-toggle pub-btn-afficher">إظهار</button>
+            {% endif %}
+        </form>
+    </div>
+    {% endif %}
+</article>

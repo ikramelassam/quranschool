@@ -1,0 +1,74 @@
+{% extends 'dashboard/base_prof.html' %}
+{% block title %}{% if examen %}تعديل الاختبار{% else %}إنشاء اختبار{% endif %}{% endblock %}
+{% block content %}
+<div class="page-title">{% if examen %}تعديل الاختبار{% else %}إنشاء اختبار جديد{% endif %}</div>
+<div class="page-subtitle">{% if examen %}{{ examen.titre }}{% else %}الخطوة 1: المعلومات العامة — أضف الأسئلة بعد الحفظ{% endif %}</div>
+
+{% include 'dashboard/_messages.html' %}
+
+<form method="POST" style="background:white; border-radius:12px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:20px; max-width:640px;">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label style="color:#888; font-size:0.85rem; display:block; margin-bottom:4px;">عنوان الاختبار</label>
+        <input type="text" name="titre" class="form-control" required
+               value="{% if valeurs %}{{ valeurs.titre }}{% elif examen %}{{ examen.titre }}{% endif %}">
+    </div>
+
+    <div class="mb-3">
+        <label style="color:#888; font-size:0.85rem; display:block; margin-bottom:4px;">تعليمات للطالب (اختياري)</label>
+        <textarea name="instructions" class="form-control" rows="3">{% if valeurs %}{{ valeurs.instructions }}{% elif examen %}{{ examen.instructions }}{% endif %}</textarea>
+    </div>
+
+    {% if examen and not examen.chrono_modifiable %}
+    <div style="background:#fff3cd; border:1px solid #ffe08a; border-radius:10px; padding:12px 16px; margin-bottom:18px; color:#8a6d00; font-size:0.85rem;">
+        ⚠️ لا يمكن تعديل الحلقة أو التوقيت: طالب واحد على الأقل بدأ اجتيابه بالفعل. العنوان والتعليمات فقط يمكن تعديلهما.
+    </div>
+    <input type="hidden" name="groupe" value="{{ examen.groupe_id }}">
+    <div class="mb-3">
+        <label style="color:#888; font-size:0.85rem; display:block; margin-bottom:4px;">الحلقة</label>
+        <div style="padding:8px 0; font-weight:600;">{{ examen.groupe.nom }}</div>
+    </div>
+    <div class="mb-3">
+        <label style="color:#888; font-size:0.85rem; display:block; margin-bottom:4px;">التوقيت</label>
+        <div style="padding:8px 0;">{{ examen.date_debut|date:"d-m-Y H:i" }} ← {{ examen.date_limite|date:"d-m-Y H:i" }} — {{ examen.duree_minutes }} دقيقة</div>
+    </div>
+    {% else %}
+    <div class="mb-3">
+        <label style="color:#888; font-size:0.85rem; display:block; margin-bottom:4px;">الحلقة</label>
+        <select name="groupe" class="form-select" required>
+            <option value="">اختر الحلقة</option>
+            {% for g in groupes %}
+            <option value="{{ g.id }}" {% if examen.groupe_id == g.id or valeurs.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label style="color:#888; font-size:0.85rem; display:block; margin-bottom:4px;">متاح ابتداءً من</label>
+            <input type="datetime-local" name="date_debut" class="form-control" required
+                   value="{% if examen %}{{ examen.date_debut|date:'Y-m-d\TH:i' }}{% endif %}">
+        </div>
+        <div class="col-md-6">
+            <label style="color:#888; font-size:0.85rem; display:block; margin-bottom:4px;">متاح إلى غاية</label>
+            <input type="datetime-local" name="date_limite" class="form-control" required
+                   value="{% if examen %}{{ examen.date_limite|date:'Y-m-d\TH:i' }}{% endif %}">
+        </div>
+    </div>
+
+    <div class="mb-3 mt-3">
+        <label style="color:#888; font-size:0.85rem; display:block; margin-bottom:4px;">المدة القصوى (بالدقائق)</label>
+        <input type="number" name="duree_minutes" class="form-control" min="1" style="max-width:160px;"
+               value="{% if valeurs %}{{ valeurs.duree_minutes }}{% elif examen %}{{ examen.duree_minutes }}{% else %}30{% endif %}" required>
+        <div style="color:#aaa; font-size:0.78rem; margin-top:4px;">بمجرد أن يبدأ الطالب، تُحسب المدة من لحظة بدايته — لا يمكن تمديدها لاحقاً.</div>
+    </div>
+    {% endif %}
+
+    <div style="display:flex; gap:12px; margin-top:20px;">
+        <button type="submit" style="background:var(--color-role-prof); color:white; border:none; border-radius:8px; padding:10px 28px; font-weight:600;">حفظ</button>
+        <a href="{% if examen %}{% url 'examens_prof_detail' examen.id %}{% else %}{% url 'examens_prof_liste' %}{% endif %}"
+           style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
+    </div>
+</form>
+{% endblock %}

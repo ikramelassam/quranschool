@@ -13,6 +13,12 @@
 </style>
 {% endblock %}
 {% block content %}
+{% comment %}
+Correctif du 2026-08-16 : les raccourcis الرسائل/الإعلانات ne doivent
+apparaître QUE sur cette page d'accueil, pas sur tout le site — inclusion
+déplacée depuis base_eleve.html.
+{% endcomment %}
+{% include 'dashboard/_header_raccourcis.html' with afficher_messages=True afficher_annonces=True url_annonces='eleve_annonces' couleur_role='var(--color-role-eleve-solid)' %}
 <div class="dash-top-row">
     <div>
         <div class="page-title" style="margin-bottom:2px;">أهلاً، {{ eleve.user.get_full_name }} 👋</div>
@@ -114,4 +120,6 @@
     <div style="color:#aaa; padding:10px 4px;">لا يوجد أي حفظ مسجَّل بعد</div>
     {% endfor %}
 </div>
+
+{% include 'dashboard/_notifications_zone.html' %}
 {% endblock %}

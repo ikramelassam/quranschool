@@ -3,101 +3,97 @@
 {% block title %}الإعلانات{% endblock %}
 {% block content %}
 <style>
-.an-card {
-    background:var(--color-bg-cream); border:1px solid rgba(139,75,0,0.15);
-    border-radius:14px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.05);
-    margin-bottom:22px; max-width:640px;
-}
-.an-label { font-weight:700; color:var(--color-text-primary); font-size:0.9rem; margin-bottom:6px; display:block; }
-.an-input, .an-textarea {
-    width:100%; border-radius:8px; border:1px solid rgba(139,75,0,0.2); padding:9px 12px;
-    font-size:0.92rem; font-family:'Tajawal',sans-serif; background:white;
-}
-.an-toggle { display:flex; flex-wrap:wrap; border:1px solid rgba(139,75,0,0.25); border-radius:9px; overflow:hidden; width:fit-content; }
-.an-toggle-opt {
-    padding:8px 16px; font-size:0.83rem; font-weight:600; cursor:pointer; background:white; color:#555;
-    user-select:none; border-inline-start:1px solid rgba(139,75,0,0.15);
-}
-.an-toggle-opt:first-child { border-inline-start:none; }
-.an-toggle-opt.active { background:var(--color-brand-gold-dark); color:white; }
-.an-item { display:flex; gap:12px; align-items:flex-start; padding:14px 0; border-bottom:1px solid #f0f0f0; }
-.an-item:last-child { border-bottom:none; }
-.an-item.inactive { opacity:0.55; }
-.an-badge-cible { display:inline-block; border-radius:14px; padding:2px 10px; font-size:0.75rem; font-weight:700; margin-top:6px; }
-.an-badge-femmes { background:#fdeaf1; color:#a13d68; }
-.an-badge-hommes { background:#e3edfd; color:#2d5187; }
-.an-badge-mineurs { background:#e3f2e1; color:#2d5a1b; }
+    /* Chantier "canaux de diffusion" (2026-08-16, redesign du 2026-08-16) —
+       cette page n'est plus un formulaire+liste unique : c'est la page de
+       SÉLECTION des 3 canaux (mental model WhatsApp/Telegram Channels). Le
+       formulaire de publication vit désormais DANS chaque canal
+       (canal_detail.html). Cards agrandies + flux d'activité en dessous
+       (retouche visuelle : les 3 cards seules laissaient un grand vide sous
+       elles sur les écrans larges). */
+    .page-title-row { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+    .page-title-row svg { flex-shrink: 0; width: 26px; height: 26px; color: var(--color-brand-gold-dark); }
+    .page-title-row .page-title { margin-bottom: 0; }
+
+    .canaux-grille {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 22px; max-width: 900px;
+    }
+    .canal-carte {
+        display: flex; flex-direction: column; gap: 14px;
+        background: white; border: 1px solid rgba(139,75,0,0.14); border-radius: 18px;
+        padding: 30px 26px 24px; text-decoration: none; color: inherit;
+        box-shadow: 0 1px 3px rgba(44,21,0,0.05);
+        transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+    }
+    .canal-carte:hover {
+        box-shadow: 0 10px 28px rgba(44,21,0,0.12); transform: translateY(-3px);
+        border-color: rgba(201,150,46,0.55); color: inherit;
+    }
+    .canal-avatar {
+        width: 52px; height: 52px; border-radius: 50%;
+        background: #FBF3E4; border: 1px solid rgba(201,150,46,0.35);
+        display: flex; align-items: center; justify-content: center; color: var(--color-brand-gold-dark);
+    }
+    .canal-avatar svg { width: 24px; height: 24px; }
+    .canal-nom { font-size: 1.12rem; font-weight: 700; color: var(--color-text-primary); }
+    .canal-desc { font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.55; }
+    .canal-pied {
+        margin-top: auto; padding-top: 16px; border-top: 1px dashed rgba(139,75,0,0.14);
+        display: flex; align-items: baseline; justify-content: space-between;
+        font-size: 0.78rem; color: var(--color-text-muted);
+    }
+    .canal-pied strong { color: var(--color-brand-gold-dark); font-variant-numeric: tabular-nums; font-size: 0.95rem; }
+
+    /* ---- Flux d'activité — remplit l'espace sous les cards avec quelque
+       chose d'utile (dernières publications, toutes chaînes), plutôt qu'en
+       laissant un vide. Disparaît entièrement s'il n'y a encore aucune
+       publication nulle part — voir le "if dernieres_publications" plus bas. ---- */
+    .flux-entete { font-size: 0.82rem; font-weight: 700; color: var(--color-text-muted); margin: 44px 0 14px; max-width: 900px; }
+    .flux-liste { max-width: 900px; display: flex; flex-direction: column; border-top: 1px solid rgba(139,75,0,0.14); }
+    .flux-ligne {
+        display: flex; align-items: center; gap: 14px; padding: 15px 4px;
+        border-bottom: 1px solid rgba(139,75,0,0.14); text-decoration: none; color: inherit;
+    }
+    .flux-ligne:hover .flux-ligne-titre { color: var(--color-brand-gold-dark); }
+    .flux-tag {
+        flex-shrink: 0; font-size: 0.72rem; font-weight: 700; color: var(--color-brand-gold-dark);
+        background: #FBF3E4; border-radius: 20px; padding: 4px 12px; white-space: nowrap;
+    }
+    .flux-corps { min-width: 0; flex: 1; }
+    .flux-ligne-titre { font-size: 0.92rem; font-weight: 600; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 0.15s; }
+    .flux-ligne-heure { flex-shrink: 0; font-size: 0.76rem; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 </style>
 
-<div class="page-title">الإعلانات</div>
-<div class="page-subtitle">أعلن للطلاب حسب الفئة — تُحدَّد الفئة تلقائياً حسب عمر وجنس كل طالب، لا حاجة لاختيارهم يدوياً</div>
-
-<div class="an-card">
-    <div style="font-weight:700; margin-bottom:14px;">إعلان جديد</div>
-    <form method="POST" action="{% url 'annonce_ajouter' %}" id="annonceForm">
-        {% csrf_token %}
-
-        <div class="mb-3">
-            <input type="text" name="titre" class="an-input" placeholder="عنوان الإعلان" required>
-        </div>
-
-        <div class="mb-3">
-            <textarea name="contenu" class="an-textarea" rows="4" placeholder="نص الإعلان..." required></textarea>
-        </div>
-
-        <div class="mb-3">
-            <label class="an-label">الفئة المستهدفة</label>
-            <div class="an-toggle">
-                {% for valeur, libelle in cible_choices %}
-                <div class="an-toggle-opt {% if forloop.first %}active{% endif %}" data-cible="{{ valeur }}" onclick="annonceChoisirCible('{{ valeur }}')">
-                    {{ libelle }} <span style="opacity:0.75;">({{ effectifs|get_item:valeur|default:0 }})</span>
-                </div>
-                {% endfor %}
-            </div>
-            <input type="hidden" name="cible" id="annonceCibleInput" value="{{ cible_choices.0.0 }}">
-        </div>
-
-        <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:9px 26px; font-family:'Tajawal',sans-serif; font-size:0.95rem; cursor:pointer;">نشر الإعلان 📢</button>
-    </form>
+<div class="page-title-row">
+    {% include 'annonces/_canal_icone.html' %}
+    <div class="page-title">الإعلانات</div>
 </div>
+<div class="page-subtitle">اختر قناة لعرض منشوراتها أو نشر إعلان جديد فيها</div>
 
-<div class="an-card">
-    <div style="font-weight:700; margin-bottom:6px;">سجل الإعلانات ({{ annonces|length }})</div>
-    {% for annonce in annonces %}
-    <div class="an-item {% if not annonce.active %}inactive{% endif %}">
-        <div style="min-width:0; flex:1;">
-            <div style="font-weight:600;">{{ annonce.titre }}</div>
-            <div style="color:#666; font-size:0.85rem; margin-top:4px; white-space:pre-wrap;">{{ annonce.contenu }}</div>
-            <div style="color:#aaa; font-size:0.78rem; margin-top:6px;">
-                {% if annonce.cree_par %}بواسطة {{ annonce.cree_par.get_full_name }} — {% endif %}{{ annonce.date_creation|date:"d-m-Y H:i" }}
-            </div>
-            <div class="an-badge-cible an-badge-{% if annonce.cible == 'femmes_adultes' %}femmes{% elif annonce.cible == 'hommes_adultes' %}hommes{% else %}mineurs{% endif %}">
-                {{ annonce.get_cible_display }}
-            </div>
-            {% if not annonce.active %}
-            <div style="color:var(--color-danger); font-size:0.78rem; margin-top:4px; font-weight:600;">مخفي عن الطلاب حالياً</div>
-            {% endif %}
+<div class="canaux-grille">
+    {% for canal in canaux %}
+    <a class="canal-carte" href="{% url 'annonces_canal_detail' canal.code %}">
+        <div class="canal-avatar">{% include 'annonces/_canal_icone.html' %}</div>
+        <div class="canal-nom">{{ canal.nom }}</div>
+        <div class="canal-desc">{{ canal.description }}</div>
+        <div class="canal-pied">
+            <span>{{ canal.effectif }} طالب معني</span>
+            <span><strong>{{ canal.nb_publications }}</strong> منشورات</span>
         </div>
-        <form method="POST" action="{% url 'annonce_toggle' annonce.id %}" style="flex-shrink:0;">
-            {% csrf_token %}
-            {% if annonce.active %}
-            <button type="submit" style="background:#fce4e4; color:var(--color-danger); border:none; border-radius:8px; padding:5px 12px; font-size:0.8rem; cursor:pointer;">إخفاء 🙈</button>
-            {% else %}
-            <button type="submit" style="background:#e3f2e1; color:var(--color-success); border:none; border-radius:8px; padding:5px 12px; font-size:0.8rem; cursor:pointer;">إظهار ✅</button>
-            {% endif %}
-        </form>
-    </div>
-    {% empty %}
-    <div style="color:#aaa; padding:12px 0;">لا توجد إعلانات بعد</div>
+    </a>
     {% endfor %}
 </div>
 
-<script>
-    function annonceChoisirCible(cible) {
-        document.getElementById('annonceCibleInput').value = cible;
-        document.querySelectorAll('.an-toggle-opt').forEach(function (opt) {
-            opt.classList.toggle('active', opt.dataset.cible === cible);
-        });
-    }
-</script>
+{% if dernieres_publications %}
+<div class="flux-entete">آخر النشاط عبر القنوات</div>
+<div class="flux-liste">
+    {% for annonce in dernieres_publications %}
+    <a class="flux-ligne" href="{% url 'annonces_canal_detail' annonce.cible %}">
+        <span class="flux-tag">{{ annonce.cible|canal_nom }}</span>
+        <span class="flux-corps"><span class="flux-ligne-titre">{{ annonce.titre }}</span></span>
+        <span class="flux-ligne-heure">{{ annonce.date_creation|date:"d-m-Y H:i" }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

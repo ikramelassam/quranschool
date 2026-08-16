@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'dashboard',
     'chat',
     'annonces',
+    'examens',
 ]
 
 MIDDLEWARE = [

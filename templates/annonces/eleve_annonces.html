@@ -1,26 +1,89 @@
 {% extends 'dashboard/base_eleve.html' %}
+{% load annonces_extras %}
 {% block title %}الإعلانات{% endblock %}
 {% block content %}
+<style>
+    /* Même rendu de publication que canal_detail.html (voir
+       annonces/_publication_carte.html) — dupliqué volontairement (voir
+       CLAUDE.md, "CSS inline par template", convention déjà en place dans ce
+       projet), pas de fichier CSS partagé. Élève = lecture seule : ni
+       formulaire de publication, ni bouton إخفاء/إظهار, ni accès aux 2
+       autres canaux (page dédiée à SON canal uniquement). */
+    .canal-entete {
+        display: flex; align-items: center; gap: 14px; margin-bottom: 22px;
+        background: white; border-radius: 14px; padding: 16px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        max-width: 640px;
+    }
+    .canal-entete-avatar {
+        flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%;
+        background: #FBF3E4; border: 1px solid rgba(201,150,46,0.35); color: var(--color-brand-gold-dark);
+        display: flex; align-items: center; justify-content: center;
+    }
+    .canal-entete-avatar svg { width: 20px; height: 20px; }
+    .canal-entete-titre { font-weight: 700; font-size: 1.05rem; color: var(--color-text-primary); }
+    .canal-entete-sous { font-size: 0.78rem; color: var(--color-text-muted); }
+
+    .pub-liste { max-width: 640px; display: flex; flex-direction: column; gap: 14px; }
+    .pub-carte { background: white; border-radius: 12px; padding: 16px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+    .pub-entete { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+    .pub-titre { font-weight: 700; font-size: 1rem; color: var(--color-text-primary); }
+    .pub-date { font-size: 0.76rem; color: var(--color-text-muted); flex-shrink: 0; }
+    .pub-texte { color: #555; white-space: pre-wrap; font-size: 0.92rem; line-height: 1.6; }
+    .pub-image-lien { display: block; margin-top: 10px; }
+    .pub-image { max-width: 100%; max-height: 360px; border-radius: 10px; display: block; }
+    .pub-video { margin-top: 10px; }
+    .pub-video video { max-width: 100%; max-height: 360px; border-radius: 10px; display: block; }
+    .pub-audio {
+        display: flex; align-items: center; gap: 8px; margin-top: 10px;
+        background: rgba(139,75,0,0.06); border-radius: 12px; padding: 6px 10px;
+    }
+    .pub-audio audio { width: 100%; max-width: 320px; height: 36px; }
+    .pub-document {
+        display: flex; align-items: center; gap: 10px; margin-top: 10px; text-decoration: none; color: inherit;
+        background: rgba(0,0,0,0.03); border-radius: 10px; padding: 10px 14px;
+    }
+    .pub-document-icone { font-size: 1.4rem; }
+    .pub-document-infos { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+    .pub-document-nom { font-size: 0.86rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pub-document-taille { font-size: 0.72rem; color: var(--color-text-muted); }
+    .pub-document-ouvrir { font-size: 0.78rem; color: var(--color-brand-gold-dark); font-weight: 600; flex-shrink: 0; }
+    .pub-vide {
+        max-width: 640px; background: white; border: 1px solid rgba(139,75,0,0.14); border-radius: 18px;
+        padding: 56px 32px; text-align: center;
+    }
+    .pub-vide svg { width: 56px; height: 56px; color: var(--color-brand-gold); margin-bottom: 18px; }
+    .pub-vide-titre { font-size: 1.02rem; font-weight: 700; color: var(--color-text-primary); margin-bottom: 6px; }
+    .pub-vide-sous { font-size: 0.86rem; color: var(--color-text-muted); }
+</style>
+
 <div class="page-title">الإعلانات</div>
-<div class="page-subtitle">الإعلانات الموجهة إليك</div>
+<div class="page-subtitle">القناة الموجهة إليك</div>
 
 {% if age_inconnu %}
-<div style="background:#fff3cd; color:#856404; border-radius:8px; padding:14px 20px; margin-bottom:20px;">
-    ⚠️ لا يمكن تحديد الإعلانات الخاصة بك حالياً — يرجى التواصل مع الإدارة.
-</div>
-{% elif annonces %}
-<div style="max-width:640px;">
-    {% for annonce in annonces %}
-    <div style="background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:16px;">
-        <div style="font-weight:700; font-size:1.05rem; margin-bottom:8px;">{{ annonce.titre }}</div>
-        <div style="color:#555; white-space:pre-wrap; margin-bottom:10px;">{{ annonce.contenu }}</div>
-        <div style="color:#aaa; font-size:0.8rem;">{{ annonce.date_creation|date:"d-m-Y H:i" }}</div>
-    </div>
-    {% endfor %}
+<div style="background:#fff3cd; color:#856404; border-radius:8px; padding:14px 20px; margin-bottom:20px; max-width:640px;">
+    ⚠️ لا يمكن تحديد قناتك حالياً — يرجى التواصل مع الإدارة.
 </div>
 {% else %}
-<div style="text-align:center; padding:60px; color:#aaa;">
-    لا توجد إعلانات حالياً
-</div>
+    {% if canal %}
+    <div class="canal-entete">
+        <div class="canal-entete-avatar">{% include 'annonces/_canal_icone.html' %}</div>
+        <div>
+            <div class="canal-entete-titre">{{ canal.nom }}</div>
+            <div class="canal-entete-sous">{{ canal.description }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="pub-liste">
+        {% for annonce in annonces %}
+            {% include 'annonces/_publication_carte.html' with annonce=annonce peut_gerer=False %}
+        {% empty %}
+        <div class="pub-vide">
+            {% include 'annonces/_canal_icone.html' %}
+            <div class="pub-vide-titre">لا توجد إعلانات حالياً</div>
+            <div class="pub-vide-sous">ستظهر هنا فور نشر الإدارة لإعلان جديد في هذه القناة.</div>
+        </div>
+        {% endfor %}
+    </div>
 {% endif %}
 {% endblock %}

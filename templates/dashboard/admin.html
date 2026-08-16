@@ -4,11 +4,19 @@
 
 {% block content %}
 {% comment %}
-Correction du 2026-08-14 (règle stricte) : la recherche globale est
-désormais incluse UNIQUEMENT ici — لوحة التحكم — et plus dans base_admin.html
-(qui s'appliquait à toute page مدير). Voir le commentaire dans base_admin.html.
+Correction du 2026-08-14 (règle stricte) : la recherche globale n'apparaît
+QUE sur لوحة التحكم. Correctif du 2026-08-16 : son inclusion vit désormais
+dans dashboard/_header_raccourcis.html (même ligne que الرسائل/الإعلانات,
+voir .header-topbar) plutôt qu'ici — toujours gatée sur le même repère
+request.resolver_match.url_name == 'dashboard_admin', donc le comportement
+"visible uniquement ici" est strictement inchangé.
+
+Correctif du 2026-08-16 (suite) : les raccourcis الرسائل/الإعلانات ne
+doivent apparaître QUE sur cette page d'accueil, pas sur tout le site —
+leur inclusion, jusqu'ici dans base_admin.html (donc sur CHAQUE page مدير),
+est déplacée ICI.
 {% endcomment %}
-{% include 'dashboard/_recherche_globale.html' %}
+{% include 'dashboard/_header_raccourcis.html' with afficher_messages=True afficher_annonces=True url_annonces='annonces_gestion' couleur_role='var(--color-role-admin-solid)' %}
 <div class="page-title">لوحة التحكم</div>
 <div class="page-subtitle">نظرة شاملة على المنصة</div>
 

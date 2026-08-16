@@ -128,6 +128,7 @@
             }
         }
     </style>
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
 <button type="button" class="sidebar-toggle" onclick="toggleSidebar()" aria-label="فتح القائمة">☰</button>
@@ -150,6 +151,11 @@
         <a href="{% url 'superviseur_profil' %}"
            class="menu-item {% if request.resolver_match.url_name == 'superviseur_profil' %}active{% endif %}">
             <span class="icon">👤</span> ملفي الشخصي
+        </a>
+        {# لعرض فقط — المؤطر يرى اختبارات حلقات أساتذته المسندين إليه، دون تعديل الأسئلة أو النقاط (permissions.get_examens_accessibles). #}
+        <a href="{% url 'examens_consultation_liste' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'examens_consultation_liste' or request.resolver_match.url_name == 'examens_consultation_detail' or request.resolver_match.url_name == 'examens_consultation_copie' %}active{% endif %}">
+            <span class="icon">📝</span> الاختبارات
         </a>
         <a href="{% url 'classement_mensuel_profs' %}"
            class="menu-item {% if request.resolver_match.url_name == 'classement_mensuel_profs' %}active{% endif %}">
@@ -185,5 +191,7 @@ function toggleSidebar() {
     document.querySelector('.sidebar-overlay').classList.toggle('open');
 }
 </script>
+
+{% block extra_js %}{% endblock %}
 </body>
 </html>

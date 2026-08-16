@@ -1,0 +1,360 @@
+{% extends 'dashboard/base_eleve.html' %}
+{% load examens_extras %}
+{% block title %}{{ examen.titre }}{% endblock %}
+{% block extra_css %}
+<style>
+    @keyframes examen-audio-pulse { 50% { opacity: 0.3; } }
+    .examen-point-rec { animation: examen-audio-pulse 1.1s infinite; }
+    @media (prefers-reduced-motion: reduce) { .examen-point-rec { animation: none; } }
+</style>
+{% endblock %}
+{% block content %}
+<div style="max-width:720px; margin:0 auto;">
+
+    {# ===== En-tête + chrono — sticky mais léger, pas un position:fixed sur toute la largeur ===== #}
+    <div style="position:sticky; top:0; z-index:10; background:var(--color-bg-cream); padding:10px 0 14px; margin-bottom:6px;">
+        <div style="background:white; border-radius:12px; padding:14px 18px; box-shadow:0 2px 12px rgba(0,0,0,0.08); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+                <div style="font-weight:700; font-size:1.05rem;">{{ examen.titre }}</div>
+                <div style="color:#888; font-size:0.8rem;">{{ examen.groupe.nom }}</div>
+            </div>
+            <div id="chrono" style="font-weight:700; font-size:1.3rem; color:var(--color-role-eleve-solid); direction:ltr;">⏱ --:--</div>
+        </div>
+    </div>
+
+    {% if examen.instructions %}
+    <div style="background:#fff8ec; border:1px solid #ffe08a; border-radius:10px; padding:12px 16px; color:#8a6d00; font-size:0.88rem; margin-bottom:18px; white-space:pre-wrap;">{{ examen.instructions }}</div>
+    {% endif %}
+
+    <div id="jeton-csrf" data-token="{{ csrf_token }}"></div>
+
+    {% for question in questions %}
+    <div class="carte-question" style="background:white; border-radius:12px; padding:18px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px;">
+            <div style="color:#aaa; font-size:0.78rem;">سؤال {{ forloop.counter }} / {{ questions|length }} — {{ question.points }} نقطة</div>
+            <span class="statut-enregistrement" id="statut-{{ question.id }}" style="font-size:0.78rem; color:#aaa;"></span>
+        </div>
+        <div style="font-weight:600; margin:6px 0 14px; font-size:1.02rem;">{{ question.enonce }}</div>
+
+        {% if question.type_question == 'choix' %}
+            {% with r=reponses|get_item:question.id %}
+            {% for c in question.choix.all %}
+            <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #eee; border-radius:8px; margin-bottom:8px; cursor:pointer;">
+                <input type="radio" name="choix_{{ question.id }}" value="{{ c.id }}" style="width:20px; height:20px;"
+                       onchange="autosaveChoix({{ question.id }}, {{ c.id }})"
+                       {% if r.reponse_choix_id == c.id %}checked{% endif %}>
+                <span>{{ c.texte }}</span>
+            </label>
+            {% endfor %}
+            {% endwith %}
+
+        {% elif question.type_question == 'vrai_faux' %}
+            {% with r=reponses|get_item:question.id %}
+            <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #eee; border-radius:8px; margin-bottom:8px; cursor:pointer;">
+                <input type="radio" name="vf_{{ question.id }}" value="true" style="width:20px; height:20px;"
+                       onchange="autosaveVraiFaux({{ question.id }}, true)" {% if r.reponse_bool == True %}checked{% endif %}>
+                <span>صح</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #eee; border-radius:8px; cursor:pointer;">
+                <input type="radio" name="vf_{{ question.id }}" value="false" style="width:20px; height:20px;"
+                       onchange="autosaveVraiFaux({{ question.id }}, false)" {% if r.reponse_bool == False %}checked{% endif %}>
+                <span>خطأ</span>
+            </label>
+            {% endwith %}
+
+        {% elif question.type_question == 'texte' %}
+            {% with r=reponses|get_item:question.id %}
+            <textarea class="form-control" rows="3" placeholder="اكتب إجابتك هنا..."
+                      onblur="autosaveTexte({{ question.id }}, this.value)">{{ r.reponse_texte }}</textarea>
+            {% endwith %}
+
+        {% elif question.type_question == 'audio' %}
+            {% with r=reponses|get_item:question.id %}
+            <div id="audio-wrapper-{{ question.id }}">
+                {% if r.reponse_audio %}
+                <audio controls style="width:100%; margin-bottom:8px;">
+                    <source src="{% url 'examens_reponse_audio' r.id %}">
+                </audio>
+                <button type="button" onclick="supprimerAudio({{ question.id }})"
+                        style="background:#fce4e4; color:#b71c1c; border:none; border-radius:8px; padding:8px 16px; font-size:0.85rem;">🗑 حذف التسجيل</button>
+                {% else %}
+                {% comment %}
+                Widget d'enregistrement direct (Bug du 2026-08-16, 2e passage) — le
+                texte d'aide en bas promettait "التسجيل مباشرة من هاتفك" mais AUCUN
+                widget JS n'existait : seul un <input type=file> brut était rendu ici,
+                dont l'apparence dépend entièrement du navigateur (sur desktop Chrome,
+                ça donne exactement le simple bouton "Choisir un fichier" observé —
+                capture="user" n'a d'effet que sur certains navigateurs mobiles). Ajout
+                d'un vrai bouton micro (MediaRecorder, même mécanique que templates/
+                chat/_panel.html et templates/annonces/canal_detail.html, dupliqué ici
+                sans dépendance — voir la note de tests.py) + relecture avant
+                confirmation, l'option "اختيار ملف" restant disponible en alternative
+                (comme WhatsApp propose les deux).
+                {% endcomment %}
+                <div id="audio-boutons-{{ question.id }}" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <button type="button" onclick="demarrerEnregistrementAudio({{ question.id }})"
+                            style="background:#2d5a1b; color:white; border:none; border-radius:20px; padding:9px 20px; font-size:0.9rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                        🎤 تسجيل صوتي
+                    </button>
+                    <span style="color:#bbb; font-size:0.8rem;">أو</span>
+                    <button type="button" onclick="document.getElementById('audio-input-{{ question.id }}').click()"
+                            style="background:#f0f0f0; color:#555; border:1px solid #ddd; border-radius:20px; padding:9px 18px; font-size:0.85rem; cursor:pointer;">
+                        📎 اختيار ملف
+                    </button>
+                    <input type="file" accept="audio/*" capture="user" id="audio-input-{{ question.id }}"
+                           onchange="autosaveAudio({{ question.id }})" hidden>
+                </div>
+
+                <div id="audio-enregistrement-{{ question.id }}" hidden
+                     style="display:flex; align-items:center; gap:10px; background:#fce9e7; color:#b71c1c; border-radius:10px; padding:10px 16px; font-size:0.86rem; font-weight:600; margin-top:8px;">
+                    <span class="examen-point-rec" aria-hidden="true"
+                          style="width:9px; height:9px; border-radius:50%; background:#b71c1c; flex-shrink:0;"></span>
+                    <span>جارٍ التسجيل… <span id="audio-duree-{{ question.id }}">00:00</span></span>
+                    <span style="margin-inline-start:auto; display:flex; gap:8px;">
+                        <button type="button" onclick="arreterEnregistrementAudio({{ question.id }})"
+                                style="border:none; background:white; color:#b71c1c; border-radius:16px; padding:5px 14px; font-size:0.8rem; cursor:pointer;">⏹ إيقاف</button>
+                        <button type="button" onclick="annulerEnregistrementAudio({{ question.id }})"
+                                style="border:none; background:transparent; color:#b71c1c; border-radius:16px; padding:5px 10px; font-size:0.8rem; cursor:pointer;">✕ إلغاء</button>
+                    </span>
+                </div>
+
+                <div id="audio-apercu-{{ question.id }}" hidden
+                     style="background:#f9f7f2; border-radius:10px; padding:14px 16px; margin-top:8px;">
+                    <audio controls id="audio-apercu-player-{{ question.id }}" style="width:100%; margin-bottom:10px;"></audio>
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" onclick="confirmerEnregistrementAudio({{ question.id }})"
+                                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">✓ حفظ التسجيل</button>
+                        <button type="button" onclick="reenregistrerAudio({{ question.id }})"
+                                style="background:#f0f0f0; color:#555; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; cursor:pointer;">↺ إعادة التسجيل</button>
+                    </div>
+                </div>
+
+                <div style="color:#aaa; font-size:0.78rem; margin-top:6px;">يمكنك التسجيل مباشرة من هاتفك أو اختيار ملف صوتي.</div>
+                {% endif %}
+            </div>
+            {% endwith %}
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <form method="POST" action="{% url 'examens_soumettre' copie.id %}"
+          onsubmit="return confirm('هل أنت متأكد من تسليم الاختبار؟ لن تتمكن من تعديل إجاباتك بعد التسليم.');"
+          style="margin:24px 0 60px;">
+        {% csrf_token %}
+        <button type="submit" style="width:100%; background:#2d5a1b; color:white; border:none; border-radius:12px; padding:16px; font-weight:700; font-size:1.05rem;">
+            ✅ تسليم الاختبار
+        </button>
+    </form>
+</div>
+
+<script>
+const COPIE_ID = {{ copie.id }};
+const CSRF_TOKEN = document.getElementById('jeton-csrf').dataset.token;
+let tempsRestant = {{ temps_restant_secondes }};
+
+function formaterTemps(s) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+}
+
+function majChrono() {
+    const el = document.getElementById('chrono');
+    if (tempsRestant <= 0) {
+        el.textContent = '⏱ 00:00';
+        el.style.color = '#b71c1c';
+        // Le temps est écoulé côté client : on recharge la page pour que le
+        // SERVEUR (seule source de vérité, voir examens.services.finaliser_si_expiree)
+        // finalise réellement la copie et redirige vers le résultat.
+        window.location.reload();
+        return;
+    }
+    el.textContent = '⏱ ' + formaterTemps(tempsRestant);
+    if (tempsRestant <= 300) { el.style.color = '#b35900'; }
+    tempsRestant -= 1;
+}
+majChrono();
+setInterval(majChrono, 1000);
+
+function afficherStatut(questionId, texte, couleur) {
+    const el = document.getElementById('statut-' + questionId);
+    if (el) { el.textContent = texte; el.style.color = couleur; }
+}
+
+// Renvoie true/false selon que l'enregistrement a réussi — les appelants
+// qui doivent recharger la page après coup (autosaveAudio/supprimerAudio,
+// pour basculer l'affichage input->lecteur) ne doivent le faire QUE sur
+// succès (bug corrigé du 2026-08-16 : `envoyerAutosave` ne renvoyait jamais
+// rien, donc `.then(() => reload())` rechargeait la page inconditionnellement
+// même après un ÉCHEC serveur — l'entrée <input type=file> revenait alors à
+// "لم يتم اختيار أي ملف" sans que l'utilisateur ait pu lire le message
+// d'erreur, qui disparaissait avec le rechargement. Symptôme exact signalé :
+// le fichier audio semble ne "jamais s'enregistrer").
+async function envoyerAutosave(questionId, corps) {
+    afficherStatut(questionId, 'جارٍ الحفظ...', '#aaa');
+    try {
+        const reponse = await fetch(`/examens/copie/${COPIE_ID}/questions/${questionId}/autosave/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+            body: corps,
+        });
+        if (reponse.status === 409) {
+            afficherStatut(questionId, 'انتهت مهلة الاختبار', '#b71c1c');
+            window.location.reload();
+            return false;
+        }
+        if (!reponse.ok) {
+            // Message précis du serveur (ex: صيغة/حجم الملف مرفوضة — voir
+            // examens.services.valider_fichier_audio) plutôt qu'un texte
+            // générique qui n'explique rien à l'élève.
+            let messageErreur = 'خطأ في الحفظ — أعد المحاولة';
+            try {
+                const donnees = await reponse.json();
+                if (donnees && donnees.erreur) { messageErreur = donnees.erreur; }
+            } catch (e) { /* corps non-JSON : on garde le message générique */ }
+            afficherStatut(questionId, messageErreur, '#b71c1c');
+            return false;
+        }
+        afficherStatut(questionId, '✓ تم الحفظ', '#2d5a1b');
+        return true;
+    } catch (e) {
+        afficherStatut(questionId, 'خطأ في الاتصال — أعد المحاولة', '#b71c1c');
+        return false;
+    }
+}
+
+function autosaveTexte(questionId, valeur) {
+    const corps = new FormData();
+    corps.append('reponse_texte', valeur);
+    envoyerAutosave(questionId, corps);
+}
+
+function autosaveChoix(questionId, choixId) {
+    const corps = new FormData();
+    corps.append('choix_id', choixId);
+    envoyerAutosave(questionId, corps);
+}
+
+function autosaveVraiFaux(questionId, valeur) {
+    const corps = new FormData();
+    corps.append('valeur', valeur ? 'true' : 'false');
+    envoyerAutosave(questionId, corps);
+}
+
+function autosaveAudio(questionId) {
+    const input = document.getElementById('audio-input-' + questionId);
+    if (!input.files.length) return;
+    const corps = new FormData();
+    corps.append('reponse_audio', input.files[0]);
+    // Ne recharger QUE si l'enregistrement a réussi (voir la docstring de
+    // envoyerAutosave) — sinon le message d'erreur reste affiché et le
+    // fichier déjà choisi reste sélectionné, pour que l'élève puisse
+    // comprendre pourquoi et réessayer sans tout reperdre.
+    envoyerAutosave(questionId, corps).then(function (succes) {
+        if (succes) { window.location.reload(); }
+    });
+}
+
+function supprimerAudio(questionId) {
+    if (!confirm('حذف التسجيل الصوتي الحالي؟')) return;
+    const corps = new FormData();
+    corps.append('supprimer', '1');
+    envoyerAutosave(questionId, corps).then(function (succes) {
+        if (succes) { window.location.reload(); }
+    });
+}
+
+// ---------------------------------------------------------------------
+// Enregistrement micro direct (Bug du 2026-08-16, 2e passage) — même
+// mécanique que templates/chat/_panel.html et templates/annonces/
+// canal_detail.html (MediaRecorder), dupliquée ici sans dépendance (apps
+// indépendantes). Différence : une page d'examen affiche PLUSIEURS
+// questions audio en même temps, donc tout l'état est indexé par
+// questionId (jamais de variable globale unique comme dans le chat, qui
+// n'a qu'un composer ouvert à la fois).
+// ---------------------------------------------------------------------
+const enregistreursAudioExamens = {};
+const segmentsAudioExamens = {};
+const minuteursAudioExamens = {};
+const annulationEnCoursExamens = {};
+const fichiersEnAttenteExamens = {};
+
+function demarrerEnregistrementAudio(questionId) {
+    if (!(navigator.mediaDevices && window.MediaRecorder)) {
+        // Navigateur trop ancien pour l'enregistrement en direct : repli
+        // immédiat sur le sélecteur de fichier (l'option reste disponible).
+        document.getElementById('audio-input-' + questionId).click();
+        return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+        segmentsAudioExamens[questionId] = [];
+        annulationEnCoursExamens[questionId] = false;
+        const enregistreur = new MediaRecorder(stream);
+        enregistreursAudioExamens[questionId] = enregistreur;
+
+        enregistreur.addEventListener('dataavailable', function (e) { segmentsAudioExamens[questionId].push(e.data); });
+        enregistreur.addEventListener('stop', function () {
+            stream.getTracks().forEach(function (t) { t.stop(); });
+            if (annulationEnCoursExamens[questionId]) {
+                annulationEnCoursExamens[questionId] = false;
+                return;  // Annulé par l'élève : rien à afficher, pas de blob conservé.
+            }
+            const blob = new Blob(segmentsAudioExamens[questionId], { type: 'audio/webm' });
+            const fichier = new File([blob], `voice-${questionId}-${Date.now()}.webm`, { type: 'audio/webm' });
+            fichiersEnAttenteExamens[questionId] = fichier;
+            const player = document.getElementById('audio-apercu-player-' + questionId);
+            player.src = URL.createObjectURL(fichier);
+            document.getElementById('audio-apercu-' + questionId).hidden = false;
+        });
+
+        enregistreur.start();
+        document.getElementById('audio-boutons-' + questionId).hidden = true;
+        document.getElementById('audio-enregistrement-' + questionId).hidden = false;
+        let secondes = 0;
+        const dureeSpan = document.getElementById('audio-duree-' + questionId);
+        dureeSpan.textContent = '00:00';
+        minuteursAudioExamens[questionId] = setInterval(function () {
+            secondes += 1;
+            const m = String(Math.floor(secondes / 60)).padStart(2, '0');
+            const s = String(secondes % 60).padStart(2, '0');
+            dureeSpan.textContent = `${m}:${s}`;
+        }, 1000);
+    }).catch(function () {
+        // Permission micro refusée/indisponible : repli sur le sélecteur de fichier.
+        document.getElementById('audio-input-' + questionId).click();
+    });
+}
+
+function arreterEnregistrementAudio(questionId) {
+    const enregistreur = enregistreursAudioExamens[questionId];
+    if (enregistreur && enregistreur.state !== 'inactive') { enregistreur.stop(); }
+    clearInterval(minuteursAudioExamens[questionId]);
+    document.getElementById('audio-enregistrement-' + questionId).hidden = true;
+}
+
+function annulerEnregistrementAudio(questionId) {
+    annulationEnCoursExamens[questionId] = true;
+    const enregistreur = enregistreursAudioExamens[questionId];
+    if (enregistreur && enregistreur.state !== 'inactive') { enregistreur.stop(); }
+    clearInterval(minuteursAudioExamens[questionId]);
+    document.getElementById('audio-enregistrement-' + questionId).hidden = true;
+    document.getElementById('audio-boutons-' + questionId).hidden = false;
+}
+
+function reenregistrerAudio(questionId) {
+    fichiersEnAttenteExamens[questionId] = null;
+    document.getElementById('audio-apercu-' + questionId).hidden = true;
+    document.getElementById('audio-boutons-' + questionId).hidden = false;
+}
+
+function confirmerEnregistrementAudio(questionId) {
+    const fichier = fichiersEnAttenteExamens[questionId];
+    if (!fichier) { return; }
+    const corps = new FormData();
+    corps.append('reponse_audio', fichier);
+    envoyerAutosave(questionId, corps).then(function (succes) {
+        if (succes) { window.location.reload(); }
+    });
+}
+</script>
+{% endblock %}

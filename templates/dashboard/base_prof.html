@@ -168,6 +168,10 @@
            class="menu-item {% if request.resolver_match.url_name == 'prof_seances' %}active{% endif %}">
             <span class="icon">📋</span> سجل الحصص
         </a>
+        <a href="{% url 'examens_prof_liste' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'examens_prof_liste' or request.resolver_match.url_name == 'examens_prof_ajouter' or request.resolver_match.url_name == 'examens_prof_detail' or request.resolver_match.url_name == 'examens_prof_modifier' or request.resolver_match.url_name == 'examens_prof_copies' or request.resolver_match.url_name == 'examens_copie_correction' or request.resolver_match.url_name == 'examens_question_ajouter' or request.resolver_match.url_name == 'examens_question_modifier' %}active{% endif %}">
+            <span class="icon">📝</span> الاختبارات
+        </a>
         <a href="{% url 'prof_evaluations' %}"
            class="menu-item {% if request.resolver_match.url_name == 'prof_evaluations' %}active{% endif %}">
             <span class="icon">📊</span> تقييماتي

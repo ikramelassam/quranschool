@@ -161,6 +161,19 @@ class Groupe(models.Model):
         ('groupe', 'جماعي'),
         ('individuel', 'فردي'),
     ]
+    # Sous-catégorie d'un groupe COLLECTIF (type_capacite='groupe') pour la
+    # navigation par filtres de admin_groupes.html (Chantier du 2026-08-15).
+    # Volontairement PAS un champ de modèle : voir categorie_collectif
+    # ci-dessous, entièrement dérivée de creneau.sexe_cible/age_min/age_max
+    # (déjà la seule source de vérité du projet pour âge/sexe d'un groupe,
+    # voir avertissements_groupe/avertissements_prof_creneau) — stocker un
+    # 2e champ redondant risquerait de se désynchroniser si le créneau du
+    # groupe change.
+    CATEGORIE_COLLECTIF_CHOICES = [
+        ('hommes', 'الرجال'),
+        ('femmes', 'النساء'),
+        ('enfants', 'الأطفال'),
+    ]
 
     nom = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -197,6 +210,40 @@ class Groupe(models.Model):
 
     def __str__(self):
         return self.nom
+
+    @property
+    def categorie_collectif(self):
+        """'hommes'/'femmes'/'enfants' pour un groupe COLLECTIF dont le créneau
+        permet de trancher sans ambiguïté, sinon None : groupe individuel
+        (n'a jamais de catégorie, demande explicite du client), groupe sans
+        créneau assigné, ou créneau à cheval enfants/adultes ou visant les
+        deux sexes chez les adultes (aucun cas réel de ce type observé lors
+        de l'audit du 2026-08-15, mais gardé None plutôt que de deviner —
+        un groupe non classifiable doit rester visible sous "الكل" sans
+        apparaître sous une sous-catégorie qui ne lui correspond pas
+        vraiment). Règle identique à celle déjà utilisée par
+        courses.utils._categorie_age_creneau/avertissements_groupe : les
+        mineurs (tous sexes confondus) ne sont JAMAIS séparés par sexe."""
+        if self.type_capacite != 'groupe' or not self.creneau_id:
+            return None
+        from .utils import AGE_SEUIL_ADULTE
+        creneau = self.creneau
+        if creneau.age_max < AGE_SEUIL_ADULTE:
+            return 'enfants'
+        if creneau.age_min >= AGE_SEUIL_ADULTE:
+            if creneau.sexe_cible == 'homme':
+                return 'hommes'
+            if creneau.sexe_cible == 'femme':
+                return 'femmes'
+        return None
+
+    @property
+    def categorie_collectif_display(self):
+        """Libellé arabe de categorie_collectif (même patron que les
+        get_FOO_display() générés par Django pour un champ choices — mais
+        categorie_collectif n'est pas un champ, donc pas de méthode générée
+        automatiquement). Chaîne vide si None (pas de sous-catégorie)."""
+        return dict(self.CATEGORIE_COLLECTIF_CHOICES).get(self.categorie_collectif, '')
 
     class Meta:
         verbose_name = "Groupe"

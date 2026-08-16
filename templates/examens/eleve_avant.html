@@ -1,0 +1,47 @@
+{% extends 'dashboard/base_eleve.html' %}
+{% block title %}{{ examen.titre }}{% endblock %}
+{% block content %}
+<div class="page-title">{{ examen.titre }}</div>
+<div class="page-subtitle">{{ examen.groupe.nom }}</div>
+
+{% include 'dashboard/_messages.html' %}
+
+<div style="background:white; border-radius:14px; padding:26px 28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:20px; max-width:560px;">
+    {% if examen.instructions %}
+    <div style="color:#555; margin-bottom:20px; white-space:pre-wrap;">{{ examen.instructions }}</div>
+    {% endif %}
+
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
+            <span style="color:#888;">عدد الأسئلة</span><span style="font-weight:600;">{{ examen.nb_questions }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
+            <span style="color:#888;">المدة القصوى</span><span style="font-weight:600;">{{ examen.duree_minutes }} دقيقة</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+            <span style="color:#888;">آخر أجل للتسليم</span><span style="font-weight:600;">{{ examen.date_limite|date:"d-m-Y H:i" }}</span>
+        </div>
+    </div>
+
+    {% if statut_affichage == 'a_venir' %}
+    <div style="background:#fff3cd; border-radius:10px; padding:14px 16px; color:#8a6d00; font-size:0.9rem;">
+        ⏳ هذا الاختبار غير متاح بعد. يبدأ في {{ examen.date_debut|date:"d-m-Y H:i" }}.
+    </div>
+    {% elif statut_affichage == 'ferme' %}
+    <div style="background:#fce4e4; border-radius:10px; padding:14px 16px; color:#b71c1c; font-size:0.9rem;">
+        🔒 لم تعد مدة اجتياز هذا الاختبار متاحة.
+    </div>
+    {% else %}
+    <div style="background:#fff8ec; border:1px solid #ffe08a; border-radius:10px; padding:14px 16px; color:#8a6d00; font-size:0.9rem; margin-bottom:20px;">
+        ⏱ ستحصل على <strong>{{ examen.duree_minutes }} دقيقة</strong> بمجرد الضغط على "بدء الاختبار".
+        الوقت يستمر في الجريان حتى لو أغلقت الصفحة أو غادرت الموقع — لا يمكن استئنافه لاحقاً بمدة جديدة.
+    </div>
+    <form method="POST">
+        {% csrf_token %}
+        <button type="submit" style="width:100%; background:var(--color-role-eleve); color:white; border:none; border-radius:10px; padding:14px; font-weight:700; font-size:1.05rem;">
+            ▶️ بدء الاختبار
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

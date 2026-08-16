@@ -154,6 +154,12 @@
             <span class="icon">📢</span> الإعلانات
         </a>
 
+        {# لعرض فقط — المشرف له صلاحية قراءة شاملة على الاختبارات دون تعديل (قرار مثبَّت في 2026-08-16) — يرى نفس الصفحات التي يراها المؤطر. #}
+        <a href="{% url 'examens_consultation_liste' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'examens_consultation_liste' or request.resolver_match.url_name == 'examens_consultation_detail' or request.resolver_match.url_name == 'examens_consultation_copie' %}active{% endif %}">
+            <span class="icon">📝</span> الاختبارات
+        </a>
+
         <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_eleves' or request.resolver_match.url_name == 'admin_profs' or request.resolver_match.url_name == 'admin_inscriptions' or request.resolver_match.url_name == 'mshrif_inscriptions_profs' or request.resolver_match.url_name == 'mshrif_inscription_prof_detail' or request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}open{% endif %}>
             <summary>إدارة المستخدمين</summary>
             <a href="{% url 'admin_eleves' %}"

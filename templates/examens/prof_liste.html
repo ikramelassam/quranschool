@@ -1,0 +1,42 @@
+{% extends 'dashboard/base_prof.html' %}
+{% block title %}الاختبارات{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:8px;">
+    <div>
+        <div class="page-title">الاختبارات</div>
+        <div class="page-subtitle">إنشاء ومتابعة اختبارات حلقاتك</div>
+    </div>
+    <a href="{% url 'examens_prof_ajouter' %}"
+       style="background:var(--color-role-prof); color:white; text-decoration:none; padding:10px 22px; border-radius:10px; font-weight:600; white-space:nowrap;">+ إنشاء اختبار</a>
+</div>
+
+{% include 'dashboard/_messages.html' %}
+
+{% if examens %}
+<div style="display:flex; flex-direction:column; gap:12px; margin-top:20px;">
+    {% for examen in examens %}
+    <a href="{% url 'examens_prof_detail' examen.id %}" style="text-decoration:none; color:inherit;">
+        <div style="background:white; border-radius:12px; padding:16px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); border-right:4px solid var(--color-role-prof-solid); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+                <div style="font-weight:700; font-size:1.05rem;">{{ examen.titre }}</div>
+                <div style="color:#888; font-size:0.85rem; margin-top:2px;">
+                    {{ examen.groupe.nom }} — {{ examen.nb_questions_annot }} سؤال — {{ examen.duree_minutes }} دقيقة
+                </div>
+                <div style="color:#aaa; font-size:0.8rem; margin-top:2px;">
+                    {{ examen.date_debut|date:"d-m-Y H:i" }} ← {{ examen.date_limite|date:"d-m-Y H:i" }}
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                {% include 'examens/_statut_badge.html' with statut=examen.statut %}
+                <span style="color:#888; font-size:0.85rem; white-space:nowrap;">📝 {{ examen.nb_copies_annot }} نسخة</span>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div style="background:white; border-radius:12px; padding:40px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04); margin-top:20px;">
+    لا توجد اختبارات بعد. اضغط "+ إنشاء اختبار" للبدء.
+</div>
+{% endif %}
+{% endblock %}

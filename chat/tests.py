@@ -910,3 +910,54 @@ class RetentionConfigViewTests(TestCase):
 
         nb = purger_messages_expires()
         self.assertEqual(nb, 1)
+
+
+class ComposerJsRenduTests(TestCase):
+    """Régression (2026-08-16) : base_eleve.html et base_superviseur.html
+    n'avaient PAS de `{% block extra_js %}{% endblock %}` — Django ignore
+    silencieusement un bloc enfant sans bloc parent correspondant, donc tout
+    le JS du composer chat.html (attache du submit, activation du bouton
+    « إرسال »...) n'était jamais envoyé au navigateur pour ces deux rôles.
+    Le bouton restait visuellement présent mais totalement inerte (aucun
+    listener attaché). Ce test vérifie, pour CHAQUE rôle ayant accès au chat,
+    que le script du composer est bien présent dans le HTML rendu."""
+
+    def _verifier_composer_js_present(self, client, user):
+        _connecter(client, user)
+        groupe = Groupe.objects.create(nom=f'مجموعة اختبار الإرسال {user.role}')
+        if user.role == 'eleve':
+            groupe.eleves.add(user.eleve)
+        elif user.role == 'prof':
+            groupe.prof = user.prof
+            groupe.save()
+        elif user.role == 'superviseur':
+            groupe.prof = _creer_prof(email=f'prof_pour_{user.role}@zidni.test')
+            groupe.save()
+            user.superviseur.profs_assignes.add(groupe.prof)
+
+        response = client.get(f'/chat/{groupe.id}/')
+        self.assertEqual(response.status_code, 200)
+        contenu = response.content.decode('utf-8')
+        self.assertIn("getElementById('chatComposer').addEventListener('submit'", contenu)
+        self.assertIn('majEtatEnvoyer', contenu)
+
+    def test_eleve_recoit_le_js_du_composer(self):
+        self._verifier_composer_js_present(Client(), _creer_eleve().user)
+
+    def test_prof_recoit_le_js_du_composer(self):
+        self._verifier_composer_js_present(Client(), _creer_prof().user)
+
+    def test_superviseur_recoit_le_js_du_composer(self):
+        self._verifier_composer_js_present(Client(), _creer_superviseur().user)
+
+    def test_admin_recoit_le_js_du_composer(self):
+        client = Client()
+        admin = _creer_admin()
+        _connecter(client, admin)
+        groupe = Groupe.objects.create(nom='مجموعة اختبار الإرسال admin')
+        response = client.get(f'/chat/{groupe.id}/')
+        self.assertEqual(response.status_code, 200)
+        contenu = response.content.decode('utf-8')
+        self.assertIn("getElementById('chatComposer').addEventListener('submit'", contenu)
+        self.assertIn('majEtatEnvoyer', contenu)
+

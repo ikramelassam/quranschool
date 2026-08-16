@@ -195,6 +195,10 @@
             <span class="icon">📢</span> الإعلانات
             {% if annonces_non_lues_total %}<span class="menu-badge">{{ annonces_non_lues_total|abrege_badge }}</span>{% endif %}
         </a>
+        <a href="{% url 'examens_eleve_liste' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'examens_eleve_liste' or request.resolver_match.url_name == 'examens_eleve_avant' or request.resolver_match.url_name == 'examens_passage' or request.resolver_match.url_name == 'examens_eleve_resultat' %}active{% endif %}">
+            <span class="icon">📝</span> اختباراتي
+        </a>
         <a href="{% url 'eleve_seances' %}"
            class="menu-item {% if request.resolver_match.url_name == 'eleve_seances' %}active{% endif %}">
             <span class="icon">📋</span> حصصي وتقييماتي
@@ -229,5 +233,7 @@ function toggleSidebar() {
     document.querySelector('.sidebar-overlay').classList.toggle('open');
 }
 </script>
+
+{% block extra_js %}{% endblock %}
 </body>
 </html>

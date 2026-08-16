@@ -188,7 +188,17 @@
     .chat-bubble-role { font-weight: 400; color: var(--color-text-muted); font-size: 0.74rem; }
     .chat-bubble-texte { font-size: 0.92rem; color: var(--color-text-primary); white-space: pre-wrap; }
     .chat-bubble-heure { font-size: 0.7rem; color: var(--color-text-muted); text-align: left; margin-top: 3px; }
-    .chat-bubble-audio audio { max-width: 260px; height: 38px; }
+    /* Le lecteur <audio> reste 100% natif (aucun changement de logique
+       d'enregistrement/upload) — seule sa présentation change : une carte au
+       fond doré discret, cohérente avec .chat-bubble-fichier juste en
+       dessous, pour qu'il ne ressemble plus à un simple widget de navigateur
+       posé tel quel dans la bulle. */
+    .chat-bubble-audio {
+        display: flex; align-items: center; gap: 8px;
+        background: rgba(139,75,0,0.06); border-radius: 12px; padding: 6px 10px 6px 8px;
+    }
+    .chat-bubble-audio::before { content: '🎤'; font-size: 1rem; flex-shrink: 0; }
+    .chat-bubble-audio audio { max-width: 240px; width: 100%; height: 36px; }
     .chat-bubble-fichier { display: flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; background: rgba(0,0,0,0.03); border-radius: 10px; padding: 8px 10px; }
     .chat-fichier-icone { font-size: 1.3rem; }
     .chat-fichier-infos { display: flex; flex-direction: column; min-width: 0; }
@@ -251,6 +261,12 @@
         .chat-shell.chat-mobile-panel-open .chat-panneau-col { display: flex; }
         .chat-btn-retour { display: flex; align-items: center; justify-content: center; }
         .chat-btn-icone, .chat-btn-envoyer { width: 44px; height: 44px; }
+        /* 16px minimum : sous 16px, Safari iOS zoome automatiquement la page à
+           la mise au focus d'un champ de saisie (comportement natif du
+           navigateur, rien à voir avec notre CSS) — la taille desktop
+           (0.92rem ≈ 14.7px) déclenchait ce zoom intempestif sur mobile,
+           obligeant l'utilisateur à dézoomer manuellement à chaque message. */
+        .chat-composer textarea { font-size: 16px; }
     }
 </style>
 {% endblock %}

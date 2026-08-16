@@ -1,8 +1,13 @@
 {% comment %}
-Recherche globale (مدير/مشرف) — UN SEUL composant, inclus UNIQUEMENT depuis
-dashboard/admin.html ET dashboard/dashboard_mshrif.html (لوحة التحكم de
-chaque rôle), en tout début de {% block content %} — voir
-dashboard.tests.RechercheGlobalePresenteSurToutesLesPagesTests.
+Recherche globale (مدير/مشرف) — UN SEUL composant. Inclus UNIQUEMENT sur
+لوحة التحكم de chaque rôle (règle inchangée, voir dashboard.tests.
+RechercheGlobalePresenteSurToutesLesPagesTests), physiquement depuis
+dashboard/_header_raccourcis.html (.header-topbar, gaté par
+request.resolver_match.url_name) depuis le correctif du 2026-08-16 —
+auparavant inclus directement par dashboard/admin.html et
+dashboard/dashboard_mshrif.html, déplacé pour partager la même ligne que
+les raccourcis الرسائل/الإعلانات (recherche à droite, raccourcis à gauche,
+centrés verticalement ensemble).
 
 Règle resserrée le 2026-08-14 (correction du même jour) : d'abord incluse
 depuis base_admin.html/base_mshrif.html (présente sur TOUTE page), puis
@@ -38,7 +43,14 @@ recherche) — rien de tout cela ne bouge ici, uniquement présentation.
 </div>
 
 <style>
-    .recherche-globale-wrap { position: relative; width: 100%; max-width: 480px; margin-bottom: 24px; }
+    /* Correctif du 2026-08-16 : ce partial est désormais inclus À L'INTÉRIEUR
+       de .header-topbar (voir dashboard/_header_raccourcis.html), sur la
+       même ligne que les raccourcis الرسائل/الإعلانات, plutôt que seul en
+       tête du contenu de page — d'où flex/max-width au lieu de width:100%
+       (qui forcerait ce champ à occuper toute la largeur de la ligne
+       partagée) et l'absence de margin-bottom propre (portée désormais par
+       .dashboard-header-zone, le conteneur commun). */
+    .recherche-globale-wrap { position: relative; flex: 1 1 auto; max-width: 480px; min-width: 0; }
 
     .recherche-globale-input-wrap {
         display: flex; align-items: center; gap: 10px;

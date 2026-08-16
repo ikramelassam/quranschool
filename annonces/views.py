@@ -1,9 +1,14 @@
 from django.contrib import messages
+from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 
 from accounts.decorators import role_required
 from .models import Annonce
-from .services import annonces_visibles_pour_eleve, marquer_annonces_lues, effectif_par_cible
+from .services import (
+    annonces_visibles_pour_eleve, marquer_annonces_lues, effectif_par_cible,
+    canal_pour_code, canal_pour_eleve, canaux_avec_apercu, dernieres_publications,
+    peut_voir_annonce, valider_piece_jointe,
+)
 
 CIBLES_VALIDES = {code for code, _ in Annonce.CIBLE_CHOICES}
 
@@ -30,18 +35,39 @@ def _contexte_base_mshrif(request):
 
 @role_required('admin', 'mshrif')
 def annonces_gestion(request):
-    """Page centrale "الإعلانات" (مدير/مشرف) — formulaire de création +
-    historique complet, même patron que dashboard.views.admin_hakiba_gestion
-    (liste + formulaire sur UNE page, création traitée par une vue POST
-    séparée ci-dessous)."""
+    """Page "📢 الإعلانات" (مدير/مشرف) — Chantier "canaux de diffusion" du
+    2026-08-16 : ce n'est plus un formulaire+liste unique, mais la page de
+    SÉLECTION des 3 canaux (Femmes/Hommes/Mineurs), chacun ouvrant sur son
+    propre fil de publications (annonces_canal_detail ci-dessous). Mental
+    model WhatsApp/Telegram Channels — jamais un select générique."""
     context = {
-        'annonces': Annonce.objects.select_related('cree_par').all(),
-        'cible_choices': Annonce.CIBLE_CHOICES,
-        'effectifs': effectif_par_cible(),
+        'canaux': canaux_avec_apercu(),
+        'dernieres_publications': dernieres_publications(),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'annonces/admin_annonces.html', context)
+
+
+@role_required('admin', 'mshrif')
+def annonces_canal_detail(request, cible):
+    """Fil de publications d'UN canal + formulaire "نشر جديد" qui publie
+    directement dans CE canal (cible déjà fixée, pas de sélecteur à
+    re-choisir — Point C7 du chantier canaux). 404 si `cible` n'est pas
+    l'une des 3 valeurs réelles (Annonce.CIBLE_CHOICES) : jamais une 4e
+    catégorie inventée via l'URL."""
+    canal = canal_pour_code(cible)
+    if canal is None:
+        raise Http404("قناة غير موجودة.")
+
+    context = {
+        'canal': canal,
+        'annonces': Annonce.objects.filter(cible=cible).select_related('cree_par'),
+        'effectif': effectif_par_cible().get(cible, 0),
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'annonces/canal_detail.html', context)
 
 
 @role_required('admin', 'mshrif')
@@ -52,17 +78,37 @@ def annonce_ajouter(request):
     titre = request.POST.get('titre', '').strip()
     contenu = request.POST.get('contenu', '').strip()
     cible = request.POST.get('cible', '')
+    fichier = request.FILES.get('fichier')
+    # Redirection : reste dans le canal d'où le formulaire a été soumis
+    # (Point C7 : "+ Nouvelle publication" publie dans le canal courant,
+    # sans renvoyer l'utilisateur à la liste des 3 canaux) — retombe sur
+    # annonces_gestion seulement si `cible` est absent/invalide (garde-fou,
+    # ne devrait pas arriver depuis canal_detail.html).
+    destination = 'annonces_canal_detail' if cible in CIBLES_VALIDES else 'annonces_gestion'
+    destination_args = [cible] if destination == 'annonces_canal_detail' else []
 
     if not titre or not contenu:
         messages.error(request, 'يجب إدخال عنوان ونص الإعلان.')
-        return redirect('annonces_gestion')
+        return redirect(destination, *destination_args)
     if cible not in CIBLES_VALIDES:
         messages.error(request, 'يجب اختيار الفئة المستهدفة بالإعلان.')
         return redirect('annonces_gestion')
 
-    Annonce.objects.create(titre=titre, contenu=contenu, cible=cible, cree_par=request.user)
+    type_fichier = ''
+    if fichier:
+        type_fichier, erreur = valider_piece_jointe(fichier)
+        if erreur:
+            messages.error(request, erreur)
+            return redirect(destination, *destination_args)
+
+    Annonce.objects.create(
+        titre=titre, contenu=contenu, cible=cible, cree_par=request.user,
+        fichier=fichier or None, type_fichier=type_fichier,
+        nom_fichier_original=fichier.name if fichier else '',
+        taille_fichier_octets=fichier.size if fichier else None,
+    )
     messages.success(request, 'تم نشر الإعلان بنجاح.')
-    return redirect('annonces_gestion')
+    return redirect(destination, *destination_args)
 
 
 @role_required('admin', 'mshrif')
@@ -70,17 +116,17 @@ def annonce_toggle(request, annonce_id):
     """Active/désactive une annonce (POST only) — réversible, ne supprime
     jamais (voir Annonce.active). Une annonce désactivée reste dans
     l'historique مدير/مشرف mais disparaît immédiatement de annonces_visibles_pour_eleve."""
-    if request.method != 'POST':
-        return redirect('annonces_gestion')
-
     annonce = get_object_or_404(Annonce, id=annonce_id)
+    if request.method != 'POST':
+        return redirect('annonces_canal_detail', annonce.cible)
+
     annonce.active = not annonce.active
     annonce.save(update_fields=['active'])
     if annonce.active:
         messages.success(request, 'تم إعادة تفعيل الإعلان.')
     else:
         messages.success(request, 'تم إخفاء الإعلان عن الطلاب.')
-    return redirect('annonces_gestion')
+    return redirect('annonces_canal_detail', annonce.cible)
 
 
 @role_required('eleve')
@@ -100,5 +146,20 @@ def eleve_annonces(request):
 
     return render(request, 'annonces/eleve_annonces.html', {
         'annonces': annonces,
+        'canal': canal_pour_eleve(eleve),
         'age_inconnu': eleve.inscription is None or eleve.inscription.date_naissance is None,
     })
+
+
+@role_required('admin', 'mshrif', 'eleve')
+def annonce_fichier(request, annonce_id):
+    """Accès sécurisé à la pièce jointe d'une publication (Point C14) —
+    même patron que chat.views.chat_fichier : l'URL réelle du fichier
+    (Cloudinary en prod, /media/ en dev) n'est JAMAIS imprimée directement
+    dans un template annonces, seule cette vue, après vérification
+    peut_voir_annonce, redirige vers le fichier. Un élève d'un AUTRE canal ne
+    peut donc pas récupérer le fichier même en devinant/rejouant cette URL."""
+    annonce = get_object_or_404(Annonce, id=annonce_id)
+    if not annonce.fichier or not peut_voir_annonce(request.user, annonce):
+        return HttpResponseForbidden('ليس لديك صلاحية الوصول إلى هذا الملف.')
+    return redirect(annonce.fichier.url)

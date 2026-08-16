@@ -13,11 +13,25 @@ class Annonce(models.Model):
 
     IMPORTANT (règle métier explicite du client) : 'mineurs' regroupe TOUS
     les élèves de moins de 18 ans, filles ET garçons confondus — il n'existe
-    PAS de sous-catégorie 'garçons mineurs'/'filles mineures'."""
+    PAS de sous-catégorie 'garçons mineurs'/'filles mineures'.
+
+    `cible` EST le canal (Chantier "canaux de diffusion" du 2026-08-16) : les
+    3 valeurs de CIBLE_CHOICES sont exactement les 3 canaux Femmes/Hommes/
+    Mineurs de l'interface — aucun modèle Channel séparé n'a été ajouté,
+    `cible` jouait déjà ce rôle avant même que l'UI ne le présente comme tel
+    (voir annonces.services.CANAUX pour le nom/icône/description d'affichage
+    de chaque valeur). Une "publication" dans un canal = une Annonce."""
     CIBLE_CHOICES = [
         ('femmes_adultes', 'الطالبات البالغات'),
         ('hommes_adultes', 'الطلاب البالغون'),
         ('mineurs', 'الطلاب القاصرون'),
+    ]
+
+    TYPE_FICHIER_CHOICES = [
+        ('image', 'صورة'),
+        ('video', 'فيديو'),
+        ('audio', 'ملف صوتي'),
+        ('document', 'مستند'),
     ]
 
     titre = models.CharField(max_length=200)
@@ -31,6 +45,18 @@ class Annonce(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
     )
     date_creation = models.DateTimeField(auto_now_add=True)
+
+    # Pièce jointe optionnelle (Chantier "canaux" du 2026-08-16) — au plus UNE
+    # par publication, exactement comme chat.models.Message (même patron :
+    # fichier + nom original + taille, storage par défaut du projet donc déjà
+    # Cloudinary en prod / /media/ en dev, voir core/settings.py STORAGES —
+    # rien de spécifique à créer). type_fichier détermine le rendu côté
+    # template (aperçu image / lecteur vidéo / lecteur audio / carte
+    # document) — voir annonces.services.valider_piece_jointe.
+    fichier = models.FileField(upload_to='annonces_attachments/%Y/%m/', null=True, blank=True)
+    type_fichier = models.CharField(max_length=10, choices=TYPE_FICHIER_CHOICES, blank=True, default='')
+    nom_fichier_original = models.CharField(max_length=255, blank=True, default='')
+    taille_fichier_octets = models.PositiveIntegerField(null=True, blank=True)
 
     def __str__(self):
         return self.titre

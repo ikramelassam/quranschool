@@ -1,0 +1,57 @@
+{% extends base_template %}
+{% block title %}نسخة {{ copie.eleve.user.get_full_name }}{% endblock %}
+{% block content %}
+<div class="page-title">نسخة {{ copie.eleve.user.get_full_name }}</div>
+<div class="page-subtitle">{{ examen.titre }} — {{ examen.groupe.nom }}</div>
+
+{% include 'dashboard/_messages.html' %}
+
+<div style="margin:16px 0;">
+    <a href="{% url 'examens_consultation_detail' examen.id %}" style="color:var(--color-brand-gold-dark); text-decoration:none; font-size:0.9rem;">← رجوع إلى الاختبار</a>
+</div>
+
+<div style="background:white; border-radius:12px; padding:16px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <div style="color:#888; font-size:0.85rem;">
+        {% if copie.date_soumission %}سُلِّمت في {{ copie.date_soumission|date:"d-m-Y H:i" }}{% if copie.soumission_automatique %} (تلقائياً){% endif %}
+        {% else %}لم تُسلَّم بعد{% endif %}
+    </div>
+    <div style="font-weight:700; font-size:1.1rem; color:{% if copie.note_totale is not None %}#2d5a1b{% else %}#b35900{% endif %};">
+        {% if copie.note_totale is not None %}{{ copie.note_totale }} / {{ examen.points_max }}{% else %}غير مكتملة التصحيح{% endif %}
+    </div>
+</div>
+
+<div style="display:flex; flex-direction:column; gap:12px;">
+    {% for reponse in reponses %}
+    <div style="background:white; border-radius:12px; padding:16px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+            <div style="color:#aaa; font-size:0.78rem;">{{ reponse.question.get_type_question_display }}</div>
+            {% include 'examens/_statut_badge.html' with statut=reponse.statut_correction %}
+        </div>
+        <div style="font-weight:600; margin:6px 0 8px;">{{ reponse.question.enonce }}</div>
+
+        {% if reponse.question.type_question == 'choix' %}
+            <div style="color:#555;">الإجابة: {% if reponse.reponse_choix %}{{ reponse.reponse_choix.texte }}{% else %}<em style="color:#aaa;">لم يُجب</em>{% endif %}</div>
+        {% elif reponse.question.type_question == 'vrai_faux' %}
+            <div style="color:#555;">الإجابة: {% if reponse.reponse_bool is not None %}{% if reponse.reponse_bool %}صح{% else %}خطأ{% endif %}{% else %}<em style="color:#aaa;">لم يُجب</em>{% endif %}</div>
+        {% elif reponse.question.type_question == 'texte' %}
+            <div style="background:#f9f7f2; border-radius:8px; padding:10px 12px; color:#555; white-space:pre-wrap;">{{ reponse.reponse_texte|default:"—" }}</div>
+        {% elif reponse.question.type_question == 'audio' %}
+            {% if reponse.reponse_audio %}
+            <audio controls style="width:100%; max-width:360px;"><source src="{% url 'examens_reponse_audio' reponse.id %}"></audio>
+            {% else %}
+            <div style="color:#aaa;">لا يوجد تسجيل صوتي.</div>
+            {% endif %}
+        {% endif %}
+
+        {% if reponse.statut_correction != 'a_corriger' %}
+        <div style="margin-top:10px; font-weight:600; color:{% if reponse.points_obtenus %}#2d5a1b{% else %}#b71c1c{% endif %};">
+            {{ reponse.points_obtenus|default:0 }} / {{ reponse.question.points }} نقطة
+        </div>
+        {% if reponse.commentaire_prof %}
+        <div style="color:#888; font-size:0.85rem; margin-top:4px;">💬 {{ reponse.commentaire_prof }}</div>
+        {% endif %}
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

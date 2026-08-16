@@ -6,7 +6,7 @@ from django.utils import timezone
 from accounts.decorators import role_required
 from core.utils import paginer
 from .models import Groupe, Creneau, HistoriqueGroupeEleve
-from .utils import regenerer_pour_nouveau_creneau, raison_incompatibilite_groupe, avertissements_groupe, avertissements_prof_creneau, creneau_peut_etre_supprime, groupe_peut_etre_supprime
+from .utils import regenerer_pour_nouveau_creneau, raison_incompatibilite_groupe, avertissements_groupe, avertissements_prof_creneau, creneau_peut_etre_supprime, groupe_peut_etre_supprime, AGE_SEUIL_ADULTE
 from accounts.models import Prof, Eleve
 
 
@@ -32,6 +32,16 @@ def groupes_list(request):
     prof_id = request.GET.get('prof', '')
     creneau_id = request.GET.get('creneau', '')
     q = request.GET.get('q', '').strip()
+    # Navigation par filtres المجموعات/الفردية/الجماعية puis, si الجماعية،
+    # الرجال/النساء/الأطفال (Chantier du 2026-08-15) — voir Groupe.categorie_collectif
+    # pour la règle de classification. type_filtre applique directement
+    # type_capacite (champ déjà existant) ; categorie_filtre n'a de sens QUE
+    # pour type_filtre='groupe', ignoré silencieusement sinon (ex: lien
+    # ?categorie=hommes sans ?type=groupe — l'UI ne produit jamais cette
+    # combinaison, mais un paramètre manipulé ne doit jamais planter ni
+    # élargir l'accès, juste être sans effet).
+    type_filtre = request.GET.get('type', '')
+    categorie_filtre = request.GET.get('categorie', '')
 
     groupes = Groupe.objects.select_related('prof__user', 'creneau').order_by('id')
     if statut:
@@ -46,6 +56,14 @@ def groupes_list(request):
         groupes = groupes.filter(prof_id=prof_id)
     if creneau_id:
         groupes = groupes.filter(creneau_id=creneau_id)
+    if type_filtre in ('individuel', 'groupe'):
+        groupes = groupes.filter(type_capacite=type_filtre)
+        if type_filtre == 'groupe' and categorie_filtre == 'enfants':
+            groupes = groupes.filter(creneau__age_max__lt=AGE_SEUIL_ADULTE)
+        elif type_filtre == 'groupe' and categorie_filtre == 'hommes':
+            groupes = groupes.filter(creneau__age_min__gte=AGE_SEUIL_ADULTE, creneau__sexe_cible='homme')
+        elif type_filtre == 'groupe' and categorie_filtre == 'femmes':
+            groupes = groupes.filter(creneau__age_min__gte=AGE_SEUIL_ADULTE, creneau__sexe_cible='femme')
     if q:
         # Même logique que dashboard.recherche._filtrer (Chantier recherche
         # globale du 2026-08-14) : icontains (sous-chaîne, cas courant) OU
@@ -60,10 +78,13 @@ def groupes_list(request):
         'aucun_creneau': not Creneau.objects.filter(est_actif=True).exists(),
         'profs': Prof.actifs.select_related('user').order_by('user__first_name'),
         'creneaux': Creneau.objects.order_by('id'),
+        'categorie_collectif_choices': Groupe.CATEGORIE_COLLECTIF_CHOICES,
         'filtres': {
             'statut': statut,
             'prof': prof_id,
             'creneau': creneau_id,
+            'type': type_filtre,
+            'categorie': categorie_filtre,
             'q': q,
         },
         'base_template': _base_template_admin_ou_mshrif(request),
