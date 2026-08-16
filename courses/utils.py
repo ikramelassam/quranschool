@@ -142,19 +142,24 @@ def creneaux_manquants_pour_matrice(disponibilites_matrice, creneau):
 
 def raison_incompatibilite_groupe(eleve, groupe):
     """Vérifie qu'un élève peut être assigné à un groupe donné, selon les
-    critères BLOQUANTS uniquement (place restante, horaire, âge, type
-    d'abonnement, disponibilité). Retourne une chaîne expliquant le premier
-    critère non respecté, ou None si le groupe est compatible. Utilisée à la
-    fois pour la suggestion automatique (affichage) et comme garde-fou
-    serveur avant toute assignation (sécurité), afin qu'aucune des deux voies
-    ne puisse être contournée par l'autre. Voir
-    raison_incompatibilite_groupe_inscription, l'équivalent pour une
-    candidature pas encore acceptée — les deux fonctions doivent rester
-    alignées critère par critère.
+    critères BLOQUANTS uniquement (place restante, horaire du groupe, âge,
+    type d'abonnement). Retourne une chaîne expliquant le premier critère non
+    respecté, ou None si le groupe est compatible. Utilisée à la fois pour la
+    suggestion automatique (affichage) et comme garde-fou serveur avant toute
+    assignation (sécurité), afin qu'aucune des deux voies ne puisse être
+    contournée par l'autre. Voir raison_incompatibilite_groupe_inscription,
+    l'équivalent pour une candidature pas encore acceptée — les deux
+    fonctions doivent rester alignées critère par critère.
 
     Programme/riwaya/sexe ne sont PLUS bloquants depuis la Tâche 14 (demande
     client explicite) : voir avertissements_groupe pour ces 3 critères,
     désormais informatifs seulement.
+
+    Disponibilité horaire de l'élève : n'est PLUS bloquante depuis le
+    chantier du 2026-08-16 (demande client explicite), alignée sur le même
+    changement déjà appliqué au prof (Tâche du 2026-08-09, voir
+    avertissements_prof_creneau) — voir avertissements_groupe pour ce
+    critère, désormais informatif seulement.
 
     Élève archivé: bloquant depuis le chantier d'archivage du 2026-08-03 — c'est
     le seul point de passage commun à l'ajout, au transfert et à la confirmation
@@ -184,19 +189,26 @@ def raison_incompatibilite_groupe(eleve, groupe):
     if type_offre and type_offre != groupe.type_capacite:
         return "نوع الاشتراك (فردي/جماعي) لا يتوافق مع نوع هذه المجموعة."
 
-    manquants = creneaux_manquants_pour_eleve(eleve, creneau)
-    if manquants:
-        return "جدول تفرغ الطالب لا يغطي كامل مواعيد هذه الحلقة."
-
     return None
 
 
 def avertissements_groupe(eleve, groupe):
-    """Critères informatifs (non bloquants depuis la Tâche 14) pour un couple
-    (eleve, groupe) : programme, riwaya, sexe. Retourne la liste des messages
-    d'avertissement à afficher — liste vide si tout correspond. À appeler
-    uniquement après avoir vérifié raison_incompatibilite_groupe (aucune
-    garantie ici si creneau/inscription sont absents)."""
+    """Critères informatifs (non bloquants) pour un couple (eleve, groupe) :
+    programme, riwaya, sexe (non bloquants depuis la Tâche 14) et
+    disponibilité horaire (non bloquante depuis le chantier du 2026-08-16 —
+    voir le commentaire équivalent dans raison_incompatibilite_groupe).
+    Retourne la liste des messages d'avertissement à afficher — liste vide si
+    tout correspond. À appeler uniquement après avoir vérifié
+    raison_incompatibilite_groupe (aucune garantie ici si creneau/inscription
+    sont absents).
+
+    Le message de disponibilité reste SILENCIEUX si l'élève n'a rien déclaré
+    (matrice de disponibilités vide) — même logique que
+    avertissements_prof_creneau côté prof : l'absence de déclaration n'est
+    pas une preuve d'incompatibilité, seule une contradiction explicite avec
+    une disponibilité réellement déclarée déclenche l'avertissement."""
+    from .models import Creneau
+
     creneau = groupe.creneau
     inscription = eleve.inscription
     if not creneau or not inscription:
@@ -209,6 +221,15 @@ def avertissements_groupe(eleve, groupe):
         avertissements.append("رواية الحلقة لا تتوافق مع رواية الطالب.")
     if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
         avertissements.append("جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة.")
+
+    manquants = creneaux_manquants_pour_eleve(eleve, creneau)
+    if manquants and eleve.disponibilites.exists():
+        jours_dict = dict(Creneau.JOUR_CHOICES)
+        details = '، '.join(f'{jours_dict.get(j, j)} {h.strftime("%H:%M")}' for j, h in manquants)
+        avertissements.append(
+            f'تنبيه: التوقيت المختار لا يتوافق بالكامل مع جدول تفرغ هذا الطالب المصرَّح به عند تسجيله — '
+            f'غير متفرغ حسب تصريحه في: {details}.'
+        )
     return avertissements
 
 
@@ -323,10 +344,11 @@ def avertissements_prof_creneau(prof, creneau):
 
 def groupes_compatibles_pour_eleve(eleve):
     """Liste des groupes actifs compatibles avec un élève. Reste strict sur
-    TOUS les critères (y compris programme/riwaya/sexe, même si Tâche 14 les
-    a rendus non bloquants pour l'ajout manuel) : cette liste sert de
-    suggestion "idéale" en un clic, distincte de l'ajout manuel qui accepte
-    désormais ces 3 critères avec un simple avertissement."""
+    TOUS les critères (y compris programme/riwaya/sexe/disponibilité horaire,
+    même si Tâche 14 puis le chantier du 2026-08-16 les ont rendus non
+    bloquants pour l'ajout manuel) : cette liste sert de suggestion "idéale"
+    en un clic, distincte de l'ajout manuel qui accepte désormais ces
+    critères avec un simple avertissement."""
     from .models import Groupe
 
     candidats = Groupe.objects.filter(statut='actif').exclude(eleves=eleve).select_related('creneau', 'prof__user')
