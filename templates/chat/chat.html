@@ -106,6 +106,34 @@
         color: var(--color-cta-gold-text); display: flex; align-items: center; justify-content: center;
         font-weight: 700; flex-shrink: 0; overflow: hidden;
     }
+    /* Cliquable UNIQUEMENT quand cette classe est posée par le template (voir
+       _panel.html, peut_modifier_photo) — raccourci "changer la photo depuis
+       le chat" (Tâche du 2026-08-17), en plus du formulaire de gestion de
+       groupe existant, inchangé. */
+    .chat-avatar-modifiable { cursor: pointer; }
+    .chat-avatar-modifiable:hover { filter: brightness(0.92); }
+
+    /* ---------- Modale "changer la photo du groupe" ---------- */
+    .chat-photo-overlay {
+        position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,0.45);
+        display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    .chat-photo-modale {
+        background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 340px;
+        text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    }
+    .chat-photo-modale-titre { font-weight: 700; color: var(--color-text-primary); margin-bottom: 16px; }
+    .chat-photo-apercu {
+        width: 140px; height: 140px; border-radius: 50%; margin: 0 auto 16px; cursor: pointer;
+        background: var(--gradient-cta-gold); color: var(--color-cta-gold-text);
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 2.4rem; overflow: hidden;
+    }
+    .chat-photo-apercu img { width: 100%; height: 100%; object-fit: cover; }
+    .chat-photo-erreur { color: var(--color-danger); font-size: 0.82rem; margin-bottom: 12px; }
+    .chat-photo-modale-boutons { display: flex; gap: 10px; justify-content: center; }
+    .chat-photo-modale-boutons .btn { flex: 1; border-radius: 10px; padding: 8px 0; border: none; }
+    .chat-photo-modale-boutons .btn:disabled { opacity: 0.5; cursor: default; }
     .chat-panel-titre { min-width: 0; flex: 1; }
     .chat-panel-nom { font-weight: 700; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .chat-panel-sous-titre { font-size: 0.78rem; color: var(--color-text-muted); }
@@ -190,7 +218,19 @@
     .chat-bubble-auteur { font-size: 0.8rem; font-weight: 700; color: var(--color-brand-gold-dark); margin-bottom: 2px; }
     .chat-bubble-role { font-weight: 400; color: var(--color-text-muted); font-size: 0.74rem; }
     .chat-bubble-texte { font-size: 0.92rem; color: var(--color-text-primary); white-space: pre-wrap; }
-    .chat-bubble-heure { font-size: 0.7rem; color: var(--color-text-muted); text-align: left; margin-top: 3px; }
+    /* .chat-bubble-pied (Tâche du 2026-08-17 "supprimer un message") remplace
+       l'ancien conteneur implicite de .chat-bubble-heure : les deux
+       cohabitent désormais sur la même ligne (heure + bouton supprimer,
+       visible uniquement sur mes propres bulles non supprimées — voir
+       templates/chat/_message_bubbles.html). */
+    .chat-bubble-pied { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+    .chat-bubble-heure { font-size: 0.7rem; color: var(--color-text-muted); }
+    .chat-bubble-supprimer {
+        background: none; border: none; padding: 0; cursor: pointer;
+        font-size: 0.78rem; line-height: 1; opacity: 0.55;
+    }
+    .chat-bubble-supprimer:hover { opacity: 1; }
+    .chat-bubble-supprime { font-size: 0.86rem; color: var(--color-text-muted); font-style: italic; }
     /* Le lecteur <audio> reste 100% natif (aucun changement de logique
        d'enregistrement/upload) — seule sa présentation change : une carte au
        fond doré discret, cohérente avec .chat-bubble-fichier juste en
@@ -521,6 +561,117 @@
         if (badge) { badge.remove(); }
     }
 
+    // ---------- Changer la photo du groupe (Tâche du 2026-08-17) ----------
+    // Raccourci "façon WhatsApp" (clic sur l'avatar de l'en-tête) EN PLUS du
+    // formulaire de gestion de groupe existant dans courses/ (inchangé) —
+    // les deux écrivent sur le même Groupe.photo, voir chat.views.
+    // chat_modifier_photo_groupe. Les éléments #chatPanelAvatar/#chatPhotoOverlay
+    // n'existent dans le DOM QUE si peut_modifier_photo (voir _panel.html) :
+    // rien à faire si absents, pour tous les autres rôles/groupes.
+    function initPhotoGroupe(panel) {
+        const avatar = document.getElementById('chatPanelAvatar');
+        const overlay = document.getElementById('chatPhotoOverlay');
+        if (!avatar || !overlay) { return; }
+
+        const apercu = document.getElementById('chatPhotoApercu');
+        const input = document.getElementById('chatPhotoInput');
+        const erreur = document.getElementById('chatPhotoErreur');
+        const btnEnregistrer = document.getElementById('chatPhotoEnregistrer');
+        const btnAnnuler = document.getElementById('chatPhotoAnnuler');
+        const photoUrl = overlay.dataset.photoUrl;
+        let fichierChoisi = null;
+
+        function ouvrir() {
+            overlay.hidden = false;
+            erreur.hidden = true;
+            fichierChoisi = null;
+            input.value = '';
+            btnEnregistrer.disabled = true;
+        }
+        function fermer() {
+            overlay.hidden = true;
+        }
+
+        avatar.addEventListener('click', ouvrir);
+        avatar.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ouvrir(); }
+        });
+        apercu.addEventListener('click', function () { input.click(); });
+        btnAnnuler.addEventListener('click', fermer);
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) { fermer(); }
+        });
+
+        input.addEventListener('change', function () {
+            const fichier = input.files[0];
+            if (!fichier) { return; }
+            fichierChoisi = fichier;
+            erreur.hidden = true;
+            btnEnregistrer.disabled = false;
+            // Aperçu LOCAL du fichier choisi, avant tout envoi — même usage de
+            // URL.createObjectURL que déjà présent ailleurs dans le projet
+            // pour un aperçu avant soumission (jamais comme source persistante
+            // après envoi, voir les vocaux du chat pour la règle inverse).
+            apercu.innerHTML = '<img src="' + URL.createObjectURL(fichier) + '" alt="">';
+        });
+
+        btnEnregistrer.addEventListener('click', function () {
+            if (!fichierChoisi) { return; }
+            const formData = new FormData();
+            formData.append('photo', fichierChoisi);
+            btnEnregistrer.disabled = true;
+            fetch(photoUrl, {
+                method: 'POST', body: formData,
+                headers: { 'X-CSRFToken': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+            })
+                .then(reponseOuErreur)
+                .then(function (data) {
+                    // Mise à jour immédiate de l'en-tête ouvert...
+                    avatar.innerHTML = data.avatar_html;
+                    fermer();
+                    // ...et de la liste des conversations (avatar de cette même
+                    // conversation), sans attendre le prochain tick du polling.
+                    rafraichirListe();
+                })
+                .catch(function (err) {
+                    erreur.textContent = (err && err.messageServeur) || 'تعذّر تغيير الصورة — حاول مرة أخرى.';
+                    erreur.hidden = false;
+                    btnEnregistrer.disabled = false;
+                });
+        });
+    }
+
+    // ---------- Suppression d'un message par son propre auteur (Tâche du 2026-08-17) ----------
+    // Délégation d'événement sur la liste (les bulles sont recréées/insérées
+    // en continu par l'envoi/le polling/l'historique remonté — jamais un
+    // écouteur posé par bouton, qu'il faudrait reposer à chaque insertion).
+    // La protection qui compte est côté serveur (chat.views.
+    // chat_supprimer_message, vérifie message.auteur_id == request.user.id) :
+    // le bouton n'est de toute façon rendu QUE sur mes propres bulles non
+    // supprimées (voir templates/chat/_message_bubbles.html).
+    function initSuppressionMessages(panel, groupeId) {
+        const liste = document.getElementById('chatMessagesListe');
+        if (!liste) { return; }
+        liste.addEventListener('click', function (e) {
+            const bouton = e.target.closest('.chat-bubble-supprimer');
+            if (!bouton) { return; }
+            if (!confirm('هل تريد حذف هذه الرسالة؟')) { return; }
+            const messageId = bouton.dataset.messageId;
+            fetch(`/chat/${groupeId}/messages/${messageId}/supprimer/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+            })
+                .then(reponseOuErreur)
+                .then(function (data) {
+                    const ligne = liste.querySelector(`[data-message-id="${data.id}"]`);
+                    if (ligne) { ligne.outerHTML = data.html; }
+                })
+                .catch(function () {
+                    alert('تعذّر حذف الرسالة — تحقّق من اتصالك بالإنترنت وحاول مرة أخرى.');
+                });
+        });
+    }
+
     // ---------- Panneau de conversation courant ----------
     function initPanel() {
         const panel = document.getElementById('chatPanel');
@@ -545,6 +696,9 @@
                 panneauMembres.hidden = !panneauMembres.hidden;
             });
         }
+
+        initPhotoGroupe(panel);
+        initSuppressionMessages(panel, groupeId);
 
         const messagesDiv = document.getElementById('chatMessages');
         // Contenu initial (chargement complet de la page OU panneau ouvert en

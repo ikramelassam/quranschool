@@ -5,8 +5,9 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST, require_GET
 
 from accounts.decorators import role_required
+from courses.utils import valider_photo_groupe
 from .models import Conversation, Message
-from .permissions import can_access_conversation, participants_conversation
+from .permissions import can_access_conversation, participants_conversation, peut_modifier_photo_groupe
 from .services import (
     annoter_separateurs_jour, content_type_audio, conversations_avec_apercu, jour_du_message,
     marquer_comme_lu, purge_opportuniste, valider_piece_jointe,
@@ -79,6 +80,12 @@ def _contexte_messages_initiaux(conversation, request):
         'a_plus_ancien': len(messages_recents) == NB_MESSAGES_PAR_PAGE,
         'participants': participants_conversation(conversation),
         'user': request.user,
+        # Contrôle l'affichage de l'avatar comme cliquable + la modale de
+        # changement de photo (Tâche du 2026-08-17) — voir
+        # chat.permissions.peut_modifier_photo_groupe pour le détail des
+        # rôles autorisés. Confort d'affichage UNIQUEMENT : la vue
+        # chat_modifier_photo_groupe revérifie ce même droit côté serveur.
+        'peut_modifier_photo': peut_modifier_photo_groupe(request.user, conversation.groupe),
     }
 
 
@@ -329,3 +336,96 @@ def chat_fichier(request, groupe_id, message_id):
             content_type=content_type_audio(message.fichier.name),
         )
     return redirect(message.fichier.url)
+
+
+@role_required(*ROLES_AVEC_CHAT)
+@require_POST
+def chat_modifier_photo_groupe(request, groupe_id):
+    """Raccourci "façon WhatsApp" pour changer la photo d'un groupe DEPUIS
+    le chat (Tâche du 2026-08-17) : clic sur l'avatar de l'en-tête → modale
+    → ce endpoint. S'ajoute au formulaire de gestion de groupe existant
+    (courses.views.groupe_ajouter/groupe_modifier, INCHANGÉ) sans le
+    remplacer — les deux écrivent sur le MÊME Groupe.photo, donc peu importe
+    par où la photo est changée, elle se reflète partout (liste des groupes,
+    fiche groupe, chat...) puisque c'est la même colonne en base.
+
+    peut_modifier_photo_groupe revérifiée ICI côté serveur, jamais une
+    confiance dans le fait que l'avatar n'était affiché comme cliquable que
+    côté client (voir templates/chat/_panel.html) — un utilisateur qui
+    rejoue cette requête sans y avoir droit (ex: élève du groupe) reçoit un
+    403, la photo n'est jamais modifiée. valider_photo_groupe (courses.utils,
+    déjà utilisée par le formulaire de gestion de groupe) est réutilisée
+    telle quelle : même règles (extension + taille + image réellement
+    valide via Pillow), une seule fonction de validation pour les 2 points
+    d'entrée."""
+    conversation, erreur = _conversation_ou_403(request, groupe_id)
+    if erreur:
+        return erreur
+
+    groupe = conversation.groupe
+    if not peut_modifier_photo_groupe(request.user, groupe):
+        return HttpResponseForbidden('ليس لديك صلاحية تغيير صورة هذه المجموعة.')
+
+    photo = request.FILES.get('photo')
+    if not photo:
+        return HttpResponseBadRequest('يجب اختيار صورة.')
+
+    erreur_validation = valider_photo_groupe(photo)
+    if erreur_validation:
+        return HttpResponseBadRequest(erreur_validation)
+
+    # L'ancienne photo (s'il y en avait une) est supprimée du storage APRÈS
+    # la sauvegarde de la nouvelle — jamais avant : si la validation avait
+    # échoué (cas déjà écarté ci-dessus) ou si save() levait une exception,
+    # l'ancienne photo ne doit jamais disparaître pour rien.
+    ancienne_photo = groupe.photo
+    groupe.photo = photo
+    groupe.save(update_fields=['photo'])
+    if ancienne_photo:
+        ancienne_photo.delete(save=False)
+
+    avatar_html = render_to_string('chat/_avatar_groupe.html', {'groupe': groupe}, request=request)
+    return JsonResponse({'ok': True, 'avatar_html': avatar_html})
+
+
+@role_required(*ROLES_AVEC_CHAT)
+@require_POST
+def chat_supprimer_message(request, groupe_id, message_id):
+    """Suppression "douce" d'UN message par son propre auteur, façon
+    WhatsApp (Tâche du 2026-08-17) : le message reste en base (position
+    chronologique/séparateur de jour inchangés) mais son contenu est effacé
+    et remplacé par un placeholder (voir Message.est_supprime et
+    templates/chat/_message_bubbles.html).
+
+    Vérification STRICTE côté serveur (message.auteur_id ==
+    request.user.id) — jamais une confiance dans le fait que le bouton
+    Supprimer n'était affiché QUE sur ses propres bulles côté client : un
+    utilisateur qui rejoue cette requête pour le message de quelqu'un
+    d'autre (même en connaissant son id) reçoit un 403, ce message n'est
+    JAMAIS modifié. Idempotent : un message déjà supprimé renvoie le même
+    résultat sans rien refaire (un double-clic ou une requête rejouée ne
+    doit jamais planter ni écraser une seconde fois un contenu déjà vidé)."""
+    conversation, erreur = _conversation_ou_403(request, groupe_id)
+    if erreur:
+        return erreur
+
+    message = get_object_or_404(Message, id=message_id, conversation=conversation)
+    if message.auteur_id != request.user.id:
+        return HttpResponseForbidden('لا يمكنك حذف رسالة شخص آخر.')
+
+    if not message.est_supprime:
+        if message.fichier:
+            message.fichier.delete(save=False)
+        message.contenu = ''
+        message.fichier = None
+        message.nom_fichier_original = ''
+        message.taille_fichier_octets = None
+        message.est_supprime = True
+        message.save()
+
+    html = render_to_string('chat/_message_bubbles.html', {
+        'messages': [message],
+        'user': request.user,
+        'groupe_id': conversation.groupe_id,
+    }, request=request)
+    return JsonResponse({'html': html, 'id': message.id})

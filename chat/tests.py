@@ -1025,3 +1025,187 @@ class ComposerJsRenduTests(TestCase):
         self.assertIn("getElementById('chatComposer').addEventListener('submit'", contenu)
         self.assertIn('majEtatEnvoyer', contenu)
 
+
+def _image_upload(nom='photo.png', couleur=(200, 30, 30)):
+    """Un vrai fichier image (PIL réel, pas juste renommé) — nécessaire car
+    courses.utils.valider_photo_groupe (réutilisée telle quelle par
+    chat.views.chat_modifier_photo_groupe) ouvre/vérifie le fichier avec
+    Pillow. Même patron que courses.tests._image_upload."""
+    import io
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.new('RGB', (10, 10), couleur).save(buffer, format='PNG')
+    buffer.seek(0)
+    return SimpleUploadedFile(nom, buffer.read(), content_type='image/png')
+
+
+class PhotoGroupeDepuisChatTests(TestCase):
+    """chat_modifier_photo_groupe (Tâche du 2026-08-17 "changer la photo
+    depuis le chat, façon WhatsApp") — écrit sur le MÊME Groupe.photo que le
+    formulaire de gestion de groupe existant dans courses/ (non testé ici,
+    inchangé), donc rien à vérifier de ce côté-là hormis que la valeur
+    stockée est bien identique quel que soit le point d'entrée."""
+
+    def setUp(self):
+        self.client = Client()
+        self.groupe = Groupe.objects.create(nom='مجموعة صورة الدردشة')
+
+    def test_admin_peut_changer_la_photo(self):
+        admin = _creer_admin()
+        _connecter(self.client, admin)
+        response = self.client.post(f'/chat/{self.groupe.id}/photo/', {'photo': _image_upload()})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('avatar_html', response.json())
+        self.assertIn('<img', response.json()['avatar_html'])
+        self.groupe.refresh_from_db()
+        self.assertTrue(self.groupe.photo)
+        self.groupe.photo.delete(save=False)
+
+    def test_prof_du_groupe_refuse(self):
+        """Décision explicite (2026-08-17) : réservé au مدير UNIQUEMENT — même
+        le prof responsable de CE groupe précis, qui a pourtant accès au
+        chat, ne peut pas changer sa photo."""
+        prof = _creer_prof()
+        self.groupe.prof = prof
+        self.groupe.save()
+        _connecter(self.client, prof.user)
+        response = self.client.post(f'/chat/{self.groupe.id}/photo/', {'photo': _image_upload()})
+        self.assertEqual(response.status_code, 403)
+        self.groupe.refresh_from_db()
+        self.assertFalse(self.groupe.photo)
+
+    def test_superviseur_du_prof_refuse(self):
+        """Même s'il supervise le prof de ce groupe — réservé au مدير."""
+        prof = _creer_prof()
+        superviseur = _creer_superviseur()
+        superviseur.profs_assignes.add(prof)
+        self.groupe.prof = prof
+        self.groupe.save()
+        _connecter(self.client, superviseur.user)
+        response = self.client.post(f'/chat/{self.groupe.id}/photo/', {'photo': _image_upload()})
+        self.assertEqual(response.status_code, 403)
+        self.groupe.refresh_from_db()
+        self.assertFalse(self.groupe.photo)
+
+    def test_eleve_du_groupe_refuse(self):
+        """A bien accès au chat (membre du groupe) mais ne peut pas changer
+        la photo — réservé au مدير uniquement."""
+        eleve = _creer_eleve()
+        self.groupe.eleves.add(eleve)
+        _connecter(self.client, eleve.user)
+        response = self.client.post(f'/chat/{self.groupe.id}/photo/', {'photo': _image_upload()})
+        self.assertEqual(response.status_code, 403)
+        self.groupe.refresh_from_db()
+        self.assertFalse(self.groupe.photo)
+
+    def test_fichier_invalide_refuse(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        admin = _creer_admin()
+        _connecter(self.client, admin)
+        fichier = SimpleUploadedFile('malware.exe', b'MZ', content_type='application/octet-stream')
+        response = self.client.post(f'/chat/{self.groupe.id}/photo/', {'photo': fichier})
+        self.assertEqual(response.status_code, 400)
+        self.groupe.refresh_from_db()
+        self.assertFalse(self.groupe.photo)
+
+    def test_utilisateur_hors_groupe_refuse_avant_meme_verification_photo(self):
+        """Un utilisateur sans AUCUN accès à ce chat (403 de
+        _conversation_ou_403) ne doit jamais atteindre la vérification de
+        droit sur la photo — même comportement que toutes les autres vues
+        chat pour un groupe étranger."""
+        autre_eleve = _creer_eleve(email='eleve_etranger_photo@zidni.test')
+        _connecter(self.client, autre_eleve.user)
+        response = self.client.post(f'/chat/{self.groupe.id}/photo/', {'photo': _image_upload()})
+        self.assertEqual(response.status_code, 403)
+
+
+class SuppressionMessageTests(TestCase):
+    """chat_supprimer_message (Tâche du 2026-08-17 "supprimer un message,
+    façon WhatsApp") — suppression douce : la ligne reste en base, son
+    contenu est vidé et remplacé par un placeholder côté template."""
+
+    def setUp(self):
+        self.eleve = _creer_eleve()
+        self.autre_eleve = _creer_eleve(email='autre_eleve_suppr@zidni.test')
+        self.groupe = Groupe.objects.create(nom='مجموعة اختبار حذف الرسائل')
+        self.groupe.eleves.add(self.eleve, self.autre_eleve)
+        self.client = Client()
+
+    def _envoyer_message_texte(self, user, contenu='رسالة للاختبار'):
+        _connecter(self.client, user)
+        self.client.post(f'/chat/{self.groupe.id}/envoyer/', {'contenu': contenu, 'type_message': 'texte'})
+        return self.groupe.conversation.messages.order_by('-id').first()
+
+    def test_auteur_peut_supprimer_son_propre_message(self):
+        message = self._envoyer_message_texte(self.eleve.user)
+        _connecter(self.client, self.eleve.user)
+        response = self.client.post(f'/chat/{self.groupe.id}/messages/{message.id}/supprimer/')
+        self.assertEqual(response.status_code, 200)
+        message.refresh_from_db()
+        self.assertTrue(message.est_supprime)
+        self.assertEqual(message.contenu, '')
+        self.assertIn('تم حذف هذه الرسالة', response.json()['html'])
+
+    def test_autre_participant_ne_peut_pas_supprimer(self):
+        """Protection STRICTE côté serveur : un autre membre de la MÊME
+        conversation (donc avec accès chat légitime) ne peut pas supprimer
+        le message de quelqu'un d'autre, même en connaissant son id."""
+        message = self._envoyer_message_texte(self.eleve.user, contenu='ne pas supprimer')
+        _connecter(self.client, self.autre_eleve.user)
+        response = self.client.post(f'/chat/{self.groupe.id}/messages/{message.id}/supprimer/')
+        self.assertEqual(response.status_code, 403)
+        message.refresh_from_db()
+        self.assertFalse(message.est_supprime)
+        self.assertEqual(message.contenu, 'ne pas supprimer')
+
+    def test_admin_ne_peut_pas_supprimer_le_message_dun_autre(self):
+        """Même le مدير (qui voit TOUTES les conversations) ne peut supprimer
+        que ses PROPRES messages — la règle est "auteur == utilisateur",
+        jamais un rôle particulier qui contournerait la vérification."""
+        message = self._envoyer_message_texte(self.eleve.user, contenu='message élève')
+        admin = _creer_admin()
+        _connecter(self.client, admin)
+        response = self.client.post(f'/chat/{self.groupe.id}/messages/{message.id}/supprimer/')
+        self.assertEqual(response.status_code, 403)
+        message.refresh_from_db()
+        self.assertFalse(message.est_supprime)
+
+    def test_suppression_dun_vocal_supprime_le_fichier_stocke(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        _connecter(self.client, self.eleve.user)
+        fichier = SimpleUploadedFile('voice.webm', b'\x1a\x45\xdf\xa3contenu-audio-factice', content_type='audio/webm')
+        self.client.post(f'/chat/{self.groupe.id}/envoyer/', {
+            'contenu': '', 'type_message': 'audio', 'fichier': fichier,
+        })
+        message = self.groupe.conversation.messages.order_by('-id').first()
+        self.assertTrue(message.fichier)
+
+        response = self.client.post(f'/chat/{self.groupe.id}/messages/{message.id}/supprimer/')
+        self.assertEqual(response.status_code, 200)
+        message.refresh_from_db()
+        self.assertTrue(message.est_supprime)
+        self.assertFalse(message.fichier)
+
+    def test_suppression_idempotente(self):
+        message = self._envoyer_message_texte(self.eleve.user)
+        _connecter(self.client, self.eleve.user)
+        premiere = self.client.post(f'/chat/{self.groupe.id}/messages/{message.id}/supprimer/')
+        deuxieme = self.client.post(f'/chat/{self.groupe.id}/messages/{message.id}/supprimer/')
+        self.assertEqual(premiere.status_code, 200)
+        self.assertEqual(deuxieme.status_code, 200)
+        message.refresh_from_db()
+        self.assertTrue(message.est_supprime)
+
+    def test_utilisateur_sans_acces_a_la_conversation_refuse(self):
+        """403 dès _conversation_ou_403, avant même de comparer l'auteur —
+        un étranger à la conversation ne doit rien pouvoir déduire."""
+        message = self._envoyer_message_texte(self.eleve.user)
+        etranger = _creer_eleve(email='etranger_suppr@zidni.test')
+        _connecter(self.client, etranger.user)
+        response = self.client.post(f'/chat/{self.groupe.id}/messages/{message.id}/supprimer/')
+        self.assertEqual(response.status_code, 403)
+        message.refresh_from_db()
+        self.assertFalse(message.est_supprime)
+

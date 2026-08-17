@@ -5,41 +5,67 @@
 {% endif %}
 <div class="chat-row {% if message.auteur_id == user.id %}chat-row-mine{% else %}chat-row-theirs{% endif %}" data-message-id="{{ message.id }}">
     <div class="chat-bubble">
-        {% if message.auteur_id != user.id %}
+        {% if message.auteur_id != user.id and not message.est_supprime %}
         <div class="chat-bubble-auteur">{{ message.auteur_nom }} <span class="chat-bubble-role">{{ message.auteur_role_label }}</span></div>
         {% endif %}
 
-        {% if message.type_message == 'audio' %}
-        <div class="chat-bubble-audio">
+        {% if message.est_supprime %}
+        {% comment %}
+        Placeholder "message supprimé" façon WhatsApp (Tâche du 2026-08-17,
+        suppression douce par son propre auteur — voir Message.est_supprime
+        et chat.views.chat_supprimer_message) : ni contenu, ni audio, ni
+        pièce jointe, ni bouton Supprimer (on ne supprime pas 2 fois la même
+        chose) — seule l'heure d'envoi d'origine reste affichée en dessous,
+        comme n'importe quel autre message, pour ne pas casser le fil.
+        {% endcomment %}
+        <div class="chat-bubble-supprime">🚫 تم حذف هذه الرسالة</div>
+        {% else %}
+            {% if message.type_message == 'audio' %}
+            <div class="chat-bubble-audio">
+                {% comment %}
+                Lecteur natif <audio controls> (Tâche du 2026-08-17 "messages
+                vocaux") : play/pause, barre de progression et durée fournis par
+                le navigateur — rejouable indéfiniment, l'URL pointe TOUJOURS vers
+                chat_fichier (jamais l'URL réelle du fichier imprimée dans le
+                template, voir chat.views.chat_fichier) qui redirige vers le
+                storage du projet (Cloudinary en prod / /media/ en dev — reste
+                valide après rechargement de la page, exactement comme les autres
+                pièces jointes). preload="metadata" (pas "none") pour que la durée
+                du message s'affiche immédiatement, sans attendre un premier clic
+                sur play — plus proche du comportement WhatsApp/Messenger.
+                {% endcomment %}
+                <audio controls preload="metadata" src="{% url 'chat_fichier' groupe_id message.id %}"></audio>
+            </div>
+            {% elif message.type_message == 'fichier' %}
+            <a class="chat-bubble-fichier" href="{% url 'chat_fichier' groupe_id message.id %}" target="_blank" rel="noopener">
+                <span class="chat-fichier-icone" aria-hidden="true">📎</span>
+                <span class="chat-fichier-infos">
+                    <span class="chat-fichier-nom">{{ message.nom_fichier_original|default:"ملف مرفق" }}</span>
+                    <span class="chat-fichier-taille">{{ message.taille_fichier_octets|taille_lisible }}</span>
+                </span>
+            </a>
+            {% endif %}
+
+            {% if message.contenu %}
+            <div class="chat-bubble-texte">{{ message.contenu|linebreaksbr }}</div>
+            {% endif %}
+        {% endif %}
+
+        <div class="chat-bubble-pied">
+            <span class="chat-bubble-heure">{{ message.date_envoi|heure_message }}</span>
             {% comment %}
-            Lecteur natif <audio controls> (Tâche du 2026-08-17 "messages
-            vocaux") : play/pause, barre de progression et durée fournis par
-            le navigateur — rejouable indéfiniment, l'URL pointe TOUJOURS vers
-            chat_fichier (jamais l'URL réelle du fichier imprimée dans le
-            template, voir chat.views.chat_fichier) qui redirige vers le
-            storage du projet (Cloudinary en prod / /media/ en dev — reste
-            valide après rechargement de la page, exactement comme les autres
-            pièces jointes). preload="metadata" (pas "none") pour que la durée
-            du message s'affiche immédiatement, sans attendre un premier clic
-            sur play — plus proche du comportement WhatsApp/Messenger.
+            Suppression réservée à l'auteur, vérifiée à nouveau (STRICT) côté
+            serveur dans chat.views.chat_supprimer_message — cette condition
+            côté template n'est qu'un confort d'affichage, jamais la seule
+            protection (Tâche du 2026-08-17, cohérent avec le reste du
+            module : voir chat.permissions.peut_modifier_photo_groupe pour
+            le même principe appliqué à la photo de groupe).
             {% endcomment %}
-            <audio controls preload="metadata" src="{% url 'chat_fichier' groupe_id message.id %}"></audio>
+            {% if message.auteur_id == user.id and not message.est_supprime %}
+            <button type="button" class="chat-bubble-supprimer" data-message-id="{{ message.id }}"
+                    title="حذف الرسالة" aria-label="حذف الرسالة">🗑</button>
+            {% endif %}
         </div>
-        {% elif message.type_message == 'fichier' %}
-        <a class="chat-bubble-fichier" href="{% url 'chat_fichier' groupe_id message.id %}" target="_blank" rel="noopener">
-            <span class="chat-fichier-icone" aria-hidden="true">📎</span>
-            <span class="chat-fichier-infos">
-                <span class="chat-fichier-nom">{{ message.nom_fichier_original|default:"ملف مرفق" }}</span>
-                <span class="chat-fichier-taille">{{ message.taille_fichier_octets|taille_lisible }}</span>
-            </span>
-        </a>
-        {% endif %}
-
-        {% if message.contenu %}
-        <div class="chat-bubble-texte">{{ message.contenu|linebreaksbr }}</div>
-        {% endif %}
-
-        <div class="chat-bubble-heure">{{ message.date_envoi|heure_message }}</div>
     </div>
 </div>
 {% endfor %}

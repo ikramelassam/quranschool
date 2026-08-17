@@ -9,7 +9,9 @@
 <a href="{% url 'chat_conversation' conversation.groupe_id %}"
    class="chat-item {% if conversation.groupe_id == groupe_ouvert_id %}active{% endif %}"
    data-groupe-id="{{ conversation.groupe_id }}">
-    <div class="chat-item-avatar" aria-hidden="true">{{ conversation.groupe.nom|first|upper }}</div>
+    <div class="chat-item-avatar" aria-hidden="true">
+        {% include 'chat/_avatar_groupe.html' with groupe=conversation.groupe %}
+    </div>
     <div class="chat-item-corps">
         <div class="chat-item-ligne1">
             <span class="chat-item-nom{% if conversation.nb_non_lus %} non-lu{% endif %}">{{ conversation.groupe.nom }}</span>

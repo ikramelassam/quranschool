@@ -1,0 +1,14 @@
+{% comment %}
+Contenu INTERNE (image ou lettre) de l'avatar rond d'un groupe dans le chat —
+factorisé (Tâche du 2026-08-17 "changer la photo depuis le chat") pour être
+identique dans les 3 endroits qui doivent rester synchronisés sans dupliquer
+la condition {% if groupe.photo %} : templates/chat/_panel.html (en-tête de
+la conversation ouverte), templates/chat/_conversation_liste.html (liste des
+conversations) et la réponse JSON de chat.views.chat_modifier_photo_groupe
+(le JS y réinjecte ce même HTML directement, voir templates/chat/chat.html).
+
+N'inclut PAS le conteneur rond lui-même (.chat-item-avatar / .chat-panel-avatar
+— déjà stylé par chat.html, largeur/hauteur/arrondi identiques pour les deux)
+: seulement ce qui va à l'intérieur. Paramètre : groupe (obligatoire).
+{% endcomment %}
+{% if groupe.photo %}<img src="{{ groupe.photo.url }}" alt="">{% else %}{{ groupe.nom|first|upper }}{% endif %}

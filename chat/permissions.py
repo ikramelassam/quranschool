@@ -64,6 +64,22 @@ def can_access_conversation(user, conversation):
     return get_conversations_accessibles(user).filter(pk=conversation.pk).exists()
 
 
+def peut_modifier_photo_groupe(user, groupe):
+    """Qui peut changer la photo de profil d'un groupe DEPUIS LE CHAT (Tâche
+    du 2026-08-17 "avatar façon WhatsApp") — recalculée à chaque appel,
+    jamais stockée, même principe que le reste de ce fichier. Réservé au
+    مدير (admin) UNIQUEMENT — décision explicite (pas prof/superviseur même
+    responsables du groupe, pas élève), cohérent avec le fait que la gestion
+    de groupe elle-même (courses/) est déjà réservée à admin/mshrif. Cette
+    fonction est le SEUL endroit qui décide de ce droit : à la fois pour
+    afficher (ou non) l'avatar comme cliquable côté template, et pour la
+    vérification stricte côté vue (chat.views.chat_modifier_photo_groupe) —
+    jamais une confiance dans le fait que l'avatar n'était pas affiché."""
+    if not user.is_authenticated or groupe is None:
+        return False
+    return user.role == 'admin'
+
+
 def participants_conversation(conversation):
     """Liste d'affichage des participants ACTUELS d'une conversation — utilisée
     uniquement pour le panneau "membres" du chat (jamais pour calculer une

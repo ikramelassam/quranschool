@@ -11,4 +11,6 @@ urlpatterns = [
     path('<int:groupe_id>/envoyer/', views.chat_envoyer, name='chat_envoyer'),
     path('<int:groupe_id>/lu/', views.chat_marquer_lu, name='chat_marquer_lu'),
     path('<int:groupe_id>/fichier/<int:message_id>/', views.chat_fichier, name='chat_fichier'),
+    path('<int:groupe_id>/photo/', views.chat_modifier_photo_groupe, name='chat_modifier_photo_groupe'),
+    path('<int:groupe_id>/messages/<int:message_id>/supprimer/', views.chat_supprimer_message, name='chat_supprimer_message'),
 ]
