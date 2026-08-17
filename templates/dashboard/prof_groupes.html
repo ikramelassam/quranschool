@@ -10,7 +10,10 @@
     {% for groupe in groupes %}
     <div class="col">
         <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%;">
-            <div style="font-weight:700; font-size:1.1rem; color:#222; margin-bottom:12px;">{{ groupe.nom }}</div>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+                {% include 'courses/_groupe_avatar.html' with groupe=groupe taille=40 %}
+                <div style="font-weight:700; font-size:1.1rem; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ groupe.nom }}</div>
+            </div>
             <div style="color:#888; font-size:0.9rem; margin-bottom:6px;">
                 👥 عدد الطلاب:
                 <span style="background:var(--color-role-prof); color:white; border-radius:20px; padding:2px 10px; font-size:0.8rem;">

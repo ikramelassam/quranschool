@@ -1,0 +1,24 @@
+{% comment %}
+Avatar carré du groupe (Tâche du 2026-08-17 "photo de groupe") — utilisé
+partout où un groupe est représenté EN DEHORS du chat (qui garde son propre
+avatar rond déjà existant, voir templates/chat/chat.html .chat-item-avatar/
+.chat-panel-avatar — même logique photo/repli, juste une autre forme).
+
+Photo toujours recadrée en CSS uniquement (object-fit:cover) — jamais
+recadrée au stockage (voir Groupe.photo). Avatar par défaut (initiale du nom
+sur fond doré) si `groupe.photo` est vide — un ImageField vide est toujours
+falsy, donc jamais d'erreur même si le fichier a été supprimé côté storage.
+
+Paramètres :
+- groupe (obligatoire)
+- taille : côté du carré en px (défaut 52)
+{% endcomment %}
+{% with taille=taille|default:52 %}
+{% if groupe.photo %}
+<img src="{{ groupe.photo.url }}" alt="{{ groupe.nom }}"
+     style="width:{{ taille }}px; height:{{ taille }}px; min-width:{{ taille }}px; border-radius:10px; object-fit:cover; flex-shrink:0;">
+{% else %}
+<div aria-hidden="true"
+     style="width:{{ taille }}px; height:{{ taille }}px; min-width:{{ taille }}px; border-radius:10px; background:var(--gradient-cta-gold); color:var(--color-cta-gold-text); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:calc({{ taille }}px * 0.4); flex-shrink:0;">{{ groupe.nom|first|upper }}</div>
+{% endif %}
+{% endwith %}

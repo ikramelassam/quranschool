@@ -4,22 +4,80 @@
 <div class="page-title">تأجيل الحصة</div>
 <div class="page-subtitle">{{ seance.groupe.nom }} — الموعد الحالي: {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}</div>
 
+{% comment %}
+Tâche du 2026-08-17 (exceptions de séance) : affichée UNIQUEMENT quand le
+lien Meet effectif (celui du groupe, ou une exception déjà posée) devient
+indisponible au NOUVEL horaire proposé — voir dashboard.views.
+admin_seance_deplacer. Le formulaire plus bas est réaffiché avec la date/heure
+déjà proposées conservées (nouvelle_date/nouvelle_heure), pour ne rien faire
+perdre au مدير.
+{% endcomment %}
+{% if conflit_meet %}
+<div style="background:#fce4e4; border:1px solid var(--color-danger); border-radius:14px; padding:20px 24px; margin-bottom:20px; max-width:560px;">
+    <div style="color:var(--color-danger); font-weight:700; font-size:1rem; margin-bottom:6px;">
+        ⚠️ رابط Google Meet الحالي غير متاح في هذا الوقت
+    </div>
+    <div style="color:#8a3b36; font-size:0.88rem; margin-bottom:10px;">
+        الموعد المقترح: {{ nouvelle_date }} — {{ nouvelle_heure }}
+        {% if raison_conflit %}<br>{{ raison_conflit }}{% endif %}
+    </div>
+
+    {% if liens_meet_disponibles %}
+    <div style="color:#8a3b36; font-size:0.85rem; font-weight:600; margin-bottom:8px;">اختر رابطاً آخر لهذه الحصة فقط:</div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+        {% for lien in liens_meet_disponibles %}
+        <form method="POST" class="d-flex align-items-center flex-wrap gap-2"
+              style="background:white; border:1px solid #f3c6c3; border-radius:8px; padding:8px 10px;">
+            {% csrf_token %}
+            <input type="hidden" name="date" value="{{ nouvelle_date }}">
+            <input type="hidden" name="heure" value="{{ nouvelle_heure }}">
+            <input type="hidden" name="remarque" value="{{ remarque_soumise }}">
+            <input type="hidden" name="lien_meet_exceptionnel" value="{{ lien.id }}">
+            <span style="display:flex; align-items:center; gap:6px; min-width:0; flex:1 1 auto;">
+                {% include 'dashboard/_meet_glyph.html' %}
+                <span style="font-weight:600; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ lien.libelle|default:lien.url }}</span>
+            </span>
+            <span style="color:var(--color-success); font-size:0.75rem; white-space:nowrap;">متاح لهذا الموعد</span>
+            <button type="submit"
+                style="background:var(--color-success); color:white; border:none; border-radius:6px; padding:5px 14px; font-size:0.8rem; font-weight:600; white-space:nowrap; cursor:pointer; flex-shrink:0;">
+                استخدام لهذه الحصة فقط
+            </button>
+        </form>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="color:#8a3b36; font-size:0.85rem;">
+        لا يوجد أي رابط Google Meet متاح لهذا الموعد. يمكنك
+        <a href="{% url 'admin_liens_meet' %}" target="_blank" style="color:var(--color-danger); text-decoration:underline;">إضافة رابط جديد</a>
+        ثم إعادة تأجيل الحصة، أو اختيار موعد آخر أدناه.
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 <div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
         {% csrf_token %}
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">التاريخ الجديد *</label>
-            <input type="date" name="date" class="form-control mt-1" value="{{ seance.date|date:'Y-m-d' }}" required>
+            <input type="date" name="date" class="form-control mt-1"
+                   value="{% if nouvelle_date %}{{ nouvelle_date }}{% else %}{{ seance.date|date:'Y-m-d' }}{% endif %}" required>
         </div>
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">الوقت الجديد *</label>
-            <input type="time" name="heure" class="form-control mt-1" value="{{ seance.heure|time:'H:i' }}" required>
+            <input type="time" name="heure" class="form-control mt-1"
+                   value="{% if nouvelle_heure %}{{ nouvelle_heure }}{% else %}{{ seance.heure|time:'H:i' }}{% endif %}" required>
         </div>
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">سبب التأجيل (اختياري)</label>
             <textarea name="remarque" class="form-control mt-1" rows="3"
-                      placeholder="مثال: غياب المعلم، عطلة...">{{ seance.remarque }}</textarea>
+                      placeholder="مثال: غياب المعلم، عطلة...">{{ remarque_soumise|default:seance.remarque }}</textarea>
         </div>
+        {% if seance.lien_meet_exceptionnel %}
+        <div style="color:#888; font-size:0.8rem; margin-bottom:14px;">
+            ⓘ رابط استثنائي حالي لهذه الحصة: {{ seance.lien_meet_exceptionnel }} — سيُعاد التحقق من توفره إذا غيّرت الموعد.
+        </div>
+        {% endif %}
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-brand-gold); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">

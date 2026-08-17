@@ -6,13 +6,16 @@
 {% block content %}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <div class="page-title">{{ groupe.nom }}</div>
-        <div class="page-subtitle">
-            تفاصيل المجموعة
-            {% if groupe.statut == 'archive' %}
-            <span style="background:#f0f0f0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; margin-right:8px;">مؤرشفة 🗄</span>
-            {% endif %}
+    <div class="d-flex align-items-center gap-3">
+        {% include 'courses/_groupe_avatar.html' with groupe=groupe taille=56 %}
+        <div>
+            <div class="page-title">{{ groupe.nom }}</div>
+            <div class="page-subtitle">
+                تفاصيل المجموعة
+                {% if groupe.statut == 'archive' %}
+                <span style="background:#f0f0f0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; margin-right:8px;">مؤرشفة 🗄</span>
+                {% endif %}
+            </div>
         </div>
     </div>
     <div class="d-flex gap-2">
@@ -92,6 +95,12 @@
                 <span style="color:#888;">الرواية</span>
                 <span style="font-weight:600;">
                     {% if groupe.creneau %}{{ groupe.creneau.get_riwaya_display }}{% else %}غير محدد{% endif %}
+                </span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+                <span style="color:#888;">الفئة</span>
+                <span style="font-weight:600;">
+                    {% if groupe.get_categorie_display %}{{ groupe.get_categorie_display }}{% else %}غير مصنّفة{% endif %}
                 </span>
             </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">

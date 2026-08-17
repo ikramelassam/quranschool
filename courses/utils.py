@@ -3,6 +3,7 @@ import datetime
 from django.utils import timezone
 
 JOUR_INDEX = {'lun': 0, 'mar': 1, 'mer': 2, 'jeu': 3, 'ven': 4, 'sam': 5, 'dim': 6}
+JOUR_INDEX_INVERSE = {valeur: code for code, valeur in JOUR_INDEX.items()}
 
 # Couleurs (fond, texte) par code — source unique utilisée partout où une
 # Presence est affichée (admin, élève, superviseur), pour que la même note
@@ -815,12 +816,14 @@ def lien_seance_est_actif(seance):
     supplémentaire. fin_datetime retombe sur debut_datetime si le groupe n'a
     pas/plus de créneau (voir Seance.fin_datetime), donc la fenêtre se
     réduit à [début - marge_avant, début + marge_apres] dans ce cas. False
-    si le groupe n'a aucun lien de réunion renseigné (rien à activer) ou si
-    la séance est annulée."""
+    si aucun lien n'est actif pour cette séance (rien à activer — voir
+    Seance.lien_effectif, qui utilise le lien exceptionnel de la séance s'il
+    est posé, Tâche du 2026-08-17, sinon celui du groupe) ou si la séance
+    est annulée."""
     import datetime
     from .models import ReglageLienSeance
 
-    if not seance.groupe.lien_reunion or seance.statut == 'annulee':
+    if not seance.lien_effectif or seance.statut == 'annulee':
         return False
 
     reglage, _ = ReglageLienSeance.objects.get_or_create(pk=1)
@@ -829,6 +832,200 @@ def lien_seance_est_actif(seance):
     fenetre_debut = debut - datetime.timedelta(minutes=reglage.marge_avant_minutes)
     fenetre_fin = fin + datetime.timedelta(minutes=reglage.marge_apres_minutes)
     return fenetre_debut <= timezone.now() <= fenetre_fin
+
+
+# ==================== POOL DE LIENS GOOGLE MEET (Tâche du 2026-08-17) ====================
+# Un Creneau porte 2 créneaux hebdomadaires fixes (jour_1/heure_debut_1/heure_fin_1
+# et jour_2/heure_debut_2/heure_fin_2) — un Groupe a UN SEUL Creneau, donc UN SEUL
+# lien Meet suffit pour TOUTES ses séances (les Seance générées héritent du lien de
+# leur groupe, jamais un lien par séance). La disponibilité d'un LienMeet n'est
+# JAMAIS stockée : toujours recalculée à la volée à partir des groupes ACTIFS qui
+# l'utilisent déjà (voir Groupe.actifs) — ce n'est pas un système de réservation.
+
+def creneaux_se_chevauchent(creneau_a, creneau_b):
+    """True si au moins UN des 2 créneaux hebdomadaires de creneau_a chevauche
+    au moins UN des 2 créneaux hebdomadaires de creneau_b (comparaison des 4
+    combinaisons possibles — un seul chevauchement suffit). Même jour de la
+    semaine obligatoire. Deux intervalles [debut_a, fin_a) et [debut_b, fin_b)
+    se chevauchent ssi debut_a < fin_b ET debut_b < fin_a — des bornes qui se
+    touchent exactement (ex: 14:00-15:00 et 15:00-16:00) NE sont PAS un
+    chevauchement (14:00-15:00 vs 15:00-16:00 → 15:00 < 15:00 est faux)."""
+    slots_a = [
+        (creneau_a.jour_1, creneau_a.heure_debut_1, creneau_a.heure_fin_1),
+        (creneau_a.jour_2, creneau_a.heure_debut_2, creneau_a.heure_fin_2),
+    ]
+    slots_b = [
+        (creneau_b.jour_1, creneau_b.heure_debut_1, creneau_b.heure_fin_1),
+        (creneau_b.jour_2, creneau_b.heure_debut_2, creneau_b.heure_fin_2),
+    ]
+    return any(
+        _intervalle_hebdo_chevauche(jour_a, debut_a, fin_a, jour_b, debut_b, fin_b)
+        for jour_a, debut_a, fin_a in slots_a
+        for jour_b, debut_b, fin_b in slots_b
+    )
+
+
+def _intervalle_hebdo_chevauche(jour_a, debut_a, fin_a, jour_b, debut_b, fin_b):
+    """Brique de base d'UN SEUL couple (jour, début, fin) contre un autre —
+    même jour de la semaine obligatoire, bornes qui se touchent = pas de
+    chevauchement. Extraite de creneaux_se_chevauchent (Tâche du 2026-08-17)
+    pour être réutilisée telle quelle par les exceptions de séance
+    (horaire RÉEL ponctuel d'une Seance déplacée, pas les 2 créneaux
+    hebdomadaires complets d'un Groupe) — même formule, un seul endroit."""
+    return jour_a == jour_b and debut_a < fin_b and debut_b < fin_a
+
+
+def groupes_en_conflit_pour_lien(lien_meet, creneau, groupe_exclu=None):
+    """Liste des groupes ACTIFS (Groupe.actifs — un groupe archivé ne bloque
+    jamais un lien), avec un Creneau assigné, utilisant déjà `lien_meet`, dont
+    l'horaire chevauche `creneau`. `groupe_exclu` (le groupe en cours de
+    création/modification) est toujours écarté de la comparaison avec
+    lui-même. Renvoie toujours une liste (jamais un QuerySet paresseux) — sert
+    à la fois à décider (bool via lien_meet_est_disponible) et à composer un
+    message d'erreur précis (quel groupe, quel horaire)."""
+    from .models import Groupe
+
+    if creneau is None or lien_meet is None:
+        return []
+    candidats = Groupe.actifs.filter(lien_meet=lien_meet, creneau__isnull=False).select_related('creneau')
+    if groupe_exclu is not None:
+        candidats = candidats.exclude(pk=groupe_exclu.pk)
+    return [g for g in candidats if creneaux_se_chevauchent(g.creneau, creneau)]
+
+
+def lien_meet_est_disponible(lien_meet, creneau, groupe_exclu=None):
+    """True si `lien_meet` peut être assigné à `creneau` sans chevaucher
+    l'horaire d'un groupe actif qui l'utilise déjà. Un groupe sans Creneau
+    n'a par définition aucun conflit possible (rien à comparer)."""
+    if creneau is None:
+        return True
+    return len(groupes_en_conflit_pour_lien(lien_meet, creneau, groupe_exclu)) == 0
+
+
+def liens_meet_disponibles(creneau, groupe_exclu=None):
+    """Liens Meet ACTIFS sans aucun conflit d'horaire pour `creneau` — ce que
+    l'interface doit proposer en priorité au مدير. Ne présuppose rien sur
+    `creneau` (peut être None : dans ce cas tous les liens actifs sont
+    renvoyés, rien à comparer)."""
+    from .models import LienMeet
+    return [
+        lien for lien in LienMeet.objects.filter(est_actif=True)
+        if lien_meet_est_disponible(lien, creneau, groupe_exclu)
+    ]
+
+
+def description_conflit_lien_meet(lien_meet, creneau, groupe_exclu=None):
+    """Message arabe court expliquant POURQUOI `lien_meet` est indisponible
+    pour `creneau` (nom du/des groupe(s) en conflit) — chaîne vide si
+    disponible. Utilisé côté formulaire (JSON pour le JS + erreur serveur)."""
+    conflits = groupes_en_conflit_pour_lien(lien_meet, creneau, groupe_exclu)
+    if not conflits:
+        return ''
+    noms = '، '.join(f'"{g.nom}"' for g in conflits)
+    return f'يتعارض مع توقيت مجموعة {noms}.'
+
+
+# ==================== EXCEPTIONS DE SÉANCE (Tâche du 2026-08-17) ====================
+# Une Seance individuelle peut être déplacée à une date/heure hors de son créneau
+# hebdomadaire habituel (admin_seance_deplacer, existant) — auquel cas le lien Meet
+# PAR DÉFAUT du groupe (Groupe.lien_meet/lien_reunion) peut se retrouver en conflit
+# avec un AUTRE groupe qui l'utilise à ce nouveau moment précis. Contrairement à
+# groupes_en_conflit_pour_lien (qui compare 2 Creneau hebdomadaires complets), les
+# fonctions ci-dessous comparent un horaire RÉEL ponctuel (jour de la semaine + heures
+# d'UNE SEULE occurrence) aux créneaux hebdomadaires récurrents des autres groupes.
+# Elles ne remplacent ni ne dupliquent la logique de conflit existante : elles
+# réutilisent _intervalle_hebdo_chevauche, la même brique de comparaison.
+#
+# Portée volontairement limitée (proportionnée au besoin, pas de système de
+# réservation) : seul le conflit contre l'horaire RÉCURRENT normal des autres
+# groupes est vérifié ici. Deux exceptions différentes (2 séances de 2 groupes
+# différents déplacées la même semaine sur le même lien) ne sont PAS comparées
+# entre elles — cas non demandé, laissé de côté pour ne pas construire un système
+# de réservation complexe.
+
+def groupes_en_conflit_pour_lien_a_horaire_reel(lien_meet, jour_code, heure_debut, heure_fin):
+    """Équivalent ponctuel de groupes_en_conflit_pour_lien : groupes ACTIFS
+    utilisant déjà `lien_meet` par défaut, dont au moins un des 2 créneaux
+    HEBDOMADAIRES chevauche l'horaire RÉEL (jour_code, heure_debut, heure_fin)
+    fourni. Le groupe propriétaire de la séance exceptionnelle n'est PAS
+    exclu de la recherche : si le nouvel horaire chevauche accidentellement
+    le SECOND créneau hebdomadaire de ce même groupe, c'est un vrai conflit
+    (double réservation du même lien par le même groupe), pas un faux
+    positif — contrairement à groupe_exclu utilisé ailleurs pour "ce groupe
+    peut-il GARDER ce lien pour son propre créneau", question différente."""
+    from .models import Groupe
+
+    if lien_meet is None:
+        return []
+    candidats = Groupe.actifs.filter(lien_meet=lien_meet, creneau__isnull=False).select_related('creneau')
+    conflits = []
+    for groupe in candidats:
+        c = groupe.creneau
+        slots = [(c.jour_1, c.heure_debut_1, c.heure_fin_1), (c.jour_2, c.heure_debut_2, c.heure_fin_2)]
+        if any(
+            _intervalle_hebdo_chevauche(jour_code, heure_debut, heure_fin, jour, debut, fin)
+            for jour, debut, fin in slots
+        ):
+            conflits.append(groupe)
+    return conflits
+
+
+def horaire_reel_seance(seance):
+    """(jour_code, heure_debut, heure_fin) réels d'une Seance — jour de la
+    semaine de sa DATE effective (pas du Creneau du groupe, qui peut être
+    différent après un déplacement exceptionnel), heure de début propre à la
+    séance, heure de fin dérivée de Seance.fin_datetime (même logique déjà
+    utilisée par lien_seance_est_actif — retombe sur le début si le groupe
+    n'a pas/plus de créneau du tout)."""
+    jour_code = JOUR_INDEX_INVERSE[seance.date.weekday()]
+    fin_dt = seance.fin_datetime or seance.debut_datetime
+    return jour_code, seance.heure, fin_dt.time()
+
+
+def liens_meet_disponibles_pour_seance(seance):
+    """Liens Meet ACTIFS disponibles pour l'horaire RÉEL de `seance` — même
+    principe que liens_meet_disponibles(creneau), mais comparé à un horaire
+    ponctuel réel (Tâche du 2026-08-17, exceptions de séance)."""
+    from .models import LienMeet
+
+    jour_code, heure_debut, heure_fin = horaire_reel_seance(seance)
+    return [
+        lien for lien in LienMeet.objects.filter(est_actif=True)
+        if not groupes_en_conflit_pour_lien_a_horaire_reel(lien, jour_code, heure_debut, heure_fin)
+    ]
+
+
+def lien_effectif_disponible_pour_seance(seance):
+    """True si le lien EFFECTIF actuel de la séance (seance.lien_effectif —
+    exceptionnel si posé, sinon celui du groupe) reste libre à l'horaire réel
+    ACTUEL de la séance. Sert à décider, après un déplacement, si le lien par
+    défaut du groupe peut être conservé automatiquement (section 3 du
+    cahier des charges) ou si le مدير doit être alerté. Un lien "hors pool"
+    (legacy, ex. WhatsApp — jamais enregistré comme LienMeet) est toujours
+    considéré disponible : cette vérification ne concerne que les liens
+    gérés par le pool centralisé."""
+    from .models import LienMeet
+
+    url = seance.lien_effectif
+    if not url:
+        return True
+    lien = LienMeet.objects.filter(url=url, est_actif=True).first()
+    if lien is None:
+        return True
+    jour_code, heure_debut, heure_fin = horaire_reel_seance(seance)
+    return not groupes_en_conflit_pour_lien_a_horaire_reel(lien, jour_code, heure_debut, heure_fin)
+
+
+def description_conflit_lien_meet_seance(lien_meet, seance):
+    """Équivalent ponctuel de description_conflit_lien_meet — message arabe
+    court nommant le/les groupe(s) en conflit avec `lien_meet` à l'horaire
+    réel de `seance` ; chaîne vide si disponible."""
+    jour_code, heure_debut, heure_fin = horaire_reel_seance(seance)
+    conflits = groupes_en_conflit_pour_lien_a_horaire_reel(lien_meet, jour_code, heure_debut, heure_fin)
+    if not conflits:
+        return ''
+    noms = '، '.join(f'"{g.nom}"' for g in conflits)
+    return f'يتعارض مع توقيت مجموعة {noms}.'
 
 
 def calculer_remuneration_prof(prof, mois=None, tarifs=None):
@@ -1398,3 +1595,31 @@ def groupe_peut_etre_supprime(groupe):
         and groupe.eleves.count() == 0
         and groupe.historique_eleves.count() == 0
     )
+
+
+# ==================== PHOTO DE GROUPE (Tâche du 2026-08-17) ====================
+
+TAILLE_MAX_PHOTO_GROUPE_OCTETS = 5 * 1024 * 1024  # 5 Mo
+EXTENSIONS_PHOTO_GROUPE_VALIDES = ('.png', '.jpg', '.jpeg', '.webp', '.gif')
+
+
+def valider_photo_groupe(fichier):
+    """Renvoie un message d'erreur arabe si `fichier` est refusé comme photo de
+    groupe, None s'il est accepté — même patron de validation que
+    dashboard.views.mshrif_logo (extension + taille + ouverture réelle via
+    Pillow, pour confirmer que le fichier est vraiment une image et pas juste
+    renommé). Validation TOUJOURS serveur, jamais sur la seule confiance du
+    <input accept=...> côté client."""
+    from PIL import Image
+
+    if not fichier.name.lower().endswith(EXTENSIONS_PHOTO_GROUPE_VALIDES):
+        return 'صيغة الملف غير مدعومة — استعمل PNG أو JPEG أو WEBP أو GIF.'
+    if fichier.size > TAILLE_MAX_PHOTO_GROUPE_OCTETS:
+        return 'حجم الملف كبير جداً — الحد الأقصى 5 ميغابايت.'
+    try:
+        image = Image.open(fichier)
+        image.verify()
+        fichier.seek(0)  # verify() consomme le curseur du fichier, on le remet au début avant de sauvegarder
+    except Exception:
+        return 'الملف المرفوع ليس صورة صالحة.'
+    return None

@@ -6,8 +6,25 @@
 <div class="page-title">تعديل: {{ groupe.nom }}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">صورة المجموعة</label>
+            <div class="d-flex align-items-center gap-3 mt-1">
+                {% include 'courses/_groupe_avatar.html' with groupe=groupe taille=64 %}
+                <div class="flex-grow-1">
+                    <input type="file" name="photo" class="form-control" accept="image/png,image/jpeg,image/webp,image/gif">
+                    {% if groupe.photo %}
+                    <div class="form-check mt-2">
+                        <input type="checkbox" name="supprimer_photo" value="1" class="form-check-input" id="id_supprimer_photo">
+                        <label class="form-check-label" for="id_supprimer_photo" style="color:#888; font-size:0.85rem;">حذف الصورة الحالية (بدون تعويضها)</label>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">الصيغ المقبولة: PNG، JPEG، WEBP، GIF — الحجم الأقصى: 5 ميغابايت. اختيار ملف جديد يستبدل الصورة الحالية تلقائياً.</div>
+        </div>
 
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">اسم المجموعة *</label>
@@ -59,6 +76,17 @@
         </div>
 
         <div class="mb-3">
+            <label style="font-weight:600; color:#333;">فئة المجموعة</label>
+            <select name="categorie" class="form-select mt-1">
+                <option value="">-- غير مصنّفة --</option>
+                {% for valeur, libelle in categorie_choices %}
+                <option value="{{ valeur }}" {% if groupe.categorie == valeur %}selected{% endif %}>{{ libelle }}</option>
+                {% endfor %}
+            </select>
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">نفس تصنيف قنوات الإعلانات (النساء/الرجال/القاصرون) — تُستخدم لتصفية المجموعات.</div>
+        </div>
+
+        <div class="mb-3">
             <label style="font-weight:600; color:#333;">الحالة</label>
             <select name="statut" class="form-select mt-1">
                 <option value="actif" {% if groupe.statut == 'actif' %}selected{% endif %}>نشط</option>
@@ -68,13 +96,30 @@
 
         <div style="background:#f7f3ea; border:1px solid var(--color-brand-gold); border-radius:10px; padding:16px 18px; margin-bottom:16px;">
             <label style="font-weight:700; color:var(--color-brand-gold-dark); display:flex; align-items:center; gap:8px;">
-                🔗 رابط الحصص عبر الإنترنت
+                {% include 'dashboard/_meet_glyph.html' %} رابط Google Meet
             </label>
             <div style="color:#888; font-size:0.82rem; margin:4px 0 10px;">
-                رابط واحد ثابت يُستخدم لجميع حصص هذه المجموعة (وليس رابطاً لكل حصة على حدة). يظهر تلقائياً عند المعلم والطلاب في موعد كل حصة.
+                رابط واحد ثابت يُستخدم لجميع حصص هذه المجموعة. تُقترح هنا فقط الروابط
+                <a href="{% url 'admin_liens_meet' %}" target="_blank" style="color:var(--color-brand-gold-dark);">المسجَّلة في إدارة الروابط</a>
+                والمتاحة لتوقيت الحلقة المختارة أعلاه (بدون تعارض مع مجموعة أخرى). تغيير الحلقة يعيد التحقق من توفر الرابط.
             </div>
-            <input type="url" name="lien_reunion" class="form-control"
-                   value="{{ groupe.lien_reunion }}" placeholder="https://meet.google.com/xxx-xxxx-xxx">
+            {% if groupe.lien_reunion and not groupe.lien_meet_id %}
+            <div style="color:#7a4a00; font-size:0.8rem; margin-bottom:8px;">
+                ⓘ رابط حالي غير مرتبط بالقائمة المركزية: <span style="word-break:break-all;">{{ groupe.lien_reunion }}</span> —
+                يبقى فعّالاً كما هو إلا إذا اخترت رابطاً من القائمة أدناه.
+            </div>
+            {% endif %}
+            <select name="lien_meet" id="id_lien_meet" class="form-select">
+                <option value="">-- بدون رابط من القائمة --</option>
+                {% for lien in liens_meet %}
+                <option value="{{ lien.id }}" {% if groupe.lien_meet == lien %}selected{% endif %}>{{ lien }}</option>
+                {% endfor %}
+            </select>
+            <div id="lien_meet_statut" style="color:#888; font-size:0.8rem; margin-top:6px;"></div>
+            <div id="lien_meet_alerte" class="d-none" style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:10px 14px; margin-top:10px; font-size:0.85rem; font-weight:600;">
+                لا يوجد رابط Google Meet متاح لهذا التوقيت. عدّل الحلقة أعلاه، أو
+                <a href="{% url 'admin_liens_meet' %}" target="_blank" style="color:var(--color-danger); text-decoration:underline;">أضف رابط Meet جديد</a>.
+            </div>
         </div>
 
         {% if avertissements_prof %}
@@ -99,4 +144,62 @@
         </div>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Tâche du 2026-08-17 : voir le même bloc dans admin_groupe_ajouter.html —
+// réévaluation dynamique des liens Meet disponibles quand l'admin change la
+// حلقة (créneau). La validation qui compte reste TOUJOURS celle faite côté
+// serveur à la sauvegarde (voir courses.views.groupe_modifier).
+const liensMeetParCreneau = {{ liens_meet_json|safe }};
+const selectCreneau = document.querySelector('select[name="creneau"]');
+const selectLienMeet = document.getElementById('id_lien_meet');
+const statutLienMeet = document.getElementById('lien_meet_statut');
+const alerteLienMeet = document.getElementById('lien_meet_alerte');
+
+function rafraichirLiensMeet() {
+    const creneauId = selectCreneau.value;
+    const valeurActuelle = selectLienMeet.value;
+    const liens = liensMeetParCreneau[creneauId] || [];
+
+    selectLienMeet.innerHTML = '<option value="">-- بدون رابط من القائمة --</option>';
+    let nbDisponibles = 0;
+    liens.forEach(function (lien) {
+        const option = document.createElement('option');
+        option.value = lien.id;
+        if (lien.disponible) {
+            option.textContent = lien.label + ' — متاح ✅';
+            nbDisponibles++;
+        } else {
+            option.textContent = lien.label + ' — غير متاح ❌ (' + lien.conflit + ')';
+            option.disabled = true;
+        }
+        selectLienMeet.appendChild(option);
+    });
+
+    const optionEncoreValide = Array.from(selectLienMeet.options).some(function (o) {
+        return o.value === valeurActuelle && !o.disabled;
+    });
+    selectLienMeet.value = optionEncoreValide ? valeurActuelle : '';
+
+    const aucunLienDisponible = !!creneauId && liens.length > 0 && nbDisponibles === 0;
+    alerteLienMeet.classList.toggle('d-none', !aucunLienDisponible);
+
+    if (!creneauId) {
+        statutLienMeet.textContent = 'اختر حلقة أولاً لمعرفة الروابط المتاحة.';
+    } else if (liens.length === 0) {
+        statutLienMeet.textContent = 'لا يوجد أي رابط Google Meet مسجَّل بعد.';
+    } else if (aucunLienDisponible) {
+        statutLienMeet.textContent = '';
+    } else {
+        statutLienMeet.textContent = nbDisponibles + ' رابط متاح من أصل ' + liens.length + ' لهذا التوقيت.';
+    }
+}
+
+if (selectCreneau && selectLienMeet) {
+    selectCreneau.addEventListener('change', rafraichirLiensMeet);
+    rafraichirLiensMeet();
+}
+</script>
 {% endblock %}

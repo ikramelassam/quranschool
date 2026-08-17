@@ -84,7 +84,7 @@
 <div class="page-title">{{ seance.groupe.nom }}</div>
 <div class="page-subtitle">
     {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }} — {{ seance.get_type_display }}
-    {% if seance.groupe.lien_reunion %} · <a href="{% url 'rejoindre_seance' seance.id %}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 رابط الاجتماع</a>{% endif %}
+    {% if seance.lien_effectif %} · <a href="{% url 'rejoindre_seance' seance.id %}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 رابط الاجتماع</a>{% endif %}
 </div>
 
 {% if not seance.modifiable_par_prof %}

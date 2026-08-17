@@ -5,6 +5,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
 from accounts.models import Prof, Eleve, Superviseur
+from annonces.models import Annonce
 
 
 class DisponibiliteProf(models.Model):
@@ -156,6 +157,29 @@ class GroupeActifsManager(models.Manager):
         return super().get_queryset().exclude(statut='archive')
 
 
+class LienMeet(models.Model):
+    """Un lien Google Meet du مدير, enregistré UNE FOIS puis réutilisable par
+    plusieurs groupes (Tâche du 2026-08-17) — TANT QUE leurs créneaux hebdo
+    ne se chevauchent jamais (voir courses.utils.liens_meet_disponibles).
+    Pool centralisé, distinct de Groupe.lien_reunion (champ historique en
+    texte libre, conservé tel quel pour compatibilité — voir Groupe.lien_meet
+    ci-dessous). Pas de notion de réservation: la disponibilité est toujours
+    recalculée à la volée à partir des groupes ACTIFS qui utilisent déjà ce
+    lien, jamais stockée."""
+    url = models.URLField(unique=True)
+    libelle = models.CharField(max_length=100, blank=True)
+    est_actif = models.BooleanField(default=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.libelle or self.url
+
+    class Meta:
+        ordering = ['libelle', 'id']
+        verbose_name = "Lien Google Meet"
+        verbose_name_plural = "Liens Google Meet"
+
+
 class Groupe(models.Model):
     TYPE_CAPACITE_CHOICES = [
         ('groupe', 'جماعي'),
@@ -174,6 +198,18 @@ class Groupe(models.Model):
         ('femmes', 'النساء'),
         ('enfants', 'الأطفال'),
     ]
+    # Catégorie de classification du groupe, choisie EXPLICITEMENT par le مدير
+    # (Tâche du 2026-08-17 "photo + catégorie de groupe") — réutilise TEL QUEL
+    # Annonce.CIBLE_CHOICES (annonces.models), les mêmes 3 catégories métier
+    # déjà utilisées pour cibler les annonces (النساء البالغات/الرجال البالغون/
+    # القاصرون), pour ne jamais avoir 2 façons différentes de classer la même
+    # population dans le projet — demande explicite du client. Contrairement à
+    # categorie_collectif ci-dessus (dérivée du créneau, non éditable, réservée
+    # aux groupes COLLECTIFS), ce champ est un vrai champ de modèle, saisi
+    # directement, disponible pour N'IMPORTE QUEL groupe (individuel compris),
+    # et n'a AUCUN lien de calcul avec le créneau — les deux classifications
+    # coexistent sans se remplacer.
+    CATEGORIE_CHOICES = Annonce.CIBLE_CHOICES
 
     nom = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -203,7 +239,37 @@ class Groupe(models.Model):
         choices=[('actif', 'نشط'), ('archive', 'مؤرشف')],
         default='actif'
     )
+    # Champ historique en texte libre — CONSERVÉ tel quel pour compatibilité
+    # avec tout le code déjà branché dessus (lien_seance_est_actif,
+    # _meet_icon.html, prof_seance_detail.html, eleve_seance_detail.html,
+    # superviseur_seance_detail.html...). Continue de contenir n'importe quel
+    # lien de session (WhatsApp, Meet non géré, etc.) tel que saisi par
+    # l'admin AVANT ce chantier — ces valeurs ne sont ni migrées ni écrasées
+    # automatiquement (Tâche du 2026-08-17, voir LienMeet ci-dessus). Quand
+    # lien_meet (ci-dessous) est renseigné, lien_reunion est maintenu
+    # synchronisé sur lien_meet.url par les vues groupe_ajouter/
+    # groupe_modifier — c'est ce champ, PAS lien_meet, que lit tout le code
+    # d'affichage/activation existant.
     lien_reunion = models.URLField(blank=True)
+    # Lien Meet du pool centralisé assigné à ce groupe (Tâche du 2026-08-17).
+    # Un groupe a AU PLUS un lien_meet. SET_NULL : la désactivation/absence du
+    # lien ne doit jamais supprimer le groupe ni son historique de séances.
+    lien_meet = models.ForeignKey(
+        LienMeet,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='groupes'
+    )
+    categorie = models.CharField(max_length=20, choices=CATEGORIE_CHOICES, blank=True, default='')
+    # Photo de profil du groupe (Tâche du 2026-08-17) — même patron que
+    # accounts.models.LogoConfig.logo : storage par défaut du projet
+    # (Cloudinary en production, disque local en dev/tests), rien de
+    # spécifique à créer. Affichage toujours carré/recadré en CSS
+    # (object-fit:cover) — jamais recadrée au stockage. Validée côté serveur
+    # par courses.utils.valider_photo_groupe (extension + taille + ouverture
+    # réelle via Pillow), jamais sur la seule confiance du <input accept=...>.
+    photo = models.ImageField(upload_to='groupes_photos/', null=True, blank=True)
 
     objects = models.Manager()
     actifs = GroupeActifsManager()
@@ -367,6 +433,22 @@ class Seance(models.Model):
         null=True,
         blank=True
     )
+    # Exception de lien Meet pour CETTE séance uniquement (Tâche du 2026-08-17)
+    # — jamais un remplacement de Groupe.lien_meet/lien_reunion (qui restent le
+    # défaut permanent du groupe, inchangés). Posé typiquement quand un
+    # déplacement exceptionnel (admin_seance_deplacer) rend le lien par défaut
+    # du groupe indisponible à la nouvelle date/heure (voir courses.utils.
+    # lien_effectif_disponible_pour_seance) ; la séance SUIVANTE (générée
+    # normalement pour la semaine d'après) n'a pas cette exception et revient
+    # donc automatiquement au lien du groupe. SET_NULL : la désactivation du
+    # lien exceptionnel ne doit jamais faire disparaître la séance.
+    lien_meet_exceptionnel = models.ForeignKey(
+        'LienMeet',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='seances_exceptionnelles',
+    )
     remarque = models.TextField(
         blank=True,
         help_text="Raison d'une exception: annulation ou déplacement (prof malade, vacances...)."
@@ -394,12 +476,20 @@ class Seance(models.Model):
     @property
     def fin_datetime(self):
         """Datetime aware de la fin RÉELLE de cette séance — Seance ne stocke pas
-        sa propre durée, elle est donc dérivée du Creneau du groupe (heure_fin_1
-        ou heure_fin_2 selon le jour de la semaine de cette séance). Retombe sur
-        heure_fin_1 si aucun des 2 jours ne correspond (créneau modifié depuis
-        la génération de cette séance — voir Tâche 19 Bug 1) ou None si le
-        groupe n'a plus de créneau du tout (voir evaluable_par_prof, Tâche 19
-        Bug 2 du 2026-07-26)."""
+        sa propre durée, elle est donc dérivée du Creneau du groupe : DURÉE
+        (heure_fin - heure_debut) du créneau 1 ou 2 selon le jour de la semaine
+        de cette séance, appliquée à l'heure RÉELLE de cette séance (self.heure)
+        — PAS une heure de fin fixe recopiée telle quelle (corrigé le
+        2026-08-17 : une séance déplacée exceptionnellement à une autre heure
+        LE MÊME JOUR, ex. Seance.heure=16:00 alors que jour_1=14:00-15:00,
+        obtenait auparavant une fin à 15:00, soit AVANT son propre début —
+        strictement identique à l'ancien calcul pour toute séance non déplacée,
+        où self.heure == heure_debut_1/2 par construction). Retombe sur la
+        durée du créneau 1 si aucun des 2 jours ne correspond (créneau modifié
+        depuis la génération de cette séance, ou déplacée sur un jour
+        totalement différent — voir Tâche 19 Bug 1) ou None si le groupe n'a
+        plus de créneau du tout (voir evaluable_par_prof, Tâche 19 Bug 2 du
+        2026-07-26)."""
         from .utils import JOUR_INDEX
 
         creneau = self.groupe.creneau
@@ -408,12 +498,31 @@ class Seance(models.Model):
 
         jour_seance = self.date.weekday()
         if jour_seance == JOUR_INDEX.get(creneau.jour_2):
-            heure_fin = creneau.heure_fin_2
+            heure_debut_slot, heure_fin_slot = creneau.heure_debut_2, creneau.heure_fin_2
         else:
-            heure_fin = creneau.heure_fin_1
+            heure_debut_slot, heure_fin_slot = creneau.heure_debut_1, creneau.heure_fin_1
 
-        naive = datetime.datetime.combine(self.date, heure_fin)
+        duree = (
+            datetime.datetime.combine(self.date, heure_fin_slot)
+            - datetime.datetime.combine(self.date, heure_debut_slot)
+        )
+        naive = datetime.datetime.combine(self.date, self.heure) + duree
         return timezone.make_aware(naive) if timezone.is_naive(naive) else naive
+
+    @property
+    def lien_effectif(self):
+        """Lien Meet à utiliser pour REJOINDRE cette séance précise (Tâche du
+        2026-08-17) : le lien exceptionnel de la séance s'il est posé, sinon
+        le lien par défaut du groupe (Groupe.lien_reunion, jamais modifié par
+        une exception ponctuelle). Seule source à lire pour "quel lien
+        rejoindre maintenant" — voir dashboard.views.rejoindre_seance et
+        courses.utils.lien_seance_est_actif, qui l'utilisent à la place de
+        seance.groupe.lien_reunion directement. Identique à
+        seance.groupe.lien_reunion tant qu'aucune exception n'est posée :
+        aucun changement de comportement pour toute séance normale."""
+        if self.lien_meet_exceptionnel_id:
+            return self.lien_meet_exceptionnel.url
+        return self.groupe.lien_reunion
 
     @property
     def evaluable_par_prof(self):

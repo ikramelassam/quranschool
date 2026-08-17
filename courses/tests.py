@@ -1,13 +1,20 @@
 import datetime
+import io
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, Client
 from django.urls import reverse
 
 from accounts.models import User, Eleve, Prof
+from annonces.models import Annonce
 from inscriptions.models import InscriptionEleve
-from .models import Creneau, Groupe, DisponibiliteEleve, DisponibiliteProf
+from .models import Creneau, Groupe, DisponibiliteEleve, DisponibiliteProf, LienMeet, Seance
 from .utils import (
     raison_incompatibilite_groupe, avertissements_groupe, avertissements_prof_creneau,
+    creneaux_se_chevauchent, groupes_en_conflit_pour_lien, lien_meet_est_disponible,
+    liens_meet_disponibles, valider_photo_groupe, regenerer_pour_nouveau_creneau,
+    groupes_en_conflit_pour_lien_a_horaire_reel, liens_meet_disponibles_pour_seance,
+    lien_effectif_disponible_pour_seance, horaire_reel_seance,
 )
 
 MOT_DE_PASSE = 'xX!test12345'
@@ -44,6 +51,21 @@ def _creer_creneau(sexe_cible='mixte', age_min=6, age_max=12):
     )
 
 
+def _creer_creneau_horaire(jour_1, hd1, hf1, jour_2, hd2, hf2, **overrides):
+    """Variante de _creer_creneau avec un horaire hebdomadaire explicite —
+    nécessaire pour tester creneaux_se_chevauchent/liens_meet_disponibles sur
+    des combinaisons de jours/heures précises (Tâche du 2026-08-17)."""
+    valeurs = dict(
+        sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=12,
+    )
+    valeurs.update(overrides)
+    return Creneau.objects.create(
+        jour_1=jour_1, heure_debut_1=hd1, heure_fin_1=hf1,
+        jour_2=jour_2, heure_debut_2=hd2, heure_fin_2=hf2,
+        **valeurs,
+    )
+
+
 def _creer_prof(email='prof_courses@zidni.test'):
     u = User.objects.create_user(
         username=email, email=email, password=MOT_DE_PASSE,
@@ -68,6 +90,19 @@ def _creer_inscription_eleve(**overrides):
 
 def _connecter(client, user):
     client.force_login(user)
+
+
+def _image_upload(nom='photo.png', couleur=(200, 30, 30), format='PNG'):
+    """Un vrai fichier image (PIL réel, pas juste renommé) — nécessaire car
+    courses.utils.valider_photo_groupe ouvre/vérifie le fichier avec Pillow,
+    même patron que dashboard.tests pour LogoConfig."""
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.new('RGB', (10, 10), couleur).save(buffer, format=format)
+    buffer.seek(0)
+    content_type = 'image/png' if format == 'PNG' else f'image/{format.lower()}'
+    return SimpleUploadedFile(nom, buffer.read(), content_type=content_type)
 
 
 class GroupeCategorieCollectifTests(TestCase):
@@ -217,6 +252,133 @@ class GroupesListFiltreTests(TestCase):
         self.assertNotEqual(reponse.url, reverse('admin_groupes'))
 
 
+class GroupeCategorieChampTests(TestCase):
+    """Groupe.categorie (Tâche du 2026-08-17) — réutilise EXACTEMENT
+    Annonce.CIBLE_CHOICES, jamais une 2e liste de catégories recodée à part."""
+
+    def test_categorie_choices_identiques_a_annonce_cible_choices(self):
+        self.assertEqual(Groupe.CATEGORIE_CHOICES, Annonce.CIBLE_CHOICES)
+
+    def test_categorie_vide_par_defaut(self):
+        groupe = Groupe.objects.create(nom='بدون فئة')
+        self.assertEqual(groupe.categorie, '')
+        self.assertEqual(groupe.get_categorie_display(), '')
+
+    def test_categorie_disponible_meme_pour_un_groupe_individuel(self):
+        # Contrairement à categorie_collectif (toujours None pour un
+        # individuel), categorie est un vrai champ, indépendant du type.
+        groupe = Groupe.objects.create(nom='فردي مصنّف', type_capacite='individuel', categorie='hommes_adultes')
+        self.assertEqual(groupe.categorie, 'hommes_adultes')
+        self.assertEqual(groupe.get_categorie_display(), 'الطلاب البالغون')
+
+
+class GroupePhotoEtCategorieVuesTests(TestCase):
+    """Photo + catégorie via les vues admin (groupe_ajouter/groupe_modifier) —
+    Tâche du 2026-08-17. Photo : upload/remplacement/suppression, validation
+    serveur type/taille (même patron que dashboard.views.mshrif_logo)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.creneau = _creer_creneau()
+        self.client = Client(SERVER_NAME='localhost')
+        _connecter(self.client, self.admin)
+
+    def _ajouter(self, **extra):
+        donnees = {
+            'nom': 'مجموعة الصورة', 'creneau': self.creneau.id,
+            'type_capacite': 'groupe', 'max_eleves': 10,
+        }
+        donnees.update(extra)
+        return self.client.post(reverse('admin_groupe_ajouter'), donnees)
+
+    def test_creation_avec_photo_et_categorie_valides(self):
+        reponse = self._ajouter(photo=_image_upload(), categorie='mineurs')
+        self.assertEqual(reponse.status_code, 302)
+        groupe = Groupe.objects.get(nom='مجموعة الصورة')
+        self.assertTrue(groupe.photo)
+        self.assertEqual(groupe.categorie, 'mineurs')
+        groupe.photo.delete(save=False)
+
+    def test_creation_sans_photo_reste_valide(self):
+        reponse = self._ajouter()
+        self.assertEqual(reponse.status_code, 302)
+        groupe = Groupe.objects.get(nom='مجموعة الصورة')
+        self.assertFalse(groupe.photo)
+        self.assertEqual(groupe.categorie, '')
+
+    def test_creation_extension_refusee_ne_cree_rien(self):
+        fichier = SimpleUploadedFile('script.exe', b'MZ', content_type='application/octet-stream')
+        reponse = self._ajouter(photo=fichier)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(Groupe.objects.filter(nom='مجموعة الصورة').exists())
+
+    def test_creation_fichier_non_image_refuse(self):
+        # Extension acceptée mais contenu non-image (PIL doit le détecter).
+        fichier = SimpleUploadedFile('faux.png', b'ceci nest pas une image', content_type='image/png')
+        reponse = self._ajouter(photo=fichier)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(Groupe.objects.filter(nom='مجموعة الصورة').exists())
+
+    def test_remplacement_de_photo(self):
+        groupe = Groupe.objects.create(nom='مجموعة قديمة', creneau=self.creneau, photo=_image_upload('ancienne.png'))
+        ancienne_url = groupe.photo.name
+        reponse = self.client.post(reverse('admin_groupe_modifier', args=[groupe.id]), {
+            'nom': groupe.nom, 'creneau': self.creneau.id, 'type_capacite': 'groupe',
+            'capacite_max': 10, 'statut': 'actif', 'photo': _image_upload('nouvelle.png'),
+        })
+        self.assertEqual(reponse.status_code, 302)
+        groupe.refresh_from_db()
+        self.assertTrue(groupe.photo)
+        self.assertNotEqual(groupe.photo.name, ancienne_url)
+        groupe.photo.delete(save=False)
+
+    def test_suppression_de_photo_via_case_a_cocher(self):
+        groupe = Groupe.objects.create(nom='مجموعة بصورة', creneau=self.creneau, photo=_image_upload())
+        self.assertTrue(groupe.photo)
+        reponse = self.client.post(reverse('admin_groupe_modifier', args=[groupe.id]), {
+            'nom': groupe.nom, 'creneau': self.creneau.id, 'type_capacite': 'groupe',
+            'capacite_max': 10, 'statut': 'actif', 'supprimer_photo': '1',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        groupe.refresh_from_db()
+        self.assertFalse(groupe.photo)
+
+    def test_modification_categorie(self):
+        groupe = Groupe.objects.create(nom='مجموعة للتصنيف', creneau=self.creneau, categorie='hommes_adultes')
+        reponse = self.client.post(reverse('admin_groupe_modifier', args=[groupe.id]), {
+            'nom': groupe.nom, 'creneau': self.creneau.id, 'type_capacite': 'groupe',
+            'capacite_max': 10, 'statut': 'actif', 'categorie': 'femmes_adultes',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        groupe.refresh_from_db()
+        self.assertEqual(groupe.categorie, 'femmes_adultes')
+
+    def test_filtre_par_categorie_dans_la_liste(self):
+        Groupe.objects.create(nom='ZZZ_مصنّفة_رجال', creneau=self.creneau, categorie='hommes_adultes')
+        Groupe.objects.create(nom='ZZZ_مصنّفة_نساء', creneau=self.creneau, categorie='femmes_adultes')
+        reponse = self.client.get(reverse('admin_groupes'), {'cat': 'hommes_adultes'})
+        noms = {g.nom for g in reponse.context['groupes']}
+        self.assertIn('ZZZ_مصنّفة_رجال', noms)
+        self.assertNotIn('ZZZ_مصنّفة_نساء', noms)
+
+
+class ValiderPhotoGroupeTests(TestCase):
+    """courses.utils.valider_photo_groupe — validation unitaire, sans passer par une vue."""
+
+    def test_image_valide_acceptee(self):
+        self.assertIsNone(valider_photo_groupe(_image_upload()))
+
+    def test_extension_non_supportee_refusee(self):
+        fichier = SimpleUploadedFile('doc.pdf', b'%PDF-1.4 x', content_type='application/pdf')
+        self.assertIsNotNone(valider_photo_groupe(fichier))
+
+    def test_fichier_trop_lourd_refuse(self):
+        from .utils import TAILLE_MAX_PHOTO_GROUPE_OCTETS
+        contenu = b'\x00' * (TAILLE_MAX_PHOTO_GROUPE_OCTETS + 1)
+        fichier = SimpleUploadedFile('grande.png', contenu, content_type='image/png')
+        self.assertIsNotNone(valider_photo_groupe(fichier))
+
+
 class DisponibiliteEleveNonBloquanteTests(TestCase):
     """Chantier du 2026-08-16 : la disponibilité horaire de l'élève ne doit
     plus bloquer l'ajout à un groupe — même comportement que côté prof
@@ -327,3 +489,752 @@ class DisponibiliteEleveNonBloquanteTests(TestCase):
         DisponibiliteProf.objects.create(prof=prof, jour_semaine='jeu', heure_debut='10:00')
         avertissements = avertissements_prof_creneau(prof, self.creneau)
         self.assertTrue(any('جدول تفرغ' in a for a in avertissements))
+
+
+# ==================== POOL DE LIENS GOOGLE MEET (Tâche du 2026-08-17) ====================
+
+class CreneauxSeChevauchentTests(TestCase):
+    """creneaux_se_chevauchent — logique pure, sans base de données (instances
+    Creneau non sauvegardées, seuls les attributs jour/heure sont lus)."""
+
+    def _creneau(self, jour_1, hd1, hf1, jour_2, hd2, hf2):
+        return Creneau(
+            sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=12,
+            jour_1=jour_1, heure_debut_1=hd1, heure_fin_1=hf1,
+            jour_2=jour_2, heure_debut_2=hd2, heure_fin_2=hf2,
+        )
+
+    def test_chevauchement_partiel_meme_jour_est_un_conflit(self):
+        # 14:00-15:00 vs 14:30-15:30
+        a = self._creneau('lun', datetime.time(14, 0), datetime.time(15, 0), 'mer', datetime.time(14, 0), datetime.time(15, 0))
+        b = self._creneau('lun', datetime.time(14, 30), datetime.time(15, 30), 'mer', datetime.time(14, 30), datetime.time(15, 30))
+        self.assertTrue(creneaux_se_chevauchent(a, b))
+
+    def test_bornes_qui_se_touchent_ne_sont_pas_un_conflit(self):
+        # 14:00-15:00 vs 15:00-16:00
+        a = self._creneau('lun', datetime.time(14, 0), datetime.time(15, 0), 'mer', datetime.time(14, 0), datetime.time(15, 0))
+        b = self._creneau('lun', datetime.time(15, 0), datetime.time(16, 0), 'mer', datetime.time(15, 0), datetime.time(16, 0))
+        self.assertFalse(creneaux_se_chevauchent(a, b))
+
+    def test_meme_jour_chevauchement_general_est_un_conflit(self):
+        a = self._creneau('lun', datetime.time(10, 0), datetime.time(12, 0), 'mer', datetime.time(10, 0), datetime.time(12, 0))
+        b = self._creneau('lun', datetime.time(11, 0), datetime.time(11, 30), 'mer', datetime.time(20, 0), datetime.time(21, 0))
+        self.assertTrue(creneaux_se_chevauchent(a, b))
+
+    def test_jours_differents_aucun_conflit_meme_avec_memes_heures(self):
+        a = self._creneau('lun', datetime.time(14, 0), datetime.time(15, 0), 'mer', datetime.time(14, 0), datetime.time(15, 0))
+        b = self._creneau('mar', datetime.time(14, 0), datetime.time(15, 0), 'jeu', datetime.time(14, 0), datetime.time(15, 0))
+        self.assertFalse(creneaux_se_chevauchent(a, b))
+
+    def test_conflit_uniquement_sur_le_premier_creneau_suffit(self):
+        a = self._creneau('lun', datetime.time(14, 0), datetime.time(15, 0), 'mer', datetime.time(14, 0), datetime.time(15, 0))
+        # lundi en conflit, mercredi totalement différent (aucun chevauchement) -> True quand même
+        b = self._creneau('lun', datetime.time(14, 30), datetime.time(15, 30), 'mer', datetime.time(20, 0), datetime.time(21, 0))
+        self.assertTrue(creneaux_se_chevauchent(a, b))
+
+    def test_conflit_uniquement_sur_le_second_creneau_suffit(self):
+        a = self._creneau('lun', datetime.time(14, 0), datetime.time(15, 0), 'mer', datetime.time(14, 0), datetime.time(15, 0))
+        # lundi compatible (bornes touchantes), mercredi en conflit -> True
+        b = self._creneau('lun', datetime.time(15, 0), datetime.time(16, 0), 'mer', datetime.time(14, 30), datetime.time(15, 30))
+        self.assertTrue(creneaux_se_chevauchent(a, b))
+
+    def test_deux_creneaux_compatibles_aucun_conflit(self):
+        a = self._creneau('lun', datetime.time(14, 0), datetime.time(15, 0), 'mer', datetime.time(14, 0), datetime.time(15, 0))
+        b = self._creneau('lun', datetime.time(16, 0), datetime.time(17, 0), 'mer', datetime.time(16, 0), datetime.time(17, 0))
+        self.assertFalse(creneaux_se_chevauchent(a, b))
+
+
+class LienMeetDisponibiliteTests(TestCase):
+    """groupes_en_conflit_pour_lien / lien_meet_est_disponible /
+    liens_meet_disponibles — logique de disponibilité (Tâche du 2026-08-17)."""
+
+    def setUp(self):
+        self.creneau_a = _creer_creneau_horaire(
+            'lun', datetime.time(14, 0), datetime.time(15, 0),
+            'mer', datetime.time(14, 0), datetime.time(15, 0),
+        )
+        self.lien1 = LienMeet.objects.create(url='https://meet.google.com/aaa-aaaa-aaa', libelle='Meet 1')
+        self.lien2 = LienMeet.objects.create(url='https://meet.google.com/bbb-bbbb-bbb', libelle='Meet 2')
+        self.groupe_a = Groupe.objects.create(
+            nom='مجموعة أ', creneau=self.creneau_a, lien_meet=self.lien1,
+            lien_reunion=self.lien1.url, statut='actif',
+        )
+
+    def test_conflit_sur_le_premier_creneau_rend_le_lien_indisponible(self):
+        creneau_b = _creer_creneau_horaire(
+            'lun', datetime.time(14, 30), datetime.time(15, 30),  # conflit
+            'mer', datetime.time(20, 0), datetime.time(21, 0),    # aucun conflit
+        )
+        self.assertFalse(lien_meet_est_disponible(self.lien1, creneau_b))
+        self.assertEqual(len(groupes_en_conflit_pour_lien(self.lien1, creneau_b)), 1)
+
+    def test_conflit_sur_le_second_creneau_rend_le_lien_indisponible(self):
+        creneau_b = _creer_creneau_horaire(
+            'lun', datetime.time(20, 0), datetime.time(21, 0),    # aucun conflit
+            'mer', datetime.time(14, 30), datetime.time(15, 30),  # conflit
+        )
+        self.assertFalse(lien_meet_est_disponible(self.lien1, creneau_b))
+
+    def test_premier_compatible_mais_second_en_conflit_indisponible(self):
+        creneau_b = _creer_creneau_horaire(
+            'lun', datetime.time(15, 0), datetime.time(16, 0),    # bornes touchantes, compatible
+            'mer', datetime.time(14, 30), datetime.time(15, 30),  # conflit
+        )
+        self.assertFalse(lien_meet_est_disponible(self.lien1, creneau_b))
+
+    def test_deux_creneaux_compatibles_lien_disponible(self):
+        creneau_b = _creer_creneau_horaire(
+            'lun', datetime.time(16, 0), datetime.time(17, 0),
+            'mer', datetime.time(16, 0), datetime.time(17, 0),
+        )
+        self.assertTrue(lien_meet_est_disponible(self.lien1, creneau_b))
+        self.assertEqual(groupes_en_conflit_pour_lien(self.lien1, creneau_b), [])
+
+    def test_groupe_archive_ne_bloque_pas_le_lien(self):
+        self.groupe_a.statut = 'archive'
+        self.groupe_a.save(update_fields=['statut'])
+        # Même horaire exact que groupe_a, qui est maintenant archivé.
+        self.assertTrue(lien_meet_est_disponible(self.lien1, self.creneau_a))
+
+    def test_modification_exclut_le_groupe_lui_meme(self):
+        self.assertTrue(lien_meet_est_disponible(self.lien1, self.creneau_a, groupe_exclu=self.groupe_a))
+        self.assertEqual(groupes_en_conflit_pour_lien(self.lien1, self.creneau_a, groupe_exclu=self.groupe_a), [])
+
+    def test_groupe_sans_creneau_est_gere_sans_conflit(self):
+        self.assertTrue(lien_meet_est_disponible(self.lien1, None))
+        self.assertEqual(groupes_en_conflit_pour_lien(self.lien1, None), [])
+        self.assertIn(self.lien1, liens_meet_disponibles(None))
+
+    def test_meme_lien_horaires_differents_autorise(self):
+        creneau_b = _creer_creneau_horaire(
+            'lun', datetime.time(16, 0), datetime.time(17, 0),
+            'mer', datetime.time(16, 0), datetime.time(17, 0),
+        )
+        self.assertIn(self.lien1, liens_meet_disponibles(creneau_b))
+
+    def test_meme_lien_chevauchement_interdit(self):
+        creneau_b = _creer_creneau_horaire(
+            'lun', datetime.time(14, 30), datetime.time(15, 30),
+            'mer', datetime.time(14, 30), datetime.time(15, 30),
+        )
+        self.assertNotIn(self.lien1, liens_meet_disponibles(creneau_b))
+        self.assertIn(self.lien2, liens_meet_disponibles(creneau_b))  # inutilisé, donc toujours disponible
+
+    def test_lien_inactif_absent_des_disponibles(self):
+        self.lien2.est_actif = False
+        self.lien2.save(update_fields=['est_actif'])
+        self.assertNotIn(self.lien2, liens_meet_disponibles(self.creneau_a))
+
+    def test_un_groupe_a_au_maximum_un_lien(self):
+        # Assigner un nouveau lien REMPLACE l'ancien, jamais un second en plus
+        # (Groupe.lien_meet est une ForeignKey simple, pas M2M).
+        self.groupe_a.lien_meet = self.lien2
+        self.groupe_a.save()
+        self.groupe_a.refresh_from_db()
+        self.assertEqual(self.groupe_a.lien_meet, self.lien2)
+
+    def test_les_deux_seances_hebdo_du_groupe_partagent_le_meme_lien(self):
+        from .utils import regenerer_pour_nouveau_creneau
+
+        regenerer_pour_nouveau_creneau(self.groupe_a)
+        seances = list(Seance.objects.filter(groupe=self.groupe_a))
+        self.assertGreaterEqual(len(seances), 2)
+        self.assertTrue(all(s.groupe.lien_reunion == self.lien1.url for s in seances))
+
+
+class LienMeetVuesGroupeTests(TestCase):
+    """Sauvegarde réelle d'un groupe via HTTP (groupe_ajouter/groupe_modifier)
+    — la validation de disponibilité doit être appliquée côté SERVEUR, jamais
+    seulement en JS (section 12 du cahier des charges)."""
+
+    def setUp(self):
+        self.admin = _creer_admin('admin_liens_meet@zidni.test')
+        self.mshrif = _creer_mshrif('mshrif_liens_meet@zidni.test')
+
+        self.creneau_a = _creer_creneau_horaire(
+            'lun', datetime.time(14, 0), datetime.time(15, 0),
+            'mer', datetime.time(14, 0), datetime.time(15, 0),
+        )
+        self.creneau_libre = _creer_creneau_horaire(
+            'lun', datetime.time(16, 0), datetime.time(17, 0),
+            'mer', datetime.time(16, 0), datetime.time(17, 0),
+        )
+        self.creneau_conflit = _creer_creneau_horaire(
+            'lun', datetime.time(14, 30), datetime.time(15, 30),
+            'mer', datetime.time(14, 30), datetime.time(15, 30),
+        )
+        self.lien1 = LienMeet.objects.create(url='https://meet.google.com/aaa-aaaa-aaa', libelle='Meet 1')
+        self.groupe_a = Groupe.objects.create(
+            nom='مجموعة أ (تستخدم الرابط)', creneau=self.creneau_a, lien_meet=self.lien1,
+            lien_reunion=self.lien1.url, statut='actif',
+        )
+
+    def _client(self, user):
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, user)
+        return client
+
+    def test_creation_avec_lien_disponible_reussit_et_synchronise_lien_reunion(self):
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_groupe_ajouter'), {
+            'nom': 'مجموعة جديدة', 'creneau': self.creneau_libre.id, 'lien_meet': self.lien1.id,
+            'type_capacite': 'groupe', 'max_eleves': 10,
+        })
+        self.assertEqual(reponse.status_code, 302)
+        groupe = Groupe.objects.get(nom='مجموعة جديدة')
+        self.assertEqual(groupe.lien_meet, self.lien1)
+        self.assertEqual(groupe.lien_reunion, self.lien1.url)
+
+    def test_creation_avec_lien_en_conflit_est_refusee_et_ne_cree_rien(self):
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_groupe_ajouter'), {
+            'nom': 'مجموعة متعارضة', 'creneau': self.creneau_conflit.id, 'lien_meet': self.lien1.id,
+            'type_capacite': 'groupe', 'max_eleves': 10,
+        })
+        self.assertEqual(reponse.status_code, 200)  # re-rendu du formulaire, pas de redirection
+        self.assertFalse(Groupe.objects.filter(nom='مجموعة متعارضة').exists())
+        messages_affiches = [str(m) for m in reponse.context['messages']]
+        self.assertTrue(any('يتعارض' in m for m in messages_affiches))
+
+    def test_creation_sans_lien_reste_possible(self):
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_groupe_ajouter'), {
+            'nom': 'مجموعة بدون رابط', 'creneau': self.creneau_libre.id, 'lien_meet': '',
+            'type_capacite': 'groupe', 'max_eleves': 10,
+        })
+        self.assertEqual(reponse.status_code, 302)
+        groupe = Groupe.objects.get(nom='مجموعة بدون رابط')
+        self.assertIsNone(groupe.lien_meet)
+        self.assertEqual(groupe.lien_reunion, '')
+
+    def test_lien_inactif_est_refuse(self):
+        self.lien1.est_actif = False
+        self.lien1.save(update_fields=['est_actif'])
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_groupe_ajouter'), {
+            'nom': 'مجموعة برابط معطّل', 'creneau': self.creneau_libre.id, 'lien_meet': self.lien1.id,
+            'type_capacite': 'groupe', 'max_eleves': 10,
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(Groupe.objects.filter(nom='مجموعة برابط معطّل').exists())
+
+    def test_modification_meme_groupe_meme_lien_meme_creneau_nest_pas_un_faux_conflit(self):
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_groupe_modifier', args=[self.groupe_a.id]), {
+            'nom': 'مجموعة أ (اسم معدّل)', 'creneau': self.creneau_a.id, 'lien_meet': self.lien1.id,
+            'type_capacite': 'groupe', 'capacite_max': 10, 'statut': 'actif',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        self.groupe_a.refresh_from_db()
+        self.assertEqual(self.groupe_a.nom, 'مجموعة أ (اسم معدّل)')
+        self.assertEqual(self.groupe_a.lien_meet, self.lien1)
+
+    def test_changement_horaire_qui_cree_un_conflit_est_refuse(self):
+        """Section 8 : un groupe qui utilisait déjà Meet1 sans problème (horaire
+        libre) voit sa sauvegarde refusée si son NOUVEL horaire chevauche un
+        AUTRE groupe utilisant aussi Meet1 — jamais de conflit silencieux."""
+        groupe_b = Groupe.objects.create(
+            nom='مجموعة ب', creneau=self.creneau_libre, lien_meet=self.lien1,
+            lien_reunion=self.lien1.url, statut='actif',
+        )
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_groupe_modifier', args=[groupe_b.id]), {
+            'nom': groupe_b.nom, 'creneau': self.creneau_conflit.id, 'lien_meet': self.lien1.id,
+            'type_capacite': 'groupe', 'capacite_max': 10, 'statut': 'actif',
+        })
+        self.assertEqual(reponse.status_code, 200)
+        groupe_b.refresh_from_db()
+        # Rien n'a bougé : ni le créneau, ni le lien.
+        self.assertEqual(groupe_b.creneau_id, self.creneau_libre.id)
+        self.assertEqual(groupe_b.lien_meet_id, self.lien1.id)
+
+    def test_retrait_du_lien_efface_lien_reunion_synchronise(self):
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_groupe_modifier', args=[self.groupe_a.id]), {
+            'nom': self.groupe_a.nom, 'creneau': self.creneau_a.id, 'lien_meet': '',
+            'type_capacite': 'groupe', 'capacite_max': 10, 'statut': 'actif',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        self.groupe_a.refresh_from_db()
+        self.assertIsNone(self.groupe_a.lien_meet)
+        self.assertEqual(self.groupe_a.lien_reunion, '')
+
+    def test_lien_reunion_manuel_preexistant_non_touche_si_aucun_lien_meet_choisi(self):
+        """Groupe créé AVANT ce chantier avec un lien_reunion saisi à la main
+        (ex: WhatsApp, jamais un LienMeet du pool) : ne doit JAMAIS être
+        effacé silencieusement par une modification qui ne touche pas au
+        sélecteur de lien Meet (section 9 du cahier des charges — aucune
+        donnée existante perdue)."""
+        groupe_legacy = Groupe.objects.create(
+            nom='مجموعة قديمة (واتساب)', creneau=self.creneau_libre,
+            lien_reunion='https://chat.whatsapp.com/ANCIEN_LIEN', statut='actif',
+        )
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_groupe_modifier', args=[groupe_legacy.id]), {
+            'nom': groupe_legacy.nom, 'creneau': self.creneau_libre.id, 'lien_meet': '',
+            'type_capacite': 'groupe', 'capacite_max': 10, 'statut': 'actif',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        groupe_legacy.refresh_from_db()
+        self.assertEqual(groupe_legacy.lien_reunion, 'https://chat.whatsapp.com/ANCIEN_LIEN')
+
+
+class LienMeetVuesGestionTests(TestCase):
+    """CRUD du pool (liens_meet_list / lien_meet_ajouter / lien_meet_toggle)."""
+
+    def setUp(self):
+        self.admin = _creer_admin('admin_gestion_liens@zidni.test')
+        self.mshrif = _creer_mshrif('mshrif_gestion_liens@zidni.test')
+        self.lien1 = LienMeet.objects.create(url='https://meet.google.com/aaa-aaaa-aaa', libelle='Meet 1')
+
+    def _client(self, user):
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, user)
+        return client
+
+    def test_admin_peut_lister(self):
+        reponse = self._client(self.admin).get(reverse('admin_liens_meet'))
+        self.assertEqual(reponse.status_code, 200)
+
+    def test_mshrif_peut_lister_en_lecture_seule(self):
+        reponse = self._client(self.mshrif).get(reverse('admin_liens_meet'))
+        self.assertEqual(reponse.status_code, 200)
+
+    def test_eleve_non_autorise_redirige(self):
+        eleve = _creer_eleve('eleve_liens_meet@zidni.test')
+        reponse = self._client(eleve.user).get(reverse('admin_liens_meet'))
+        self.assertEqual(reponse.status_code, 302)
+        self.assertNotEqual(reponse.url, reverse('admin_liens_meet'))
+
+    def test_admin_peut_ajouter_un_lien(self):
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_lien_meet_ajouter'), {
+            'url': 'https://meet.google.com/ccc-cccc-ccc', 'libelle': 'Meet 3',
+        })
+        self.assertRedirects(reponse, reverse('admin_liens_meet'))
+        self.assertTrue(LienMeet.objects.filter(url='https://meet.google.com/ccc-cccc-ccc').exists())
+
+    def test_url_dupliquee_est_refusee(self):
+        client = self._client(self.admin)
+        client.post(reverse('admin_lien_meet_ajouter'), {'url': self.lien1.url, 'libelle': 'Doublon'})
+        self.assertEqual(LienMeet.objects.filter(url=self.lien1.url).count(), 1)
+
+    def test_mshrif_ne_peut_pas_ajouter_un_lien(self):
+        client = self._client(self.mshrif)
+        reponse = client.post(reverse('admin_lien_meet_ajouter'), {
+            'url': 'https://meet.google.com/ddd-dddd-ddd', 'libelle': 'Meet interdit',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        self.assertNotEqual(reponse.url, reverse('admin_liens_meet'))
+        self.assertFalse(LienMeet.objects.filter(url='https://meet.google.com/ddd-dddd-ddd').exists())
+
+    def test_toggle_desactivation_ninflue_pas_sur_un_groupe_deja_assigne(self):
+        creneau = _creer_creneau_horaire(
+            'lun', datetime.time(14, 0), datetime.time(15, 0),
+            'mer', datetime.time(14, 0), datetime.time(15, 0),
+        )
+        groupe = Groupe.objects.create(
+            nom='مجموعة تستخدم الرابط', creneau=creneau, lien_meet=self.lien1,
+            lien_reunion=self.lien1.url, statut='actif',
+        )
+        client = self._client(self.admin)
+        reponse = client.get(reverse('admin_lien_meet_toggle', args=[self.lien1.id]))
+        self.assertRedirects(reponse, reverse('admin_liens_meet'))
+        self.lien1.refresh_from_db()
+        groupe.refresh_from_db()
+        self.assertFalse(self.lien1.est_actif)
+        # Le groupe garde son lien tel quel — seule la PROPOSITION pour de
+        # nouveaux groupes change (voir liens_meet_disponibles).
+        self.assertEqual(groupe.lien_meet, self.lien1)
+        self.assertEqual(groupe.lien_reunion, self.lien1.url)
+        self.assertNotIn(self.lien1, liens_meet_disponibles(creneau))
+
+
+class LienMeetGroupesSansLienTests(TestCase):
+    """Phase 2 (audit UX du 2026-08-17) : section "مجموعات بدون رابط" de
+    admin_liens_meet.html + vue d'attribution rapide + stat dashboard_admin."""
+
+    def setUp(self):
+        self.admin = _creer_admin('admin_sans_lien@zidni.test')
+        self.mshrif = _creer_mshrif('mshrif_sans_lien@zidni.test')
+
+        self.creneau_occupe = _creer_creneau_horaire(
+            'lun', datetime.time(14, 0), datetime.time(15, 0),
+            'mer', datetime.time(14, 0), datetime.time(15, 0),
+        )
+        self.creneau_libre = _creer_creneau_horaire(
+            'lun', datetime.time(16, 0), datetime.time(17, 0),
+            'mer', datetime.time(16, 0), datetime.time(17, 0),
+        )
+        self.creneau_conflit = _creer_creneau_horaire(
+            'lun', datetime.time(14, 30), datetime.time(15, 30),
+            'mer', datetime.time(14, 30), datetime.time(15, 30),
+        )
+        self.lien1 = LienMeet.objects.create(url='https://meet.google.com/aaa-aaaa-aaa', libelle='Meet 1')
+        self.lien2 = LienMeet.objects.create(url='https://meet.google.com/bbb-bbbb-bbb', libelle='Meet 2')
+
+        # Occupe self.lien1 sur creneau_occupe — sert de référence pour les
+        # scénarios de conflit ci-dessous.
+        self.groupe_occupant = Groupe.objects.create(
+            nom='مجموعة تستخدم Meet 1', creneau=self.creneau_occupe, lien_meet=self.lien1,
+            lien_reunion=self.lien1.url, statut='actif',
+        )
+
+    def _client(self, user):
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, user)
+        return client
+
+    def test_groupe_sans_lien_horaire_conflictuel_naffiche_que_les_liens_reellement_disponibles(self):
+        """Test A + exemple du point 4 : un groupe sans lien, dont l'horaire
+        chevauche celui de groupe_occupant (donc en conflit avec lien1), ne
+        doit se voir proposer QUE lien2."""
+        groupe_sans_lien = Groupe.objects.create(
+            nom='مجموعة بدون رابط (تتعارض)', creneau=self.creneau_conflit, statut='actif',
+        )
+        reponse = self._client(self.admin).get(reverse('admin_liens_meet'))
+        self.assertEqual(reponse.status_code, 200)
+        groupes_affiches = {g.id: g for g in reponse.context['groupes_sans_lien_avec_creneau']}
+        self.assertIn(groupe_sans_lien.id, groupes_affiches)
+        liens_proposes = groupes_affiches[groupe_sans_lien.id].liens_disponibles
+        self.assertNotIn(self.lien1, liens_proposes)
+        self.assertIn(self.lien2, liens_proposes)
+
+    def test_groupe_avec_lien_najamais_dans_les_listes_sans_lien(self):
+        """Test B : un groupe qui a déjà un lien (groupe_occupant) n'apparaît
+        jamais dans "مجموعات بدون رابط", dans aucune des 2 listes."""
+        reponse = self._client(self.admin).get(reverse('admin_liens_meet'))
+        ids_avec_creneau = {g.id for g in reponse.context['groupes_sans_lien_avec_creneau']}
+        ids_sans_creneau = {g.id for g in reponse.context['groupes_sans_lien_sans_creneau']}
+        self.assertNotIn(self.groupe_occupant.id, ids_avec_creneau)
+        self.assertNotIn(self.groupe_occupant.id, ids_sans_creneau)
+
+    def test_groupe_archive_najamais_dans_les_listes_sans_lien(self):
+        """Test H (dans ce contexte précis) : un groupe archivé sans lien ne
+        doit pas polluer les listes (rien à y faire, il ne tourne plus) —
+        que son créneau soit défini ou non."""
+        Groupe.objects.create(nom='مجموعة مؤرشفة بدون رابط', creneau=self.creneau_libre, statut='archive')
+        Groupe.objects.create(nom='مجموعة مؤرشفة بدون رابط ولا حلقة', statut='archive')
+        reponse = self._client(self.admin).get(reverse('admin_liens_meet'))
+        noms_avec_creneau = {g.nom for g in reponse.context['groupes_sans_lien_avec_creneau']}
+        noms_sans_creneau = {g.nom for g in reponse.context['groupes_sans_lien_sans_creneau']}
+        self.assertNotIn('مجموعة مؤرشفة بدون رابط', noms_avec_creneau)
+        self.assertNotIn('مجموعة مؤرشفة بدون رابط ولا حلقة', noms_sans_creneau)
+
+    def test_groupe_actif_sans_lien_et_sans_creneau_est_visible(self):
+        """Correction du 2026-08-17 (Phase 3) : un groupe actif sans créneau
+        n'est PLUS invisible — il apparaît dans une liste dédiée
+        (groupes_sans_lien_sans_creneau), sans aucun lien proposé (rien de
+        calculable sans horaire), distinct de groupes_sans_lien_avec_creneau."""
+        groupe = Groupe.objects.create(nom='مجموعة بدون حلقة', statut='actif')
+        reponse = self._client(self.admin).get(reverse('admin_liens_meet'))
+        noms_sans_creneau = {g.nom for g in reponse.context['groupes_sans_lien_sans_creneau']}
+        noms_avec_creneau = {g.nom for g in reponse.context['groupes_sans_lien_avec_creneau']}
+        self.assertIn('مجموعة بدون حلقة', noms_sans_creneau)
+        self.assertNotIn('مجموعة بدون حلقة', noms_avec_creneau)
+        self.assertContains(reponse, 'الجدول غير محدد')
+        # Pas de liens_disponibles annoté sur ces groupes — rien à proposer.
+        groupe_affiche = next(g for g in reponse.context['groupes_sans_lien_sans_creneau'] if g.id == groupe.id)
+        self.assertFalse(hasattr(groupe_affiche, 'liens_disponibles'))
+
+    def test_attribution_reussie_synchronise_lien_reunion(self):
+        groupe = Groupe.objects.create(nom='مجموعة تحتاج رابط', creneau=self.creneau_libre, statut='actif')
+        client = self._client(self.admin)
+        reponse = client.post(
+            reverse('admin_lien_meet_attribuer_groupe', args=[groupe.id]),
+            {'lien_meet': self.lien1.id},
+        )
+        self.assertRedirects(reponse, reverse('admin_liens_meet'))
+        groupe.refresh_from_db()
+        self.assertEqual(groupe.lien_meet, self.lien1)
+        self.assertEqual(groupe.lien_reunion, self.lien1.url)
+
+    def test_attribution_en_conflit_est_refusee(self):
+        """Test D/E via ce raccourci : tenter d'attribuer lien1 (déjà utilisé
+        sur creneau_occupe) à un groupe dont l'horaire chevauche doit échouer,
+        sans toucher au groupe, avec un message d'erreur explicite."""
+        groupe = Groupe.objects.create(nom='مجموعة متعارضة', creneau=self.creneau_conflit, statut='actif')
+        client = self._client(self.admin)
+        reponse = client.post(
+            reverse('admin_lien_meet_attribuer_groupe', args=[groupe.id]),
+            {'lien_meet': self.lien1.id},
+            follow=True,
+        )
+        self.assertRedirects(reponse, reverse('admin_liens_meet'))
+        groupe.refresh_from_db()
+        self.assertIsNone(groupe.lien_meet)
+        self.assertEqual(groupe.lien_reunion, '')
+        messages_affiches = [str(m) for m in reponse.context['messages']]
+        self.assertTrue(any('يتعارض' in m for m in messages_affiches))
+
+    def test_attribution_lien_inactif_refusee(self):
+        self.lien1.est_actif = False
+        self.lien1.save(update_fields=['est_actif'])
+        groupe = Groupe.objects.create(nom='مجموعة رابط معطّل', creneau=self.creneau_libre, statut='actif')
+        client = self._client(self.admin)
+        client.post(reverse('admin_lien_meet_attribuer_groupe', args=[groupe.id]), {'lien_meet': self.lien1.id})
+        groupe.refresh_from_db()
+        self.assertIsNone(groupe.lien_meet)
+
+    def test_attribution_sans_creneau_refusee(self):
+        groupe = Groupe.objects.create(nom='مجموعة بدون حلقة للإسناد', statut='actif')
+        client = self._client(self.admin)
+        client.post(reverse('admin_lien_meet_attribuer_groupe', args=[groupe.id]), {'lien_meet': self.lien2.id})
+        groupe.refresh_from_db()
+        self.assertIsNone(groupe.lien_meet)
+
+    def test_mshrif_ne_peut_pas_attribuer_de_lien(self):
+        groupe = Groupe.objects.create(nom='مجموعة (مشرف)', creneau=self.creneau_libre, statut='actif')
+        client = self._client(self.mshrif)
+        reponse = client.post(
+            reverse('admin_lien_meet_attribuer_groupe', args=[groupe.id]),
+            {'lien_meet': self.lien1.id},
+        )
+        self.assertEqual(reponse.status_code, 302)
+        self.assertNotEqual(reponse.url, reverse('admin_liens_meet'))
+        groupe.refresh_from_db()
+        self.assertIsNone(groupe.lien_meet)
+
+    def test_dashboard_admin_compte_correctement_les_groupes_sans_lien(self):
+        Groupe.objects.create(nom='مجموعة بدون رابط (لوحة التحكم)', creneau=self.creneau_libre, statut='actif')
+        reponse = self._client(self.admin).get(reverse('dashboard_admin'))
+        self.assertEqual(reponse.status_code, 200)
+        # groupe_occupant a déjà un lien, ne doit pas être compté.
+        self.assertEqual(reponse.context['groupes_sans_lien_meet'], 1)
+        self.assertContains(reponse, 'مجموعات بدون رابط Meet')
+
+    def test_dashboard_admin_compte_aussi_les_groupes_sans_creneau(self):
+        """Correction du 2026-08-17 (Phase 3) : le compteur dashboard doit
+        inclure TOUS les groupes actifs sans lien, y compris ceux sans
+        créneau (pas seulement ceux avec un horaire défini)."""
+        Groupe.objects.create(nom='مجموعة بدون رابط (مع حلقة)', creneau=self.creneau_libre, statut='actif')
+        Groupe.objects.create(nom='مجموعة بدون رابط (بدون حلقة)', statut='actif')
+        reponse = self._client(self.admin).get(reverse('dashboard_admin'))
+        self.assertEqual(reponse.context['groupes_sans_lien_meet'], 2)
+
+    def test_changement_horaire_qui_cree_conflit_propose_les_liens_disponibles_via_le_formulaire(self):
+        """Test F : la page de modification, après un changement d'horaire
+        refusé (voir LienMeetVuesGroupeTests.test_changement_horaire...), doit
+        recalculer et exposer les liens réellement disponibles pour le NOUVEL
+        horaire proposé dans son JSON JS — pas seulement pour l'ancien."""
+        groupe = Groupe.objects.create(
+            nom='مجموعة ب', creneau=self.creneau_libre, lien_meet=self.lien1,
+            lien_reunion=self.lien1.url, statut='actif',
+        )
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_groupe_modifier', args=[groupe.id]), {
+            'nom': groupe.nom, 'creneau': self.creneau_conflit.id, 'lien_meet': self.lien1.id,
+            'type_capacite': 'groupe', 'capacite_max': 10, 'statut': 'actif',
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, 'const liensMeetParCreneau')
+        import json as _json
+        contenu = reponse.content.decode('utf-8')
+        debut = contenu.index('const liensMeetParCreneau = ') + len('const liensMeetParCreneau = ')
+        fin = contenu.index(';', debut)
+        payload = _json.loads(contenu[debut:fin])
+        # Pour creneau_conflit, lien1 doit être marqué indisponible.
+        entree_lien1 = next(l for l in payload[str(self.creneau_conflit.id)] if l['id'] == self.lien1.id)
+        self.assertFalse(entree_lien1['disponible'])
+        entree_lien2 = next(l for l in payload[str(self.creneau_conflit.id)] if l['id'] == self.lien2.id)
+        self.assertTrue(entree_lien2['disponible'])
+
+
+class ChevauchementHoraireReelTests(TestCase):
+    """groupes_en_conflit_pour_lien_a_horaire_reel — variante ponctuelle de
+    groupes_en_conflit_pour_lien pour les exceptions de séance (Tâche du
+    2026-08-17). Tests 9/10 du cahier des charges."""
+
+    def setUp(self):
+        self.creneau = _creer_creneau_horaire(
+            'mer', datetime.time(14, 0), datetime.time(15, 0),
+            'ven', datetime.time(10, 0), datetime.time(11, 0),
+        )
+        self.lien = LienMeet.objects.create(url='https://meet.google.com/chr-chr-chr', libelle='Meet CHR')
+        self.groupe = Groupe.objects.create(
+            nom='مجموعة مرجعية', creneau=self.creneau, lien_meet=self.lien,
+            lien_reunion=self.lien.url, statut='actif',
+        )
+
+    def test_14h_15h_vs_14h30_15h30_est_un_conflit(self):
+        conflits = groupes_en_conflit_pour_lien_a_horaire_reel(
+            self.lien, 'mer', datetime.time(14, 30), datetime.time(15, 30),
+        )
+        self.assertEqual(len(conflits), 1)
+
+    def test_14h_15h_vs_15h_16h_nest_pas_un_conflit(self):
+        conflits = groupes_en_conflit_pour_lien_a_horaire_reel(
+            self.lien, 'mer', datetime.time(15, 0), datetime.time(16, 0),
+        )
+        self.assertEqual(conflits, [])
+
+
+class SeanceExceptionLienMeetTests(TestCase):
+    """Exception de lien Meet sur une seule Seance (Tâche du 2026-08-17) —
+    voir dashboard.views.admin_seance_deplacer et Seance.lien_effectif.
+    Couvre les tests 1 à 8 et 11 du cahier des charges."""
+
+    def setUp(self):
+        self.admin = _creer_admin('admin_exception_seance@zidni.test')
+
+        # Groupe A : mercredi 14h-15h + vendredi 10h-11h, Meet 1 par défaut.
+        self.creneau_a = _creer_creneau_horaire(
+            'mer', datetime.time(14, 0), datetime.time(15, 0),
+            'ven', datetime.time(10, 0), datetime.time(11, 0),
+        )
+        self.lien1 = LienMeet.objects.create(url='https://meet.google.com/exc-un-un', libelle='Meet 1')
+        self.lien2 = LienMeet.objects.create(url='https://meet.google.com/exc-deux-deux', libelle='Meet 2')
+        self.groupe_a = Groupe.objects.create(
+            nom='مجموعة أ (استثناء)', creneau=self.creneau_a, lien_meet=self.lien1,
+            lien_reunion=self.lien1.url, statut='actif',
+        )
+        regenerer_pour_nouveau_creneau(self.groupe_a)
+        self.seances_mercredi = list(
+            Seance.objects.filter(groupe=self.groupe_a, date__week_day=4).order_by('date')  # 4 = mercredi (Django week_day: dim=1..sam=7)
+        )
+        self.s1 = self.seances_mercredi[0]
+
+        # Groupe B occupe déjà Meet 1 le mercredi 16h-17h — sert de conflit
+        # quand une séance du groupe A est déplacée à ce même horaire.
+        self.creneau_b = _creer_creneau_horaire(
+            'mer', datetime.time(16, 0), datetime.time(17, 0),
+            'sam', datetime.time(10, 0), datetime.time(11, 0),
+        )
+        self.groupe_b = Groupe.objects.create(
+            nom='مجموعة ب (تحتل Meet1)', creneau=self.creneau_b, lien_meet=self.lien1,
+            lien_reunion=self.lien1.url, statut='actif',
+        )
+
+    def _client(self):
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, self.admin)
+        return client
+
+    def _deplacer(self, seance, date, heure, lien_meet_exceptionnel=None):
+        data = {'date': date.isoformat(), 'heure': heure, 'remarque': 'test'}
+        if lien_meet_exceptionnel is not None:
+            data['lien_meet_exceptionnel'] = lien_meet_exceptionnel
+        return self._client().post(reverse('admin_seance_deplacer', args=[seance.id]), data)
+
+    def test_1_deux_seances_hebdomadaires_meme_meet_par_defaut(self):
+        seances = Seance.objects.filter(groupe=self.groupe_a)[:4]
+        self.assertTrue(seances)
+        for s in seances:
+            self.assertEqual(s.lien_effectif, self.lien1.url)
+            self.assertIsNone(s.lien_meet_exceptionnel)
+
+    def test_2_deplacement_dune_seule_seance_ne_touche_pas_les_autres(self):
+        autre_seance = Seance.objects.filter(groupe=self.groupe_a).exclude(pk=self.s1.pk).first()
+        ancienne_date, ancienne_heure = autre_seance.date, autre_seance.heure
+
+        # Déplacé vers un horaire sans aucun conflit (mercredi 20h-21h).
+        reponse = self._deplacer(self.s1, self.s1.date, '20:00')
+        self.assertEqual(reponse.status_code, 302)
+
+        autre_seance.refresh_from_db()
+        self.assertEqual(autre_seance.date, ancienne_date)
+        self.assertEqual(autre_seance.heure, ancienne_heure)
+        self.assertIsNone(autre_seance.lien_meet_exceptionnel)
+        self.assertEqual(autre_seance.lien_effectif, self.lien1.url)
+
+    def test_3_seance_exceptionnelle_compatible_garde_le_meet_du_groupe(self):
+        reponse = self._deplacer(self.s1, self.s1.date, '20:00')
+        self.assertEqual(reponse.status_code, 302)
+        self.s1.refresh_from_db()
+        self.assertIsNone(self.s1.lien_meet_exceptionnel)
+        self.assertEqual(self.s1.lien_effectif, self.lien1.url)
+        self.assertEqual(self.s1.heure, datetime.time(20, 0))
+
+    def test_4_seance_exceptionnelle_en_conflit_meet_actuel_refuse(self):
+        reponse = self._deplacer(self.s1, self.s1.date, '16:00')
+        self.assertEqual(reponse.status_code, 200)  # re-rendu, pas de redirection
+        self.assertContains(reponse, 'غير متاح في هذا الوقت')
+        self.s1.refresh_from_db()
+        self.assertEqual(self.s1.heure, datetime.time(14, 0))  # inchangée, rien sauvegardé
+        self.assertIsNone(self.s1.lien_meet_exceptionnel)
+
+    def test_5_proposition_des_autres_meet_disponibles(self):
+        reponse = self._deplacer(self.s1, self.s1.date, '16:00')
+        liens_dispo = reponse.context['liens_meet_disponibles']
+        self.assertNotIn(self.lien1, liens_dispo)
+        self.assertIn(self.lien2, liens_dispo)
+
+    def test_6_aucun_meet_disponible(self):
+        # Un 3e groupe occupe aussi Meet 2 le même mercredi 16h-17h : plus aucun lien libre.
+        Groupe.objects.create(
+            nom='مجموعة ج (تحتل Meet2)', creneau=self.creneau_b, lien_meet=self.lien2,
+            lien_reunion=self.lien2.url, statut='actif',
+        )
+        reponse = self._deplacer(self.s1, self.s1.date, '16:00')
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse.context['liens_meet_disponibles'], [])
+        self.assertContains(reponse, 'لا يوجد أي رابط Google Meet متاح لهذا الموعد')
+
+    def test_7_attribution_meet_exceptionnel_uniquement_cette_seance(self):
+        autre_seance = Seance.objects.filter(groupe=self.groupe_a).exclude(pk=self.s1.pk).first()
+
+        reponse = self._deplacer(self.s1, self.s1.date, '16:00', lien_meet_exceptionnel=self.lien2.id)
+        self.assertEqual(reponse.status_code, 302)
+
+        self.s1.refresh_from_db()
+        self.assertEqual(self.s1.heure, datetime.time(16, 0))
+        self.assertEqual(self.s1.lien_meet_exceptionnel, self.lien2)
+        self.assertEqual(self.s1.lien_effectif, self.lien2.url)
+
+        # Le groupe et l'AUTRE séance restent inchangés.
+        self.groupe_a.refresh_from_db()
+        self.assertEqual(self.groupe_a.lien_meet, self.lien1)
+        self.assertEqual(self.groupe_a.lien_reunion, self.lien1.url)
+        autre_seance.refresh_from_db()
+        self.assertIsNone(autre_seance.lien_meet_exceptionnel)
+        self.assertEqual(autre_seance.lien_effectif, self.lien1.url)
+
+    def test_8_semaine_suivante_retour_au_meet_par_defaut(self):
+        s1_suivant = self.seances_mercredi[1]  # le mercredi de la semaine d'après, jamais déplacé
+
+        self._deplacer(self.s1, self.s1.date, '16:00', lien_meet_exceptionnel=self.lien2.id)
+
+        s1_suivant.refresh_from_db()
+        self.assertIsNone(s1_suivant.lien_meet_exceptionnel)
+        self.assertEqual(s1_suivant.lien_effectif, self.lien1.url)
+        self.assertEqual(s1_suivant.heure, datetime.time(14, 0))
+
+    def test_11_conflit_sur_exception_ne_bloque_pas_le_meet_par_defaut_du_groupe(self):
+        """Le déplacement en conflit de s1 (non sauvegardé, voir test 4) ne doit
+        avoir AUCUN effet sur la disponibilité du Meet par défaut du groupe pour
+        ses autres séances — la logique de conflit au niveau Groupe (utilisée par
+        le formulaire groupe/l'attribution rapide) ignore totalement les
+        exceptions de séance, ce sont deux mécanismes indépendants."""
+        self._deplacer(self.s1, self.s1.date, '16:00')  # refusé, voir test 4
+
+        self.assertTrue(lien_meet_est_disponible(self.lien1, self.creneau_a, groupe_exclu=self.groupe_a))
+        autre_seance = Seance.objects.filter(groupe=self.groupe_a).exclude(pk=self.s1.pk).first()
+        self.assertEqual(autre_seance.lien_effectif, self.lien1.url)
+
+    def test_12a_panneau_ajout_lien_ancre_pres_du_bouton(self):
+        """Point A : le panneau d'ajout de lien apparaît dans le HTML AVANT la
+        section "يحتاج انتباهك" (donc juste sous le bouton d'en-tête), jamais
+        après une longue liste de groupes."""
+        Groupe.objects.create(nom='مجموعة بدون رابط (نقطة أ)', creneau=self.creneau_a, statut='actif')
+        reponse = self._client().get(reverse('admin_liens_meet'))
+        html = reponse.content.decode('utf-8')
+        self.assertLess(html.index('ajouter-lien-panel'), html.index('يحتاج انتباهك'))
+
+    def test_12b_carte_groupe_sans_lien_est_cliquable_vers_les_details(self):
+        """Point B : la carte d'un groupe sans lien (avec créneau) mène à sa
+        fiche détail, explicitement via "عرض التفاصيل"."""
+        groupe_sans_lien = Groupe.objects.create(
+            nom='مجموعة بدون رابط (واجهة)', creneau=self.creneau_a, statut='actif',
+        )
+        self.groupe_a.delete()  # simplifie : ne garder que ce cas dans "بدون رابط"
+        reponse = self._client().get(reverse('admin_liens_meet'))
+        html = reponse.content.decode('utf-8')
+        self.assertIn(reverse('admin_groupe_detail', args=[groupe_sans_lien.id]), html)
+        self.assertIn('عرض التفاصيل', html)
+
+    def test_12c_carte_lien_affiche_lhoraire_des_groupes_qui_lutilisent(self):
+        """Point C : la liste dépliable des groupes utilisant un lien affiche
+        aussi leur créneau, pas seulement leur nom."""
+        reponse = self._client().get(reverse('admin_liens_meet'))
+        html = reponse.content.decode('utf-8')
+        self.assertIn(str(self.creneau_a), html)

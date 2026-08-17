@@ -22,4 +22,10 @@ urlpatterns = [
     path('creneaux/<int:creneau_id>/toggle/', views.creneau_toggle, name='admin_creneau_toggle'),
     path('creneaux/<int:creneau_id>/supprimer/', views.creneau_supprimer, name='admin_creneau_supprimer'),
     path('creneaux/<int:creneau_id>/supprimer-definitivement/', views.creneau_supprimer_definitivement, name='admin_creneau_supprimer_definitivement'),
+
+    # Liens Google Meet
+    path('liens-meet/', views.liens_meet_list, name='admin_liens_meet'),
+    path('liens-meet/ajouter/', views.lien_meet_ajouter, name='admin_lien_meet_ajouter'),
+    path('liens-meet/<int:lien_id>/toggle/', views.lien_meet_toggle, name='admin_lien_meet_toggle'),
+    path('liens-meet/attribuer/<int:groupe_id>/', views.lien_meet_attribuer_groupe, name='admin_lien_meet_attribuer_groupe'),
 ]

@@ -539,7 +539,11 @@ def rejoindre_seance(request, seance_id):
             'base_template': BASE_TEMPLATE_PAR_ROLE[role],
         })
 
-    return redirect(seance.groupe.lien_reunion)
+    # Tâche du 2026-08-17 : lien_effectif (Seance) tient compte d'une exception
+    # de lien posée uniquement pour CETTE séance (voir Seance.lien_effectif) —
+    # identique à seance.groupe.lien_reunion tant qu'aucune exception n'est
+    # posée, donc aucun changement de comportement pour une séance normale.
+    return redirect(seance.lien_effectif)
 
 
 @role_required('prof')
@@ -1639,6 +1643,14 @@ def dashboard_admin(request):
                          InscriptionProf.objects.filter(statut='en_attente').count(),
         'dernieres_eleves': dernieres_eleves,
         'dernieres_profs': dernieres_profs,
+        # Tâche du 2026-08-17 (Phase 2 puis Phase 3, audit UX liens Meet) : TOUS
+        # les groupes ACTIFS sans lien, avec OU SANS créneau (corrigé en Phase 3 —
+        # un groupe sans créneau est un problème réel, pas un cas à ignorer, voir
+        # courses.views.liens_meet_list). Un seul chiffre discret, pas une
+        # nouvelle grosse carte, pour ne pas casser la composition existante de
+        # la page (voir templates/dashboard/admin.html, à côté du lien
+        # "متابعة الالتزام").
+        'groupes_sans_lien_meet': Groupe.actifs.filter(lien_reunion='').count(),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -3464,13 +3476,91 @@ def admin_seance_annuler(request, seance_id):
 
 @role_required('admin')
 def admin_seance_deplacer(request, seance_id):
-    from courses.models import Seance
+    """Tâche du 2026-08-17 (exceptions de séance) : déplacer une séance à une
+    date/heure hors de son créneau habituel peut rendre le lien Meet PAR
+    DÉFAUT du groupe indisponible (occupé par un autre groupe à ce nouveau
+    moment précis). Dans ce cas :
+      1. on ne sauvegarde PAS silencieusement le déplacement avec un lien en
+         conflit — le formulaire est réaffiché avec une alerte + les liens
+         réellement disponibles pour ce nouvel horaire (courses.utils.
+         liens_meet_disponibles_pour_seance) ;
+      2. si le مدير choisit un lien alternatif, il est posé UNIQUEMENT sur
+         cette Seance (Seance.lien_meet_exceptionnel) — Groupe.lien_meet /
+         Groupe.lien_reunion / Groupe.creneau ne sont JAMAIS modifiés ici ;
+      3. si le lien par défaut du groupe reste disponible au nouvel horaire,
+         il est conservé automatiquement, sans rien demander au مدير.
+    La séance suivante (générée normalement pour la semaine d'après) n'hérite
+    d'aucune exception : elle repart du lien par défaut du groupe."""
+    from courses.models import Seance, LienMeet
+    from courses.utils import (
+        lien_effectif_disponible_pour_seance, liens_meet_disponibles_pour_seance,
+        groupes_en_conflit_pour_lien_a_horaire_reel, horaire_reel_seance,
+        description_conflit_lien_meet_seance,
+    )
+
     seance = get_object_or_404(Seance, id=seance_id)
 
+    def _reafficher_conflit(nouvelle_date, nouvelle_heure, remarque, raison=''):
+        """Recalcule TOUJOURS la disponibilité pendant que seance.date/heure
+        portent encore le NOUVEL horaire proposé (jamais après les avoir
+        restaurés), puis restaure l'horaire ACTUEL de la séance pour le reste
+        de l'affichage (ex: sous-titre "الموعد الحالي")."""
+        liens_dispo = liens_meet_disponibles_pour_seance(seance)
+        seance.date, seance.heure = ancien_date, ancien_heure
+        return render(request, 'dashboard/admin_seance_deplacer.html', {
+            'seance': seance,
+            'conflit_meet': True,
+            'raison_conflit': raison,
+            'nouvelle_date': nouvelle_date,
+            'nouvelle_heure': nouvelle_heure,
+            'remarque_soumise': remarque,
+            'liens_meet_disponibles': liens_dispo,
+        })
+
     if request.method == 'POST':
-        seance.date = request.POST.get('date')
-        seance.heure = request.POST.get('heure')
-        seance.remarque = request.POST.get('remarque', '')
+        nouvelle_date = request.POST.get('date')
+        nouvelle_heure = request.POST.get('heure')
+        remarque = request.POST.get('remarque', '')
+        lien_meet_exceptionnel_id = request.POST.get('lien_meet_exceptionnel')
+
+        # Prévisualisation en mémoire (rien n'est encore sauvegardé) pour pouvoir
+        # calculer la disponibilité au NOUVEL horaire avant tout engagement. Types
+        # Python réels requis ICI (pas les chaînes brutes du POST) : horaire_reel_seance
+        # appelle seance.date.weekday(), qui échoue sur une simple str — Django ne
+        # convertit automatiquement une valeur assignée qu'à la sauvegarde, jamais à
+        # la simple affectation d'attribut.
+        ancien_date, ancien_heure = seance.date, seance.heure
+        seance.date = datetime.datetime.strptime(nouvelle_date, '%Y-%m-%d').date()
+        seance.heure = datetime.datetime.strptime(nouvelle_heure, '%H:%M').time()
+
+        if lien_meet_exceptionnel_id:
+            # Le مدير a explicitement choisi un lien alternatif suite à l'alerte
+            # ci-dessous — revérifié ICI côté serveur (jamais une confiance dans
+            # la liste proposée au tour précédent), sous verrou, même principe
+            # que courses.views.lien_meet_attribuer_groupe.
+            with transaction.atomic():
+                lien_obj = get_object_or_404(LienMeet.objects.select_for_update(), id=lien_meet_exceptionnel_id)
+                jour_code, heure_debut, heure_fin = horaire_reel_seance(seance)
+                if not lien_obj.est_actif or groupes_en_conflit_pour_lien_a_horaire_reel(lien_obj, jour_code, heure_debut, heure_fin):
+                    messages.error(request, f'تعذّر استخدام "{lien_obj}" لهذا الموعد — لم يعد متاحاً. أعد المحاولة.')
+                    return _reafficher_conflit(nouvelle_date, nouvelle_heure, remarque)
+                seance.lien_meet_exceptionnel = lien_obj
+                seance.remarque = remarque
+                seance.save()
+            messages.success(request, f'تم تأجيل الحصة، مع استخدام "{lien_obj}" كرابط استثنائي لهذه الحصة فقط.')
+            return redirect('admin_seances')
+
+        # Aucun lien alternatif choisi : le lien EFFECTIF actuel de la séance
+        # (celui du groupe, ou une exception déjà posée précédemment) reste-t-il
+        # valable au NOUVEL horaire ?
+        if not lien_effectif_disponible_pour_seance(seance):
+            lien_actuel = LienMeet.objects.filter(url=seance.lien_effectif).first()
+            raison = description_conflit_lien_meet_seance(lien_actuel, seance) if lien_actuel else ''
+            return _reafficher_conflit(nouvelle_date, nouvelle_heure, remarque, raison)
+
+        # Compatible (ou aucun lien à vérifier) : sauvegarde normale, lien par
+        # défaut du groupe conservé automatiquement — rien à demander au مدير.
+        seance.remarque = remarque
         seance.save()
         messages.success(request, 'تم تأجيل الحصة إلى الموعد الجديد.')
         return redirect('admin_seances')

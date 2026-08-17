@@ -1,0 +1,304 @@
+{% extends base_template %}
+
+{% block title %}روابط Google Meet{% endblock %}
+
+{% block content %}
+
+{% comment %}
+HEADER (Phase 3, redesign UX du 2026-08-17) : titre + action principale sur
+la même ligne, comme le reste du dashboard (voir admin_groupe_detail.html).
+Le bouton "+ إضافة رابط Meet" ne fait plus qu'ouvrir/fermer le panneau
+d'ajout plus bas (ajouter-lien-panel) — auparavant toujours visible en haut
+de page, ce qui alourdissait la page avant même d'avoir vu le contenu
+important (groupes sans lien).
+{% endcomment %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <div>
+        <div class="page-title" style="display:flex; align-items:center; gap:10px;">
+            {% include 'dashboard/_meet_glyph.html' %} Google Meet
+        </div>
+        <div class="page-subtitle" style="margin-bottom:0;">إدارة روابط Google Meet وتوزيعها على المجموعات</div>
+    </div>
+    {% if request.user.role != 'mshrif' %}
+    <button type="button" onclick="toggleAjouterLien()"
+        style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 22px; font-family:'Tajawal',sans-serif; font-weight:600; cursor:pointer; white-space:nowrap;">
+        + إضافة رابط Meet
+    </button>
+    {% endif %}
+</div>
+
+{% comment %}
+Point A (audit UX du 2026-08-17) : le panneau d'ajout est ancré ICI, juste
+sous le bouton qui l'ouvre — jamais loin en bas d'une longue page, même
+quand "يحتاج انتباهك" contient beaucoup de cartes. toggleAjouterLien() se
+contente d'afficher/masquer ce bloc, déjà à portée immédiate du bouton.
+{% endcomment %}
+{% if request.user.role != 'mshrif' %}
+<div id="ajouter-lien-panel" class="d-none" style="background:white; border-radius:16px; padding:24px 28px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:600px;">
+    <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:14px;">+ إضافة رابط جديد</div>
+    <form method="POST" action="{% url 'admin_lien_meet_ajouter' %}" class="d-flex gap-2 flex-wrap align-items-end">
+        {% csrf_token %}
+        <div style="flex:1; min-width:200px;">
+            <label style="color:#888; font-size:0.8rem;">اسم الرابط (اختياري)</label>
+            <input type="text" name="libelle" class="form-control mt-1" placeholder="مثال: Meet 1">
+        </div>
+        <div style="flex:2; min-width:260px;">
+            <label style="color:#888; font-size:0.8rem;">رابط Google Meet *</label>
+            <input type="url" name="url" class="form-control mt-1" placeholder="https://meet.google.com/xxx-xxxx-xxx" required>
+        </div>
+        <button type="submit"
+            style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
+            إضافة ✅
+        </button>
+    </form>
+</div>
+{% endif %}
+
+{% comment %}
+SUMMARY : 4 chiffres pour comprendre l'état global en un coup d'œil, avant
+même de lire une seule carte — مرتبطة/بدون رابط/تحتاج إعداد sont 3 catégories
+mutuellement exclusives qui, additionnées à "روابط نشطة" (indépendant), disent
+tout. Couleurs = système d'état du projet (vert=OK, orange=attention,
+gris=non configuré) — aucune nouvelle palette.
+{% endcomment %}
+<div class="row g-2 mb-4">
+    <div class="col-6 col-md-3">
+        <div style="background:white; border-radius:12px; padding:14px 18px; box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+            <div style="color:#888; font-size:0.78rem; margin-bottom:4px;">روابط نشطة</div>
+            <div style="font-size:1.6rem; font-weight:700; color:var(--color-success);">{{ nb_liens_actifs }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div style="background:white; border-radius:12px; padding:14px 18px; box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+            <div style="color:#888; font-size:0.78rem; margin-bottom:4px;">مجموعات مرتبطة</div>
+            <div style="font-size:1.6rem; font-weight:700; color:var(--color-role-admin-solid);">{{ groupes_configures|length }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div style="background:white; border-radius:12px; padding:14px 18px; box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+            <div style="color:#888; font-size:0.78rem; margin-bottom:4px;">مجموعات بدون رابط</div>
+            <div style="font-size:1.6rem; font-weight:700; color:{% if groupes_sans_lien_avec_creneau %}#a15c00{% else %}#ccc{% endif %};">{{ groupes_sans_lien_avec_creneau|length }}</div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div style="background:white; border-radius:12px; padding:14px 18px; box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+            <div style="color:#888; font-size:0.78rem; margin-bottom:4px;">مجموعات تحتاج إعداد</div>
+            <div style="font-size:1.6rem; font-weight:700; color:{% if groupes_sans_lien_sans_creneau %}#666{% else %}#ccc{% endif %};">{{ groupes_sans_lien_sans_creneau|length }}</div>
+        </div>
+    </div>
+</div>
+
+{% comment %}
+SECTION 1 — يحتاج انتباهك : TOUT groupe actif sans lien, avec ou sans
+créneau (corrigé en Phase 3 — un groupe sans créneau est un problème réel,
+pas un cas à cacher). 2 sous-groupes visuellement distincts : le problème
+n'est pas le même (absence de lien vs absence d'horaire), donc pas la même
+action ni la même couleur (orange="agis maintenant" / gris="configure
+d'abord l'horaire").
+{% endcomment %}
+{% if groupes_sans_lien_avec_creneau or groupes_sans_lien_sans_creneau %}
+<div class="mb-4">
+    <div style="font-weight:700; color:#222; font-size:1.05rem; margin-bottom:12px;">
+        <span style="color:var(--color-danger);">⚠️</span> يحتاج انتباهك — {{ nb_groupes_sans_lien_total }}
+    </div>
+
+    {% if groupes_sans_lien_avec_creneau %}
+    <div style="color:#888; font-size:0.8rem; font-weight:700; margin:0 0 8px;">بدون رابط Google Meet</div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px; margin-bottom:{% if groupes_sans_lien_sans_creneau %}24px{% else %}0{% endif %};">
+        {% for groupe in groupes_sans_lien_avec_creneau %}
+        <div style="background:white; border-radius:14px; padding:20px 22px; border-inline-start:4px solid #ff9800; box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                <a href="{% url 'admin_groupe_detail' groupe.id %}" style="font-weight:700; color:#222; text-decoration:none;">{{ groupe.nom }}</a>
+                {% include 'dashboard/_badge_statut.html' with type='warning' texte='بدون رابط' %}
+            </div>
+            <div style="color:#666; font-size:0.85rem; margin-bottom:2px;">
+                📅 {{ groupe.creneau.get_jour_1_display }} {{ groupe.creneau.heure_debut_1|time:"H:i" }}–{{ groupe.creneau.heure_fin_1|time:"H:i" }}
+            </div>
+            <div style="color:#666; font-size:0.85rem; margin-bottom:10px;">
+                📅 {{ groupe.creneau.get_jour_2_display }} {{ groupe.creneau.heure_debut_2|time:"H:i" }}–{{ groupe.creneau.heure_fin_2|time:"H:i" }}
+            </div>
+            <div style="color:#a15c00; font-size:0.82rem; font-weight:600; margin-bottom:14px;">يحتاج رابط Google Meet</div>
+
+            {% if request.user.role != 'mshrif' %}
+                {% if groupe.liens_disponibles %}
+                <button type="button" onclick="document.getElementById('attribuer-{{ groupe.id }}').classList.toggle('d-none'); this.classList.add('d-none');"
+                    style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:9px 16px; font-size:0.85rem; font-weight:600; font-family:'Tajawal',sans-serif; cursor:pointer; width:100%;">
+                    إسناد رابط
+                </button>
+                <div id="attribuer-{{ groupe.id }}" class="d-none" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
+                    {% for lien in groupe.liens_disponibles %}
+                    <form method="POST" action="{% url 'admin_lien_meet_attribuer_groupe' groupe.id %}"
+                          class="d-flex align-items-center flex-wrap gap-2"
+                          style="background:#f7fbf5; border:1px solid #d7ecc9; border-radius:8px; padding:8px 10px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="lien_meet" value="{{ lien.id }}">
+                        <span style="display:flex; align-items:center; gap:6px; min-width:0; flex:1 1 auto;">
+                            {% include 'dashboard/_meet_glyph.html' %}
+                            <span style="font-weight:600; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ lien.libelle|default:lien.url }}</span>
+                        </span>
+                        <span style="color:var(--color-success); font-size:0.75rem; white-space:nowrap;">متاح لهذا التوقيت</span>
+                        <button type="submit"
+                            style="background:var(--color-success); color:white; border:none; border-radius:6px; padding:5px 14px; font-size:0.8rem; font-weight:600; white-space:nowrap; cursor:pointer; flex-shrink:0;">
+                            إسناد
+                        </button>
+                    </form>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="background:#fce4e4; border-radius:8px; padding:10px 12px;">
+                    <div style="color:var(--color-danger); font-size:0.85rem; font-weight:700; margin-bottom:4px;">⚠️ لا يوجد رابط Google Meet متاح لهذا الجدول</div>
+                    <div style="color:#8a3b36; font-size:0.78rem; margin-bottom:8px;">جميع الروابط الحالية متعارضة مع أوقات مجموعات أخرى.</div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" onclick="toggleAjouterLien()"
+                            style="background:var(--color-danger); color:white; border:none; border-radius:6px; padding:6px 12px; font-size:0.78rem; cursor:pointer;">
+                            + إضافة رابط Meet
+                        </button>
+                        <a href="{% url 'admin_groupe_modifier' groupe.id %}"
+                           style="background:white; color:var(--color-danger); border:1px solid var(--color-danger); border-radius:6px; padding:6px 12px; font-size:0.78rem; text-decoration:none;">
+                           تعديل الجدول
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            {% endif %}
+
+            <a href="{% url 'admin_groupe_detail' groupe.id %}"
+               style="display:inline-block; margin-top:10px; color:#888; font-size:0.8rem; text-decoration:none;">
+               عرض التفاصيل ←
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if groupes_sans_lien_sans_creneau %}
+    <div style="color:#888; font-size:0.8rem; font-weight:700; margin:0 0 8px;">الجدول غير محدد</div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px;">
+        {% for groupe in groupes_sans_lien_sans_creneau %}
+        <div style="background:white; border-radius:14px; padding:18px 20px; border-inline-start:4px solid #bbb; box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                <div style="font-weight:700; color:#222;">{{ groupe.nom }}</div>
+                {% include 'dashboard/_badge_statut.html' with type='neutre' texte='الجدول غير محدد' %}
+            </div>
+            <div style="color:#888; font-size:0.85rem; margin-bottom:14px;">لا يمكن اقتراح رابط Meet قبل تحديد أوقات المجموعة.</div>
+            {% if request.user.role != 'mshrif' %}
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'admin_groupe_modifier' groupe.id %}"
+                   style="background:var(--color-role-admin); color:white; border-radius:8px; padding:8px 16px; font-size:0.85rem; font-weight:600; text-decoration:none;">
+                   تحديد الجدول
+                </a>
+                <a href="{% url 'admin_groupe_detail' groupe.id %}"
+                   style="background:#f0f0f0; color:#555; border-radius:8px; padding:8px 16px; font-size:0.85rem; text-decoration:none;">
+                   عرض التفاصيل
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div style="background:#eef7e5; border:1px solid #b9dba0; color:var(--color-role-admin-solid); border-radius:12px; padding:16px 20px; margin-bottom:24px; font-weight:600;">
+    ✅ كل المجموعات النشطة لديها رابط Google Meet.
+</div>
+{% endif %}
+
+{% comment %}
+SECTION 2 — الروابط المسجَّلة : cards compactes, URL tronquée proprement
+(ellipsis + title au survol, plus jamais un bloc d'URL brute qui casse la
+mise en page) — les groupes qui utilisent le lien sont dans un <details>
+natif (repliable SANS JS) pour ne pas alourdir la carte par défaut.
+{% endcomment %}
+<div style="font-weight:700; color:#222; font-size:1.05rem; margin-bottom:14px;">
+    الروابط المسجَّلة{% if liens %} — {{ liens|length }}{% endif %}
+</div>
+{% if liens %}
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px; margin-bottom:28px;">
+    {% for lien in liens %}
+    <div style="background:white; border-radius:14px; padding:18px 20px; box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+            <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                {% include 'dashboard/_meet_glyph.html' %}
+                <span style="font-weight:700; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ lien.libelle|default:'رابط بدون اسم' }}</span>
+            </div>
+            {% if lien.est_actif %}
+                {% include 'dashboard/_badge_statut.html' with type='success' texte='نشط' %}
+            {% else %}
+                {% include 'dashboard/_badge_statut.html' with type='neutre' texte='غير نشط' %}
+            {% endif %}
+        </div>
+        <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:12px;" title="{{ lien.url }}">
+            <a href="{{ lien.url }}" target="_blank" rel="noopener" style="color:#aaa; font-size:0.75rem; text-decoration:none;">{{ lien.url }}</a>
+        </div>
+
+        {% if lien.nb_groupes %}
+        <details style="margin-bottom:14px;">
+            <summary style="cursor:pointer; color:#555; font-size:0.85rem;">تستخدمه {{ lien.nb_groupes }} مجموعة</summary>
+            <ul style="margin:8px 0 0; padding-inline-start:18px; color:#888; font-size:0.8rem;">
+                {% for g in lien.groupes.all %}
+                <li>{{ g.nom }}{% if g.creneau %} — {{ g.creneau }}{% endif %}</li>
+                {% endfor %}
+            </ul>
+        </details>
+        {% else %}
+        <div style="color:#aaa; font-size:0.85rem; margin-bottom:14px;">غير مستخدم حالياً</div>
+        {% endif %}
+
+        {% if request.user.role != 'mshrif' %}
+        <a href="{% url 'admin_lien_meet_toggle' lien.id %}"
+           onclick="return confirm('{% if lien.est_actif %}هل تريد تعطيل هذا الرابط؟ لن يُقترح للمجموعات الجديدة (المجموعات الحالية غير متأثرة).{% else %}هل تريد إعادة تفعيل هذا الرابط؟{% endif %}');"
+           style="display:inline-block; background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+           {% if lien.est_actif %}تعطيل{% else %}إعادة تفعيل{% endif %}
+        </a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div style="text-align:center; background:white; border-radius:14px; padding:48px 20px; color:#aaa; margin-bottom:28px;">
+    <div style="margin-bottom:14px;">لم تتم إضافة أي روابط Google Meet بعد</div>
+    {% if request.user.role != 'mshrif' %}
+    <button type="button" onclick="toggleAjouterLien()"
+        style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 22px; font-family:'Tajawal',sans-serif; cursor:pointer;">
+        + إضافة أول رابط
+    </button>
+    {% endif %}
+</div>
+{% endif %}
+
+{% comment %}
+SECTION 3 — المجموعات المرتبطة : repliée par défaut (<details> natif, sans
+JS) pour ne pas afficher une longue liste par défaut alors que ces groupes
+n'ont besoin d'AUCUNE action — voir instruction explicite du chantier.
+{% endcomment %}
+{% if groupes_configures %}
+<details style="background:white; border-radius:14px; padding:18px 20px; box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+    <summary style="cursor:pointer; font-weight:700; color:#222;">المجموعات المرتبطة بروابط Meet — {{ groupes_configures|length }}</summary>
+    <div style="margin-top:14px;">
+        {% for groupe in groupes_configures %}
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; padding:8px 0; border-bottom:1px solid #f0f0f0; font-size:0.88rem;">
+            <span>{{ groupe.nom }}</span>
+            <span style="color:#888; display:flex; align-items:center; gap:6px;">
+                {% if groupe.lien_meet %}
+                {% include 'dashboard/_meet_glyph.html' %} {{ groupe.lien_meet }}
+                {% else %}
+                رابط مسجَّل يدوياً (غير مرتبط بالقائمة المركزية)
+                {% endif %}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+</details>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleAjouterLien() {
+    var panneau = document.getElementById('ajouter-lien-panel');
+    if (panneau) { panneau.classList.toggle('d-none'); }
+}
+</script>
+{% endblock %}

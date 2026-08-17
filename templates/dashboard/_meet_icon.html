@@ -9,7 +9,7 @@ la fenêtre n'est pas active (nouveau) — dans les deux cas le clic mène à un
 page d'explication, jamais un lien mort silencieux.
 Usage : {% include 'dashboard/_meet_icon.html' with seance=seance %}
 {% endcomment %}
-{% if seance.groupe.lien_reunion %}
+{% if seance.lien_effectif %}
     {% if seance|lien_seance_actif %}
     <a href="{% url 'rejoindre_seance' seance.id %}" target="_blank" rel="noopener"
        title="الانضمام إلى الاجتماع" class="contact-icon-link contact-icon-meet">

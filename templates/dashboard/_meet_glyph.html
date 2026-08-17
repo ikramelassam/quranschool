@@ -1,0 +1,13 @@
+{% comment %}
+Glyphe Google Meet purement décoratif (cercle bleu + caméra) — mêmes couleurs
+que dashboard/_meet_icon.html (icône "الانضمام إلى الاجتماع" d'une séance),
+mais SANS sa logique de lien/fenêtre active : sert uniquement d'icône visuelle
+dans la gestion du pool de liens (Tâche du 2026-08-17, Phase 2 — audit UX),
+pour éviter un simple 🔗 alors qu'un glyphe de marque existe déjà dans le
+design system. Usage : {% include 'dashboard/_meet_glyph.html' %}
+{% endcomment %}
+<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink:0; vertical-align:-4px;">
+    <circle cx="12" cy="12" r="12" fill="#1A73E8"/>
+    <rect x="5" y="8.5" width="9" height="7" rx="1.5" fill="#FFFFFF"/>
+    <path d="M15 10.7 19.2 8.3 19.2 15.7 15 13.3 Z" fill="#FFFFFF"/>
+</svg>

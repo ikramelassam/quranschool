@@ -231,7 +231,7 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_seances' or request.resolver_match.url_name == 'admin_calendrier' or request.resolver_match.url_name == 'admin_groupes' or request.resolver_match.url_name == 'admin_creneaux' or request.resolver_match.url_name == 'admin_demandes_disponibilite' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_seances' or request.resolver_match.url_name == 'admin_calendrier' or request.resolver_match.url_name == 'admin_groupes' or request.resolver_match.url_name == 'admin_creneaux' or request.resolver_match.url_name == 'admin_liens_meet' or request.resolver_match.url_name == 'admin_demandes_disponibilite' %}open{% endif %}>
             <summary>الحصص والجدولة</summary>
             <a href="{% url 'admin_seances' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_seances' %}active{% endif %}">
@@ -248,6 +248,10 @@
             <a href="{% url 'admin_creneaux' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_creneaux' %}active{% endif %}">
                 <span class="icon">🕐</span> الحلقات
+            </a>
+            <a href="{% url 'admin_liens_meet' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_liens_meet' %}active{% endif %}">
+                <span class="icon">{% include 'dashboard/_meet_glyph.html' %}</span> روابط Google Meet
             </a>
             <a href="{% url 'admin_demandes_disponibilite' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_demandes_disponibilite' %}active{% endif %}">

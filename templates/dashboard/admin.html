@@ -62,8 +62,19 @@ cliquables, elles affichaient un chiffre mais ne menaient nulle part).
         </a>
     </div>
 </div>
-<div style="margin:-14px 0 20px;">
+<div style="margin:-14px 0 20px; display:flex; flex-wrap:wrap; gap:6px 20px;">
     <a href="{% url 'suivi_engagement_mensuel' %}" style="color:var(--color-role-admin-solid); font-size:0.85rem; text-decoration:none;">📊 متابعة الالتزام الشهري (تسجيل الحضور والتقييم) ←</a>
+    {% comment %}
+    Tâche du 2026-08-17 (Phase 2, audit UX liens Meet) : même style discret que
+    le lien ci-dessus, pas une carte — voir dashboard.views.dashboard_admin
+    pour groupes_sans_lien_meet. Couleur neutre/verte si 0 (rien à faire),
+    orange si >0 (action possible), jamais rouge (pas un état d'échec).
+    {% endcomment %}
+    <a href="{% url 'admin_liens_meet' %}"
+       style="color:{% if groupes_sans_lien_meet %}#a15c00{% else %}var(--color-role-admin-solid){% endif %}; font-size:0.85rem; text-decoration:none;">
+       {% include 'dashboard/_meet_glyph.html' %}
+       {% if groupes_sans_lien_meet %}مجموعات بدون رابط Meet: {{ groupes_sans_lien_meet }}{% else %}كل المجموعات لديها رابط Meet ✅{% endif %} ←
+    </a>
 </div>
 
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
