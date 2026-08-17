@@ -56,8 +56,11 @@
         flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%;
         background: var(--gradient-cta-gold); color: var(--color-cta-gold-text);
         display: flex; align-items: center; justify-content: center;
-        font-weight: 700; font-size: 1.1rem;
+        font-weight: 700; font-size: 1.1rem; overflow: hidden;
     }
+    /* Photo de groupe (Tâche du 2026-08-17) — remplace l'initiale quand
+       groupe.photo est défini, même conteneur rond, recadrée en CSS uniquement. */
+    .chat-item-avatar img, .chat-panel-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .chat-item-corps { min-width: 0; flex: 1; }
     .chat-item-ligne1 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
     {% comment %}
@@ -101,7 +104,7 @@
     .chat-panel-avatar {
         width: 42px; height: 42px; border-radius: 50%; background: var(--gradient-cta-gold);
         color: var(--color-cta-gold-text); display: flex; align-items: center; justify-content: center;
-        font-weight: 700; flex-shrink: 0;
+        font-weight: 700; flex-shrink: 0; overflow: hidden;
     }
     .chat-panel-titre { min-width: 0; flex: 1; }
     .chat-panel-nom { font-weight: 700; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -198,7 +201,18 @@
         background: rgba(139,75,0,0.06); border-radius: 12px; padding: 6px 10px 6px 8px;
     }
     .chat-bubble-audio::before { content: '🎤'; font-size: 1rem; flex-shrink: 0; }
-    .chat-bubble-audio audio { max-width: 240px; width: 100%; height: 36px; }
+    {% comment %}
+    Correctif du 2026-08-17 (lecteur audio invisible, DOM correct mais 0px
+    de rendu réel) : `width: 100%` était un pourcentage calculé par rapport
+    à .chat-bubble, lui-même sans largeur propre ("shrink-to-fit", ajusté à
+    son contenu, voir sa règle plus haut) — un enfant en % dans un ancêtre
+    "shrink-to-fit" ne contribue quasiment rien au calcul de la taille de
+    cet ancêtre, toute la chaîne se resserre alors sur le seul élément à
+    taille fixe restant (l'icône ::before ci-dessus), laissant le <audio>
+    à une largeur quasi nulle. Largeur fixe en px : plus de dépendance
+    circulaire, le lecteur natif obtient une taille réelle garantie.
+    {% endcomment %}
+    .chat-bubble-audio audio { width: 220px; max-width: 100%; height: 36px; }
     .chat-bubble-fichier { display: flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; background: rgba(0,0,0,0.03); border-radius: 10px; padding: 8px 10px; }
     .chat-fichier-icone { font-size: 1.3rem; }
     .chat-fichier-infos { display: flex; flex-direction: column; min-width: 0; }
@@ -371,6 +385,58 @@
         });
     }
 
+    // Bug connu de Chrome/Chromium (et navigateurs basés dessus) : un fichier
+    // webm produit par MediaRecorder n'a PAS sa durée écrite dans l'en-tête
+    // EBML (l'enregistrement est un flux, la durée finale n'est connue qu'à
+    // l'arrêt) — <audio>.duration vaut alors Infinity ou NaN. Conséquence
+    // concrète pour un vocal ENVOYÉ DEPUIS CE NAVIGATEUR (donc systématiquement
+    // au format webm/opus du micro, contrairement à un vocal REÇU qui peut
+    // avoir été envoyé en pièce jointe dans un format déjà correct type
+    // .m4a/.mp3) : pas de barre de progression fiable et, une fois la lecture
+    // arrivée à la fin, currentTime ne peut plus être remis à 0 de façon
+    // fiable pour une relecture — d'où "ça marche une ou deux fois puis ça
+    // casse" plutôt qu'une lecture illimitée. Correctif standard côté client
+    // (aucune librairie externe, cohérent avec la contrainte du projet
+    // "pas de framework JS") : forcer un seek à une position énorme force le
+    // navigateur à décoder le fichier jusqu'au bout et à recalculer la vraie
+    // durée, puis on revient à 0 — le fichier stocké n'est jamais modifié,
+    // seul l'état de LECTURE de cet <audio> est corrigé. S'applique aux
+    // vocaux reçus ET envoyés (les deux passent par le même <audio>), et
+    // n'a aucun effet sur un fichier déjà correctement formé (la branche
+    // `else` retire l'écouteur dès que la durée est un nombre fini).
+    function corrigerDureeAudio(audioEl) {
+        audioEl.addEventListener('durationchange', function onDurationChange() {
+            if (audioEl.duration === Infinity || Number.isNaN(audioEl.duration)) {
+                audioEl.currentTime = 1e101;
+                audioEl.addEventListener('seeked', function onSeeked() {
+                    audioEl.currentTime = 0;
+                    audioEl.removeEventListener('seeked', onSeeked);
+                }, { once: true });
+            } else {
+                audioEl.removeEventListener('durationchange', onDurationChange);
+            }
+        });
+    }
+    function corrigerDureesAudio(container) {
+        if (!container) { return; }
+        container.querySelectorAll('audio').forEach(corrigerDureeAudio);
+    }
+
+    // Insertion commune aux 3 points d'entrée qui ajoutent des bulles de
+    // messages après le chargement initial (envoi, polling, historique
+    // remonté) : n'applique corrigerDureeAudio() qu'aux <audio> RÉELLEMENT
+    // nouveaux (diff avant/après insertion) pour ne jamais rattacher un 2e
+    // écouteur 'durationchange' sur un <audio> déjà présent/déjà corrigé.
+    function inserterMessagesHtml(position, html) {
+        const liste = document.getElementById('chatMessagesListe');
+        const audiosAvant = new Set(liste.querySelectorAll('audio'));
+        liste.insertAdjacentHTML(position, html);
+        liste.querySelectorAll('audio').forEach(function (audioEl) {
+            if (!audiosAvant.has(audioEl)) { corrigerDureeAudio(audioEl); }
+        });
+        dedupliquerSeparateursJour();
+    }
+
     // Accès révoqué en cours de session (ex: élève retiré du groupe pendant
     // qu'il a la conversation ouverte) : on arrête le polling, on désactive
     // la zone de composition (aucun nouvel envoi possible) et on affiche un
@@ -481,6 +547,11 @@
         }
 
         const messagesDiv = document.getElementById('chatMessages');
+        // Contenu initial (chargement complet de la page OU panneau ouvert en
+        // AJAX) : déjà dans le DOM à ce stade, pas besoin de diff avant/après
+        // insertion — corrigerDureesAudio() suffit directement sur tout le
+        // conteneur (voir sa docstring pour le bug corrigé).
+        corrigerDureesAudio(document.getElementById('chatMessagesListe'));
         const pillNouveaux = document.getElementById('chatNouveauxMessages');
         if (pillNouveaux) {
             pillNouveaux.addEventListener('click', function () {
@@ -619,8 +690,7 @@
                 .then(reponseOuErreur)
                 .then(data => {
                     document.getElementById('chatMessagesVide').innerHTML = '';
-                    document.getElementById('chatMessagesListe').insertAdjacentHTML('beforeend', data.html);
-                    dedupliquerSeparateursJour();
+                    inserterMessagesHtml('beforeend', data.html);
                     panel.dataset.dernierId = data.id;
                     texteInput.value = '';
                     texteInput.style.height = 'auto';
@@ -660,8 +730,7 @@
             .then(data => {
                 if (data.nb_messages > 0) {
                     const ancienneHauteur = messagesDiv.scrollHeight;
-                    document.getElementById('chatMessagesListe').insertAdjacentHTML('afterbegin', data.html);
-                    dedupliquerSeparateursJour();
+                    inserterMessagesHtml('afterbegin', data.html);
                     messagesDiv.scrollTop = messagesDiv.scrollHeight - ancienneHauteur;
                     panel.dataset.premierId = data.premier_id;
                 }
@@ -712,8 +781,7 @@
                     const messagesDiv = document.getElementById('chatMessages');
                     const proche = messagesDiv.scrollHeight - messagesDiv.scrollTop - messagesDiv.clientHeight < 120;
                     document.getElementById('chatMessagesVide').innerHTML = '';
-                    document.getElementById('chatMessagesListe').insertAdjacentHTML('beforeend', data.html);
-                    dedupliquerSeparateursJour();
+                    inserterMessagesHtml('beforeend', data.html);
                     panel.dataset.dernierId = data.dernier_id;
                     if (proche) {
                         scrollBas(messagesDiv);

@@ -273,3 +273,33 @@ def valider_piece_jointe(fichier, type_message):
     if fichier.size > TAILLE_MAX_PIECE_JOINTE_OCTETS:
         return f'حجم الملف كبير جداً ({fichier.size // (1024 * 1024)} م.ب). الحد الأقصى 15 م.ب.'
     return None
+
+
+# Content-Type MIME réel à servir pour chaque extension audio autorisée
+# ci-dessus — voir chat.views.chat_fichier pour le bug corrigé (diagnostiqué
+# le 2026-08-17 en interrogeant le VRAI compte Cloudinary du projet, requêtes
+# en lecture seule uniquement) : Cloudinary (et, en local, le module
+# `mimetypes` de Python — vérifié directement dans cet environnement)
+# renvoient TOUS LES DEUX 'video/webm' pour un .webm, jamais 'audio/webm'.
+# Un <audio> à qui le navigateur annonce un Content-Type 'video/*' refuse
+# d'initialiser le moindre lecteur (aucun bouton Play, aucune barre de
+# progression — seule l'icône 🎤 statique du CSS restait visible), pour
+# TOUT vocal, qu'il soit envoyé ou reçu, en local (FileSystemStorage) comme
+# en production (Cloudinary) : les deux stockages devinent le Content-Type
+# depuis l'extension de la même façon erronée. D'où cette table dédiée,
+# jamais déduite d'un module générique de détection MIME.
+CONTENT_TYPES_AUDIO = {
+    '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.m4a': 'audio/mp4',
+    '.ogg': 'audio/ogg', '.oga': 'audio/ogg', '.webm': 'audio/webm',
+    '.aac': 'audio/aac', '.opus': 'audio/opus',
+}
+
+
+def content_type_audio(nom_fichier):
+    """Content-Type à annoncer pour servir CE fichier audio (voir
+    CONTENT_TYPES_AUDIO ci-dessus) — 'audio/webm' par défaut si l'extension
+    est absente de la table (ne devrait jamais arriver pour un fichier ayant
+    déjà passé valider_piece_jointe, mais reste un repli sûr plutôt qu'une
+    exception)."""
+    extension = os.path.splitext(nom_fichier)[1].lower()
+    return CONTENT_TYPES_AUDIO.get(extension, 'audio/webm')

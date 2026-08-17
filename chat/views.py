@@ -1,4 +1,4 @@
-from django.http import HttpResponseForbidden, JsonResponse, HttpResponseBadRequest
+from django.http import HttpResponseForbidden, JsonResponse, HttpResponseBadRequest, FileResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -8,7 +8,7 @@ from accounts.decorators import role_required
 from .models import Conversation, Message
 from .permissions import can_access_conversation, participants_conversation
 from .services import (
-    annoter_separateurs_jour, conversations_avec_apercu, jour_du_message,
+    annoter_separateurs_jour, content_type_audio, conversations_avec_apercu, jour_du_message,
     marquer_comme_lu, purge_opportuniste, valider_piece_jointe,
 )
 
@@ -294,10 +294,27 @@ def chat_fichier(request, groupe_id, message_id):
     """Accès sécurisé à une pièce jointe/audio (Point 23/24/28) : l'URL réelle
     du fichier (Cloudinary en prod, /media/ en dev) n'est JAMAIS imprimée
     directement dans un template chat — seule cette vue, après vérification
-    can_access_conversation, redirige vers le fichier. Un utilisateur sans
-    accès à la conversation ne peut donc pas récupérer le fichier même en
-    devinant/rejouant cette URL (id de message d'une AUTRE conversation ->
-    403, jamais l'URL réelle du fichier)."""
+    can_access_conversation, y donne accès. Un utilisateur sans accès à la
+    conversation ne peut donc pas récupérer le fichier même en devinant/
+    rejouant cette URL (id de message d'une AUTRE conversation -> 403,
+    jamais l'URL réelle du fichier).
+
+    Un vocal (type_message == 'audio') n'est PAS redirigé comme les autres
+    pièces jointes ci-dessous : diagnostiqué le 2026-08-17 (bug remonté
+    "aucun lecteur visible, juste l'icône 🎤 statique") en interrogeant
+    directement le compte Cloudinary réel du projet — Cloudinary comme le
+    module `mimetypes` de Python (vérifié en local) renvoient tous les deux
+    'video/webm' comme Content-Type pour un .webm, jamais 'audio/webm'. Un
+    <audio> à qui le navigateur annonce un Content-Type 'video/*' refuse
+    d'initialiser le moindre lecteur, pour TOUT vocal (envoyé ou reçu), en
+    local comme en production. On relaie donc nous-mêmes le contenu avec le
+    bon Content-Type audio/* (chat.services.content_type_audio, déterminé
+    UNIQUEMENT depuis l'extension, jamais depuis un module de détection
+    générique) plutôt que de rediriger vers l'URL du stockage. Les autres
+    types de pièces jointes (documents, images...) continuent d'être
+    redirigés tels quels : leur Content-Type deviné par le stockage est
+    correct pour ces extensions-là, aucune raison de payer le coût d'un
+    relais supplémentaire."""
     conversation, erreur = _conversation_ou_403(request, groupe_id)
     if erreur:
         return erreur
@@ -305,4 +322,10 @@ def chat_fichier(request, groupe_id, message_id):
     message = get_object_or_404(Message, id=message_id, conversation=conversation)
     if not message.fichier:
         return HttpResponseBadRequest('لا يوجد ملف مرفق بهذه الرسالة.')
+
+    if message.type_message == 'audio':
+        return FileResponse(
+            message.fichier.open('rb'),
+            content_type=content_type_audio(message.fichier.name),
+        )
     return redirect(message.fichier.url)

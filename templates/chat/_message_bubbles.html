@@ -11,7 +11,19 @@
 
         {% if message.type_message == 'audio' %}
         <div class="chat-bubble-audio">
-            <audio controls preload="none" src="{% url 'chat_fichier' groupe_id message.id %}"></audio>
+            {% comment %}
+            Lecteur natif <audio controls> (Tâche du 2026-08-17 "messages
+            vocaux") : play/pause, barre de progression et durée fournis par
+            le navigateur — rejouable indéfiniment, l'URL pointe TOUJOURS vers
+            chat_fichier (jamais l'URL réelle du fichier imprimée dans le
+            template, voir chat.views.chat_fichier) qui redirige vers le
+            storage du projet (Cloudinary en prod / /media/ en dev — reste
+            valide après rechargement de la page, exactement comme les autres
+            pièces jointes). preload="metadata" (pas "none") pour que la durée
+            du message s'affiche immédiatement, sans attendre un premier clic
+            sur play — plus proche du comportement WhatsApp/Messenger.
+            {% endcomment %}
+            <audio controls preload="metadata" src="{% url 'chat_fichier' groupe_id message.id %}"></audio>
         </div>
         {% elif message.type_message == 'fichier' %}
         <a class="chat-bubble-fichier" href="{% url 'chat_fichier' groupe_id message.id %}" target="_blank" rel="noopener">

@@ -562,6 +562,70 @@ class EnvoiMessagesTests(TestCase):
         self.assertEqual(message.type_message, 'audio')
         message.fichier.delete(save=False)
 
+    def test_audio_reste_ecoutable_apres_rechargement_de_la_page(self):
+        """Upload → affichage → relecture (Tâche du 2026-08-17 'messages
+        vocaux') : l'audio envoyé apparaît dans un vrai lecteur <audio> lors
+        d'un rechargement COMPLET de la page (pas seulement dans la réponse
+        AJAX d'envoi), avec une src qui reste valide — jamais l'URL réelle du
+        fichier imprimée directement, toujours via chat_fichier."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        fichier = SimpleUploadedFile('voice.webm', b'\x1a\x45\xdf\xa3contenu-audio-factice', content_type='audio/webm')
+        self.client.post(f'/chat/{self.groupe.id}/envoyer/', {
+            'contenu': '', 'type_message': 'audio', 'fichier': fichier,
+        })
+        message = self.groupe.conversation.messages.first()
+        url_fichier = f'/chat/{self.groupe.id}/fichier/{message.id}/'
+
+        page = self.client.get(f'/chat/{self.groupe.id}/')
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, '<audio')
+        self.assertContains(page, url_fichier)
+        message.fichier.delete(save=False)
+
+    def test_audio_reecoutable_plusieurs_fois(self):
+        """La src d'un message audio n'est PAS une URL à usage unique — chaque
+        GET de chat_fichier renvoie de nouveau le même contenu, encore et
+        encore (comportement natif attendu d'un <audio controls>, proche de
+        WhatsApp/Messenger : on peut réécouter un vocal indéfiniment)."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        fichier = SimpleUploadedFile('voice.webm', b'\x1a\x45\xdf\xa3contenu-audio-factice', content_type='audio/webm')
+        self.client.post(f'/chat/{self.groupe.id}/envoyer/', {
+            'contenu': '', 'type_message': 'audio', 'fichier': fichier,
+        })
+        message = self.groupe.conversation.messages.first()
+        url_fichier = f'/chat/{self.groupe.id}/fichier/{message.id}/'
+
+        premiere_ecoute = self.client.get(url_fichier)
+        deuxieme_ecoute = self.client.get(url_fichier)
+        self.assertEqual(premiere_ecoute.status_code, 200)
+        self.assertEqual(deuxieme_ecoute.status_code, 200)
+        self.assertEqual(b''.join(premiere_ecoute.streaming_content), b''.join(deuxieme_ecoute.streaming_content))
+        message.fichier.delete(save=False)
+
+    def test_audio_content_type_est_audio_pas_video(self):
+        """Bug remonté le 2026-08-17 ("aucun lecteur visible, juste l'icône
+        🎤 statique") : ni Cloudinary ni le module `mimetypes` de Python ne
+        renvoient un Content-Type 'audio/*' pour un .webm (les deux le
+        détectent comme 'video/webm', vérifié en interrogeant le compte
+        Cloudinary réel du projet en lecture seule) — un <audio> à qui le
+        navigateur annonce 'video/*' refuse d'initialiser tout lecteur.
+        chat_fichier doit donc TOUJOURS répondre avec un Content-Type
+        commençant par 'audio/' pour un message audio, jamais rediriger vers
+        l'URL brute du stockage (voir CONTENT_TYPES_AUDIO dans chat.services)."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        fichier = SimpleUploadedFile('voice.webm', b'\x1a\x45\xdf\xa3contenu-audio-factice', content_type='audio/webm')
+        self.client.post(f'/chat/{self.groupe.id}/envoyer/', {
+            'contenu': '', 'type_message': 'audio', 'fichier': fichier,
+        })
+        message = self.groupe.conversation.messages.first()
+        url_fichier = f'/chat/{self.groupe.id}/fichier/{message.id}/'
+
+        reponse = self.client.get(url_fichier)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertTrue(reponse['Content-Type'].startswith('audio/'), reponse['Content-Type'])
+        self.assertEqual(b''.join(reponse.streaming_content), b'\x1a\x45\xdf\xa3contenu-audio-factice')
+        message.fichier.delete(save=False)
+
 
 class NotificationsNonLusTests(TestCase):
     def setUp(self):
