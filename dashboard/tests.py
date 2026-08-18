@@ -1011,8 +1011,8 @@ class RefusConfirmeOrdreLogiqueTests(TestCase):
 
         html = self.client.get(reverse('refus_confirme')).content.decode('utf-8')
         self.assertIn('wa.me/212699887766', html)  # bouton vers la personne
-        # Pas de sens à "مراسلة المدير" ici : c'est مدير lui-même qui a rejeté.
-        self.assertNotIn('تواصل مع المدير', html)
+        # Pas de sens à "مراسلة الإدارة" ici : c'est الإدارة elle-même qui a rejeté.
+        self.assertNotIn('تواصل مع الإدارة', html)
 
     def test_confirmation_refus_prof_etape1_redirige_avec_whatsapp_sans_bouton_directeur(self):
         self.client.force_login(self.admin)
@@ -1024,11 +1024,11 @@ class RefusConfirmeOrdreLogiqueTests(TestCase):
         self.assertRedirects(response, reverse('refus_confirme'), fetch_redirect_response=False)
         html = self.client.get(reverse('refus_confirme')).content.decode('utf-8')
         self.assertIn('wa.me/212688776655', html)
-        self.assertNotIn('تواصل مع المدير', html)
+        self.assertNotIn('تواصل مع الإدارة', html)
 
     def test_confirmation_refus_prof_etape2_redirige_avec_whatsapp_et_bouton_directeur(self):
         """Ici مشرف rejette et مدير est bien une personne différente — le
-        bouton 'تواصل مع المدير' garde tout son sens (contrairement aux 2
+        bouton 'تواصل مع الإدارة' garde tout son sens (contrairement aux 2
         écrans où c'est مدير qui agit sur lui-même)."""
         self.admin.telephone = '0611223344'
         self.admin.save()
@@ -1043,7 +1043,7 @@ class RefusConfirmeOrdreLogiqueTests(TestCase):
         self.assertRedirects(response, reverse('refus_confirme'), fetch_redirect_response=False)
         html = self.client.get(reverse('refus_confirme')).content.decode('utf-8')
         self.assertIn('wa.me/212677665544', html)  # la personne
-        self.assertIn('تواصل مع المدير', html)
+        self.assertIn('تواصل مع الإدارة', html)
         self.assertIn('wa.me/212611223344', html)  # le مدير
 
     def test_motif_affiche_sur_refus_confirme_est_relu_depuis_la_base(self):
@@ -1125,7 +1125,7 @@ class ContactAdminFixeUnSeulResultatTests(TestCase):
     """Bug confirmé en test manuel (2026-08-14) : plusieurs comptes
     role='admin' en base (dont des résidus de test jamais nettoyés, ex.
     'TEST_Admin Manuel') faisaient afficher plusieurs boutons "تواصل مع
-    المدير" superposés et incohérents sur les écrans post-action
+    الإدارة" superposés et incohérents sur les écrans post-action
     (confirmation_creation_compte, réinitialisation mot de passe). Cause :
     ces 2 écrans construisaient 'admins' avec
     User.objects.filter(role='admin').exclude(...) — TOUS les comptes admin
@@ -1174,8 +1174,8 @@ class ContactAdminFixeUnSeulResultatTests(TestCase):
         """Reproduction du bug rapporté : avec PLUSIEURS comptes admin en
         base (dont un sans téléphone, dont un qui aurait été un résidu de
         test), l'écran affiché après validation finale d'un prof par مشرف
-        n'affiche qu'UN SEUL bloc "تواصل مع المدير" — pas un par compte
-        admin trouvé. Marqueur 'تواصل مع المدير<br>' : texte exact du label
+        n'affiche qu'UN SEUL bloc "تواصل مع الإدارة" — pas un par compte
+        admin trouvé. Marqueur 'تواصل مع الإدارة<br>' : texte exact du label
         du bouton (WhatsApp ou repli mailto) dans _contacts_whatsapp.html —
         distinct de la phrase d'aide en prose plus bas sur la même page qui
         contient aussi ces mots mais jamais suivis de <br>."""
@@ -1197,7 +1197,7 @@ class ContactAdminFixeUnSeulResultatTests(TestCase):
         self.client.force_login(mshrif)
         response = self.client.get(reverse('mshrif_valider_prof_final', args=[inscription.id]), follow=True)
         html = response.content.decode('utf-8')
-        self.assertEqual(html.count('تواصل مع المدير<br>'), 1)
+        self.assertEqual(html.count('تواصل مع الإدارة<br>'), 1)
 
 
 @override_settings(STORAGES=_STORAGES_TEST)

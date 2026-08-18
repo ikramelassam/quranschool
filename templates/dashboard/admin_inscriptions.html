@@ -8,13 +8,21 @@
 
 <form method="GET" style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
-        <div class="col-md-4">
+        <div class="col-md-5">
+            <label style="color:#888; font-size:0.8rem;">بحث بالاسم أو البريد الإلكتروني</label>
+            <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="اكتب الاسم أو البريد الإلكتروني...">
+        </div>
+        <div class="col-md-3">
             <label style="color:#888; font-size:0.8rem;">نوع الطلب</label>
-            <select name="type" class="form-select" onchange="this.form.submit()">
+            <select name="type" class="form-select">
                 <option value="" {% if not type_filtre %}selected{% endif %}>الكل</option>
                 <option value="eleve" {% if type_filtre == 'eleve' %}selected{% endif %}>طلاب</option>
                 <option value="prof" {% if type_filtre == 'prof' %}selected{% endif %}>معلمون</option>
             </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">بحث</button>
+            <a href="{% url 'admin_inscriptions' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
         </div>
     </div>
 </form>

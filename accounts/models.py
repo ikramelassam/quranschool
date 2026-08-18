@@ -9,7 +9,7 @@ class User(AbstractUser):
         ('eleve', 'طالب'),
         ('prof', 'معلم'),
         ('superviseur', 'مؤطر'),
-        ('admin', 'مدير'),
+        ('admin', 'الإدارة'),
         ('mshrif', 'المشرف'),
     ]
     telephone = models.CharField(max_length=20, blank=True)

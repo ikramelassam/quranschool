@@ -1663,19 +1663,31 @@ def admin_inscriptions(request):
     et triés par date de soumission — chaque ligne porte son propre type
     (voir type_demande, posé dynamiquement ici, pas un champ du modèle)
     pour que le template sache quel badge et quelles actions afficher."""
+    from django.db.models import Q
     from inscriptions.models import InscriptionProf
 
     type_filtre = request.GET.get('type', '')
+    q = request.GET.get('q', '').strip()
 
     eleves = []
     if type_filtre != 'prof':
-        eleves = list(InscriptionEleve.objects.filter(statut='en_attente').order_by('-date_soumission'))
+        eleves_qs = InscriptionEleve.objects.filter(statut='en_attente')
+        if q:
+            eleves_qs = eleves_qs.filter(
+                Q(nom__icontains=q) | Q(prenom__icontains=q) | Q(email__icontains=q)
+            )
+        eleves = list(eleves_qs.order_by('-date_soumission'))
         for e in eleves:
             e.type_demande = 'eleve'
 
     profs = []
     if type_filtre != 'eleve':
-        profs = list(InscriptionProf.objects.filter(statut='en_attente').order_by('-date_soumission'))
+        profs_qs = InscriptionProf.objects.filter(statut='en_attente')
+        if q:
+            profs_qs = profs_qs.filter(
+                Q(nom__icontains=q) | Q(prenom__icontains=q) | Q(email__icontains=q)
+            )
+        profs = list(profs_qs.order_by('-date_soumission'))
         for p in profs:
             p.type_demande = 'prof'
 
@@ -1684,6 +1696,7 @@ def admin_inscriptions(request):
     context = {
         'inscriptions': paginer(request, inscriptions, 10),
         'type_filtre': type_filtre,
+        'q': q,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))

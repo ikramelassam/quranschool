@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-title">الأوقات المتاحة لتدريس {{ prof.user.get_full_name }}</div>
 <div class="page-subtitle">
-    {% if not peut_modifier %}عرض للاطلاع فقط — التعديل من صلاحية المدير فقط
+    {% if not peut_modifier %}عرض للاطلاع فقط — التعديل من صلاحية الإدارة فقط
     {% elif mode_edition %}وضع التعديل — التغييرات تسري فوراً بعد الحفظ
     {% else %}عرض فقط — اضغط "تعديل" لتغيير الجدول
     {% endif %}

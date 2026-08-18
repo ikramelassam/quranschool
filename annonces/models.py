@@ -24,7 +24,7 @@ class Annonce(models.Model):
     CIBLE_CHOICES = [
         ('femmes_adultes', 'الطالبات البالغات'),
         ('hommes_adultes', 'الطلاب البالغون'),
-        ('mineurs', 'الطلاب القاصرون'),
+        ('mineurs', 'الأطفال'),
     ]
 
     TYPE_FICHIER_CHOICES = [

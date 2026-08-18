@@ -17,7 +17,7 @@ from .models import Annonce, LectureAnnonce
 CANAUX = [
     {'code': 'femmes_adultes', 'nom': 'النساء', 'description': 'قناة تبليغ للطالبات البالغات'},
     {'code': 'hommes_adultes', 'nom': 'الرجال', 'description': 'قناة تبليغ للطلاب البالغين'},
-    {'code': 'mineurs', 'nom': 'القاصرون', 'description': 'قناة تبليغ للطلاب دون 18 سنة'},
+    {'code': 'mineurs', 'nom': 'الأطفال', 'description': 'قناة تبليغ للطلاب دون 18 سنة'},
 ]
 CANAUX_PAR_CODE = {c['code']: c for c in CANAUX}
 

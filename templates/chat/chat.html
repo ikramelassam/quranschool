@@ -467,10 +467,30 @@
     // remonté) : n'applique corrigerDureeAudio() qu'aux <audio> RÉELLEMENT
     // nouveaux (diff avant/après insertion) pour ne jamais rattacher un 2e
     // écouteur 'durationchange' sur un <audio> déjà présent/déjà corrigé.
+    //
+    // Dédoublonnage par data-message-id (correctif bug "message affiché en
+    // double à l'envoi") : la confirmation d'envoi (submit du composer) ET
+    // le poll() suivant peuvent tous les deux renvoyer le MÊME message déjà
+    // committé en base — ex: un poll() parti juste avant l'envoi est encore
+    // en vol quand la réponse d'envoi arrive et insère déjà la bulle ; le
+    // poll() revient ensuite avec ce même message (son id est bien après
+    // l'ancien dernierId capturé au départ de cette requête) et le
+    // réinsère. Aucune des données ne diffère (même ligne en base), donc on
+    // ignore silencieusement tout .chat-row dont l'id est déjà présent dans
+    // #chatMessagesListe plutôt que de dédupliquer après coup dans le DOM.
     function inserterMessagesHtml(position, html) {
         const liste = document.getElementById('chatMessagesListe');
+        const idsExistants = new Set(
+            Array.from(liste.querySelectorAll('.chat-row[data-message-id]'), function (el) { return el.dataset.messageId; })
+        );
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        temp.querySelectorAll('.chat-row[data-message-id]').forEach(function (row) {
+            if (idsExistants.has(row.dataset.messageId)) { row.remove(); }
+        });
+
         const audiosAvant = new Set(liste.querySelectorAll('audio'));
-        liste.insertAdjacentHTML(position, html);
+        liste.insertAdjacentHTML(position, temp.innerHTML);
         liste.querySelectorAll('audio').forEach(function (audioEl) {
             if (!audiosAvant.has(audioEl)) { corrigerDureeAudio(audioEl); }
         });

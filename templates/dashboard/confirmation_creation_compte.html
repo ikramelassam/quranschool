@@ -27,7 +27,7 @@ et sa note du 2026-08-14 sur le retrait du {% block recherche_globale %}).
 
 {% include 'dashboard/_contacts_whatsapp.html' with telephone_personne=info.telephone libelle_personne=libelle_personne_contact texte_absence_personne=texte_absence_personne message=message_pret_a_envoyer admins=admins %}
 {% if info.type_compte == 'prof' %}
-<div style="color:#999; font-size:0.78rem; margin-top:-12px; margin-bottom:20px;">💡 إذا فضّلت تمرير المعلومات للمدير بدل التواصل المباشر مع المعلم، استخدم زر "تواصل مع المدير" أعلاه — الرسالة نفسها جاهزة للإرسال.</div>
+<div style="color:#999; font-size:0.78rem; margin-top:-12px; margin-bottom:20px;">💡 إذا فضّلت تمرير المعلومات للإدارة بدل التواصل المباشر مع المعلم، استخدم زر "تواصل مع الإدارة" أعلاه — الرسالة نفسها جاهزة للإرسال.</div>
 {% endif %}
 
 <a href="{% url info.redirect_url_name %}" style="color:var(--color-brand-gold-dark); text-decoration:none; font-weight:600;">← رجوع لقائمة الطلبات</a>
