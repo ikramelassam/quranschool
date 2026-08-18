@@ -10,6 +10,12 @@
         {% csrf_token %}
 
         <div class="mb-3">
+            <label style="font-weight:600; color:#333;">اسم الحلقة (اختياري)</label>
+            <input type="text" name="nom" class="form-control mt-1" maxlength="100" value="{{ creneau.nom }}" placeholder="مثال: حلقة الأطفال - الصباح">
+            <div style="color:#888; font-size:0.78rem; margin-top:4px;">إن تُرك فارغاً، تُعرض الحلقة بيومها وتوقيتها كالمعتاد.</div>
+        </div>
+
+        <div class="mb-3">
             <label style="font-weight:600; color:#333;">الجنس المستهدف *</label>
             <select name="sexe_cible" class="form-select mt-1" required>
                 <option value="mixte" {% if creneau.sexe_cible == 'mixte' %}selected{% endif %}>مختلط</option>

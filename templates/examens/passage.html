@@ -133,6 +133,68 @@
                 {% endif %}
             </div>
             {% endwith %}
+
+        {% elif question.type_question == 'video' %}
+            {% comment %}
+            Tâche du 2026-08-18 : même patron que 'audio' ci-dessus (enregistrement
+            direct + repli sur sélection de fichier), adapté à la vidéo.
+            {% endcomment %}
+            {% with r=reponses|get_item:question.id %}
+            <div id="video-wrapper-{{ question.id }}">
+                {% if r.reponse_video %}
+                <video controls style="width:100%; max-width:420px; border-radius:8px; margin-bottom:8px;">
+                    <source src="{% url 'examens_reponse_video' r.id %}">
+                </video>
+                <div>
+                    <button type="button" onclick="supprimerVideo({{ question.id }})"
+                            style="background:#fce4e4; color:#b71c1c; border:none; border-radius:8px; padding:8px 16px; font-size:0.85rem;">🗑 حذف الفيديو</button>
+                </div>
+                {% else %}
+                <div id="video-boutons-{{ question.id }}" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <button type="button" onclick="demarrerEnregistrementVideo({{ question.id }})"
+                            style="background:#2d5a1b; color:white; border:none; border-radius:20px; padding:9px 20px; font-size:0.9rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                        📹 تسجيل فيديو
+                    </button>
+                    <span style="color:#bbb; font-size:0.8rem;">أو</span>
+                    <button type="button" onclick="document.getElementById('video-input-{{ question.id }}').click()"
+                            style="background:#f0f0f0; color:#555; border:1px solid #ddd; border-radius:20px; padding:9px 18px; font-size:0.85rem; cursor:pointer;">
+                        📎 اختيار ملف
+                    </button>
+                    <input type="file" accept="video/*" capture="user" id="video-input-{{ question.id }}"
+                           onchange="autosaveVideo({{ question.id }})" hidden>
+                </div>
+
+                <div id="video-enregistrement-{{ question.id }}" hidden style="margin-top:8px;">
+                    <video id="video-apercu-direct-{{ question.id }}" autoplay muted playsinline
+                           style="width:100%; max-width:420px; border-radius:8px; background:#000;"></video>
+                    <div style="display:flex; align-items:center; gap:10px; background:#fce9e7; color:#b71c1c; border-radius:10px; padding:10px 16px; font-size:0.86rem; font-weight:600; margin-top:8px;">
+                        <span class="examen-point-rec" aria-hidden="true"
+                              style="width:9px; height:9px; border-radius:50%; background:#b71c1c; flex-shrink:0;"></span>
+                        <span>جارٍ التسجيل… <span id="video-duree-{{ question.id }}">00:00</span></span>
+                        <span style="margin-inline-start:auto; display:flex; gap:8px;">
+                            <button type="button" onclick="arreterEnregistrementVideo({{ question.id }})"
+                                    style="border:none; background:white; color:#b71c1c; border-radius:16px; padding:5px 14px; font-size:0.8rem; cursor:pointer;">⏹ إيقاف</button>
+                            <button type="button" onclick="annulerEnregistrementVideo({{ question.id }})"
+                                    style="border:none; background:transparent; color:#b71c1c; border-radius:16px; padding:5px 10px; font-size:0.8rem; cursor:pointer;">✕ إلغاء</button>
+                        </span>
+                    </div>
+                </div>
+
+                <div id="video-apercu-{{ question.id }}" hidden
+                     style="background:#f9f7f2; border-radius:10px; padding:14px 16px; margin-top:8px;">
+                    <video controls id="video-apercu-player-{{ question.id }}" style="width:100%; max-width:420px; border-radius:8px; margin-bottom:10px;"></video>
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" onclick="confirmerEnregistrementVideo({{ question.id }})"
+                                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">✓ حفظ الفيديو</button>
+                        <button type="button" onclick="reenregistrerVideo({{ question.id }})"
+                                style="background:#f0f0f0; color:#555; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; cursor:pointer;">↺ إعادة التسجيل</button>
+                    </div>
+                </div>
+
+                <div style="color:#aaa; font-size:0.78rem; margin-top:6px;">يمكنك التسجيل مباشرة من كاميرا هاتفك أو اختيار ملف فيديو (الحد الأقصى 40 م.ب).</div>
+                {% endif %}
+            </div>
+            {% endwith %}
         {% endif %}
     </div>
     {% endfor %}
@@ -352,6 +414,119 @@ function confirmerEnregistrementAudio(questionId) {
     if (!fichier) { return; }
     const corps = new FormData();
     corps.append('reponse_audio', fichier);
+    envoyerAutosave(questionId, corps).then(function (succes) {
+        if (succes) { window.location.reload(); }
+    });
+}
+
+// ---------------------------------------------------------------------
+// Réponse vidéo (Tâche du 2026-08-18) — même mécanique/mêmes conventions de
+// nommage que la section audio ci-dessus, adaptée à la vidéo : flux caméra
+// affiché en direct pendant l'enregistrement (video-apercu-direct-<id>),
+// blob final relu dans video-apercu-player-<id> avant confirmation.
+// ---------------------------------------------------------------------
+const enregistreursVideoExamens = {};
+const segmentsVideoExamens = {};
+const minuteursVideoExamens = {};
+const annulationEnCoursVideoExamens = {};
+const fichiersEnAttenteVideoExamens = {};
+const streamsVideoExamens = {};
+
+function autosaveVideo(questionId) {
+    const input = document.getElementById('video-input-' + questionId);
+    if (!input.files.length) return;
+    const corps = new FormData();
+    corps.append('reponse_video', input.files[0]);
+    envoyerAutosave(questionId, corps).then(function (succes) {
+        if (succes) { window.location.reload(); }
+    });
+}
+
+function supprimerVideo(questionId) {
+    if (!confirm('حذف الفيديو الحالي؟')) return;
+    const corps = new FormData();
+    corps.append('supprimer', '1');
+    envoyerAutosave(questionId, corps).then(function (succes) {
+        if (succes) { window.location.reload(); }
+    });
+}
+
+function demarrerEnregistrementVideo(questionId) {
+    if (!(navigator.mediaDevices && window.MediaRecorder)) {
+        document.getElementById('video-input-' + questionId).click();
+        return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(function (stream) {
+        segmentsVideoExamens[questionId] = [];
+        annulationEnCoursVideoExamens[questionId] = false;
+        streamsVideoExamens[questionId] = stream;
+        const enregistreur = new MediaRecorder(stream);
+        enregistreursVideoExamens[questionId] = enregistreur;
+
+        const previewDirect = document.getElementById('video-apercu-direct-' + questionId);
+        previewDirect.srcObject = stream;
+
+        enregistreur.addEventListener('dataavailable', function (e) { segmentsVideoExamens[questionId].push(e.data); });
+        enregistreur.addEventListener('stop', function () {
+            stream.getTracks().forEach(function (t) { t.stop(); });
+            previewDirect.srcObject = null;
+            if (annulationEnCoursVideoExamens[questionId]) {
+                annulationEnCoursVideoExamens[questionId] = false;
+                return;  // Annulé par l'élève : rien à afficher, pas de blob conservé.
+            }
+            const blob = new Blob(segmentsVideoExamens[questionId], { type: 'video/webm' });
+            const fichier = new File([blob], `video-${questionId}-${Date.now()}.webm`, { type: 'video/webm' });
+            fichiersEnAttenteVideoExamens[questionId] = fichier;
+            const player = document.getElementById('video-apercu-player-' + questionId);
+            player.src = URL.createObjectURL(fichier);
+            document.getElementById('video-apercu-' + questionId).hidden = false;
+        });
+
+        enregistreur.start();
+        document.getElementById('video-boutons-' + questionId).hidden = true;
+        document.getElementById('video-enregistrement-' + questionId).hidden = false;
+        let secondes = 0;
+        const dureeSpan = document.getElementById('video-duree-' + questionId);
+        dureeSpan.textContent = '00:00';
+        minuteursVideoExamens[questionId] = setInterval(function () {
+            secondes += 1;
+            const m = String(Math.floor(secondes / 60)).padStart(2, '0');
+            const s = String(secondes % 60).padStart(2, '0');
+            dureeSpan.textContent = `${m}:${s}`;
+        }, 1000);
+    }).catch(function () {
+        // Permission caméra refusée/indisponible : repli sur le sélecteur de fichier.
+        document.getElementById('video-input-' + questionId).click();
+    });
+}
+
+function arreterEnregistrementVideo(questionId) {
+    const enregistreur = enregistreursVideoExamens[questionId];
+    if (enregistreur && enregistreur.state !== 'inactive') { enregistreur.stop(); }
+    clearInterval(minuteursVideoExamens[questionId]);
+    document.getElementById('video-enregistrement-' + questionId).hidden = true;
+}
+
+function annulerEnregistrementVideo(questionId) {
+    annulationEnCoursVideoExamens[questionId] = true;
+    const enregistreur = enregistreursVideoExamens[questionId];
+    if (enregistreur && enregistreur.state !== 'inactive') { enregistreur.stop(); }
+    clearInterval(minuteursVideoExamens[questionId]);
+    document.getElementById('video-enregistrement-' + questionId).hidden = true;
+    document.getElementById('video-boutons-' + questionId).hidden = false;
+}
+
+function reenregistrerVideo(questionId) {
+    fichiersEnAttenteVideoExamens[questionId] = null;
+    document.getElementById('video-apercu-' + questionId).hidden = true;
+    document.getElementById('video-boutons-' + questionId).hidden = false;
+}
+
+function confirmerEnregistrementVideo(questionId) {
+    const fichier = fichiersEnAttenteVideoExamens[questionId];
+    if (!fichier) { return; }
+    const corps = new FormData();
+    corps.append('reponse_video', fichier);
     envoyerAutosave(questionId, corps).then(function (succes) {
         if (succes) { window.location.reload(); }
     });

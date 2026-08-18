@@ -234,6 +234,8 @@
         {% endif %}
     </div>
 
+    {% include 'dashboard/_carnet_notes_personnelles.html' with profil_user=prof.user notes_personnelles=notes_personnelles id_suffix='_prof' %}
+
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">💰 المستحقات الشهرية (حسب شبكة التعرفات)</div>
     {% if remuneration.detail %}
         {% for ligne in remuneration.detail %}
@@ -275,7 +277,7 @@
             <span style="font-weight:700; color:var(--color-role-mshrif-solid);">{{ prof.majoration_mensuelle|default_if_none:"—" }}{% if prof.majoration_mensuelle %} د.م.{% endif %}</span>
         </div>
         <div style="color:#888; font-size:0.78rem; margin-top:6px;">
-            {% if prof.statut == 'archive' %}الأستاذ مؤرشف — لا يمكن تعديل هذا الحقل حالياً.{% else %}للاطلاع فقط — يُعدَّلها المدير من هذه الصفحة.{% endif %}
+            {% if prof.statut == 'archive' %}الأستاذ مؤرشف — لا يمكن تعديل هذا الحقل حالياً.{% else %}للاطلاع فقط — تعدّلها الإدارة من هذه الصفحة.{% endif %}
         </div>
         {% else %}
         <form method="POST" action="{% url 'admin_prof_majoration_modifier' prof.id %}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">

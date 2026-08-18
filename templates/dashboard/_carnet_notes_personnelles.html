@@ -1,0 +1,67 @@
+{% comment %}
+Carnet de notes personnelles (Tâche du 2026-08-18) — historique horodaté de
+notes qu'UN SEUL admin/مشرف (request.user) tient sur le profil consulté.
+STRICTEMENT PRIVÉ à son auteur : `notes_personnelles` fourni par la vue est
+déjà filtré sur auteur=request.user (voir accounts.models.NotePersonnelle.
+__doc__) — ce partial n'a donc jamais à filtrer lui-même, ni à se soucier des
+notes des AUTRES مدير/مشرف ayant accès à ce même profil, qui ne sont jamais
+transmises ici. Système INDÉPENDANT de tout champ existant (ex: Prof.notes_admin).
+
+Usage : {% include 'dashboard/_carnet_notes_personnelles.html' with profil_user=eleve.user notes_personnelles=notes_personnelles id_suffix='eleve' %}
+id_suffix : à fournir si ce partial est inclus plusieurs fois sur la même page
+(évite une collision d'ID/fonction JS) ; vide sinon.
+{% endcomment %}
+<div style="background:white; border-radius:16px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px; max-width:700px;">
+    <div style="font-weight:700; color:var(--color-text-primary); margin-bottom:4px;">📓 ملاحظاتي الخاصة</div>
+    <div style="color:#aaa; font-size:0.78rem; margin-bottom:14px;">لا يراها إلا أنت — لا تظهر لأي مدير/مشرف آخر.</div>
+
+    {% for note in notes_personnelles %}
+    <div style="border-bottom:1px solid #f0f0f0; padding:12px 0;">
+        <div id="note_affichage_{{ note.id }}{{ id_suffix }}">
+            <div style="white-space:pre-wrap; color:#333; font-size:0.9rem;">{{ note.contenu }}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+                <span style="color:#aaa; font-size:0.75rem;">
+                    {{ note.date_creation|date:"d-m-Y H:i" }}
+                    {% if note.date_modification|date:"YmdHi" != note.date_creation|date:"YmdHi" %} — عُدّلت {{ note.date_modification|date:"d-m-Y H:i" }}{% endif %}
+                </span>
+                <span style="display:flex; gap:10px;">
+                    <span onclick="toggleEditionNote{{ id_suffix }}({{ note.id }})" style="cursor:pointer; color:var(--color-brand-gold-dark); font-size:0.78rem;">✏️ تعديل</span>
+                    <form method="POST" action="{% url 'supprimer_note_personnelle' note.id %}" style="display:inline;"
+                          onsubmit="return confirm('حذف هذه الملاحظة نهائياً؟');">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        <button type="submit" style="background:none; border:none; color:var(--color-danger); font-size:0.78rem; cursor:pointer; padding:0;">🗑 حذف</button>
+                    </form>
+                </span>
+            </div>
+        </div>
+        <form id="note_edition_{{ note.id }}{{ id_suffix }}" method="POST" action="{% url 'modifier_note_personnelle' note.id %}" hidden>
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <textarea name="contenu" class="form-control" rows="2" required>{{ note.contenu }}</textarea>
+            <div style="display:flex; gap:8px; margin-top:6px;">
+                <button type="submit" style="background:var(--color-brand-gold-dark); color:white; border:none; border-radius:8px; padding:4px 14px; font-size:0.8rem; cursor:pointer;">حفظ</button>
+                <span onclick="toggleEditionNote{{ id_suffix }}({{ note.id }})" style="color:#888; font-size:0.8rem; cursor:pointer; padding:4px 6px;">إلغاء</span>
+            </div>
+        </form>
+    </div>
+    {% empty %}
+    <div style="color:#bbb; font-size:0.85rem; padding:8px 0;">لم تكتب أي ملاحظة على هذا الملف الشخصي بعد.</div>
+    {% endfor %}
+
+    <form method="POST" action="{% url 'ajouter_note_personnelle' profil_user.id %}" style="margin-top:14px;">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <textarea name="contenu" class="form-control" rows="2" placeholder="أضف ملاحظة جديدة..." required></textarea>
+        <button type="submit" style="margin-top:8px; background:var(--color-brand-gold-dark); color:white; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; cursor:pointer;">إضافة ملاحظة ✚</button>
+    </form>
+</div>
+<script>
+    function toggleEditionNote{{ id_suffix }}(noteId) {
+        const affichage = document.getElementById('note_affichage_' + noteId + '{{ id_suffix }}');
+        const edition = document.getElementById('note_edition_' + noteId + '{{ id_suffix }}');
+        const enEdition = !edition.hidden;
+        edition.hidden = enEdition;
+        affichage.hidden = !enEdition;
+    }
+</script>

@@ -15,6 +15,7 @@ urlpatterns = [
     path('eleve/profil/', views.eleve_profil, name='eleve_profil'),
     path('eleve/profs/<int:prof_id>/', views.eleve_prof_detail, name='eleve_prof_detail'),
     path('eleve/progression/', views.eleve_progression, name='eleve_progression'),
+    path('eleve/cartable/', views.eleve_cartable, name='eleve_cartable'),
 
     # Prof
     path('prof/groupes/', views.prof_groupes, name='prof_groupes'),
@@ -72,6 +73,8 @@ urlpatterns = [
     path('admin/eleves/<int:eleve_id>/reactiver/', views.admin_eleve_reactiver, name='admin_eleve_reactiver'),
     path('admin/eleves/<int:eleve_id>/archiver/', views.admin_eleve_archiver, name='admin_eleve_archiver'),
     path('admin/eleves/<int:eleve_id>/supprimer-definitivement/', views.eleve_supprimer_definitivement, name='eleve_supprimer_definitivement'),
+    path('admin/eleves/<int:eleve_id>/cartable/ajouter/', views.admin_eleve_cartable_ajouter, name='admin_eleve_cartable_ajouter'),
+    path('admin/cartable/<int:document_id>/supprimer/', views.admin_eleve_cartable_supprimer, name='admin_eleve_cartable_supprimer'),
     path('admin/profs/', views.admin_profs, name='admin_profs'),
     path('admin/profs/<int:prof_id>/', views.admin_prof_detail, name='admin_prof_detail'),
     path('admin/profs/<int:prof_id>/infos-complementaires/', views.admin_prof_infos_complementaires_modifier, name='admin_prof_infos_complementaires_modifier'),
@@ -154,4 +157,9 @@ urlpatterns = [
 
     # Recherche globale (مدير/مشرف) — Chantier du 2026-08-14
     path('api/recherche-globale/', views.api_recherche_globale, name='api_recherche_globale'),
+
+    # Carnet de notes personnelles (مدير/مشرف) — Tâche du 2026-08-18
+    path('admin/utilisateurs/<int:user_id>/notes/ajouter/', views.ajouter_note_personnelle, name='ajouter_note_personnelle'),
+    path('admin/notes/<int:note_id>/modifier/', views.modifier_note_personnelle, name='modifier_note_personnelle'),
+    path('admin/notes/<int:note_id>/supprimer/', views.supprimer_note_personnelle, name='supprimer_note_personnelle'),
 ]

@@ -40,6 +40,12 @@
             {% else %}
             <div style="color:#aaa;">لم تُرفق تسجيلاً صوتياً.</div>
             {% endif %}
+        {% elif reponse.question.type_question == 'video' %}
+            {% if reponse.reponse_video %}
+            <video controls style="width:100%; max-width:360px; border-radius:8px;"><source src="{% url 'examens_reponse_video' reponse.id %}"></video>
+            {% else %}
+            <div style="color:#aaa;">لم تُرفق فيديو.</div>
+            {% endif %}
         {% endif %}
 
         {% if reponse.statut_correction != 'a_corriger' %}

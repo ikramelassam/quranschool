@@ -17,8 +17,10 @@ canal_detail.html — affiche le bouton إخفاء/إظهار. Jamais sur la pag
     </div>
 
     {% if peut_gerer and annonce.cree_par %}
-    {# Identité du membre du staff qui a publié — visible مدير/مشرف SEULEMENT
-       (jamais côté élève) : ce n'est pas un abonné, voir Point C5. #}
+    {% comment %}
+    Identité du membre du staff qui a publié — visible مدير/مشرف SEULEMENT
+    (jamais côté élève) : ce n'est pas un abonné, voir Point C5.
+    {% endcomment %}
     <div class="pub-auteur">بواسطة {{ annonce.cree_par.get_full_name }}</div>
     {% endif %}
 

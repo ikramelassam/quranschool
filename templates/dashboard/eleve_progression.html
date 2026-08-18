@@ -36,7 +36,14 @@
     <div style="padding:14px 0; {% if not forloop.last or progression.historique|length > 10 %}border-bottom:1px solid #f5f0e6;{% endif %}">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
             <div>
-                {% if h.sourate %}<div style="font-weight:600;">{{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})</div>{% endif %}
+                {% if h.sourate %}
+                <div style="font-weight:600;">
+                    {{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})
+                    {% if h.resultat_memorisation == 'a_refaire' %}
+                    <span style="background:#fdecea; color:#b71c1c; border-radius:20px; padding:1px 8px; font-size:0.72rem; font-weight:600; margin-inline-start:4px;">🔁 يعاد</span>
+                    {% endif %}
+                </div>
+                {% endif %}
                 <div style="color:#888; font-size:0.82rem;">{{ h.date }} — {{ h.groupe }}</div>
             </div>
             <div style="text-align:left;">
@@ -69,7 +76,14 @@
         <div style="padding:14px 0; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %}">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                 <div>
-                    {% if h.sourate %}<div style="font-weight:600;">{{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})</div>{% endif %}
+                    {% if h.sourate %}
+                <div style="font-weight:600;">
+                    {{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})
+                    {% if h.resultat_memorisation == 'a_refaire' %}
+                    <span style="background:#fdecea; color:#b71c1c; border-radius:20px; padding:1px 8px; font-size:0.72rem; font-weight:600; margin-inline-start:4px;">🔁 يعاد</span>
+                    {% endif %}
+                </div>
+                {% endif %}
                     <div style="color:#888; font-size:0.82rem;">{{ h.date }} — {{ h.groupe }}</div>
                 </div>
                 <div style="text-align:left;">

@@ -17,6 +17,12 @@
 </div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end mb-2">
+        <div class="col-md-6">
+            <label style="color:#888; font-size:0.8rem;">بحث باسم الحلقة</label>
+            <input type="text" name="q" class="form-control" value="{{ filtres.q }}" placeholder="اكتب اسم الحلقة...">
+        </div>
+    </div>
     <div class="row g-3 align-items-end">
         <div class="col-md-3">
             <label style="color:#888; font-size:0.8rem;">الفئة المستهدفة</label>
@@ -130,7 +136,7 @@
 </div>
 {% else %}
 <div style="text-align:center; padding:60px; color:#aaa;">
-    {% if filtres.sexe_cible or filtres.actif or filtres.type_seance or filtres.riwaya %}
+    {% if filtres.q or filtres.sexe_cible or filtres.actif or filtres.type_seance or filtres.riwaya %}
     لا توجد حلقات مطابقة لهذه التصفية
     {% else %}
     لا توجد حلقات بعد — أضف حلقة جديدة !

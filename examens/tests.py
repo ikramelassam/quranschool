@@ -16,7 +16,7 @@ from .permissions import (
 from .services import (
     corriger_automatiquement, recalculer_note_totale, soumettre_copie,
     enregistrer_correction_manuelle, motif_non_publiable, valider_fichier_audio,
-    demarrer_ou_recuperer_copie, finaliser_si_expiree,
+    valider_fichier_video, demarrer_ou_recuperer_copie, finaliser_si_expiree,
 )
 
 MOT_DE_PASSE = 'xX!test12345'
@@ -116,6 +116,12 @@ def _ajouter_question_texte(examen, ordre=3, points=3):
 def _ajouter_question_audio(examen, ordre=4, points=3):
     return Question.objects.create(
         examen=examen, type_question='audio', enonce=f'سؤال {ordre}', ordre=ordre, points=points,
+    )
+
+
+def _ajouter_question_video(examen, ordre=5, points=3):
+    return Question.objects.create(
+        examen=examen, type_question='video', enonce=f'سؤال {ordre}', ordre=ordre, points=points,
     )
 
 
@@ -1291,3 +1297,164 @@ class RenduSidebarSansRegressionTests(TestCase):
         r = client.get(reverse('dashboard_mshrif'))
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'الاختبارات')
+
+
+# ============================================================================
+# Tâche du 2026-08-18 — Type de question "vidéo" (même patron que "audio")
+# ============================================================================
+class VideoValidationTests(TestCase):
+    def test_extension_valide_acceptee(self):
+        fichier = SimpleUploadedFile('reponse.mp4', b'contenu-video-factice', content_type='video/mp4')
+        self.assertIsNone(valider_fichier_video(fichier))
+
+    def test_extension_invalide_refusee(self):
+        fichier = SimpleUploadedFile('reponse.exe', b'contenu', content_type='application/octet-stream')
+        self.assertIsNotNone(valider_fichier_video(fichier))
+
+    def test_fichier_vide_refuse(self):
+        fichier = SimpleUploadedFile('reponse.mp4', b'', content_type='video/mp4')
+        self.assertIsNotNone(valider_fichier_video(fichier))
+
+    def test_fichier_trop_volumineux_refuse(self):
+        fichier = SimpleUploadedFile('reponse.mp4', b'0' * (41 * 1024 * 1024), content_type='video/mp4')
+        self.assertIsNotNone(valider_fichier_video(fichier))
+
+    def test_aucun_fichier_refuse(self):
+        self.assertIsNotNone(valider_fichier_video(None))
+
+
+class VideoAutosaveHttpTests(TestCase):
+    """Chemin serveur d'une réponse vidéo — même patron que test_autosave_audio
+    (WorkflowEleveHttpTests)."""
+
+    def setUp(self):
+        self.prof = _creer_prof('prof_video_wf@zidni.test')
+        self.groupe = _creer_groupe(prof=self.prof)
+        self.eleve = _creer_eleve('eleve_video_wf@zidni.test')
+        self.groupe.eleves.add(self.eleve)
+        self.examen, self.questions, _ = _examen_complet(self.groupe, self.prof, statut='publie')
+        self.question_video = _ajouter_question_video(self.examen)
+        self.client = Client()
+        _connecter(self.client, self.eleve.user)
+
+    def test_autosave_video(self):
+        self.client.post(reverse('examens_eleve_avant', args=[self.examen.id]))
+        copie = Copie.objects.get(examen=self.examen, eleve=self.eleve)
+        fichier = SimpleUploadedFile('video.mp4', b'contenu-video-factice', content_type='video/mp4')
+        r = self.client.post(
+            reverse('examens_reponse_autosave', args=[copie.id, self.question_video.id]),
+            {'reponse_video': fichier},
+        )
+        self.assertEqual(r.status_code, 200)
+        reponse = Reponse.objects.get(copie=copie, question=self.question_video)
+        self.assertTrue(reponse.reponse_video)
+        self.assertEqual(reponse.nom_fichier_video_original, 'video.mp4')
+        reponse.reponse_video.delete(save=False)
+
+    def test_autosave_video_extension_invalide_renvoie_message_precis(self):
+        self.client.post(reverse('examens_eleve_avant', args=[self.examen.id]))
+        copie = Copie.objects.get(examen=self.examen, eleve=self.eleve)
+        fichier = SimpleUploadedFile('video.avi', b'contenu-video-factice', content_type='video/x-msvideo')
+        r = self.client.post(
+            reverse('examens_reponse_autosave', args=[copie.id, self.question_video.id]),
+            {'reponse_video': fichier},
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('erreur', r.json())
+        self.assertFalse(Reponse.objects.get(copie=copie, question=self.question_video).reponse_video)
+
+    def test_autosave_video_supprimer(self):
+        self.client.post(reverse('examens_eleve_avant', args=[self.examen.id]))
+        copie = Copie.objects.get(examen=self.examen, eleve=self.eleve)
+        reponse = Reponse.objects.create(
+            copie=copie, question=self.question_video,
+            reponse_video=SimpleUploadedFile('video.mp4', b'contenu-video-factice'),
+        )
+        r = self.client.post(
+            reverse('examens_reponse_autosave', args=[copie.id, self.question_video.id]),
+            {'supprimer': '1'},
+        )
+        self.assertEqual(r.status_code, 200)
+        reponse.refresh_from_db()
+        self.assertFalse(reponse.reponse_video)
+
+
+class VideoAccesHttpTests(TestCase):
+    """Même patron que AudioAccesHttpTests — reponse_video protégée derrière
+    can_access_copie, jamais une URL de fichier imprimée directement."""
+
+    def setUp(self):
+        self.prof = _creer_prof('prof_video@zidni.test')
+        self.groupe = _creer_groupe(prof=self.prof)
+        self.eleve = _creer_eleve('eleve_video@zidni.test')
+        self.groupe.eleves.add(self.eleve)
+        self.autre_eleve = _creer_eleve('autre_eleve_video@zidni.test')
+        self.examen, _, _ = _examen_complet(self.groupe, self.prof, statut='publie')
+        self.question_video = _ajouter_question_video(self.examen)
+        self.copie = Copie.objects.create(examen=self.examen, eleve=self.eleve, date_debut=timezone.now())
+        self.reponse = Reponse.objects.create(
+            copie=self.copie, question=self.question_video,
+            reponse_video=SimpleUploadedFile('rep.mp4', b'contenu-video-factice'),
+        )
+
+    def tearDown(self):
+        if self.reponse.reponse_video:
+            self.reponse.reponse_video.delete(save=False)
+
+    def test_proprietaire_peut_acceder(self):
+        client = Client()
+        _connecter(client, self.eleve.user)
+        r = client.get(reverse('examens_reponse_video', args=[self.reponse.id]))
+        self.assertEqual(r.status_code, 302)
+
+    def test_autre_eleve_refuse(self):
+        client = Client()
+        _connecter(client, self.autre_eleve.user)
+        r = client.get(reverse('examens_reponse_video', args=[self.reponse.id]))
+        self.assertEqual(r.status_code, 403)
+
+    def test_prof_du_groupe_peut_acceder(self):
+        client = Client()
+        _connecter(client, self.prof.user)
+        r = client.get(reverse('examens_reponse_video', args=[self.reponse.id]))
+        self.assertEqual(r.status_code, 302)
+
+
+class VideoCorrectionManuelleTests(TestCase):
+    """Une question type_question='video' se corrige manuellement, exactement
+    comme 'texte'/'audio' — jamais auto-corrigée."""
+
+    def test_video_reste_a_corriger_apres_corriger_automatiquement(self):
+        prof = _creer_prof('prof_correction_video@zidni.test')
+        groupe = _creer_groupe(prof=prof)
+        eleve = _creer_eleve('eleve_correction_video@zidni.test')
+        groupe.eleves.add(eleve)
+        examen = _creer_examen(groupe, prof=prof, statut='publie')
+        question = _ajouter_question_video(examen)
+        copie = Copie.objects.create(examen=examen, eleve=eleve, date_debut=timezone.now())
+        reponse = Reponse.objects.create(copie=copie, question=question)
+
+        corriger_automatiquement(reponse)
+        reponse.refresh_from_db()
+        self.assertEqual(reponse.statut_correction, 'a_corriger')
+        self.assertIsNone(reponse.points_obtenus)
+
+    def test_correction_manuelle_video_acceptee_par_la_vue(self):
+        prof = _creer_prof('prof_correction_video2@zidni.test')
+        groupe = _creer_groupe(prof=prof)
+        eleve = _creer_eleve('eleve_correction_video2@zidni.test')
+        groupe.eleves.add(eleve)
+        examen = _creer_examen(groupe, prof=prof, statut='publie')
+        question = _ajouter_question_video(examen, points=5)
+        copie = Copie.objects.create(examen=examen, eleve=eleve, date_debut=timezone.now(), statut='soumise')
+        reponse = Reponse.objects.create(copie=copie, question=question)
+
+        client = Client()
+        _connecter(client, prof.user)
+        r = client.post(reverse('examens_copie_correction', args=[copie.id]), {
+            'reponse_id': reponse.id, 'points_obtenus': '4', 'commentaire': 'جيد',
+        })
+        self.assertEqual(r.status_code, 302)
+        reponse.refresh_from_db()
+        self.assertEqual(reponse.statut_correction, 'corrigee')
+        self.assertEqual(float(reponse.points_obtenus), 4.0)

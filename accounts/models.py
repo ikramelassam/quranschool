@@ -398,6 +398,70 @@ def get_logo_config():
     return config
 
 
+class NotePersonnelle(models.Model):
+    """Carnet de notes personnelles (Tâche du 2026-08-18) qu'un مدير/مشرف tient
+    sur le profil d'un élève/prof/مؤطر qu'il consulte — historique horodaté
+    (plusieurs notes dans le temps, jamais un champ unique écrasé), STRICTEMENT
+    PRIVÉ à son auteur : chaque lecteur ne voit que SES PROPRES notes sur ce
+    profil, jamais celles écrites par un autre مدير/مشرف qui aurait aussi accès
+    à la même fiche (confirmé explicitement par la cliente).
+
+    Système INDÉPENDANT de accounts.Prof.notes_admin (champ unique partagé,
+    objectif différent : suivi RH/évaluation du prof) — ne le remplace pas.
+
+    profil_user (pas un FK direct vers Eleve/Prof/Superviseur) : les 3 modèles
+    de profil ont chacun déjà un user = OneToOneField(User) — cler sur User
+    couvre les 3 cas avec un seul modèle, sans ContentType ni 3 modèles
+    dupliqués, cohérent avec le reste du projet qui clé déjà l'auteur de ce
+    genre de contenu sur User (Annonce.cree_par, CommentaireMensuel.redige_par)."""
+    profil_user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='notes_personnelles_recues'
+    )
+    auteur = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='notes_personnelles_ecrites'
+    )
+    contenu = models.TextField()
+    date_creation = models.DateTimeField(auto_now_add=True)
+    # Modification/suppression réservées à l'auteur (vérifié STRICT côté vue,
+    # auteur == request.user — même principe que chat.views.chat_supprimer_message).
+    date_modification = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Note de {self.auteur} sur {self.profil_user} ({self.date_creation:%Y-%m-%d})"
+
+    class Meta:
+        ordering = ['-date_creation']
+        verbose_name = "Note personnelle"
+        verbose_name_plural = "Notes personnelles"
+
+
+class DocumentEleve(models.Model):
+    """Cartable élève (Tâche du 2026-08-18) — équivalent, côté élève, du
+    accounts.ElementHakiba ("cartable prof") : مدير/مشرف y déposent des fichiers
+    (PDF, images, textes...) pour UN élève précis, visibles par cet élève sur
+    sa propre page (comme prof_hakiba.html pour ElementHakiba). Contrairement à
+    ElementHakiba (un même élément peut cibler tous les profs ou une sélection
+    via M2M — mécanisme de DIFFUSION), un DocumentEleve appartient à un seul
+    élève : simple FK, pas de M2M — mécanisme de DOSSIER PERSONNEL.
+    Upload/suppression réservés à مدير/مشرف (pas le prof, décision confirmée
+    du 2026-08-18, cohérent avec ElementHakiba déjà réservé à مدير/مشرف)."""
+    eleve = models.ForeignKey('accounts.Eleve', on_delete=models.CASCADE, related_name='documents_cartable')
+    titre = models.CharField(max_length=200, blank=True)
+    fichier = models.FileField(upload_to='cartable_eleve/%Y/%m/')
+    ajoute_par = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+    date_ajout = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.titre or self.fichier.name
+
+    class Meta:
+        ordering = ['-date_ajout']
+        verbose_name = "Document du cartable élève"
+        verbose_name_plural = "Documents du cartable élève"
+
+
 class VisibiliteProf(models.Model):
     """Réglage global (مدير + مشرف, mêmes permissions que ProgrammeGeneral) de
     quels champs du profil professeur restent visibles côté élève — singleton

@@ -558,9 +558,20 @@ def calculer_progression_eleve(eleve, mois=None):
             # Remarque par séance (Point 11, Tâche du 2026-08-04) — existait déjà
             # sur Presence mais n'était jusqu'ici jamais incluse dans historique.
             'remarque': p.remarque,
+            # Critère ينتقل/يعيد (Tâche du 2026-08-18) — affiché sur CHAQUE
+            # séance du journal, y compris celles exclues du cumul ci-dessous
+            # (voir le commentaire juste après cette boucle).
+            'resultat_memorisation': p.resultat_memorisation,
+            'resultat_memorisation_display': p.get_resultat_memorisation_display(),
+            'resultat_revision': p.resultat_revision,
+            'resultat_revision_display': p.get_resultat_revision_display(),
         })
 
-        if p.sourate_memorisee is None:
+        # historique ci-dessus garde TOUTE séance, même يعيد (transparence du
+        # journal séance par séance) — seul le CUMUL de progression ci-dessous
+        # exclut resultat_memorisation='a_refaire' (Tâche du 2026-08-18),
+        # même règle que _couverture_ayat_par_sourate (calculer_hizb_precis).
+        if p.sourate_memorisee is None or p.resultat_memorisation != 'valide':
             continue
 
         numero = p.sourate_memorisee
@@ -682,8 +693,13 @@ def _couverture_ayat_par_sourate(eleve):
     from .models import Presence
 
     brut = {}
+    # resultat_memorisation='valide' (Tâche du 2026-08-18) : un passage marqué
+    # يعيد par le prof (RESULTAT_CHOICES) ne compte PAS dans la couverture —
+    # exclu ici, seule source d'où dérive calculer_hizb_precis. La valeur par
+    # défaut du champ ('valide') garantit que tout Presence antérieur à ce
+    # critère continue de compter exactement comme avant son ajout.
     valeurs = Presence.objects.filter(
-        eleve=eleve, sourate_memorisee__isnull=False
+        eleve=eleve, sourate_memorisee__isnull=False, resultat_memorisation='valide'
     ).values_list('sourate_memorisee', 'ayah_debut_memorisation', 'ayah_fin_memorisation')
     for numero, debut, fin in valeurs:
         brut.setdefault(numero, []).append((debut, fin))

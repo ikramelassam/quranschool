@@ -32,6 +32,7 @@ urlpatterns = [
 
     # Audio protégé (tous rôles avec accès examens)
     path('reponse/<int:reponse_id>/audio/', views.reponse_audio, name='examens_reponse_audio'),
+    path('reponse/<int:reponse_id>/video/', views.reponse_video, name='examens_reponse_video'),
 
     # Consultation — admin / mshrif / superviseur (lecture seule)
     path('consultation/', views.consultation_examens_liste, name='examens_consultation_liste'),

@@ -586,8 +586,11 @@ def creneaux_list(request):
     actif = request.GET.get('actif', '')
     type_seance = request.GET.get('type_seance', '')
     riwaya = request.GET.get('riwaya', '')
+    q = request.GET.get('q', '').strip()
 
     creneaux = Creneau.objects.all().order_by('id')
+    if q:
+        creneaux = creneaux.filter(nom__icontains=q)
     if sexe_cible:
         creneaux = creneaux.filter(sexe_cible=sexe_cible)
     if actif:
@@ -616,6 +619,7 @@ def creneaux_list(request):
     context = {
         'creneaux': creneaux_page,
         'filtres': {
+            'q': q,
             'sexe_cible': sexe_cible,
             'actif': actif,
             'type_seance': type_seance,
@@ -631,6 +635,7 @@ def creneaux_list(request):
 def creneau_ajouter(request):
     if request.method == 'POST':
         Creneau.objects.create(
+            nom=request.POST.get('nom', '').strip(),
             sexe_cible=request.POST.get('sexe_cible'),
             type_seance=request.POST.get('type_seance'),
             riwaya=request.POST.get('riwaya'),
@@ -657,6 +662,7 @@ def creneau_modifier(request, creneau_id):
         champs_horaire = ['jour_1', 'heure_debut_1', 'heure_fin_1', 'jour_2', 'heure_debut_2', 'heure_fin_2']
         anciennes_valeurs_horaire = {champ: getattr(creneau, champ) for champ in champs_horaire}
 
+        creneau.nom = request.POST.get('nom', '').strip()
         creneau.sexe_cible = request.POST.get('sexe_cible')
         creneau.type_seance = request.POST.get('type_seance')
         creneau.riwaya = request.POST.get('riwaya')

@@ -29,6 +29,13 @@ actuelle d'un coup d'œil avant de modifier l'assignation en dessous.
     {% endif %}
 </div>
 
+{% comment %}
+Carnet de notes personnelles (Tâche du 2026-08-18) — cette page fait déjà
+office de fiche détail مؤطر (bloc infos ci-dessus + gestion d'assignation
+ci-dessous), voir accounts.models.NotePersonnelle.__doc__.
+{% endcomment %}
+{% include 'dashboard/_carnet_notes_personnelles.html' with profil_user=superviseur.user notes_personnelles=notes_personnelles id_suffix='_superviseur' %}
+
 <div style="background:white; border-radius:16px; padding:12px 32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     {% if request.user.role == 'mshrif' %}
         {% for prof in profs %}

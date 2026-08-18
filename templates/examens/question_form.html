@@ -16,6 +16,7 @@
             <option value="vrai_faux" {% if type_actuel == 'vrai_faux' %}selected{% endif %}>صح / خطأ</option>
             <option value="texte" {% if type_actuel == 'texte' %}selected{% endif %}>إجابة نصية (تصحيح يدوي)</option>
             <option value="audio" {% if type_actuel == 'audio' %}selected{% endif %}>إجابة صوتية (تصحيح يدوي)</option>
+            <option value="video" {% if type_actuel == 'video' %}selected{% endif %}>إجابة فيديو (تصحيح يدوي)</option>
         </select>
     </div>
 
@@ -73,7 +74,7 @@ function basculerNoeSection() {
     const type = document.getElementById('type_question').value;
     document.getElementById('section-choix').style.display = (type === 'choix') ? 'block' : 'none';
     document.getElementById('section-vrai-faux').style.display = (type === 'vrai_faux') ? 'block' : 'none';
-    document.getElementById('section-manuelle').style.display = (type === 'texte' || type === 'audio') ? 'block' : 'none';
+    document.getElementById('section-manuelle').style.display = (type === 'texte' || type === 'audio' || type === 'video') ? 'block' : 'none';
 }
 basculerNoeSection();
 </script>

@@ -207,6 +207,10 @@
            class="menu-item {% if request.resolver_match.url_name == 'eleve_progression' %}active{% endif %}">
             <span class="icon">📈</span> تقدمي في الحفظ
         </a>
+        <a href="{% url 'eleve_cartable' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'eleve_cartable' %}active{% endif %}">
+            <span class="icon">🎒</span> حقيبتي
+        </a>
         <a href="{% url 'eleve_profil' %}"
            class="menu-item {% if request.resolver_match.url_name == 'eleve_profil' %}active{% endif %}">
             <span class="icon">👤</span> ملفي الشخصي

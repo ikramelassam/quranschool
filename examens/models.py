@@ -119,16 +119,20 @@ class Question(models.Model):
         ('vrai_faux', 'صح / خطأ'),
         ('texte', 'إجابة نصية'),
         ('audio', 'إجابة صوتية'),
+        # Tâche du 2026-08-18 : même patron que 'audio' (upload élève,
+        # stockage via le storage par défaut du projet, correction manuelle
+        # uniquement) — voir Reponse.reponse_video ci-dessous.
+        ('video', 'إجابة فيديو'),
     ]
     examen = models.ForeignKey(Examen, on_delete=models.CASCADE, related_name='questions')
     type_question = models.CharField(max_length=10, choices=TYPE_CHOICES)
     enonce = models.TextField()
     ordre = models.PositiveIntegerField(default=0)
     points = models.PositiveSmallIntegerField(default=1, validators=[MinValueValidator(1)])
-    # Uniquement pour type_question='vrai_faux' — None pour les 3 autres types :
+    # Uniquement pour type_question='vrai_faux' — None pour les 4 autres types :
     # pour 'choix', la bonne réponse est portée par ChoixQuestion.est_correct ;
-    # pour 'texte'/'audio', aucune correction automatique n'existe (§1/§10),
-    # donc aucune bonne réponse à stocker.
+    # pour 'texte'/'audio'/'video', aucune correction automatique n'existe
+    # (§1/§10), donc aucune bonne réponse à stocker.
     reponse_correcte_bool = models.BooleanField(null=True, blank=True)
 
     def __str__(self):
@@ -270,6 +274,11 @@ class Reponse(models.Model):
     reponse_texte = models.TextField(blank=True)
     reponse_audio = models.FileField(upload_to='examens_audio/%Y/%m/', null=True, blank=True)
     nom_fichier_audio_original = models.CharField(max_length=255, blank=True, default='')
+    # Tâche du 2026-08-18 : même patron que reponse_audio ci-dessus (stockage
+    # via le storage par défaut du projet — Cloudinary en prod/media en dev,
+    # voir examens.services.valider_fichier_video).
+    reponse_video = models.FileField(upload_to='examens_video/%Y/%m/', null=True, blank=True)
+    nom_fichier_video_original = models.CharField(max_length=255, blank=True, default='')
 
     statut_correction = models.CharField(max_length=20, choices=STATUT_CORRECTION_CHOICES, default='a_corriger')
     points_obtenus = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)

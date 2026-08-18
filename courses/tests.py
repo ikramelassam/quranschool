@@ -8,13 +8,14 @@ from django.urls import reverse
 from accounts.models import User, Eleve, Prof
 from annonces.models import Annonce
 from inscriptions.models import InscriptionEleve
-from .models import Creneau, Groupe, DisponibiliteEleve, DisponibiliteProf, LienMeet, Seance
+from .models import Creneau, Groupe, DisponibiliteEleve, DisponibiliteProf, LienMeet, Seance, Presence
 from .utils import (
     raison_incompatibilite_groupe, avertissements_groupe, avertissements_prof_creneau,
     creneaux_se_chevauchent, groupes_en_conflit_pour_lien, lien_meet_est_disponible,
     liens_meet_disponibles, valider_photo_groupe, regenerer_pour_nouveau_creneau,
     groupes_en_conflit_pour_lien_a_horaire_reel, liens_meet_disponibles_pour_seance,
     lien_effectif_disponible_pour_seance, horaire_reel_seance,
+    calculer_hizb_precis, calculer_progression_eleve,
 )
 
 MOT_DE_PASSE = 'xX!test12345'
@@ -1238,3 +1239,135 @@ class SeanceExceptionLienMeetTests(TestCase):
         reponse = self._client().get(reverse('admin_liens_meet'))
         html = reponse.content.decode('utf-8')
         self.assertIn(str(self.creneau_a), html)
+
+
+# ============================================================================
+# Tâche du 2026-08-18 — Renommage de halaka (Creneau.nom) + recherche
+# ============================================================================
+class CreneauNomTests(TestCase):
+    """Creneau.nom : optionnel, __str__ le privilégie s'il est renseigné,
+    retombe sur l'ancien format jour/heure sinon (aucune régression pour les
+    créneaux déjà existants qui n'ont pas de nom)."""
+
+    def test_str_utilise_le_format_jour_heure_si_aucun_nom(self):
+        creneau = _creer_creneau()
+        self.assertNotIn('None', str(creneau))
+        self.assertIn('16:00', str(creneau))
+
+    def test_str_utilise_le_nom_sil_est_defini(self):
+        creneau = _creer_creneau()
+        creneau.nom = 'حلقة الأطفال - الصباح'
+        creneau.save()
+        self.assertEqual(str(creneau), 'حلقة الأطفال - الصباح')
+
+    def test_ajouter_creneau_avec_nom(self):
+        admin = _creer_admin()
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, admin)
+        reponse = client.post(reverse('admin_creneau_ajouter'), {
+            'nom': 'حلقة تجريبية', 'sexe_cible': 'mixte', 'type_seance': 'hifz', 'riwaya': 'hafs',
+            'age_min': 6, 'age_max': 12,
+            'jour_1': 'lun', 'heure_debut_1': '16:00', 'heure_fin_1': '17:00',
+            'jour_2': 'mer', 'heure_debut_2': '16:00', 'heure_fin_2': '17:00',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        creneau = Creneau.objects.get(nom='حلقة تجريبية')
+        self.assertEqual(str(creneau), 'حلقة تجريبية')
+
+    def test_modifier_creneau_renomme(self):
+        admin = _creer_admin()
+        creneau = _creer_creneau()
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, admin)
+        reponse = client.post(reverse('admin_creneau_modifier', args=[creneau.id]), {
+            'nom': 'حلقة معاد تسميتها', 'sexe_cible': creneau.sexe_cible, 'type_seance': creneau.type_seance,
+            'riwaya': creneau.riwaya, 'age_min': creneau.age_min, 'age_max': creneau.age_max,
+            'jour_1': creneau.jour_1, 'heure_debut_1': '16:00', 'heure_fin_1': '17:00',
+            'jour_2': creneau.jour_2, 'heure_debut_2': '16:00', 'heure_fin_2': '17:00',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        creneau.refresh_from_db()
+        self.assertEqual(creneau.nom, 'حلقة معاد تسميتها')
+
+
+class CreneauxListRechercheTests(TestCase):
+    """Vue admin_creneaux (courses.views.creneaux_list) : recherche ?q= par nom."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.creneau_nomme = _creer_creneau()
+        self.creneau_nomme.nom = 'حلقة الأطفال - الصباح'
+        self.creneau_nomme.save()
+        self.creneau_sans_nom = _creer_creneau(sexe_cible='homme', age_min=18, age_max=60)
+
+    def _get(self, **params):
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, self.admin)
+        return client.get(reverse('admin_creneaux'), params)
+
+    def test_recherche_par_nom_trouve_le_creneau_nomme(self):
+        reponse = self._get(q='الأطفال')
+        ids = {c.id for c in reponse.context['creneaux']}
+        self.assertIn(self.creneau_nomme.id, ids)
+        self.assertNotIn(self.creneau_sans_nom.id, ids)
+
+    def test_recherche_sans_correspondance_ne_plante_pas(self):
+        reponse = self._get(q='زدني علما لا يوجد')
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(len(reponse.context['creneaux']), 0)
+
+
+
+
+# ============================================================================
+# Tâche du 2026-08-18 — Critère ينتقل/يعيد (Presence.resultat_memorisation)
+# ============================================================================
+class ResultatMemorisationProgressionTests(TestCase):
+    """Un passage marqué 'a_refaire' ne doit JAMAIS compter dans
+    calculer_hizb_precis/calculer_progression_eleve (courses.utils) — voir
+    _couverture_ayat_par_sourate. Comportement historique (avant ce champ)
+    inchangé : default='valide' compte comme avant."""
+
+    def setUp(self):
+        self.eleve = _creer_eleve()
+        creneau = _creer_creneau()
+        groupe = Groupe.objects.create(nom='ZZZ_مجموعة_تقدم', creneau=creneau)
+        groupe.eleves.add(self.eleve)
+        self.seance_1 = Seance.objects.create(groupe=groupe, date=datetime.date(2026, 8, 1), heure='16:00', type='normal')
+        self.seance_2 = Seance.objects.create(groupe=groupe, date=datetime.date(2026, 8, 3), heure='16:00', type='normal')
+        # Sourate 1 (الفاتحة, 7 آيات) entièrement couverte + sourate 2 de 1 à 74
+        # -> couvre exactement les 4 quarts du hizb 1 (voir quran_data.HIZB_QUARTERS[0]).
+        Presence.objects.create(
+            seance=self.seance_1, eleve=self.eleve, statut='present',
+            sourate_memorisee=1, ayah_debut_memorisation=1, ayah_fin_memorisation=7,
+        )
+        self.presence_sourate_2 = Presence.objects.create(
+            seance=self.seance_2, eleve=self.eleve, statut='present',
+            sourate_memorisee=2, ayah_debut_memorisation=1, ayah_fin_memorisation=74,
+            resultat_memorisation='a_refaire',
+        )
+
+    def test_passage_a_refaire_exclu_du_hizb_complet(self):
+        resultat = calculer_hizb_precis(self.eleve)
+        self.assertEqual(resultat['nb_hizb_complets'], 0)
+
+    def test_passage_valide_compte_dans_le_hizb_complet(self):
+        self.presence_sourate_2.resultat_memorisation = 'valide'
+        self.presence_sourate_2.save()
+        resultat = calculer_hizb_precis(self.eleve)
+        self.assertEqual(resultat['nb_hizb_complets'], 1)
+
+    def test_progression_eleve_exclut_les_ayat_a_refaire_du_cumul(self):
+        progression = calculer_progression_eleve(self.eleve)
+        # Seule la sourate 1 (valide) compte dans le cumul — la sourate 2 (a_refaire) est exclue.
+        self.assertEqual(progression['total_ayat_memorises'], 7)
+        self.assertEqual(progression['nb_sourates_distinctes'], 1)
+
+    def test_historique_garde_toutes_les_seances_meme_a_refaire(self):
+        """Le journal séance par séance reste complet (transparence), seul le
+        cumul de progression exclut le passage 'a_refaire' — voir le test
+        ci-dessus."""
+        progression = calculer_progression_eleve(self.eleve)
+        self.assertEqual(len(progression['historique']), 2)
+        entree_a_refaire = next(h for h in progression['historique'] if h['sourate'] == 'البقرة')
+        self.assertEqual(entree_a_refaire['resultat_memorisation'], 'a_refaire')

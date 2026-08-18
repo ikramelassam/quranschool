@@ -19,7 +19,7 @@ from .permissions import (
 from .services import (
     parser_datetime_local, demarrer_ou_recuperer_copie, finaliser_si_expiree,
     soumettre_copie, enregistrer_correction_manuelle, motif_non_publiable,
-    valider_fichier_audio, statut_affichage_eleve,
+    valider_fichier_audio, valider_fichier_video, statut_affichage_eleve,
 )
 
 NB_MAX_CHOIX = 6  # nombre maximum de propositions pour une question 'choix'
@@ -421,7 +421,7 @@ def copie_correction(request, copie_id):
 
     if request.method == 'POST':
         reponse = get_object_or_404(Reponse, id=request.POST.get('reponse_id'), copie=copie)
-        if reponse.question.type_question not in ('texte', 'audio'):
+        if reponse.question.type_question not in ('texte', 'audio', 'video'):
             return HttpResponseBadRequest('لا يمكن تصحيح هذا النوع من الأسئلة يدوياً — يتم تصحيحه تلقائياً.')
 
         try:
@@ -556,6 +556,26 @@ def reponse_autosave(request, copie_id, question_id):
             reponse.reponse_audio = fichier
             reponse.nom_fichier_audio_original = fichier.name
             reponse.save(update_fields=['reponse_audio', 'nom_fichier_audio_original', 'date_reponse'])
+
+    elif question.type_question == 'video':
+        if request.POST.get('supprimer') == '1':
+            if reponse.reponse_video:
+                reponse.reponse_video.delete(save=False)
+            reponse.reponse_video = None
+            reponse.nom_fichier_video_original = ''
+            reponse.save(update_fields=['reponse_video', 'nom_fichier_video_original', 'date_reponse'])
+        else:
+            fichier = request.FILES.get('reponse_video')
+            if not fichier:
+                return JsonResponse({'ok': False, 'erreur': 'لم يتم إرفاق أي ملف.'}, status=400)
+            erreur = valider_fichier_video(fichier)
+            if erreur:
+                return JsonResponse({'ok': False, 'erreur': erreur}, status=400)
+            if reponse.reponse_video:
+                reponse.reponse_video.delete(save=False)
+            reponse.reponse_video = fichier
+            reponse.nom_fichier_video_original = fichier.name
+            reponse.save(update_fields=['reponse_video', 'nom_fichier_video_original', 'date_reponse'])
     else:
         return HttpResponseBadRequest('نوع سؤال غير معروف.')
 
@@ -613,6 +633,20 @@ def reponse_audio(request, reponse_id):
     if not reponse.reponse_audio:
         return HttpResponseBadRequest('لا يوجد ملف صوتي مرفق بهذه الإجابة.')
     return redirect(reponse.reponse_audio.url)
+
+
+@role_required(*ROLES_AVEC_ACCES_EXAMENS)
+@require_GET
+def reponse_video(request, reponse_id):
+    """Accès sécurisé à un fichier vidéo de réponse — même patron que
+    reponse_audio ci-dessus (l'URL réelle du fichier n'est jamais imprimée
+    directement dans un template)."""
+    reponse = get_object_or_404(Reponse.objects.select_related('copie__examen', 'copie__eleve'), id=reponse_id)
+    if not can_access_copie(request.user, reponse.copie):
+        return HttpResponseForbidden('ليس لديك صلاحية الوصول إلى هذا الملف.')
+    if not reponse.reponse_video:
+        return HttpResponseBadRequest('لا يوجد ملف فيديو مرفق بهذه الإجابة.')
+    return redirect(reponse.reponse_video.url)
 
 
 # ==================== Consultation (admin/mshrif/superviseur — lecture seule) ====================

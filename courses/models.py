@@ -119,6 +119,12 @@ class Creneau(models.Model):
         ('hafs', 'حفص'),
     ]
 
+    # Nom personnalisé optionnel (Tâche du 2026-08-18) — vide par défaut,
+    # auquel cas __str__ retombe sur le format jour/heure historique (voir
+    # ci-dessous). Ajouté pour que مدير/مشرف puisse reconnaître une حلقة
+    # d'un coup d'œil (ex: "حلقة الأطفال - الصباح") plutôt que seulement par
+    # son horaire, notamment dans le <select> d'assignation d'un Groupe.
+    nom = models.CharField(max_length=100, blank=True, default='')
     sexe_cible = models.CharField(max_length=10, choices=SEXE_CHOICES, default='mixte')
     type_seance = models.CharField(max_length=20, choices=TYPE_SEANCE_CHOICES, default='hifz')
     riwaya = models.CharField(max_length=10, choices=RIWAYA_CHOICES, default='hafs')
@@ -136,6 +142,8 @@ class Creneau(models.Model):
     actifs = CreneauActifsManager()
 
     def __str__(self):
+        if self.nom:
+            return self.nom
         return (
             f"{self.get_jour_1_display()} {self.heure_debut_1.strftime('%H:%M')}"
             f" + {self.get_jour_2_display()} {self.heure_debut_2.strftime('%H:%M')}"
@@ -603,6 +611,27 @@ class Presence(models.Model):
         blank=True
     )
     remarque = models.TextField(blank=True)
+
+    # Critère "ينتقل / يعيد" (Tâche du 2026-08-18) — décision explicite du
+    # prof : le passage couvert cette séance est-il acquis (ينتقل, compte
+    # dans la progression) ou doit-il être repassé (يعيد, ne compte pas) ?
+    # default='valide' (PAS null) : tout Presence antérieur à ce champ garde
+    # exactement le même comportement qu'avant son ajout — aucune régression
+    # rétroactive sur la progression déjà calculée. Seule resultat_memorisation
+    # est lue par courses.utils._couverture_ayat_par_sourate/
+    # calculer_progression_eleve (le حزب se calcule sur la mémorisation, pas
+    # la révision) : resultat_revision reste donc purement indicatif pour le
+    # suivi du prof, sans effet sur aucun calcul existant.
+    RESULTAT_CHOICES = [
+        ('valide', 'ينتقل'),
+        ('a_refaire', 'يعيد'),
+    ]
+    resultat_memorisation = models.CharField(
+        max_length=10, choices=RESULTAT_CHOICES, default='valide', blank=True
+    )
+    resultat_revision = models.CharField(
+        max_length=10, choices=RESULTAT_CHOICES, default='valide', blank=True
+    )
 
     # 4 critères numériques /20 (Tâche 9 du 2026-07-25), remplacent l'ancienne
     # échelle qualitative (ممتاز/حسن جدا/...) pour toute évaluation à partir de

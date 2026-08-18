@@ -1748,3 +1748,238 @@ class RechercheGlobalePresenteSurToutesLesPagesTests(TestCase):
         inscription.motif_refus = 'سبب اختبار'
         inscription.save()
         self._assert_recherche_absente(reverse('refus_confirme'))
+
+
+# ============================================================================
+# Tâche du 2026-08-18 — Carnet de notes personnelles (accounts.NotePersonnelle)
+# ============================================================================
+@override_settings(STORAGES=_STORAGES_TEST)
+class NotePersonnelleTests(TestCase):
+    """Notes STRICTEMENT privées à leur auteur — voir accounts.models.
+    NotePersonnelle.__doc__. Un 2e admin ayant accès à la même fiche ne doit
+    JAMAIS voir les notes du premier, ni pouvoir les modifier/supprimer."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.autre_admin = User.objects.create_user(
+            username='autre_admin_notes@zidni.test', email='autre_admin_notes@zidni.test',
+            password='xX!test12345', role='admin', doit_changer_mot_de_passe=False,
+        )
+        self.eleve = _creer_eleve('eleve_notes@zidni.test')
+
+    def test_admin_voit_sa_propre_note_sur_la_fiche_eleve(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse('ajouter_note_personnelle', args=[self.eleve.user.id]), {
+            'contenu': 'ملاحظة سرية عن هذا الطالب', 'next': reverse('admin_eleve_detail', args=[self.eleve.id]),
+        })
+        html = self.client.get(reverse('admin_eleve_detail', args=[self.eleve.id])).content.decode('utf-8')
+        self.assertIn('ملاحظة سرية عن هذا الطالب', html)
+
+    def test_note_dun_admin_invisible_a_un_autre_admin(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse('ajouter_note_personnelle', args=[self.eleve.user.id]), {
+            'contenu': 'ملاحظة خاصة بي فقط', 'next': reverse('admin_eleve_detail', args=[self.eleve.id]),
+        })
+        self.client.force_login(self.autre_admin)
+        html = self.client.get(reverse('admin_eleve_detail', args=[self.eleve.id])).content.decode('utf-8')
+        self.assertNotIn('ملاحظة خاصة بي فقط', html)
+
+    def test_modifier_note_refuse_a_un_autre_auteur(self):
+        from accounts.models import NotePersonnelle
+        note = NotePersonnelle.objects.create(profil_user=self.eleve.user, auteur=self.admin, contenu='أصلية')
+        self.client.force_login(self.autre_admin)
+        r = self.client.post(reverse('modifier_note_personnelle', args=[note.id]), {'contenu': 'محاولة تعديل'})
+        self.assertEqual(r.status_code, 403)
+        note.refresh_from_db()
+        self.assertEqual(note.contenu, 'أصلية')
+
+    def test_supprimer_note_refuse_a_un_autre_auteur(self):
+        from accounts.models import NotePersonnelle
+        note = NotePersonnelle.objects.create(profil_user=self.eleve.user, auteur=self.admin, contenu='أصلية')
+        self.client.force_login(self.autre_admin)
+        r = self.client.post(reverse('supprimer_note_personnelle', args=[note.id]))
+        self.assertEqual(r.status_code, 403)
+        self.assertTrue(NotePersonnelle.objects.filter(id=note.id).exists())
+
+    def test_auteur_peut_modifier_sa_propre_note(self):
+        from accounts.models import NotePersonnelle
+        note = NotePersonnelle.objects.create(profil_user=self.eleve.user, auteur=self.admin, contenu='أصلية')
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse('modifier_note_personnelle', args=[note.id]), {'contenu': 'محدَّثة'})
+        self.assertEqual(r.status_code, 302)
+        note.refresh_from_db()
+        self.assertEqual(note.contenu, 'محدَّثة')
+
+    def test_auteur_peut_supprimer_sa_propre_note(self):
+        from accounts.models import NotePersonnelle
+        note = NotePersonnelle.objects.create(profil_user=self.eleve.user, auteur=self.admin, contenu='أصلية')
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse('supprimer_note_personnelle', args=[note.id]))
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(NotePersonnelle.objects.filter(id=note.id).exists())
+
+    def test_prof_ne_peut_pas_ajouter_de_note(self):
+        prof = _creer_prof('prof_notes@zidni.test')
+        self.client.force_login(prof.user)
+        r = self.client.post(reverse('ajouter_note_personnelle', args=[self.eleve.user.id]), {'contenu': 'x'})
+        self.assertEqual(r.status_code, 302)  # role_required redirige, jamais 403 (accounts.decorators)
+        from accounts.models import NotePersonnelle
+        self.assertFalse(NotePersonnelle.objects.filter(profil_user=self.eleve.user).exists())
+
+    def test_note_champ_indépendant_de_notes_admin_existant(self):
+        """Le nouveau carnet ne touche jamais Prof.notes_admin (système
+        indépendant, confirmé explicitement)."""
+        prof = _creer_prof('prof_notes_admin@zidni.test')
+        prof.notes_admin = 'ancien champ inchangé'
+        prof.save()
+        self.client.force_login(self.admin)
+        self.client.post(reverse('ajouter_note_personnelle', args=[prof.user.id]), {
+            'contenu': 'nouvelle note perso', 'next': reverse('admin_prof_detail', args=[prof.id]),
+        })
+        prof.refresh_from_db()
+        self.assertEqual(prof.notes_admin, 'ancien champ inchangé')
+        html = self.client.get(reverse('admin_prof_detail', args=[prof.id])).content.decode('utf-8')
+        self.assertIn('ancien champ inchangé', html)
+        self.assertIn('nouvelle note perso', html)
+
+
+# ============================================================================
+# Tâche du 2026-08-18 — Cartable élève (accounts.DocumentEleve)
+# ============================================================================
+@override_settings(STORAGES=_STORAGES_TEST)
+class CartableEleveTests(TestCase):
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.eleve = _creer_eleve('eleve_cartable@zidni.test')
+
+    def tearDown(self):
+        from accounts.models import DocumentEleve
+        for doc in DocumentEleve.objects.all():
+            if doc.fichier:
+                doc.fichier.delete(save=False)
+
+    def test_admin_peut_ajouter_un_fichier_au_cartable(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from accounts.models import DocumentEleve
+
+        self.client.force_login(self.admin)
+        fichier = SimpleUploadedFile('rapport.pdf', b'contenu-pdf-factice', content_type='application/pdf')
+        r = self.client.post(reverse('admin_eleve_cartable_ajouter', args=[self.eleve.id]), {
+            'titre': 'تقرير', 'fichier': fichier,
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(DocumentEleve.objects.filter(eleve=self.eleve, titre='تقرير').exists())
+
+    def test_prof_ne_peut_pas_ajouter_de_fichier(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from accounts.models import DocumentEleve
+
+        prof = _creer_prof('prof_cartable@zidni.test')
+        self.client.force_login(prof.user)
+        fichier = SimpleUploadedFile('rapport.pdf', b'contenu-pdf-factice', content_type='application/pdf')
+        r = self.client.post(reverse('admin_eleve_cartable_ajouter', args=[self.eleve.id]), {'fichier': fichier})
+        self.assertEqual(r.status_code, 302)  # role_required redirige vers son propre dashboard
+        self.assertFalse(DocumentEleve.objects.filter(eleve=self.eleve).exists())
+
+    def test_eleve_voit_son_propre_cartable(self):
+        from accounts.models import DocumentEleve
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        DocumentEleve.objects.create(
+            eleve=self.eleve, titre='ملف الطالب',
+            fichier=SimpleUploadedFile('doc.pdf', b'contenu-pdf-factice'), ajoute_par=self.admin,
+        )
+        self.client.force_login(self.eleve.user)
+        html = self.client.get(reverse('eleve_cartable')).content.decode('utf-8')
+        self.assertIn('ملف الطالب', html)
+
+    def test_eleve_ne_voit_pas_le_cartable_dun_autre_eleve(self):
+        from accounts.models import DocumentEleve
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        autre_eleve = _creer_eleve('autre_eleve_cartable@zidni.test')
+        DocumentEleve.objects.create(
+            eleve=autre_eleve, titre='ملف الآخر',
+            fichier=SimpleUploadedFile('doc2.pdf', b'contenu-pdf-factice'), ajoute_par=self.admin,
+        )
+        self.client.force_login(self.eleve.user)
+        html = self.client.get(reverse('eleve_cartable')).content.decode('utf-8')
+        self.assertNotIn('ملف الآخر', html)
+
+    def test_admin_peut_supprimer_un_fichier(self):
+        from accounts.models import DocumentEleve
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        doc = DocumentEleve.objects.create(
+            eleve=self.eleve, titre='ملف للحذف',
+            fichier=SimpleUploadedFile('doc3.pdf', b'contenu-pdf-factice'), ajoute_par=self.admin,
+        )
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse('admin_eleve_cartable_supprimer', args=[doc.id]))
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(DocumentEleve.objects.filter(id=doc.id).exists())
+
+
+# ============================================================================
+# Tâche du 2026-08-18 — Critère ينتقل/يعيد, sauvegarde depuis la vue prof
+# ============================================================================
+class PresenceResultatMemorisationVueTests(TestCase):
+    """prof_presence_sauvegarder enregistre bien resultat_memorisation/
+    resultat_revision — voir courses.tests.ResultatMemorisationProgressionTests
+    pour l'exclusion du calcul de progression lui-même."""
+
+    def setUp(self):
+        from courses.models import CritereEleve
+
+        self.prof = _creer_prof('prof_resultat_memo@zidni.test')
+        self.eleve = _creer_eleve('eleve_resultat_memo@zidni.test')
+        self.groupe = Groupe.objects.create(nom='ZZZ_مجموعة_نتيجة', prof=self.prof)
+        self.groupe.eleves.add(self.eleve)
+
+        from django.utils import timezone
+        # Heure locale (pas UTC brut) : Seance.date/heure sont des champs naïfs
+        # re-localisés via timezone.make_aware() dans Seance.debut_datetime —
+        # calculer directement en heure locale évite tout décalage de fuseau.
+        il_y_a_2h = timezone.localtime(timezone.now() - datetime.timedelta(hours=2))
+        self.seance = Seance.objects.create(
+            groupe=self.groupe, date=il_y_a_2h.date(), heure=il_y_a_2h.time(),
+            type='normal', statut='planifiee',
+        )
+        self.criteres = list(CritereEleve.objects.filter(est_actif=True))
+
+    def _donnees_formulaire(self, resultat_memo='a_refaire', resultat_rev='valide'):
+        donnees = {
+            f'statut_{self.eleve.id}': 'present',
+            f'sourate_memo_{self.eleve.id}': '2',
+            f'ayah_debut_memo_{self.eleve.id}': '1',
+            f'ayah_fin_memo_{self.eleve.id}': '10',
+            f'sourate_rev_{self.eleve.id}': '',
+            f'ayah_debut_rev_{self.eleve.id}': '',
+            f'ayah_fin_rev_{self.eleve.id}': '',
+            f'remarque_{self.eleve.id}': '',
+            f'consigne_memo_{self.eleve.id}': 'حفظ الآيات 1-10',
+            f'consigne_rev_{self.eleve.id}': 'مراجعة عامة',
+            f'resultat_memo_{self.eleve.id}': resultat_memo,
+            f'resultat_rev_{self.eleve.id}': resultat_rev,
+            'remarque_generale': '',
+        }
+        for c in self.criteres:
+            donnees[f'note_critere_{c.id}_{self.eleve.id}'] = '15'
+        return donnees
+
+    def test_resultat_memorisation_et_revision_enregistres(self):
+        self.client.force_login(self.prof.user)
+        self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), self._donnees_formulaire())
+        presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
+        self.assertEqual(presence.resultat_memorisation, 'a_refaire')
+        self.assertEqual(presence.resultat_revision, 'valide')
+
+    def test_valeur_invalide_retombe_sur_valide(self):
+        """Une valeur POST qui ne serait pas l'un des 2 choix valides (paramètre
+        manipulé) ne doit jamais planter — retombe sur 'valide' (comportement
+        historique), jamais une confiance aveugle dans le client."""
+        self.client.force_login(self.prof.user)
+        donnees = self._donnees_formulaire(resultat_memo='autre_chose_invalide')
+        self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees)
+        presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
+        self.assertEqual(presence.resultat_memorisation, 'valide')

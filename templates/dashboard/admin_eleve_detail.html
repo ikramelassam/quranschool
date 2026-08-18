@@ -220,6 +220,51 @@
 </div>
 
 <div style="max-width:700px; margin-top:24px;">
+    {% comment %}
+    Cartable élève (Tâche du 2026-08-18) — équivalent, côté élève, du cartable
+    prof (accounts.ElementHakiba/admin_hakiba_gestion.html) : مدير/مشرف
+    déposent des fichiers ici, l'élève les consulte en lecture seule sur
+    eleve_cartable.html. Upload/suppression réservés à مدير/مشرف (pas le prof).
+    {% endcomment %}
+    <div style="background:white; border-radius:16px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px;">
+        <div style="font-weight:700; color:var(--color-text-primary); margin-bottom:14px;">🎒 حقيبة الطالب</div>
+        {% for doc in documents_cartable %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0;">
+            <div style="min-width:0;">
+                <div style="font-weight:600;">{{ doc.titre|default:doc.fichier.name }}</div>
+                <div style="color:#888; font-size:0.78rem;">
+                    أضافه {{ doc.ajoute_par.get_full_name|default:"—" }} — {{ doc.date_ajout|date:"d-m-Y" }}
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center; flex-shrink:0;">
+                <a href="{{ doc.fichier.url }}" target="_blank" rel="noopener" style="color:var(--color-role-admin-solid); font-size:0.85rem; text-decoration:none;">⬇ تحميل</a>
+                <form method="POST" action="{% url 'admin_eleve_cartable_supprimer' doc.id %}"
+                      onsubmit="return confirm('حذف هذا الملف من حقيبة الطالب؟');">
+                    {% csrf_token %}
+                    <button type="submit" style="background:none; border:none; color:var(--color-danger); font-size:0.85rem; cursor:pointer; padding:0;">🗑</button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <div style="color:#bbb; font-size:0.85rem; padding:8px 0;">لا توجد ملفات في حقيبة هذا الطالب بعد.</div>
+        {% endfor %}
+
+        <form method="POST" action="{% url 'admin_eleve_cartable_ajouter' eleve.id %}" enctype="multipart/form-data" style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+            {% csrf_token %}
+            <div style="flex:1; min-width:160px;">
+                <label style="color:#888; font-size:0.8rem;">عنوان (اختياري)</label>
+                <input type="text" name="titre" class="form-control" placeholder="مثال: تقرير الفصل الأول">
+            </div>
+            <div>
+                <label style="color:#888; font-size:0.8rem; display:block;">الملف</label>
+                <input type="file" name="fichier" required>
+            </div>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; cursor:pointer;">إضافة ✚</button>
+        </form>
+    </div>
+
+    {% include 'dashboard/_carnet_notes_personnelles.html' with profil_user=eleve.user notes_personnelles=notes_personnelles id_suffix='_eleve' %}
+
     <div class="page-title" style="font-size:1.2rem;">التقدم في الحفظ</div>
 
     <div class="row g-3 mb-3">

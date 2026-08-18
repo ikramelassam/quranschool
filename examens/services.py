@@ -71,9 +71,9 @@ def finaliser_si_expiree(copie):
 
 def corriger_automatiquement(reponse):
     """Corrige une Reponse aux types auto-corrigeables (choix/vrai_faux) et
-    renvoie les points attribués. Ne touche JAMAIS une réponse texte/audio —
-    elle reste 'a_corriger', correction manuelle obligatoire (§10 du cahier
-    des charges, aucune correction IA en V1)."""
+    renvoie les points attribués. Ne touche JAMAIS une réponse texte/audio/
+    video — elle reste 'a_corriger', correction manuelle obligatoire (§10 du
+    cahier des charges, aucune correction IA en V1)."""
     question = reponse.question
     if question.type_question == 'choix':
         correct = reponse.reponse_choix_id is not None and reponse.reponse_choix.est_correct
@@ -89,7 +89,7 @@ def corriger_automatiquement(reponse):
         reponse.points_obtenus = question.points if correct else 0
         reponse.statut_correction = 'auto'
         reponse.save(update_fields=['points_obtenus', 'statut_correction'])
-    # texte/audio : rien à faire, reste 'a_corriger' — voir Reponse par défaut.
+    # texte/audio/video : rien à faire, reste 'a_corriger' — voir Reponse par défaut.
     return reponse.points_obtenus
 
 
@@ -251,4 +251,31 @@ def valider_fichier_audio(fichier):
         return f'صيغة الملف "{extension}" غير مقبولة.'
     if fichier.size > TAILLE_MAX_AUDIO_OCTETS:
         return f'حجم الملف كبير جداً ({fichier.size // (1024 * 1024)} م.ب). الحد الأقصى 15 م.ب.'
+    return None
+
+
+# ==================== Validation vidéo ====================
+# Tâche du 2026-08-18 : même patron que valider_fichier_audio ci-dessus
+# (dupliqué depuis chat/annonces, mêmes valeurs — 40 Mo, mêmes extensions
+# que le type 'video' de annonces.services, nettement plus lourd qu'un
+# audio) — même décision de ne créer aucune dépendance entre examens et les
+# autres apps (voir docstring du module).
+
+EXTENSIONS_VIDEO_AUTORISEES = ('.mp4', '.webm', '.mov')
+TAILLE_MAX_VIDEO_OCTETS = 40 * 1024 * 1024  # 40 Mo
+
+
+def valider_fichier_video(fichier):
+    """Renvoie un message d'erreur arabe si le fichier est refusé, None s'il
+    est accepté — même logique que valider_fichier_audio (extension en liste
+    blanche + taille max + rejet d'un fichier vide)."""
+    if not fichier:
+        return "لم يتم إرفاق أي ملف فيديو."
+    if fichier.size == 0:
+        return "الملف فارغ أو تالف."
+    extension = os.path.splitext(fichier.name)[1].lower()
+    if extension not in EXTENSIONS_VIDEO_AUTORISEES:
+        return f'صيغة الملف "{extension}" غير مقبولة.'
+    if fichier.size > TAILLE_MAX_VIDEO_OCTETS:
+        return f'حجم الملف كبير جداً ({fichier.size // (1024 * 1024)} م.ب). الحد الأقصى 40 م.ب.'
     return None

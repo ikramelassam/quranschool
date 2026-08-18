@@ -49,6 +49,16 @@
             <div style="color:#aaa;">لم يُرفق الطالب أي تسجيل صوتي.</div>
             {% endif %}
             {% include 'examens/_form_correction.html' with reponse=reponse copie=copie %}
+
+        {% elif reponse.question.type_question == 'video' %}
+            {% if reponse.reponse_video %}
+            <video controls style="width:100%; max-width:420px; border-radius:8px;">
+                <source src="{% url 'examens_reponse_video' reponse.id %}">
+            </video>
+            {% else %}
+            <div style="color:#aaa;">لم يُرفق الطالب أي فيديو.</div>
+            {% endif %}
+            {% include 'examens/_form_correction.html' with reponse=reponse copie=copie %}
         {% endif %}
     </div>
     {% endfor %}

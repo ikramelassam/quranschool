@@ -9,6 +9,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
 from accounts.decorators import role_required
 from accounts.services import (
     invalider_sessions_utilisateur as _invalider_sessions_utilisateur,
@@ -145,6 +146,68 @@ def _next_valide(request, defaut='admin_eleves'):
     if next_url.startswith('/dashboard/admin/'):
         return next_url
     return reverse(defaut)
+
+
+@role_required('admin', 'mshrif')
+def ajouter_note_personnelle(request, user_id):
+    """Ajoute une note au carnet personnel (Tâche du 2026-08-18) que
+    request.user tient sur le profil de l'utilisateur user_id (élève, prof
+    ou مؤطر — profil_user est un simple User, voir accounts.models.
+    NotePersonnelle.__doc__). POST only, auteur = request.user TOUJOURS
+    (jamais un id envoyé par le client) : cette note n'appartient qu'à son
+    auteur, aucune autre personne consultant le même profil ne la verra."""
+    from accounts.models import User, NotePersonnelle
+
+    profil_user = get_object_or_404(User, id=user_id)
+    if request.method == 'POST':
+        contenu = request.POST.get('contenu', '').strip()
+        if contenu:
+            NotePersonnelle.objects.create(profil_user=profil_user, auteur=request.user, contenu=contenu)
+            messages.success(request, 'تمت إضافة الملاحظة.')
+        else:
+            messages.error(request, 'لا يمكن إضافة ملاحظة فارغة.')
+    return redirect(_next_valide(request, defaut='admin_eleves'))
+
+
+@role_required('admin', 'mshrif')
+@require_POST
+def modifier_note_personnelle(request, note_id):
+    """Modifie une note personnelle — STRICTEMENT réservée à son propre
+    auteur (vérification serveur, jamais une confiance dans le fait que le
+    bouton "تعديل" n'était affiché QUE sur ses propres notes côté template) —
+    même principe que chat.views.chat_supprimer_message."""
+    from django.http import HttpResponseForbidden
+    from accounts.models import NotePersonnelle
+
+    note = get_object_or_404(NotePersonnelle, id=note_id)
+    if note.auteur_id != request.user.id:
+        return HttpResponseForbidden('لا يمكنك تعديل ملاحظة كتبها شخص آخر.')
+
+    contenu = request.POST.get('contenu', '').strip()
+    if contenu:
+        note.contenu = contenu
+        note.save(update_fields=['contenu', 'date_modification'])
+        messages.success(request, 'تم تعديل الملاحظة.')
+    else:
+        messages.error(request, 'لا يمكن أن تكون الملاحظة فارغة.')
+    return redirect(_next_valide(request, defaut='admin_eleves'))
+
+
+@role_required('admin', 'mshrif')
+@require_POST
+def supprimer_note_personnelle(request, note_id):
+    """Supprime une note personnelle — même garde STRICTE que
+    modifier_note_personnelle ci-dessus (auteur == request.user)."""
+    from django.http import HttpResponseForbidden
+    from accounts.models import NotePersonnelle
+
+    note = get_object_or_404(NotePersonnelle, id=note_id)
+    if note.auteur_id != request.user.id:
+        return HttpResponseForbidden('لا يمكنك حذف ملاحظة كتبها شخص آخر.')
+
+    note.delete()
+    messages.success(request, 'تم حذف الملاحظة.')
+    return redirect(_next_valide(request, defaut='admin_eleves'))
 
 
 def _base_template_admin_ou_mshrif(request):
@@ -652,6 +715,17 @@ def prof_presence_sauvegarder(request, seance_id):
             consigne_memorisation = request.POST.get(f'consigne_memo_{eleve.id}', '')
             consigne_revision = request.POST.get(f'consigne_rev_{eleve.id}', '')
 
+            # Critère ينتقل/يعيد (Tâche du 2026-08-18) — 'valide' par défaut si
+            # rien n'est coché (comportement historique inchangé). On ignore
+            # toute valeur POST qui ne serait pas l'une des 2 choix valides
+            # plutôt que de faire confiance au client.
+            resultat_memorisation = request.POST.get(f'resultat_memo_{eleve.id}', 'valide')
+            if resultat_memorisation not in dict(Presence.RESULTAT_CHOICES):
+                resultat_memorisation = 'valide'
+            resultat_revision = request.POST.get(f'resultat_rev_{eleve.id}', 'valide')
+            if resultat_revision not in dict(Presence.RESULTAT_CHOICES):
+                resultat_revision = 'valide'
+
             # Critères dynamiques /20 (Tâche du 2026-08-04, Point 7) — remplacent
             # l'ancienne échelle qualitative pour toute nouvelle évaluation
             # (note_memorisation/note_revision ne sont plus jamais réécrits
@@ -748,6 +822,8 @@ def prof_presence_sauvegarder(request, seance_id):
                     'remarque': remarque,
                     'consigne_memorisation': consigne_memorisation,
                     'consigne_revision': consigne_revision,
+                    'resultat_memorisation': resultat_memorisation,
+                    'resultat_revision': resultat_revision,
                 }
             )
 
@@ -3641,7 +3717,7 @@ def admin_eleves(request):
 
 @role_required('admin', 'mshrif')
 def admin_eleve_detail(request, eleve_id):
-    from accounts.models import Eleve
+    from accounts.models import Eleve, NotePersonnelle
     from courses.models import DisponibiliteEleve
     from courses.utils import calculer_progression_eleve, groupes_compatibles_pour_eleve, JOURS_SEMAINE_DISPO, generer_heures_grille
 
@@ -3662,10 +3738,70 @@ def admin_eleve_detail(request, eleve_id):
         'valeurs_form': valeurs_form,
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
+        # Carnet de notes personnelles (Tâche du 2026-08-18) — UNIQUEMENT les
+        # notes de request.user lui-même sur ce profil, jamais celles d'un
+        # autre مدير/مشرف (voir accounts.models.NotePersonnelle.__doc__).
+        'notes_personnelles': NotePersonnelle.objects.filter(
+            profil_user=eleve.user, auteur=request.user
+        ),
+        # Cartable élève (Tâche du 2026-08-18) — voir accounts.models.DocumentEleve.
+        'documents_cartable': eleve.documents_cartable.select_related('ajoute_par'),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_eleve_detail.html', context)
+
+
+@role_required('admin', 'mshrif')
+@require_POST
+def admin_eleve_cartable_ajouter(request, eleve_id):
+    """Ajoute un fichier au cartable de CET élève (Tâche du 2026-08-18) —
+    équivalent, côté élève, de admin_hakiba_ajouter (même validation de
+    fichier, réutilisée telle quelle — voir _valider_fichier_hakiba).
+    Réservé à مدير/مشرف (pas le prof, décision confirmée)."""
+    from accounts.models import Eleve, DocumentEleve
+
+    eleve = get_object_or_404(Eleve, id=eleve_id)
+    fichier = request.FILES.get('fichier')
+    if not fichier:
+        messages.error(request, 'يجب إرفاق ملف.')
+        return redirect('admin_eleve_detail', eleve_id=eleve.id)
+
+    erreur = _valider_fichier_hakiba(fichier)
+    if erreur:
+        messages.error(request, erreur)
+        return redirect('admin_eleve_detail', eleve_id=eleve.id)
+
+    DocumentEleve.objects.create(
+        eleve=eleve, titre=request.POST.get('titre', '').strip(),
+        fichier=fichier, ajoute_par=request.user,
+    )
+    messages.success(request, 'تمت إضافة الملف إلى حقيبة الطالب.')
+    return redirect('admin_eleve_detail', eleve_id=eleve.id)
+
+
+@role_required('admin', 'mshrif')
+@require_POST
+def admin_eleve_cartable_supprimer(request, document_id):
+    from accounts.models import DocumentEleve
+
+    document = get_object_or_404(DocumentEleve, id=document_id)
+    eleve_id = document.eleve_id
+    if document.fichier:
+        document.fichier.delete(save=False)
+    document.delete()
+    messages.success(request, 'تم حذف الملف من حقيبة الطالب.')
+    return redirect('admin_eleve_detail', eleve_id=eleve_id)
+
+
+@role_required('eleve')
+def eleve_cartable(request):
+    """Page de lecture seule de l'élève sur SON PROPRE cartable — équivalent
+    de prof_hakiba.html côté prof, même principe (مدير/مشرف déposent, la
+    personne concernée consulte, aucune gestion possible d'ici)."""
+    eleve = request.user.eleve
+    documents = eleve.documents_cartable.select_related('ajoute_par')
+    return render(request, 'dashboard/eleve_cartable.html', {'documents': documents})
 
 
 @role_required('admin')
@@ -3848,7 +3984,7 @@ def admin_profs(request):
 
 @role_required('admin', 'mshrif')
 def admin_prof_detail(request, prof_id):
-    from accounts.models import Prof
+    from accounts.models import Prof, NotePersonnelle
     from courses.utils import calculer_remuneration_prof
     prof = get_object_or_404(Prof, id=prof_id)
     context = {
@@ -3857,6 +3993,12 @@ def admin_prof_detail(request, prof_id):
         'remuneration': calculer_remuneration_prof(prof),
         # حقيبة الأستاذ retirée de cette fiche depuis la refonte du 2026-08-05 :
         # gestion désormais centralisée sur admin_hakiba_gestion, plus par prof.
+        # Carnet de notes personnelles (Tâche du 2026-08-18) — système
+        # INDÉPENDANT de prof.notes_admin ci-dessus (voir accounts.models.
+        # NotePersonnelle.__doc__), uniquement les notes de request.user.
+        'notes_personnelles': NotePersonnelle.objects.filter(
+            profil_user=prof.user, auteur=request.user
+        ),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -4869,7 +5011,7 @@ def admin_superviseur_assignations(request, superviseur_id):
     reconstruite ci-dessous (point 4) ; @never_cache ci-dessus élimine par
     ailleurs la piste la plus plausible restante (page mise en cache par le
     navigateur avant un correctif antérieur)."""
-    from accounts.models import Superviseur, Prof
+    from accounts.models import Superviseur, Prof, NotePersonnelle
     from courses.models import Groupe
     from django.db.models import Count
     superviseur = get_object_or_404(Superviseur, id=superviseur_id)
@@ -4917,6 +5059,12 @@ def admin_superviseur_assignations(request, superviseur_id):
         'profs': tous_les_profs,
         'profs_assignes_ids': profs_assignes_ids,
         'groupes_actuels': groupes_actuels,
+        # Carnet de notes personnelles (Tâche du 2026-08-18) — cette page fait
+        # déjà office de fiche détail مؤطر (bloc infos + gestion assignation),
+        # voir accounts.models.NotePersonnelle.__doc__.
+        'notes_personnelles': NotePersonnelle.objects.filter(
+            profil_user=superviseur.user, auteur=request.user
+        ),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
