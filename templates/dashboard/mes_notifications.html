@@ -1,0 +1,37 @@
+{% extends base_template %}
+{% load libelles_arabes %}
+{% block title %}الإشعارات{% endblock %}
+{% block content %}
+{% comment %}
+"عرض الكل" du panneau 🔔 الإشعارات (Chantier notifications du 2026-08-19) —
+lien en bas du dropdown, voir dashboard/_header_raccourcis.html. Même
+structure visuelle que le dropdown (groupé par type, aucune ligne
+individuelle marquée "lu/non-lu" — voir dashboard.views.mes_notifications
+et dashboard.notifications.__doc__ : chaque ligne est par construction non
+lue, elle disparaît d'elle-même dès que son type est visité).
+{% endcomment %}
+<div class="page-title">الإشعارات</div>
+<div class="page-subtitle">كل ما يخصك شخصياً — اختبارات، تقييمات، ملفات جديدة</div>
+
+{% if notif_groupes %}
+{% for groupe in notif_groupes %}
+<div class="compact-card" style="margin-bottom:20px; padding:0; overflow:hidden;">
+    <div style="display:flex; align-items:center; gap:8px; padding:16px 20px 12px; font-weight:700; color:var(--color-brand-gold-dark);">
+        <span aria-hidden="true">{{ groupe.icone }}</span>
+        <span>{{ groupe.label }}</span>
+    </div>
+    {% for evt in groupe.evenements %}
+    <a href="{{ evt.url }}" style="display:flex; justify-content:space-between; align-items:baseline; gap:14px; padding:12px 20px; text-decoration:none; color:inherit; border-top:1px solid #f1e7d6;">
+        <span style="font-weight:600; font-size:0.92rem;">{{ evt.texte }}</span>
+        <span style="color:#888; font-size:0.78rem; white-space:nowrap; flex-shrink:0;">{{ evt.date|depuis_relatif }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endfor %}
+{% else %}
+<div class="compact-card" style="text-align:center; color:#aaa; padding:40px;">
+    <div style="font-size:1.8rem; opacity:0.5; margin-bottom:8px;">🔔</div>
+    لا توجد إشعارات جديدة
+</div>
+{% endif %}
+{% endblock %}

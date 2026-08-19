@@ -112,6 +112,64 @@ def jours_depuis(date_reference):
 
 
 @register.filter
+def depuis_relatif(date_reference):
+    """Ancienneté relative en arabe, granularité fine (minute/heure/jour/
+    semaine) — ex: 'منذ 3 دقائق', 'منذ ساعتين', 'منذ يومين', 'منذ 3 أسابيع'.
+    Complète jours_depuis ci-dessus (qui ne renvoie qu'un entier de jours,
+    pensé pour un badge de suspension) : ici il faut une phrase complète et
+    plus granulaire, pour le panneau 🔔 الإشعارات (Chantier notifications du
+    2026-08-19) où un événement vieux de quelques minutes doit se distinguer
+    d'un événement vieux d'un jour. django.contrib.humanize n'est pas
+    installé dans ce projet, et LANGUAGE_CODE='en-us' (settings.py) l'aurait
+    de toute façon affiché en anglais ('2 hours ago') au milieu d'une
+    interface entièrement arabe — un filtre maison est donc nécessaire, pas
+    une case humanize à cocher.
+
+    Duel arabe (2 exactement, pas juste "2 + pluriel générique") correctement
+    distingué à CHAQUE palier — منذ دقيقتين/ساعتين/يومين/أسبوعين, jamais
+    "منذ 2 دقائق" ou équivalent."""
+    from django.utils import timezone
+
+    if not date_reference:
+        return ''
+    delta = timezone.now() - date_reference
+    secondes = delta.total_seconds()
+    if secondes < 60:
+        return 'الآن'
+
+    minutes = int(secondes // 60)
+    if minutes < 60:
+        if minutes == 1:
+            return 'منذ دقيقة'
+        if minutes == 2:
+            return 'منذ دقيقتين'
+        return f'منذ {minutes} دقائق'
+
+    heures = minutes // 60
+    if heures < 24:
+        if heures == 1:
+            return 'منذ ساعة'
+        if heures == 2:
+            return 'منذ ساعتين'
+        return f'منذ {heures} ساعات'
+
+    jours = heures // 24
+    if jours < 7:
+        if jours == 1:
+            return 'منذ يوم'
+        if jours == 2:
+            return 'منذ يومين'
+        return f'منذ {jours} أيام'
+
+    semaines = jours // 7
+    if semaines == 1:
+        return 'منذ أسبوع'
+    if semaines == 2:
+        return 'منذ أسبوعين'
+    return f'منذ {semaines} أسابيع'
+
+
+@register.filter
 def tranche_age_ar(date_naissance):
     """'طفل'/'بالغ' calculé depuis une date de naissance, via la même règle
     centralisée que la grille de rémunération et la validation d'inscription

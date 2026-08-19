@@ -1,0 +1,35 @@
+{% extends 'dashboard/base_prof.html' %}
+{% load libelles_arabes %}
+{% block title %}تقييمات المؤطر لي{% endblock %}
+{% block content %}
+<div class="page-title">تقييمات المؤطر لي</div>
+<div class="page-subtitle">التقييمات التي كتبها المؤطر (المشرف) على حصصك — الأحدث أولاً، للقراءة فقط</div>
+
+{% for evaluation in evaluations %}
+<details style="background:white; border-radius:12px; margin-bottom:14px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+    <summary style="cursor:pointer; padding:18px 20px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+        <span>
+            <span style="font-weight:700;">{{ evaluation.seance.groupe.nom }}</span>
+            <span style="color:#888; font-size:0.85rem; margin-inline-start:10px;">{{ evaluation.seance.date|date:"d-m-Y" }}</span>
+        </span>
+        <span style="color:var(--color-brand-gold-dark); font-size:0.8rem; font-weight:600;">{{ evaluation.date|depuis_relatif }}</span>
+    </summary>
+    <div style="padding:0 20px 20px; border-top:1px solid #f1e7d6;">
+        {% for note in evaluation.notes.all %}
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f5f5f5;">
+            <span>{{ note.critere.nom_ar }}</span>
+            <span style="font-weight:600;">{{ note.get_note_display }}</span>
+        </div>
+        {% endfor %}
+        {% if evaluation.commentaire %}
+        <div style="margin-top:16px;">
+            <div style="color:#888; font-size:0.8rem;">ملاحظات وتوجيهات المؤطر</div>
+            <div style="background:#f9f9f9; padding:10px; border-radius:6px; margin-top:4px; white-space:pre-wrap;">{{ evaluation.commentaire }}</div>
+        </div>
+        {% endif %}
+    </div>
+</details>
+{% empty %}
+<div style="text-align:center; color:#aaa; padding:40px; background:white; border-radius:12px;">لا توجد تقييمات من المؤطر بعد</div>
+{% endfor %}
+{% endblock %}

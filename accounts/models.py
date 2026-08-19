@@ -559,4 +559,3 @@ class DerniereVisiteNotification(models.Model):
         unique_together = ('user', 'cle')
         verbose_name = "Dernière visite de notification"
         verbose_name_plural = "Dernières visites de notification"
-        verbose_name_plural = "Superviseurs"

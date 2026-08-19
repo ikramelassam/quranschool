@@ -165,4 +165,6 @@ urlpatterns = [
     path('admin/notes/<int:note_id>/supprimer/', views.supprimer_note_personnelle, name='supprimer_note_personnelle'),
     # Bloc-notes personnel "ملاحظاتي" (tous rôles, sur soi-même) — Tâche du 2026-08-18 bis
     path('mes-notes/', views.mes_notes_personnelles, name='mes_notes_personnelles'),
+    # Panneau 🔔 الإشعارات — "عرض الكل" (eleve/prof uniquement) — Chantier notifications du 2026-08-19
+    path('mes-notifications/', views.mes_notifications, name='mes_notifications'),
 ]

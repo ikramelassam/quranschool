@@ -7,7 +7,7 @@ Correctif du 2026-08-16 : le raccourci الرسائل ne doit apparaître QUE su
 cette page d'accueil, pas sur tout le site — inclusion déplacée depuis
 base_superviseur.html.
 {% endcomment %}
-{% include 'dashboard/_header_raccourcis.html' with afficher_messages=True afficher_annonces=False couleur_role='var(--color-role-superviseur-solid)' %}
+{% include 'dashboard/_header_raccourcis.html' with afficher_messages=True afficher_annonces=False afficher_notifications=False couleur_role='var(--color-role-superviseur-solid)' %}
 <div class="page-title">لوحة المؤطر</div>
 <div class="page-subtitle">مراقبة الحصص والتقييمات</div>
 

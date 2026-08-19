@@ -18,7 +18,7 @@ Correctif du 2026-08-16 : les raccourcis الرسائل/الإعلانات ne do
 apparaître QUE sur cette page d'accueil, pas sur tout le site — inclusion
 déplacée depuis base_eleve.html.
 {% endcomment %}
-{% include 'dashboard/_header_raccourcis.html' with afficher_messages=True afficher_annonces=True url_annonces='eleve_annonces' couleur_role='var(--color-role-eleve-solid)' %}
+{% include 'dashboard/_header_raccourcis.html' with afficher_messages=True afficher_annonces=True afficher_notifications=True url_annonces='eleve_annonces' couleur_role='var(--color-role-eleve-solid)' %}
 <div class="dash-top-row">
     <div>
         <div class="page-title" style="margin-bottom:2px;">أهلاً، {{ eleve.user.get_full_name }} 👋</div>

@@ -8,7 +8,7 @@ Correctif du 2026-08-16 : le raccourci الرسائل ne doit apparaître QUE su
 cette page d'accueil, pas sur tout le site — inclusion déplacée depuis
 base_prof.html.
 {% endcomment %}
-{% include 'dashboard/_header_raccourcis.html' with afficher_messages=True afficher_annonces=False couleur_role='var(--color-role-prof-solid)' %}
+{% include 'dashboard/_header_raccourcis.html' with afficher_messages=True afficher_annonces=False afficher_notifications=True couleur_role='var(--color-role-prof-solid)' %}
 <div class="page-title">أهلاً، {{ prof.user.get_full_name }} 👋</div>
 <div class="page-subtitle">لوحة التحكم الخاصة بك</div>
 

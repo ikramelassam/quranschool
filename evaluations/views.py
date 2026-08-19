@@ -18,6 +18,39 @@ def _metadonnees_seance(seance):
     }
 
 
+@role_required('prof')
+def prof_evaluations_recues(request):
+    """"تقييمات المؤطر لي" (Chantier notifications du 2026-08-19) — les
+    évaluations que LE SUPERVISEUR a écrites sur CE prof (Evaluation.prof),
+    en lecture seule. Manque fonctionnel réel révélé par ce chantier :
+    jusqu'ici seuls le مؤطر (superviseur_evaluation_detail) et le مدير/مشرف
+    (dashboard.views.admin_evaluation_detail) pouvaient consulter ces
+    évaluations — AUCUNE vue n'existait pour que le prof évalué les voie
+    lui-même. Ne pas confondre avec dashboard.views.prof_evaluations
+    ("تقييماتي" = les évaluations que CE PROF donne aux ÉLÈVES via Presence
+    — nom déjà pris, sens inverse).
+
+    Liste seule (pas de détail par ID séparé) : chaque évaluation s'ouvre
+    inline via <details>/<summary> natif dans le template — aucune URL
+    /evaluations/<id>/ n'existe côté prof, donc aucun risque qu'un prof
+    accède à l'évaluation d'un autre en devinant un ID dans l'URL. Le
+    queryset lui-même est de toute façon strictement scopé à `prof`."""
+    from accounts.models import Prof
+    from dashboard.notifications import marquer_visite
+
+    prof = get_object_or_404(Prof, user=request.user)
+    evaluations = Evaluation.objects.filter(prof=prof).select_related(
+        'seance__groupe'
+    ).prefetch_related('notes__critere').order_by('-date')
+
+    marquer_visite(request.user, 'evaluations_recues')
+
+    return render(request, 'dashboard/prof_evaluations_recues.html', {
+        'prof': prof,
+        'evaluations': evaluations,
+    })
+
+
 @role_required('superviseur')
 def superviseur_evaluation_detail(request, seance_id):
     """Consultation en lecture seule d'une évaluation déjà soumise. Séparée

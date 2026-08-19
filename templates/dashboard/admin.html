@@ -16,7 +16,7 @@ doivent apparaître QUE sur cette page d'accueil, pas sur tout le site —
 leur inclusion, jusqu'ici dans base_admin.html (donc sur CHAQUE page مدير),
 est déplacée ICI.
 {% endcomment %}
-{% include 'dashboard/_header_raccourcis.html' with afficher_messages=True afficher_annonces=True url_annonces='annonces_gestion' couleur_role='var(--color-role-admin-solid)' %}
+{% include 'dashboard/_header_raccourcis.html' with afficher_messages=True afficher_annonces=True afficher_notifications=False url_annonces='annonces_gestion' couleur_role='var(--color-role-admin-solid)' %}
 <div class="page-title">لوحة التحكم</div>
 <div class="page-subtitle">نظرة شاملة على المنصة</div>
 

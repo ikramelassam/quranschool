@@ -457,6 +457,11 @@ def eleve_examens_liste(request):
         examen.copie_utilisateur = copie
         examen.statut_affichage = statut_affichage_eleve(examen, copie)
 
+    # Marque le type 'examens' comme lu (panneau 🔔 الإشعارات, Chantier
+    # notifications du 2026-08-19) — voir dashboard.notifications.__doc__.
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'examens')
+
     return render(request, 'examens/eleve_liste.html', {'examens': examens})
 
 

@@ -265,6 +265,36 @@ def mes_notes_personnelles(request):
     return render(request, 'dashboard/mes_notes_personnelles.html', context)
 
 
+@role_required('eleve', 'prof')
+def mes_notifications(request):
+    """Page "عرض الكل" du panneau 🔔 الإشعارات (lien en bas du dropdown, voir
+    dashboard/_header_raccourcis.html) — mêmes données que le dropdown, sans
+    plafond d'affichage par groupe (limite=dashboard.notifications.
+    LIMITE_FETCH au lieu de LIMITE_PAR_GROUPE). Ne marque RIEN comme lu ici
+    (contrairement aux 5 "pages cibles" elles-mêmes) : cette page n'est
+    qu'une VUE D'ENSEMBLE qui pointe vers les vraies pages cibles — c'est en
+    cliquant un événement (donc en arrivant sur eleve_seances/eleve_cartable/
+    etc.) que la lecture se marque, jamais en survolant cette liste."""
+    from dashboard.notifications import notifications_eleve, notifications_prof, LIMITE_FETCH
+
+    if request.user.role == 'eleve':
+        from accounts.models import Eleve
+        eleve = get_object_or_404(Eleve, user=request.user)
+        notif_groupes, notif_total = notifications_eleve(eleve, request.user, limite=LIMITE_FETCH)
+        base_template = 'dashboard/base_eleve.html'
+    else:
+        from accounts.models import Prof
+        prof = get_object_or_404(Prof, user=request.user)
+        notif_groupes, notif_total = notifications_prof(prof, request.user, limite=LIMITE_FETCH)
+        base_template = 'dashboard/base_prof.html'
+
+    return render(request, 'dashboard/mes_notifications.html', {
+        'notif_groupes': notif_groupes,
+        'notif_total': notif_total,
+        'base_template': base_template,
+    })
+
+
 def _base_template_admin_ou_mshrif(request):
     """Pages admin réutilisées en lecture seule par المشرف (listes/fiches élèves-profs,
     évaluations) : garde son propre sidebar/couleur plutôt que celui du مدير."""
@@ -387,6 +417,13 @@ def dashboard_prof(request):
         s for s in a_venir['bucket_semaine_courante'] if s.id != id_a_exclure
     ]
 
+    # Panneau 🔔 الإشعارات (Chantier notifications du 2026-08-19) — calculé
+    # UNIQUEMENT ici (page d'accueil), jamais en context processor global :
+    # voir dashboard.notifications.__doc__ pour le choix d'architecture et
+    # son coût réel.
+    from dashboard.notifications import notifications_prof
+    notif_groupes, notif_total = notifications_prof(prof, request.user)
+
     context = {
         'prof': prof,
         'groupes': groupes,
@@ -409,6 +446,8 @@ def dashboard_prof(request):
         # prof avait un historique bien plus long ; total réel, cohérent avec
         # le fait que la liste ci-dessous n'est plus plafonnée à 5 non plus.
         'total_seances_passees': toutes_seances_prof.filter(date__lt=aujourdhui).count(),
+        'notif_groupes': notif_groupes,
+        'notif_total': notif_total,
     }
     return render(request, 'dashboard/prof.html', context)
 
@@ -1075,6 +1114,12 @@ def prof_hakiba(request):
     elements = ElementHakiba.objects.filter(
         Q(tous_les_profs=True) | Q(profs_cibles=prof)
     ).distinct().order_by('-date_ajout')
+
+    # Marque le type 'hakiba' comme lu (panneau 🔔 الإشعارات, Chantier
+    # notifications du 2026-08-19) — voir dashboard.notifications.__doc__.
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'hakiba')
+
     return render(request, 'dashboard/prof_hakiba.html', {
         'elements_hakiba': elements,
     })
@@ -2895,6 +2940,13 @@ def dashboard_eleve(request):
     )
     annonces_recentes = annonces_non_lues[:3]
 
+    # Panneau 🔔 الإشعارات (Chantier notifications du 2026-08-19) — calculé
+    # UNIQUEMENT ici (page d'accueil), jamais en context processor global :
+    # voir dashboard.notifications.__doc__ pour le choix d'architecture et
+    # son coût réel.
+    from dashboard.notifications import notifications_eleve
+    notif_groupes, notif_total = notifications_eleve(eleve, request.user)
+
     context = {
         'eleve': eleve,
         'groupe_principal': groupes.first(),
@@ -2910,6 +2962,8 @@ def dashboard_eleve(request):
         'dernieres_evaluations': dernieres_evaluations,
         'derniere_avec_consignes': derniere_avec_consignes,
         'annonces_recentes': annonces_recentes,
+        'notif_groupes': notif_groupes,
+        'notif_total': notif_total,
     }
     return render(request, 'dashboard/eleve.html', context)
 
@@ -2965,6 +3019,11 @@ def eleve_seances(request):
     presences = Presence.objects.filter(
         eleve=eleve
     ).order_by('-seance__date', '-seance__heure')
+
+    # Marque le type 'notes_seances' comme lu (panneau 🔔 الإشعارات, Chantier
+    # notifications du 2026-08-19) — voir dashboard.notifications.__doc__.
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'notes_seances')
 
     return render(request, 'dashboard/eleve_seances.html', {
         'eleve': eleve,
@@ -3898,6 +3957,12 @@ def eleve_cartable(request):
     personne concernée consulte, aucune gestion possible d'ici)."""
     eleve = request.user.eleve
     documents = eleve.documents_cartable.select_related('ajoute_par')
+
+    # Marque le type 'cartable' comme lu (panneau 🔔 الإشعارات, Chantier
+    # notifications du 2026-08-19) — voir dashboard.notifications.__doc__.
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'cartable')
+
     return render(request, 'dashboard/eleve_cartable.html', {'documents': documents})
 
 

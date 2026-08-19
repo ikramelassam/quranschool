@@ -189,6 +189,10 @@
            class="menu-item {% if request.resolver_match.url_name == 'prof_evaluations' %}active{% endif %}">
             <span class="icon">📊</span> تقييماتي
         </a>
+        <a href="{% url 'evaluations_prof_recues' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'evaluations_prof_recues' %}active{% endif %}">
+            <span class="icon">🧭</span> تقييمات المؤطر لي
+        </a>
         <a href="{% url 'prof_emploi' %}"
            class="menu-item {% if request.resolver_match.url_name == 'prof_emploi' %}active{% endif %}">
             <span class="icon">📅</span> جدولي

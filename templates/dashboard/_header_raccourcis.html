@@ -1,6 +1,7 @@
 {% load chat_extras %}
+{% load libelles_arabes %}
 {% comment %}
-Raccourcis "الإعلانات"/"الرسائل" — mini-toolbar en tête du contenu principal
+Raccourcis "الإعلانات"/"الرسائل"/"الإشعارات" — mini-toolbar en tête du contenu principal
 (`.main-content`), visuellement séparée de la sidebar (Chantier UX header du
 2026-08-16, plusieurs retouches le même jour — voir historique ci-dessous).
 Purement présentationnel : réutilise TEL QUEL chat_non_lus_total /
@@ -60,6 +61,21 @@ sidebar reste la seule source de vérité sur qui a accès à quoi) :
   uniquement pour l'anneau de focus clavier (accessibilité), pas pour l'état
   hover (voir .raccourci-btn:hover, qui suit exactement le même traitement
   que .compact-card:hover déjà utilisé partout ailleurs dans le dashboard).
+
+Icône 🔔 "الإشعارات" (Chantier notifications du 2026-08-19) — SEULE différence
+structurelle avec 📣/✉️ ci-dessus : un panneau déroulant au clic plutôt qu'un
+lien direct (voir dashboard.notifications.__doc__ pour ce que "الإشعارات"
+représente précisément — évaluations/examens/fichiers personnels reçus,
+JAMAIS les compteurs de tâches admin/مؤطر qui restent où ils sont déjà,
+décision explicitement validée). Passée par dashboard_eleve/dashboard_prof
+UNIQUEMENT (pas admin/مشرف/مؤطر, aucun déclencheur défini pour ces rôles) :
+- afficher_notifications : True seulement pour eleve.html/prof.html.
+- notif_total : nombre réel d'événements non lus (badge).
+- notif_groupes : liste de dicts {icone, label, evenements: [{texte, url,
+  date}]} — CHAQUE ligne affichée est par construction non lue (elle
+  disparaît dès que son type est visité, voir DerniereVisiteNotification),
+  donc AUCUN style "lu/non-lu" par ligne individuelle n'est ajouté ici,
+  décision explicitement validée (voir rapport du chantier).
 {% endcomment %}
 <div class="dashboard-header-zone">
     <div class="header-topbar">
@@ -86,6 +102,46 @@ sidebar reste la seule source de vérité sur qui a accès à quoi) :
                 </span>
                 <span class="raccourci-texte">الرسائل</span>
             </a>
+            {% endif %}
+            {% if afficher_notifications %}
+            <div class="notif-wrap" id="notifWrap">
+                <button type="button" class="raccourci-btn notif-toggle" id="notifToggle"
+                        style="--raccourci-accent:{{ couleur_role }};"
+                        aria-haspopup="true" aria-expanded="false" aria-controls="notifDropdown"
+                        aria-label="الإشعارات{% if notif_total %} — {{ notif_total }} إشعارات جديدة{% endif %}">
+                    <span class="raccourci-icone-frame">
+                        <span class="raccourci-icone" aria-hidden="true">🔔</span>
+                        {% if notif_total %}<span class="raccourci-badge">{{ notif_total|abrege_badge }}</span>{% endif %}
+                    </span>
+                    <span class="raccourci-texte">الإشعارات</span>
+                </button>
+                <div class="notif-dropdown" id="notifDropdown" role="menu" hidden>
+                    {% if notif_groupes %}
+                    <div class="notif-liste">
+                        {% for groupe in notif_groupes %}
+                        <div class="notif-groupe">
+                            <div class="notif-groupe-titre">
+                                <span aria-hidden="true">{{ groupe.icone }}</span>
+                                <span>{{ groupe.label }}</span>
+                            </div>
+                            {% for evt in groupe.evenements %}
+                            <a href="{{ evt.url }}" class="notif-item" role="menuitem">
+                                <span class="notif-item-texte">{{ evt.texte }}</span>
+                                <span class="notif-item-temps">{{ evt.date|depuis_relatif }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <a href="{% url 'mes_notifications' %}" class="notif-voir-tout">عرض الكل ←</a>
+                    {% else %}
+                    <div class="notif-vide">
+                        <span class="notif-vide-icone" aria-hidden="true">🔔</span>
+                        <span>لا توجد إشعارات جديدة</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
             {% endif %}
         </div>
     </div>
@@ -177,4 +233,85 @@ sidebar reste la seule source de vérité sur qui a accès à quoi) :
         .raccourci-texte { font-size: 0.7rem; }
         .raccourci-badge { top: -5px; inset-inline-end: -6px; }
     }
+
+    /* ===== Panneau 🔔 الإشعارات — maquette validée le 2026-08-19 (voir
+       docstring plus haut). Réutilise EXACTEMENT le langage visuel de
+       .recherche-globale-dropdown (dashboard/_recherche_globale.html) :
+       fond blanc, radius 12px, même ombre — mais inset-inline-end:0 avec une
+       largeur fixe (comme .raccourci-badge) plutôt que right:0;left:0 (qui
+       n'a de sens que pour un dropdown pleine largeur sous un champ de
+       recherche, pas sous une icône). */
+    .notif-wrap { position: relative; }
+    .notif-toggle { cursor: pointer; font-family: 'Tajawal', sans-serif; border: none; }
+
+    .notif-dropdown {
+        position: absolute; top: calc(100% + 10px); inset-inline-end: 0;
+        width: min(360px, calc(100vw - 24px));
+        background: white; border-radius: 12px;
+        box-shadow: 0 8px 28px rgba(44, 21, 0, 0.16);
+        max-height: 70vh; overflow-y: auto; z-index: 500;
+    }
+
+    .notif-groupe { border-bottom: 1px solid #F1E7D6; }
+    .notif-groupe:last-child { border-bottom: none; }
+    .notif-groupe-titre {
+        display: flex; align-items: center; gap: 8px;
+        padding: 12px 18px 7px; font-size: 0.78rem; font-weight: 700;
+        color: var(--color-brand-gold-dark);
+    }
+    .notif-item {
+        display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+        padding: 10px 18px; text-decoration: none; color: inherit;
+        transition: background 0.1s;
+    }
+    .notif-item:hover { background: var(--color-bg-cream); }
+    .notif-item-texte { font-size: 0.87rem; font-weight: 600; color: var(--color-text-primary); }
+    .notif-item-temps {
+        font-size: 0.74rem; color: var(--color-text-muted);
+        white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums;
+    }
+    .notif-voir-tout {
+        display: block; text-align: center; padding: 11px; font-size: 0.82rem;
+        color: var(--color-brand-gold-dark); text-decoration: none; font-weight: 700;
+        border-top: 1px solid #F1E7D6;
+    }
+    .notif-voir-tout:hover { text-decoration: underline; }
+    .notif-vide {
+        padding: 28px 16px; text-align: center; color: var(--color-text-muted); font-size: 0.88rem;
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .notif-vide-icone { font-size: 1.6rem; opacity: 0.5; }
+
+    @media (max-width: 576px) {
+        .notif-dropdown { max-height: 60vh; }
+    }
 </style>
+
+<script>
+(function () {
+    const wrap = document.getElementById('notifWrap');
+    if (!wrap) return;
+    const toggle = document.getElementById('notifToggle');
+    const dropdown = document.getElementById('notifDropdown');
+
+    function fermer() {
+        dropdown.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
+    }
+    function ouvrir() {
+        dropdown.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+    }
+
+    toggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (dropdown.hidden) ouvrir(); else fermer();
+    });
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('#notifWrap')) fermer();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') fermer();
+    });
+})();
+</script>

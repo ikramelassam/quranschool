@@ -5,13 +5,17 @@ from django.conf import settings
 from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
-from accounts.models import User, Eleve, Prof, Superviseur
+from accounts.models import (
+    User, Eleve, Prof, Superviseur, DocumentEleve, ElementHakiba, DerniereVisiteNotification,
+)
 from courses.models import (
     Groupe, Seance, Presence, BilanMensuel, HistoriqueGroupeEleve,
     DisponibiliteEleve, DisponibiliteProf, DemandeModificationDisponibilite,
 )
-from evaluations.models import Evaluation, CommentaireMensuel
+from evaluations.models import Evaluation, CommentaireMensuel, Critere, NoteEvaluation
+from examens.models import Examen
 from inscriptions.models import InscriptionEleve, InscriptionProf, PhraseRefus
 from payments.models import Paiement
 from dashboard.views import (
@@ -2265,3 +2269,243 @@ class PresenceResultatMemorisationVueTests(TestCase):
         self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees)
         presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
         self.assertEqual(presence.resultat_memorisation, 'valide')
+
+
+# ==================== Chantier notifications (2026-08-19) ====================
+# Panneau 🔔 الإشعارات — un test par déclencheur (Point F de la todo list
+# validée), plus marquage lu, amorçage, anti-fausse-notification et
+# permissions. Voir dashboard.notifications.__doc__ pour l'architecture.
+
+class NotificationsChantierTests(TestCase):
+    def setUp(self):
+        self.eleve = _creer_eleve(email='notif_eleve@zidni.test')
+        self.prof = _creer_prof(email='notif_prof@zidni.test')
+        self.superviseur = _creer_superviseur(email='notif_superviseur@zidni.test')
+        self.groupe = Groupe.objects.create(nom='مجموعة الإشعارات', prof=self.prof, statut='actif')
+        self.groupe.eleves.add(self.eleve)
+        self.superviseur.profs_assignes.add(self.prof)
+        # Date de demain (jamais "aujourd'hui à heure fixe" — dépendrait de
+        # l'heure d'exécution des tests) : le proxy de notification
+        # 'notes_seances' se base sur seance.date/heure (voir dashboard.
+        # notifications.notifications_eleve — Presence n'a pas de champ date
+        # propre), qui doit donc rester SANS AMBIGUÏTÉ postérieur à
+        # self.eleve.user.date_joined (fixé à "maintenant" à la création
+        # ci-dessus) pour que le scénario "note tout juste remplie" reste
+        # réaliste et non-flaky dans ces tests.
+        self.seance = Seance.objects.create(
+            groupe=self.groupe, date=timezone.localdate() + datetime.timedelta(days=1), heure=datetime.time(17, 0),
+            type='normal', statut='terminee',
+        )
+
+    def _connecter_eleve(self):
+        self.client.force_login(self.eleve.user)
+
+    def _connecter_prof(self):
+        self.client.force_login(self.prof.user)
+
+    # ---------- 4a. Examen publié ----------
+    def test_examen_publie_declenche_le_badge_eleve(self):
+        Examen.objects.create(
+            groupe=self.groupe, prof=self.prof, titre='اختبار الجزء الأول',
+            statut='publie', date_publication=timezone.now(),
+            date_debut=timezone.now() - datetime.timedelta(hours=1),
+            date_limite=timezone.now() + datetime.timedelta(hours=3),
+            duree_minutes=30,
+        )
+        self._connecter_eleve()
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 1)
+        self.assertContains(response, 'اختبار جديد: اختبار الجزء الأول')
+
+    def test_examen_brouillon_ne_declenche_pas(self):
+        """Un examen non publié ne concerne pas encore l'élève — aucune fausse
+        notification avant que le prof ne clique réellement sur 'نشر'."""
+        Examen.objects.create(
+            groupe=self.groupe, prof=self.prof, titre='اختبار غير منشور',
+            statut='brouillon',
+            date_debut=timezone.now() - datetime.timedelta(hours=1),
+            date_limite=timezone.now() + datetime.timedelta(hours=3),
+            duree_minutes=30,
+        )
+        self._connecter_eleve()
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 0)
+
+    # ---------- 4b. Note de séance (Presence) ----------
+    def test_note_seance_declenche_le_badge_eleve(self):
+        Presence.objects.create(
+            seance=self.seance, eleve=self.eleve, statut='present',
+            note_hifz=15, note_muraja3a=14, note_tilawa=16, note_mouwazaba=18,
+        )
+        self._connecter_eleve()
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 1)
+
+    def test_presence_sans_note_ne_declenche_pas(self):
+        """Un élève marqué simplement absent (aucune note remplie) ne doit
+        jamais lever une fausse notification 'nouvelle note'."""
+        Presence.objects.create(seance=self.seance, eleve=self.eleve, statut='absent')
+        self._connecter_eleve()
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 0)
+
+    # ---------- 4c. Cartable élève ----------
+    def test_document_cartable_declenche_le_badge_eleve(self):
+        DocumentEleve.objects.create(eleve=self.eleve, titre='جدول التسميع', fichier='cartable_eleve/test.pdf')
+        self._connecter_eleve()
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 1)
+        self.assertContains(response, 'جدول التسميع')
+
+    def test_document_dun_autre_eleve_ne_declenche_pas(self):
+        autre_eleve = _creer_eleve(email='notif_autre_eleve@zidni.test')
+        DocumentEleve.objects.create(eleve=autre_eleve, titre='ملف غير معني', fichier='cartable_eleve/x.pdf')
+        self._connecter_eleve()
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 0)
+
+    # ---------- 5a. Évaluation reçue par le prof ----------
+    def test_evaluation_recue_declenche_le_badge_prof(self):
+        Evaluation.objects.create(
+            seance=self.seance, superviseur=self.superviseur, prof=self.prof,
+            commentaire='أداء جيد بشكل عام.',
+        )
+        self._connecter_prof()
+        response = self.client.get(reverse('dashboard_prof'))
+        self.assertEqual(response.context['notif_total'], 1)
+
+    # ---------- 5b. Hakiba (fichier cartable prof) ----------
+    def test_hakiba_tous_les_profs_declenche_le_badge(self):
+        ElementHakiba.objects.create(titre='ميثاق التدريس', contenu_texte='...', tous_les_profs=True)
+        self._connecter_prof()
+        response = self.client.get(reverse('dashboard_prof'))
+        self.assertEqual(response.context['notif_total'], 1)
+
+    def test_hakiba_cible_un_autre_prof_ne_declenche_pas(self):
+        autre_prof = _creer_prof(email='notif_autre_prof@zidni.test')
+        element = ElementHakiba.objects.create(titre='خاص بأستاذ آخر', tous_les_profs=False)
+        element.profs_cibles.add(autre_prof)
+        self._connecter_prof()
+        response = self.client.get(reverse('dashboard_prof'))
+        self.assertEqual(response.context['notif_total'], 0)
+
+    def test_hakiba_ciblant_ce_prof_specifiquement_declenche(self):
+        element = ElementHakiba.objects.create(titre='خاص بك', tous_les_profs=False)
+        element.profs_cibles.add(self.prof)
+        self._connecter_prof()
+        response = self.client.get(reverse('dashboard_prof'))
+        self.assertEqual(response.context['notif_total'], 1)
+
+    # ---------- Marquer comme lu (par type, pas par élément) ----------
+    def test_visiter_la_page_cible_marque_le_type_comme_lu(self):
+        DocumentEleve.objects.create(eleve=self.eleve, titre='ملف', fichier='cartable_eleve/a.pdf')
+        self._connecter_eleve()
+        # Avant la visite : le badge compte le fichier.
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 1)
+        # Visite de la vraie page cible -> marque 'cartable' comme lu.
+        self.client.get(reverse('eleve_cartable'))
+        # Après la visite : le badge retombe à 0, sans qu'aucun autre type
+        # (jamais créé ici) ne soit affecté.
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 0)
+
+    def test_premiere_visite_dun_compte_voit_le_contenu_recent(self):
+        """Un compte SANS DerniereVisiteNotification (jamais visité) doit
+        voir, dès sa toute première visite, le contenu créé APRÈS son
+        inscription — pas de faux 'déjà vu'. Corrige un bug réel détecté
+        par ce test avant intégration (voir dashboard.notifications._seuils.
+        __doc__) : la 1ère version amorçait le seuil à 'maintenant' au 1er
+        calcul, ce qui avalait aussi le contenu légitimement nouveau d'un
+        compte tout juste créé — pas seulement l'historique des comptes déjà
+        anciens au jour du déploiement (protégés séparément, voir
+        accounts/migrations/0037_seed_dernieres_visites_notification.py)."""
+        DocumentEleve.objects.create(eleve=self.eleve, titre='fichier', fichier='cartable_eleve/a.pdf')
+        self.assertFalse(DerniereVisiteNotification.objects.filter(user=self.eleve.user, cle='cartable').exists())
+        self._connecter_eleve()
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 1)
+        # Le seuil est maintenant persisté (amorcé à user.date_joined), pas recalculé à chaque appel.
+        self.assertTrue(DerniereVisiteNotification.objects.filter(user=self.eleve.user, cle='cartable').exists())
+
+    def test_contenu_anterieur_au_seuil_deja_amorce_ne_redeclenche_pas(self):
+        """Une fois un seuil déjà posé (ici simulé comme si la migration de
+        déploiement — ou une visite précédente — l'avait déjà fait), un
+        contenu plus ANCIEN que ce seuil ne redéclenche jamais le badge —
+        c'est cette ligne-ci qui protège réellement les comptes déjà
+        existants d'une inondation le jour de la mise en service."""
+        DocumentEleve.objects.create(eleve=self.eleve, titre='ancien fichier', fichier='cartable_eleve/old.pdf')
+        DerniereVisiteNotification.objects.create(
+            user=self.eleve.user, cle='cartable', date_visite=timezone.now() + datetime.timedelta(seconds=1)
+        )
+        self._connecter_eleve()
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 0)
+
+    # ---------- Anti-fausse-notification : modification != création ----------
+    def test_modification_mineure_hakiba_ne_redeclenche_pas(self):
+        element = ElementHakiba.objects.create(titre='ميثاق', contenu_texte='v1', tous_les_profs=True)
+        self._connecter_prof()
+        self.client.get(reverse('dashboard_prof'))  # amorce le seuil 'hakiba'
+        self.client.get(reverse('prof_hakiba'))  # marque 'hakiba' comme lu
+        # Correction mineure du contenu (date_modification change, date_ajout non)
+        element.contenu_texte = 'v2 (correction de faute)'
+        element.save(update_fields=['contenu_texte', 'date_modification'])
+        response = self.client.get(reverse('dashboard_prof'))
+        self.assertEqual(response.context['notif_total'], 0)
+
+    # ---------- Rôles sans ce déclencheur ----------
+    def test_admin_naffiche_jamais_le_panneau_notifications(self):
+        admin = _creer_admin()
+        self.client.force_login(admin)
+        response = self.client.get(reverse('dashboard_admin'))
+        self.assertNotContains(response, 'id="notifWrap"')
+
+    def test_superviseur_naffiche_jamais_le_panneau_notifications(self):
+        self.client.force_login(self.superviseur.user)
+        response = self.client.get(reverse('dashboard_superviseur'))
+        self.assertNotContains(response, 'id="notifWrap"')
+
+    # ---------- Page "عرض الكل" ----------
+    def test_mes_notifications_accessible_eleve_et_prof(self):
+        self._connecter_eleve()
+        self.assertEqual(self.client.get(reverse('mes_notifications')).status_code, 200)
+        self._connecter_prof()
+        self.assertEqual(self.client.get(reverse('mes_notifications')).status_code, 200)
+
+    def test_mes_notifications_refuse_autre_role(self):
+        self.client.force_login(self.superviseur.user)
+        response = self.client.get(reverse('mes_notifications'))
+        self.assertNotEqual(response.status_code, 200)
+
+
+class DepuisRelatifFiltreTests(TestCase):
+    """Filtre dashboard.templatetags.libelles_arabes.depuis_relatif — duel
+    arabe correct à CHAQUE palier (minute/heure/jour/semaine), pas juste le
+    pluriel générique pour n==2 (bug détecté et corrigé pendant la revue de
+    la maquette avant intégration)."""
+
+    def _il_y_a(self, **kwargs):
+        return timezone.now() - datetime.timedelta(**kwargs)
+
+    def test_duel_minutes(self):
+        from dashboard.templatetags.libelles_arabes import depuis_relatif
+        self.assertEqual(depuis_relatif(self._il_y_a(minutes=2)), 'منذ دقيقتين')
+
+    def test_duel_heures(self):
+        from dashboard.templatetags.libelles_arabes import depuis_relatif
+        self.assertEqual(depuis_relatif(self._il_y_a(hours=2)), 'منذ ساعتين')
+
+    def test_duel_jours(self):
+        from dashboard.templatetags.libelles_arabes import depuis_relatif
+        self.assertEqual(depuis_relatif(self._il_y_a(days=2)), 'منذ يومين')
+
+    def test_duel_semaines(self):
+        from dashboard.templatetags.libelles_arabes import depuis_relatif
+        self.assertEqual(depuis_relatif(self._il_y_a(weeks=2)), 'منذ أسبوعين')
+
+    def test_singulier_et_pluriel_generique(self):
+        from dashboard.templatetags.libelles_arabes import depuis_relatif
+        self.assertEqual(depuis_relatif(self._il_y_a(minutes=1)), 'منذ دقيقة')
+        self.assertEqual(depuis_relatif(self._il_y_a(minutes=5)), 'منذ 5 دقائق')
+        self.assertEqual(depuis_relatif(self._il_y_a(hours=5)), 'منذ 5 ساعات')

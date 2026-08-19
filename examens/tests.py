@@ -1483,3 +1483,23 @@ class VideoCorrectionManuelleTests(TestCase):
         reponse.refresh_from_db()
         self.assertEqual(reponse.statut_correction, 'corrigee')
         self.assertEqual(float(reponse.points_obtenus), 4.0)
+
+
+class NotificationsMarquerVisiteTests(TestCase):
+    """Chantier notifications du 2026-08-19 — examens_eleve_liste est l'une
+    des 5 "pages cibles" qui marquent leur type comme lu (voir
+    dashboard.notifications.marquer_visite)."""
+
+    def test_visiter_la_liste_marque_examens_comme_lu(self):
+        from accounts.models import DerniereVisiteNotification
+
+        eleve = _creer_eleve()
+        client = Client()
+        _connecter(client, eleve.user)
+        self.assertFalse(
+            DerniereVisiteNotification.objects.filter(user=eleve.user, cle='examens').exists()
+        )
+        client.get(reverse('examens_eleve_liste'))
+        self.assertTrue(
+            DerniereVisiteNotification.objects.filter(user=eleve.user, cle='examens').exists()
+        )
