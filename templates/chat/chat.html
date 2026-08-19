@@ -1006,6 +1006,26 @@
         if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     }
 
+    // ---------- Pause du polling quand l'onglet est caché ----------
+    // Les 2 boucles ci-dessus (rafraichirListe toutes les 10s, poll toutes les
+    // 8s) tournaient jusqu'ici en continu même onglet caché/minimisé — mise en
+    // pause ici pour ne pas solliciter le serveur pour rien pendant ce temps.
+    // Réutilise EXACTEMENT les mêmes fonctions de (re)démarrage qu'au
+    // chargement initial (redemarrerListeTimer/redemarrerPolling ci-dessus),
+    // aucune logique de polling elle-même n'est modifiée. redemarrerPolling()
+    // n'est relancée que si une conversation est ouverte (document.getElementById
+    // ('chatPanel')), exactement la même condition que le démarrage initial
+    // juste en dessous.
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            arreterPolling();
+            if (listeTimer) { clearInterval(listeTimer); listeTimer = null; }
+        } else {
+            redemarrerListeTimer();
+            if (document.getElementById('chatPanel')) { redemarrerPolling(); }
+        }
+    });
+
     if (document.getElementById('chatPanel')) {
         initPanel();
         const messagesDiv = document.getElementById('chatMessages');
