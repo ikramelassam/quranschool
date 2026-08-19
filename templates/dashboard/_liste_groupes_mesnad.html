@@ -17,6 +17,15 @@ Variables attendues :
   dashboard_superviseur?groupe=X — pertinent UNIQUEMENT quand le مؤطر
   consulte SON PROPRE profil (superviseur_profil.html), pas depuis la vue
   admin (dashboard_superviseur est aussi scopé à request.user).
+- chat_groupe_ids (Chantier redesign icône-chat du 2026-08-19) : PAS passé
+  explicitement dans le `with` des 2 appelants (superviseur_profil.html,
+  admin_superviseur_assignations.html) — hérité tel quel du contexte de la
+  vue englobante (chat.permissions.groupes_chat_accessibles_ids(request.user),
+  voir dashboard.views.superviseur_profil / admin_superviseur_assignations),
+  comme {% include %} le fait déjà pour toute variable sans `only`. Vide pour
+  مشرف (voir chat.permissions.get_conversations_accessibles) : l'icône ne
+  s'affiche donc jamais pour lui sur cette page, sans condition de rôle à
+  écrire ici.
 {% endcomment %}
 {% for groupe in groupes %}
 <div class="groupe-mesnad-ligne" style="{% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} padding:12px 4px;">
@@ -32,6 +41,9 @@ Variables attendues :
             <span style="color:#888; font-size:0.78rem; white-space:nowrap;">👤 {{ groupe.nb_eleves }} طالب</span>
             {% if lien_seances_jour %}
             <a href="{% url 'dashboard_superviseur' %}?groupe={{ groupe.id }}" style="color:{{ couleur_accent }}; font-size:0.78rem; text-decoration:none; white-space:nowrap;">عرض حصص اليوم ←</a>
+            {% endif %}
+            {% if groupe.id in chat_groupe_ids %}
+            {% include 'dashboard/_chat_icon.html' with groupe_id=groupe.id %}
             {% endif %}
         </div>
     </div>

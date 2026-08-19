@@ -17,6 +17,9 @@
                 {% endif %}
             </div>
         </div>
+        {% if peut_voir_chat %}
+        {% include 'dashboard/_chat_icon.html' with groupe_id=groupe.id %}
+        {% endif %}
     </div>
     <div class="d-flex gap-2">
         {% comment %}

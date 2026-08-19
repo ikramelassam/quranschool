@@ -60,9 +60,14 @@
 <div class="compact-card" style="padding:4px 20px;">
     {% for groupe in eleve.groupes.all %}
     <div style="padding:14px 0; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %}">
-        <div style="font-weight:700;">
-            📚 {{ groupe.nom }}
-            {% if groupe.creneau %}<span style="color:#888; font-weight:400; font-size:0.85rem;"> — {{ groupe.creneau }}</span>{% endif %}
+        <div style="font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <span>
+                📚 {{ groupe.nom }}
+                {% if groupe.creneau %}<span style="color:#888; font-weight:400; font-size:0.85rem;"> — {{ groupe.creneau }}</span>{% endif %}
+            </span>
+            {% if groupe.id in chat_groupe_ids %}
+            {% include 'dashboard/_chat_icon.html' with groupe_id=groupe.id %}
+            {% endif %}
         </div>
         {% if groupe.prof %}
         <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; margin-top:6px; flex-wrap:wrap; gap:8px;">

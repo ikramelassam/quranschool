@@ -31,6 +31,9 @@
                 {% endif %}
             </div>
         </div>
+        {% if peut_voir_chat %}
+        {% include 'dashboard/_chat_icon.html' with groupe_id=groupe.id %}
+        {% endif %}
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <span style="background:#f3e6cc; color:var(--color-role-superviseur-solid); border-radius:20px; padding:6px 16px; font-size:0.85rem; font-weight:700;">

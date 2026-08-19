@@ -309,17 +309,27 @@
     {% with total_groupes=prof.groupes.count %}
     {% if total_groupes %}
         {% for groupe in prof.groupes.all|slice:":10" %}
-        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-            <span style="font-weight:600;">{{ groupe.nom }}</span>
-            <span style="color:#888;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}—{% endif %}</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+            <div style="display:flex; gap:10px; align-items:center; flex:1; min-width:0;">
+                <span style="font-weight:600;">{{ groupe.nom }}</span>
+                <span style="color:#888;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}—{% endif %}</span>
+            </div>
+            {% if groupe.id in chat_groupe_ids %}
+            {% include 'dashboard/_chat_icon.html' with groupe_id=groupe.id %}
+            {% endif %}
         </div>
         {% endfor %}
         {% if total_groupes > 10 %}
         <div id="groupes_prof_extra" style="display:none;">
             {% for groupe in prof.groupes.all|slice:"10:" %}
-            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="font-weight:600;">{{ groupe.nom }}</span>
-                <span style="color:#888;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}—{% endif %}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+                <div style="display:flex; gap:10px; align-items:center; flex:1; min-width:0;">
+                    <span style="font-weight:600;">{{ groupe.nom }}</span>
+                    <span style="color:#888;">{% if groupe.creneau %}{{ groupe.creneau }}{% else %}—{% endif %}</span>
+                </div>
+                {% if groupe.id in chat_groupe_ids %}
+                {% include 'dashboard/_chat_icon.html' with groupe_id=groupe.id %}
+                {% endif %}
             </div>
             {% endfor %}
         </div>

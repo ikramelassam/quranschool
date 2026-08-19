@@ -1,0 +1,37 @@
+{% comment %}
+Bouton "💬 الدردشة" lié directement au chat d'UN groupe (Chantier redesign
+icône-chat du 2026-08-19 — remplace l'ancien cercle SVG isolé du chantier
+icône-chat du 2026-08-18 : cible tactile ≥44px, libellé texte visible au lieu
+d'un simple title= au survol, couleurs alignées sur la charte des cartes
+groupe plutôt qu'un bleu isolé sans rapport avec la palette du site). Classe
+.btn-chat-groupe déjà globale dans les 4 base_*.html concernés (base_admin/
+prof/eleve/superviseur.html — jamais base_mshrif.html, voir plus bas).
+
+Paramètre : groupe_id (l'id du Groupe, PAS l'objet Conversation — l'URL
+chat_conversation attend directement un groupe_id, voir chat/urls.py).
+
+IMPORTANT — permission : ce partial n'effectue AUCUNE vérification d'accès
+lui-même, exactement comme _whatsapp_icon.html/_email_icon.html ne
+vérifient jamais si l'utilisateur a le droit de contacter cette personne.
+C'est à l'appelant de n'inclure ce partial QUE pour un groupe déjà confirmé
+accessible via chat.permissions.peut_voir_chat_groupe (page détail, 1
+groupe) ou chat.permissions.groupes_chat_accessibles_ids (liste de groupes,
+évite le N+1) — la vraie protection reste de toute façon
+chat.permissions.can_access_conversation côté vue chat_conversation
+elle-même (Point 27/28) : même si ce partial était inclus par erreur pour un
+groupe interdit, cliquer dessus renverrait un 403, jamais une conversation
+ouverte. C'est aussi ce qui exclut naturellement le مشرف (role='mshrif') :
+groupes_chat_accessibles_ids/peut_voir_chat_groupe renvoient toujours
+vide/False pour lui (voir chat.permissions.get_conversations_accessibles),
+donc ce partial n'est jamais inclus pour ce rôle — aucune condition de rôle
+à écrire ici ni côté appelant.
+
+Badge de messages non lus : PAS encore ici (hors scope de ce chantier,
+prévu séparément — voir chat.services.conversations_avec_apercu qui calcule
+déjà nb_non_lus, mais seulement pour la page liste de chat elle-même, pas
+par groupe affiché ailleurs).
+{% endcomment %}
+<a href="{% url 'chat_conversation' groupe_id %}" class="btn-chat-groupe">
+    <span aria-hidden="true">💬</span>
+    <span>الدردشة</span>
+</a>

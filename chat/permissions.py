@@ -64,6 +64,32 @@ def can_access_conversation(user, conversation):
     return get_conversations_accessibles(user).filter(pk=conversation.pk).exists()
 
 
+def peut_voir_chat_groupe(user, groupe):
+    """Le lien '💬 icône de chat' posé à côté d'UN groupe (Chantier icône-chat
+    du 2026-08-18) doit-il être affiché pour `user` ? Ne fait QUE réutiliser
+    can_access_conversation ci-dessus — aucune nouvelle règle de permission,
+    aucun contournement : si `user` ne pourrait pas ouvrir /chat/<id>/
+    directement, l'icône ne doit pas non plus apparaître. `getattr(groupe,
+    'conversation', None)` est sûr même si ce groupe n'a pas encore de
+    Conversation (RelatedObjectDoesNotExist hérite d'AttributeError, donc
+    getattr(..., None) l'attrape) — cas normalement inexistant en pratique
+    (signal chat.signals.creer_conversation_pour_nouveau_groupe + migration
+    de backfill), gardé en filet de sécurité plutôt qu'un crash 500."""
+    if groupe is None:
+        return False
+    return can_access_conversation(user, getattr(groupe, 'conversation', None))
+
+
+def groupes_chat_accessibles_ids(user):
+    """Équivalent de peut_voir_chat_groupe, mais pour une LISTE de groupes
+    (ex: admin_groupes.html, prof_groupes.html) — UNE seule requête pour
+    toute la liste plutôt qu'un can_access_conversation par groupe affiché
+    (Point 8 du chantier icône-chat : pas de requête N+1). Retourne
+    l'ensemble des groupe_id dont la conversation est accessible à `user` ;
+    le template teste `{% if groupe.id in chat_groupe_ids %}`."""
+    return set(get_conversations_accessibles(user).values_list('groupe_id', flat=True))
+
+
 def peut_modifier_photo_groupe(user, groupe):
     """Qui peut changer la photo de profil d'un groupe DEPUIS LE CHAT (Tâche
     du 2026-08-17 "avatar façon WhatsApp") — recalculée à chaque appel,

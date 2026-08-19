@@ -7,6 +7,9 @@
         <div class="page-title" style="margin-bottom:0;">{{ groupe.nom }}</div>
         <div class="page-subtitle">{{ groupe.description|default:"—" }}</div>
     </div>
+    {% if peut_voir_chat %}
+    {% include 'dashboard/_chat_icon.html' with groupe_id=groupe.id %}
+    {% endif %}
 </div>
 
 <div class="row g-3 mb-4">

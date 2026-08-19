@@ -28,10 +28,15 @@
             <div style="color:#888; font-size:0.9rem; margin-bottom:16px;">
                 📅 الجدول: {% if groupe.creneau %}{{ groupe.creneau }}{% else %}غير محدد{% endif %}
             </div>
-            <a href="{% url 'prof_groupe_detail' groupe.id %}"
-               style="background:#f0f4f8; color:var(--color-role-prof-solid); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; font-weight:600;">
-               عرض التفاصيل ←
-            </a>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <a href="{% url 'prof_groupe_detail' groupe.id %}"
+                   style="background:#f0f4f8; color:var(--color-role-prof-solid); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; font-weight:600;">
+                   عرض التفاصيل ←
+                </a>
+                {% if groupe.id in chat_groupe_ids %}
+                {% include 'dashboard/_chat_icon.html' with groupe_id=groupe.id %}
+                {% endif %}
+            </div>
         </div>
     </div>
     {% endfor %}
