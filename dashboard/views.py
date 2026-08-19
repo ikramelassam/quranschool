@@ -139,37 +139,58 @@ def envoyer_email_notification_changement_email(request, ancien_email, nouvel_em
 
 
 def _next_valide(request, defaut='admin_eleves'):
-    """Récupère un ?next= sûr (chemin interne au dashboard admin uniquement),
-    sinon retombe sur une page par défaut."""
+    """Récupère un ?next= sûr (chemin interne au dashboard uniquement, jamais
+    une URL externe — protection open-redirect), sinon retombe sur une page
+    par défaut. Élargi de '/dashboard/admin/' à '/dashboard/' (Tâche du
+    2026-08-18 bis) : ajouter_note_personnelle et consorts sont désormais
+    utilisables depuis n'importe quel dashboard (mes_notes_personnelles,
+    accessible à tous les rôles), pas seulement les pages admin — élargir le
+    préfixe ne fait qu'AUTORISER plus de chemins internes, aucun appelant
+    existant ne peut donc régresser."""
     from django.urls import reverse
     next_url = request.POST.get('next') or request.GET.get('next') or ''
-    if next_url.startswith('/dashboard/admin/'):
+    if next_url.startswith('/dashboard/'):
         return next_url
     return reverse(defaut)
 
 
-@role_required('admin', 'mshrif')
+@role_required('admin', 'mshrif', 'eleve', 'prof', 'superviseur')
 def ajouter_note_personnelle(request, user_id):
-    """Ajoute une note au carnet personnel (Tâche du 2026-08-18) que
-    request.user tient sur le profil de l'utilisateur user_id (élève, prof
-    ou مؤطر — profil_user est un simple User, voir accounts.models.
-    NotePersonnelle.__doc__). POST only, auteur = request.user TOUJOURS
-    (jamais un id envoyé par le client) : cette note n'appartient qu'à son
-    auteur, aucune autre personne consultant le même profil ne la verra."""
+    """Ajoute une note au carnet personnel (Tâche du 2026-08-18, élargie le
+    même jour à un bloc-notes personnel pour tous) que request.user tient
+    sur le profil de l'utilisateur user_id (profil_user est un simple User,
+    voir accounts.models.NotePersonnelle.__doc__). POST only, auteur =
+    request.user TOUJOURS (jamais un id envoyé par le client) : cette note
+    n'appartient qu'à son auteur, aucune autre personne consultant le même
+    profil ne la verra.
+
+    Deux usages du MÊME modèle/de la MÊME vue, distingués par qui est ciblé :
+      - مدير/مشرف écrivent une note sur le profil de N'IMPORTE QUEL élève/
+        prof/مؤطر qu'ils consultent (comportement d'origine, inchangé) ;
+      - tout autre rôle ne peut écrire QUE sur SON PROPRE profil (bloc-notes
+        personnel "ملاحظاتي", voir mes_notes_personnelles) — jamais sur
+        celui d'un tiers, aucune exception."""
+    from django.http import HttpResponseForbidden
     from accounts.models import User, NotePersonnelle
 
     profil_user = get_object_or_404(User, id=user_id)
+    if request.user.role not in ('admin', 'mshrif') and profil_user.id != request.user.id:
+        return HttpResponseForbidden('لا يمكنك كتابة ملاحظة على ملف شخص آخر.')
+
     if request.method == 'POST':
+        titre = request.POST.get('titre', '').strip()
         contenu = request.POST.get('contenu', '').strip()
         if contenu:
-            NotePersonnelle.objects.create(profil_user=profil_user, auteur=request.user, contenu=contenu)
+            NotePersonnelle.objects.create(
+                profil_user=profil_user, auteur=request.user, titre=titre, contenu=contenu
+            )
             messages.success(request, 'تمت إضافة الملاحظة.')
         else:
             messages.error(request, 'لا يمكن إضافة ملاحظة فارغة.')
     return redirect(_next_valide(request, defaut='admin_eleves'))
 
 
-@role_required('admin', 'mshrif')
+@role_required('admin', 'mshrif', 'eleve', 'prof', 'superviseur')
 @require_POST
 def modifier_note_personnelle(request, note_id):
     """Modifie une note personnelle — STRICTEMENT réservée à son propre
@@ -183,17 +204,19 @@ def modifier_note_personnelle(request, note_id):
     if note.auteur_id != request.user.id:
         return HttpResponseForbidden('لا يمكنك تعديل ملاحظة كتبها شخص آخر.')
 
+    titre = request.POST.get('titre', '').strip()
     contenu = request.POST.get('contenu', '').strip()
     if contenu:
+        note.titre = titre
         note.contenu = contenu
-        note.save(update_fields=['contenu', 'date_modification'])
+        note.save(update_fields=['titre', 'contenu', 'date_modification'])
         messages.success(request, 'تم تعديل الملاحظة.')
     else:
         messages.error(request, 'لا يمكن أن تكون الملاحظة فارغة.')
     return redirect(_next_valide(request, defaut='admin_eleves'))
 
 
-@role_required('admin', 'mshrif')
+@role_required('admin', 'mshrif', 'eleve', 'prof', 'superviseur')
 @require_POST
 def supprimer_note_personnelle(request, note_id):
     """Supprime une note personnelle — même garde STRICTE que
@@ -210,6 +233,38 @@ def supprimer_note_personnelle(request, note_id):
     return redirect(_next_valide(request, defaut='admin_eleves'))
 
 
+_BASE_TEMPLATE_PAR_ROLE = {
+    'eleve': 'dashboard/base_eleve.html',
+    'prof': 'dashboard/base_prof.html',
+    'superviseur': 'dashboard/base_superviseur.html',
+    'admin': 'dashboard/base_admin.html',
+    'mshrif': 'dashboard/base_mshrif.html',
+}
+
+
+@role_required('admin', 'mshrif', 'eleve', 'prof', 'superviseur')
+def mes_notes_personnelles(request):
+    """Page "ملاحظاتي" (Tâche du 2026-08-18 bis) — bloc-notes personnel que
+    CHAQUE utilisateur, quel que soit son rôle, tient pour LUI-MÊME. Réutilise
+    TEL QUEL le modèle accounts.NotePersonnelle déjà construit pour le carnet
+    admin/مشرف sur les profils qu'ils consultent — ici profil_user == auteur
+    == request.user, un simple cas particulier du même modèle, aucune
+    duplication de schéma ni de vue de rendu (même partial
+    _carnet_notes_personnelles.html, déjà strictement privé par construction :
+    filtré sur auteur=request.user, donc personne d'autre — même pas
+    مدير/مشرف — ne voit jamais ces notes)."""
+    from accounts.models import NotePersonnelle
+
+    context = {
+        'notes_personnelles': NotePersonnelle.objects.filter(
+            profil_user=request.user, auteur=request.user
+        ),
+        'base_template': _BASE_TEMPLATE_PAR_ROLE[request.user.role],
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/mes_notes_personnelles.html', context)
+
+
 def _base_template_admin_ou_mshrif(request):
     """Pages admin réutilisées en lecture seule par المشرف (listes/fiches élèves-profs,
     évaluations) : garde son propre sidebar/couleur plutôt que celui du مدير."""
@@ -224,46 +279,6 @@ def _contexte_base_mshrif(request):
         return {}
     from inscriptions.models import InscriptionProf
     return {'nb_demandes_en_attente': InscriptionProf.objects.filter(statut='validee_directeur').count()}
-
-
-def _notifications_messages(user, limite=10):
-    """Notifications de type 'message' pour la zone "🔔 الإشعارات" en bas de
-    لوحة التحكم élève/prof (Chantier UX du 2026-08-16, Point 3). Dérivée
-    EXCLUSIVEMENT de chat.services.conversations_avec_apercu — déjà utilisée
-    par /chat/ pour le panneau de gauche (aperçu + nb_non_lus déjà calculés,
-    déjà triée par activité la plus récente) — aucun nouveau compteur, aucune
-    requête supplémentaire au-delà de ce que cette fonction fait déjà. Ne
-    garde que les conversations avec au moins un message non lu ; le tri
-    étant déjà décroissant par récence, un simple troncage à `limite` suffit,
-    pas besoin de re-trier ici.
-
-    Retourne une liste de dicts {icone, titre, sous_titre, date, url, badge}
-    — format générique partagé avec l'entrée 'annonce' ajoutée séparément par
-    dashboard_eleve (voir templates/dashboard/_notifications_zone.html)."""
-    from chat.services import conversations_avec_apercu
-
-    LABELS_APERCU_NON_TEXTE = {'audio': '🎙️ رسالة صوتية', 'fichier': '📎 ملف مرفق'}
-
-    items = []
-    for conversation in conversations_avec_apercu(user):
-        if not conversation.nb_non_lus or not conversation.dernier_message:
-            continue
-        dernier = conversation.dernier_message
-        apercu = (
-            dernier['contenu'] if dernier['type_message'] == 'texte'
-            else LABELS_APERCU_NON_TEXTE.get(dernier['type_message'], '')
-        )
-        items.append({
-            'icone': '💬',
-            'titre': conversation.groupe.nom,
-            'sous_titre': apercu,
-            'date': dernier['date_envoi'],
-            'url': reverse('chat_conversation', args=[conversation.groupe_id]),
-            'badge': conversation.nb_non_lus,
-        })
-        if len(items) >= limite:
-            break
-    return items
 
 
 def _verifier_conflit_email(email):
@@ -372,11 +387,6 @@ def dashboard_prof(request):
         s for s in a_venir['bucket_semaine_courante'] if s.id != id_a_exclure
     ]
 
-    # Zone "🔔 الإشعارات" en bas de page (Chantier UX du 2026-08-16, Point 3) —
-    # messages non lus uniquement côté prof (pas d'annonces le concernant, le
-    # système Annonces ne cible que les élèves — voir rapport du chantier).
-    notifications = _notifications_messages(request.user, limite=5)
-
     context = {
         'prof': prof,
         'groupes': groupes,
@@ -399,7 +409,6 @@ def dashboard_prof(request):
         # prof avait un historique bien plus long ; total réel, cohérent avec
         # le fait que la liste ci-dessous n'est plus plafonnée à 5 non plus.
         'total_seances_passees': toutes_seances_prof.filter(date__lt=aujourdhui).count(),
-        'notifications': notifications,
     }
     return render(request, 'dashboard/prof.html', context)
 
@@ -407,6 +416,7 @@ def dashboard_prof(request):
 @role_required('prof')
 def prof_groupes(request):
     from accounts.models import Prof
+    from chat.permissions import groupes_chat_accessibles_ids
     from courses.models import Groupe
 
     prof = get_object_or_404(Prof, user=request.user)
@@ -415,12 +425,16 @@ def prof_groupes(request):
     return render(request, 'dashboard/prof_groupes.html', {
         'prof': prof,
         'groupes': groupes,
+        # Icône 💬 chat (Chantier icône-chat du 2026-08-18) — voir
+        # chat.permissions.groupes_chat_accessibles_ids.__doc__.
+        'chat_groupe_ids': groupes_chat_accessibles_ids(request.user),
     })
 
 
 @role_required('prof')
 def prof_groupe_detail(request, groupe_id):
     from accounts.models import Prof
+    from chat.permissions import peut_voir_chat_groupe
     from courses.models import Groupe
 
     prof = get_object_or_404(Prof, user=request.user)
@@ -429,6 +443,7 @@ def prof_groupe_detail(request, groupe_id):
     return render(request, 'dashboard/prof_groupe_detail.html', {
         'prof': prof,
         'groupe': groupe,
+        'peut_voir_chat': peut_voir_chat_groupe(request.user, groupe),
         'eleves': groupe.eleves.all(),
     })
 
@@ -982,6 +997,7 @@ def prof_disponibilites(request):
 @role_required('prof')
 def prof_profil(request):
     from accounts.models import Prof
+    from chat.permissions import groupes_chat_accessibles_ids
     from courses.utils import calculer_remuneration_prof
     from django.contrib.auth import get_user_model
     User = get_user_model()
@@ -995,6 +1011,9 @@ def prof_profil(request):
         # refonte visuelle) — même fonction que prof_remuneration, pas de
         # nouveau calcul dupliqué.
         'remuneration': calculer_remuneration_prof(prof),
+        # Icône 💬 chat sur "مجموعاتي" (Chantier redesign icône-chat du
+        # 2026-08-19) — voir chat.permissions.groupes_chat_accessibles_ids.__doc__.
+        'chat_groupe_ids': groupes_chat_accessibles_ids(request.user),
     })
 
 
@@ -2870,33 +2889,11 @@ def dashboard_eleve(request):
     # (lien "عرض الكل") les marque lues à la visite, elles disparaissent alors
     # d'ici automatiquement. Import local (même convention que les autres
     # imports d'apps métier dans cette vue, ex: courses.models ci-dessus).
-    # Récupérée UNE SEULE fois (liste, pas queryset tronqué) et réutilisée à
-    # la fois pour cette bannière ET pour la zone "🔔 الإشعارات" plus bas
-    # (Chantier UX du 2026-08-16, Point 3) — pas une 2e requête pour la même
-    # information.
     from annonces.services import annonces_visibles_pour_eleve
     annonces_non_lues = list(
         annonces_visibles_pour_eleve(eleve).exclude(lectures__user=request.user).order_by('-date_creation')
     )
     annonces_recentes = annonces_non_lues[:3]
-
-    # Zone "🔔 الإشعارات" en bas de page : fusionne messages non lus (voir
-    # _notifications_messages) et annonces non lues (une seule entrée-résumé,
-    # pour ne pas répéter le contenu déjà détaillé dans la bannière
-    # ci-dessus — pas de duplication visuelle) en UNE liste triée par
-    # récence, la plus récente en tête.
-    notifications = _notifications_messages(request.user)
-    if annonces_non_lues:
-        notifications.append({
-            'icone': '📢',
-            'titre': annonces_non_lues[0].titre if len(annonces_non_lues) == 1 else f'{len(annonces_non_lues)} إعلانات جديدة',
-            'sous_titre': annonces_non_lues[0].contenu if len(annonces_non_lues) == 1 else '',
-            'date': annonces_non_lues[0].date_creation,
-            'url': reverse('eleve_annonces'),
-            'badge': len(annonces_non_lues) if len(annonces_non_lues) > 1 else None,
-        })
-    notifications.sort(key=lambda n: n['date'], reverse=True)
-    notifications = notifications[:5]
 
     context = {
         'eleve': eleve,
@@ -2913,7 +2910,6 @@ def dashboard_eleve(request):
         'dernieres_evaluations': dernieres_evaluations,
         'derniere_avec_consignes': derniere_avec_consignes,
         'annonces_recentes': annonces_recentes,
-        'notifications': notifications,
     }
     return render(request, 'dashboard/eleve.html', context)
 
@@ -3001,6 +2997,7 @@ def eleve_seance_detail(request, presence_id):
 @role_required('eleve')
 def eleve_profil(request):
     from accounts.models import Eleve
+    from chat.permissions import groupes_chat_accessibles_ids
     from courses.models import BilanMensuel
     from django.contrib.auth import get_user_model
     User = get_user_model()
@@ -3009,6 +3006,9 @@ def eleve_profil(request):
         'eleve': eleve,
         'groupes_precedents': eleve.historique_groupes.filter(date_fin__isnull=False).select_related('groupe'),
         'admins': User.objects.filter(role='admin'),
+        # Icône 💬 chat (Chantier icône-chat du 2026-08-18) — voir
+        # chat.permissions.groupes_chat_accessibles_ids.__doc__.
+        'chat_groupe_ids': groupes_chat_accessibles_ids(request.user),
         # Bouton "تعديل" du téléphone — même pattern que Tâche 5 (lecture seule
         # par défaut, édition seulement après clic explicite).
         'modifier_telephone': request.GET.get('modifier_telephone') == '1',
@@ -3341,6 +3341,7 @@ def superviseur_profil(request):
     réutilise le même filtre que dashboard_superviseur."""
     from django.db.models import Exists, OuterRef, Count
     from accounts.models import Superviseur
+    from chat.permissions import groupes_chat_accessibles_ids
     from courses.models import Seance, Groupe
     from evaluations.models import Evaluation
     from django.utils import timezone
@@ -3386,6 +3387,10 @@ def superviseur_profil(request):
         'nb_evaluations_en_attente': nb_evaluations_en_attente,
         'admins': User.objects.filter(role='admin'),
         'modifier_telephone': request.GET.get('modifier_telephone') == '1',
+        # Icône 💬 chat sur "المجموعات المسندة" (Chantier redesign icône-chat du
+        # 2026-08-19) — consommé par dashboard/_liste_groupes_mesnad.html, hérité
+        # du contexte via {% include %} sans `only`, voir son commentaire.
+        'chat_groupe_ids': groupes_chat_accessibles_ids(request.user),
     })
 
 
@@ -3420,6 +3425,7 @@ def superviseur_groupe_detail(request, groupe_id):
     la grille de rémunération), indicateur direct d'évaluations en attente
     scopé à CE groupe, avatar+statut par élève."""
     from accounts.models import Superviseur
+    from chat.permissions import peut_voir_chat_groupe
     from courses.models import Groupe, Seance
     from courses.utils import tranche_age_depuis_naissance
     from evaluations.models import Evaluation
@@ -3461,6 +3467,9 @@ def superviseur_groupe_detail(request, groupe_id):
         'nb_enfants': nb_enfants,
         'nb_non_evaluees': nb_non_evaluees,
         'nb_seances_ce_mois': nb_seances_ce_mois,
+        # Icône 💬 chat (Chantier icône-chat du 2026-08-18) — voir
+        # chat.permissions.peut_voir_chat_groupe.__doc__.
+        'peut_voir_chat': peut_voir_chat_groupe(request.user, groupe),
     })
 
 
@@ -3718,6 +3727,7 @@ def admin_eleves(request):
 @role_required('admin', 'mshrif')
 def admin_eleve_detail(request, eleve_id):
     from accounts.models import Eleve, NotePersonnelle
+    from chat.permissions import groupes_chat_accessibles_ids
     from courses.models import DisponibiliteEleve
     from courses.utils import calculer_progression_eleve, groupes_compatibles_pour_eleve, JOURS_SEMAINE_DISPO, generer_heures_grille
 
@@ -3738,14 +3748,15 @@ def admin_eleve_detail(request, eleve_id):
         'valeurs_form': valeurs_form,
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
+        # Icône 💬 chat sur "المجموعة الحالية" (Chantier redesign icône-chat du
+        # 2026-08-19) — voir chat.permissions.groupes_chat_accessibles_ids.__doc__.
+        'chat_groupe_ids': groupes_chat_accessibles_ids(request.user),
         # Carnet de notes personnelles (Tâche du 2026-08-18) — UNIQUEMENT les
         # notes de request.user lui-même sur ce profil, jamais celles d'un
         # autre مدير/مشرف (voir accounts.models.NotePersonnelle.__doc__).
         'notes_personnelles': NotePersonnelle.objects.filter(
             profil_user=eleve.user, auteur=request.user
         ),
-        # Cartable élève (Tâche du 2026-08-18) — voir accounts.models.DocumentEleve.
-        'documents_cartable': eleve.documents_cartable.select_related('ajoute_par'),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -3753,31 +3764,118 @@ def admin_eleve_detail(request, eleve_id):
 
 
 @role_required('admin', 'mshrif')
+def admin_eleve_cartable_gestion(request):
+    """Page centrale "إدارة حقيبة الطالب" (refonte du 2026-08-18 — remplace
+    la gestion par fiche élève individuelle : demande explicite du client de
+    calquer exactement le patron déjà en place pour la حقيبة الأستاذ, voir
+    admin_hakiba_gestion). Formulaire d'ajout (choix du طالب inclus,
+    contrairement à ElementHakiba qui cible plusieurs profs à la fois — un
+    DocumentEleve appartient toujours à UN SEUL élève) + liste de tous les
+    documents existants, tous élèves confondus.
+
+    UN SEUL système de sélection des destinataires (correction UX du
+    2026-08-18 ter) : le formulaire "ملف جديد" ci-dessous (كل الطلاب / فئة
+    معينة / طلاب محددون — voir admin_eleve_cartable_ajouter pour la
+    résolution de chaque mode). Un ancien filtre de catégorie séparé,
+    au-dessus de la liste, a été retiré : il faisait doublon avec celui du
+    formulaire ET utilisait en plus la mauvaise source de catégorie
+    (cible_annonce_pour_eleve, basée âge/sexe de l'élève) au lieu de
+    Groupe.categorie (demande explicite du client) — supprimé plutôt que
+    corrigé, pour ne garder qu'un seul système de filtrage."""
+    from accounts.models import Eleve, DocumentEleve
+    from annonces.services import CANAUX
+
+    documents = list(
+        DocumentEleve.objects.select_related('eleve__user', 'ajoute_par').order_by('-date_ajout')
+    )
+
+    context = {
+        'documents_cartable': documents,
+        # Sélecteur "طلاب محددون" du formulaire d'ajout — tous les élèves actifs.
+        'eleves_disponibles': Eleve.actifs.select_related('user').order_by('user__first_name', 'user__last_name'),
+        # Labels نساء/رجال/أطفال du sous-toggle "فئة معينة" du formulaire.
+        'canaux': CANAUX,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_eleve_cartable_gestion.html', context)
+
+
+@role_required('admin', 'mshrif')
 @require_POST
-def admin_eleve_cartable_ajouter(request, eleve_id):
-    """Ajoute un fichier au cartable de CET élève (Tâche du 2026-08-18) —
-    équivalent, côté élève, de admin_hakiba_ajouter (même validation de
-    fichier, réutilisée telle quelle — voir _valider_fichier_hakiba).
+def admin_eleve_cartable_ajouter(request):
+    """Ajoute un fichier au cartable d'un ou plusieurs élèves, depuis la page
+    centrale "إدارة حقيبة الطالب" — 3 modes de ciblage (demande explicite du
+    client, EXACTEMENT le même principe que حقيبة الأستاذ/admin_hakiba_ajouter,
+    étendu d'un 3e mode) :
+      - 'tous' : tous les élèves actifs (Eleve.actifs), comme
+        ElementHakiba.tous_les_profs=True ;
+      - 'categorie' : tous les élèves actifs appartenant à AU MOINS UN
+        groupe ACTIF dont Groupe.categorie correspond (نساء/رجال/أطفال —
+        mêmes 3 valeurs que les canaux d'annonces, Groupe.categorie
+        réutilise directement Annonce.CIBLE_CHOICES, voir Groupe.categorie
+        __doc__). SOURCE EXPLICITEMENT CONFIRMÉE PAR LE CLIENT :
+        Groupe.categorie (champ saisi par le مدير), PAS
+        Groupe.categorie_collectif (property dérivée du créneau) ni
+        cible_annonce_pour_eleve (déduit de l'âge/sexe de l'élève — c'était
+        la source utilisée par l'ancien filtre de liste, retiré, jamais
+        celle du ciblage d'upload). Un élève sans groupe, ou dont aucun
+        groupe n'a de categorie renseignée, n'apparaît simplement dans
+        aucune catégorie précise (mais reste sélectionnable via 'tous' ou
+        'specifique' — jamais une disparition silencieuse) ;
+      - 'specifique' : élèves nommés un par un (recherche + sélection
+        multiple), comme "أساتذة محددون" pour حقيبة الأستاذ.
+    DocumentEleve reste une FK simple vers un seul élève (dossier personnel,
+    pas de diffusion par M2M — voir son __doc__) : cibler plusieurs élèves
+    crée donc une ligne PAR élève, chacune avec une copie du même fichier
+    (fichier lu une seule fois, voir ContentFile ci-dessous — le curseur
+    d'un fichier uploadé ne peut être relu qu'une fois avec .save() direct).
     Réservé à مدير/مشرف (pas le prof, décision confirmée)."""
+    from django.core.files.base import ContentFile
     from accounts.models import Eleve, DocumentEleve
 
-    eleve = get_object_or_404(Eleve, id=eleve_id)
     fichier = request.FILES.get('fichier')
     if not fichier:
         messages.error(request, 'يجب إرفاق ملف.')
-        return redirect('admin_eleve_detail', eleve_id=eleve.id)
+        return redirect('admin_eleve_cartable_gestion')
 
     erreur = _valider_fichier_hakiba(fichier)
     if erreur:
         messages.error(request, erreur)
-        return redirect('admin_eleve_detail', eleve_id=eleve.id)
+        return redirect('admin_eleve_cartable_gestion')
 
-    DocumentEleve.objects.create(
-        eleve=eleve, titre=request.POST.get('titre', '').strip(),
-        fichier=fichier, ajoute_par=request.user,
-    )
-    messages.success(request, 'تمت إضافة الملف إلى حقيبة الطالب.')
-    return redirect('admin_eleve_detail', eleve_id=eleve.id)
+    cible = request.POST.get('cible', 'specifique')
+    if cible == 'tous':
+        eleves_cibles = list(Eleve.actifs.all())
+    elif cible == 'categorie':
+        categorie = request.POST.get('categorie_cible', '')
+        eleves_cibles = list(
+            Eleve.actifs.filter(groupes__statut='actif', groupes__categorie=categorie).distinct()
+        ) if categorie else []
+        if not eleves_cibles:
+            messages.error(request, 'يرجى اختيار فئة تضم طالباً واحداً على الأقل.')
+            return redirect('admin_eleve_cartable_gestion')
+    else:
+        ids = [i for i in request.POST.getlist('eleves_cibles') if i.isdigit()]
+        eleves_cibles = list(Eleve.objects.filter(id__in=ids))
+        if not eleves_cibles:
+            messages.error(request, 'يرجى اختيار طالب واحد على الأقل.')
+            return redirect('admin_eleve_cartable_gestion')
+
+    titre = request.POST.get('titre', '').strip()
+    contenu = fichier.read()
+    for eleve in eleves_cibles:
+        DocumentEleve.objects.create(
+            eleve=eleve, titre=titre,
+            fichier=ContentFile(contenu, name=fichier.name),
+            ajoute_par=request.user,
+        )
+
+    if len(eleves_cibles) == 1:
+        messages.success(request, f'تمت إضافة الملف إلى حقيبة {eleves_cibles[0].user.get_full_name()}.')
+    else:
+        messages.success(request, f'تمت إضافة الملف إلى حقيبة {len(eleves_cibles)} طالباً.')
+    return redirect('admin_eleve_cartable_gestion')
 
 
 @role_required('admin', 'mshrif')
@@ -3786,12 +3884,11 @@ def admin_eleve_cartable_supprimer(request, document_id):
     from accounts.models import DocumentEleve
 
     document = get_object_or_404(DocumentEleve, id=document_id)
-    eleve_id = document.eleve_id
     if document.fichier:
         document.fichier.delete(save=False)
     document.delete()
     messages.success(request, 'تم حذف الملف من حقيبة الطالب.')
-    return redirect('admin_eleve_detail', eleve_id=eleve_id)
+    return redirect('admin_eleve_cartable_gestion')
 
 
 @role_required('eleve')
@@ -3985,6 +4082,7 @@ def admin_profs(request):
 @role_required('admin', 'mshrif')
 def admin_prof_detail(request, prof_id):
     from accounts.models import Prof, NotePersonnelle
+    from chat.permissions import groupes_chat_accessibles_ids
     from courses.utils import calculer_remuneration_prof
     prof = get_object_or_404(Prof, id=prof_id)
     context = {
@@ -3999,6 +4097,9 @@ def admin_prof_detail(request, prof_id):
         'notes_personnelles': NotePersonnelle.objects.filter(
             profil_user=prof.user, auteur=request.user
         ),
+        # Icône 💬 chat sur "المجموعات" (Chantier redesign icône-chat du
+        # 2026-08-19) — voir chat.permissions.groupes_chat_accessibles_ids.__doc__.
+        'chat_groupe_ids': groupes_chat_accessibles_ids(request.user),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -5012,6 +5113,7 @@ def admin_superviseur_assignations(request, superviseur_id):
     ailleurs la piste la plus plausible restante (page mise en cache par le
     navigateur avant un correctif antérieur)."""
     from accounts.models import Superviseur, Prof, NotePersonnelle
+    from chat.permissions import groupes_chat_accessibles_ids
     from courses.models import Groupe
     from django.db.models import Count
     superviseur = get_object_or_404(Superviseur, id=superviseur_id)
@@ -5065,6 +5167,11 @@ def admin_superviseur_assignations(request, superviseur_id):
         'notes_personnelles': NotePersonnelle.objects.filter(
             profil_user=superviseur.user, auteur=request.user
         ),
+        # Icône 💬 chat sur "المجموعات المسندة" (Chantier redesign icône-chat du
+        # 2026-08-19) — consommé par dashboard/_liste_groupes_mesnad.html, vide
+        # pour مشرف (voir chat.permissions.groupes_chat_accessibles_ids.__doc__),
+        # donc l'icône ne s'affiche jamais pour lui sur cette page partagée.
+        'chat_groupe_ids': groupes_chat_accessibles_ids(request.user),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))

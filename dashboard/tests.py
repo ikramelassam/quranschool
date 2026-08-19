@@ -1818,13 +1818,73 @@ class NotePersonnelleTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertFalse(NotePersonnelle.objects.filter(id=note.id).exists())
 
-    def test_prof_ne_peut_pas_ajouter_de_note(self):
+    def test_prof_ne_peut_pas_ajouter_de_note_sur_le_profil_dun_autre(self):
+        """Depuis la Tâche du 2026-08-18 bis (bloc-notes personnel), prof
+        passe désormais le role_required (élargi aux 5 rôles) — mais reste
+        bloqué par la garde stricte interne dès qu'il cible le profil de
+        quelqu'un d'autre que lui-même : 403 explicite, pas un simple
+        redirect de role_required."""
         prof = _creer_prof('prof_notes@zidni.test')
         self.client.force_login(prof.user)
         r = self.client.post(reverse('ajouter_note_personnelle', args=[self.eleve.user.id]), {'contenu': 'x'})
-        self.assertEqual(r.status_code, 302)  # role_required redirige, jamais 403 (accounts.decorators)
+        self.assertEqual(r.status_code, 403)
         from accounts.models import NotePersonnelle
         self.assertFalse(NotePersonnelle.objects.filter(profil_user=self.eleve.user).exists())
+
+    def test_titre_optionnel_a_lajout(self):
+        from accounts.models import NotePersonnelle
+        self.client.force_login(self.admin)
+        self.client.post(reverse('ajouter_note_personnelle', args=[self.eleve.user.id]), {
+            'titre': 'أول لقاء', 'contenu': 'محتوى الملاحظة',
+        })
+        note = NotePersonnelle.objects.get(profil_user=self.eleve.user, auteur=self.admin)
+        self.assertEqual(note.titre, 'أول لقاء')
+        self.assertEqual(note.contenu, 'محتوى الملاحظة')
+
+    def test_ajout_sans_titre_laisse_le_champ_vide(self):
+        from accounts.models import NotePersonnelle
+        self.client.force_login(self.admin)
+        self.client.post(reverse('ajouter_note_personnelle', args=[self.eleve.user.id]), {
+            'contenu': 'محتوى بدون عنوان',
+        })
+        note = NotePersonnelle.objects.get(profil_user=self.eleve.user, auteur=self.admin)
+        self.assertEqual(note.titre, '')
+
+    def test_liste_affiche_le_titre_pas_le_contenu_en_tete(self):
+        """Le contenu reste présent dans le HTML (formulaire d'édition masqué,
+        voir _carnet_notes_personnelles.html) mais la ligne d'affichage
+        principale montre le titre, jamais le contenu en clair au 1er plan."""
+        from accounts.models import NotePersonnelle
+        NotePersonnelle.objects.create(
+            profil_user=self.eleve.user, auteur=self.admin,
+            titre='عنوان الملاحظة', contenu='محتوى طويل لا يجب أن يظهر في القائمة مباشرة',
+        )
+        self.client.force_login(self.admin)
+        html = self.client.get(reverse('admin_eleve_detail', args=[self.eleve.id])).content.decode('utf-8')
+        self.assertIn('عنوان الملاحظة', html)
+
+    def test_liste_retombe_sur_date_si_titre_vide(self):
+        from accounts.models import NotePersonnelle
+        note = NotePersonnelle.objects.create(
+            profil_user=self.eleve.user, auteur=self.admin, contenu='بدون عنوان',
+        )
+        self.client.force_login(self.admin)
+        html = self.client.get(reverse('admin_eleve_detail', args=[self.eleve.id])).content.decode('utf-8')
+        self.assertIn(f'ملاحظة بتاريخ {note.date_creation:%d/%m/%Y}', html)
+
+    def test_modifier_note_met_a_jour_le_titre(self):
+        from accounts.models import NotePersonnelle
+        note = NotePersonnelle.objects.create(
+            profil_user=self.eleve.user, auteur=self.admin, titre='قديم', contenu='أصلية',
+        )
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse('modifier_note_personnelle', args=[note.id]), {
+            'titre': 'جديد', 'contenu': 'محدَّثة',
+        })
+        self.assertEqual(r.status_code, 302)
+        note.refresh_from_db()
+        self.assertEqual(note.titre, 'جديد')
+        self.assertEqual(note.contenu, 'محدَّثة')
 
     def test_note_champ_indépendant_de_notes_admin_existant(self):
         """Le nouveau carnet ne touche jamais Prof.notes_admin (système
@@ -1841,6 +1901,74 @@ class NotePersonnelleTests(TestCase):
         html = self.client.get(reverse('admin_prof_detail', args=[prof.id])).content.decode('utf-8')
         self.assertIn('ancien champ inchangé', html)
         self.assertIn('nouvelle note perso', html)
+
+
+# ============================================================================
+# Tâche du 2026-08-18 bis — Bloc-notes personnel "ملاحظاتي" (tous rôles)
+# ============================================================================
+class MesNotesPersonnellesTests(TestCase):
+    """Réutilise accounts.NotePersonnelle avec profil_user == auteur ==
+    request.user (voir dashboard.views.mes_notes_personnelles)."""
+
+    def test_chaque_role_peut_ajouter_une_note_sur_soi_meme(self):
+        from accounts.models import NotePersonnelle
+
+        for user in (
+            _creer_admin(), _creer_mshrif(), _creer_eleve('mn_eleve@zidni.test'),
+            _creer_prof('mn_prof@zidni.test'), _creer_superviseur('mn_superviseur@zidni.test'),
+        ):
+            u = user.user if hasattr(user, 'user') else user
+            self.client.force_login(u)
+            r = self.client.post(reverse('ajouter_note_personnelle', args=[u.id]), {'contenu': 'ملاحظتي الخاصة'})
+            self.assertEqual(r.status_code, 302)
+            self.assertTrue(NotePersonnelle.objects.filter(profil_user=u, auteur=u, contenu='ملاحظتي الخاصة').exists())
+
+    def test_page_mes_notes_accessible_a_chaque_role_et_affiche_ses_notes(self):
+        from accounts.models import NotePersonnelle
+
+        for user in (
+            _creer_admin(), _creer_mshrif(), _creer_eleve('mn_page_eleve@zidni.test'),
+            _creer_prof('mn_page_prof@zidni.test'), _creer_superviseur('mn_page_superviseur@zidni.test'),
+        ):
+            u = user.user if hasattr(user, 'user') else user
+            NotePersonnelle.objects.create(profil_user=u, auteur=u, contenu=f'note de {u.id}')
+            self.client.force_login(u)
+            r = self.client.get(reverse('mes_notes_personnelles'))
+            self.assertEqual(r.status_code, 200)
+            self.assertIn(f'note de {u.id}', r.content.decode('utf-8'))
+
+    def test_ne_voit_pas_les_notes_dun_autre_utilisateur_sur_la_page_mes_notes(self):
+        from accounts.models import NotePersonnelle
+
+        eleve_a = _creer_eleve('mn_a@zidni.test')
+        eleve_b = _creer_eleve('mn_b@zidni.test')
+        NotePersonnelle.objects.create(profil_user=eleve_a.user, auteur=eleve_a.user, contenu='note de a')
+        self.client.force_login(eleve_b.user)
+        html = self.client.get(reverse('mes_notes_personnelles')).content.decode('utf-8')
+        self.assertNotIn('note de a', html)
+
+    def test_admin_ne_voit_pas_la_note_personnelle_dun_eleve_sur_sa_fiche(self):
+        """Le bloc-notes personnel (auteur == profil_user) est strictement
+        distinct du carnet admin/مشرف SUR un profil consulté (auteur ==
+        مدير/مشرف, profil_user == la personne consultée) — jamais mélangés."""
+        from accounts.models import NotePersonnelle
+
+        eleve = _creer_eleve('mn_prive@zidni.test')
+        NotePersonnelle.objects.create(profil_user=eleve.user, auteur=eleve.user, contenu='ملاحظة شخصية للطالب')
+        admin = _creer_admin()
+        self.client.force_login(admin)
+        html = self.client.get(reverse('admin_eleve_detail', args=[eleve.id])).content.decode('utf-8')
+        self.assertNotIn('ملاحظة شخصية للطالب', html)
+
+    def test_auteur_peut_supprimer_sa_propre_note_personnelle(self):
+        from accounts.models import NotePersonnelle
+
+        eleve = _creer_eleve('mn_suppr@zidni.test')
+        note = NotePersonnelle.objects.create(profil_user=eleve.user, auteur=eleve.user, contenu='à supprimer')
+        self.client.force_login(eleve.user)
+        r = self.client.post(reverse('supprimer_note_personnelle', args=[note.id]))
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(NotePersonnelle.objects.filter(id=note.id).exists())
 
 
 # ============================================================================
@@ -1864,8 +1992,8 @@ class CartableEleveTests(TestCase):
 
         self.client.force_login(self.admin)
         fichier = SimpleUploadedFile('rapport.pdf', b'contenu-pdf-factice', content_type='application/pdf')
-        r = self.client.post(reverse('admin_eleve_cartable_ajouter', args=[self.eleve.id]), {
-            'titre': 'تقرير', 'fichier': fichier,
+        r = self.client.post(reverse('admin_eleve_cartable_ajouter'), {
+            'cible': 'specifique', 'eleves_cibles': [self.eleve.id], 'titre': 'تقرير', 'fichier': fichier,
         })
         self.assertEqual(r.status_code, 302)
         self.assertTrue(DocumentEleve.objects.filter(eleve=self.eleve, titre='تقرير').exists())
@@ -1877,9 +2005,163 @@ class CartableEleveTests(TestCase):
         prof = _creer_prof('prof_cartable@zidni.test')
         self.client.force_login(prof.user)
         fichier = SimpleUploadedFile('rapport.pdf', b'contenu-pdf-factice', content_type='application/pdf')
-        r = self.client.post(reverse('admin_eleve_cartable_ajouter', args=[self.eleve.id]), {'fichier': fichier})
+        r = self.client.post(reverse('admin_eleve_cartable_ajouter'), {
+            'cible': 'specifique', 'eleves_cibles': [self.eleve.id], 'fichier': fichier,
+        })
         self.assertEqual(r.status_code, 302)  # role_required redirige vers son propre dashboard
         self.assertFalse(DocumentEleve.objects.filter(eleve=self.eleve).exists())
+
+    def test_ajout_sans_eleve_choisi_est_refuse(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from accounts.models import DocumentEleve
+
+        self.client.force_login(self.admin)
+        fichier = SimpleUploadedFile('rapport.pdf', b'contenu-pdf-factice', content_type='application/pdf')
+        r = self.client.post(reverse('admin_eleve_cartable_ajouter'), {'fichier': fichier})
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(DocumentEleve.objects.exists())
+
+    def test_cible_tous_ajoute_a_chaque_eleve_actif(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from accounts.models import DocumentEleve
+
+        autre_eleve = _creer_eleve('autre_cible_tous@zidni.test')
+        self.client.force_login(self.admin)
+        fichier = SimpleUploadedFile('rapport.pdf', b'contenu-pdf-factice', content_type='application/pdf')
+        r = self.client.post(reverse('admin_eleve_cartable_ajouter'), {
+            'cible': 'tous', 'titre': 'تعميم', 'fichier': fichier,
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(DocumentEleve.objects.filter(eleve=self.eleve, titre='تعميم').exists())
+        self.assertTrue(DocumentEleve.objects.filter(eleve=autre_eleve, titre='تعميم').exists())
+
+    def test_cible_categorie_ajoute_seulement_aux_eleves_dont_un_groupe_actif_a_cette_categorie(self):
+        """Source de la catégorie = Groupe.categorie (champ saisi par le
+        مدير), PAS categorie_collectif (property dérivée du créneau) ni
+        l'âge/sexe de l'élève — demande explicite du client, correction UX
+        du 2026-08-18 ter."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from accounts.models import DocumentEleve
+
+        eleve_femmes = _creer_eleve('groupe_femmes@zidni.test')
+        groupe_femmes = Groupe.objects.create(nom='مجموعة النساء', categorie='femmes_adultes')
+        groupe_femmes.eleves.add(eleve_femmes)
+
+        self.client.force_login(self.admin)
+        fichier = SimpleUploadedFile('rapport.pdf', b'contenu-pdf-factice', content_type='application/pdf')
+        r = self.client.post(reverse('admin_eleve_cartable_ajouter'), {
+            'cible': 'categorie', 'categorie_cible': 'femmes_adultes', 'titre': 'خاص بالنساء', 'fichier': fichier,
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(DocumentEleve.objects.filter(eleve=eleve_femmes, titre='خاص بالنساء').exists())
+        # self.eleve (setUp) n'appartient à aucun groupe -> jamais inclus
+        # dans un ciblage par catégorie précise.
+        self.assertFalse(DocumentEleve.objects.filter(eleve=self.eleve, titre='خاص بالنساء').exists())
+
+    def test_categorie_collectif_du_groupe_est_ignoree(self):
+        """Groupe.categorie_collectif (property dérivée du créneau) ne doit
+        JAMAIS servir de source ici, même s'il coïncide visuellement — seul
+        le champ Groupe.categorie compte. Un groupe SANS categorie renseignée
+        (blank='') ne doit matcher aucune des 3 catégories, quel que soit son
+        categorie_collectif calculé."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from accounts.models import DocumentEleve
+
+        eleve = _creer_eleve('groupe_sans_categorie@zidni.test')
+        groupe_sans_categorie = Groupe.objects.create(nom='مجموعة بدون فئة')  # categorie='' par défaut
+        groupe_sans_categorie.eleves.add(eleve)
+
+        self.client.force_login(self.admin)
+        fichier = SimpleUploadedFile('rapport.pdf', b'contenu-pdf-factice', content_type='application/pdf')
+        r = self.client.post(reverse('admin_eleve_cartable_ajouter'), {
+            'cible': 'categorie', 'categorie_cible': 'femmes_adultes', 'fichier': fichier,
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(DocumentEleve.objects.filter(eleve=eleve).exists())
+
+    def test_eleve_avec_groupe_archive_nest_pas_cible_par_categorie(self):
+        """Seuls les groupes ACTIFS comptent pour la résolution de catégorie —
+        un ancien groupe archivé ne doit pas faire (ré)apparaître un élève
+        dans une catégorie qui ne le concerne plus."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from accounts.models import DocumentEleve
+
+        eleve = _creer_eleve('groupe_archive@zidni.test')
+        groupe_archive = Groupe.objects.create(nom='مجموعة مؤرشفة', categorie='hommes_adultes', statut='archive')
+        groupe_archive.eleves.add(eleve)
+
+        self.client.force_login(self.admin)
+        fichier = SimpleUploadedFile('rapport.pdf', b'contenu-pdf-factice', content_type='application/pdf')
+        r = self.client.post(reverse('admin_eleve_cartable_ajouter'), {
+            'cible': 'categorie', 'categorie_cible': 'hommes_adultes', 'fichier': fichier,
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(DocumentEleve.objects.filter(eleve=eleve).exists())
+
+    def test_eleve_avec_plusieurs_groupes_matche_si_au_moins_un_correspond(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from accounts.models import DocumentEleve
+
+        eleve = _creer_eleve('multi_groupes@zidni.test')
+        groupe_sans_categorie = Groupe.objects.create(nom='مجموعة أ')
+        groupe_enfants = Groupe.objects.create(nom='مجموعة ب', categorie='mineurs')
+        groupe_sans_categorie.eleves.add(eleve)
+        groupe_enfants.eleves.add(eleve)
+
+        self.client.force_login(self.admin)
+        fichier = SimpleUploadedFile('rapport.pdf', b'contenu-pdf-factice', content_type='application/pdf')
+        r = self.client.post(reverse('admin_eleve_cartable_ajouter'), {
+            'cible': 'categorie', 'categorie_cible': 'mineurs', 'fichier': fichier,
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(DocumentEleve.objects.filter(eleve=eleve).exists())
+
+    def test_ancien_filtre_de_liste_nest_plus_affiche(self):
+        """Correction UX du 2026-08-18 ter — un seul système de sélection des
+        destinataires (celui du formulaire "ملف جديد"), l'ancien filtre de
+        catégorie séparé au-dessus de la liste des fichiers a été retiré."""
+        import re
+
+        def _sans_csrf(html):
+            # Le jeton CSRF est régénéré à chaque rendu (masquage aléatoire
+            # par requête) — non pertinent à cette comparaison, on le retire.
+            return re.sub(r'name="csrfmiddlewaretoken" value="[^"]*"', '', html)
+
+        self.client.force_login(self.admin)
+        html = self.client.get(reverse('admin_eleve_cartable_gestion')).content.decode('utf-8')
+        self.assertNotIn('تصفية القائمة أدناه حسب فئة الطالب', html)
+        # ?categorie= n'a plus aucun effet — la vue ne lit plus ce paramètre,
+        # la page rendue est identique avec ou sans lui (hors jeton CSRF).
+        html_avec_param = self.client.get(
+            reverse('admin_eleve_cartable_gestion') + '?categorie=femmes_adultes'
+        ).content.decode('utf-8')
+        self.assertEqual(_sans_csrf(html), _sans_csrf(html_avec_param))
+
+    def test_admin_eleve_detail_ne_contient_plus_le_cartable(self):
+        """Refonte du 2026-08-18 — la gestion du cartable élève a quitté la
+        fiche élève individuelle pour la page centrale إدارة حقيبة الطالب
+        (demande explicite du client, même refonte déjà appliquée à حقيبة
+        الأستاذ). Garde-fou de non-régression contre un retour accidentel."""
+        self.client.force_login(self.admin)
+        html = self.client.get(reverse('admin_eleve_detail', args=[self.eleve.id])).content.decode('utf-8')
+        # Marqueur exact de l'ancien bloc (emoji 🎒 propre à la section supprimée) —
+        # pas juste "حقيبة الطالب" seul, qui réapparaît légitimement dans le lien
+        # sidebar "🗂️ إدارة حقيبة الطالب" vers la nouvelle page centrale.
+        self.assertNotIn('🎒 حقيبة الطالب', html)
+
+    def test_page_gestion_centrale_accessible_admin_et_mshrif(self):
+        mshrif = _creer_mshrif()
+        for user in (self.admin, mshrif):
+            self.client.force_login(user)
+            r = self.client.get(reverse('admin_eleve_cartable_gestion'))
+            self.assertEqual(r.status_code, 200)
+            self.assertIn('إدارة حقيبة الطالب', r.content.decode('utf-8'))
+
+    def test_prof_ne_peut_pas_acceder_a_la_page_de_gestion(self):
+        prof = _creer_prof('prof_cartable_gestion@zidni.test')
+        self.client.force_login(prof.user)
+        r = self.client.get(reverse('admin_eleve_cartable_gestion'))
+        self.assertEqual(r.status_code, 302)  # role_required redirige, jamais 403
 
     def test_eleve_voit_son_propre_cartable(self):
         from accounts.models import DocumentEleve

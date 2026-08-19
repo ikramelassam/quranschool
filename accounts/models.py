@@ -420,6 +420,13 @@ class NotePersonnelle(models.Model):
     auteur = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='notes_personnelles_ecrites'
     )
+    # Titre optionnel (Tâche du 2026-08-19) — sert UNIQUEMENT à l'affichage
+    # dans la liste (jamais le contenu complet, voir templates/dashboard/
+    # _carnet_notes_personnelles.html) : si vide, la liste retombe sur
+    # "ملاحظة بتاريخ dd/mm/yyyy" formaté depuis date_creation, jamais sur le
+    # contenu. Le contenu complet reste consultable seulement au clic (mode
+    # édition), inchangé.
+    titre = models.CharField(max_length=200, blank=True, default='')
     contenu = models.TextField()
     date_creation = models.DateTimeField(auto_now_add=True)
     # Modification/suppression réservées à l'auteur (vérifié STRICT côté vue,
@@ -522,4 +529,34 @@ class Superviseur(models.Model):
 
     class Meta:
         verbose_name = "Superviseur"
+
+
+class DerniereVisiteNotification(models.Model):
+    """Horodatage de dernière visite d'une page cible, PAR TYPE (pas par
+    notification individuelle) — repère de lecture du panneau 🔔 الإشعارات
+    (Chantier notifications du 2026-08-19). Architecture "Simple" validée
+    explicitement (Option A) : un seul timestamp par (user, cle) suffit à
+    déterminer ce qui est "nouveau depuis la dernière visite" de cette page —
+    pas de table de lecture par objet individuel (pas de LectureConversation-
+    like ici). Visiter la page cible marque TOUT ce type comme lu d'un coup ;
+    voir dashboard.notifications.marquer_visite.
+
+    cle identifie la PAGE cible, pas le rôle ni le modèle exact source —
+    'examens' (examens_eleve_liste), 'notes_seances' (eleve_seances),
+    'cartable' (eleve_cartable), 'evaluations_recues'
+    (evaluations_prof_recues), 'hakiba' (prof_hakiba). Voir
+    dashboard.notifications pour le calcul complet."""
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='dernieres_visites_notification'
+    )
+    cle = models.CharField(max_length=30)
+    date_visite = models.DateTimeField()
+
+    def __str__(self):
+        return f"{self.user} - {self.cle} - {self.date_visite:%Y-%m-%d %H:%M}"
+
+    class Meta:
+        unique_together = ('user', 'cle')
+        verbose_name = "Dernière visite de notification"
+        verbose_name_plural = "Dernières visites de notification"
         verbose_name_plural = "Superviseurs"
