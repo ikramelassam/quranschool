@@ -167,6 +167,55 @@ def _compter_non_lus_par_conversation(conv_ids, lectures, user):
     return compteur
 
 
+def repartition_conversations_par_categorie(conversations):
+    """Onglets "المجموعات" (Chantier catégorisation du 2026-08-18) : compte,
+    pour une liste de conversations DÉJÀ chargée par conversations_avec_apercu
+    (donc groupe déjà select_related — AUCUNE requête supplémentaire ici),
+    combien appartiennent à chacune des 3 catégories métier.
+
+    Réutilise EXCLUSIVEMENT annonces.services.CANAUX — les mêmes 3 valeurs
+    (النساء/الرجال/الأطفال) déjà utilisées pour les canaux de diffusion des
+    Annonces, sur le même champ Groupe.categorie (voir Groupe.CATEGORIE_CHOICES
+    = Annonce.CIBLE_CHOICES). Aucune nouvelle catégorie, aucune valeur
+    inventée. Un groupe dont categorie est vide ('' — "غير مصنف", voir
+    Groupe.categorie.__doc__) n'est compté dans AUCUNE des 3 catégories, ce
+    qui l'exclut naturellement de leurs onglets tout en le laissant dans
+    "الكل" (1er élément retourné, count = total réel).
+
+    Retourne une liste de dicts {code, nom, count} : [{'code': '', 'nom':
+    'الكل', 'count': N}, {'code': 'femmes_adultes', 'nom': 'النساء', ...}, ...]."""
+    from annonces.services import CANAUX
+
+    compte = {canal['code']: 0 for canal in CANAUX}
+    for conversation in conversations:
+        cat = conversation.groupe.categorie
+        if cat in compte:
+            compte[cat] += 1
+
+    return [{'code': '', 'nom': 'الكل', 'count': len(conversations)}] + [
+        {'code': canal['code'], 'nom': canal['nom'], 'count': compte[canal['code']]}
+        for canal in CANAUX
+    ]
+
+
+def filtrer_conversations_par_categorie_et_recherche(conversations, categorie='', q=''):
+    """Filtre EN MÉMOIRE une liste déjà chargée par conversations_avec_apercu
+    (Point 8 du chantier catégorisation : pas de requête supplémentaire, le
+    nombre de conversations d'un utilisateur reste petit — voir la docstring
+    de conversations_avec_apercu). `categorie` doit être l'un des 3 codes de
+    annonces.services.CANAUX (ou '' = pas de filtre catégorie — "الكل"), une
+    valeur inconnue ne fait planter/élargir rien : elle filtre juste vers une
+    liste vide, exactement comme un ?cat= inconnu sur admin_groupes.html.
+    `q` filtre par sous-chaîne (insensible à la casse) du nom du groupe."""
+    resultat = conversations
+    if categorie:
+        resultat = [c for c in resultat if c.groupe.categorie == categorie]
+    q = q.strip().lower()
+    if q:
+        resultat = [c for c in resultat if q in c.groupe.nom.lower()]
+    return resultat
+
+
 def total_messages_non_lus(user):
     """Compte total (toutes conversations confondues) pour le badge de
     navigation (Point 14/15) — mis en cache 15 secondes par utilisateur pour

@@ -2,7 +2,11 @@
 {% if not conversations %}
 <div class="chat-vide">
     <div class="chat-vide-icone" aria-hidden="true">💬</div>
+    {% if filtres_actifs %}
+    <p>لا توجد محادثات مطابقة.</p>
+    {% else %}
     <p>لا توجد محادثات متاحة حالياً.</p>
+    {% endif %}
 </div>
 {% else %}
 {% for conversation in conversations %}
@@ -19,6 +23,8 @@
             <span class="chat-item-heure">{{ conversation.dernier_message.date_envoi|heure_message }}</span>
             {% endif %}
         </div>
+        {# Catégorie du groupe (Chantier catégorisation du 2026-08-18) — Groupe.categorie #}
+        <span class="chat-item-cat {% if not conversation.groupe.categorie %}chat-item-cat-vide{% endif %}">{{ conversation.groupe.categorie|nom_categorie_chat }}</span>
         <div class="chat-item-ligne2">
             <span class="chat-item-apercu">
                 {% if conversation.dernier_message %}

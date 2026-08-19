@@ -76,6 +76,35 @@
     .chat-item-ligne2 { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; }
     .chat-item-apercu { font-size: 0.82rem; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .chat-item-prof { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 2px; opacity: 0.85; }
+    /* Tag de catégorie par conversation (Chantier catégorisation du
+       2026-08-18) — même pilule que .flux-tag (templates/annonces/admin_annonces.html)
+       et le badge catégorie de admin_groupes.html : fond crème, texte or foncé. */
+    .chat-item-cat {
+        display: inline-block; margin-top: 2px; font-size: 0.7rem; font-weight: 600;
+        color: var(--color-brand-gold-dark); background: #FBF3E4; border-radius: 20px;
+        padding: 1px 9px;
+    }
+    .chat-item-cat-vide { color: var(--color-text-muted); background: var(--color-bg-cream); font-weight: 500; }
+
+    /* ---------- En-tête "المجموعات" : onglets de catégorie + recherche ---------- */
+    .chat-groupes-header { flex-shrink: 0; border-bottom: 1px solid rgba(0,0,0,0.06); }
+    .chat-groupes-titre { font-size: 0.78rem; font-weight: 700; color: var(--color-text-muted); margin: 12px 20px 8px; }
+    .chat-cat-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 12px; }
+    .chat-cat-tab {
+        border: none; border-radius: 20px; padding: 6px 14px; font-size: 0.8rem; font-weight: 600;
+        font-family: 'Tajawal', sans-serif; color: #666; background: var(--color-bg-cream);
+        cursor: pointer; white-space: nowrap; transition: background 0.15s, color 0.15s;
+    }
+    .chat-cat-tab:hover { background: #f0e6cf; }
+    .chat-cat-tab.active { background: var(--color-brand-gold-dark); color: #fff; }
+    .chat-cat-tab-count { opacity: 0.8; font-variant-numeric: tabular-nums; }
+    .chat-recherche-groupe { padding: 0 20px 14px; }
+    .chat-recherche-groupe input {
+        width: 100%; border: 1px solid rgba(0,0,0,0.1); border-radius: 20px; padding: 8px 16px;
+        font-size: 0.85rem; font-family: 'Tajawal', sans-serif; background: var(--color-bg-cream);
+        outline: none;
+    }
+    .chat-recherche-groupe input:focus { border-color: var(--color-brand-gold-dark); }
     .chat-badge {
         flex-shrink: 0; background: var(--color-danger); color: #fff; border-radius: 20px;
         min-width: 20px; height: 20px; padding: 0 6px; font-size: 0.7rem; font-weight: 700;
@@ -330,10 +359,37 @@
 <div class="chat-shell {% if conversation_ouverte %}chat-mobile-panel-open{% endif %}" id="chatShell"
      data-liste-partial-url="{% url 'chat_liste_partial' %}"
      data-groupe-ouvert="{% if conversation_ouverte %}{{ conversation_ouverte.groupe_id }}{% endif %}">
-    <div class="chat-liste-col" id="chatListeCol">
+    <div class="chat-liste-col" id="chatListeCol"
+         data-filtre-categorie="{{ filtre_categorie }}" data-filtre-recherche="{{ filtre_recherche }}">
         <div class="chat-liste-header"><h2>الرسائل</h2></div>
+        {% comment %}
+        Onglets de catégorie + recherche (Chantier catégorisation du
+        2026-08-18) — filtrent Groupe.categorie (النساء/الرجال/الأطفال,
+        réutilisées d'annonces.services.CANAUX), jamais categorie_collectif
+        (dérivée du créneau, système totalement séparé — voir
+        chat.services.repartition_conversations_par_categorie). Les
+        compteurs viennent de la vue (chat_liste/chat_conversation), calculés
+        une seule fois au chargement de la page — pas recalculés à chaque
+        poll de 10s (voir #chatListeContenu plus bas, qui lui EST rafraîchi
+        par le poll).
+        {% endcomment %}
+        <div class="chat-groupes-header">
+            <div class="chat-groupes-titre">المجموعات</div>
+            <div class="chat-cat-tabs" id="chatCatTabs" role="tablist" aria-label="تصفية المحادثات حسب الفئة">
+                {% for cat in categories_chat %}
+                <button type="button" class="chat-cat-tab {% if cat.code == filtre_categorie %}active{% endif %}"
+                        data-categorie="{{ cat.code }}" role="tab" aria-selected="{% if cat.code == filtre_categorie %}true{% else %}false{% endif %}">
+                    {{ cat.nom }} <span class="chat-cat-tab-count">{{ cat.count }}</span>
+                </button>
+                {% endfor %}
+            </div>
+            <div class="chat-recherche-groupe">
+                <input type="search" id="chatRechercheGroupe" value="{{ filtre_recherche }}"
+                       placeholder="🔎 البحث عن مجموعة..." aria-label="البحث عن مجموعة">
+            </div>
+        </div>
         <div id="chatListeContenu">
-            {% include 'chat/_conversation_liste.html' with conversations=conversations groupe_ouvert_id=conversation_ouverte.groupe_id %}
+            {% include 'chat/_conversation_liste.html' with conversations=conversations groupe_ouvert_id=conversation_ouverte.groupe_id filtres_actifs=filtres_actifs %}
         </div>
     </div>
     <div class="chat-panneau-col" id="chatPanneauCol">
@@ -357,8 +413,20 @@
     const listeContenu = document.getElementById('chatListeContenu');
     const panneauContenu = document.getElementById('chatPanneauContenu');
     const listePartialUrl = shell.dataset.listePartialUrl;
+    const listeCol = document.getElementById('chatListeCol');
+    const catTabs = document.getElementById('chatCatTabs');
+    const rechercheGroupeInput = document.getElementById('chatRechercheGroupe');
 
     let groupeOuvertId = shell.dataset.groupeOuvert || null;
+    // Onglets de catégorie + recherche (Chantier catégorisation du
+    // 2026-08-18) — état initialisé depuis ?categorie=/?q= (déjà appliqués
+    // par le rendu serveur initial, voir chat.views._contexte_liste_categorisee),
+    // puis maintenu ici pour que rafraichirListe() (poll 10s inclus) les
+    // reprenne à CHAQUE appel — sinon le filtre actif se réinitialiserait
+    // tout seul au 1er polling après un clic sur un onglet.
+    let filtreCategorie = listeCol.dataset.filtreCategorie || '';
+    let filtreRecherche = listeCol.dataset.filtreRecherche || '';
+    let rechercheDebounce = null;
     let pollTimer = null;
     let listeTimer = null;
     let mediaRecorder = null;
@@ -563,8 +631,16 @@
     });
 
     // ---------- Rafraîchissement de la liste (aperçus + badges non lus) ----------
+    // Inclut le filtre de catégorie/recherche actif (Chantier catégorisation
+    // du 2026-08-18) — chat_liste_partial les applique exactement comme
+    // chat_liste (voir chat.views), donc le poll 10s ne fait jamais
+    // réapparaître une conversation qu'un onglet/la recherche avait exclue.
     function rafraichirListe() {
-        fetch(`${listePartialUrl}?ouverte=${groupeOuvertId || ''}`)
+        const params = new URLSearchParams();
+        params.set('ouverte', groupeOuvertId || '');
+        if (filtreCategorie) { params.set('categorie', filtreCategorie); }
+        if (filtreRecherche) { params.set('q', filtreRecherche); }
+        fetch(`${listePartialUrl}?${params.toString()}`)
             .then(r => r.json())
             .then(data => { listeContenu.innerHTML = data.html; })
             .catch(() => {});
@@ -575,6 +651,32 @@
         listeTimer = setInterval(rafraichirListe, 10000);
     }
     redemarrerListeTimer();
+
+    // ---------- Onglets de catégorie (المجموعات) ----------
+    if (catTabs) {
+        catTabs.addEventListener('click', function (e) {
+            const bouton = e.target.closest('.chat-cat-tab');
+            if (!bouton) { return; }
+            filtreCategorie = bouton.dataset.categorie || '';
+            catTabs.querySelectorAll('.chat-cat-tab').forEach(function (b) {
+                const actif = b === bouton;
+                b.classList.toggle('active', actif);
+                b.setAttribute('aria-selected', actif ? 'true' : 'false');
+            });
+            rafraichirListe();
+        });
+    }
+
+    // ---------- Recherche de groupe (débounce 250ms, évite une requête par frappe) ----------
+    if (rechercheGroupeInput) {
+        rechercheGroupeInput.addEventListener('input', function () {
+            clearTimeout(rechercheDebounce);
+            rechercheDebounce = setTimeout(function () {
+                filtreRecherche = rechercheGroupeInput.value.trim();
+                rafraichirListe();
+            }, 250);
+        });
+    }
 
     function marquerBadgeCommeLu() {
         const badge = document.getElementById('chatSidebarBadge');
@@ -1005,26 +1107,6 @@
     function arreterPolling() {
         if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     }
-
-    // ---------- Pause du polling quand l'onglet est caché ----------
-    // Les 2 boucles ci-dessus (rafraichirListe toutes les 10s, poll toutes les
-    // 8s) tournaient jusqu'ici en continu même onglet caché/minimisé — mise en
-    // pause ici pour ne pas solliciter le serveur pour rien pendant ce temps.
-    // Réutilise EXACTEMENT les mêmes fonctions de (re)démarrage qu'au
-    // chargement initial (redemarrerListeTimer/redemarrerPolling ci-dessus),
-    // aucune logique de polling elle-même n'est modifiée. redemarrerPolling()
-    // n'est relancée que si une conversation est ouverte (document.getElementById
-    // ('chatPanel')), exactement la même condition que le démarrage initial
-    // juste en dessous.
-    document.addEventListener('visibilitychange', function () {
-        if (document.hidden) {
-            arreterPolling();
-            if (listeTimer) { clearInterval(listeTimer); listeTimer = null; }
-        } else {
-            redemarrerListeTimer();
-            if (document.getElementById('chatPanel')) { redemarrerPolling(); }
-        }
-    });
 
     if (document.getElementById('chatPanel')) {
         initPanel();

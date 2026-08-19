@@ -9,8 +9,9 @@ from courses.utils import valider_photo_groupe
 from .models import Conversation, Message
 from .permissions import can_access_conversation, participants_conversation, peut_modifier_photo_groupe
 from .services import (
-    annoter_separateurs_jour, content_type_audio, conversations_avec_apercu, jour_du_message,
-    marquer_comme_lu, purge_opportuniste, valider_piece_jointe,
+    annoter_separateurs_jour, content_type_audio, conversations_avec_apercu,
+    filtrer_conversations_par_categorie_et_recherche, jour_du_message, marquer_comme_lu,
+    purge_opportuniste, repartition_conversations_par_categorie, valider_piece_jointe,
 )
 
 NB_MESSAGES_PAR_PAGE = 30
@@ -89,6 +90,32 @@ def _contexte_messages_initiaux(conversation, request):
     }
 
 
+def _contexte_liste_categorisee(request):
+    """Contexte commun 'onglets de catégorie + recherche' (Chantier
+    catégorisation du 2026-08-18) pour chat_liste ET chat_conversation — les
+    2 rendent le même chat/chat.html, donc les 2 doivent poser les mêmes
+    onglets dans l'en-tête de la colonne liste (sinon ils disparaîtraient en
+    ouvrant une conversation par lien direct, ex: la nouvelle icône 💬 posée
+    sur un groupe — incohérent avec chat_liste). ?categorie=/?q= : même
+    convention que courses.views.groupes_list (lien partageable/rechargeable).
+
+    UN SEUL appel à conversations_avec_apercu : la répartition par catégorie
+    (compteurs des onglets) porte TOUJOURS sur la liste complète, le filtrage
+    affiché sur son résultat — jamais 2 requêtes pour ces 2 besoins, voir les
+    docstrings de chat.services."""
+    categorie = request.GET.get('categorie', '')
+    q = request.GET.get('q', '').strip()
+    toutes_conversations = conversations_avec_apercu(request.user)
+    conversations = filtrer_conversations_par_categorie_et_recherche(toutes_conversations, categorie, q)
+    return {
+        'conversations': conversations,
+        'categories_chat': repartition_conversations_par_categorie(toutes_conversations),
+        'filtre_categorie': categorie,
+        'filtre_recherche': q,
+        'filtres_actifs': bool(categorie or q),
+    }
+
+
 @role_required(*ROLES_AVEC_CHAT)
 def chat_liste(request):
     """Page d'accueil du chat (Point 19/20) : panneau des conversations à
@@ -96,12 +123,12 @@ def chat_liste(request):
     mobile partagent le même template, la bascule liste/conversation sur
     mobile est purement CSS (voir templates/chat/chat.html)."""
     purge_opportuniste()
-    conversations = conversations_avec_apercu(request.user)
-    return render(request, 'chat/chat.html', {
-        'conversations': conversations,
+    contexte = _contexte_liste_categorisee(request)
+    contexte.update({
         'conversation_ouverte': None,
         'base_template': _base_template(request),
     })
+    return render(request, 'chat/chat.html', contexte)
 
 
 @role_required(*ROLES_AVEC_CHAT)
@@ -109,18 +136,19 @@ def chat_conversation(request, groupe_id):
     """Lien direct vers UNE conversation (Point 20 : URL partageable/rechargeable) —
     même gabarit que chat_liste, avec la conversation demandée déjà ouverte et
     ses derniers messages pré-rendus côté serveur (pas d'aller-retour AJAX
-    supplémentaire au premier chargement)."""
+    supplémentaire au premier chargement). C'est cette URL, /chat/<groupe_id>/,
+    que réutilise directement la nouvelle icône 💬 posée sur un groupe
+    (Chantier icône-chat du 2026-08-18) : aucune nouvelle vue nécessaire."""
     conversation, erreur = _conversation_ou_403(request, groupe_id)
     if erreur:
         return erreur
 
     marquer_comme_lu(conversation, request.user)
-    conversations = conversations_avec_apercu(request.user)
-    contexte = {
-        'conversations': conversations,
+    contexte = _contexte_liste_categorisee(request)
+    contexte.update({
         'conversation_ouverte': conversation,
         'base_template': _base_template(request),
-    }
+    })
     contexte.update(_contexte_messages_initiaux(conversation, request))
     return render(request, 'chat/chat.html', contexte)
 
@@ -130,12 +158,20 @@ def chat_conversation(request, groupe_id):
 def chat_liste_partial(request):
     """Fragment HTML de la liste des conversations — utilisé par le polling
     du panneau de gauche pour rafraîchir aperçus/badges de non-lus sans
-    recharger la page ni les messages ouverts (Point 15/17)."""
-    conversations = conversations_avec_apercu(request.user)
+    recharger la page ni les messages ouverts (Point 15/17). Honore les mêmes
+    ?categorie=/?q= que chat_liste (Chantier catégorisation du 2026-08-18) :
+    le JS de chat.html les rajoute à CHAQUE appel de rafraichirListe() (poll
+    10s inclus), sinon le filtre actif se réinitialiserait tout seul au
+    premier polling après un clic sur un onglet ou une recherche."""
+    categorie = request.GET.get('categorie', '')
+    q = request.GET.get('q', '').strip()
+    toutes_conversations = conversations_avec_apercu(request.user)
+    conversations = filtrer_conversations_par_categorie_et_recherche(toutes_conversations, categorie, q)
     groupe_ouvert_id = request.GET.get('ouverte')
     html = render_to_string('chat/_conversation_liste.html', {
         'conversations': conversations,
         'groupe_ouvert_id': int(groupe_ouvert_id) if groupe_ouvert_id and groupe_ouvert_id.isdigit() else None,
+        'filtres_actifs': bool(categorie or q),
     }, request=request)
     return JsonResponse({'html': html})
 
