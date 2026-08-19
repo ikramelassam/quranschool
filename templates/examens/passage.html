@@ -81,28 +81,19 @@
                 {% comment %}
                 Widget d'enregistrement direct (Bug du 2026-08-16, 2e passage) — le
                 texte d'aide en bas promettait "التسجيل مباشرة من هاتفك" mais AUCUN
-                widget JS n'existait : seul un <input type=file> brut était rendu ici,
-                dont l'apparence dépend entièrement du navigateur (sur desktop Chrome,
-                ça donne exactement le simple bouton "Choisir un fichier" observé —
-                capture="user" n'a d'effet que sur certains navigateurs mobiles). Ajout
-                d'un vrai bouton micro (MediaRecorder, même mécanique que templates/
-                chat/_panel.html et templates/annonces/canal_detail.html, dupliqué ici
-                sans dépendance — voir la note de tests.py) + relecture avant
-                confirmation, l'option "اختيار ملف" restant disponible en alternative
-                (comme WhatsApp propose les deux).
+                widget JS n'existait : seul un <input type=file> brut était rendu ici.
+                Ajout d'un vrai bouton micro (MediaRecorder, même mécanique que
+                templates/chat/_panel.html et templates/annonces/canal_detail.html,
+                dupliqué ici sans dépendance — voir la note de tests.py) + relecture
+                avant confirmation. L'option "اختيار ملف" (repli sélection de fichier)
+                a été retirée le 2026-08-18 : l'élève ne peut plus qu'enregistrer
+                directement, l'import depuis l'appareil n'est plus proposé.
                 {% endcomment %}
                 <div id="audio-boutons-{{ question.id }}" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                     <button type="button" onclick="demarrerEnregistrementAudio({{ question.id }})"
                             style="background:#2d5a1b; color:white; border:none; border-radius:20px; padding:9px 20px; font-size:0.9rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
                         🎤 تسجيل صوتي
                     </button>
-                    <span style="color:#bbb; font-size:0.8rem;">أو</span>
-                    <button type="button" onclick="document.getElementById('audio-input-{{ question.id }}').click()"
-                            style="background:#f0f0f0; color:#555; border:1px solid #ddd; border-radius:20px; padding:9px 18px; font-size:0.85rem; cursor:pointer;">
-                        📎 اختيار ملف
-                    </button>
-                    <input type="file" accept="audio/*" capture="user" id="audio-input-{{ question.id }}"
-                           onchange="autosaveAudio({{ question.id }})" hidden>
                 </div>
 
                 <div id="audio-enregistrement-{{ question.id }}" hidden
@@ -129,7 +120,7 @@
                     </div>
                 </div>
 
-                <div style="color:#aaa; font-size:0.78rem; margin-top:6px;">يمكنك التسجيل مباشرة من هاتفك أو اختيار ملف صوتي.</div>
+                <div style="color:#aaa; font-size:0.78rem; margin-top:6px;">سجّل إجابتك الصوتية مباشرة من هاتفك أو حاسوبك.</div>
                 {% endif %}
             </div>
             {% endwith %}
@@ -137,7 +128,8 @@
         {% elif question.type_question == 'video' %}
             {% comment %}
             Tâche du 2026-08-18 : même patron que 'audio' ci-dessus (enregistrement
-            direct + repli sur sélection de fichier), adapté à la vidéo.
+            direct), adapté à la vidéo. Le repli "اختيار ملف" (sélection de fichier)
+            a été retiré le même jour : seul l'enregistrement caméra reste proposé.
             {% endcomment %}
             {% with r=reponses|get_item:question.id %}
             <div id="video-wrapper-{{ question.id }}">
@@ -155,13 +147,6 @@
                             style="background:#2d5a1b; color:white; border:none; border-radius:20px; padding:9px 20px; font-size:0.9rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
                         📹 تسجيل فيديو
                     </button>
-                    <span style="color:#bbb; font-size:0.8rem;">أو</span>
-                    <button type="button" onclick="document.getElementById('video-input-{{ question.id }}').click()"
-                            style="background:#f0f0f0; color:#555; border:1px solid #ddd; border-radius:20px; padding:9px 18px; font-size:0.85rem; cursor:pointer;">
-                        📎 اختيار ملف
-                    </button>
-                    <input type="file" accept="video/*" capture="user" id="video-input-{{ question.id }}"
-                           onchange="autosaveVideo({{ question.id }})" hidden>
                 </div>
 
                 <div id="video-enregistrement-{{ question.id }}" hidden style="margin-top:8px;">
@@ -191,7 +176,7 @@
                     </div>
                 </div>
 
-                <div style="color:#aaa; font-size:0.78rem; margin-top:6px;">يمكنك التسجيل مباشرة من كاميرا هاتفك أو اختيار ملف فيديو (الحد الأقصى 40 م.ب).</div>
+                <div style="color:#aaa; font-size:0.78rem; margin-top:6px;">سجّل إجابتك الفيديو مباشرة من كاميرا هاتفك أو حاسوبك (الحد الأقصى 40 م.ب).</div>
                 {% endif %}
             </div>
             {% endwith %}
@@ -244,14 +229,13 @@ function afficherStatut(questionId, texte, couleur) {
 }
 
 // Renvoie true/false selon que l'enregistrement a réussi — les appelants
-// qui doivent recharger la page après coup (autosaveAudio/supprimerAudio,
-// pour basculer l'affichage input->lecteur) ne doivent le faire QUE sur
-// succès (bug corrigé du 2026-08-16 : `envoyerAutosave` ne renvoyait jamais
-// rien, donc `.then(() => reload())` rechargeait la page inconditionnellement
-// même après un ÉCHEC serveur — l'entrée <input type=file> revenait alors à
-// "لم يتم اختيار أي ملف" sans que l'utilisateur ait pu lire le message
-// d'erreur, qui disparaissait avec le rechargement. Symptôme exact signalé :
-// le fichier audio semble ne "jamais s'enregistrer").
+// qui doivent recharger la page après coup (confirmerEnregistrementAudio/
+// supprimerAudio, pour basculer l'affichage boutons->lecteur) ne doivent le
+// faire QUE sur succès (bug corrigé du 2026-08-16 : `envoyerAutosave` ne
+// renvoyait jamais rien, donc `.then(() => reload())` rechargeait la page
+// inconditionnellement même après un ÉCHEC serveur, effaçant le message
+// d'erreur avant que l'élève ait pu le lire. Symptôme exact signalé : le
+// fichier audio semble ne "jamais s'enregistrer").
 async function envoyerAutosave(questionId, corps) {
     afficherStatut(questionId, 'جارٍ الحفظ...', '#aaa');
     try {
@@ -303,20 +287,6 @@ function autosaveVraiFaux(questionId, valeur) {
     envoyerAutosave(questionId, corps);
 }
 
-function autosaveAudio(questionId) {
-    const input = document.getElementById('audio-input-' + questionId);
-    if (!input.files.length) return;
-    const corps = new FormData();
-    corps.append('reponse_audio', input.files[0]);
-    // Ne recharger QUE si l'enregistrement a réussi (voir la docstring de
-    // envoyerAutosave) — sinon le message d'erreur reste affiché et le
-    // fichier déjà choisi reste sélectionné, pour que l'élève puisse
-    // comprendre pourquoi et réessayer sans tout reperdre.
-    envoyerAutosave(questionId, corps).then(function (succes) {
-        if (succes) { window.location.reload(); }
-    });
-}
-
 function supprimerAudio(questionId) {
     if (!confirm('حذف التسجيل الصوتي الحالي؟')) return;
     const corps = new FormData();
@@ -343,9 +313,10 @@ const fichiersEnAttenteExamens = {};
 
 function demarrerEnregistrementAudio(questionId) {
     if (!(navigator.mediaDevices && window.MediaRecorder)) {
-        // Navigateur trop ancien pour l'enregistrement en direct : repli
-        // immédiat sur le sélecteur de fichier (l'option reste disponible).
-        document.getElementById('audio-input-' + questionId).click();
+        // Navigateur trop ancien pour l'enregistrement en direct — plus de
+        // repli sur un sélecteur de fichier depuis le 2026-08-18 (option
+        // retirée) : on informe simplement l'élève.
+        afficherStatut(questionId, 'التسجيل الصوتي غير مدعوم على هذا المتصفح', '#b71c1c');
         return;
     }
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
@@ -382,8 +353,9 @@ function demarrerEnregistrementAudio(questionId) {
             dureeSpan.textContent = `${m}:${s}`;
         }, 1000);
     }).catch(function () {
-        // Permission micro refusée/indisponible : repli sur le sélecteur de fichier.
-        document.getElementById('audio-input-' + questionId).click();
+        // Permission micro refusée/indisponible — plus de repli sur un
+        // sélecteur de fichier depuis le 2026-08-18 (option retirée).
+        afficherStatut(questionId, 'يرجى السماح باستخدام الميكروفون', '#b71c1c');
     });
 }
 
@@ -432,16 +404,6 @@ const annulationEnCoursVideoExamens = {};
 const fichiersEnAttenteVideoExamens = {};
 const streamsVideoExamens = {};
 
-function autosaveVideo(questionId) {
-    const input = document.getElementById('video-input-' + questionId);
-    if (!input.files.length) return;
-    const corps = new FormData();
-    corps.append('reponse_video', input.files[0]);
-    envoyerAutosave(questionId, corps).then(function (succes) {
-        if (succes) { window.location.reload(); }
-    });
-}
-
 function supprimerVideo(questionId) {
     if (!confirm('حذف الفيديو الحالي؟')) return;
     const corps = new FormData();
@@ -453,7 +415,10 @@ function supprimerVideo(questionId) {
 
 function demarrerEnregistrementVideo(questionId) {
     if (!(navigator.mediaDevices && window.MediaRecorder)) {
-        document.getElementById('video-input-' + questionId).click();
+        // Navigateur trop ancien pour l'enregistrement en direct — plus de
+        // repli sur un sélecteur de fichier depuis le 2026-08-18 (option
+        // retirée) : on informe simplement l'élève.
+        afficherStatut(questionId, 'تسجيل الفيديو غير مدعوم على هذا المتصفح', '#b71c1c');
         return;
     }
     navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(function (stream) {
@@ -495,8 +460,9 @@ function demarrerEnregistrementVideo(questionId) {
             dureeSpan.textContent = `${m}:${s}`;
         }, 1000);
     }).catch(function () {
-        // Permission caméra refusée/indisponible : repli sur le sélecteur de fichier.
-        document.getElementById('video-input-' + questionId).click();
+        // Permission caméra refusée/indisponible — plus de repli sur un
+        // sélecteur de fichier depuis le 2026-08-18 (option retirée).
+        afficherStatut(questionId, 'يرجى السماح باستخدام الكاميرا', '#b71c1c');
     });
 }
 

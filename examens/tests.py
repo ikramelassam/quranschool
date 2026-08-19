@@ -692,11 +692,23 @@ class WorkflowEleveHttpTests(TestCase):
         html = r.content.decode('utf-8')
         self.assertContains(r, 'demarrerEnregistrementAudio(')
         self.assertContains(r, '🎤')
-        self.assertContains(r, 'اختيار ملف')
         # Phrase du commentaire Django {% comment %} (pas du commentaire JS //,
         # qui lui reste légitimement dans le <script> délivré) — ne doit jamais
         # apparaître comme texte visible de la page.
         self.assertNotIn("mais AUCUN", html)
+
+    def test_page_examen_ne_propose_plus_le_choix_de_fichier_audio(self):
+        """Tâche du 2026-08-18 : le repli "اختيار ملف" (import depuis
+        l'appareil) est retiré pour les questions audio — seul l'enregistrement
+        direct au micro reste proposé. Vérifie le HTML réellement rendu plutôt
+        qu'un simple assertNotIn global sur la réponse brute (le texte peut
+        encore exister dans un commentaire Django, jamais servi tel quel)."""
+        self.client.post(reverse('examens_eleve_avant', args=[self.examen.id]))
+        copie = Copie.objects.get(examen=self.examen, eleve=self.eleve)
+        r = self.client.get(reverse('examens_passage', args=[copie.id]))
+        html = r.content.decode('utf-8')
+        self.assertNotIn('📎 اختيار ملف', html)
+        self.assertNotIn('type="file"', html)
 
     def test_autosave_refuse_apres_soumission(self):
         self.client.post(reverse('examens_eleve_avant', args=[self.examen.id]))
@@ -1336,6 +1348,19 @@ class VideoAutosaveHttpTests(TestCase):
         self.question_video = _ajouter_question_video(self.examen)
         self.client = Client()
         _connecter(self.client, self.eleve.user)
+
+    def test_page_examen_affiche_le_widget_denregistrement_camera_sans_choix_de_fichier(self):
+        """Tâche du 2026-08-18 : le repli "اختيار ملف" est retiré pour les
+        questions vidéo aussi — seul l'enregistrement direct à la caméra reste
+        proposé."""
+        self.client.post(reverse('examens_eleve_avant', args=[self.examen.id]))
+        copie = Copie.objects.get(examen=self.examen, eleve=self.eleve)
+        r = self.client.get(reverse('examens_passage', args=[copie.id]))
+        html = r.content.decode('utf-8')
+        self.assertContains(r, 'demarrerEnregistrementVideo(')
+        self.assertContains(r, '📹')
+        self.assertNotIn('📎 اختيار ملف', html)
+        self.assertNotIn('type="file"', html)
 
     def test_autosave_video(self):
         self.client.post(reverse('examens_eleve_avant', args=[self.examen.id]))
