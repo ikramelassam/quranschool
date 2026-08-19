@@ -49,9 +49,9 @@
     {% if filtres.type == 'groupe' %}
     <nav class="pill-nav pill-nav-secondaire mt-2" aria-label="تصفية حسب فئة المجموعة الجماعية">
         <a href="{% querystring categorie=None page=None %}" class="{% if not filtres.categorie %}active{% endif %}">الكل</a>
-        {% for valeur, libelle in categorie_collectif_choices %}
-        <a href="{% querystring categorie=valeur page=None %}" class="{% if filtres.categorie == valeur %}active{% endif %}">{{ libelle }}</a>
-        {% endfor %}
+        <a href="{% querystring categorie='femmes_adultes' page=None %}" class="{% if filtres.categorie == 'femmes_adultes' %}active{% endif %}">النساء</a>
+        <a href="{% querystring categorie='hommes_adultes' page=None %}" class="{% if filtres.categorie == 'hommes_adultes' %}active{% endif %}">الرجال</a>
+        <a href="{% querystring categorie='mineurs' page=None %}" class="{% if filtres.categorie == 'mineurs' %}active{% endif %}">الأطفال</a>
     </nav>
     {% endif %}
 </div>
@@ -83,25 +83,16 @@
         </div>
         <div class="col-md-3">
             <label style="color:#888; font-size:0.8rem;">الحلقة</label>
-            <select name="creneau" class="form-select" onchange="if(this.value === '__creer__'){ window.location.href = '{% url "admin_creneau_ajouter" %}'; }">
+            <select name="creneau" class="form-select" data-select-cherchable onchange="if(this.value === '__creer__'){ window.location.href = '{% url "admin_creneau_ajouter" %}'; }">
                 <option value="">الكل</option>
                 {% for c in creneaux %}
                 <option value="{{ c.id }}" {% if filtres.creneau == c.id|stringformat:"s" %}selected{% endif %}>
-                    {{ c }} — {{ c.age_min }}-{{ c.age_max }} سنة، {{ c.get_sexe_cible_display }}، {{ c.get_type_seance_display }}، {{ c.get_riwaya_display }}
+                    {% if c.nom %}{{ c.nom }}{% else %}{{ c }} — {{ c.age_min }}-{{ c.age_max }} سنة، {{ c.get_sexe_cible_display }}، {{ c.get_type_seance_display }}، {{ c.get_riwaya_display }}{% endif %}
                 </option>
                 {% endfor %}
                 {% if request.user.role != 'mshrif' %}
                 <option value="__creer__">+ إنشاء حلقة جديدة</option>
                 {% endif %}
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">فئة المجموعة</label>
-            <select name="cat" class="form-select">
-                <option value="">الكل</option>
-                {% for valeur, libelle in categorie_choices %}
-                <option value="{{ valeur }}" {% if filtres.cat == valeur %}selected{% endif %}>{{ libelle }}</option>
-                {% endfor %}
             </select>
         </div>
         <div class="col-md-3 d-flex gap-2 align-items-end">
@@ -124,9 +115,6 @@
                 <div style="flex-shrink:0;">
                     {% if groupe.get_categorie_display %}
                     <span style="background:#f7f3ea; color:var(--color-brand-gold-dark); border-radius:20px; padding:2px 10px; font-size:0.75rem; margin-inline-start:4px;">{{ groupe.get_categorie_display }}</span>
-                    {% endif %}
-                    {% if groupe.categorie_collectif_display %}
-                    <span style="background:#eef7e5; color:var(--color-role-admin-solid); border-radius:20px; padding:2px 10px; font-size:0.75rem; margin-inline-start:4px;">{{ groupe.categorie_collectif_display }}</span>
                     {% endif %}
                     <span style="background:var(--color-bg-cream); color:var(--color-brand-gold-dark); border-radius:20px; padding:2px 10px; font-size:0.75rem;">{{ groupe.get_type_capacite_display }}</span>
                 </div>
@@ -154,17 +142,22 @@
                 {% endif %}
             </div>
 
-            <a href="{% url 'admin_groupe_detail' groupe.id %}"
-               style="background:#f0f7ed; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; font-weight:600;">
-               عرض التفاصيل ←
-            </a>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                <a href="{% url 'admin_groupe_detail' groupe.id %}"
+                   style="background:#f0f7ed; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; font-weight:600;">
+                   عرض التفاصيل ←
+                </a>
+                {% if groupe.id in chat_groupe_ids %}
+                {% include 'dashboard/_chat_icon.html' with groupe_id=groupe.id %}
+                {% endif %}
+            </div>
         </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
 <div style="text-align:center; padding:60px; color:#aaa;">
-    {% if filtres.statut or filtres.prof or filtres.creneau or filtres.type or filtres.categorie or filtres.cat or filtres.q %}
+    {% if filtres.statut or filtres.prof or filtres.creneau or filtres.type or filtres.categorie or filtres.q %}
     لا توجد مجموعات مطابقة لهذه التصفية
     {% else %}
     لا توجد مجموعات بعد — أنشئ مجموعة جديدة !

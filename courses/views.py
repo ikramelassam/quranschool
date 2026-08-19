@@ -10,7 +10,7 @@ from core.utils import paginer
 from .models import Groupe, Creneau, HistoriqueGroupeEleve, LienMeet
 from .utils import (
     regenerer_pour_nouveau_creneau, raison_incompatibilite_groupe, avertissements_groupe,
-    avertissements_prof_creneau, creneau_peut_etre_supprime, groupe_peut_etre_supprime, AGE_SEUIL_ADULTE,
+    avertissements_prof_creneau, creneau_peut_etre_supprime, groupe_peut_etre_supprime,
     lien_meet_est_disponible, description_conflit_lien_meet, liens_meet_disponibles,
     valider_photo_groupe,
 )
@@ -65,22 +65,22 @@ def groupes_list(request):
     prof_id = request.GET.get('prof', '')
     creneau_id = request.GET.get('creneau', '')
     q = request.GET.get('q', '').strip()
-    # Navigation par filtres المجموعات/الفردية/الجماعية puis, si الجماعية،
-    # الرجال/النساء/الأطفال (Chantier du 2026-08-15) — voir Groupe.categorie_collectif
-    # pour la règle de classification. type_filtre applique directement
-    # type_capacite (champ déjà existant) ; categorie_filtre n'a de sens QUE
-    # pour type_filtre='groupe', ignoré silencieusement sinon (ex: lien
-    # ?categorie=hommes sans ?type=groupe — l'UI ne produit jamais cette
-    # combinaison, mais un paramètre manipulé ne doit jamais planter ni
-    # élargir l'accès, juste être sans effet).
+    # Navigation par pastilles المجموعات/الفردية/الجماعية puis, si الجماعية،
+    # النساء/الرجال/الأطفال (Chantier du 2026-08-18) — filtre directement
+    # Groupe.categorie, PLUS Groupe.categorie_collectif (property dérivée du
+    # créneau — laissée intacte dans le modèle, mais plus utilisée nulle part
+    # dans cette page : décision explicite du client, l'ancienne dérivation
+    # âge/sexe-du-créneau était jugée peu fiable). Le formulaire détaillé
+    # avait un 2e filtre "فئة المجموعة" (paramètre `cat`) sur ce même champ
+    # Groupe.categorie — doublon pur avec les pastilles ci-dessous depuis ce
+    # chantier, retiré (décision explicite du client, pas juste un oubli si
+    # vous le voyez manquer en relisant l'historique). type_filtre et
+    # categorie_filtre sont appliqués indépendamment l'un de l'autre plus
+    # bas : ils se combinent toujours en ET, y compris ?type=individuel avec
+    # ?categorie=... même si l'UI n'affiche la sous-navigation catégorie que
+    # sous المجموعات الجماعية.
     type_filtre = request.GET.get('type', '')
     categorie_filtre = request.GET.get('categorie', '')
-    # Filtre par Groupe.categorie (Tâche du 2026-08-17) — paramètre `cat`,
-    # DÉLIBÉRÉMENT distinct de `categorie` ci-dessus (qui filtre par
-    # categorie_collectif, dérivée du créneau, uniquement pour type='groupe')
-    # : les deux classifications coexistent sans se remplacer, voir
-    # Groupe.categorie.__doc__. `cat` s'applique quel que soit le type.
-    cat_filtre = request.GET.get('cat', '')
 
     groupes = Groupe.objects.select_related('prof__user', 'creneau').order_by('id')
     if statut:
@@ -97,14 +97,8 @@ def groupes_list(request):
         groupes = groupes.filter(creneau_id=creneau_id)
     if type_filtre in ('individuel', 'groupe'):
         groupes = groupes.filter(type_capacite=type_filtre)
-        if type_filtre == 'groupe' and categorie_filtre == 'enfants':
-            groupes = groupes.filter(creneau__age_max__lt=AGE_SEUIL_ADULTE)
-        elif type_filtre == 'groupe' and categorie_filtre == 'hommes':
-            groupes = groupes.filter(creneau__age_min__gte=AGE_SEUIL_ADULTE, creneau__sexe_cible='homme')
-        elif type_filtre == 'groupe' and categorie_filtre == 'femmes':
-            groupes = groupes.filter(creneau__age_min__gte=AGE_SEUIL_ADULTE, creneau__sexe_cible='femme')
-    if cat_filtre:
-        groupes = groupes.filter(categorie=cat_filtre)
+    if categorie_filtre:
+        groupes = groupes.filter(categorie=categorie_filtre)
     if q:
         # Même logique que dashboard.recherche._filtrer (Chantier recherche
         # globale du 2026-08-14) : icontains (sous-chaîne, cas courant) OU
@@ -114,20 +108,26 @@ def groupes_list(request):
         # globale pointe justement ici avec ce même paramètre ?q=.
         groupes = groupes.filter(Q(nom__icontains=q) | Q(nom__trigram_similar=q))
 
+    # Icône 💬 chat par groupe (Chantier icône-chat du 2026-08-18) — UNE seule
+    # requête pour toute la page paginée plutôt qu'un can_access_conversation
+    # par groupe affiché (voir chat.permissions.groupes_chat_accessibles_ids).
+    # mshrif n'a jamais accès au chat (règle existante, non modifiée) : cet
+    # ensemble est alors simplement vide, l'icône ne s'affiche nulle part sur
+    # cette même page pour lui, sans code séparé à écrire pour ce cas.
+    from chat.permissions import groupes_chat_accessibles_ids
+
     context = {
         'groupes': paginer(request, groupes, 10),
         'aucun_creneau': not Creneau.objects.filter(est_actif=True).exists(),
         'profs': Prof.actifs.select_related('user').order_by('user__first_name'),
         'creneaux': Creneau.objects.order_by('id'),
-        'categorie_collectif_choices': Groupe.CATEGORIE_COLLECTIF_CHOICES,
-        'categorie_choices': Groupe.CATEGORIE_CHOICES,
+        'chat_groupe_ids': groupes_chat_accessibles_ids(request.user),
         'filtres': {
             'statut': statut,
             'prof': prof_id,
             'creneau': creneau_id,
             'type': type_filtre,
             'categorie': categorie_filtre,
-            'cat': cat_filtre,
             'q': q,
         },
         'base_template': _base_template_admin_ou_mshrif(request),
@@ -286,6 +286,8 @@ def _retirer_eleve_du_groupe(eleve, groupe):
 
 @role_required('admin', 'mshrif')
 def groupe_detail(request, groupe_id):
+    from chat.permissions import peut_voir_chat_groupe
+
     groupe = get_object_or_404(Groupe, id=groupe_id)
     eleves_disponibles = Eleve.actifs.exclude(groupes=groupe)
     autres_groupes_actifs = (
@@ -339,6 +341,10 @@ def groupe_detail(request, groupe_id):
         # ici pour que le bouton "حذف" et la vérification serveur avant
         # suppression utilisent EXACTEMENT le même critère.
         'peut_supprimer': groupe_peut_etre_supprime(groupe),
+        # Icône 💬 chat (Chantier icône-chat du 2026-08-18) — même règle
+        # d'accès que /chat/<id>/ elle-même, voir chat.permissions.
+        # peut_voir_chat_groupe.__doc__.
+        'peut_voir_chat': peut_voir_chat_groupe(request.user, groupe),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))

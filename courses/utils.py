@@ -1639,3 +1639,60 @@ def valider_photo_groupe(fichier):
     except Exception:
         return 'الملف المرفوع ليس صورة صالحة.'
     return None
+
+
+# ==================== BACKFILL Groupe.categorie DEPUIS LE CRÉNEAU (Chantier du 2026-08-19) ====================
+
+def categorie_derivee_du_creneau(creneau):
+    """'mineurs'/'hommes_adultes'/'femmes_adultes' si le créneau permet de
+    trancher SANS AMBIGUÏTÉ, sinon None — jamais deviné. Même règle que
+    Groupe.categorie_collectif (courses/models.py), mais SANS sa restriction
+    type_capacite=='groupe' : contrairement à categorie_collectif (réservée
+    aux groupes collectifs pour la navigation par pastilles, voir son
+    docstring), Groupe.categorie s'applique à N'IMPORTE QUEL type de groupe
+    (individuel compris, voir Groupe.categorie.__doc__) — la dérivation
+    âge/sexe du créneau est tout aussi fiable pour un groupe individuel que
+    pour un groupe collectif, donc réutilisée ici sans cette restriction.
+    None si : créneau à cheval enfant/adulte, ou adulte des deux sexes
+    (sexe_cible='mixte') — aucun cas réel de ce type observé lors de l'audit
+    du 2026-08-19, mais gardé None plutôt que de deviner, même principe que
+    categorie_collectif."""
+    if creneau.age_max < AGE_SEUIL_ADULTE:
+        return 'mineurs'
+    if creneau.age_min >= AGE_SEUIL_ADULTE:
+        if creneau.sexe_cible == 'homme':
+            return 'hommes_adultes'
+        if creneau.sexe_cible == 'femme':
+            return 'femmes_adultes'
+    return None
+
+
+def backfiller_categorie_depuis_creneau():
+    """Remplit Groupe.categorie pour tout groupe dont la catégorie est encore
+    vide ET dont le créneau assigné permet une déduction sans ambiguïté
+    (categorie_derivee_du_creneau) — demande explicite du client suite à
+    l'audit du 2026-08-19 (31 groupes réels, 19 auto-classifiables sans
+    ambiguïté, 2 cas ambigus à cheval enfant/adulte, 8 sans créneau —
+    laissés vides dans les 3 cas, jamais devinés). N'écrase JAMAIS une
+    catégorie déjà renseignée manuellement — filtre sur categorie='' AVANT
+    tout calcul, qu'elle coïncide ou non avec ce que la dérivation aurait
+    donné. Idempotent : un 2e passage ne retrouve plus aucune ligne à
+    traiter (les groupes remplis au 1er passage ne sont plus categorie='').
+    Retourne le nombre de groupes réellement remplis.
+
+    Fonction séparée de la migration de données (qui, elle, utilise les
+    modèles historiques via apps.get_model — bonne pratique Django, voir
+    courses/migrations/0034_backfill_groupe_categorie_depuis_creneau.py)
+    pour rester testable/réutilisable directement avec les vrais modèles,
+    même patron que chat.services.backfiller_conversations_manquantes."""
+    from .models import Groupe
+
+    nb_remplis = 0
+    groupes = Groupe.objects.filter(categorie='', creneau__isnull=False).select_related('creneau')
+    for groupe in groupes:
+        categorie = categorie_derivee_du_creneau(groupe.creneau)
+        if categorie:
+            groupe.categorie = categorie
+            groupe.save(update_fields=['categorie'])
+            nb_remplis += 1
+    return nb_remplis

@@ -16,6 +16,7 @@ from .utils import (
     groupes_en_conflit_pour_lien_a_horaire_reel, liens_meet_disponibles_pour_seance,
     lien_effectif_disponible_pour_seance, horaire_reel_seance,
     calculer_hizb_precis, calculer_progression_eleve,
+    categorie_derivee_du_creneau, backfiller_categorie_depuis_creneau,
 )
 
 MOT_DE_PASSE = 'xX!test12345'
@@ -153,27 +154,49 @@ class GroupeCategorieCollectifTests(TestCase):
 
 
 class GroupesListFiltreTests(TestCase):
-    """Vue admin_groupes (courses.views.groupes_list) : filtres type/categorie."""
+    """Vue admin_groupes (courses.views.groupes_list) : filtres type/categorie.
+
+    Depuis le Chantier du 2026-08-18, la sous-navigation catégorie des
+    pastilles (النساء/الرجال/الأطفال) filtre directement Groupe.categorie —
+    PLUS Groupe.categorie_collectif (property dérivée du créneau, laissée
+    intacte dans le modèle mais plus utilisée par cette vue ; voir
+    GroupeCategorieCollectifTests qui continue de tester la property
+    elle-même, inchangée). Les créneaux ci-dessous sont délibérément choisis
+    en CONTRADICTION avec la categorie assignée au groupe (ex:
+    categorie='femmes_adultes' sur un créneau sexe_cible='homme') précisément
+    pour prouver que ce filtre ne dérive plus rien de l'âge/sexe du créneau."""
 
     def setUp(self):
         self.admin = _creer_admin()
         self.mshrif = _creer_mshrif()
 
-        creneau_hommes = _creer_creneau(sexe_cible='homme', age_min=18, age_max=60)
-        creneau_femmes = _creer_creneau(sexe_cible='femme', age_min=18, age_max=60)
-        creneau_enfants = _creer_creneau(sexe_cible='mixte', age_min=6, age_max=12)
+        # Créneaux volontairement mal assortis avec la categorie assignée au
+        # groupe correspondant — voir docstring de la classe.
+        creneau_a = _creer_creneau(sexe_cible='homme', age_min=18, age_max=60)
+        creneau_b = _creer_creneau(sexe_cible='femme', age_min=18, age_max=60)
+        creneau_c = _creer_creneau(sexe_cible='mixte', age_min=6, age_max=12)
 
-        self.groupe_individuel = Groupe.objects.create(
-            nom='ZZZ_فردي_تجريبي', type_capacite='individuel', creneau=creneau_hommes,
-        )
-        self.groupe_hommes = Groupe.objects.create(
-            nom='ZZZ_رجال_تجريبي', type_capacite='groupe', creneau=creneau_hommes,
+        self.groupe_sans_categorie = Groupe.objects.create(
+            nom='ZZZ_بدون_فئة', type_capacite='groupe', creneau=creneau_c,
         )
         self.groupe_femmes = Groupe.objects.create(
-            nom='ZZZ_نساء_تجريبي', type_capacite='groupe', creneau=creneau_femmes,
+            nom='ZZZ_نساء_تجريبي', type_capacite='groupe', categorie='femmes_adultes',
+            creneau=creneau_a,  # créneau homme, PAS femme — sans rapport avec categorie
         )
-        self.groupe_enfants = Groupe.objects.create(
-            nom='ZZZ_أطفال_تجريبي', type_capacite='groupe', creneau=creneau_enfants,
+        self.groupe_hommes = Groupe.objects.create(
+            nom='ZZZ_رجال_تجريبي', type_capacite='groupe', categorie='hommes_adultes',
+            creneau=creneau_b,  # créneau femme, PAS homme — sans rapport avec categorie
+        )
+        self.groupe_mineurs = Groupe.objects.create(
+            nom='ZZZ_أطفال_تجريبي', type_capacite='groupe', categorie='mineurs',
+            creneau=creneau_a,  # créneau adulte 18-60, PAS mineur — sans rapport avec categorie
+        )
+        # Nom volontairement SANS le mot "نساء" (contrairement aux 3 groupes
+        # ci-dessus) — sinon nom__trigram_similar (recherche floue, voir plus
+        # bas) le ferait remonter sur toute recherche visant groupe_femmes,
+        # indépendamment de la categorie réellement testée ici.
+        self.groupe_individuel_femmes = Groupe.objects.create(
+            nom='ZZZ_فردي_مصنّف_تجريبي', type_capacite='individuel', categorie='femmes_adultes',
         )
 
     def _get(self, user, **params):
@@ -184,64 +207,113 @@ class GroupesListFiltreTests(TestCase):
     def _noms_affiches(self, reponse):
         return {g.nom for g in reponse.context['groupes']}
 
-    def test_filtre_tous_affiche_les_4_groupes(self):
+    def test_filtre_tous_affiche_toutes_les_categories(self):
         reponse = self._get(self.admin)
         noms = self._noms_affiches(reponse)
         self.assertTrue({
-            self.groupe_individuel.nom, self.groupe_hommes.nom,
-            self.groupe_femmes.nom, self.groupe_enfants.nom,
+            self.groupe_sans_categorie.nom, self.groupe_femmes.nom,
+            self.groupe_hommes.nom, self.groupe_mineurs.nom,
+            self.groupe_individuel_femmes.nom,
         }.issubset(noms))
 
-    def test_filtre_individuel_exclut_les_collectifs(self):
+    def test_filtre_type_individuel_exclut_les_collectifs(self):
         reponse = self._get(self.admin, type='individuel')
         noms = self._noms_affiches(reponse)
-        self.assertIn(self.groupe_individuel.nom, noms)
-        self.assertNotIn(self.groupe_hommes.nom, noms)
+        self.assertIn(self.groupe_individuel_femmes.nom, noms)
         self.assertNotIn(self.groupe_femmes.nom, noms)
-        self.assertNotIn(self.groupe_enfants.nom, noms)
+        self.assertNotIn(self.groupe_hommes.nom, noms)
+        self.assertNotIn(self.groupe_mineurs.nom, noms)
 
-    def test_filtre_groupe_exclut_lindividuel(self):
+    def test_filtre_type_groupe_exclut_lindividuel(self):
         reponse = self._get(self.admin, type='groupe')
         noms = self._noms_affiches(reponse)
-        self.assertNotIn(self.groupe_individuel.nom, noms)
-        self.assertIn(self.groupe_hommes.nom, noms)
+        self.assertNotIn(self.groupe_individuel_femmes.nom, noms)
         self.assertIn(self.groupe_femmes.nom, noms)
-        self.assertIn(self.groupe_enfants.nom, noms)
-
-    def test_filtre_groupe_hommes(self):
-        reponse = self._get(self.admin, type='groupe', categorie='hommes')
-        noms = self._noms_affiches(reponse)
-        self.assertEqual(noms & {self.groupe_hommes.nom, self.groupe_femmes.nom, self.groupe_enfants.nom, self.groupe_individuel.nom}, {self.groupe_hommes.nom})
-
-    def test_filtre_groupe_femmes(self):
-        reponse = self._get(self.admin, type='groupe', categorie='femmes')
-        noms = self._noms_affiches(reponse)
-        self.assertEqual(noms & {self.groupe_hommes.nom, self.groupe_femmes.nom, self.groupe_enfants.nom, self.groupe_individuel.nom}, {self.groupe_femmes.nom})
-
-    def test_filtre_groupe_enfants(self):
-        reponse = self._get(self.admin, type='groupe', categorie='enfants')
-        noms = self._noms_affiches(reponse)
-        self.assertEqual(noms & {self.groupe_hommes.nom, self.groupe_femmes.nom, self.groupe_enfants.nom, self.groupe_individuel.nom}, {self.groupe_enfants.nom})
-
-    def test_groupe_individuel_najamais_dans_une_sous_categorie_collective(self):
-        for categorie in ('hommes', 'femmes', 'enfants'):
-            reponse = self._get(self.admin, type='groupe', categorie=categorie)
-            self.assertNotIn(self.groupe_individuel.nom, self._noms_affiches(reponse))
-
-    def test_combinaison_type_et_categorie_avec_recherche_q(self):
-        reponse = self._get(self.admin, type='groupe', categorie='hommes', q='ZZZ_رجال')
-        noms = self._noms_affiches(reponse)
         self.assertIn(self.groupe_hommes.nom, noms)
+        self.assertIn(self.groupe_mineurs.nom, noms)
+
+    def test_filtre_categorie_femmes_adultes(self):
+        reponse = self._get(self.admin, categorie='femmes_adultes')
+        noms = self._noms_affiches(reponse)
+        self.assertIn(self.groupe_femmes.nom, noms)
+        self.assertIn(self.groupe_individuel_femmes.nom, noms)
+        self.assertNotIn(self.groupe_hommes.nom, noms)
+        self.assertNotIn(self.groupe_mineurs.nom, noms)
+        self.assertNotIn(self.groupe_sans_categorie.nom, noms)
+
+    def test_filtre_categorie_hommes_adultes(self):
+        reponse = self._get(self.admin, categorie='hommes_adultes')
+        noms = self._noms_affiches(reponse)
+        self.assertEqual(noms & {
+            self.groupe_femmes.nom, self.groupe_hommes.nom, self.groupe_mineurs.nom,
+            self.groupe_sans_categorie.nom, self.groupe_individuel_femmes.nom,
+        }, {self.groupe_hommes.nom})
+
+    def test_filtre_categorie_mineurs(self):
+        reponse = self._get(self.admin, categorie='mineurs')
+        noms = self._noms_affiches(reponse)
+        self.assertEqual(noms & {
+            self.groupe_femmes.nom, self.groupe_hommes.nom, self.groupe_mineurs.nom,
+            self.groupe_sans_categorie.nom, self.groupe_individuel_femmes.nom,
+        }, {self.groupe_mineurs.nom})
+
+    def test_aucun_groupe_femmes_adultes_najamais_dans_hommes_ou_mineurs(self):
+        for valeur in ('hommes_adultes', 'mineurs'):
+            reponse = self._get(self.admin, categorie=valeur)
+            noms = self._noms_affiches(reponse)
+            self.assertNotIn(self.groupe_femmes.nom, noms)
+            self.assertNotIn(self.groupe_individuel_femmes.nom, noms)
+
+    def test_combinaison_type_groupe_et_categorie_femmes_adultes(self):
+        reponse = self._get(self.admin, type='groupe', categorie='femmes_adultes')
+        noms = self._noms_affiches(reponse)
+        self.assertIn(self.groupe_femmes.nom, noms)
+        self.assertNotIn(self.groupe_individuel_femmes.nom, noms)
+
+    def test_combinaison_type_individuel_et_categorie_femmes_adultes(self):
+        reponse = self._get(self.admin, type='individuel', categorie='femmes_adultes')
+        noms = self._noms_affiches(reponse)
+        self.assertIn(self.groupe_individuel_femmes.nom, noms)
         self.assertNotIn(self.groupe_femmes.nom, noms)
 
-    def test_categorie_sans_type_groupe_est_ignoree_sans_erreur(self):
-        # Paramètre manipulé (?categorie= sans ?type=groupe) : ne doit jamais
-        # planter ni élargir/restreindre incorrectement l'accès.
-        reponse = self._get(self.admin, categorie='hommes')
-        self.assertEqual(reponse.status_code, 200)
+    def test_groupe_sans_categorie_reste_accessible_via_le_tout(self):
+        reponse = self._get(self.admin)
+        self.assertIn(self.groupe_sans_categorie.nom, self._noms_affiches(reponse))
 
-    def test_mshrif_a_acces_en_lecture_avec_les_memes_filtres(self):
-        reponse = self._get(self.mshrif, type='groupe', categorie='femmes')
+    def test_filtre_categorie_combinable_avec_recherche_q(self):
+        # q réduit encore le résultat À L'INTÉRIEUR de la même categorie —
+        # groupe_individuel_femmes est aussi femmes_adultes mais ne
+        # correspond pas à la recherche par nom.
+        reponse = self._get(self.admin, categorie='femmes_adultes', q='ZZZ_نساء')
+        noms = self._noms_affiches(reponse)
+        self.assertIn(self.groupe_femmes.nom, noms)
+        self.assertNotIn(self.groupe_individuel_femmes.nom, noms)
+
+    def test_filtre_categorie_combinable_avec_statut_et_prof(self):
+        prof = _creer_prof()
+        self.groupe_hommes.prof = prof
+        self.groupe_hommes.statut = 'archive'
+        self.groupe_hommes.save()
+        reponse = self._get(self.admin, categorie='hommes_adultes', statut='archive', prof=prof.id)
+        self.assertIn(self.groupe_hommes.nom, self._noms_affiches(reponse))
+
+    def test_filtre_categorie_combinable_avec_creneau(self):
+        reponse = self._get(self.admin, categorie='femmes_adultes', creneau=self.groupe_femmes.creneau_id)
+        self.assertIn(self.groupe_femmes.nom, self._noms_affiches(reponse))
+
+    def test_categorie_ne_derive_pas_de_lage_ou_du_sexe_du_creneau(self):
+        # Les créneaux de setUp sont délibérément mal assortis avec la
+        # categorie assignée (ex: femmes_adultes sur un créneau sexe_cible=
+        # 'homme', mineurs sur un créneau age_min=18) — si ce filtre utilisait
+        # encore age_min/age_max/sexe_cible du créneau (comme l'ancien
+        # categorie_collectif), ces groupes n'apparaîtraient PAS ici.
+        reponse = self._get(self.admin, categorie='femmes_adultes')
+        self.assertIn(self.groupe_femmes.nom, self._noms_affiches(reponse))
+        reponse = self._get(self.admin, categorie='mineurs')
+        self.assertIn(self.groupe_mineurs.nom, self._noms_affiches(reponse))
+
+    def test_mshrif_a_acces_en_lecture_avec_le_filtre_categorie(self):
+        reponse = self._get(self.mshrif, categorie='femmes_adultes')
         self.assertEqual(reponse.status_code, 200)
         self.assertIn(self.groupe_femmes.nom, self._noms_affiches(reponse))
 
@@ -271,6 +343,117 @@ class GroupeCategorieChampTests(TestCase):
         groupe = Groupe.objects.create(nom='فردي مصنّف', type_capacite='individuel', categorie='hommes_adultes')
         self.assertEqual(groupe.categorie, 'hommes_adultes')
         self.assertEqual(groupe.get_categorie_display(), 'الطلاب البالغون')
+
+
+class CategorieDeriveeDuCreneauTests(TestCase):
+    """courses.utils.categorie_derivee_du_creneau — règle de dérivation
+    utilisée par le backfill (Chantier du 2026-08-19), réplique de
+    Groupe.categorie_collectif mais SANS sa restriction type_capacite=='groupe'
+    (Groupe.categorie s'applique à n'importe quel type de groupe)."""
+
+    def test_creneau_mineur_donne_mineurs(self):
+        creneau = _creer_creneau(sexe_cible='mixte', age_min=6, age_max=12)
+        self.assertEqual(categorie_derivee_du_creneau(creneau), 'mineurs')
+
+    def test_creneau_exactement_17_ans_max_reste_mineurs(self):
+        creneau = _creer_creneau(sexe_cible='homme', age_min=15, age_max=17)
+        self.assertEqual(categorie_derivee_du_creneau(creneau), 'mineurs')
+
+    def test_creneau_adulte_homme_donne_hommes_adultes(self):
+        creneau = _creer_creneau(sexe_cible='homme', age_min=18, age_max=60)
+        self.assertEqual(categorie_derivee_du_creneau(creneau), 'hommes_adultes')
+
+    def test_creneau_adulte_femme_donne_femmes_adultes(self):
+        creneau = _creer_creneau(sexe_cible='femme', age_min=18, age_max=60)
+        self.assertEqual(categorie_derivee_du_creneau(creneau), 'femmes_adultes')
+
+    def test_creneau_a_cheval_enfant_adulte_non_tranche(self):
+        creneau = _creer_creneau(sexe_cible='homme', age_min=7, age_max=99)
+        self.assertIsNone(categorie_derivee_du_creneau(creneau))
+
+    def test_creneau_adulte_mixte_non_tranche(self):
+        creneau = _creer_creneau(sexe_cible='mixte', age_min=18, age_max=60)
+        self.assertIsNone(categorie_derivee_du_creneau(creneau))
+
+
+class BackfillCategorieDepuisCreneauTests(TestCase):
+    """courses.utils.backfiller_categorie_depuis_creneau — même patron que
+    chat.tests.BackfillConversationsExistantesTests : teste la fonction
+    réutilisable (vrais modèles), répliquée sur modèles historiques par
+    courses/migrations/0034_backfill_groupe_categorie_depuis_creneau.py."""
+
+    def test_remplit_les_cas_sans_ambiguite_et_retourne_le_compte(self):
+        creneau_hommes = _creer_creneau(sexe_cible='homme', age_min=18, age_max=60)
+        creneau_femmes = _creer_creneau(sexe_cible='femme', age_min=18, age_max=60)
+        creneau_enfants = _creer_creneau(sexe_cible='mixte', age_min=6, age_max=12)
+        g_hommes = Groupe.objects.create(nom='ZZZ_backfill_hommes', creneau=creneau_hommes)
+        g_femmes = Groupe.objects.create(nom='ZZZ_backfill_femmes', creneau=creneau_femmes, type_capacite='individuel')
+        g_enfants = Groupe.objects.create(nom='ZZZ_backfill_enfants', creneau=creneau_enfants)
+
+        nb_remplis = backfiller_categorie_depuis_creneau()
+
+        self.assertEqual(nb_remplis, 3)
+        g_hommes.refresh_from_db(); g_femmes.refresh_from_db(); g_enfants.refresh_from_db()
+        self.assertEqual(g_hommes.categorie, 'hommes_adultes')
+        self.assertEqual(g_femmes.categorie, 'femmes_adultes')
+        self.assertEqual(g_enfants.categorie, 'mineurs')
+
+    def test_laisse_vide_un_groupe_sans_creneau(self):
+        groupe = Groupe.objects.create(nom='ZZZ_backfill_sans_creneau')
+        self.assertEqual(backfiller_categorie_depuis_creneau(), 0)
+        groupe.refresh_from_db()
+        self.assertEqual(groupe.categorie, '')
+
+    def test_laisse_vide_un_creneau_ambigu_a_cheval_enfant_adulte(self):
+        creneau = _creer_creneau(sexe_cible='homme', age_min=7, age_max=99)
+        groupe = Groupe.objects.create(nom='ZZZ_backfill_ambigu', creneau=creneau)
+        self.assertEqual(backfiller_categorie_depuis_creneau(), 0)
+        groupe.refresh_from_db()
+        self.assertEqual(groupe.categorie, '')
+
+    def test_laisse_vide_un_creneau_adulte_mixte(self):
+        creneau = _creer_creneau(sexe_cible='mixte', age_min=18, age_max=60)
+        groupe = Groupe.objects.create(nom='ZZZ_backfill_mixte_adulte', creneau=creneau)
+        self.assertEqual(backfiller_categorie_depuis_creneau(), 0)
+        groupe.refresh_from_db()
+        self.assertEqual(groupe.categorie, '')
+
+    def test_necrase_jamais_une_categorie_deja_renseignee_meme_incoherente(self):
+        # Categorie manuelle 'mineurs' sur un créneau homme adulte —
+        # incohérente avec la dérivation, mais categorie est un champ saisi
+        # librement par le مدير (voir Groupe.categorie.__doc__) : le backfill
+        # ne doit JAMAIS l'écraser, cohérente ou non avec le créneau.
+        creneau = _creer_creneau(sexe_cible='homme', age_min=18, age_max=60)
+        groupe = Groupe.objects.create(nom='ZZZ_backfill_deja_rempli', creneau=creneau, categorie='mineurs')
+
+        nb_remplis = backfiller_categorie_depuis_creneau()
+
+        self.assertEqual(nb_remplis, 0)
+        groupe.refresh_from_db()
+        self.assertEqual(groupe.categorie, 'mineurs')
+
+    def test_idempotent_aucun_effet_si_rejoue(self):
+        creneau = _creer_creneau(sexe_cible='femme', age_min=18, age_max=60)
+        groupe = Groupe.objects.create(nom='ZZZ_backfill_idempotent', creneau=creneau)
+
+        premier_passage = backfiller_categorie_depuis_creneau()
+        deuxieme_passage = backfiller_categorie_depuis_creneau()
+
+        self.assertEqual(premier_passage, 1)
+        self.assertEqual(deuxieme_passage, 0)
+        groupe.refresh_from_db()
+        self.assertEqual(groupe.categorie, 'femmes_adultes')
+
+    def test_groupe_individuel_egalement_rempli(self):
+        # Contrairement à categorie_collectif (jamais pour un individuel),
+        # ce backfill couvre aussi les groupes individuels — Groupe.categorie
+        # s'applique à n'importe quel type de groupe.
+        creneau = _creer_creneau(sexe_cible='femme', age_min=18, age_max=60)
+        groupe = Groupe.objects.create(nom='ZZZ_backfill_individuel', creneau=creneau, type_capacite='individuel')
+
+        self.assertEqual(backfiller_categorie_depuis_creneau(), 1)
+        groupe.refresh_from_db()
+        self.assertEqual(groupe.categorie, 'femmes_adultes')
 
 
 class GroupePhotoEtCategorieVuesTests(TestCase):
@@ -355,9 +538,13 @@ class GroupePhotoEtCategorieVuesTests(TestCase):
         self.assertEqual(groupe.categorie, 'femmes_adultes')
 
     def test_filtre_par_categorie_dans_la_liste(self):
+        # Paramètre `categorie` — depuis le Chantier du 2026-08-18, le
+        # formulaire détaillé "فئة المجموعة" (ancien paramètre `cat`) a été
+        # retiré car doublon exact des pastilles النساء/الرجال/الأطفال, qui
+        # filtrent ce même champ Groupe.categorie via `categorie`.
         Groupe.objects.create(nom='ZZZ_مصنّفة_رجال', creneau=self.creneau, categorie='hommes_adultes')
         Groupe.objects.create(nom='ZZZ_مصنّفة_نساء', creneau=self.creneau, categorie='femmes_adultes')
-        reponse = self.client.get(reverse('admin_groupes'), {'cat': 'hommes_adultes'})
+        reponse = self.client.get(reverse('admin_groupes'), {'categorie': 'hommes_adultes'})
         noms = {g.nom for g in reponse.context['groupes']}
         self.assertIn('ZZZ_مصنّفة_رجال', noms)
         self.assertNotIn('ZZZ_مصنّفة_نساء', noms)
@@ -1288,6 +1475,41 @@ class CreneauNomTests(TestCase):
         self.assertEqual(reponse.status_code, 302)
         creneau.refresh_from_db()
         self.assertEqual(creneau.nom, 'حلقة معاد تسميتها')
+
+
+class AdminGroupesFiltreCreneauAffichageTests(TestCase):
+    """Liste déroulante "الحلقة" du filtre admin_groupes (Tâche du 2026-08-19) :
+    une حلقة nommée n'affiche QUE son nom dans le <select> (plus la
+    description âge/sexe/niveau/رواية en double), une حلقة sans nom garde
+    l'ancien affichage complet — et le <select> est désormais cherchable
+    (data-select-cherchable, composant partagé _select_cherchable.html)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.creneau_nomme = _creer_creneau(sexe_cible='homme', age_min=18, age_max=60)
+        self.creneau_nomme.nom = 'حلقة الرجال - المساء'
+        self.creneau_nomme.save()
+        self.creneau_sans_nom = _creer_creneau(sexe_cible='mixte', age_min=6, age_max=12)
+
+    def _get(self):
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, self.admin)
+        return client.get(reverse('admin_groupes'), {'type': 'groupe'})
+
+    def test_creneau_nomme_affiche_uniquement_son_nom(self):
+        html = self._get().content.decode('utf-8')
+        self.assertIn('حلقة الرجال - المساء', html)
+        # La description complète (âge/sexe/رواية) ne doit plus être accolée
+        # au nom pour ce créneau — seule la ligne du créneau sans nom la garde.
+        self.assertNotIn('حلقة الرجال - المساء — 18-60', html)
+
+    def test_creneau_sans_nom_garde_laffichage_complet(self):
+        html = self._get().content.decode('utf-8')
+        self.assertIn(f'{self.creneau_sans_nom} — 6-12', html)
+
+    def test_select_creneau_est_cherchable(self):
+        html = self._get().content.decode('utf-8')
+        self.assertIn('name="creneau" class="form-select" data-select-cherchable', html)
 
 
 class CreneauxListRechercheTests(TestCase):
