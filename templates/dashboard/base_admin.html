@@ -142,6 +142,19 @@
         .contact-icon-link.contact-icon-meet:hover { box-shadow: 0 2px 8px rgba(26, 115, 232, 0.45); }
         .contact-icon-link.contact-icon-meet-disabled:hover { box-shadow: 0 2px 8px rgba(150, 150, 150, 0.45); }
 
+        /* Bouton "💬 الدردشة" sur une carte/ligne groupe — voir dashboard/_chat_icon.html
+           (Chantier redesign icône-chat du 2026-08-19 : bouton avec libellé, dans la même
+           rangée que le bouton d'action principal de la carte, cible tactile ≥44px,
+           couleurs alignées sur la charte de la carte plutôt qu'un bleu isolé). */
+        .btn-chat-groupe {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--color-bg-cream); color: var(--color-brand-gold-dark);
+            border-radius: 8px; padding: 8px 14px; min-height: 44px; box-sizing: border-box;
+            font-size: 0.85rem; font-weight: 600; text-decoration: none;
+            transition: background 150ms ease;
+        }
+        .btn-chat-groupe:hover { background: #f0e6cc; }
+
         /* Menu mobile */
         .sidebar-toggle {
             display: none;
@@ -341,10 +354,18 @@
                class="menu-item {% if request.resolver_match.url_name == 'admin_hakiba_gestion' %}active{% endif %}">
                 <span class="icon">🎒</span> إدارة حقيبة الأستاذ
             </a>
+            <a href="{% url 'admin_eleve_cartable_gestion' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_eleve_cartable_gestion' %}active{% endif %}">
+                <span class="icon">🗂️</span> إدارة حقيبة الطالب
+            </a>
         </details>
 
+        <a href="{% url 'mes_notes_personnelles' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'mes_notes_personnelles' %}active{% endif %}" style="margin-top:6px;">
+            <span class="icon">📓</span> ملاحظاتي
+        </a>
         <a href="{% url 'admin_mon_compte' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'admin_mon_compte' %}active{% endif %}" style="margin-top:6px;">
+           class="menu-item {% if request.resolver_match.url_name == 'admin_mon_compte' %}active{% endif %}">
             <span class="icon">⚙️</span> حسابي
         </a>
     </div>

@@ -10,6 +10,11 @@ transmises ici. Système INDÉPENDANT de tout champ existant (ex: Prof.notes_adm
 Usage : {% include 'dashboard/_carnet_notes_personnelles.html' with profil_user=eleve.user notes_personnelles=notes_personnelles id_suffix='eleve' %}
 id_suffix : à fournir si ce partial est inclus plusieurs fois sur la même page
 (évite une collision d'ID/fonction JS) ; vide sinon.
+
+Titre (Tâche du 2026-08-19) : la liste n'affiche JAMAIS le contenu complet,
+seulement note.titre — ou, s'il est vide, "ملاحظة بتاريخ dd/mm/yyyy" calculé
+depuis date_creation. Le contenu ne redevient visible qu'en mode édition
+(formulaire déjà masqué/affiché via toggleEditionNote, inchangé).
 {% endcomment %}
 <div style="background:white; border-radius:16px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px; max-width:700px;">
     <div style="font-weight:700; color:var(--color-text-primary); margin-bottom:4px;">📓 ملاحظاتي الخاصة</div>
@@ -18,7 +23,9 @@ id_suffix : à fournir si ce partial est inclus plusieurs fois sur la même page
     {% for note in notes_personnelles %}
     <div style="border-bottom:1px solid #f0f0f0; padding:12px 0;">
         <div id="note_affichage_{{ note.id }}{{ id_suffix }}">
-            <div style="white-space:pre-wrap; color:#333; font-size:0.9rem;">{{ note.contenu }}</div>
+            <div style="color:#333; font-size:0.9rem; font-weight:600;">
+                {% if note.titre %}{{ note.titre }}{% else %}ملاحظة بتاريخ {{ note.date_creation|date:"d/m/Y" }}{% endif %}
+            </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
                 <span style="color:#aaa; font-size:0.75rem;">
                     {{ note.date_creation|date:"d-m-Y H:i" }}
@@ -38,6 +45,7 @@ id_suffix : à fournir si ce partial est inclus plusieurs fois sur la même page
         <form id="note_edition_{{ note.id }}{{ id_suffix }}" method="POST" action="{% url 'modifier_note_personnelle' note.id %}" hidden>
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.path }}">
+            <input type="text" name="titre" class="form-control" value="{{ note.titre }}" placeholder="العنوان (اختياري)" style="margin-bottom:6px;">
             <textarea name="contenu" class="form-control" rows="2" required>{{ note.contenu }}</textarea>
             <div style="display:flex; gap:8px; margin-top:6px;">
                 <button type="submit" style="background:var(--color-brand-gold-dark); color:white; border:none; border-radius:8px; padding:4px 14px; font-size:0.8rem; cursor:pointer;">حفظ</button>
@@ -52,6 +60,7 @@ id_suffix : à fournir si ce partial est inclus plusieurs fois sur la même page
     <form method="POST" action="{% url 'ajouter_note_personnelle' profil_user.id %}" style="margin-top:14px;">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.path }}">
+        <input type="text" name="titre" class="form-control" placeholder="العنوان (اختياري)" style="margin-bottom:6px;">
         <textarea name="contenu" class="form-control" rows="2" placeholder="أضف ملاحظة جديدة..." required></textarea>
         <button type="submit" style="margin-top:8px; background:var(--color-brand-gold-dark); color:white; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; cursor:pointer;">إضافة ملاحظة ✚</button>
     </form>

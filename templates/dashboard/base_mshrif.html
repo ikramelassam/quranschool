@@ -296,9 +296,17 @@
                class="menu-item {% if request.resolver_match.url_name == 'admin_hakiba_gestion' %}active{% endif %}">
                 <span class="icon">🎒</span> إدارة حقيبة الأستاذ
             </a>
+            <a href="{% url 'admin_eleve_cartable_gestion' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_eleve_cartable_gestion' %}active{% endif %}">
+                <span class="icon">🗂️</span> إدارة حقيبة الطالب
+            </a>
             <a href="{% url 'mshrif_logo' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_logo' %}active{% endif %}">
                 <span class="icon">🖼️</span> شعار المنصة
+            </a>
+            <a href="{% url 'mes_notes_personnelles' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'mes_notes_personnelles' %}active{% endif %}">
+                <span class="icon">📓</span> ملاحظاتي
             </a>
             <a href="{% url 'mshrif_mon_compte' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_mon_compte' %}active{% endif %}">

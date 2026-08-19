@@ -1,0 +1,16 @@
+{% extends base_template %}
+{% block title %}ملاحظاتي{% endblock %}
+{% block content %}
+{% comment %}
+Bloc-notes personnel "ملاحظاتي" (Tâche du 2026-08-18 bis) — accessible depuis
+le sidebar de CHAQUE rôle. Réutilise le même modèle/partial que le carnet
+admin/مشرف sur les profils consultés (accounts.models.NotePersonnelle,
+dashboard/_carnet_notes_personnelles.html) : ici profil_user == auteur ==
+request.user, cas particulier du même système — strictement privé, personne
+d'autre ne voit jamais ces notes (même pas مدير/مشرف).
+{% endcomment %}
+<div class="page-title">ملاحظاتي</div>
+<div class="page-subtitle">مساحتك الخاصة لتدوين ملاحظاتك — لا يراها أحد غيرك</div>
+
+{% include 'dashboard/_carnet_notes_personnelles.html' with profil_user=request.user notes_personnelles=notes_personnelles id_suffix='_perso' %}
+{% endblock %}

@@ -1,0 +1,236 @@
+{% extends base_template %}
+{% load libelles_arabes %}
+{% block title %}إدارة حقيبة الطالب{% endblock %}
+{% block content %}
+{% comment %}
+Page centrale "إدارة حقيبة الطالب" (refonte du 2026-08-18, remplace la
+gestion par fiche élève individuelle) — calque exact du patron déjà en place
+pour "إدارة حقيبة الأستاذ" (voir admin_hakiba_gestion.html, mêmes classes
+.hk-* réutilisées telles quelles, aucune collision possible : CSS inline par
+page, pas de feuille de style partagée dans ce projet).
+
+Ciblage du formulaire d'ajout (3 modes, EXACTEMENT le même principe que
+حقيبة الأستاذ/admin_hakiba_gestion.html, étendu d'un 3e mode) : كل الطلاب /
+فئة معينة (نساء/رجال/أطفال، réutilise annonces.services.CANAUX pour les
+libellés — la catégorie réelle de chaque élève, elle, vient de
+Groupe.categorie côté vue, voir admin_eleve_cartable_ajouter) / طلاب محددون
+(recherche + sélection multiple, comme "أساتذة محددون").
+
+UN SEUL système de sélection des destinataires (correction UX du
+2026-08-18 ter) : un ancien filtre de catégorie séparé, au-dessus de la
+liste des fichiers existants, a été retiré — il faisait doublon avec
+celui-ci et utilisait en plus la mauvaise source de catégorie. Ne PAS le
+réintroduire.
+{% endcomment %}
+<style>
+.hk-card {
+    background:var(--color-bg-cream); border:1px solid rgba(139,75,0,0.15);
+    border-radius:14px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.05);
+    margin-bottom:22px; max-width:640px;
+}
+.hk-label { font-weight:700; color:var(--color-text-primary); font-size:0.9rem; margin-bottom:6px; display:block; }
+.hk-input, .hk-textarea {
+    width:100%; border-radius:8px; border:1px solid rgba(139,75,0,0.2); padding:9px 12px;
+    font-size:0.92rem; font-family:'Tajawal',sans-serif; background:white;
+}
+.hk-toggle { display:flex; flex-wrap:wrap; border:1px solid rgba(139,75,0,0.25); border-radius:9px; overflow:hidden; width:fit-content; }
+.hk-toggle-opt {
+    padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer; background:white; color:#555;
+    user-select:none; text-decoration:none;
+}
+.hk-toggle-opt.active { background:var(--color-brand-gold-dark); color:white; }
+.hk-pill {
+    display:inline-flex; align-items:center; gap:6px; background:white; border:1px solid rgba(139,75,0,0.25);
+    border-radius:20px; padding:4px 10px 4px 6px; font-size:0.82rem; margin:3px;
+}
+.hk-pill-remove { cursor:pointer; color:var(--color-danger); font-weight:700; }
+.hk-item {
+    display:flex; gap:12px; align-items:flex-start; padding:12px 0; border-bottom:1px solid #f0f0f0;
+}
+.hk-item:last-child { border-bottom:none; }
+.hk-icone-carre {
+    flex-shrink:0; width:38px; height:38px; border-radius:10px; color:white;
+    display:flex; align-items:center; justify-content:center; font-size:1.15rem;
+}
+</style>
+
+<div class="page-title">إدارة حقيبة الطالب</div>
+<div class="page-subtitle">ملفات شخصية لكل طالب — يديرها المدير والمشرف فقط، والطالب المعني يراها في "حقيبتي" (قراءة فقط)</div>
+
+<div class="hk-card">
+    <div style="font-weight:700; margin-bottom:14px;">ملف جديد</div>
+    <form method="POST" action="{% url 'admin_eleve_cartable_ajouter' %}" enctype="multipart/form-data" id="cartableForm" onsubmit="return cartableValiderFormulaire();">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label class="hk-label">الفئة المستهدفة</label>
+            <div class="hk-toggle" id="cartableToggleCible">
+                <div class="hk-toggle-opt active" data-cible="tous" onclick="cartableChoisirCible('tous')">كل الطلاب</div>
+                <div class="hk-toggle-opt" data-cible="categorie" onclick="cartableChoisirCible('categorie')">فئة معينة</div>
+                <div class="hk-toggle-opt" data-cible="specifique" onclick="cartableChoisirCible('specifique')">طلاب محددون</div>
+            </div>
+            <input type="hidden" name="cible" id="cartableCibleInput" value="tous">
+
+            <div id="cartableZoneCategorie" style="display:none; margin-top:12px;">
+                <div class="hk-toggle" id="cartableToggleCategorie">
+                    {% for canal in canaux %}
+                    <div class="hk-toggle-opt" data-categorie="{{ canal.code }}" onclick="cartableChoisirCategorie('{{ canal.code }}')">{{ canal.nom }}</div>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="categorie_cible" id="cartableCategorieInput" value="">
+            </div>
+
+            <div id="cartableZoneSpecifique" style="display:none; margin-top:12px;">
+                <input type="text" id="cartableRecherche" class="hk-input" placeholder="ابحث عن طالب..." oninput="cartableFiltrerListe()" autocomplete="off">
+                <div id="cartablePills" style="margin-top:8px;"></div>
+                <div id="cartableListeDeroulante" style="display:none; max-height:220px; overflow-y:auto; background:white; border:1px solid rgba(139,75,0,0.2); border-radius:8px; margin-top:6px;">
+                    {% for eleve in eleves_disponibles %}
+                    <div class="cartable-option" data-id="{{ eleve.id }}" data-nom="{{ eleve.user.get_full_name }}"
+                         onclick="cartableAjouterEleve({{ eleve.id }}, '{{ eleve.user.get_full_name|escapejs }}')"
+                         style="padding:8px 12px; cursor:pointer; font-size:0.85rem; border-bottom:1px solid #f5f5f5;">
+                        {{ eleve.user.get_full_name }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <input type="text" name="titre" class="hk-input" placeholder="عنوان (اختياري)">
+        </div>
+
+        <div class="mb-3">
+            <input type="file" name="fichier" id="cartableFichierInput" style="display:none;" onchange="cartableFichierChange(this)">
+            <div id="cartableFichierBouton" onclick="document.getElementById('cartableFichierInput').click();"
+                 style="display:inline-block; cursor:pointer; background:white; border:1.5px solid var(--color-brand-gold-dark); color:var(--color-brand-gold-dark); border-radius:8px; padding:7px 16px; font-size:0.85rem; font-weight:600;">
+                📎 إرفاق ملف
+            </div>
+            <div id="cartableFichierApercu" style="display:none; align-items:center; gap:10px; margin-top:8px; background:white; border:1px solid rgba(139,75,0,0.2); border-radius:8px; padding:8px 12px; max-width:fit-content;">
+                <span id="cartableFichierIcone">📎</span>
+                <span id="cartableFichierNom" style="font-size:0.85rem;"></span>
+                <span onclick="cartableFichierRetirer()" style="cursor:pointer; color:var(--color-danger); font-weight:700; margin-right:6px;">✕</span>
+            </div>
+        </div>
+
+        <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:9px 26px; font-family:'Tajawal',sans-serif; font-size:0.95rem; cursor:pointer;">حفظ ✅</button>
+    </form>
+</div>
+
+<div class="hk-card">
+    <div style="font-weight:700; margin-bottom:6px;">الملفات الحالية ({{ documents_cartable|length }})</div>
+    {% for doc in documents_cartable %}
+    <div class="hk-item">
+        <div class="hk-icone-carre" style="background:{{ doc.fichier|couleur_hakiba }};">{{ doc.fichier|icone_hakiba }}</div>
+        <div style="min-width:0; flex:1;">
+            <div style="font-weight:600;">{{ doc.titre|default:doc.fichier.name }}</div>
+            <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">
+                {{ doc.eleve.user.get_full_name }}{% if doc.ajoute_par %} — بواسطة {{ doc.ajoute_par.get_full_name }}{% endif %} — {{ doc.date_ajout|date:"d-m-Y" }}
+            </div>
+        </div>
+        <a href="{{ doc.fichier.url }}" target="_blank" rel="noopener" style="flex-shrink:0; color:var(--color-role-admin-solid); font-size:0.85rem; text-decoration:none;">⬇ تحميل</a>
+        <form method="POST" action="{% url 'admin_eleve_cartable_supprimer' doc.id %}" style="flex-shrink:0;"
+              onsubmit="return confirm('حذف هذا الملف من حقيبة الطالب؟');">
+            {% csrf_token %}
+            <button type="submit" style="background:#fce4e4; color:var(--color-danger); border:none; border-radius:8px; padding:5px 12px; font-size:0.8rem; cursor:pointer;">حذف 🗑️</button>
+        </form>
+    </div>
+    {% empty %}
+    <div style="color:#aaa; padding:12px 0;">لا توجد ملفات مضافة بعد</div>
+    {% endfor %}
+</div>
+
+<script>
+    function cartableChoisirCible(cible) {
+        document.getElementById('cartableCibleInput').value = cible;
+        document.querySelectorAll('#cartableToggleCible .hk-toggle-opt').forEach(function (opt) {
+            opt.classList.toggle('active', opt.dataset.cible === cible);
+        });
+        document.getElementById('cartableZoneCategorie').style.display = (cible === 'categorie') ? 'block' : 'none';
+        document.getElementById('cartableZoneSpecifique').style.display = (cible === 'specifique') ? 'block' : 'none';
+    }
+
+    function cartableChoisirCategorie(code) {
+        document.getElementById('cartableCategorieInput').value = code;
+        document.querySelectorAll('#cartableToggleCategorie .hk-toggle-opt').forEach(function (opt) {
+            opt.classList.toggle('active', opt.dataset.categorie === code);
+        });
+    }
+
+    const cartableElevesSelectionnes = {}; // {id: nom}, même patron que hakibaProfsSelectionnes
+
+    function cartableFiltrerListe() {
+        const terme = document.getElementById('cartableRecherche').value.trim().toLowerCase();
+        const liste = document.getElementById('cartableListeDeroulante');
+        liste.style.display = terme.length > 0 ? 'block' : 'none';
+        document.querySelectorAll('.cartable-option').forEach(function (opt) {
+            const correspond = opt.dataset.nom.toLowerCase().indexOf(terme) !== -1;
+            const dejaChoisi = cartableElevesSelectionnes.hasOwnProperty(opt.dataset.id);
+            opt.style.display = (correspond && !dejaChoisi) ? 'block' : 'none';
+        });
+    }
+
+    function cartableAjouterEleve(id, nom) {
+        cartableElevesSelectionnes[id] = nom;
+        document.getElementById('cartableRecherche').value = '';
+        document.getElementById('cartableListeDeroulante').style.display = 'none';
+        cartableRedessinerPills();
+    }
+
+    function cartableRetirerEleve(id) {
+        delete cartableElevesSelectionnes[id];
+        cartableRedessinerPills();
+    }
+
+    function cartableRedessinerPills() {
+        const zone = document.getElementById('cartablePills');
+        zone.innerHTML = '';
+        document.querySelectorAll('input[name="eleves_cibles"]').forEach(function (i) { i.remove(); });
+        Object.keys(cartableElevesSelectionnes).forEach(function (id) {
+            const pill = document.createElement('span');
+            pill.className = 'hk-pill';
+            pill.innerHTML = cartableElevesSelectionnes[id] + ' <span class="hk-pill-remove" onclick="cartableRetirerEleve(' + id + ')">✕</span>';
+            zone.appendChild(pill);
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden'; hidden.name = 'eleves_cibles'; hidden.value = id;
+            document.getElementById('cartableForm').appendChild(hidden);
+        });
+    }
+
+    function cartableValiderFormulaire() {
+        const cible = document.getElementById('cartableCibleInput').value;
+        if (cible === 'categorie' && !document.getElementById('cartableCategorieInput').value) {
+            alert('يرجى اختيار الفئة المستهدفة.');
+            return false;
+        }
+        if (cible === 'specifique' && Object.keys(cartableElevesSelectionnes).length === 0) {
+            alert('يرجى اختيار طالب واحد على الأقل.');
+            return false;
+        }
+        return true;
+    }
+
+    function cartableIconePourExtension(nom) {
+        const ext = '.' + nom.split('.').pop().toLowerCase();
+        if (['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt'].includes(ext)) return '📄';
+        if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) return '🖼️';
+        if (['.mp3', '.wav', '.m4a', '.ogg'].includes(ext)) return '🎵';
+        if (['.mp4', '.mov', '.avi', '.webm', '.mkv'].includes(ext)) return '🎬';
+        return '📎';
+    }
+
+    function cartableFichierChange(input) {
+        if (!input.files || !input.files[0]) return;
+        const nom = input.files[0].name;
+        document.getElementById('cartableFichierIcone').textContent = cartableIconePourExtension(nom);
+        document.getElementById('cartableFichierNom').textContent = nom;
+        document.getElementById('cartableFichierApercu').style.display = 'flex';
+        document.getElementById('cartableFichierBouton').style.display = 'none';
+    }
+
+    function cartableFichierRetirer() {
+        document.getElementById('cartableFichierInput').value = '';
+        document.getElementById('cartableFichierApercu').style.display = 'none';
+        document.getElementById('cartableFichierBouton').style.display = 'inline-block';
+    }
+</script>
+{% endblock %}

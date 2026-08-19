@@ -98,6 +98,19 @@
         .contact-icon-link.contact-icon-meet:hover { box-shadow: 0 2px 8px rgba(26, 115, 232, 0.45); }
         .contact-icon-link.contact-icon-meet-disabled:hover { box-shadow: 0 2px 8px rgba(150, 150, 150, 0.45); }
 
+        /* Bouton "💬 الدردشة" sur une carte/ligne groupe — voir dashboard/_chat_icon.html
+           (Chantier redesign icône-chat du 2026-08-19 : bouton avec libellé, dans la même
+           rangée que le bouton d'action principal de la carte, cible tactile ≥44px,
+           couleurs alignées sur la charte de la carte plutôt qu'un bleu isolé). */
+        .btn-chat-groupe {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--color-bg-cream); color: var(--color-brand-gold-dark);
+            border-radius: 8px; padding: 8px 14px; min-height: 44px; box-sizing: border-box;
+            font-size: 0.85rem; font-weight: 600; text-decoration: none;
+            transition: background 150ms ease;
+        }
+        .btn-chat-groupe:hover { background: #f0e6cc; }
+
         /* Menu mobile */
         .sidebar-toggle {
             display: none;
@@ -191,6 +204,10 @@
         <a href="{% url 'prof_profil' %}"
            class="menu-item {% if request.resolver_match.url_name == 'prof_profil' %}active{% endif %}">
             <span class="icon">👤</span> ملفي الشخصي
+        </a>
+        <a href="{% url 'mes_notes_personnelles' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'mes_notes_personnelles' %}active{% endif %}">
+            <span class="icon">📓</span> ملاحظاتي
         </a>
         <a href="{% url 'prof_remuneration' %}"
            class="menu-item {% if request.resolver_match.url_name == 'prof_remuneration' %}active{% endif %}">
