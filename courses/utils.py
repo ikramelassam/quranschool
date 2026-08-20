@@ -97,16 +97,15 @@ def _age_depuis_naissance(naissance):
 
 
 def _creneaux_manquants(dispo, creneau):
-    """Cœur commun de creneaux_manquants_pour_*: heures des 2 blocs du créneau
-    non couvertes par l'ensemble dispo de tuples (jour, heure_debut)."""
+    """Cœur commun de creneaux_manquants_pour_*: heures de TOUS les CreneauSlot du
+    créneau (1 à N, chantier de généralisation N séances/semaine — auparavant limité
+    aux 2 blocs jour_1/jour_2 figés) non couvertes par l'ensemble dispo de tuples
+    (jour, heure_debut)."""
     manquants = []
-    for jour, debut, fin in [
-        (creneau.jour_1, creneau.heure_debut_1, creneau.heure_fin_1),
-        (creneau.jour_2, creneau.heure_debut_2, creneau.heure_fin_2),
-    ]:
-        for h in _heures_couvertes(debut, fin):
-            if (jour, h) not in dispo:
-                manquants.append((jour, h))
+    for slot in creneau.slots.all():
+        for h in _heures_couvertes(slot.heure_debut, slot.heure_fin):
+            if (slot.jour, h) not in dispo:
+                manquants.append((slot.jour, h))
     return manquants
 
 
@@ -401,6 +400,27 @@ def matrice_vers_lignes_eleve(eleve, valeurs):
     DisponibiliteEleve.objects.bulk_create(lignes)
 
 
+def remplacer_slots_creneau(creneau, slots_donnees):
+    """Remplace l'ENSEMBLE des CreneauSlot d'un créneau par `slots_donnees` (liste
+    ordonnée de dicts {'jour', 'heure_debut', 'heure_fin'}) — même idiome que
+    matrice_vers_lignes/matrice_vers_lignes_eleve juste au-dessus : on remplace
+    toujours l'ensemble existant, jamais on n'accumule. Utilisé par
+    courses.views.creneau_ajouter/creneau_modifier (formulaire à nombre de slots
+    dynamique, 1 à N — plus de couple figé jour_1/jour_2). L'ordre de la liste
+    fournie devient l'ordre (CreneauSlot.ordre, 1-indexé) des slots créés."""
+    from .models import CreneauSlot
+
+    CreneauSlot.objects.filter(creneau=creneau).delete()
+    lignes = [
+        CreneauSlot(
+            creneau=creneau, ordre=i + 1,
+            jour=s['jour'], heure_debut=s['heure_debut'], heure_fin=s['heure_fin'],
+        )
+        for i, s in enumerate(slots_donnees)
+    ]
+    CreneauSlot.objects.bulk_create(lignes)
+
+
 def etendre_seances(groupe, horizon_semaines=HORIZON_SEMAINES):
     """Complète les séances d'un groupe jusqu'à horizon_semaines à partir d'aujourd'hui.
 
@@ -426,10 +446,11 @@ def etendre_seances(groupe, horizon_semaines=HORIZON_SEMAINES):
     if depart > limite:
         return
 
-    creneaux_jour = [
-        (creneau.jour_1, creneau.heure_debut_1),
-        (creneau.jour_2, creneau.heure_debut_2),
-    ]
+    # Chantier de généralisation N séances/semaine : auparavant 2 tuples figés
+    # (jour_1/jour_2), désormais 1 à N depuis les CreneauSlot réels du créneau — le
+    # nombre de séances hebdomadaires d'un groupe est TOUJOURS déterminé par le
+    # nombre réel de CreneauSlot, jamais stocké ni supposé ailleurs.
+    creneaux_jour = [(slot.jour, slot.heure_debut) for slot in creneau.slots.all()]
 
     a_creer = []
     jour_courant = depart
@@ -859,21 +880,17 @@ def lien_seance_est_actif(seance):
 # l'utilisent déjà (voir Groupe.actifs) — ce n'est pas un système de réservation.
 
 def creneaux_se_chevauchent(creneau_a, creneau_b):
-    """True si au moins UN des 2 créneaux hebdomadaires de creneau_a chevauche
-    au moins UN des 2 créneaux hebdomadaires de creneau_b (comparaison des 4
-    combinaisons possibles — un seul chevauchement suffit). Même jour de la
-    semaine obligatoire. Deux intervalles [debut_a, fin_a) et [debut_b, fin_b)
-    se chevauchent ssi debut_a < fin_b ET debut_b < fin_a — des bornes qui se
-    touchent exactement (ex: 14:00-15:00 et 15:00-16:00) NE sont PAS un
-    chevauchement (14:00-15:00 vs 15:00-16:00 → 15:00 < 15:00 est faux)."""
-    slots_a = [
-        (creneau_a.jour_1, creneau_a.heure_debut_1, creneau_a.heure_fin_1),
-        (creneau_a.jour_2, creneau_a.heure_debut_2, creneau_a.heure_fin_2),
-    ]
-    slots_b = [
-        (creneau_b.jour_1, creneau_b.heure_debut_1, creneau_b.heure_fin_1),
-        (creneau_b.jour_2, creneau_b.heure_debut_2, creneau_b.heure_fin_2),
-    ]
+    """True si au moins UN des CreneauSlot de creneau_a chevauche au moins UN des
+    CreneauSlot de creneau_b (comparaison de toutes les combinaisons possibles — un
+    seul chevauchement suffit). Généralisé au chantier N séances/semaine : chaque
+    créneau peut désormais avoir 1 à N slots, plus 2 fixes — la comparaison N×M
+    remplace l'ancienne comparaison 2×2. Même jour de la semaine obligatoire. Deux
+    intervalles [debut_a, fin_a) et [debut_b, fin_b) se chevauchent ssi
+    debut_a < fin_b ET debut_b < fin_a — des bornes qui se touchent exactement
+    (ex: 14:00-15:00 et 15:00-16:00) NE sont PAS un chevauchement (14:00-15:00 vs
+    15:00-16:00 → 15:00 < 15:00 est faux)."""
+    slots_a = [(s.jour, s.heure_debut, s.heure_fin) for s in creneau_a.slots.all()]
+    slots_b = [(s.jour, s.heure_debut, s.heure_fin) for s in creneau_b.slots.all()]
     return any(
         _intervalle_hebdo_chevauche(jour_a, debut_a, fin_a, jour_b, debut_b, fin_b)
         for jour_a, debut_a, fin_a in slots_a
@@ -961,23 +978,24 @@ def description_conflit_lien_meet(lien_meet, creneau, groupe_exclu=None):
 
 def groupes_en_conflit_pour_lien_a_horaire_reel(lien_meet, jour_code, heure_debut, heure_fin):
     """Équivalent ponctuel de groupes_en_conflit_pour_lien : groupes ACTIFS
-    utilisant déjà `lien_meet` par défaut, dont au moins un des 2 créneaux
-    HEBDOMADAIRES chevauche l'horaire RÉEL (jour_code, heure_debut, heure_fin)
-    fourni. Le groupe propriétaire de la séance exceptionnelle n'est PAS
-    exclu de la recherche : si le nouvel horaire chevauche accidentellement
-    le SECOND créneau hebdomadaire de ce même groupe, c'est un vrai conflit
-    (double réservation du même lien par le même groupe), pas un faux
-    positif — contrairement à groupe_exclu utilisé ailleurs pour "ce groupe
-    peut-il GARDER ce lien pour son propre créneau", question différente."""
+    utilisant déjà `lien_meet` par défaut, dont au moins un des CreneauSlot
+    HEBDOMADAIRES (1 à N, chantier de généralisation N séances/semaine) chevauche
+    l'horaire RÉEL (jour_code, heure_debut, heure_fin) fourni. Le groupe
+    propriétaire de la séance exceptionnelle n'est PAS exclu de la recherche : si
+    le nouvel horaire chevauche accidentellement un AUTRE slot hebdomadaire de ce
+    même groupe, c'est un vrai conflit (double réservation du même lien par le
+    même groupe), pas un faux positif — contrairement à groupe_exclu utilisé
+    ailleurs pour "ce groupe peut-il GARDER ce lien pour son propre créneau",
+    question différente."""
     from .models import Groupe
 
     if lien_meet is None:
         return []
-    candidats = Groupe.actifs.filter(lien_meet=lien_meet, creneau__isnull=False).select_related('creneau')
+    candidats = Groupe.actifs.filter(lien_meet=lien_meet, creneau__isnull=False)\
+        .select_related('creneau').prefetch_related('creneau__slots')
     conflits = []
     for groupe in candidats:
-        c = groupe.creneau
-        slots = [(c.jour_1, c.heure_debut_1, c.heure_fin_1), (c.jour_2, c.heure_debut_2, c.heure_fin_2)]
+        slots = [(s.jour, s.heure_debut, s.heure_fin) for s in groupe.creneau.slots.all()]
         if any(
             _intervalle_hebdo_chevauche(jour_code, heure_debut, heure_fin, jour, debut, fin)
             for jour, debut, fin in slots

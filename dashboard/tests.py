@@ -11,9 +11,10 @@ from accounts.models import (
     User, Eleve, Prof, Superviseur, DocumentEleve, ElementHakiba, DerniereVisiteNotification,
 )
 from courses.models import (
-    Groupe, Seance, Presence, BilanMensuel, HistoriqueGroupeEleve,
+    Groupe, Creneau, Seance, Presence, BilanMensuel, HistoriqueGroupeEleve,
     DisponibiliteEleve, DisponibiliteProf, DemandeModificationDisponibilite,
 )
+from courses.utils import remplacer_slots_creneau
 from evaluations.models import Evaluation, CommentaireMensuel, Critere, NoteEvaluation
 from examens.models import Examen
 from inscriptions.models import InscriptionEleve, InscriptionProf, PhraseRefus
@@ -2509,3 +2510,45 @@ class DepuisRelatifFiltreTests(TestCase):
         self.assertEqual(depuis_relatif(self._il_y_a(minutes=1)), 'منذ دقيقة')
         self.assertEqual(depuis_relatif(self._il_y_a(minutes=5)), 'منذ 5 دقائق')
         self.assertEqual(depuis_relatif(self._il_y_a(hours=5)), 'منذ 5 ساعات')
+
+
+# ============================================================================
+# Chantier de généralisation N séances/semaine — prof_emploi (grille jours×heures)
+# lisait auparavant creneau.jour_1/jour_2 en dur ; lit désormais creneau.slots.all()
+# (1 à N). Aucun test n'existait pour cette vue avant ce chantier — ajoutée ici.
+# ============================================================================
+class ProfEmploiGeneralisationSlotsTests(TestCase):
+    def setUp(self):
+        self.prof = _creer_prof('prof_emploi_slots@zidni.test')
+        self.client.force_login(self.prof.user)
+
+    def _creneau_3_slots(self):
+        creneau = Creneau.objects.create(
+            sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=12,
+        )
+        remplacer_slots_creneau(creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'jeu', 'heure_debut': datetime.time(18, 0), 'heure_fin': datetime.time(19, 0)},
+        ])
+        return creneau
+
+    def test_grille_affiche_les_3_slots_dun_creneau_a_3_seances(self):
+        creneau = self._creneau_3_slots()
+        Groupe.objects.create(nom='مجموعة 3 حصص أسبوعياً', creneau=creneau, prof=self.prof, statut='actif')
+
+        reponse = self.client.get(reverse('prof_emploi'))
+        self.assertEqual(reponse.status_code, 200)
+
+        # occupation est construit en contexte implicite (lignes_grille) — on
+        # vérifie plutôt que le rendu final mentionne bien le groupe aux 3
+        # créneaux horaires distincts (16:00 lundi/mercredi, 18:00 jeudi).
+        html = reponse.content.decode('utf-8')
+        self.assertIn('مجموعة 3 حصص أسبوعياً', html)
+
+    def test_groupe_sans_creneau_ne_fait_pas_planter_la_grille(self):
+        """Garde déjà existante (if not creneau: continue) — toujours valable
+        après la réécriture sur creneau.slots.all()."""
+        Groupe.objects.create(nom='مجموعة بدون حلقة', prof=self.prof, statut='actif')
+        reponse = self.client.get(reverse('prof_emploi'))
+        self.assertEqual(reponse.status_code, 200)

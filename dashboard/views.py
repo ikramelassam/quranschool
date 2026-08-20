@@ -957,7 +957,8 @@ def prof_emploi(request):
     from django.utils import timezone
 
     prof = get_object_or_404(Prof, user=request.user)
-    groupes = Groupe.objects.filter(prof=prof, statut='actif').select_related('creneau')
+    groupes = Groupe.objects.filter(prof=prof, statut='actif')\
+        .select_related('creneau').prefetch_related('creneau__slots')
 
     # Grille jours×heures réelle (Tâche 12 du 2026-07-25) — remplace la liste
     # de cartes, même patron que _grille_disponibilites.html (jours/heures
@@ -965,17 +966,16 @@ def prof_emploi(request):
     # par (jour, heure), jamais de lookup dict[jour, heure] dans le template
     # (impossible en Django templates) — donc construite ici sous forme de
     # lignes de cellules déjà dans l'ordre des colonnes.
+    # Boucle sur creneau.slots.all() (1 à N, chantier de généralisation N
+    # séances/semaine) au lieu du couple figé jour_1/jour_2.
     occupation = {}
     for groupe in groupes:
         creneau = groupe.creneau
         if not creneau:
             continue
-        for jour, debut, fin in [
-            (creneau.jour_1, creneau.heure_debut_1, creneau.heure_fin_1),
-            (creneau.jour_2, creneau.heure_debut_2, creneau.heure_fin_2),
-        ]:
-            for h in _heures_couvertes(debut, fin):
-                occupation[(jour, h)] = groupe
+        for slot in creneau.slots.all():
+            for h in _heures_couvertes(slot.heure_debut, slot.heure_fin):
+                occupation[(slot.jour, h)] = groupe
 
     jour_actuel = {v: k for k, v in JOUR_INDEX.items()}[timezone.localdate().weekday()]
 

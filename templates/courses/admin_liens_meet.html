@@ -111,11 +111,12 @@ d'abord l'horaire").
                 <a href="{% url 'admin_groupe_detail' groupe.id %}" style="font-weight:700; color:#222; text-decoration:none;">{{ groupe.nom }}</a>
                 {% include 'dashboard/_badge_statut.html' with type='warning' texte='بدون رابط' %}
             </div>
-            <div style="color:#666; font-size:0.85rem; margin-bottom:2px;">
-                📅 {{ groupe.creneau.get_jour_1_display }} {{ groupe.creneau.heure_debut_1|time:"H:i" }}–{{ groupe.creneau.heure_fin_1|time:"H:i" }}
-            </div>
-            <div style="color:#666; font-size:0.85rem; margin-bottom:10px;">
-                📅 {{ groupe.creneau.get_jour_2_display }} {{ groupe.creneau.heure_debut_2|time:"H:i" }}–{{ groupe.creneau.heure_fin_2|time:"H:i" }}
+            <div style="margin-bottom:10px;">
+                {% for slot in groupe.creneau.slots.all %}
+                <div style="color:#666; font-size:0.85rem;{% if not forloop.last %} margin-bottom:2px;{% endif %}">
+                    📅 {{ slot.get_jour_display }} {{ slot.heure_debut|time:"H:i" }}–{{ slot.heure_fin|time:"H:i" }}
+                </div>
+                {% endfor %}
             </div>
             <div style="color:#a15c00; font-size:0.82rem; font-weight:600; margin-bottom:14px;">يحتاج رابط Google Meet</div>
 

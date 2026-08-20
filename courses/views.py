@@ -12,7 +12,7 @@ from .utils import (
     regenerer_pour_nouveau_creneau, raison_incompatibilite_groupe, avertissements_groupe,
     avertissements_prof_creneau, creneau_peut_etre_supprime, groupe_peut_etre_supprime,
     lien_meet_est_disponible, description_conflit_lien_meet, liens_meet_disponibles,
-    valider_photo_groupe,
+    valider_photo_groupe, remplacer_slots_creneau,
 )
 from accounts.models import Prof, Eleve
 
@@ -637,23 +637,41 @@ def creneaux_list(request):
     return render(request, 'courses/admin_creneaux.html', context)
 
 
+def _slots_depuis_post(request):
+    """Parse les listes parallèles slot_jour[]/slot_heure_debut[]/slot_heure_fin[]
+    soumises par le formulaire créneau (1 à N lignes, chantier de généralisation N
+    séances/semaine) en une liste ordonnée de dicts {'jour','heure_debut','heure_fin'}
+    — même ordre que reçu, devient l'ordre (CreneauSlot.ordre) à l'enregistrement.
+    Une ligne incomplète (un des 3 champs vide, ex: JS désactivé/POST manipulé) est
+    ignorée plutôt que de faire planter la création — pas de Django Forms dans ce
+    projet, la validation reste manuelle."""
+    jours = request.POST.getlist('slot_jour')
+    debuts = request.POST.getlist('slot_heure_debut')
+    fins = request.POST.getlist('slot_heure_fin')
+    return [
+        {'jour': jour, 'heure_debut': debut, 'heure_fin': fin}
+        for jour, debut, fin in zip(jours, debuts, fins)
+        if jour and debut and fin
+    ]
+
+
 @role_required('admin')
 def creneau_ajouter(request):
     if request.method == 'POST':
-        Creneau.objects.create(
+        slots = _slots_depuis_post(request)
+        if not slots:
+            messages.error(request, 'يجب إضافة حصة واحدة على الأقل.')
+            return render(request, 'courses/admin_creneau_ajouter.html')
+
+        creneau = Creneau.objects.create(
             nom=request.POST.get('nom', '').strip(),
             sexe_cible=request.POST.get('sexe_cible'),
             type_seance=request.POST.get('type_seance'),
             riwaya=request.POST.get('riwaya'),
             age_min=request.POST.get('age_min'),
             age_max=request.POST.get('age_max'),
-            jour_1=request.POST.get('jour_1'),
-            heure_debut_1=request.POST.get('heure_debut_1'),
-            heure_fin_1=request.POST.get('heure_fin_1'),
-            jour_2=request.POST.get('jour_2'),
-            heure_debut_2=request.POST.get('heure_debut_2'),
-            heure_fin_2=request.POST.get('heure_fin_2'),
         )
+        remplacer_slots_creneau(creneau, slots)
         messages.success(request, 'تمت إضافة الحلقة بنجاح.')
         return redirect('admin_creneaux')
 
@@ -665,8 +683,15 @@ def creneau_modifier(request, creneau_id):
     creneau = get_object_or_404(Creneau, id=creneau_id)
 
     if request.method == 'POST':
-        champs_horaire = ['jour_1', 'heure_debut_1', 'heure_fin_1', 'jour_2', 'heure_debut_2', 'heure_fin_2']
-        anciennes_valeurs_horaire = {champ: getattr(creneau, champ) for champ in champs_horaire}
+        # Comparaison AVANT/APRÈS (jour, heure_debut, heure_fin) triée par ordre —
+        # comme avant ce chantier (qui comparait jour_1/jour_2 champ par champ),
+        # généralisée à 1..N slots plutôt qu'un couple figé.
+        anciens_slots = list(creneau.slots.order_by('ordre').values_list('jour', 'heure_debut', 'heure_fin'))
+
+        slots = _slots_depuis_post(request)
+        if not slots:
+            messages.error(request, 'يجب إضافة حصة واحدة على الأقل.')
+            return render(request, 'courses/admin_creneau_modifier.html', {'creneau': creneau})
 
         creneau.nom = request.POST.get('nom', '').strip()
         creneau.sexe_cible = request.POST.get('sexe_cible')
@@ -674,24 +699,21 @@ def creneau_modifier(request, creneau_id):
         creneau.riwaya = request.POST.get('riwaya')
         creneau.age_min = request.POST.get('age_min')
         creneau.age_max = request.POST.get('age_max')
-        creneau.jour_1 = request.POST.get('jour_1')
-        creneau.heure_debut_1 = request.POST.get('heure_debut_1')
-        creneau.heure_fin_1 = request.POST.get('heure_fin_1')
-        creneau.jour_2 = request.POST.get('jour_2')
-        creneau.heure_debut_2 = request.POST.get('heure_debut_2')
-        creneau.heure_fin_2 = request.POST.get('heure_fin_2')
         creneau.save()
+        remplacer_slots_creneau(creneau, slots)
 
-        # L'horaire (jour/heure) est stocké sur le Creneau, partagé par tous les
-        # Groupe qui le référencent — un changement ici doit déplacer les séances
-        # futures de CHAQUE groupe concerné, pas seulement d'un seul (Tâche 19,
-        # Bug 1 du 2026-07-26). On ne régénère que si jour/heure ont vraiment
-        # changé, pour ne pas effacer inutilement des séances lors d'une simple
-        # modification d'âge/sexe/type sans lien avec le planning.
-        horaire_a_change = any(
-            str(anciennes_valeurs_horaire[champ]) != str(getattr(creneau, champ))
-            for champ in champs_horaire
+        nouveaux_slots = list(
+            creneau.slots.order_by('ordre').values_list('jour', 'heure_debut', 'heure_fin')
         )
+
+        # L'horaire (slots) est stocké sur le Creneau, partagé par tous les Groupe
+        # qui le référencent — un changement ici doit déplacer les séances futures
+        # de CHAQUE groupe concerné, pas seulement d'un seul (Tâche 19, Bug 1 du
+        # 2026-07-26). On ne régénère que si l'horaire a vraiment changé (nombre de
+        # slots différent, ou même nombre mais jour/heure différents), pour ne pas
+        # effacer inutilement des séances lors d'une simple modification d'âge/
+        # sexe/type sans lien avec le planning.
+        horaire_a_change = [str(v) for v in anciens_slots] != [str(v) for v in nouveaux_slots]
         if horaire_a_change:
             with transaction.atomic():
                 for groupe in creneau.groupes.all():

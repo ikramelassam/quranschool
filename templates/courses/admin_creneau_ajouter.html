@@ -51,58 +51,17 @@
             </div>
         </div>
 
-        <!-- Jour 1 -->
-        <div style="background:#f9f9f9; border-radius:10px; padding:16px; margin-bottom:16px;">
-            <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:12px;">اليوم الأول</div>
-            <div class="row g-3">
-                <div class="col-4">
-                    <label style="font-weight:600; color:#333;">اليوم *</label>
-                    <select name="jour_1" class="form-select mt-1" required>
-                        <option value="lun">الاثنين</option>
-                        <option value="mar">الثلاثاء</option>
-                        <option value="mer">الأربعاء</option>
-                        <option value="jeu">الخميس</option>
-                        <option value="ven">الجمعة</option>
-                        <option value="sam">السبت</option>
-                        <option value="dim">الأحد</option>
-                    </select>
-                </div>
-                <div class="col-4">
-                    <label style="font-weight:600; color:#333;">من *</label>
-                    <input type="time" name="heure_debut_1" class="form-control mt-1" required>
-                </div>
-                <div class="col-4">
-                    <label style="font-weight:600; color:#333;">إلى *</label>
-                    <input type="time" name="heure_fin_1" class="form-control mt-1" required>
-                </div>
-            </div>
-        </div>
-
-        <!-- Jour 2 -->
-        <div style="background:#f9f9f9; border-radius:10px; padding:16px; margin-bottom:16px;">
-            <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:12px;">اليوم الثاني</div>
-            <div class="row g-3">
-                <div class="col-4">
-                    <label style="font-weight:600; color:#333;">اليوم *</label>
-                    <select name="jour_2" class="form-select mt-1" required>
-                        <option value="lun">الاثنين</option>
-                        <option value="mar">الثلاثاء</option>
-                        <option value="mer">الأربعاء</option>
-                        <option value="jeu">الخميس</option>
-                        <option value="ven">الجمعة</option>
-                        <option value="sam">السبت</option>
-                        <option value="dim">الأحد</option>
-                    </select>
-                </div>
-                <div class="col-4">
-                    <label style="font-weight:600; color:#333;">من *</label>
-                    <input type="time" name="heure_debut_2" class="form-control mt-1" required>
-                </div>
-                <div class="col-4">
-                    <label style="font-weight:600; color:#333;">إلى *</label>
-                    <input type="time" name="heure_fin_2" class="form-control mt-1" required>
-                </div>
-            </div>
+        <!-- Slots hebdomadaires — nombre dynamique (1 à N), chantier de
+             généralisation N séances/semaine : plus de couple figé "اليوم
+             الأول/الثاني". -->
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الحصص الأسبوعية *</label>
+            <div style="color:#888; font-size:0.78rem; margin:2px 0 10px;">أضف حصة واحدة أو أكثر — لا حد أقصى لعدد الحصص الأسبوعية لهذه الحلقة.</div>
+            <div id="slots-container"></div>
+            <button type="button" onclick="ajouterSlot()"
+                style="background:#f0ebe3; border:2px dashed #ccc; border-radius:8px; padding:8px 16px; margin-top:8px; font-family:'Tajawal',sans-serif; cursor:pointer;">
+                + إضافة حصة
+            </button>
         </div>
 
         <div class="d-flex gap-3 mt-4">
@@ -115,4 +74,58 @@
         </div>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const JOURS_SLOT = [
+        ['lun', 'الاثنين'], ['mar', 'الثلاثاء'], ['mer', 'الأربعاء'], ['jeu', 'الخميس'],
+        ['ven', 'الجمعة'], ['sam', 'السبت'], ['dim', 'الأحد'],
+    ];
+
+    function ajouterSlot(jour, heureDebut, heureFin) {
+        const container = document.getElementById('slots-container');
+        const div = document.createElement('div');
+        div.className = 'slot-card';
+        div.style.cssText = 'background:#f9f9f9; border-radius:10px; padding:16px; margin-bottom:12px; position:relative;';
+        div.innerHTML = `
+            <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:12px;">الحصة رقم <span class="slot-numero"></span></div>
+            <button type="button" class="slot-supprimer" title="حذف هذه الحصة"
+                onclick="this.closest('.slot-card').remove(); renumeroterSlots();"
+                style="position:absolute; top:12px; left:12px; background:none; border:none; color:#dc3545; cursor:pointer; font-size:1.1rem; line-height:1;">🗑</button>
+            <div class="row g-3">
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">اليوم *</label>
+                    <select name="slot_jour" class="form-select mt-1" required>
+                        ${JOURS_SLOT.map(([v, l]) => `<option value="${v}" ${v === jour ? 'selected' : ''}>${l}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">من *</label>
+                    <input type="time" name="slot_heure_debut" class="form-control mt-1" value="${heureDebut || ''}" required>
+                </div>
+                <div class="col-4">
+                    <label style="font-weight:600; color:#333;">إلى *</label>
+                    <input type="time" name="slot_heure_fin" class="form-control mt-1" value="${heureFin || ''}" required>
+                </div>
+            </div>
+        `;
+        container.appendChild(div);
+        renumeroterSlots();
+    }
+
+    function renumeroterSlots() {
+        const cartes = document.querySelectorAll('.slot-card');
+        cartes.forEach((carte, i) => {
+            carte.querySelector('.slot-numero').textContent = i + 1;
+            // Au moins 1 حصة obligatoire — le bouton حذف disparaît sur la dernière restante.
+            carte.querySelector('.slot-supprimer').style.display = cartes.length > 1 ? 'block' : 'none';
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        ajouterSlot();
+        ajouterSlot();
+    });
+</script>
 {% endblock %}

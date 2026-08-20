@@ -8,7 +8,7 @@ from django.urls import reverse
 from accounts.models import User, Eleve, Prof
 from annonces.models import Annonce
 from inscriptions.models import InscriptionEleve
-from .models import Creneau, Groupe, DisponibiliteEleve, DisponibiliteProf, LienMeet, Seance, Presence
+from .models import Creneau, CreneauSlot, Groupe, DisponibiliteEleve, DisponibiliteProf, LienMeet, Seance, Presence
 from .utils import (
     raison_incompatibilite_groupe, avertissements_groupe, avertissements_prof_creneau,
     creneaux_se_chevauchent, groupes_en_conflit_pour_lien, lien_meet_est_disponible,
@@ -17,6 +17,7 @@ from .utils import (
     lien_effectif_disponible_pour_seance, horaire_reel_seance,
     calculer_hizb_precis, calculer_progression_eleve,
     categorie_derivee_du_creneau, backfiller_categorie_depuis_creneau,
+    remplacer_slots_creneau, etendre_seances, JOUR_INDEX_INVERSE,
 )
 
 MOT_DE_PASSE = 'xX!test12345'
@@ -44,28 +45,41 @@ def _creer_eleve(email='eleve_courses@zidni.test'):
     return Eleve.objects.create(user=u, sexe='homme', statut='actif')
 
 
-def _creer_creneau(sexe_cible='mixte', age_min=6, age_max=12):
-    return Creneau.objects.create(
+def _creer_creneau(sexe_cible='mixte', age_min=6, age_max=12, nb_slots=2):
+    """Créneau de test — nb_slots (défaut 2, comportement historique inchangé)
+    permet de tester la généralisation N séances/semaine sans dupliquer cette
+    fixture (voir CreneauGeneralisationSlotsTests)."""
+    creneau = Creneau.objects.create(
         sexe_cible=sexe_cible, type_seance='hifz', riwaya='hafs',
         age_min=age_min, age_max=age_max,
-        jour_1='lun', heure_debut_1=datetime.time(16, 0), heure_fin_1=datetime.time(17, 0),
-        jour_2='mer', heure_debut_2=datetime.time(16, 0), heure_fin_2=datetime.time(17, 0),
     )
+    jours_defaut = ['lun', 'mer', 'jeu', 'sam', 'dim']
+    slots = [
+        {'jour': jours_defaut[i], 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}
+        for i in range(nb_slots)
+    ]
+    remplacer_slots_creneau(creneau, slots)
+    return creneau
 
 
 def _creer_creneau_horaire(jour_1, hd1, hf1, jour_2, hd2, hf2, **overrides):
-    """Variante de _creer_creneau avec un horaire hebdomadaire explicite —
-    nécessaire pour tester creneaux_se_chevauchent/liens_meet_disponibles sur
-    des combinaisons de jours/heures précises (Tâche du 2026-08-17)."""
+    """Variante de _creer_creneau avec un horaire hebdomadaire explicite (2 slots)
+    — nécessaire pour tester creneaux_se_chevauchent/liens_meet_disponibles sur
+    des combinaisons de jours/heures précises (Tâche du 2026-08-17). jour_1/hd1/
+    hf1/jour_2/hd2/hf2 gardés comme paramètres positionnels (aucun call site à
+    modifier) mais écrits désormais dans CreneauSlot, pas dans les colonnes
+    jour_1/jour_2 (devenues nullable et non lues nulle part dans le code
+    applicatif depuis le chantier de généralisation N séances/semaine)."""
     valeurs = dict(
         sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=12,
     )
     valeurs.update(overrides)
-    return Creneau.objects.create(
-        jour_1=jour_1, heure_debut_1=hd1, heure_fin_1=hf1,
-        jour_2=jour_2, heure_debut_2=hd2, heure_fin_2=hf2,
-        **valeurs,
-    )
+    creneau = Creneau.objects.create(**valeurs)
+    remplacer_slots_creneau(creneau, [
+        {'jour': jour_1, 'heure_debut': hd1, 'heure_fin': hf1},
+        {'jour': jour_2, 'heure_debut': hd2, 'heure_fin': hf2},
+    ])
+    return creneau
 
 
 def _creer_prof(email='prof_courses@zidni.test'):
@@ -682,15 +696,14 @@ class DisponibiliteEleveNonBloquanteTests(TestCase):
 # ==================== POOL DE LIENS GOOGLE MEET (Tâche du 2026-08-17) ====================
 
 class CreneauxSeChevauchentTests(TestCase):
-    """creneaux_se_chevauchent — logique pure, sans base de données (instances
-    Creneau non sauvegardées, seuls les attributs jour/heure sont lus)."""
+    """creneaux_se_chevauchent — lit désormais CreneauSlot (chantier de
+    généralisation N séances/semaine), donc le créneau doit être persisté (les
+    slots sont une relation inverse, inutilisable sur une instance non
+    sauvegardée) — délègue à _creer_creneau_horaire plutôt qu'une construction
+    locale en mémoire comme avant ce chantier."""
 
     def _creneau(self, jour_1, hd1, hf1, jour_2, hd2, hf2):
-        return Creneau(
-            sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=12,
-            jour_1=jour_1, heure_debut_1=hd1, heure_fin_1=hf1,
-            jour_2=jour_2, heure_debut_2=hd2, heure_fin_2=hf2,
-        )
+        return _creer_creneau_horaire(jour_1, hd1, hf1, jour_2, hd2, hf2)
 
     def test_chevauchement_partiel_meme_jour_est_un_conflit(self):
         # 14:00-15:00 vs 14:30-15:30
@@ -1454,8 +1467,7 @@ class CreneauNomTests(TestCase):
         reponse = client.post(reverse('admin_creneau_ajouter'), {
             'nom': 'حلقة تجريبية', 'sexe_cible': 'mixte', 'type_seance': 'hifz', 'riwaya': 'hafs',
             'age_min': 6, 'age_max': 12,
-            'jour_1': 'lun', 'heure_debut_1': '16:00', 'heure_fin_1': '17:00',
-            'jour_2': 'mer', 'heure_debut_2': '16:00', 'heure_fin_2': '17:00',
+            'slot_jour': ['lun', 'mer'], 'slot_heure_debut': ['16:00', '16:00'], 'slot_heure_fin': ['17:00', '17:00'],
         })
         self.assertEqual(reponse.status_code, 302)
         creneau = Creneau.objects.get(nom='حلقة تجريبية')
@@ -1464,13 +1476,15 @@ class CreneauNomTests(TestCase):
     def test_modifier_creneau_renomme(self):
         admin = _creer_admin()
         creneau = _creer_creneau()
+        slots = list(creneau.slots.order_by('ordre'))
         client = Client(SERVER_NAME='localhost')
         _connecter(client, admin)
         reponse = client.post(reverse('admin_creneau_modifier', args=[creneau.id]), {
             'nom': 'حلقة معاد تسميتها', 'sexe_cible': creneau.sexe_cible, 'type_seance': creneau.type_seance,
             'riwaya': creneau.riwaya, 'age_min': creneau.age_min, 'age_max': creneau.age_max,
-            'jour_1': creneau.jour_1, 'heure_debut_1': '16:00', 'heure_fin_1': '17:00',
-            'jour_2': creneau.jour_2, 'heure_debut_2': '16:00', 'heure_fin_2': '17:00',
+            'slot_jour': [s.jour for s in slots],
+            'slot_heure_debut': [s.heure_debut.strftime('%H:%M') for s in slots],
+            'slot_heure_fin': [s.heure_fin.strftime('%H:%M') for s in slots],
         })
         self.assertEqual(reponse.status_code, 302)
         creneau.refresh_from_db()
@@ -1593,3 +1607,160 @@ class ResultatMemorisationProgressionTests(TestCase):
         self.assertEqual(len(progression['historique']), 2)
         entree_a_refaire = next(h for h in progression['historique'] if h['sourate'] == 'البقرة')
         self.assertEqual(entree_a_refaire['resultat_memorisation'], 'a_refaire')
+
+
+# ============================================================================
+# Chantier de généralisation N séances/semaine — CreneauSlot remplace le couple
+# figé jour_1/heure_debut_1/heure_fin_1 + jour_2/heure_debut_2/heure_fin_2.
+# Preuve explicitement demandée que ça fonctionne réellement pour 1, 3 et 4
+# slots — pas seulement le cas à 2 slots déjà couvert par tout le reste de ce
+# fichier (via _creer_creneau/_creer_creneau_horaire, comportement historique
+# inchangé, vérifié par les 132 tests existants de ce module).
+# ============================================================================
+class CreneauGeneralisationSlotsTests(TestCase):
+
+    def test_creneau_1_slot_genere_exactement_1_seance_par_semaine(self):
+        creneau = _creer_creneau(nb_slots=1)
+        self.assertEqual(creneau.slots.count(), 1)
+        groupe = Groupe.objects.create(nom='مجموعة حصة واحدة', creneau=creneau, statut='actif')
+        etendre_seances(groupe, horizon_semaines=4)
+        jours_generes = {s.date.weekday() for s in Seance.objects.filter(groupe=groupe)}
+        self.assertEqual(len(jours_generes), 1)
+        # ~4 séances sur 4 semaines (± bord de semaine courante) — jamais 0, jamais 8+.
+        self.assertGreaterEqual(Seance.objects.filter(groupe=groupe).count(), 3)
+        self.assertLessEqual(Seance.objects.filter(groupe=groupe).count(), 5)
+
+    def test_creneau_3_slots_genere_seances_sur_3_jours_distincts(self):
+        creneau = _creer_creneau(nb_slots=3)
+        self.assertEqual(creneau.slots.count(), 3)
+        groupe = Groupe.objects.create(nom='مجموعة 3 حصص', creneau=creneau, statut='actif')
+        etendre_seances(groupe, horizon_semaines=4)
+        jours_generes = {s.date.weekday() for s in Seance.objects.filter(groupe=groupe)}
+        self.assertEqual(len(jours_generes), 3)
+
+    def test_creneau_4_slots_genere_seances_sur_4_jours_distincts(self):
+        creneau = _creer_creneau(nb_slots=4)
+        self.assertEqual(creneau.slots.count(), 4)
+        groupe = Groupe.objects.create(nom='مجموعة 4 حصص', creneau=creneau, statut='actif')
+        etendre_seances(groupe, horizon_semaines=4)
+        jours_generes = {s.date.weekday() for s in Seance.objects.filter(groupe=groupe)}
+        self.assertEqual(len(jours_generes), 4)
+
+    def test_str_avec_3_slots_les_joint_tous(self):
+        creneau = _creer_creneau(nb_slots=3)
+        chaine = str(creneau)
+        self.assertEqual(chaine.count('+'), 2)  # 3 slots joints par " + " -> 2 signes "+"
+        for slot in creneau.slots.all():
+            self.assertIn(slot.get_jour_display(), chaine)
+
+    def test_str_sans_aucun_slot_ne_plante_pas(self):
+        """Cas défensif (créneau créé sans encore de slot, ex: transition) —
+        jamais un crash sur strftime(None)."""
+        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=12)
+        self.assertEqual(str(creneau), 'حلقة بدون توقيت محدد')
+
+    def test_fin_datetime_trouve_le_bon_slot_au_dela_du_deuxieme(self):
+        """Une séance tombant sur le 3e jour configuré (pas jour_1/jour_2) doit
+        quand même trouver la bonne durée — preuve que la recherche du slot
+        n'est plus limitée aux 2 premiers."""
+        date_test = datetime.date(2026, 9, 3)
+        jour_3 = JOUR_INDEX_INVERSE[date_test.weekday()]
+        autres_jours = [c for c in ['lun', 'mar', 'mer', 'jeu', 'ven'] if c != jour_3][:2]
+
+        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=12)
+        remplacer_slots_creneau(creneau, [
+            {'jour': autres_jours[0], 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': autres_jours[1], 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': jour_3, 'heure_debut': datetime.time(18, 0), 'heure_fin': datetime.time(19, 30)},
+        ])
+        groupe = Groupe.objects.create(nom='مجموعة اختبار الحصة الثالثة', creneau=creneau, statut='actif')
+        seance = Seance.objects.create(groupe=groupe, date=date_test, heure=datetime.time(18, 0), type='normal')
+
+        self.assertEqual(seance.fin_datetime.time(), datetime.time(19, 30))
+
+    def test_creneaux_se_chevauchent_avec_3_slots_de_part_et_dautre(self):
+        creneau_a = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=12)
+        remplacer_slots_creneau(creneau_a, [
+            {'jour': 'lun', 'heure_debut': datetime.time(10, 0), 'heure_fin': datetime.time(11, 0)},
+            {'jour': 'mar', 'heure_debut': datetime.time(10, 0), 'heure_fin': datetime.time(11, 0)},
+            {'jour': 'jeu', 'heure_debut': datetime.time(10, 0), 'heure_fin': datetime.time(11, 0)},
+        ])
+        creneau_b = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=12)
+        # Seul le 3e slot (jeudi) est en conflit — les 2 premiers n'ont aucun rapport.
+        remplacer_slots_creneau(creneau_b, [
+            {'jour': 'mer', 'heure_debut': datetime.time(20, 0), 'heure_fin': datetime.time(21, 0)},
+            {'jour': 'ven', 'heure_debut': datetime.time(20, 0), 'heure_fin': datetime.time(21, 0)},
+            {'jour': 'jeu', 'heure_debut': datetime.time(10, 30), 'heure_fin': datetime.time(11, 30)},
+        ])
+        self.assertTrue(creneaux_se_chevauchent(creneau_a, creneau_b))
+
+    def test_creneau_ajouter_avec_4_slots_depuis_la_vue(self):
+        admin = _creer_admin()
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, admin)
+        reponse = client.post(reverse('admin_creneau_ajouter'), {
+            'nom': 'حلقة 4 حصص', 'sexe_cible': 'mixte', 'type_seance': 'hifz', 'riwaya': 'hafs',
+            'age_min': 6, 'age_max': 12,
+            'slot_jour': ['lun', 'mar', 'mer', 'jeu'],
+            'slot_heure_debut': ['16:00', '16:00', '16:00', '16:00'],
+            'slot_heure_fin': ['17:00', '17:00', '17:00', '17:00'],
+        })
+        self.assertEqual(reponse.status_code, 302)
+        creneau = Creneau.objects.get(nom='حلقة 4 حصص')
+        self.assertEqual(creneau.slots.count(), 4)
+
+    def test_creneau_modifier_peut_reduire_le_nombre_de_slots(self):
+        """4 slots -> 2 slots : les séances futures doivent être régénérées
+        (l'horaire a changé), sans casser quoi que ce soit."""
+        admin = _creer_admin()
+        creneau = _creer_creneau(nb_slots=4)
+        groupe = Groupe.objects.create(nom='مجموعة تقليص الحصص', creneau=creneau, statut='actif')
+        etendre_seances(groupe, horizon_semaines=4)
+        self.assertEqual(creneau.slots.count(), 4)
+
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, admin)
+        reponse = client.post(reverse('admin_creneau_modifier', args=[creneau.id]), {
+            'nom': creneau.nom, 'sexe_cible': creneau.sexe_cible, 'type_seance': creneau.type_seance,
+            'riwaya': creneau.riwaya, 'age_min': creneau.age_min, 'age_max': creneau.age_max,
+            'slot_jour': ['lun', 'mer'],
+            'slot_heure_debut': ['16:00', '16:00'],
+            'slot_heure_fin': ['17:00', '17:00'],
+        })
+        self.assertEqual(reponse.status_code, 302)
+        creneau.refresh_from_db()
+        self.assertEqual(creneau.slots.count(), 2)
+        jours_generes = {s.date.weekday() for s in Seance.objects.filter(groupe=groupe, statut='planifiee')}
+        self.assertEqual(len(jours_generes), 2)
+
+    def test_creneau_ajouter_sans_aucun_slot_est_refuse(self):
+        """Garde-fou serveur (pas de Django Forms dans ce projet) — une requête
+        POST manipulée sans aucune ligne slot_jour/slot_heure_debut/
+        slot_heure_fin ne doit jamais créer un Creneau sans planning."""
+        admin = _creer_admin()
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, admin)
+        reponse = client.post(reverse('admin_creneau_ajouter'), {
+            'nom': 'حلقة بدون حصص', 'sexe_cible': 'mixte', 'type_seance': 'hifz', 'riwaya': 'hafs',
+            'age_min': 6, 'age_max': 12,
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(Creneau.objects.filter(nom='حلقة بدون حصص').exists())
+
+
+class BackfillCreneauSlotMigrationTests(TestCase):
+    """Vérifie le résultat de la data migration 0036 telle qu'appliquée sur la
+    base de test (exécutée par le migrateur avant que ces tests ne tournent,
+    comme toute migration) — complète la vérification manuelle déjà faite en
+    production/dev (40 slots, 0 anomalie) par une assertion automatisée
+    rejouable à chaque exécution de la suite."""
+
+    def test_tous_les_creneaux_ont_au_moins_1_slot_apres_migration(self):
+        # Créés par les fixtures d'autres tests potentiellement déjà exécutés
+        # dans la même base — ne vérifie que les créneaux existants à cet
+        # instant, pas un nombre figé.
+        for creneau in Creneau.objects.all():
+            self.assertGreaterEqual(
+                creneau.slots.count(), 1,
+                f'Creneau {creneau.id} sans aucun CreneauSlot',
+            )

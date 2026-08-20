@@ -130,12 +130,21 @@ class Creneau(models.Model):
     riwaya = models.CharField(max_length=10, choices=RIWAYA_CHOICES, default='hafs')
     age_min = models.IntegerField()
     age_max = models.IntegerField()
-    jour_1 = models.CharField(max_length=5, choices=JOUR_CHOICES)
-    heure_debut_1 = models.TimeField()
-    heure_fin_1 = models.TimeField()
-    jour_2 = models.CharField(max_length=5, choices=JOUR_CHOICES)
-    heure_debut_2 = models.TimeField()
-    heure_fin_2 = models.TimeField()
+    # HISTORIQUE — chantier de généralisation N séances/semaine (voir CreneauSlot
+    # ci-dessous, qui est désormais l'UNIQUE source de vérité pour le planning réel).
+    # Rendus nullable ici (les données existantes ne sont PAS touchées, seule la
+    # contrainte NOT NULL est relâchée) pour que la création d'un nouveau Creneau ne
+    # dépende plus de ces 2 colonnes figées — plus aucun code de ce projet ne les LIT
+    # après ce chantier (voir courses.utils/courses.models/dashboard.views.prof_emploi
+    # /templates réécrits dans la même série de commits). Conservées pour l'instant
+    # sans être écrites ni lues : suppression = migration séparée, plus tard, après
+    # validation en production.
+    jour_1 = models.CharField(max_length=5, choices=JOUR_CHOICES, null=True, blank=True)
+    heure_debut_1 = models.TimeField(null=True, blank=True)
+    heure_fin_1 = models.TimeField(null=True, blank=True)
+    jour_2 = models.CharField(max_length=5, choices=JOUR_CHOICES, null=True, blank=True)
+    heure_debut_2 = models.TimeField(null=True, blank=True)
+    heure_fin_2 = models.TimeField(null=True, blank=True)
     est_actif = models.BooleanField(default=True)
 
     objects = models.Manager()
@@ -144,10 +153,12 @@ class Creneau(models.Model):
     def __str__(self):
         if self.nom:
             return self.nom
-        return (
-            f"{self.get_jour_1_display()} {self.heure_debut_1.strftime('%H:%M')}"
-            f" + {self.get_jour_2_display()} {self.heure_debut_2.strftime('%H:%M')}"
+        # slots déjà triés par Meta.ordering ('ordre', 'id') sur CreneauSlot.
+        libelle = ' + '.join(
+            f"{slot.get_jour_display()} {slot.heure_debut.strftime('%H:%M')}"
+            for slot in self.slots.all()
         )
+        return libelle or "حلقة بدون توقيت محدد"
 
     class Meta:
         verbose_name = "Créneau"
@@ -519,34 +530,39 @@ class Seance(models.Model):
     def fin_datetime(self):
         """Datetime aware de la fin RÉELLE de cette séance — Seance ne stocke pas
         sa propre durée, elle est donc dérivée du Creneau du groupe : DURÉE
-        (heure_fin - heure_debut) du créneau 1 ou 2 selon le jour de la semaine
-        de cette séance, appliquée à l'heure RÉELLE de cette séance (self.heure)
-        — PAS une heure de fin fixe recopiée telle quelle (corrigé le
-        2026-08-17 : une séance déplacée exceptionnellement à une autre heure
-        LE MÊME JOUR, ex. Seance.heure=16:00 alors que jour_1=14:00-15:00,
+        (heure_fin - heure_debut) du CreneauSlot dont le jour correspond au jour de
+        la semaine de cette séance, appliquée à l'heure RÉELLE de cette séance
+        (self.heure) — PAS une heure de fin fixe recopiée telle quelle (corrigé le
+        2026-08-17 : une séance déplacée exceptionnellement à une autre heure LE
+        MÊME JOUR, ex. Seance.heure=16:00 alors que le slot du jour est 14:00-15:00,
         obtenait auparavant une fin à 15:00, soit AVANT son propre début —
-        strictement identique à l'ancien calcul pour toute séance non déplacée,
-        où self.heure == heure_debut_1/2 par construction). Retombe sur la
-        durée du créneau 1 si aucun des 2 jours ne correspond (créneau modifié
-        depuis la génération de cette séance, ou déplacée sur un jour
-        totalement différent — voir Tâche 19 Bug 1) ou None si le groupe n'a
-        plus de créneau du tout (voir evaluable_par_prof, Tâche 19 Bug 2 du
+        strictement identique à l'ancien calcul pour toute séance non déplacée, où
+        self.heure == heure_debut du slot par construction).
+
+        Généralisé (chantier N séances/semaine, ex-couple figé jour_1/jour_2) : le
+        slot correspondant est cherché parmi TOUS les CreneauSlot du créneau, plus
+        seulement 2 — même principe de repli qu'avant si aucun jour ne correspond
+        (créneau modifié depuis la génération de cette séance, ou déplacée sur un
+        jour totalement différent — voir Tâche 19 Bug 1) : on retombe sur le
+        PREMIER slot (ordre le plus bas) au lieu du "créneau 1" fixe d'avant, même
+        rôle exact. None si le groupe n'a plus de créneau du tout, ou si le créneau
+        n'a structurellement aucun slot (voir evaluable_par_prof, Tâche 19 Bug 2 du
         2026-07-26)."""
-        from .utils import JOUR_INDEX
+        from .utils import JOUR_INDEX_INVERSE
 
         creneau = self.groupe.creneau
         if not creneau:
             return None
 
-        jour_seance = self.date.weekday()
-        if jour_seance == JOUR_INDEX.get(creneau.jour_2):
-            heure_debut_slot, heure_fin_slot = creneau.heure_debut_2, creneau.heure_fin_2
-        else:
-            heure_debut_slot, heure_fin_slot = creneau.heure_debut_1, creneau.heure_fin_1
+        jour_seance = JOUR_INDEX_INVERSE[self.date.weekday()]
+        slots = list(creneau.slots.all())
+        if not slots:
+            return None
+        slot = next((s for s in slots if s.jour == jour_seance), slots[0])
 
         duree = (
-            datetime.datetime.combine(self.date, heure_fin_slot)
-            - datetime.datetime.combine(self.date, heure_debut_slot)
+            datetime.datetime.combine(self.date, slot.heure_fin)
+            - datetime.datetime.combine(self.date, slot.heure_debut)
         )
         naive = datetime.datetime.combine(self.date, self.heure) + duree
         return timezone.make_aware(naive) if timezone.is_naive(naive) else naive
