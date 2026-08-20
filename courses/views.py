@@ -329,6 +329,42 @@ def groupe_detail(request, groupe_id):
                 action_en_attente = 'transfert'
                 destination_en_attente = destination
 
+    # Onglet "الخصائص" (Étape 5D du chantier du moteur d'inscription
+    # configurable) — un item par Critere ACTIF, quel que soit son backend,
+    # pour que le مدير/مشرف voie TOUJOURS l'état complet d'un groupe (y
+    # compris les critères backend='champ_groupe'/'nb_slots', affichés en
+    # lecture seule puisqu'ils ne stockent jamais de GroupeCritereValeur —
+    # voir registration.utils.definir_valeurs_groupe). Recalculé à chaque
+    # affichage, jamais mis en cache.
+    from registration.models import Critere, GroupeCritereValeur
+
+    criteres_config = []
+    for critere in Critere.objects.filter(est_actif=True).order_by('ordre', 'id').prefetch_related('options'):
+        if critere.backend == 'eav':
+            valeurs_actuelles_ids = set(
+                GroupeCritereValeur.objects.filter(groupe=groupe, critere=critere)
+                .values_list('option_id', flat=True)
+            )
+            criteres_config.append({
+                'critere': critere,
+                'options': [o for o in critere.options.all() if o.est_actif],
+                'valeurs_actuelles_ids': valeurs_actuelles_ids,
+            })
+        elif critere.backend == 'champ_groupe':
+            # get_<champ>_display() si le champ réel a des choices (cas de
+            # type_capacite) — sinon retombe sur la valeur brute.
+            accesseur_affichage = getattr(groupe, f'get_{critere.champ_modele_groupe}_display', None)
+            valeur_affichee = accesseur_affichage() if callable(accesseur_affichage) else getattr(groupe, critere.champ_modele_groupe, None)
+            criteres_config.append({
+                'critere': critere,
+                'valeur_reelle': valeur_affichee,
+            })
+        else:  # 'nb_slots'
+            criteres_config.append({
+                'critere': critere,
+                'valeur_derivee': groupe.creneau.slots.count() if groupe.creneau else None,
+            })
+
     context = {
         'groupe': groupe,
         'eleves_disponibles': eleves_disponibles,
@@ -345,10 +381,40 @@ def groupe_detail(request, groupe_id):
         # d'accès que /chat/<id>/ elle-même, voir chat.permissions.
         # peut_voir_chat_groupe.__doc__.
         'peut_voir_chat': peut_voir_chat_groupe(request.user, groupe),
+        'criteres_config': criteres_config,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'courses/admin_groupe_detail.html', context)
+
+
+@role_required('admin', 'mshrif')
+def groupe_definir_critere(request, groupe_id, critere_id):
+    """Enregistre la/les valeur(s) d'UN critère backend='eav' pour ce groupe
+    (onglet "الخصائص") — Directeur ET مشرف, accès strictement identique
+    (contrairement au reste de cette page, où l'ajout/retrait d'élèves reste
+    مدير uniquement — voir le template : cette restriction pré-existante n'a
+    pas de raison de s'appliquer au nouveau système de critères, demande
+    explicite et répétée du client pour CE système précis)."""
+    from registration.models import Critere
+    from registration.utils import definir_valeurs_groupe
+
+    groupe = get_object_or_404(Groupe, id=groupe_id)
+    critere = get_object_or_404(Critere, id=critere_id)
+
+    if critere.backend != 'eav':
+        messages.error(request, 'هذا المعيار مشتق تلقائياً ولا يمكن تعديله يدوياً من هنا.')
+        return redirect('admin_groupe_detail', groupe.id)
+
+    codes = request.POST.getlist('options')
+    options = list(critere.options.filter(est_actif=True, code__in=codes))
+    if len(options) != len(set(codes)):
+        messages.error(request, 'أحد الخيارات المرسلة غير صالح لهذا المعيار.')
+        return redirect('admin_groupe_detail', groupe.id)
+
+    definir_valeurs_groupe(groupe, critere, options)
+    messages.success(request, f'تم تحديث "{critere.label}" لهذه المجموعة.')
+    return redirect('admin_groupe_detail', groupe.id)
 
 
 @role_required('admin')

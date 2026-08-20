@@ -14,6 +14,8 @@ urlpatterns = [
     path('groupes/<int:groupe_id>/archiver/', views.groupe_archiver, name='admin_groupe_archiver'),
     path('groupes/<int:groupe_id>/reactiver/', views.groupe_reactiver, name='admin_groupe_reactiver'),
     path('groupes/<int:groupe_id>/supprimer-definitivement/', views.groupe_supprimer_definitivement, name='admin_groupe_supprimer_definitivement'),
+    # Étape 5D — onglet "الخصائص" (moteur d'inscription configurable)
+    path('groupes/<int:groupe_id>/criteres/<int:critere_id>/definir/', views.groupe_definir_critere, name='admin_groupe_definir_critere'),
 
     # Créneaux
     path('creneaux/', views.creneaux_list, name='admin_creneaux'),

@@ -140,6 +140,29 @@ def couverture_critere(critere):
     }
 
 
+def definir_valeurs_groupe(groupe, critere, options):
+    """Remplace l'ENSEMBLE des GroupeCritereValeur d'un (groupe, critere) par
+    `options` (liste de CritereOption, 0 à N selon type_champ) — même idiome
+    "remplacer, jamais accumuler" que courses.utils.matrice_vers_lignes/
+    remplacer_slots_creneau. Réservé aux critères backend='eav' : appeler ceci
+    pour 'champ_groupe' ou 'nb_slots' est une erreur de programmation (ces 2
+    backends ne stockent jamais de GroupeCritereValeur, voir leur docstring
+    dans registration.models) — lève ValueError plutôt que d'écrire une
+    donnée qui ne serait jamais lue par groupes_compatibles()."""
+    from .models import GroupeCritereValeur
+
+    if critere.backend != 'eav':
+        raise ValueError(
+            f"definir_valeurs_groupe : critere '{critere.code}' est backend='{critere.backend}', "
+            f"pas 'eav' — aucune GroupeCritereValeur ne doit jamais être écrite pour ce backend."
+        )
+
+    GroupeCritereValeur.objects.filter(groupe=groupe, critere=critere).delete()
+    GroupeCritereValeur.objects.bulk_create([
+        GroupeCritereValeur(groupe=groupe, critere=critere, option=option) for option in options
+    ])
+
+
 # ==================== RÈGLES CONDITIONNELLES (Phase 7 / Partie 16) ====================
 
 def _regle_satisfaite(regle, codes_options_repondus_par_critere):

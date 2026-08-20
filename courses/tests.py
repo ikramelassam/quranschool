@@ -19,6 +19,7 @@ from .utils import (
     categorie_derivee_du_creneau, backfiller_categorie_depuis_creneau,
     remplacer_slots_creneau, etendre_seances, JOUR_INDEX_INVERSE,
 )
+from registration.models import GroupeCritereValeur
 
 MOT_DE_PASSE = 'xX!test12345'
 
@@ -1764,3 +1765,86 @@ class BackfillCreneauSlotMigrationTests(TestCase):
                 creneau.slots.count(), 1,
                 f'Creneau {creneau.id} sans aucun CreneauSlot',
             )
+
+
+# ============================================================================
+# CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5D : onglet "الخصائص"
+# sur la fiche groupe (GroupeCritereValeur). Directeur ET مشرف, accès
+# strictement identique (contrairement au reste de cette page, où l'ajout/
+# retrait d'élèves reste مدير uniquement — restriction pré-existante à ce
+# chantier, non modifiée).
+# ============================================================================
+class GroupeOngletCriteresTests(TestCase):
+    def setUp(self):
+        from registration.models import Critere as CritereInscription, CritereOption
+
+        self.admin = _creer_admin('admin_onglet_criteres@zidni.test')
+        self.mshrif = _creer_mshrif('mshrif_onglet_criteres@zidni.test')
+        self.creneau = _creer_creneau()
+        self.groupe = Groupe.objects.create(nom='مجموعة اختبار الخصائص', creneau=self.creneau, statut='actif', type_capacite='groupe')
+
+        self.critere_riwaya = CritereInscription.objects.create(code='riwaya_onglet', label='الرواية', backend='eav', filtrable=True)
+        self.option_hafs = CritereOption.objects.create(critere=self.critere_riwaya, code='hafs', label='حفص')
+        CritereOption.objects.create(critere=self.critere_riwaya, code='warsh', label='ورش')
+
+        self.critere_type_offre = CritereInscription.objects.create(
+            code='type_offre_onglet', label='نوع الحصة', backend='champ_groupe', champ_modele_groupe='type_capacite',
+        )
+        self.critere_nb_slots = CritereInscription.objects.create(code='nb_slots_onglet', label='عدد الحصص', backend='nb_slots')
+
+    def test_fiche_groupe_affiche_les_3_backends(self):
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, self.admin)
+        reponse = client.get(reverse('admin_groupe_detail', args=[self.groupe.id]))
+        html = reponse.content.decode('utf-8')
+        self.assertIn('الرواية', html)
+        self.assertIn('نوع الحصة', html)
+        self.assertIn('عدد الحصص', html)
+        # champ_groupe affiché en lecture seule avec la vraie valeur du groupe.
+        self.assertIn('جماعي', html)  # get_type_capacite_display() de 'groupe'
+        # nb_slots affiché en lecture seule, dérivé du vrai nombre de slots (2 par défaut).
+        self.assertIn('2 حصة/أسبوع', html)
+
+    def test_definir_valeur_eav_reussit_pour_directeur_et_mshrif(self):
+        for client_user in (self.admin, self.mshrif):
+            client = Client(SERVER_NAME='localhost')
+            _connecter(client, client_user)
+            reponse = client.post(
+                reverse('admin_groupe_definir_critere', args=[self.groupe.id, self.critere_riwaya.id]),
+                {'options': ['hafs']},
+            )
+            self.assertEqual(reponse.status_code, 302)
+            valeur = GroupeCritereValeur.objects.get(groupe=self.groupe, critere=self.critere_riwaya)
+            self.assertEqual(valeur.option.code, 'hafs')
+
+    def test_definir_valeur_remplace_jamais_naccumule(self):
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, self.admin)
+        url = reverse('admin_groupe_definir_critere', args=[self.groupe.id, self.critere_riwaya.id])
+        client.post(url, {'options': ['hafs']})
+        client.post(url, {'options': ['warsh']})
+        self.assertEqual(GroupeCritereValeur.objects.filter(groupe=self.groupe, critere=self.critere_riwaya).count(), 1)
+        self.assertEqual(
+            GroupeCritereValeur.objects.get(groupe=self.groupe, critere=self.critere_riwaya).option.code, 'warsh'
+        )
+
+    def test_definir_valeur_sur_backend_champ_groupe_est_refuse(self):
+        """champ_groupe/nb_slots ne stockent jamais de GroupeCritereValeur —
+        voir registration.utils.definir_valeurs_groupe."""
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, self.admin)
+        reponse = client.post(
+            reverse('admin_groupe_definir_critere', args=[self.groupe.id, self.critere_type_offre.id]),
+            {'options': ['groupe']},
+        )
+        self.assertEqual(reponse.status_code, 302)
+        self.assertFalse(GroupeCritereValeur.objects.filter(critere=self.critere_type_offre).exists())
+
+    def test_option_invalide_refusee(self):
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, self.admin)
+        client.post(
+            reverse('admin_groupe_definir_critere', args=[self.groupe.id, self.critere_riwaya.id]),
+            {'options': ['code_inexistant']},
+        )
+        self.assertFalse(GroupeCritereValeur.objects.filter(groupe=self.groupe, critere=self.critere_riwaya).exists())
