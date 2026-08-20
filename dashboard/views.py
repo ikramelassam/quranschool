@@ -5756,3 +5756,213 @@ def api_recherche_globale(request):
         'mois': mois_payload,
         'categories': categories,
     })
+
+
+# ============================================================================
+# CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5A : CRUD Critere/
+# CritereOption. Directeur ET مشرف ont un accès STRICTEMENT IDENTIQUE sur
+# TOUTES ces vues (role_required('admin', 'mshrif') partout, sans exception,
+# contrairement au patron admin-seul de admin_criteres/admin_critere_eleve_*
+# plus haut dans ce fichier) — demande explicite et répétée du client pour ce
+# système précis : "pas de hiérarchie entre eux dans cette interface".
+# ============================================================================
+
+@role_required('admin', 'mshrif')
+def admin_criteres_inscription(request):
+    from registration.models import Critere
+
+    criteres = Critere.objects.all().order_by('ordre', 'id')
+    context = {
+        'criteres': criteres,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_criteres_inscription.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_critere_inscription_ajouter(request):
+    from registration.models import Critere
+
+    if request.method == 'POST':
+        code = request.POST.get('code', '').strip()
+        if not code or Critere.objects.filter(code=code).exists():
+            messages.error(request, 'الرمز إلزامي ويجب أن يكون فريداً — تحقق من عدم استخدامه من قبل.')
+            return render(request, 'dashboard/admin_critere_inscription_ajouter.html', {
+                'base_template': _base_template_admin_ou_mshrif(request),
+                'valeurs_form': request.POST,
+            })
+
+        critere = Critere.objects.create(
+            code=code,
+            label=request.POST.get('label', '').strip(),
+            type_champ=request.POST.get('type_champ', 'choix_unique'),
+            backend=request.POST.get('backend', 'eav'),
+            champ_modele_groupe=request.POST.get('champ_modele_groupe', '').strip(),
+            filtrable=request.POST.get('filtrable') == 'on',
+            bloquant=request.POST.get('bloquant') == 'on',
+            ordre=request.POST.get('ordre') or 0,
+        )
+        messages.success(request, f'تمت إضافة المعيار "{critere.label}" بنجاح.')
+        return redirect('admin_critere_inscription_detail', critere.id)
+
+    return render(request, 'dashboard/admin_critere_inscription_ajouter.html', {
+        'base_template': _base_template_admin_ou_mshrif(request),
+    })
+
+
+@role_required('admin', 'mshrif')
+def admin_critere_inscription_detail(request, critere_id):
+    from registration.models import Critere
+    from registration.utils import couverture_critere
+
+    critere = get_object_or_404(Critere, id=critere_id)
+    context = {
+        'critere': critere,
+        'options': critere.options.all().order_by('ordre', 'id'),
+        'couverture': couverture_critere(critere),
+        'nb_champs_utilises': critere.champs.count(),
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_critere_inscription_detail.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_critere_inscription_modifier(request, critere_id):
+    from registration.models import Critere
+    from registration.utils import couverture_critere
+
+    critere = get_object_or_404(Critere, id=critere_id)
+
+    if request.method == 'POST':
+        filtrable_demande = request.POST.get('filtrable') == 'on'
+        confirme = request.POST.get('confirme') == '1'
+
+        # Warning de configuration incomplète (Parties 7-8 du cahier des
+        # charges) — évalué sur le backend ACTUEL du critère (jamais modifiable
+        # depuis ce formulaire, voir plus bas) : couverture_critere renvoie None
+        # pour champ_groupe/nb_slots, qui n'ont structurellement jamais de
+        # "groupe non configuré" — aucun warning possible pour eux.
+        couverture = couverture_critere(critere) if filtrable_demande else None
+        if couverture and couverture['configures'] < couverture['total'] and not confirme:
+            return render(request, 'dashboard/admin_critere_inscription_modifier.html', {
+                'critere': critere,
+                'couverture_warning': couverture,
+                'valeurs_form': request.POST,
+                'base_template': _base_template_admin_ou_mshrif(request),
+            })
+
+        critere.label = request.POST.get('label', '').strip()
+        critere.type_champ = request.POST.get('type_champ', critere.type_champ)
+        critere.filtrable = filtrable_demande
+        critere.bloquant = request.POST.get('bloquant') == 'on'
+        critere.ordre = request.POST.get('ordre') or 0
+        critere.est_actif = request.POST.get('est_actif') == 'on'
+        critere.save()
+        messages.success(request, f'تم تعديل المعيار "{critere.label}" بنجاح.')
+        return redirect('admin_critere_inscription_detail', critere.id)
+
+    return render(request, 'dashboard/admin_critere_inscription_modifier.html', {
+        'critere': critere,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    })
+
+
+@role_required('admin', 'mshrif')
+def admin_critere_inscription_toggle(request, critere_id):
+    from registration.models import Critere
+    critere = get_object_or_404(Critere, id=critere_id)
+    critere.est_actif = not critere.est_actif
+    critere.save()
+    messages.info(request, 'تم تفعيل المعيار.' if critere.est_actif else 'تم تعطيل المعيار — لن يظهر في نموذج التسجيل.')
+    return redirect('admin_criteres_inscription')
+
+
+@role_required('admin', 'mshrif')
+def admin_critere_inscription_supprimer(request, critere_id):
+    from django.db.models.deletion import ProtectedError
+    from registration.models import Critere
+
+    critere = get_object_or_404(Critere, id=critere_id)
+    label = critere.label
+    try:
+        critere.delete()
+        messages.success(request, f'تم حذف المعيار "{label}".')
+    except ProtectedError:
+        messages.error(
+            request,
+            f'تعذر حذف "{label}": هذا المعيار مستخدم بالفعل (في نموذج التسجيل، أو في إجابات/مجموعات '
+            f'سابقة). يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.'
+        )
+    return redirect('admin_criteres_inscription')
+
+
+# ---- Options d'un critère ----
+
+@role_required('admin', 'mshrif')
+def admin_critere_option_ajouter(request, critere_id):
+    from registration.models import Critere, CritereOption
+
+    critere = get_object_or_404(Critere, id=critere_id)
+    if request.method == 'POST':
+        code = request.POST.get('code', '').strip()
+        if not code or CritereOption.objects.filter(critere=critere, code=code).exists():
+            messages.error(request, 'رمز الخيار إلزامي ويجب أن يكون فريداً ضمن هذا المعيار.')
+            return redirect('admin_critere_inscription_detail', critere.id)
+
+        CritereOption.objects.create(
+            critere=critere, code=code,
+            label=request.POST.get('label', '').strip(),
+            ordre=request.POST.get('ordre') or 0,
+        )
+        messages.success(request, 'تمت إضافة الخيار بنجاح.')
+    return redirect('admin_critere_inscription_detail', critere.id)
+
+
+@role_required('admin', 'mshrif')
+def admin_critere_option_modifier(request, option_id):
+    from registration.models import CritereOption
+
+    option = get_object_or_404(CritereOption, id=option_id)
+    if request.method == 'POST':
+        option.label = request.POST.get('label', '').strip()
+        option.ordre = request.POST.get('ordre') or 0
+        option.save()
+        messages.success(request, 'تم تعديل الخيار بنجاح.')
+        return redirect('admin_critere_inscription_detail', option.critere_id)
+
+    return render(request, 'dashboard/admin_critere_option_modifier.html', {
+        'option': option,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    })
+
+
+@role_required('admin', 'mshrif')
+def admin_critere_option_toggle(request, option_id):
+    from registration.models import CritereOption
+    option = get_object_or_404(CritereOption, id=option_id)
+    option.est_actif = not option.est_actif
+    option.save()
+    messages.info(request, 'تم تفعيل الخيار.' if option.est_actif else 'تم تعطيل الخيار.')
+    return redirect('admin_critere_inscription_detail', option.critere_id)
+
+
+@role_required('admin', 'mshrif')
+def admin_critere_option_supprimer(request, option_id):
+    from django.db.models.deletion import ProtectedError
+    from registration.models import CritereOption
+
+    option = get_object_or_404(CritereOption, id=option_id)
+    critere_id = option.critere_id
+    label = option.label
+    try:
+        option.delete()
+        messages.success(request, f'تم حذف الخيار "{label}".')
+    except ProtectedError:
+        messages.error(
+            request,
+            f'تعذر حذف "{label}": هذا الخيار مستخدم بالفعل (في إجابات أو مجموعات سابقة). '
+            f'يمكنك تعطيله بدلاً من حذفه.'
+        )
+    return redirect('admin_critere_inscription_detail', critere_id)

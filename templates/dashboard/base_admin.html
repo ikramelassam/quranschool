@@ -324,6 +324,14 @@
             </a>
         </details>
 
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_criteres_inscription' or request.resolver_match.url_name == 'admin_critere_inscription_ajouter' or request.resolver_match.url_name == 'admin_critere_inscription_detail' or request.resolver_match.url_name == 'admin_critere_inscription_modifier' or request.resolver_match.url_name == 'admin_critere_option_modifier' %}open{% endif %}>
+            <summary>محرك التسجيل</summary>
+            <a href="{% url 'admin_criteres_inscription' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_criteres_inscription' or request.resolver_match.url_name == 'admin_critere_inscription_ajouter' or request.resolver_match.url_name == 'admin_critere_inscription_detail' or request.resolver_match.url_name == 'admin_critere_inscription_modifier' or request.resolver_match.url_name == 'admin_critere_option_modifier' %}active{% endif %}">
+                <span class="icon">🧩</span> معايير التسجيل
+            </a>
+        </details>
+
         <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'admin_gestion_inscriptions' or request.resolver_match.url_name == 'admin_reglage_lien_seance' or request.resolver_match.url_name == 'admin_reglage_retention_chat' or request.resolver_match.url_name == 'admin_hakiba_gestion' %}open{% endif %}>
             <summary>حقيبة الإدارة</summary>
             <a href="{% url 'mshrif_charte' %}"

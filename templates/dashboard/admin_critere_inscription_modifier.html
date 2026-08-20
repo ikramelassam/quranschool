@@ -1,0 +1,84 @@
+{% extends base_template %}
+{% block title %}تعديل {{ critere.label }}{% endblock %}
+{% block content %}
+<div class="page-title">تعديل معيار: {{ critere.label }}</div>
+
+{% if couverture_warning %}
+<div style="background:#fff3cd; border-radius:12px; padding:18px 22px; margin-bottom:20px; max-width:600px;">
+    {% if couverture_warning.configures == 0 %}
+        <div style="color:#856404; font-weight:700;">
+            ⚠️ أي مجموعة نشطة لا تملك حالياً قيمة لهذا المعيار. إذا فُعّل هذا المعيار كفلتر الآن، لن تُقترح أي مجموعة على الطلاب إلى أن يتم تحديد القيم.
+        </div>
+    {% else %}
+        <div style="color:#856404; font-weight:700;">
+            ⚠️ {{ couverture_warning.configures }} من أصل {{ couverture_warning.total }} مجموعة نشطة مهيأة لهذا المعيار. المجموعات المتبقية لن تظهر في النتائج عند استخدام هذا الفلتر.
+        </div>
+    {% endif %}
+    <div style="color:#856404; font-size:0.85rem; margin-top:8px;">
+        يمكنك المتابعة رغم ذلك، أو الرجوع لتهيئة قيم المجموعات أولاً من صفحة المعيار.
+    </div>
+</div>
+{% endif %}
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+        {% if couverture_warning %}<input type="hidden" name="confirme" value="1">{% endif %}
+
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الرمز</label>
+            <input type="text" class="form-control mt-1" value="{{ critere.code }}" disabled>
+            <div style="color:#888; font-size:0.78rem; margin-top:4px;">غير قابل للتعديل.</div>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الاسم المعروض *</label>
+            <input type="text" name="label" class="form-control mt-1" value="{{ valeurs_form.label|default:critere.label }}" required>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">نوع الحقل *</label>
+            <select name="type_champ" class="form-select mt-1">
+                <option value="choix_unique" {% if critere.type_champ == 'choix_unique' %}selected{% endif %}>اختيار واحد</option>
+                <option value="choix_multiple" {% if critere.type_champ == 'choix_multiple' %}selected{% endif %}>اختيار متعدد</option>
+                <option value="texte" {% if critere.type_champ == 'texte' %}selected{% endif %}>نص</option>
+                <option value="email" {% if critere.type_champ == 'email' %}selected{% endif %}>بريد إلكتروني</option>
+                <option value="telephone" {% if critere.type_champ == 'telephone' %}selected{% endif %}>هاتف</option>
+                <option value="nombre" {% if critere.type_champ == 'nombre' %}selected{% endif %}>رقم</option>
+                <option value="date" {% if critere.type_champ == 'date' %}selected{% endif %}>تاريخ</option>
+                <option value="booleen" {% if critere.type_champ == 'booleen' %}selected{% endif %}>نعم/لا</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">طريقة التخزين</label>
+            <input type="text" class="form-control mt-1" value="{{ critere.get_backend_display }}" disabled>
+            <div style="color:#888; font-size:0.78rem; margin-top:4px;">غير قابلة للتعديل بعد الإنشاء.</div>
+        </div>
+        <div class="form-check mb-2">
+            <input type="checkbox" name="filtrable" id="filtrable" class="form-check-input"
+                   {% if critere.filtrable %}checked{% endif %}>
+            <label class="form-check-label" for="filtrable" style="font-weight:600; color:#333;">يُستخدم لتصفية المجموعات المقترحة على الطالب</label>
+        </div>
+        <div class="form-check mb-3">
+            <input type="checkbox" name="bloquant" id="bloquant" class="form-check-input"
+                   {% if critere.bloquant %}checked{% endif %}>
+            <label class="form-check-label" for="bloquant" style="font-weight:600; color:#333;">عدم التوافق معه يمنع الإضافة نهائياً (حتى للمدير/المشرف)</label>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
+            <input type="number" name="ordre" class="form-control mt-1" value="{{ critere.ordre }}">
+        </div>
+        <div class="form-check mb-3">
+            <input type="checkbox" name="est_actif" id="est_actif" class="form-check-input"
+                   {% if critere.est_actif %}checked{% endif %}>
+            <label class="form-check-label" for="est_actif" style="font-weight:600; color:#333;">نشط</label>
+        </div>
+
+        <div class="d-flex gap-3 mt-4">
+            <button type="submit"
+                style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                {% if couverture_warning %}تأكيد الحفظ رغم التنبيه ✅{% else %}حفظ التعديلات ✅{% endif %}
+            </button>
+            <a href="{% url 'admin_critere_inscription_detail' critere.id %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

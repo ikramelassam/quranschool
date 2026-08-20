@@ -167,4 +167,18 @@ urlpatterns = [
     path('mes-notes/', views.mes_notes_personnelles, name='mes_notes_personnelles'),
     # Panneau 🔔 الإشعارات — "عرض الكل" (eleve/prof uniquement) — Chantier notifications du 2026-08-19
     path('mes-notifications/', views.mes_notifications, name='mes_notifications'),
+
+    # ==================== MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5A ====================
+    # Directeur ET مشرف, accès strictement identique (role_required('admin', 'mshrif')
+    # sur chaque vue, voir dashboard/views.py) — pas de hiérarchie entre eux ici.
+    path('admin/criteres-inscription/', views.admin_criteres_inscription, name='admin_criteres_inscription'),
+    path('admin/criteres-inscription/ajouter/', views.admin_critere_inscription_ajouter, name='admin_critere_inscription_ajouter'),
+    path('admin/criteres-inscription/<int:critere_id>/', views.admin_critere_inscription_detail, name='admin_critere_inscription_detail'),
+    path('admin/criteres-inscription/<int:critere_id>/modifier/', views.admin_critere_inscription_modifier, name='admin_critere_inscription_modifier'),
+    path('admin/criteres-inscription/<int:critere_id>/toggle/', views.admin_critere_inscription_toggle, name='admin_critere_inscription_toggle'),
+    path('admin/criteres-inscription/<int:critere_id>/supprimer/', views.admin_critere_inscription_supprimer, name='admin_critere_inscription_supprimer'),
+    path('admin/criteres-inscription/<int:critere_id>/options/ajouter/', views.admin_critere_option_ajouter, name='admin_critere_option_ajouter'),
+    path('admin/criteres-inscription/options/<int:option_id>/modifier/', views.admin_critere_option_modifier, name='admin_critere_option_modifier'),
+    path('admin/criteres-inscription/options/<int:option_id>/toggle/', views.admin_critere_option_toggle, name='admin_critere_option_toggle'),
+    path('admin/criteres-inscription/options/<int:option_id>/supprimer/', views.admin_critere_option_supprimer, name='admin_critere_option_supprimer'),
 ]

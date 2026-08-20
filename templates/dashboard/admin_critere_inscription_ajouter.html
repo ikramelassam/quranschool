@@ -1,0 +1,82 @@
+{% extends base_template %}
+{% block title %}إضافة معيار{% endblock %}
+{% block content %}
+<div class="page-title">إضافة معيار تسجيل جديد</div>
+<div class="page-subtitle" style="margin-bottom:20px;">مثال: الرواية، الهدف التربوي، طريقة التعلم المفضلة — أي معيار تريده، دون الحاجة لأي تعديل برمجي.</div>
+
+{% if messages %}{% endif %}
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الرمز (بالإنجليزية، بدون مسافات) *</label>
+            <input type="text" name="code" class="form-control mt-1" placeholder="مثال: objectif_pedagogique"
+                   value="{{ valeurs_form.code|default:'' }}" required>
+            <div style="color:#888; font-size:0.78rem; margin-top:4px;">لا يمكن تعديله لاحقاً — اختر رمزاً واضحاً.</div>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الاسم المعروض *</label>
+            <input type="text" name="label" class="form-control mt-1" placeholder="مثال: الهدف التربوي"
+                   value="{{ valeurs_form.label|default:'' }}" required>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">نوع الحقل *</label>
+            <select name="type_champ" class="form-select mt-1">
+                <option value="choix_unique">اختيار واحد</option>
+                <option value="choix_multiple">اختيار متعدد</option>
+                <option value="texte">نص</option>
+                <option value="email">بريد إلكتروني</option>
+                <option value="telephone">هاتف</option>
+                <option value="nombre">رقم</option>
+                <option value="date">تاريخ</option>
+                <option value="booleen">نعم/لا</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">طريقة التخزين *</label>
+            <select name="backend" id="backend_select" class="form-select mt-1" onchange="toggleChampGroupe()">
+                <option value="eav" selected>قيمة حرة (الحالة الافتراضية لأي معيار جديد)</option>
+                <option value="champ_groupe">مرتبط بحقل حقيقي موجود في نموذج المجموعة</option>
+                <option value="nb_slots">مشتق تلقائياً من عدد الحصص الأسبوعية الحقيقية للمجموعة</option>
+            </select>
+            <div style="color:#888; font-size:0.78rem; margin-top:4px;">
+                اختر "قيمة حرة" في كل الحالات تقريباً — الخياران الآخران محجوزان لحالات بنيوية محددة مسبقاً
+                (نوع الحصة، عدد الحصص الأسبوعية) ولا يحتاجهما أي معيار جديد.
+            </div>
+        </div>
+        <div class="mb-3" id="champ_modele_groupe_wrapper" style="display:none;">
+            <label style="font-weight:600; color:#333;">اسم الحقل الحقيقي في نموذج المجموعة</label>
+            <input type="text" name="champ_modele_groupe" class="form-control mt-1" placeholder="مثال: type_capacite">
+        </div>
+        <div class="form-check mb-2">
+            <input type="checkbox" name="filtrable" id="filtrable" class="form-check-input" {% if valeurs_form.filtrable %}checked{% endif %}>
+            <label class="form-check-label" for="filtrable" style="font-weight:600; color:#333;">يُستخدم لتصفية المجموعات المقترحة على الطالب</label>
+        </div>
+        <div class="form-check mb-3">
+            <input type="checkbox" name="bloquant" id="bloquant" class="form-check-input" {% if valeurs_form.bloquant %}checked{% endif %}>
+            <label class="form-check-label" for="bloquant" style="font-weight:600; color:#333;">عدم التوافق معه يمنع الإضافة نهائياً (حتى للمدير/المشرف)</label>
+            <div style="color:#888; font-size:0.78rem;">إن تُرك غير محدد، فعدم التوافق يُظهر تنبيهاً قابلاً للتجاوز من طرف المدير/المشرف فقط.</div>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
+            <input type="number" name="ordre" class="form-control mt-1" value="{{ valeurs_form.ordre|default:0 }}">
+        </div>
+        <div class="d-flex gap-3 mt-4">
+            <button type="submit"
+                style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                إضافة ✅
+            </button>
+            <a href="{% url 'admin_criteres_inscription' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    function toggleChampGroupe() {
+        const backend = document.getElementById('backend_select').value;
+        document.getElementById('champ_modele_groupe_wrapper').style.display = backend === 'champ_groupe' ? 'block' : 'none';
+    }
+    document.addEventListener('DOMContentLoaded', toggleChampGroupe);
+</script>
+{% endblock %}

@@ -3,7 +3,7 @@ import time
 
 from django.conf import settings
 from django.core import mail
-from django.test import TestCase, override_settings
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -15,6 +15,7 @@ from courses.models import (
     DisponibiliteEleve, DisponibiliteProf, DemandeModificationDisponibilite,
 )
 from courses.utils import remplacer_slots_creneau
+from registration.models import Critere as CritereInscription, CritereOption, GroupeCritereValeur
 from evaluations.models import Evaluation, CommentaireMensuel, Critere, NoteEvaluation
 from examens.models import Examen
 from inscriptions.models import InscriptionEleve, InscriptionProf, PhraseRefus
@@ -2552,3 +2553,127 @@ class ProfEmploiGeneralisationSlotsTests(TestCase):
         Groupe.objects.create(nom='مجموعة بدون حلقة', prof=self.prof, statut='actif')
         reponse = self.client.get(reverse('prof_emploi'))
         self.assertEqual(reponse.status_code, 200)
+
+
+# ============================================================================
+# CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5A : CRUD Critere/
+# CritereOption. Parité STRICTE Directeur/مشرف testée sur chaque vue (aucune
+# des deux ne doit jamais recevoir une redirection/erreur que l'autre
+# n'obtient pas) — exigence explicite et répétée du client pour ce système.
+# ============================================================================
+class CritereInscriptionCRUDTests(TestCase):
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def _connecte_mshrif(self):
+        client = Client()
+        client.force_login(self.mshrif)
+        return client
+
+    def test_liste_accessible_a_parite_stricte(self):
+        for client in (self._connecte_admin(), self._connecte_mshrif()):
+            reponse = client.get(reverse('admin_criteres_inscription'))
+            self.assertEqual(reponse.status_code, 200)
+
+    def test_eleve_prof_superviseur_nont_pas_acces(self):
+        eleve = _creer_eleve('eleve_registration_crud@zidni.test')
+        client = Client()
+        client.force_login(eleve.user)
+        reponse = client.get(reverse('admin_criteres_inscription'))
+        self.assertNotEqual(reponse.status_code, 200)
+
+    def test_ajout_critere_reussit_pour_directeur_et_mshrif(self):
+        for i, client in enumerate((self._connecte_admin(), self._connecte_mshrif())):
+            reponse = client.post(reverse('admin_critere_inscription_ajouter'), {
+                'code': f'objectif_test_{i}', 'label': 'الهدف التربوي', 'type_champ': 'choix_unique',
+                'backend': 'eav', 'filtrable': 'on', 'ordre': 1,
+            })
+            self.assertEqual(reponse.status_code, 302)
+            self.assertTrue(CritereInscription.objects.filter(code=f'objectif_test_{i}').exists())
+
+    def test_code_duplique_refuse(self):
+        CritereInscription.objects.create(code='objectif_unique', label='الهدف')
+        client = self._connecte_admin()
+        reponse = client.post(reverse('admin_critere_inscription_ajouter'), {
+            'code': 'objectif_unique', 'label': 'مكرر', 'type_champ': 'choix_unique', 'backend': 'eav',
+        })
+        self.assertEqual(reponse.status_code, 200)  # réaffiche le formulaire, pas de redirection
+        self.assertEqual(CritereInscription.objects.filter(code='objectif_unique').count(), 1)
+
+    def test_ajout_option_reussit_pour_les_deux_roles(self):
+        critere = CritereInscription.objects.create(code='objectif', label='الهدف')
+        for i, client in enumerate((self._connecte_admin(), self._connecte_mshrif())):
+            reponse = client.post(reverse('admin_critere_option_ajouter', args=[critere.id]), {
+                'code': f'opt_{i}', 'label': f'خيار {i}', 'ordre': i,
+            })
+            self.assertEqual(reponse.status_code, 302)
+        self.assertEqual(critere.options.count(), 2)
+
+    def test_toggle_critere_et_option(self):
+        client = self._connecte_mshrif()  # مشرف peut aussi bien que الديرم
+        critere = CritereInscription.objects.create(code='objectif', label='الهدف', est_actif=True)
+        option = CritereOption.objects.create(critere=critere, code='memo', label='الحفظ', est_actif=True)
+
+        client.get(reverse('admin_critere_inscription_toggle', args=[critere.id]))
+        critere.refresh_from_db()
+        self.assertFalse(critere.est_actif)
+
+        client.get(reverse('admin_critere_option_toggle', args=[option.id]))
+        option.refresh_from_db()
+        self.assertFalse(option.est_actif)
+
+    def test_suppression_critere_jamais_utilise_reussit(self):
+        client = self._connecte_admin()
+        critere = CritereInscription.objects.create(code='jamais_utilise', label='غير مستخدم')
+        client.get(reverse('admin_critere_inscription_supprimer', args=[critere.id]))
+        self.assertFalse(CritereInscription.objects.filter(id=critere.id).exists())
+
+    def test_suppression_critere_deja_utilise_est_refusee_avec_message_clair(self):
+        """PROTECT — décision explicite du client : jamais de CASCADE silencieux
+        sur un critère déjà utilisé."""
+        from courses.models import Creneau, Groupe
+        from courses.utils import remplacer_slots_creneau as _slots
+
+        client = self._connecte_admin()
+        critere = CritereInscription.objects.create(code='riwaya_test', label='الرواية', filtrable=True)
+        option = CritereOption.objects.create(critere=critere, code='hafs', label='حفص')
+        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        _slots(creneau, [{'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}])
+        groupe = Groupe.objects.create(nom='مجموعة تستخدم المعيار', creneau=creneau, statut='actif')
+        GroupeCritereValeur.objects.create(groupe=groupe, critere=critere, option=option)
+
+        client.get(reverse('admin_critere_inscription_supprimer', args=[critere.id]))
+        self.assertTrue(CritereInscription.objects.filter(id=critere.id).exists())  # PAS supprimé
+
+    def test_activer_filtrable_sans_couverture_demande_confirmation(self):
+        client = self._connecte_admin()
+        from courses.models import Creneau, Groupe
+        from courses.utils import remplacer_slots_creneau as _slots
+
+        critere = CritereInscription.objects.create(code='objectif', label='الهدف', filtrable=False)
+        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        _slots(creneau, [{'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}])
+        Groupe.objects.create(nom='مجموعة بدون قيمة', creneau=creneau, statut='actif')  # non configuré pour ce critère
+
+        # Sans confirme=1 : refusé, warning affiché.
+        reponse = client.post(reverse('admin_critere_inscription_modifier', args=[critere.id]), {
+            'label': 'الهدف', 'type_champ': 'choix_unique', 'filtrable': 'on', 'ordre': 0, 'est_actif': 'on',
+        })
+        self.assertEqual(reponse.status_code, 200)
+        critere.refresh_from_db()
+        self.assertFalse(critere.filtrable)  # pas encore sauvegardé
+
+        # Avec confirme=1 : accepté.
+        reponse2 = client.post(reverse('admin_critere_inscription_modifier', args=[critere.id]), {
+            'label': 'الهدف', 'type_champ': 'choix_unique', 'filtrable': 'on', 'ordre': 0, 'est_actif': 'on',
+            'confirme': '1',
+        })
+        self.assertEqual(reponse2.status_code, 302)
+        critere.refresh_from_db()
+        self.assertTrue(critere.filtrable)
