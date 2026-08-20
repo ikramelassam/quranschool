@@ -14,6 +14,7 @@ import datetime
 import json
 
 from django.shortcuts import render, redirect
+from django.views.decorators.cache import never_cache
 
 from .utils import wizard_donnees, wizard_maj, wizard_reinitialiser
 
@@ -423,12 +424,68 @@ def wizard_paiement(request):
     })
 
 
-# TODO Étape 6E : revalidation complète + inscrire_eleve() + message de
-# bienvenue. Stub temporaire pour que 6D (abonnement/paiement) soit testable
-# et committable indépendamment.
 def _wizard_confirmer_inscription(request, donnees, moyens, date_limite, parametres):
-    return redirect('wizard_paiement')
+    """Soumission finale (POST de wizard_paiement, Étape 6E) — REVALIDATION
+    COMPLÈTE avant toute création (Partie 22 du cahier des charges) :
+
+    - moyen_paiement_code : validé ici (purement informatif pour cette page,
+      inscrire_eleve() ne le connaît pas et n'en a pas besoin).
+    - TOUT LE RESTE (option appartenant au bon critère, obligatoire respecté,
+      groupe_id revérifié contre groupes_compatibles_avec_age AU MOMENT DE
+      CETTE CONFIRMATION — jamais celui, potentiellement périmé, calculé à
+      l'étape 3 — capacité, statut actif, individuel -> groupe_id ignoré) :
+      délégué ENTIÈREMENT à inscrire_eleve() (Étape 4), qui reçoit `donnees`
+      — la SESSION accumulée, jamais le POST brut de cette requête — comme
+      reponses_brutes. Aucune logique de sécurité dupliquée ici : c'est
+      exactement pour ça que inscrire_eleve() a été conçue et testée de façon
+      isolément complète dès l'Étape 4. Un groupe_id en session devenu
+      incompatible (groupe rempli/archivé entre l'étape 3 et maintenant, ou
+      même injecté directement dans la session par un contournement du
+      parcours normal) est donc TOUJOURS re-détecté ici, jamais silencieusement
+      accepté (voir WizardConfirmationSecuriteTests.
+      test_groupe_id_devenu_incompatible_entre_etape_3_et_confirmation_est_
+      rejete_a_la_confirmation)."""
+    from .models import get_presentation_inscription
+    from .utils import inscrire_eleve
+
+    moyen_code = request.POST.get('moyen_paiement_code', '')
+    if not moyens.filter(code=moyen_code).exists():
+        return render(request, 'inscriptions/wizard_paiement.html', {
+            'moyens': moyens, 'date_limite': date_limite,
+            'delai_paiement_jours': parametres.delai_paiement_jours,
+            'erreurs': ['يرجى اختيار طريقة دفع صالحة.'],
+            'wizard_etape_num': 5,
+        })
+
+    inscription, erreurs = inscrire_eleve(donnees, cree_par=None)
+    if erreurs:
+        return render(request, 'inscriptions/wizard_paiement.html', {
+            'moyens': moyens, 'date_limite': date_limite,
+            'delai_paiement_jours': parametres.delai_paiement_jours,
+            'erreurs': erreurs,
+            'wizard_etape_num': 5,
+        })
+
+    presentation = get_presentation_inscription()
+    wizard_reinitialiser(request)
+    # Même patron que dashboard.views.confirmation_creation_compte : transite
+    # par la session (jamais l'URL), lu puis effacé (pop) par wizard_confirmation
+    # — un rafraîchissement de la page de confirmation ne réaffiche jamais les
+    # mêmes infos ni ne permet de rejouer la création.
+    request.session['wizard_confirmation'] = {
+        'nom': inscription.nom,
+        'message_bienvenue': presentation.message_bienvenue,
+        'delai_contact_heures': parametres.delai_contact_heures,
+    }
+    return redirect('wizard_confirmation')
 
 
+@never_cache
 def wizard_confirmation(request):
-    return redirect('wizard_intro')
+    """Étape 6 — affichage seul. Les infos transitent par la session (voir
+    _wizard_confirmer_inscription ci-dessus), lues puis immédiatement effacées
+    (pop) — même patron que dashboard.views.confirmation_creation_compte."""
+    info = request.session.pop('wizard_confirmation', None)
+    if not info:
+        return redirect('wizard_intro')
+    return render(request, 'inscriptions/wizard_confirmation.html', info)

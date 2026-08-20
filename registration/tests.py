@@ -1119,3 +1119,187 @@ class WizardAbonnementPaiementTests(TestCase):
         self._avancer_a_etape_4(client, type_offre='groupe')
         reponse = client.get(reverse('wizard_paiement'))
         self.assertRedirects(reponse, reverse('wizard_abonnement'))
+
+
+# ============================================================================
+# Étape 6E (dernière du wizard) — confirmation finale : revalidation complète
+# + inscrire_eleve() + message de bienvenue. Point critique explicitement
+# demandé : tentative de contournement (groupe_id incompatible injecté
+# directement dans la session, contournant la validation normale de l'étape 3)
+# rejetée proprement à LA CONFIRMATION, sans planter, sans rien créer.
+# ============================================================================
+@override_settings(STORAGES=_STORAGES_TEST)
+class WizardConfirmationTests(TestCase):
+    def setUp(self):
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe = Groupe.objects.create(
+            nom='مجموعة اختبار التأكيد', creneau=self.creneau, statut='actif', type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(groupe=self.groupe, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=self.groupe, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
+
+        self.abo_groupe = TypeAbonnement.objects.create(
+            code='test_confirm_abo_groupe', label='جماعي شهري', prix=80, type_offre='groupe', cible_age='les_deux', ordre=1,
+        )
+        self.abo_individuel = TypeAbonnement.objects.create(
+            code='test_confirm_abo_individuel', label='فردي شهري', prix=400, type_offre='individuel', cible_age='les_deux', ordre=2,
+        )
+        from payments.models import MoyenPaiement
+        self.moyen = MoyenPaiement.objects.create(code='test_confirm_cih', label='CIH بنك', coordonnees='RIB', est_actif=True)
+
+        from registration.models import get_presentation_inscription
+        presentation = get_presentation_inscription()
+        presentation.message_bienvenue = 'مرحباً بك معنا!'
+        presentation.save()
+
+        from inscriptions.models import get_parametres_inscriptions
+        parametres = get_parametres_inscriptions()
+        parametres.delai_contact_heures = 24
+        parametres.save()
+
+    def _avancer_jusquau_paiement(self, client, email, type_offre='groupe', abonnement_code=None):
+        client.post(reverse('wizard_identite'), {
+            'nom': 'نور الدين حمزة', 'sexe': 'homme', 'email': email,
+            'date_naissance': '1998-01-01',
+            'indicatif_pays': '212', 'telephone': '0611223344', 'telephone_confirmation': '0611223344',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': type_offre,
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        if type_offre == 'groupe':
+            client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+        code = abonnement_code or (self.abo_groupe.code if type_offre == 'groupe' else self.abo_individuel.code)
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': code})
+
+    def test_parcours_complet_groupe_cree_linscription_et_affiche_la_confirmation(self):
+        client = Client()
+        self._avancer_jusquau_paiement(client, 'nourdine.wizard@zidni.test', type_offre='groupe')
+
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+        self.assertRedirects(reponse, reverse('wizard_confirmation'), fetch_redirect_response=False)
+
+        inscription = InscriptionEleve.objects.get(email='nourdine.wizard@zidni.test')
+        self.assertEqual(inscription.groupe_choisi, self.groupe)
+        self.assertEqual(inscription.abonnement, self.abo_groupe.code)
+        self.assertTrue(inscription.reponses.exists())  # ReponseInscription bien créées
+
+        reponse_confirmation = client.get(reverse('wizard_confirmation'))
+        self.assertEqual(reponse_confirmation.status_code, 200)
+        html = reponse_confirmation.content.decode('utf-8')
+        self.assertIn('نور الدين حمزة', html)
+        self.assertIn('مرحباً بك معنا!', html)
+        self.assertIn('24', html)  # délai de contact configurable, jamais codé en dur
+
+        # Session vidée -> rafraîchir la page de confirmation ne réaffiche rien.
+        self.assertNotIn('wizard_inscription', client.session)
+        reponse_rafraichie = client.get(reverse('wizard_confirmation'))
+        self.assertRedirects(reponse_rafraichie, reverse('wizard_intro'))
+
+    def test_parcours_complet_individuel_saute_le_groupe_jusquau_bout(self):
+        client = Client()
+        self._avancer_jusquau_paiement(client, 'individuel.wizard@zidni.test', type_offre='individuel')
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+        self.assertRedirects(reponse, reverse('wizard_confirmation'), fetch_redirect_response=False)
+
+        inscription = InscriptionEleve.objects.get(email='individuel.wizard@zidni.test')
+        self.assertIsNone(inscription.groupe_choisi)
+        self.assertEqual(inscription.abonnement, self.abo_individuel.code)
+
+    def test_moyen_paiement_invalide_refuse_sans_rien_creer(self):
+        client = Client()
+        self._avancer_jusquau_paiement(client, 'moyen_invalide@zidni.test', type_offre='groupe')
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': 'code_inexistant'})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(InscriptionEleve.objects.filter(email='moyen_invalide@zidni.test').exists())
+
+    def test_groupe_id_devenu_incompatible_entre_etape_3_et_confirmation_est_rejete_a_la_confirmation(self):
+        """LE test explicitement demandé : simule une tentative de
+        contournement — un groupe_id INCOMPATIBLE (autre riwaya) est injecté
+        directement dans la session, EN COURT-CIRCUITANT wizard_groupe (donc
+        sans jamais passer par sa propre validation) — pour prouver que la
+        REVALIDATION à la confirmation finale (inscrire_eleve, via
+        groupes_compatibles_avec_age) est indépendante et suffisante à elle
+        seule : aucun plantage, aucune InscriptionEleve créée."""
+        creneau_warsh = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='warsh', age_min=6, age_max=60)
+        remplacer_slots_creneau(creneau_warsh, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        groupe_incompatible = Groupe.objects.create(
+            nom='مجموعة غير متوافقة (تجربة اختراق)', creneau=creneau_warsh, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(
+            groupe=groupe_incompatible, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='warsh'),
+        )
+
+        client = Client()
+        # Avance légitimement jusqu'à l'étape 3 (choisit hafs) SANS jamais
+        # poster wizard_groupe -> pas de groupe_id en session pour l'instant.
+        client.post(reverse('wizard_identite'), {
+            'nom': 'محاولة اختراق', 'sexe': 'homme', 'email': 'tentative.contournement@zidni.test',
+            'date_naissance': '1998-01-01',
+            'indicatif_pays': '212', 'telephone': '0611998877', 'telephone_confirmation': '0611998877',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',  # a choisi hafs
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+
+        # Injection directe en session du groupe INCOMPATIBLE (riwaya warsh),
+        # sans jamais passer par la validation normale de wizard_groupe —
+        # simule un contournement (session altérée, ou plus réalistement un
+        # groupe qui devient incompatible après coup — le mécanisme de
+        # protection est rigoureusement le même dans les deux cas).
+        session = client.session
+        donnees = session.get('wizard_inscription', {})
+        donnees['groupe_id'] = str(groupe_incompatible.id)
+        session['wizard_inscription'] = donnees
+        session.save()
+
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abo_groupe.code})
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+
+        # Refusé proprement : pas de redirection vers la confirmation, pas de
+        # plantage (200, pas 500), aucune InscriptionEleve créée.
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(InscriptionEleve.objects.filter(email='tentative.contournement@zidni.test').exists())
+        self.assertIn('لم تعد متاحة', reponse.content.decode('utf-8'))
+
+    def test_groupe_id_dun_groupe_inexistant_est_rejete_sans_planter(self):
+        """Variante : un groupe_id qui ne correspond à AUCUN Groupe réel
+        (ex: ID au hasard) — jamais un crash (DoesNotExist non rattrapé)."""
+        client = Client()
+        self._avancer_jusquau_paiement(client, 'groupe_inexistant@zidni.test', type_offre='groupe')
+
+        session = client.session
+        donnees = session.get('wizard_inscription', {})
+        donnees['groupe_id'] = '999999999'
+        session['wizard_inscription'] = donnees
+        session.save()
+
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(InscriptionEleve.objects.filter(email='groupe_inexistant@zidni.test').exists())
+
+    def test_confirmation_sans_session_prealable_redirige_a_lintro(self):
+        reponse = Client().get(reverse('wizard_confirmation'))
+        self.assertRedirects(reponse, reverse('wizard_intro'))

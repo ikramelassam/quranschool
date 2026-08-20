@@ -1,0 +1,21 @@
+{% extends 'inscriptions/_wizard_base.html' %}
+{% block wizard_title %}تم التسجيل{% endblock %}
+{% block wizard_content %}
+<div style="text-align:center; padding:20px 0;">
+    <div style="font-size:3rem; margin-bottom:16px;">🎉</div>
+    <div class="page-title">أهلاً بك في زدني علماً</div>
+    <div class="page-subtitle">تم تسجيل طلبك بنجاح، {{ nom }}</div>
+
+    {% if message_bienvenue %}
+    <div style="background:var(--color-bg-cream); border-radius:14px; padding:20px; margin:20px 0; white-space:pre-line; color:#444; text-align:right;">
+        {{ message_bienvenue }}
+    </div>
+    {% endif %}
+
+    <div style="background:#e8f5e9; border-radius:10px; padding:14px 18px; margin-bottom:20px; color:#1b5e20; font-weight:600;">
+        سيتواصل معك فريقنا خلال {{ delai_contact_heures }} ساعة.
+    </div>
+
+    <a href="{% url 'login' %}" class="btn-submit" style="display:block; text-decoration:none;">تسجيل الدخول</a>
+</div>
+{% endblock %}
