@@ -3057,3 +3057,87 @@ class FallbackAffichageProgrammeRiwayaTests(TestCase):
         reponse = self.client.get(reverse('admin_eleve_detail', args=[eleve.id]))
         html = reponse.content.decode('utf-8')
         self.assertIn('ورش', html)
+
+
+# ============================================================================
+# CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5F : balayage de
+# parité CONSOLIDÉ sur TOUTE la surface de pages introduites par ce chantier
+# (5A à 5E) — en plus des tests de parité déjà écrits par sous-étape (35 au
+# total), cette classe unique garantit qu'AUCUNE page de cette interface n'a
+# été oubliée avec un role_required('admin') seul (sans مشرف) par erreur —
+# un test structurel, pas une répétition des tests métier déjà faits.
+# ============================================================================
+class PariteDirecteurMshrifConsolideeTests(TestCase):
+    def setUp(self):
+        from courses.utils import remplacer_slots_creneau as _slots
+        from registration.models import ChampInscription, Critere as CritereInscription, EtapeInscription
+        from payments.models import MoyenPaiement
+
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+        self.eleve = _creer_eleve('eleve_parite_consolidee@zidni.test')
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        _slots(self.creneau, [{'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}])
+        self.groupe = Groupe.objects.create(nom='مجموعة اختبار التناظر', creneau=self.creneau, statut='actif')
+
+        self.critere = CritereInscription.objects.create(code='critere_parite_test', label='معيار اختبار التناظر')
+        self.etape = EtapeInscription.objects.create(code='etape_parite_test', titre='مرحلة اختبار التناظر')
+        self.champ = ChampInscription.objects.create(etape=self.etape, critere=self.critere, label='حقل اختبار', ordre=1)
+        self.moyen = MoyenPaiement.objects.create(code='moyen_parite_test', label='طريقة اختبار')
+
+        # Liste exhaustive des vues GET "sûres" (sans effet de bord) introduites
+        # par ce chantier — toggle/supprimer/ajouter(option) volontairement
+        # exclus (effets de bord déjà testés séparément par rôle dans 5A-5E).
+        self.urls_a_verifier = [
+            ('admin_criteres_inscription', []),
+            ('admin_critere_inscription_ajouter', []),
+            ('admin_critere_inscription_detail', [self.critere.id]),
+            ('admin_critere_inscription_modifier', [self.critere.id]),
+            ('admin_etapes_inscription', []),
+            ('admin_etape_inscription_ajouter', []),
+            ('admin_etape_inscription_detail', [self.etape.id]),
+            ('admin_etape_inscription_modifier', [self.etape.id]),
+            ('admin_champ_inscription_modifier', [self.champ.id]),
+            ('admin_regles_inscription', []),
+            ('admin_regle_inscription_ajouter', []),
+            ('admin_moyens_paiement', []),
+            ('admin_moyen_paiement_ajouter', []),
+            ('admin_moyen_paiement_modifier', [self.moyen.id]),
+            ('admin_presentation_inscription', []),
+            ('admin_gestion_inscriptions', []),
+            ('admin_groupe_detail', [self.groupe.id]),
+        ]
+
+    def test_directeur_et_mshrif_recoivent_exactement_le_meme_statut_partout(self):
+        client_admin = Client()
+        client_admin.force_login(self.admin)
+        client_mshrif = Client()
+        client_mshrif.force_login(self.mshrif)
+
+        echecs = []
+        for url_name, args in self.urls_a_verifier:
+            url = reverse(url_name, args=args)
+            statut_admin = client_admin.get(url).status_code
+            statut_mshrif = client_mshrif.get(url).status_code
+            if statut_admin != statut_mshrif:
+                echecs.append(f'{url_name} : admin={statut_admin} mais mshrif={statut_mshrif}')
+            # Aucune des 2 ne doit être bloquée (200 attendu partout ici).
+            if statut_admin != 200:
+                echecs.append(f'{url_name} : statut inattendu {statut_admin} (attendu 200)')
+
+        self.assertEqual(echecs, [], '\n'.join(echecs))
+
+    def test_eleve_est_bloque_de_maniere_identique_partout(self):
+        client_eleve = Client()
+        client_eleve.force_login(self.eleve.user)
+
+        for url_name, args in self.urls_a_verifier:
+            url = reverse(url_name, args=args)
+            reponse = client_eleve.get(url)
+            # role_required redirige (302) vers le dashboard de l'élève plutôt
+            # que d'afficher la page — jamais 200 sur une de ces pages.
+            self.assertNotEqual(
+                reponse.status_code, 200,
+                f'{url_name} accessible à un élève connecté — role_required manquant ou incorrect ?'
+            )
