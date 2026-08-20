@@ -98,9 +98,37 @@ class InscriptionEleve(models.Model):
         blank=True,
         related_name='inscriptions'
     )
-    programme = models.CharField(max_length=20, choices=PROGRAMME_CHOICES)
-    riwaya = models.CharField(max_length=10, choices=RIWAYA_CHOICES)
-    outil = models.CharField(max_length=20, choices=OUTIL_CHOICES)
+    # Chantier du moteur d'inscription configurable (registration.utils.inscrire_eleve)
+    # — le nouveau parcours "Groupe" choisit un groupe PRÉCIS dès l'étape 3 de la
+    # candidature, avant toute validation admin. Contrairement à creneau_souhaite
+    # ci-dessus (vestige de l'ancien formulaire, jamais rempli par
+    # inscription_eleve_formulaire depuis longtemps), ce champ EST activement écrit
+    # par inscrire_eleve() dès qu'un groupe est choisi. Un Eleve n'existe pas encore
+    # à ce stade (Groupe.eleves est un M2M vers accounts.Eleve, créé seulement à la
+    # validation) — ce FK mémorise donc le choix jusqu'à la validation admin, qui
+    # devra le lire pour rattacher automatiquement le nouvel Eleve à CE groupe
+    # (câblage laissé à un chantier ultérieur — non modifié ici, voir
+    # dashboard.views.admin_valider_eleve, existant, non touché par ce commit).
+    # SET_NULL : la suppression du groupe ne doit jamais faire échouer/perdre la
+    # candidature, seulement oublier le choix (même raisonnement que
+    # creneau_souhaite juste au-dessus).
+    groupe_choisi = models.ForeignKey(
+        'courses.Groupe',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='candidatures_le_choisissant',
+    )
+    programme = models.CharField(max_length=20, choices=PROGRAMME_CHOICES, blank=True, default='')
+    riwaya = models.CharField(max_length=10, choices=RIWAYA_CHOICES, blank=True, default='')
+    # blank/default ajoutés au chantier du moteur d'inscription configurable :
+    # "وسيلة الحضور" ne fait pas encore partie du nouveau parcours (registration.
+    # utils.inscrire_eleve) — laissé vide pour toute candidature créée par ce
+    # nouveau chemin, jusqu'à ce qu'un chantier ultérieur décide où il doit vivre
+    # (champ informatif générique, ou critère filtrable dédié). Comportement de
+    # l'ancien formulaire à une page totalement inchangé (outil reste rempli comme
+    # avant pour ce chemin-là, seule la contrainte "obligatoire" est relâchée).
+    outil = models.CharField(max_length=20, choices=OUTIL_CHOICES, blank=True, default='')
     abonnement = models.CharField(max_length=30)
 
     # Extras

@@ -82,6 +82,16 @@ class ChampsInscriptionVisiblesTests(TestCase):
             "boutons/sections s'affichent, ce n'est pas une donnée de "
             "candidature à afficher comme telle."
         ),
+        'groupe_choisi': (
+            "chantier du moteur d'inscription configurable (registration.utils."
+            "inscrire_eleve) — écrit UNIQUEMENT par le nouveau parcours (pas "
+            "encore branché à aucune vue à ce stade, voir registration/views.py, "
+            "toujours vide). À AJOUTER à champs_verifies_affiches + un vrai test "
+            "de rendu dès qu'admin_inscription_eleve_detail.html l'affiche (prévu "
+            "à un chantier ultérieur, quand admin_valider_eleve saura rattacher "
+            "automatiquement le nouvel Eleve à ce groupe) — ne pas oublier, "
+            "c'est exactement le genre d'oubli que ce test existe pour éviter."
+        ),
     }
 
     def _creer_inscription_eleve(self, **overrides):
