@@ -1274,6 +1274,27 @@ def admin_gestion_inscriptions(request):
         parametres.ouverte_eleve_adulte = request.POST.get('ouverte_eleve_adulte') == '1'
         parametres.ouverte_eleve_enfant = request.POST.get('ouverte_eleve_enfant') == '1'
         parametres.ouverte_prof = request.POST.get('ouverte_prof') == '1'
+
+        # Chantier du moteur d'inscription configurable — délais anciennement
+        # non configurables nulle part (10 jours pour le paiement n'existait
+        # même pas en dur dans le code avant ce chantier, voir l'audit
+        # préalable). Même patron de validation que admin_reglage_retention_
+        # chat.duree_retention_jours : entier >= 1, sinon message d'erreur et
+        # AUCUN champ du formulaire n'est sauvegardé (tout ou rien, pas de
+        # sauvegarde partielle qui laisserait les toggles ouverte_* enregistrés
+        # mais pas les délais).
+        try:
+            delai_paiement = int(request.POST.get('delai_paiement_jours', 0))
+            delai_contact = int(request.POST.get('delai_contact_heures', 0))
+        except ValueError:
+            messages.error(request, 'يرجى إدخال أرقام صحيحة للمهل الزمنية.')
+            return redirect('admin_gestion_inscriptions')
+        if delai_paiement < 1 or delai_contact < 1:
+            messages.error(request, 'يجب أن تكون كل مهلة زمنية يوماً/ساعة واحدة على الأقل.')
+            return redirect('admin_gestion_inscriptions')
+        parametres.delai_paiement_jours = delai_paiement
+        parametres.delai_contact_heures = delai_contact
+
         parametres.derniere_modification_par = request.user
         parametres.save()
         messages.success(request, 'تم تحديث إعدادات التسجيل بنجاح.')
@@ -6231,3 +6252,98 @@ def admin_regle_inscription_supprimer(request, regle_id):
     get_object_or_404(RegleCondition, id=regle_id).delete()
     messages.success(request, 'تم حذف القاعدة الشرطية.')
     return redirect('admin_regles_inscription')
+
+
+# ============================================================================
+# CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5C : MoyenPaiement +
+# PresentationInscription. Directeur ET مشرف, accès strictement identique.
+# ============================================================================
+
+@role_required('admin', 'mshrif')
+def admin_moyens_paiement(request):
+    from payments.models import MoyenPaiement
+
+    moyens = MoyenPaiement.objects.all().order_by('ordre', 'id')
+    context = {
+        'moyens': moyens,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_moyens_paiement.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_moyen_paiement_ajouter(request):
+    from payments.models import MoyenPaiement
+
+    if request.method == 'POST':
+        code = request.POST.get('code', '').strip()
+        if not code or MoyenPaiement.objects.filter(code=code).exists():
+            messages.error(request, 'الرمز إلزامي ويجب أن يكون فريداً.')
+            return render(request, 'dashboard/admin_moyen_paiement_ajouter.html', {
+                'base_template': _base_template_admin_ou_mshrif(request),
+                'valeurs_form': request.POST,
+            })
+        MoyenPaiement.objects.create(
+            code=code,
+            label=request.POST.get('label', '').strip(),
+            coordonnees=request.POST.get('coordonnees', '').strip(),
+            ordre=request.POST.get('ordre') or 0,
+        )
+        messages.success(request, 'تمت إضافة طريقة الدفع بنجاح.')
+        return redirect('admin_moyens_paiement')
+
+    return render(request, 'dashboard/admin_moyen_paiement_ajouter.html', {
+        'base_template': _base_template_admin_ou_mshrif(request),
+    })
+
+
+@role_required('admin', 'mshrif')
+def admin_moyen_paiement_modifier(request, moyen_id):
+    from payments.models import MoyenPaiement
+    moyen = get_object_or_404(MoyenPaiement, id=moyen_id)
+
+    if request.method == 'POST':
+        moyen.label = request.POST.get('label', '').strip()
+        moyen.coordonnees = request.POST.get('coordonnees', '').strip()
+        moyen.ordre = request.POST.get('ordre') or 0
+        moyen.save()
+        messages.success(request, 'تم تعديل طريقة الدفع بنجاح.')
+        return redirect('admin_moyens_paiement')
+
+    return render(request, 'dashboard/admin_moyen_paiement_modifier.html', {
+        'moyen': moyen,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    })
+
+
+@role_required('admin', 'mshrif')
+def admin_moyen_paiement_toggle(request, moyen_id):
+    from payments.models import MoyenPaiement
+    moyen = get_object_or_404(MoyenPaiement, id=moyen_id)
+    moyen.est_actif = not moyen.est_actif
+    moyen.save()
+    messages.info(request, 'تم تفعيل طريقة الدفع.' if moyen.est_actif else 'تم تعطيل طريقة الدفع.')
+    return redirect('admin_moyens_paiement')
+
+
+@role_required('admin', 'mshrif')
+def admin_presentation_inscription(request):
+    from registration.models import get_presentation_inscription
+
+    presentation = get_presentation_inscription()
+    if request.method == 'POST':
+        presentation.titre = request.POST.get('titre', '').strip()
+        presentation.intro = request.POST.get('intro', '').strip()
+        presentation.bouton_texte = request.POST.get('bouton_texte', '').strip() or 'متابعة التسجيل'
+        presentation.message_bienvenue = request.POST.get('message_bienvenue', '').strip()
+        presentation.save()
+        messages.success(request, 'تم تحديث صفحة تقديم التسجيل بنجاح.')
+        return redirect('admin_presentation_inscription')
+
+    context = {
+        'presentation': presentation,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_presentation_inscription.html', context)

@@ -1,0 +1,34 @@
+{% extends base_template %}
+{% block title %}تعديل {{ moyen.label }}{% endblock %}
+{% block content %}
+<div class="page-title">تعديل طريقة دفع: {{ moyen.label }}</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الرمز</label>
+            <input type="text" class="form-control mt-1" value="{{ moyen.code }}" disabled>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الاسم المعروض *</label>
+            <input type="text" name="label" class="form-control mt-1" value="{{ moyen.label }}" required>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">المعلومات المعروضة عند الاختيار</label>
+            <textarea name="coordonnees" class="form-control mt-1" rows="4">{{ moyen.coordonnees }}</textarea>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
+            <input type="number" name="ordre" class="form-control mt-1" value="{{ moyen.ordre }}">
+        </div>
+        <div class="d-flex gap-3 mt-4">
+            <button type="submit"
+                style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                حفظ التعديلات ✅
+            </button>
+            <a href="{% url 'admin_moyens_paiement' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

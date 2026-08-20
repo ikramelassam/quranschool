@@ -198,4 +198,11 @@ urlpatterns = [
     path('admin/regles-inscription/ajouter/', views.admin_regle_inscription_ajouter, name='admin_regle_inscription_ajouter'),
     path('admin/regles-inscription/<int:regle_id>/toggle/', views.admin_regle_inscription_toggle, name='admin_regle_inscription_toggle'),
     path('admin/regles-inscription/<int:regle_id>/supprimer/', views.admin_regle_inscription_supprimer, name='admin_regle_inscription_supprimer'),
+
+    # ---- Étape 5C : Moyens de paiement / Présentation de l'inscription ----
+    path('admin/moyens-paiement/', views.admin_moyens_paiement, name='admin_moyens_paiement'),
+    path('admin/moyens-paiement/ajouter/', views.admin_moyen_paiement_ajouter, name='admin_moyen_paiement_ajouter'),
+    path('admin/moyens-paiement/<int:moyen_id>/modifier/', views.admin_moyen_paiement_modifier, name='admin_moyen_paiement_modifier'),
+    path('admin/moyens-paiement/<int:moyen_id>/toggle/', views.admin_moyen_paiement_toggle, name='admin_moyen_paiement_toggle'),
+    path('admin/presentation-inscription/', views.admin_presentation_inscription, name='admin_presentation_inscription'),
 ]

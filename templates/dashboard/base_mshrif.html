@@ -270,7 +270,7 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_criteres_inscription' or request.resolver_match.url_name == 'admin_critere_inscription_ajouter' or request.resolver_match.url_name == 'admin_critere_inscription_detail' or request.resolver_match.url_name == 'admin_critere_inscription_modifier' or request.resolver_match.url_name == 'admin_critere_option_modifier' or request.resolver_match.url_name == 'admin_etapes_inscription' or request.resolver_match.url_name == 'admin_etape_inscription_ajouter' or request.resolver_match.url_name == 'admin_etape_inscription_detail' or request.resolver_match.url_name == 'admin_etape_inscription_modifier' or request.resolver_match.url_name == 'admin_champ_inscription_modifier' or request.resolver_match.url_name == 'admin_regles_inscription' or request.resolver_match.url_name == 'admin_regle_inscription_ajouter' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_criteres_inscription' or request.resolver_match.url_name == 'admin_critere_inscription_ajouter' or request.resolver_match.url_name == 'admin_critere_inscription_detail' or request.resolver_match.url_name == 'admin_critere_inscription_modifier' or request.resolver_match.url_name == 'admin_critere_option_modifier' or request.resolver_match.url_name == 'admin_etapes_inscription' or request.resolver_match.url_name == 'admin_etape_inscription_ajouter' or request.resolver_match.url_name == 'admin_etape_inscription_detail' or request.resolver_match.url_name == 'admin_etape_inscription_modifier' or request.resolver_match.url_name == 'admin_champ_inscription_modifier' or request.resolver_match.url_name == 'admin_regles_inscription' or request.resolver_match.url_name == 'admin_regle_inscription_ajouter' or request.resolver_match.url_name == 'admin_moyens_paiement' or request.resolver_match.url_name == 'admin_moyen_paiement_ajouter' or request.resolver_match.url_name == 'admin_moyen_paiement_modifier' or request.resolver_match.url_name == 'admin_presentation_inscription' %}open{% endif %}>
             <summary>محرك التسجيل</summary>
             <a href="{% url 'admin_criteres_inscription' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_criteres_inscription' or request.resolver_match.url_name == 'admin_critere_inscription_ajouter' or request.resolver_match.url_name == 'admin_critere_inscription_detail' or request.resolver_match.url_name == 'admin_critere_inscription_modifier' or request.resolver_match.url_name == 'admin_critere_option_modifier' %}active{% endif %}">
@@ -283,6 +283,14 @@
             <a href="{% url 'admin_regles_inscription' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_regles_inscription' or request.resolver_match.url_name == 'admin_regle_inscription_ajouter' %}active{% endif %}">
                 <span class="icon">🔀</span> القواعد الشرطية
+            </a>
+            <a href="{% url 'admin_moyens_paiement' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_moyens_paiement' or request.resolver_match.url_name == 'admin_moyen_paiement_ajouter' or request.resolver_match.url_name == 'admin_moyen_paiement_modifier' %}active{% endif %}">
+                <span class="icon">💳</span> طرق الدفع
+            </a>
+            <a href="{% url 'admin_presentation_inscription' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_presentation_inscription' %}active{% endif %}">
+                <span class="icon">📄</span> صفحة تقديم التسجيل
             </a>
         </details>
 

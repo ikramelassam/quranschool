@@ -2826,3 +2826,94 @@ class EtapeChampRegleInscriptionCRUDTests(TestCase):
         client = self._connecte_admin()
         client.get(reverse('admin_regle_inscription_supprimer', args=[regle.id]))
         self.assertFalse(RegleCondition.objects.filter(id=regle.id).exists())
+
+
+# ============================================================================
+# CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5C : MoyenPaiement +
+# PresentationInscription + délais (ParametresInscriptions). Même exigence de
+# parité stricte Directeur/مشرف que 5A/5B.
+# ============================================================================
+class MoyenPaiementPresentationDelaisTests(TestCase):
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def _connecte_mshrif(self):
+        client = Client()
+        client.force_login(self.mshrif)
+        return client
+
+    def test_liste_et_ajout_moyen_paiement_a_parite_stricte(self):
+        from payments.models import MoyenPaiement
+
+        for i, client in enumerate((self._connecte_admin(), self._connecte_mshrif())):
+            reponse_liste = client.get(reverse('admin_moyens_paiement'))
+            self.assertEqual(reponse_liste.status_code, 200)
+
+            reponse_post = client.post(reverse('admin_moyen_paiement_ajouter'), {
+                'code': f'moyen_test_{i}', 'label': 'CIH بنك', 'coordonnees': 'RIB: 123456789', 'ordre': i,
+            })
+            self.assertEqual(reponse_post.status_code, 302)
+        self.assertEqual(MoyenPaiement.objects.filter(code__startswith='moyen_test_').count(), 2)
+
+    def test_modification_et_toggle_moyen_paiement(self):
+        from payments.models import MoyenPaiement
+
+        moyen = MoyenPaiement.objects.create(code='barid', label='Barid Bank', coordonnees='RIB initial')
+        client = self._connecte_mshrif()
+
+        reponse = client.post(reverse('admin_moyen_paiement_modifier', args=[moyen.id]), {
+            'label': 'Barid Bank (محدث)', 'coordonnees': 'RIB modifié', 'ordre': 5,
+        })
+        self.assertEqual(reponse.status_code, 302)
+        moyen.refresh_from_db()
+        self.assertEqual(moyen.coordonnees, 'RIB modifié')
+
+        client.get(reverse('admin_moyen_paiement_toggle', args=[moyen.id]))
+        moyen.refresh_from_db()
+        self.assertFalse(moyen.est_actif)
+
+    def test_presentation_inscription_editable_par_les_deux_roles(self):
+        for client in (self._connecte_admin(), self._connecte_mshrif()):
+            reponse = client.post(reverse('admin_presentation_inscription'), {
+                'titre': 'أهلاً بك', 'intro': 'نص الميثاق', 'bouton_texte': 'متابعة',
+                'message_bienvenue': 'مرحباً بك في زدني علماً',
+            })
+            self.assertEqual(reponse.status_code, 302)
+
+        from registration.models import get_presentation_inscription
+        presentation = get_presentation_inscription()
+        self.assertEqual(presentation.titre, 'أهلاً بك')
+
+    def test_delais_paiement_et_contact_configurables(self):
+        from inscriptions.models import get_parametres_inscriptions
+
+        client = self._connecte_admin()
+        reponse = client.post(reverse('admin_gestion_inscriptions'), {
+            'ouverte_eleve_adulte': '1', 'ouverte_eleve_enfant': '1', 'ouverte_prof': '1',
+            'delai_paiement_jours': '7', 'delai_contact_heures': '48',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        parametres = get_parametres_inscriptions()
+        self.assertEqual(parametres.delai_paiement_jours, 7)
+        self.assertEqual(parametres.delai_contact_heures, 48)
+
+    def test_delai_invalide_refuse_sans_rien_sauvegarder(self):
+        from inscriptions.models import get_parametres_inscriptions
+
+        parametres_avant = get_parametres_inscriptions()
+        valeur_avant = parametres_avant.delai_paiement_jours
+
+        client = self._connecte_mshrif()
+        reponse = client.post(reverse('admin_gestion_inscriptions'), {
+            'ouverte_eleve_adulte': '1', 'ouverte_eleve_enfant': '1', 'ouverte_prof': '1',
+            'delai_paiement_jours': '0', 'delai_contact_heures': '48',
+        })
+        self.assertEqual(reponse.status_code, 302)  # redirige quand même (erreur via messages, pas 200)
+        parametres_apres = get_parametres_inscriptions()
+        self.assertEqual(parametres_apres.delai_paiement_jours, valeur_avant)  # inchangé
