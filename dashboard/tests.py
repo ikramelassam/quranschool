@@ -15,7 +15,10 @@ from courses.models import (
     DisponibiliteEleve, DisponibiliteProf, DemandeModificationDisponibilite,
 )
 from courses.utils import remplacer_slots_creneau
-from registration.models import Critere as CritereInscription, CritereOption, GroupeCritereValeur
+from registration.models import (
+    ChampInscription, Critere as CritereInscription, CritereOption, EtapeInscription,
+    GroupeCritereValeur, RegleCondition,
+)
 from evaluations.models import Evaluation, CommentaireMensuel, Critere, NoteEvaluation
 from examens.models import Examen
 from inscriptions.models import InscriptionEleve, InscriptionProf, PhraseRefus
@@ -2677,3 +2680,149 @@ class CritereInscriptionCRUDTests(TestCase):
         self.assertEqual(reponse2.status_code, 302)
         critere.refresh_from_db()
         self.assertTrue(critere.filtrable)
+
+
+# ============================================================================
+# CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5B : CRUD
+# EtapeInscription / ChampInscription / RegleCondition. Même exigence de
+# parité stricte Directeur/مشرف que 5A.
+# ============================================================================
+class EtapeChampRegleInscriptionCRUDTests(TestCase):
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def _connecte_mshrif(self):
+        client = Client()
+        client.force_login(self.mshrif)
+        return client
+
+    def test_liste_etapes_accessible_a_parite_stricte(self):
+        for client in (self._connecte_admin(), self._connecte_mshrif()):
+            reponse = client.get(reverse('admin_etapes_inscription'))
+            self.assertEqual(reponse.status_code, 200)
+
+    def test_ajout_etape_reussit_pour_les_deux_roles(self):
+        for i, client in enumerate((self._connecte_admin(), self._connecte_mshrif())):
+            reponse = client.post(reverse('admin_etape_inscription_ajouter'), {
+                'code': f'etape_test_{i}', 'titre': 'اختيار البرنامج', 'ordre': i,
+            })
+            self.assertEqual(reponse.status_code, 302)
+            self.assertTrue(EtapeInscription.objects.filter(code=f'etape_test_{i}').exists())
+
+    def test_detail_etape_affiche_les_champs_et_le_formulaire_ajout(self):
+        etape = EtapeInscription.objects.create(code='programme', titre='اختيار البرنامج')
+        critere = CritereInscription.objects.create(code='riwaya', label='الرواية')
+        client = self._connecte_admin()
+        reponse = client.get(reverse('admin_etape_inscription_detail', args=[etape.id]))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('الرواية', reponse.content.decode('utf-8'))
+
+    def test_ajout_champ_avec_critere_et_champ_informatif(self):
+        etape = EtapeInscription.objects.create(code='identite', titre='المعلومات الشخصية')
+        critere = CritereInscription.objects.create(code='riwaya', label='الرواية')
+        client = self._connecte_admin()
+
+        # Champ lié à un critère.
+        client.post(reverse('admin_champ_inscription_ajouter', args=[etape.id]), {
+            'critere_id': critere.id, 'label': 'الرواية', 'obligatoire': 'on', 'ordre': 1,
+        })
+        champ_critere = ChampInscription.objects.get(etape=etape, critere=critere)
+        self.assertTrue(champ_critere.obligatoire)
+
+        # Champ informatif pur (pas de critere_id).
+        client.post(reverse('admin_champ_inscription_ajouter', args=[etape.id]), {
+            'label': 'البلد', 'type_champ': 'texte', 'ordre': 2,
+        })
+        champ_info = ChampInscription.objects.get(etape=etape, critere__isnull=True)
+        self.assertEqual(champ_info.type_champ, 'texte')
+
+    def test_suppression_etape_avec_champs_est_refusee(self):
+        etape = EtapeInscription.objects.create(code='programme', titre='اختيار البرنامج')
+        ChampInscription.objects.create(etape=etape, label='حقل', ordre=1)
+        client = self._connecte_admin()
+        client.get(reverse('admin_etape_inscription_supprimer', args=[etape.id]))
+        self.assertTrue(EtapeInscription.objects.filter(id=etape.id).exists())
+
+    def test_suppression_champ_deja_repondu_est_refusee(self):
+        from inscriptions.models import InscriptionEleve
+        from registration.models import ReponseInscription
+
+        etape = EtapeInscription.objects.create(code='identite', titre='المعلومات')
+        champ = ChampInscription.objects.create(etape=etape, label='البلد', type_champ='texte', ordre=1)
+        inscription = InscriptionEleve.objects.create(
+            nom='طالب اختبار', date_naissance='2000-01-01', sexe='homme',
+            telephone='+212600000000', email='test_suppr_champ@zidni.test',
+        )
+        ReponseInscription.objects.create(inscription=inscription, champ=champ, valeur_texte='المغرب')
+
+        client = self._connecte_mshrif()
+        client.get(reverse('admin_champ_inscription_supprimer', args=[champ.id]))
+        self.assertTrue(ChampInscription.objects.filter(id=champ.id).exists())
+
+    def test_rendre_champ_obligatoire_sans_couverture_demande_confirmation(self):
+        from courses.models import Creneau, Groupe
+        from courses.utils import remplacer_slots_creneau as _slots
+
+        etape = EtapeInscription.objects.create(code='programme', titre='اختيار البرنامج')
+        critere = CritereInscription.objects.create(code='objectif', label='الهدف', filtrable=True)
+        champ = ChampInscription.objects.create(etape=etape, critere=critere, label='الهدف', obligatoire=False, ordre=1)
+        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        _slots(creneau, [{'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}])
+        Groupe.objects.create(nom='مجموعة بدون قيمة', creneau=creneau, statut='actif')
+
+        client = self._connecte_admin()
+        reponse = client.post(reverse('admin_champ_inscription_modifier', args=[champ.id]), {
+            'label': 'الهدف', 'obligatoire': 'on', 'ordre': 1, 'est_actif': 'on',
+        })
+        self.assertEqual(reponse.status_code, 200)
+        champ.refresh_from_db()
+        self.assertFalse(champ.obligatoire)
+
+        reponse2 = client.post(reverse('admin_champ_inscription_modifier', args=[champ.id]), {
+            'label': 'الهدف', 'obligatoire': 'on', 'ordre': 1, 'est_actif': 'on', 'confirme': '1',
+        })
+        self.assertEqual(reponse2.status_code, 302)
+        champ.refresh_from_db()
+        self.assertTrue(champ.obligatoire)
+
+    def test_liste_et_ajout_regle_condition(self):
+        etape_groupe = EtapeInscription.objects.create(code='choix_groupe', titre='اختيار المجموعة')
+        critere = CritereInscription.objects.create(
+            code='type_offre', label='نوع الحصة', backend='champ_groupe', champ_modele_groupe='type_capacite',
+        )
+        CritereOption.objects.create(critere=critere, code='groupe', label='جماعي')
+        CritereOption.objects.create(critere=critere, code='individuel', label='فردي')
+
+        client = self._connecte_mshrif()
+        reponse_liste = client.get(reverse('admin_regles_inscription'))
+        self.assertEqual(reponse_liste.status_code, 200)
+
+        reponse_ajout = client.get(reverse('admin_regle_inscription_ajouter'))
+        self.assertEqual(reponse_ajout.status_code, 200)
+
+        reponse_post = client.post(reverse('admin_regle_inscription_ajouter'), {
+            'critere_condition_id': critere.id, 'operateur': 'different',
+            'valeurs': ['groupe'], 'cible_type': 'etape', 'cible_id': etape_groupe.id,
+        })
+        self.assertEqual(reponse_post.status_code, 302)
+        regle = RegleCondition.objects.get()
+        self.assertEqual(regle.cible, etape_groupe)
+        self.assertEqual(regle.valeurs, ['groupe'])
+
+    def test_suppression_regle_reussit(self):
+        etape = EtapeInscription.objects.create(code='programme', titre='برنامج')
+        critere = CritereInscription.objects.create(code='riwaya', label='الرواية')
+        from django.contrib.contenttypes.models import ContentType
+        regle = RegleCondition.objects.create(
+            cible_content_type=ContentType.objects.get_for_model(EtapeInscription),
+            cible_object_id=etape.id, critere_condition=critere, operateur='egal', valeurs=['hafs'],
+        )
+        client = self._connecte_admin()
+        client.get(reverse('admin_regle_inscription_supprimer', args=[regle.id]))
+        self.assertFalse(RegleCondition.objects.filter(id=regle.id).exists())

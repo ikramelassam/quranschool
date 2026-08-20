@@ -5966,3 +5966,268 @@ def admin_critere_option_supprimer(request, option_id):
             f'يمكنك تعطيله بدلاً من حذفه.'
         )
     return redirect('admin_critere_inscription_detail', critere_id)
+
+
+# ============================================================================
+# CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5B : CRUD
+# EtapeInscription / ChampInscription / RegleCondition. Directeur ET مشرف,
+# accès strictement identique (voir Étape 5A pour la justification).
+# ============================================================================
+
+@role_required('admin', 'mshrif')
+def admin_etapes_inscription(request):
+    from registration.models import EtapeInscription
+
+    etapes = EtapeInscription.objects.all().order_by('ordre', 'id')
+    context = {
+        'etapes': etapes,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_etapes_inscription.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_etape_inscription_ajouter(request):
+    from registration.models import EtapeInscription
+
+    if request.method == 'POST':
+        code = request.POST.get('code', '').strip()
+        if not code or EtapeInscription.objects.filter(code=code).exists():
+            messages.error(request, 'الرمز إلزامي ويجب أن يكون فريداً.')
+            return render(request, 'dashboard/admin_etape_inscription_ajouter.html', {
+                'base_template': _base_template_admin_ou_mshrif(request),
+                'valeurs_form': request.POST,
+            })
+        etape = EtapeInscription.objects.create(
+            code=code,
+            titre=request.POST.get('titre', '').strip(),
+            ordre=request.POST.get('ordre') or 0,
+        )
+        messages.success(request, f'تمت إضافة المرحلة "{etape.titre}" بنجاح.')
+        return redirect('admin_etape_inscription_detail', etape.id)
+
+    return render(request, 'dashboard/admin_etape_inscription_ajouter.html', {
+        'base_template': _base_template_admin_ou_mshrif(request),
+    })
+
+
+@role_required('admin', 'mshrif')
+def admin_etape_inscription_detail(request, etape_id):
+    from registration.models import Critere, EtapeInscription
+
+    etape = get_object_or_404(EtapeInscription, id=etape_id)
+    context = {
+        'etape': etape,
+        'champs': etape.champs.all().select_related('critere').order_by('ordre', 'id'),
+        'criteres_disponibles': Critere.objects.filter(est_actif=True).order_by('ordre'),
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_etape_inscription_detail.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_etape_inscription_modifier(request, etape_id):
+    from registration.models import EtapeInscription
+
+    etape = get_object_or_404(EtapeInscription, id=etape_id)
+    if request.method == 'POST':
+        etape.titre = request.POST.get('titre', '').strip()
+        etape.ordre = request.POST.get('ordre') or 0
+        etape.est_actif = request.POST.get('est_actif') == 'on'
+        etape.save()
+        messages.success(request, f'تم تعديل المرحلة "{etape.titre}" بنجاح.')
+        return redirect('admin_etape_inscription_detail', etape.id)
+
+    return render(request, 'dashboard/admin_etape_inscription_modifier.html', {
+        'etape': etape,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    })
+
+
+@role_required('admin', 'mshrif')
+def admin_etape_inscription_toggle(request, etape_id):
+    from registration.models import EtapeInscription
+    etape = get_object_or_404(EtapeInscription, id=etape_id)
+    etape.est_actif = not etape.est_actif
+    etape.save()
+    messages.info(request, 'تم تفعيل المرحلة.' if etape.est_actif else 'تم تعطيل المرحلة — لن تظهر في نموذج التسجيل.')
+    return redirect('admin_etapes_inscription')
+
+
+@role_required('admin', 'mshrif')
+def admin_etape_inscription_supprimer(request, etape_id):
+    from django.db.models.deletion import ProtectedError
+    from registration.models import EtapeInscription
+
+    etape = get_object_or_404(EtapeInscription, id=etape_id)
+    titre = etape.titre
+    try:
+        etape.delete()
+        messages.success(request, f'تم حذف المرحلة "{titre}".')
+    except ProtectedError:
+        messages.error(
+            request,
+            f'تعذر حذف "{titre}": هذه المرحلة تحتوي على حقول. احذف/انقل الحقول أولاً، أو عطّل المرحلة بدلاً من حذفها.'
+        )
+    return redirect('admin_etapes_inscription')
+
+
+# ---- Champs d'une étape ----
+
+@role_required('admin', 'mshrif')
+def admin_champ_inscription_ajouter(request, etape_id):
+    from registration.models import ChampInscription, Critere, EtapeInscription
+
+    etape = get_object_or_404(EtapeInscription, id=etape_id)
+    if request.method == 'POST':
+        critere_id = request.POST.get('critere_id') or None
+        critere = get_object_or_404(Critere, id=critere_id) if critere_id else None
+
+        ChampInscription.objects.create(
+            etape=etape,
+            critere=critere,
+            type_champ=request.POST.get('type_champ', '') if critere is None else '',
+            label=request.POST.get('label', '').strip(),
+            obligatoire=request.POST.get('obligatoire') == 'on',
+            ordre=request.POST.get('ordre') or 0,
+        )
+        messages.success(request, 'تمت إضافة الحقل بنجاح.')
+    return redirect('admin_etape_inscription_detail', etape.id)
+
+
+@role_required('admin', 'mshrif')
+def admin_champ_inscription_modifier(request, champ_id):
+    from registration.models import ChampInscription, Critere
+    from registration.utils import couverture_critere
+
+    champ = get_object_or_404(ChampInscription, id=champ_id)
+
+    if request.method == 'POST':
+        obligatoire_demande = request.POST.get('obligatoire') == 'on'
+        confirme = request.POST.get('confirme') == '1'
+
+        # Rendre un champ obligatoire alors que le critère lié n'est pas
+        # entièrement couvert par les groupes actifs mérite le même
+        # avertissement qu'activer filtrable=True (Parties 7-8) — un champ
+        # obligatoire mais mal couvert bloquerait des candidats sans groupe
+        # disponible pour eux.
+        couverture = None
+        if champ.critere and obligatoire_demande:
+            couverture = couverture_critere(champ.critere)
+        if couverture and couverture['configures'] < couverture['total'] and not confirme:
+            return render(request, 'dashboard/admin_champ_inscription_modifier.html', {
+                'champ': champ, 'couverture_warning': couverture,
+                'base_template': _base_template_admin_ou_mshrif(request),
+            })
+
+        champ.label = request.POST.get('label', '').strip()
+        champ.obligatoire = obligatoire_demande
+        champ.ordre = request.POST.get('ordre') or 0
+        champ.est_actif = request.POST.get('est_actif') == 'on'
+        if champ.critere is None:
+            champ.type_champ = request.POST.get('type_champ', champ.type_champ)
+        champ.save()
+        messages.success(request, 'تم تعديل الحقل بنجاح.')
+        return redirect('admin_etape_inscription_detail', champ.etape_id)
+
+    return render(request, 'dashboard/admin_champ_inscription_modifier.html', {
+        'champ': champ,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    })
+
+
+@role_required('admin', 'mshrif')
+def admin_champ_inscription_toggle(request, champ_id):
+    from registration.models import ChampInscription
+    champ = get_object_or_404(ChampInscription, id=champ_id)
+    champ.est_actif = not champ.est_actif
+    champ.save()
+    messages.info(request, 'تم تفعيل الحقل.' if champ.est_actif else 'تم تعطيل الحقل.')
+    return redirect('admin_etape_inscription_detail', champ.etape_id)
+
+
+@role_required('admin', 'mshrif')
+def admin_champ_inscription_supprimer(request, champ_id):
+    from django.db.models.deletion import ProtectedError
+    from registration.models import ChampInscription
+
+    champ = get_object_or_404(ChampInscription, id=champ_id)
+    etape_id = champ.etape_id
+    label = champ.label
+    try:
+        champ.delete()
+        messages.success(request, f'تم حذف الحقل "{label}".')
+    except ProtectedError:
+        messages.error(
+            request,
+            f'تعذر حذف "{label}": هذا الحقل استُخدم بالفعل في طلبات تسجيل سابقة. '
+            f'يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.'
+        )
+    return redirect('admin_etape_inscription_detail', etape_id)
+
+
+# ---- Règles conditionnelles ----
+
+@role_required('admin', 'mshrif')
+def admin_regles_inscription(request):
+    from registration.models import RegleCondition
+
+    regles = RegleCondition.objects.select_related('critere_condition', 'cible_content_type').order_by('id')
+    context = {
+        'regles': regles,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_regles_inscription.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_regle_inscription_ajouter(request):
+    from django.contrib.contenttypes.models import ContentType
+    from registration.models import ChampInscription, Critere, EtapeInscription, RegleCondition
+
+    if request.method == 'POST':
+        cible_type = request.POST.get('cible_type')  # 'etape' ou 'champ'
+        cible_id = request.POST.get('cible_id')
+        critere_condition = get_object_or_404(Critere, id=request.POST.get('critere_condition_id'))
+        modele_cible = EtapeInscription if cible_type == 'etape' else ChampInscription
+        cible = get_object_or_404(modele_cible, id=cible_id)
+
+        RegleCondition.objects.create(
+            cible_content_type=ContentType.objects.get_for_model(modele_cible),
+            cible_object_id=cible.id,
+            critere_condition=critere_condition,
+            operateur=request.POST.get('operateur', 'egal'),
+            valeurs=request.POST.getlist('valeurs'),
+        )
+        messages.success(request, 'تمت إضافة القاعدة الشرطية بنجاح.')
+        return redirect('admin_regles_inscription')
+
+    context = {
+        'etapes': EtapeInscription.objects.all().order_by('ordre'),
+        'champs': ChampInscription.objects.select_related('etape').order_by('etape__ordre', 'ordre'),
+        'criteres': Critere.objects.filter(est_actif=True).prefetch_related('options').order_by('ordre'),
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_regle_inscription_ajouter.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_regle_inscription_toggle(request, regle_id):
+    from registration.models import RegleCondition
+    regle = get_object_or_404(RegleCondition, id=regle_id)
+    regle.est_actif = not regle.est_actif
+    regle.save()
+    messages.info(request, 'تم تفعيل القاعدة.' if regle.est_actif else 'تم تعطيل القاعدة.')
+    return redirect('admin_regles_inscription')
+
+
+@role_required('admin', 'mshrif')
+def admin_regle_inscription_supprimer(request, regle_id):
+    from registration.models import RegleCondition
+    get_object_or_404(RegleCondition, id=regle_id).delete()
+    messages.success(request, 'تم حذف القاعدة الشرطية.')
+    return redirect('admin_regles_inscription')

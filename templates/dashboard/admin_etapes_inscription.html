@@ -1,0 +1,33 @@
+{% extends base_template %}
+{% block title %}مراحل نموذج التسجيل{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <div class="page-title">مراحل نموذج التسجيل</div>
+        <div class="page-subtitle">كل مرحلة تظهر كخطوة في نموذج تسجيل الطالب</div>
+    </div>
+    <a href="{% url 'admin_etape_inscription_ajouter' %}"
+       style="background:var(--color-role-admin); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+       + إضافة مرحلة
+    </a>
+</div>
+
+<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+    {% for etape in etapes %}
+    <a href="{% url 'admin_etape_inscription_detail' etape.id %}"
+       style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:inherit;">
+        <div>
+            <div style="font-weight:700; color:#222;">{{ etape.ordre }}. {{ etape.titre }}</div>
+            <div style="color:#888; font-size:0.82rem;">الرمز: {{ etape.code }} — {{ etape.champs.count }} حقل</div>
+        </div>
+        {% if etape.est_actif %}
+            {% include 'dashboard/_badge_statut.html' with type='success' texte='نشطة ✅' %}
+        {% else %}
+            {% include 'dashboard/_badge_statut.html' with type='danger' texte='غير نشطة ❌' %}
+        {% endif %}
+    </a>
+    {% empty %}
+    <div style="text-align:center; padding:60px; color:#aaa;">لا توجد مراحل بعد</div>
+    {% endfor %}
+</div>
+{% endblock %}

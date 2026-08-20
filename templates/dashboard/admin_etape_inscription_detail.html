@@ -1,0 +1,121 @@
+{% extends base_template %}
+{% block title %}{{ etape.titre }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <div class="page-title">{{ etape.titre }}</div>
+        <div class="page-subtitle">الرمز: {{ etape.code }}</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'admin_etape_inscription_modifier' etape.id %}"
+           style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">تعديل ✏️</a>
+        <a href="{% url 'admin_etape_inscription_toggle' etape.id %}"
+           style="background:#f0f0f0; color:#555; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">
+           {% if etape.est_actif %}تعطيل{% else %}تفعيل{% endif %}
+        </a>
+        <a href="{% url 'admin_etape_inscription_supprimer' etape.id %}"
+           onclick="return confirm('حذف المرحلة \'{{ etape.titre }}\'؟ لن تُحذف إذا كانت تحتوي على حقول.');"
+           style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">حذف 🗑️</a>
+    </div>
+</div>
+
+<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">الحقول</div>
+
+<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; margin-bottom:24px;">
+    {% for champ in champs %}
+    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:14px 22px; border-bottom:1px solid #f0f0f0;">
+        <div>
+            <div style="font-weight:700;">{{ champ.ordre }}. {{ champ.label }}</div>
+            <div style="color:#888; font-size:0.8rem;">
+                {% if champ.critere %}
+                    معيار: <a href="{% url 'admin_critere_inscription_detail' champ.critere_id %}">{{ champ.critere.label }}</a>
+                {% else %}
+                    حقل معلوماتي ({{ champ.get_type_champ_display }})
+                {% endif %}
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            {% if champ.obligatoire %}
+                {% include 'dashboard/_badge_statut.html' with type='danger' texte='إلزامي' %}
+            {% else %}
+                {% include 'dashboard/_badge_statut.html' with type='neutre' texte='اختياري' %}
+            {% endif %}
+            {% if champ.est_actif %}
+                {% include 'dashboard/_badge_statut.html' with type='success' texte='نشط' %}
+            {% else %}
+                {% include 'dashboard/_badge_statut.html' with type='danger' texte='غير نشط' %}
+            {% endif %}
+            <a href="{% url 'admin_champ_inscription_modifier' champ.id %}"
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">تعديل ✏️</a>
+            <a href="{% url 'admin_champ_inscription_toggle' champ.id %}"
+               style="background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">
+               {% if champ.est_actif %}تعطيل{% else %}تفعيل{% endif %}
+            </a>
+            <a href="{% url 'admin_champ_inscription_supprimer' champ.id %}"
+               onclick="return confirm('حذف الحقل \'{{ champ.label }}\'؟ لن يُحذف إذا استُخدم في طلبات سابقة.');"
+               style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">حذف 🗑️</a>
+        </div>
+    </div>
+    {% empty %}
+    <div style="text-align:center; padding:40px; color:#aaa;">لا توجد حقول بعد في هذه المرحلة</div>
+    {% endfor %}
+</div>
+
+<div style="background:white; border-radius:16px; padding:24px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="font-weight:700; margin-bottom:12px;">+ إضافة حقل جديد</div>
+    <form method="POST" action="{% url 'admin_champ_inscription_ajouter' etape.id %}">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">مرتبط بمعيار (اختياري)</label>
+            <select name="critere_id" id="critere_select" class="form-select mt-1" onchange="toggleTypeChamp()">
+                <option value="">— حقل معلوماتي بدون معيار (مثال: البلد) —</option>
+                {% for critere in criteres_disponibles %}
+                <option value="{{ critere.id }}">{{ critere.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3" id="type_champ_wrapper">
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">نوع الحقل (فقط إن لم يُختر معيار)</label>
+            <select name="type_champ" class="form-select mt-1">
+                <option value="texte">نص</option>
+                <option value="email">بريد إلكتروني</option>
+                <option value="telephone">هاتف</option>
+                <option value="nombre">رقم</option>
+                <option value="date">تاريخ</option>
+                <option value="booleen">نعم/لا</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">التسمية المعروضة *</label>
+            <input type="text" name="label" class="form-control mt-1" required>
+        </div>
+        <div class="row g-2 align-items-center">
+            <div class="col-4">
+                <div class="form-check">
+                    <input type="checkbox" name="obligatoire" id="obligatoire" class="form-check-input">
+                    <label class="form-check-label" for="obligatoire" style="font-size:0.9rem;">إلزامي</label>
+                </div>
+            </div>
+            <div class="col-4">
+                <input type="number" name="ordre" class="form-control" placeholder="الترتيب" value="{{ champs.count|add:1 }}">
+            </div>
+        </div>
+        <button type="submit" class="mt-3"
+            style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">
+            إضافة ✅
+        </button>
+    </form>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'admin_etapes_inscription' %}" style="color:#888; text-decoration:none;">← رجوع لقائمة المراحل</a>
+</div>
+
+<script>
+    function toggleTypeChamp() {
+        const critereChoisi = document.getElementById('critere_select').value;
+        document.getElementById('type_champ_wrapper').style.display = critereChoisi ? 'none' : 'block';
+    }
+    document.addEventListener('DOMContentLoaded', toggleTypeChamp);
+</script>
+{% endblock %}

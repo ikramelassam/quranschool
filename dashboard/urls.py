@@ -181,4 +181,21 @@ urlpatterns = [
     path('admin/criteres-inscription/options/<int:option_id>/modifier/', views.admin_critere_option_modifier, name='admin_critere_option_modifier'),
     path('admin/criteres-inscription/options/<int:option_id>/toggle/', views.admin_critere_option_toggle, name='admin_critere_option_toggle'),
     path('admin/criteres-inscription/options/<int:option_id>/supprimer/', views.admin_critere_option_supprimer, name='admin_critere_option_supprimer'),
+
+    # ---- Étape 5B : Étapes / Champs / Règles conditionnelles ----
+    path('admin/etapes-inscription/', views.admin_etapes_inscription, name='admin_etapes_inscription'),
+    path('admin/etapes-inscription/ajouter/', views.admin_etape_inscription_ajouter, name='admin_etape_inscription_ajouter'),
+    path('admin/etapes-inscription/<int:etape_id>/', views.admin_etape_inscription_detail, name='admin_etape_inscription_detail'),
+    path('admin/etapes-inscription/<int:etape_id>/modifier/', views.admin_etape_inscription_modifier, name='admin_etape_inscription_modifier'),
+    path('admin/etapes-inscription/<int:etape_id>/toggle/', views.admin_etape_inscription_toggle, name='admin_etape_inscription_toggle'),
+    path('admin/etapes-inscription/<int:etape_id>/supprimer/', views.admin_etape_inscription_supprimer, name='admin_etape_inscription_supprimer'),
+    path('admin/etapes-inscription/<int:etape_id>/champs/ajouter/', views.admin_champ_inscription_ajouter, name='admin_champ_inscription_ajouter'),
+    path('admin/champs-inscription/<int:champ_id>/modifier/', views.admin_champ_inscription_modifier, name='admin_champ_inscription_modifier'),
+    path('admin/champs-inscription/<int:champ_id>/toggle/', views.admin_champ_inscription_toggle, name='admin_champ_inscription_toggle'),
+    path('admin/champs-inscription/<int:champ_id>/supprimer/', views.admin_champ_inscription_supprimer, name='admin_champ_inscription_supprimer'),
+
+    path('admin/regles-inscription/', views.admin_regles_inscription, name='admin_regles_inscription'),
+    path('admin/regles-inscription/ajouter/', views.admin_regle_inscription_ajouter, name='admin_regle_inscription_ajouter'),
+    path('admin/regles-inscription/<int:regle_id>/toggle/', views.admin_regle_inscription_toggle, name='admin_regle_inscription_toggle'),
+    path('admin/regles-inscription/<int:regle_id>/supprimer/', views.admin_regle_inscription_supprimer, name='admin_regle_inscription_supprimer'),
 ]

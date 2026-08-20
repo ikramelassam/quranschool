@@ -1,0 +1,34 @@
+{% extends base_template %}
+{% block title %}تعديل {{ etape.titre }}{% endblock %}
+{% block content %}
+<div class="page-title">تعديل مرحلة: {{ etape.titre }}</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">الرمز</label>
+            <input type="text" class="form-control mt-1" value="{{ etape.code }}" disabled>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">العنوان المعروض *</label>
+            <input type="text" name="titre" class="form-control mt-1" value="{{ etape.titre }}" required>
+        </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
+            <input type="number" name="ordre" class="form-control mt-1" value="{{ etape.ordre }}">
+        </div>
+        <div class="form-check mb-3">
+            <input type="checkbox" name="est_actif" id="est_actif" class="form-check-input" {% if etape.est_actif %}checked{% endif %}>
+            <label class="form-check-label" for="est_actif" style="font-weight:600; color:#333;">نشطة</label>
+        </div>
+        <div class="d-flex gap-3 mt-4">
+            <button type="submit"
+                style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                حفظ التعديلات ✅
+            </button>
+            <a href="{% url 'admin_etape_inscription_detail' etape.id %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
