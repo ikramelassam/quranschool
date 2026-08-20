@@ -1,0 +1,26 @@
+{% extends 'inscriptions/_wizard_base.html' %}
+{% block wizard_title %}{{ presentation.titre|default:"التسجيل كطالب" }}{% endblock %}
+{% block wizard_extra_style %}
+.charte-box {
+    background: var(--color-bg-cream);
+    border: 1px solid rgba(139,75,0,0.15);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 24px;
+    white-space: pre-line;
+    line-height: 1.9;
+    color: #444;
+}
+{% endblock %}
+{% block wizard_content %}
+<div class="page-title">{{ presentation.titre|default:"أهلاً بك في زدني علماً" }}</div>
+
+<div class="charte-box">
+    {% if presentation.intro %}{{ presentation.intro }}{% else %}أهلاً بك في منصة زدني علماً لتعليم القرآن الكريم عن بعد.{% endif %}
+</div>
+
+<a href="{% url 'wizard_identite' %}" class="btn-submit" style="display:block; text-align:center; text-decoration:none;">
+    {{ presentation.bouton_texte|default:"متابعة التسجيل" }} ←
+</a>
+<a href="{% url 'login' %}" class="btn-back">رجوع لتسجيل الدخول</a>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends 'inscriptions/_wizard_base.html' %}
+{% block wizard_title %}المعلومات الشخصية{% endblock %}
+{% block wizard_content %}
+<div class="page-title">المعلومات الشخصية</div>
+<div class="page-subtitle">الخطوة 1 من 6</div>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label class="form-label">الاسم الكامل *</label>
+        <input type="text" name="nom" class="form-control mt-1" value="{{ valeurs_form.nom|default:'' }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">اسم ولي الأمر (إن كان المسجَّل قاصراً)</label>
+        <input type="text" name="nom_parent" class="form-control mt-1" value="{{ valeurs_form.nom_parent|default:'' }}">
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">الجنس *</label>
+        <div class="row g-2">
+            <div class="col-6">
+                <div class="select-btn {% if valeurs_form.sexe == 'homme' %}active{% endif %}" onclick="selectionnerSexe('homme', this)">ذكر</div>
+            </div>
+            <div class="col-6">
+                <div class="select-btn {% if valeurs_form.sexe == 'femme' %}active{% endif %}" onclick="selectionnerSexe('femme', this)">أنثى</div>
+            </div>
+        </div>
+        <input type="hidden" name="sexe" id="sexe_value" value="{{ valeurs_form.sexe|default:'' }}">
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">البريد الإلكتروني *</label>
+        <input type="email" name="email" class="form-control mt-1" value="{{ valeurs_form.email|default:'' }}" required>
+    </div>
+
+    {% include 'inscriptions/_verification_whatsapp.html' %}
+
+    <div class="mb-3">
+        <label class="form-label">تاريخ الميلاد *</label>
+        <input type="date" name="date_naissance" class="form-control mt-1" value="{{ valeurs_form.date_naissance|default:'' }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">العمل الحالي (أو عمل ولي الأمر إن كان المسجَّل قاصراً)</label>
+        <input type="text" name="job_actuel" class="form-control mt-1" value="{{ valeurs_form.job_actuel|default:'' }}">
+    </div>
+
+    {% for champ in champs_info %}
+    <div class="mb-3">
+        <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
+        {% if champ.type_champ == 'nombre' %}
+        <input type="number" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
+        {% elif champ.type_champ == 'date' %}
+        <input type="date" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
+        {% elif champ.type_champ == 'email' %}
+        <input type="email" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
+        {% else %}
+        <input type="text" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="btn-submit">التالي ←</button>
+    <a href="{% url 'wizard_intro' %}" class="btn-back">رجوع</a>
+</form>
+
+<script>
+    function selectionnerSexe(valeur, element) {
+        document.getElementById('sexe_value').value = valeur;
+        document.querySelectorAll('.select-btn').forEach(el => {
+            if (el.textContent.trim() === 'ذكر' || el.textContent.trim() === 'أنثى') el.classList.remove('active');
+        });
+        element.classList.add('active');
+    }
+</script>
+{% endblock %}

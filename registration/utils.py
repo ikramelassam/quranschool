@@ -41,6 +41,47 @@ from django.db import transaction
 from django.db.models import Count
 
 
+# ==================== ÉTAT DU WIZARD CÔTÉ SERVEUR (Étape 6) ====================
+# Sécurité non négociable (voir l'échange de validation de ce chantier) : les
+# réponses données à chaque étape du parcours public vivent dans la session
+# Django (signée, stockage serveur — jamais uniquement des champs cachés HTML
+# qu'un visiteur pourrait manipuler entre deux requêtes). Chaque étape FUSIONNE
+# ses nouvelles réponses dans ce même dict, jamais ne le remplace — un retour
+# en arrière dans le parcours ne perd donc jamais les réponses déjà données
+# aux autres étapes.
+
+WIZARD_SESSION_KEY = 'wizard_inscription'
+
+
+def wizard_donnees(request):
+    """Dict accumulé des réponses du wizard en cours pour cette session —
+    jamais None, {} si rien n'a encore été soumis."""
+    return request.session.get(WIZARD_SESSION_KEY, {})
+
+
+def wizard_maj(request, nouvelles_valeurs):
+    """Fusionne `nouvelles_valeurs` dans le dict déjà en session (remplace
+    seulement les clés présentes dans nouvelles_valeurs, conserve tout le
+    reste) et force la persistance — Django ne détecte JAMAIS automatiquement
+    la mutation d'un dict imbriqué dans la session, session.modified = True
+    est indispensable ici, sans quoi la mise à jour serait silencieusement
+    perdue à la fin de la requête."""
+    donnees = wizard_donnees(request)
+    donnees.update(nouvelles_valeurs)
+    request.session[WIZARD_SESSION_KEY] = donnees
+    request.session.modified = True
+    return donnees
+
+
+def wizard_reinitialiser(request):
+    """Vide le wizard en cours — appelé après une confirmation réussie
+    (Étape 6), pour qu'un rechargement de la page de confirmation ou un
+    retour arrière du navigateur ne puisse jamais rejouer une 2e soumission
+    avec les mêmes réponses."""
+    request.session.pop(WIZARD_SESSION_KEY, None)
+    request.session.modified = True
+
+
 # ==================== FILTRAGE GÉNÉRIQUE DES GROUPES (Phase 6) ====================
 
 def groupes_compatibles(reponses):

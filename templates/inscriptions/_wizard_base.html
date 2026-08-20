@@ -1,0 +1,93 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="{{ logo_url }}" type="{{ logo_mime_type }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block wizard_title %}التسجيل كطالب{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+    <style>
+        * { font-family: 'Tajawal', sans-serif; }
+        body { background-color: var(--color-bg-cream); }
+        .wizard-container {
+            max-width: 680px;
+            margin: 32px auto;
+            background: white;
+            border-radius: 16px;
+            padding: 36px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+        .logo-container { text-align: center; margin-bottom: 16px; }
+        .logo-container img { width: 80px; border-radius: 12px; }
+        .wizard-progress { display: flex; justify-content: center; gap: 6px; margin-bottom: 24px; }
+        .wizard-progress .step-dot {
+            width: 10px; height: 10px; border-radius: 50%; background: #e0d8c8;
+        }
+        .wizard-progress .step-dot.active { background: var(--color-role-eleve-solid); width: 26px; border-radius: 6px; }
+        .wizard-progress .step-dot.done { background: var(--color-brand-gold); }
+        .page-title {
+            color: var(--color-role-eleve-solid);
+            font-size: 1.4rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        .page-subtitle { color: #888; text-align: center; margin-bottom: 24px; font-size: 0.92rem; }
+        .section-title {
+            color: var(--color-role-eleve-solid);
+            font-weight: 700;
+            font-size: 1.05rem;
+            border-bottom: 2px solid var(--color-role-eleve-solid);
+            padding-bottom: 8px;
+            margin: 24px 0 16px;
+        }
+        .form-label { font-weight: 500; color: #333; }
+        .form-control, .form-select {
+            border-radius: 8px; border: 1px solid #ddd; font-family: 'Tajawal', sans-serif; text-align: right;
+        }
+        .select-btn {
+            border: 2px solid #ddd; border-radius: 10px; padding: 10px 16px; cursor: pointer;
+            text-align: center; transition: all 0.2s; background: white; width: 100%;
+            font-family: 'Tajawal', sans-serif; font-size: 0.95rem;
+        }
+        .select-btn:hover { border-color: var(--color-role-eleve-solid); background: #FDF3E7; }
+        .select-btn.active { border-color: var(--color-role-eleve-solid); background: #FDF3E7; color: var(--color-role-eleve-solid); font-weight: 600; }
+        .btn-submit {
+            background-color: var(--color-role-eleve-solid); color: white; border: none; border-radius: 8px;
+            padding: 12px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 16px;
+            font-family: 'Tajawal', sans-serif; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-submit:hover { background-color: var(--color-role-prof-solid); }
+        .btn-back { display: block; border: 2px solid #ddd; color: #888; background: white; border-radius: 8px;
+            padding: 10px; text-align: center; text-decoration: none; margin-top: 10px;
+            font-family: 'Tajawal', sans-serif; transition: all 0.2s; }
+        .btn-back:hover { border-color: #aaa; color: #555; }
+        {% block wizard_extra_style %}{% endblock %}
+    </style>
+</head>
+<body>
+<div class="wizard-container">
+    <div class="logo-container"><img src="{{ logo_url }}" alt="زدني علماً"></div>
+
+    {% if wizard_etape_num %}
+    <div class="wizard-progress">
+        {% for _ in "xxxxxx" %}
+        <div class="step-dot {% if forloop.counter == wizard_etape_num %}active{% elif forloop.counter < wizard_etape_num %}done{% endif %}"></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if erreurs %}
+    <div style="background:#f8d7da; border-radius:8px; padding:14px 18px; margin-bottom:20px; color:#721c24;">
+        {% for erreur in erreurs %}<div>⚠️ {{ erreur }}</div>{% endfor %}
+    </div>
+    {% endif %}
+
+    {% block wizard_content %}{% endblock %}
+</div>
+{% block wizard_extra_js %}{% endblock %}
+</body>
+</html>

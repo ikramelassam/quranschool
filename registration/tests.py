@@ -1,7 +1,9 @@
 import datetime
 
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from django.test import TestCase, Client, override_settings
+from django.urls import reverse
 
 from accounts.models import User
 from courses.models import Creneau, Groupe
@@ -14,6 +16,15 @@ from .utils import (
 )
 
 MOT_DE_PASSE = 'xX!test12345'
+
+
+# Même précaution que inscriptions.tests/dashboard.tests (STORAGES) : toute
+# page qui charge le logo (header ou wizard, via accounts.context_processors.
+# logo_context) lève une ValueError sans cet override en environnement de test.
+_STORAGES_TEST = {
+    **settings.STORAGES,
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
 
 
 def _creer_admin(email='admin_registration@zidni.test'):
@@ -505,3 +516,155 @@ class RegistrationGenericiteTests(TestCase):
         self.assertEqual(inscription.groupe_choisi, groupe)
         reponse_objectif = inscription.reponses.get(champ=champ_objectif)
         self.assertEqual(reponse_objectif.option.code, 'memorisation')
+
+
+# ============================================================================
+# Étape 6A du chantier — fondations du wizard public : introduction (Étape 0)
+# + helpers de session serveur.
+# ============================================================================
+@override_settings(STORAGES=_STORAGES_TEST)
+class WizardIntroTests(TestCase):
+    def test_intro_affiche_le_contenu_de_presentationinscription(self):
+        from .models import get_presentation_inscription
+
+        presentation = get_presentation_inscription()
+        presentation.titre = 'أهلاً بك في زدني علماً'
+        presentation.intro = 'نص الميثاق التجريبي'
+        presentation.bouton_texte = 'هيا بنا'
+        presentation.save()
+
+        client = Client()
+        reponse = client.get(reverse('wizard_intro'))
+        self.assertEqual(reponse.status_code, 200)
+        html = reponse.content.decode('utf-8')
+        self.assertIn('أهلاً بك في زدني علماً', html)
+        self.assertIn('نص الميثاق التجريبي', html)
+        self.assertIn('هيا بنا', html)
+
+    def test_intro_accessible_sans_authentification(self):
+        """Page publique — aucun compte requis, contrairement au dashboard."""
+        client = Client()
+        reponse = client.get(reverse('wizard_intro'))
+        self.assertEqual(reponse.status_code, 200)
+
+
+class WizardSessionHelpersTests(TestCase):
+    """registration.utils.wizard_donnees/wizard_maj/wizard_reinitialiser —
+    testés directement avec un HttpRequest muni d'une vraie session, sans
+    passer par une vue (ce sont des briques réutilisées par TOUTES les vues
+    du wizard, Étape 6B et suivantes)."""
+
+    def _requete_avec_session(self):
+        from django.test import RequestFactory
+        from django.contrib.sessions.middleware import SessionMiddleware
+
+        request = RequestFactory().get('/')
+        SessionMiddleware(lambda r: None).process_request(request)
+        request.session.save()
+        return request
+
+    def test_wizard_donnees_vide_par_defaut(self):
+        from .utils import wizard_donnees
+
+        request = self._requete_avec_session()
+        self.assertEqual(wizard_donnees(request), {})
+
+    def test_wizard_maj_fusionne_sans_ecraser_les_anciennes_cles(self):
+        from .utils import wizard_donnees, wizard_maj
+
+        request = self._requete_avec_session()
+        wizard_maj(request, {'nom': 'أحمد', 'sexe': 'homme'})
+        wizard_maj(request, {'email': 'ahmed@zidni.test'})
+
+        donnees = wizard_donnees(request)
+        self.assertEqual(donnees['nom'], 'أحمد')
+        self.assertEqual(donnees['sexe'], 'homme')
+        self.assertEqual(donnees['email'], 'ahmed@zidni.test')
+
+    def test_wizard_maj_ecrase_uniquement_les_cles_reecrites(self):
+        from .utils import wizard_donnees, wizard_maj
+
+        request = self._requete_avec_session()
+        wizard_maj(request, {'sexe': 'homme'})
+        wizard_maj(request, {'sexe': 'femme'})
+        self.assertEqual(wizard_donnees(request)['sexe'], 'femme')
+
+    def test_wizard_reinitialiser_vide_completement(self):
+        from .utils import wizard_donnees, wizard_maj, wizard_reinitialiser
+
+        request = self._requete_avec_session()
+        wizard_maj(request, {'nom': 'أحمد'})
+        wizard_reinitialiser(request)
+        self.assertEqual(wizard_donnees(request), {})
+
+
+# ============================================================================
+# Étape 6A (suite) — wizard_identite (Étape 1 du parcours public).
+# ============================================================================
+@override_settings(STORAGES=_STORAGES_TEST)
+class WizardIdentiteTests(TestCase):
+    def _reponses_valides(self, **overrides):
+        base = {
+            'nom': 'سارة بنعلي', 'sexe': 'femme', 'email': 'sara.wizard@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0600112233', 'telephone_confirmation': '0600112233',
+        }
+        base.update(overrides)
+        return base
+
+    def test_get_affiche_le_formulaire(self):
+        reponse = Client().get(reverse('wizard_identite'))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('المعلومات الشخصية', reponse.content.decode('utf-8'))
+
+    def test_post_valide_enregistre_en_session_et_avance(self):
+        client = Client()
+        reponse = client.post(reverse('wizard_identite'), self._reponses_valides())
+        # fetch_redirect_response=False : wizard_programme est encore un stub
+        # (TODO Étape 6B) qui redirige lui-même — seul le SAUT vers cette URL
+        # nous intéresse ici, pas ce que la page cible fait pour l'instant.
+        self.assertRedirects(reponse, reverse('wizard_programme'), fetch_redirect_response=False)
+
+        from .utils import wizard_donnees
+        # Simule une requête suivante avec la même session pour lire l'état.
+        session = client.session
+        self.assertEqual(session['wizard_inscription']['nom'], 'سارة بنعلي')
+        self.assertEqual(session['wizard_inscription']['email'], 'sara.wizard@zidni.test')
+        self.assertTrue(session['wizard_inscription']['telephone'])  # assemblé par _construire_et_valider_telephone
+
+    def test_post_incomplet_reaffiche_le_formulaire_avec_erreur(self):
+        client = Client()
+        reponses = self._reponses_valides()
+        del reponses['nom']
+        reponse = client.post(reverse('wizard_identite'), reponses)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('الاسم الكامل إلزامي', reponse.content.decode('utf-8'))
+        self.assertNotIn('wizard_inscription', client.session)
+
+    def test_champ_informatif_obligatoire_est_valide(self):
+        from .models import ChampInscription, EtapeInscription
+
+        etape = EtapeInscription.objects.get(code='identite')
+        champ_pays = ChampInscription.objects.create(
+            etape=etape, critere=None, type_champ='texte', label='البلد', obligatoire=True, ordre=10,
+        )
+        client = Client()
+
+        # Sans le champ "البلد" -> refusé (guillemets échappés en HTML : &quot;).
+        reponse = client.post(reverse('wizard_identite'), self._reponses_valides())
+        html = reponse.content.decode('utf-8')
+        self.assertIn('البلد', html)
+        self.assertIn('إلزامي', html)
+
+        # Avec -> accepté et transmis en session.
+        reponse2 = client.post(reverse('wizard_identite'), self._reponses_valides(**{
+            f'champ_{champ_pays.id}': 'المغرب',
+        }))
+        self.assertRedirects(reponse2, reverse('wizard_programme'), fetch_redirect_response=False)
+        self.assertEqual(client.session['wizard_inscription'][f'champ_{champ_pays.id}'], 'المغرب')
+
+    def test_telephones_non_correspondants_refuses(self):
+        client = Client()
+        reponse = client.post(reverse('wizard_identite'), self._reponses_valides(telephone_confirmation='0600999999'))
+        self.assertIn('غير متطابقين', reponse.content.decode('utf-8'))  # inscriptions.views.MESSAGE_TELEPHONE_MISMATCH
+        self.assertNotIn('wizard_inscription', client.session)
