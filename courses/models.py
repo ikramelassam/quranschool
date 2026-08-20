@@ -153,6 +153,40 @@ class Creneau(models.Model):
         verbose_name = "Créneau"
         verbose_name_plural = "Créneaux"
 
+class CreneauSlot(models.Model):
+    """Une occurrence hebdomadaire réelle d'un Creneau (jour + heure de début/fin) —
+    remplace progressivement le couple figé jour_1/heure_debut_1/heure_fin_1 +
+    jour_2/heure_debut_2/heure_fin_2 ci-dessus, qui supposait exactement 2 séances par
+    semaine pour TOUT créneau (chantier de généralisation N séances/semaine). Même
+    principe que DisponibiliteProf/DisponibiliteEleve (lignes jour+heure, déjà sans
+    limite de nombre dans ce projet) — CreneauSlot est la version "avec durée"
+    (heure_fin en plus) de ce même patron, appliquée à Creneau plutôt qu'à une
+    personne.
+
+    Migration (voir courses/migrations, chantier N séances/semaine) : les colonnes
+    jour_1.../jour_2... de Creneau sont conservées EN LECTURE le temps de la bascule
+    complète du code (aucune perte de donnée, aucune régénération de Seance) — chaque
+    Creneau existant obtient exactement 2 CreneauSlot (ordre=1 depuis le bloc "_1",
+    ordre=2 depuis le bloc "_2"), ni plus ni moins. Un Creneau peut désormais avoir
+    1, 2, 3, 4 ou N slots — le nombre de séances hebdomadaires d'un groupe est
+    TOUJOURS lu depuis groupe.creneau.slots.count(), jamais stocké séparément (voir
+    registration.models.Critere.backend='nb_slots' — une seule source de vérité)."""
+
+    creneau = models.ForeignKey('Creneau', on_delete=models.CASCADE, related_name='slots')
+    jour = models.CharField(max_length=5, choices=Creneau.JOUR_CHOICES)
+    heure_debut = models.TimeField()
+    heure_fin = models.TimeField()
+    ordre = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.creneau} - {self.get_jour_display()} {self.heure_debut.strftime('%H:%M')}"
+
+    class Meta:
+        ordering = ['ordre', 'id']
+        verbose_name = "Créneau hebdomadaire (occurrence)"
+        verbose_name_plural = "Créneaux hebdomadaires (occurrences)"
+
+
 class GroupeActifsManager(models.Manager):
     """Exclut les groupes archivés (Tâche du 2026-08-08) — même principe que
     EleveActifsManager/ProfActifsManager (accounts.models). Groupe.statut a

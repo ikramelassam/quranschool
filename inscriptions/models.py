@@ -241,6 +241,16 @@ class ParametresInscriptions(models.Model):
     ouverte_eleve_adulte = models.BooleanField(default=True)
     ouverte_eleve_enfant = models.BooleanField(default=True)
     ouverte_prof = models.BooleanField(default=True)
+    # Chantier du nouveau parcours d'inscription — anciennement "10 jours" en dur nulle
+    # part dans le code (aucune trace trouvée lors de l'audit : ce délai n'existait
+    # encore dans aucun modèle avant ce chantier). Lu par le nouveau parcours pour
+    # calculer la date limite de paiement affichée à l'élève (aujourd'hui + ce délai),
+    # jamais recalculé en dur ailleurs.
+    delai_paiement_jours = models.PositiveIntegerField(default=10)
+    # Délai annoncé dans le message de confirmation (registration.models.
+    # PresentationInscription.message_bienvenue) : "l'équipe vous contactera sous
+    # {delai_contact_heures}h" — injecté au rendu, jamais recopié en dur dans le texte.
+    delai_contact_heures = models.PositiveIntegerField(default=24)
     derniere_modification_par = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True, blank=True,

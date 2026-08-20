@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     'chat',
     'annonces',
     'examens',
+    'registration',
 ]
 
 MIDDLEWARE = [
