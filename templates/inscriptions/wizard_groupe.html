@@ -1,0 +1,59 @@
+{% extends 'inscriptions/_wizard_base.html' %}
+{% block wizard_title %}اختيار المجموعة{% endblock %}
+{% block wizard_extra_style %}
+.groupe-card {
+    border: 2px solid #ddd; border-radius: 12px; padding: 18px; margin-bottom: 14px; cursor: pointer;
+    transition: all 0.2s;
+}
+.groupe-card:hover { border-color: var(--color-role-eleve-solid); background: #FDF3E7; }
+.groupe-card.active { border-color: var(--color-role-eleve-solid); background: #FDF3E7; }
+.groupe-nom { font-weight: 700; color: #222; font-size: 1.05rem; }
+.groupe-detail { color: #666; font-size: 0.88rem; margin-top: 4px; }
+{% endblock %}
+{% block wizard_content %}
+<div class="page-title">اختيار المجموعة</div>
+<div class="page-subtitle">الخطوة 3 من 6 — المجموعات المتوافقة مع اختياراتك</div>
+
+<form method="POST">
+    {% csrf_token %}
+
+    {% if not groupes %}
+    <div style="text-align:center; padding:40px; color:#888;">
+        لا توجد حالياً أي مجموعة متوافقة مع اختياراتك. يرجى التواصل مع الإدارة.
+    </div>
+    {% endif %}
+
+    {% for groupe in groupes %}
+    <div class="groupe-card" onclick="selectionnerGroupe({{ groupe.id }}, this)">
+        <div class="groupe-nom">{{ groupe.nom }}</div>
+        <div class="groupe-detail">
+            👨‍🏫 {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}غير محدد بعد{% endif %}
+        </div>
+        <div class="groupe-detail">
+            📅
+            {% for slot in groupe.creneau.slots.all %}
+                {{ slot.get_jour_display }} {{ slot.heure_debut|time:"H:i" }}–{{ slot.heure_fin|time:"H:i" }}{% if not forloop.last %} + {% endif %}
+            {% endfor %}
+        </div>
+        <div class="groupe-detail">
+            {% for valeur in groupe.valeurs_criteres.all %}
+                {% if valeur.option %}<span style="background:#f0f0f0; border-radius:12px; padding:2px 10px; margin-left:6px; font-size:0.82rem;">{{ valeur.critere.label }}: {{ valeur.option.label }}</span>{% endif %}
+            {% endfor %}
+        </div>
+        <div class="groupe-detail">🪑 {{ groupe.eleves.count }} / {{ groupe.capacite_max }} مكان</div>
+    </div>
+    {% endfor %}
+
+    <input type="hidden" name="groupe_id" id="groupe_id_value">
+    <button type="submit" class="btn-submit">التالي ←</button>
+    <a href="{% url 'wizard_programme' %}" class="btn-back">رجوع</a>
+</form>
+
+<script>
+    function selectionnerGroupe(id, element) {
+        document.getElementById('groupe_id_value').value = id;
+        document.querySelectorAll('.groupe-card').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+    }
+</script>
+{% endblock %}

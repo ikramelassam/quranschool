@@ -69,12 +69,15 @@ class GroupesCompatiblesBackendsTests(TestCase):
     zéro branche par nom de critère métier."""
 
     def setUp(self):
-        self.riwaya = _creer_critere('riwaya', options=[('hafs', 'حفص'), ('warsh', 'ورش')])
+        # Codes test_ : la base de test contient déjà 'riwaya'/'type_offre'/
+        # 'nb_seances_hebdo' seedés par registration/migrations/0002_seed_
+        # wizard_config.py (Étape 6A) — mêmes codes distincts qu'ailleurs.
+        self.riwaya = _creer_critere('test_riwaya', options=[('hafs', 'حفص'), ('warsh', 'ورش')])
         self.type_offre = _creer_critere(
-            'type_offre', backend='champ_groupe', champ_modele_groupe='type_capacite',
+            'test_type_offre', backend='champ_groupe', champ_modele_groupe='type_capacite',
             options=[('groupe', 'جماعي'), ('individuel', 'فردي')],
         )
-        self.nb_seances = _creer_critere('nb_seances_hebdo', backend='nb_slots')
+        self.nb_seances = _creer_critere('test_nb_seances_hebdo', backend='nb_slots')
 
         self.creneau_2slots = _creer_creneau(nb_slots=2)
         self.creneau_3slots = _creer_creneau(nb_slots=3)
@@ -100,7 +103,14 @@ class GroupesCompatiblesBackendsTests(TestCase):
         self.assertEqual(list(resultat), [self.groupe_hafs_groupe])
 
     def test_backend_champ_groupe_filtre_directement_sur_le_champ_reel(self):
-        resultat = groupes_compatibles({self.type_offre: 'individuel'})
+        """type_capacite='individuel' seul matcherait aussi les groupes
+        individuels RÉELS de la base (Étape 6A) — combiné avec le critère
+        riwaya test-spécifique (naturellement isolé, aucun groupe réel n'a
+        de GroupeCritereValeur pour CE critère précis) pour rester isolé."""
+        resultat = groupes_compatibles({
+            self.type_offre: 'individuel',
+            self.riwaya: self.riwaya.options.get(code='warsh'),
+        })
         self.assertEqual(list(resultat), [self.groupe_warsh_individuel])
         # Aucune GroupeCritereValeur n'est jamais créée pour ce backend.
         self.assertFalse(GroupeCritereValeur.objects.filter(critere=self.type_offre).exists())
@@ -125,9 +135,14 @@ class GroupesCompatiblesBackendsTests(TestCase):
         self.assertEqual(list(resultat_vide), [])
 
     def test_critere_non_filtrable_est_ignore(self):
+        """Un critère non filtrable ne restreint rien -> les 2 groupes de ce
+        test restent présents dans le résultat (qui contient aussi le fond
+        réel de 23 groupes, Étape 6A — d'où assertIn plutôt qu'une égalité
+        d'ensemble stricte)."""
         critere_info = _creer_critere('couleur_preferee', filtrable=False, options=[('bleu', 'أزرق')])
-        resultat = groupes_compatibles({critere_info: critere_info.options.get(code='bleu')})
-        self.assertEqual(set(resultat), {self.groupe_hafs_groupe, self.groupe_warsh_individuel})
+        resultat = set(groupes_compatibles({critere_info: critere_info.options.get(code='bleu')}))
+        self.assertIn(self.groupe_hafs_groupe, resultat)
+        self.assertIn(self.groupe_warsh_individuel, resultat)
 
     def test_choix_multiple_matche_avec_au_moins_une_option(self):
         langue = _creer_critere(
@@ -156,19 +171,36 @@ class GroupesCompatiblesBackendsTests(TestCase):
 
 
 class NbSeancesDisponiblesTests(TestCase):
+    """La base de test contient déjà 23 groupes RÉELS (seedés/backfillés par
+    registration/migrations/0002_seed_wizard_config.py, Étape 6A) — un
+    critère 'test_tag' sert à isoler les groupes propres à chaque test de ce
+    fond réel, pour que nb_seances_disponibles({}) sans lui ne soit jamais
+    comparé en égalité stricte à une liste qui ignorerait ce fond."""
+
+    def _tag(self):
+        return _creer_critere('test_tag_nb_seances', options=[('oui', 'نعم')])
+
+    def _groupe_tague(self, tag, nom, nb_slots):
+        groupe = Groupe.objects.create(nom=nom, creneau=_creer_creneau(nb_slots=nb_slots), statut='actif')
+        GroupeCritereValeur.objects.create(groupe=groupe, critere=tag, option=tag.options.get(code='oui'))
+        return groupe
+
     def test_ne_propose_que_les_valeurs_reellement_presentes(self):
-        Groupe.objects.create(nom='1 حصة', creneau=_creer_creneau(nb_slots=1), statut='actif')
-        Groupe.objects.create(nom='2 حصص', creneau=_creer_creneau(nb_slots=2), statut='actif')
-        Groupe.objects.create(nom='4 حصص', creneau=_creer_creneau(nb_slots=4), statut='actif')
-        # Aucun groupe à 3 slots créé -> 3 ne doit jamais apparaître.
-        self.assertEqual(nb_seances_disponibles({}), [1, 2, 4])
+        tag = self._tag()
+        self._groupe_tague(tag, '1 حصة', 1)
+        self._groupe_tague(tag, '2 حصص', 2)
+        self._groupe_tague(tag, '4 حصص', 4)
+        # Aucun groupe à 3 slots créé (parmi les groupes tagués) -> 3 ne
+        # doit jamais apparaître, quel que soit le fond réel de la base.
+        self.assertEqual(nb_seances_disponibles({tag: tag.options.get(code='oui')}), [1, 2, 4])
 
     def test_nouveau_groupe_a_5_slots_apparait_sans_aucun_code_supplementaire(self):
-        Groupe.objects.create(nom='5 حصص', creneau=_creer_creneau(nb_slots=5), statut='actif')
-        self.assertEqual(nb_seances_disponibles({}), [5])
+        tag = self._tag()
+        self._groupe_tague(tag, '5 حصص', 5)
+        self.assertEqual(nb_seances_disponibles({tag: tag.options.get(code='oui')}), [5])
 
     def test_respecte_les_reponses_deja_donnees(self):
-        riwaya = _creer_critere('riwaya', options=[('hafs', 'حفص'), ('warsh', 'ورش')])
+        riwaya = _creer_critere('test_riwaya_nb_seances', options=[('hafs', 'حفص'), ('warsh', 'ورش')])
         g1 = Groupe.objects.create(nom='حفص 1 حصة', creneau=_creer_creneau(nb_slots=1), statut='actif')
         GroupeCritereValeur.objects.create(groupe=g1, critere=riwaya, option=riwaya.options.get(code='hafs'))
         g2 = Groupe.objects.create(nom='ورش 2 حصص', creneau=_creer_creneau(nb_slots=2), statut='actif')
@@ -180,35 +212,42 @@ class NbSeancesDisponiblesTests(TestCase):
 
 class CouvertureCritereTests(TestCase):
     def test_none_pour_backend_champ_groupe_et_nb_slots(self):
-        type_offre = _creer_critere('type_offre', backend='champ_groupe', champ_modele_groupe='type_capacite')
-        nb_seances = _creer_critere('nb_seances_hebdo', backend='nb_slots')
+        type_offre = _creer_critere('test_couverture_type_offre', backend='champ_groupe', champ_modele_groupe='type_capacite')
+        nb_seances = _creer_critere('test_couverture_nb_seances', backend='nb_slots')
         self.assertIsNone(couverture_critere(type_offre))
         self.assertIsNone(couverture_critere(nb_seances))
 
     def test_total_configures_et_groupes_manquants_pour_backend_eav(self):
+        """total porte sur TOUS les groupes actifs (comportement voulu, voir
+        couverture_critere) — la base de test en contient déjà 23 réels
+        (Étape 6A) en plus des 2 créés ici, d'où le total calculé
+        dynamiquement plutôt qu'une valeur absolue codée en dur."""
+        total_avant = Groupe.actifs.filter(statut='actif').count()
         objectif = _creer_critere('objectif', options=[('memorisation', 'الحفظ')])
         g1 = Groupe.objects.create(nom='مجموعة مهيأة', creneau=_creer_creneau(), statut='actif')
         g2 = Groupe.objects.create(nom='مجموعة غير مهيأة', creneau=_creer_creneau(), statut='actif')
         GroupeCritereValeur.objects.create(groupe=g1, critere=objectif, option=objectif.options.get(code='memorisation'))
 
         couverture = couverture_critere(objectif)
-        self.assertEqual(couverture['total'], 2)
+        self.assertEqual(couverture['total'], total_avant + 2)
         self.assertEqual(couverture['configures'], 1)
-        self.assertEqual(list(couverture['groupes_manquants']), [g2])
+        self.assertIn(g2, couverture['groupes_manquants'])
+        self.assertNotIn(g1, couverture['groupes_manquants'])
 
     def test_zero_groupe_configure(self):
+        total_avant = Groupe.actifs.filter(statut='actif').count()
         objectif = _creer_critere('objectif', options=[('lecture', 'التلاوة')])
         Groupe.objects.create(nom='مجموعة', creneau=_creer_creneau(), statut='actif')
         couverture = couverture_critere(objectif)
         self.assertEqual(couverture['configures'], 0)
-        self.assertEqual(couverture['total'], 1)
+        self.assertEqual(couverture['total'], total_avant + 1)
 
 
 class RegleConditionMasquageTests(TestCase):
     def test_etape_masquee_si_regle_satisfaite(self):
-        etape_groupe = EtapeInscription.objects.create(code='choix_groupe', titre='اختيار المجموعة', ordre=3)
+        etape_groupe = EtapeInscription.objects.create(code='test_choix_groupe', titre='اختيار المجموعة', ordre=3)
         type_offre = _creer_critere(
-            'type_offre', backend='champ_groupe', champ_modele_groupe='type_capacite',
+            'test_type_offre', backend='champ_groupe', champ_modele_groupe='type_capacite',
             options=[('groupe', 'جماعي'), ('individuel', 'فردي')],
         )
         RegleCondition.objects.create(
@@ -232,19 +271,23 @@ class RegleConditionMasquageTests(TestCase):
 
 def _config_standard():
     """Configuration minimale réaliste (Programme/Riwaya/Groupe-ou-Individuel/
-    Nombre de séances) — réutilisée par les tests inscrire_eleve()."""
+    Nombre de séances) — réutilisée par les tests inscrire_eleve(). Codes
+    préfixés test_ : la base de test contient déjà 'identite'/'programme'/
+    'riwaya'/'type_offre'/'nb_seances_hebdo' seedés par la migration
+    registration/0002_seed_wizard_config.py (Étape 6A) — mêmes codes
+    distincts que pour TypeAbonnement plus bas, même raison."""
     from django.contrib.contenttypes.models import ContentType
 
-    etape_identite = EtapeInscription.objects.create(code='identite', titre='المعلومات الشخصية', ordre=1)
-    etape_programme = EtapeInscription.objects.create(code='programme', titre='اختيار البرنامج', ordre=2)
-    etape_groupe = EtapeInscription.objects.create(code='choix_groupe', titre='اختيار المجموعة', ordre=3)
+    etape_identite = EtapeInscription.objects.create(code='test_identite', titre='المعلومات الشخصية', ordre=1)
+    etape_programme = EtapeInscription.objects.create(code='test_programme', titre='اختيار البرنامج', ordre=2)
+    etape_groupe = EtapeInscription.objects.create(code='test_choix_groupe', titre='اختيار المجموعة', ordre=3)
 
-    riwaya = _creer_critere('riwaya', filtrable=True, bloquant=False, options=[('hafs', 'حفص'), ('warsh', 'ورش')])
+    riwaya = _creer_critere('test_riwaya', filtrable=True, bloquant=False, options=[('hafs', 'حفص'), ('warsh', 'ورش')])
     type_offre = _creer_critere(
-        'type_offre', backend='champ_groupe', champ_modele_groupe='type_capacite',
+        'test_type_offre', backend='champ_groupe', champ_modele_groupe='type_capacite',
         filtrable=True, bloquant=True, options=[('groupe', 'جماعي'), ('individuel', 'فردي')],
     )
-    nb_seances = _creer_critere('nb_seances_hebdo', backend='nb_slots', filtrable=True, bloquant=False)
+    nb_seances = _creer_critere('test_nb_seances_hebdo', backend='nb_slots', filtrable=True, bloquant=False)
 
     champ_riwaya = ChampInscription.objects.create(etape=etape_programme, critere=riwaya, label='الرواية', obligatoire=True, ordre=1)
     champ_type_offre = ChampInscription.objects.create(etape=etape_programme, critere=type_offre, label='نوع الحصة', obligatoire=True, ordre=2)
@@ -273,6 +316,16 @@ def _config_standard():
 
 class InscrireEleveTests(TestCase):
     def setUp(self):
+        # Isole ce scénario de la config RÉELLE seedée par registration/
+        # migrations/0002_seed_wizard_config.py (Étape 6A, existe aussi dans
+        # cette base de test) — inscrire_eleve() valide À JUSTE TITRE TOUS
+        # les ChampInscription actifs, seedés compris ; désactivés ici pour
+        # que ces tests restent des scénarios autonomes avec leur propre
+        # config test_* (_config_standard), sans avoir à répondre en plus
+        # aux 4 champs réels du wizard.
+        from .models import ChampInscription
+        ChampInscription.objects.update(est_actif=False)
+
         self.config = _config_standard()
         self.creneau = _creer_creneau(nb_slots=2, age_min=6, age_max=60)
         self.groupe = Groupe.objects.create(
@@ -482,8 +535,15 @@ class RegistrationGenericiteTests(TestCase):
         """Bout en bout complet : le nouveau critère est répondu via
         inscrire_eleve() (comme le ferait le futur wizard), pas seulement testé
         au niveau de groupes_compatibles()."""
-        etape_identite = EtapeInscription.objects.create(code='identite', titre='المعلومات الشخصية', ordre=1)
-        etape_programme = EtapeInscription.objects.create(code='programme', titre='اختيار البرنامج', ordre=2)
+        # Isole ce scénario de la config RÉELLE seedée par la migration 0002
+        # (Étape 6A) — voir la même précaution dans InscrireEleveTests.setUp.
+        ChampInscription.objects.update(est_actif=False)
+
+        # Codes test_ : la base de test contient déjà 'identite'/'programme'/
+        # 'type_offre' seedés par registration/migrations/0002_seed_wizard_
+        # config.py (Étape 6A) — mêmes codes distincts qu'ailleurs dans ce fichier.
+        etape_identite = EtapeInscription.objects.create(code='test_identite', titre='المعلومات الشخصية', ordre=1)
+        etape_programme = EtapeInscription.objects.create(code='test_programme', titre='اختيار البرنامج', ordre=2)
 
         critere = Critere.objects.create(code='objectif', label='الهدف التربوي', backend='eav', filtrable=True, bloquant=False)
         opt_memo = CritereOption.objects.create(critere=critere, code='memorisation', label='الحفظ', ordre=1)
@@ -491,7 +551,7 @@ class RegistrationGenericiteTests(TestCase):
         champ_objectif = ChampInscription.objects.create(etape=etape_programme, critere=critere, label='الهدف', obligatoire=True, ordre=1)
 
         type_offre = _creer_critere(
-            'type_offre', backend='champ_groupe', champ_modele_groupe='type_capacite',
+            'test_type_offre', backend='champ_groupe', champ_modele_groupe='type_capacite',
             filtrable=True, bloquant=True, options=[('groupe', 'جماعي'), ('individuel', 'فردي')],
         )
         champ_type_offre = ChampInscription.objects.create(etape=etape_programme, critere=type_offre, label='نوع الحصة', obligatoire=True, ordre=2)
@@ -830,3 +890,119 @@ class WizardProgrammeTests(TestCase):
             f'champ_{self.champ_nb_seances.id}': '2',
         })
         self.assertRedirects(reponse_warsh, reverse('wizard_groupe'), fetch_redirect_response=False)
+
+
+# ============================================================================
+# Étape 6C — wizard_groupe (Étape 3). Point critique explicitement testé :
+# SAUT SERVEUR obligatoire si Individuel, même en forçant l'URL directement.
+# ============================================================================
+@override_settings(STORAGES=_STORAGES_TEST)
+class WizardGroupeTests(TestCase):
+    def setUp(self):
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe = Groupe.objects.create(
+            nom='مجموعة حفص جماعية للاختبار', creneau=self.creneau, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(
+            groupe=self.groupe, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'),
+        )
+        GroupeCritereValeur.objects.create(
+            groupe=self.groupe, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'),
+        )
+
+    def _avancer_a_etape_3(self, client, type_offre='groupe'):
+        client.post(reverse('wizard_identite'), {
+            'nom': 'كريم الفاسي', 'sexe': 'homme', 'email': 'karim.wizard@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0600445566', 'telephone_confirmation': '0600445566',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': type_offre,
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+
+    def test_get_affiche_les_groupes_compatibles(self):
+        client = Client()
+        self._avancer_a_etape_3(client, type_offre='groupe')
+        reponse = client.get(reverse('wizard_groupe'))
+        self.assertEqual(reponse.status_code, 200)
+        html = reponse.content.decode('utf-8')
+        self.assertIn('مجموعة حفص جماعية للاختبار', html)
+        self.assertIn('حفص', html)  # badge critère riwaya affiché génériquement
+
+    def test_saut_serveur_si_individuel_meme_en_forcant_lurl(self):
+        """LE test explicitement demandé : session avec type_offre='individuel'
+        en cours -> un accès DIRECT à l'URL de l'étape 3 (GET comme POST) est
+        TOUJOURS redirigé serveur vers l'abonnement, jamais un simple masquage
+        visuel côté client. La page groupe n'est même pas rendue (aucun
+        groupes_compatibles() inutilement exécuté avec un rendu HTML)."""
+        client = Client()
+        self._avancer_a_etape_3(client, type_offre='individuel')
+
+        reponse_get = client.get(reverse('wizard_groupe'))
+        self.assertRedirects(reponse_get, reverse('wizard_abonnement'), fetch_redirect_response=False)
+
+        # Même verdict en POST (tentative de forcer une soumission malgré tout).
+        reponse_post = client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+        self.assertRedirects(reponse_post, reverse('wizard_abonnement'), fetch_redirect_response=False)
+        # Le groupe_id posté malgré l'interdiction n'est JAMAIS retenu en session.
+        self.assertNotIn('groupe_id', client.session.get('wizard_inscription', {}))
+
+    def test_soumission_valide_avance_a_labonnement(self):
+        client = Client()
+        self._avancer_a_etape_3(client, type_offre='groupe')
+        reponse = client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+        self.assertRedirects(reponse, reverse('wizard_abonnement'), fetch_redirect_response=False)
+        self.assertEqual(client.session['wizard_inscription']['groupe_id'], str(self.groupe.id))
+
+    def test_groupe_id_incompatible_est_refuse(self):
+        """Un groupe qui existe réellement mais ne correspond PAS aux critères
+        choisis (ici : riwaya warsh alors que l'élève a choisi hafs) est
+        refusé — jamais fait confiance à un ID juste parce qu'il est valide
+        en base (Partie 22)."""
+        creneau_warsh = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='warsh', age_min=6, age_max=60)
+        remplacer_slots_creneau(creneau_warsh, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        groupe_warsh = Groupe.objects.create(
+            nom='مجموعة ورش', creneau=creneau_warsh, statut='actif', type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(
+            groupe=groupe_warsh, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='warsh'),
+        )
+
+        client = Client()
+        self._avancer_a_etape_3(client, type_offre='groupe')
+        reponse = client.post(reverse('wizard_groupe'), {'groupe_id': str(groupe_warsh.id)})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertNotIn('groupe_id', client.session.get('wizard_inscription', {}))
+
+    def test_groupe_complet_est_refuse(self):
+        self.groupe.capacite_max = 0
+        self.groupe.save()
+        client = Client()
+        self._avancer_a_etape_3(client, type_offre='groupe')
+        reponse = client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertNotIn('groupe_id', client.session.get('wizard_inscription', {}))
+
+    def test_acces_direct_sans_session_redirige_a_identite(self):
+        reponse = Client().get(reverse('wizard_groupe'))
+        self.assertRedirects(reponse, reverse('wizard_identite'))

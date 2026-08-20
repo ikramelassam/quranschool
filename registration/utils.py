@@ -289,6 +289,79 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
     return ([(None, texte)] if texte not in (None, '') else []), None
 
 
+# ==================== ÉVALUATION PARTAGÉE DES CHAMPS ACTIFS (Étape 6C) ====================
+# Factorisé depuis inscrire_eleve() : wizard_groupe (aperçu des groupes
+# compatibles à l'étape 3, AVANT confirmation) et inscrire_eleve (revalidation
+# à la confirmation finale, étape 6) doivent construire le même
+# {Critere: valeur} à partir des mêmes réponses brutes — sinon un groupe
+# proposé à l'étape 3 pourrait être refusé à l'étape 6 pour une raison qui
+# n'a rien à voir avec un changement réel de disponibilité, simplement parce
+# que les deux vues auraient chacune leur propre logique de reconstruction,
+# divergente au moindre écart futur.
+
+def evaluer_champs_actifs(reponses_brutes):
+    """Parcourt tous les ChampInscription actifs (toutes étapes, dans
+    l'ordre), en respectant les RegleCondition (champ_est_masque) évaluées
+    AU FUR ET À MESURE avec les réponses déjà rencontrées dans CE MÊME
+    passage — un champ démasqué par une réponse plus haut dans le parcours
+    est donc pris en compte correctement. Retourne une liste ordonnée de
+    dicts {'champ', 'paires', 'erreur', 'masque'} — 'paires' et 'erreur' au
+    même format que _reponses_a_creer_pour_champ, vide/None si 'masque' est
+    True (jamais évalué dans ce cas)."""
+    from .models import ChampInscription
+
+    resultats = []
+    codes_options_repondus = {}
+    champs_actifs = list(
+        ChampInscription.objects.filter(est_actif=True, etape__est_actif=True)
+        .select_related('critere', 'etape').order_by('etape__ordre', 'ordre')
+    )
+    for champ in champs_actifs:
+        if champ_est_masque(champ, codes_options_repondus):
+            resultats.append({'champ': champ, 'paires': [], 'erreur': None, 'masque': True})
+            continue
+
+        valeur_brute = reponses_brutes.get(f'champ_{champ.id}')
+        paires, erreur = _reponses_a_creer_pour_champ(champ, valeur_brute)
+        resultats.append({'champ': champ, 'paires': paires, 'erreur': erreur, 'masque': False})
+
+        if champ.critere is not None and not erreur:
+            codes = {o.code for o, _ in paires if o is not None}
+            if codes:
+                codes_options_repondus.setdefault(champ.critere_id, set()).update(codes)
+
+    return resultats
+
+
+def reponses_pour_filtrage_depuis_resultats(resultats):
+    """Construit {Critere: valeur} (format attendu par groupes_compatibles/
+    groupes_compatibles_avec_age) à partir du résultat de
+    evaluer_champs_actifs() — ignore les champs masqués, en erreur, non liés
+    à un critère, ou dont le critère n'est pas filtrable."""
+    reponses = {}
+    for r in resultats:
+        champ = r['champ']
+        if r['masque'] or r['erreur'] or champ.critere is None or not champ.critere.filtrable or not r['paires']:
+            continue
+        if champ.critere.backend == 'nb_slots':
+            # r['paires'] == [(None, '<entier en texte>')].
+            try:
+                reponses[champ.critere] = int(r['paires'][0][1])
+            except (ValueError, TypeError):
+                pass
+        elif champ.critere.backend == 'champ_groupe':
+            # r['paires'] == [(option, '')] — le CODE de l'option est la
+            # valeur brute à comparer au champ réel de Groupe.
+            premiere_option = r['paires'][0][0]
+            if premiere_option is not None:
+                reponses[champ.critere] = premiere_option.code
+        else:
+            options_choisies = [o for o, _ in r['paires'] if o is not None]
+            if options_choisies:
+                reponses[champ.critere] = options_choisies
+    return reponses
+
+
 # ==================== POINT D'ENTRÉE UNIQUE (Parties 9, 22) ====================
 
 def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
@@ -331,7 +404,7 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
     from courses.utils import tranche_age_depuis_naissance
     from inscriptions.models import InscriptionEleve, TypeAbonnement, get_parametres_inscriptions
     from inscriptions.views import _email_bloque_pour_candidature_eleve, MESSAGE_EMAIL_DEJA_UTILISE
-    from .models import ChampInscription, ReponseInscription
+    from .models import ReponseInscription
 
     erreurs = []
 
@@ -374,57 +447,30 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
         return None, erreurs
 
     # ---- 2. Champs dynamiques actifs, en respectant les règles conditionnelles ----
-    codes_options_repondus = {}   # {critere_id: {code, ...}} — pour évaluer les RegleCondition
-    a_creer = []                  # [(champ, option, valeur_texte)]
-    reponses_pour_filtrage = {}   # {Critere: valeur} pour groupes_compatibles
+    # evaluer_champs_actifs/reponses_pour_filtrage_depuis_resultats : brique
+    # PARTAGÉE avec wizard_groupe (aperçu étape 3) — voir leur docstring,
+    # jamais de logique de reconstruction dupliquée entre l'aperçu et la
+    # validation finale.
+    resultats = evaluer_champs_actifs(reponses_brutes)
 
-    champs_actifs = list(
-        ChampInscription.objects.filter(est_actif=True, etape__est_actif=True)
-        .select_related('critere', 'etape').order_by('etape__ordre', 'ordre')
-    )
-    for champ in champs_actifs:
-        if champ_est_masque(champ, codes_options_repondus):
+    a_creer = []  # [(champ, option, valeur_texte)]
+    for r in resultats:
+        if r['masque']:
             continue
-
-        valeur_brute = reponses_brutes.get(f'champ_{champ.id}')
-        paires, erreur = _reponses_a_creer_pour_champ(champ, valeur_brute)
+        champ, paires, erreur = r['champ'], r['paires'], r['erreur']
         if erreur:
             erreurs.append(erreur)
             continue
         if not paires and champ.obligatoire:
             erreurs.append(f'"{champ.label}" إلزامي.')
             continue
-
         for option, texte in paires:
             a_creer.append((champ, option, texte))
 
-        if champ.critere is not None:
-            codes = {o.code for o, _ in paires if o is not None}
-            if codes:
-                codes_options_repondus.setdefault(champ.critere_id, set()).update(codes)
-
-            if champ.critere.filtrable and paires:
-                if champ.critere.backend == 'nb_slots':
-                    # paires == [(None, '<entier en texte>')] — voir
-                    # _reponses_a_creer_pour_champ (backend='nb_slots').
-                    try:
-                        reponses_pour_filtrage[champ.critere] = int(paires[0][1])
-                    except (ValueError, TypeError):
-                        pass
-                elif champ.critere.backend == 'champ_groupe':
-                    # paires == [(option, '')] — le CODE de l'option choisie EST
-                    # la valeur brute à comparer au champ réel de Groupe (ex:
-                    # option.code='groupe' -> Groupe.type_capacite='groupe').
-                    premiere_option = paires[0][0]
-                    if premiere_option is not None:
-                        reponses_pour_filtrage[champ.critere] = premiere_option.code
-                else:
-                    options_choisies = [o for o, _ in paires if o is not None]
-                    if options_choisies:
-                        reponses_pour_filtrage[champ.critere] = options_choisies
-
     if erreurs:
         return None, erreurs
+
+    reponses_pour_filtrage = reponses_pour_filtrage_depuis_resultats(resultats)
 
     # ---- 3. Groupe (uniquement si le critère champ_groupe='type_offre' vaut 'groupe') ----
     critere_type_offre = next(

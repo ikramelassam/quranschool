@@ -280,9 +280,73 @@ def wizard_programme(request):
     })
 
 
-# TODO Étape 6C : groupes compatibles, avec saut serveur si Individuel.
+def _type_offre_et_reponses_filtrage(donnees):
+    """(valeur du critère backend='champ_groupe', {Critere: valeur}) à partir
+    des réponses déjà en session — utilise evaluer_champs_actifs/reponses_
+    pour_filtrage_depuis_resultats (Étape 6C, partagées avec inscrire_eleve)
+    pour ne JAMAIS diverger sur ce qui compte comme "répondu"."""
+    from .utils import evaluer_champs_actifs, reponses_pour_filtrage_depuis_resultats
+
+    resultats = evaluer_champs_actifs(donnees)
+    reponses_pour_filtrage = reponses_pour_filtrage_depuis_resultats(resultats)
+    type_offre_valeur = next(
+        (v for c, v in reponses_pour_filtrage.items() if c.backend == 'champ_groupe'), None
+    )
+    return type_offre_valeur, reponses_pour_filtrage
+
+
 def wizard_groupe(request):
-    return redirect('wizard_programme')
+    """Étape 3 — UNIQUEMENT si le critère backend='champ_groupe' (type_offre)
+    vaut 'groupe'. SAUT SERVEUR sinon (Partie 3/26 du cahier des charges) :
+    la vue elle-même redirige directement vers l'abonnement, AVANT tout rendu
+    — pas un masquage JS, un visiteur qui force cette URL avec une session
+    'individuel' en cours est TOUJOURS redirigé, quelle que soit la méthode
+    HTTP (voir WizardGroupeSecuriteTests.test_acces_direct_avec_session_
+    individuel_redirige_meme_en_forcant_lurl)."""
+    from courses.utils import _age_depuis_naissance
+    from .utils import groupes_compatibles_avec_age, wizard_donnees, wizard_maj
+
+    donnees = wizard_donnees(request)
+    if 'nom' not in donnees:
+        return redirect('wizard_identite')
+
+    type_offre_valeur, reponses_pour_filtrage = _type_offre_et_reponses_filtrage(donnees)
+    if type_offre_valeur != 'groupe':
+        return redirect('wizard_abonnement')
+
+    date_naissance = datetime.date.fromisoformat(donnees['date_naissance'])
+    # prefetch propre à L'AFFICHAGE de cette page (pas au contrat réutilisable
+    # de groupes_compatibles_avec_age lui-même) — évite un N+1 sur les
+    # critères de chaque groupe affiché (riwaya, etc., montrés génériquement,
+    # jamais par nom de critère en dur).
+    groupes = groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance).prefetch_related(
+        'valeurs_criteres__critere', 'valeurs_criteres__option',
+    )
+
+    if request.method == 'POST':
+        groupe_id = request.POST.get('groupe_id')
+        groupe_choisi = groupes.filter(id=groupe_id).first() if groupe_id else None
+        # Capacité revérifiée ICI (pas seulement à la confirmation finale,
+        # Étape 6E) — groupes_compatibles_avec_age ne filtre que sur les
+        # critères/l'âge, jamais sur la capacité (raison structurelle
+        # distincte, voir courses.utils.raison_incompatibilite_groupe).
+        if groupe_choisi is not None and groupe_choisi.eleves.count() >= groupe_choisi.capacite_max:
+            groupe_choisi = None
+        if groupe_choisi is None:
+            return render(request, 'inscriptions/wizard_groupe.html', {
+                'groupes': groupes,
+                'erreurs': ['يرجى اختيار مجموعة من القائمة المتاحة.'],
+                'age': _age_depuis_naissance(date_naissance),
+                'wizard_etape_num': 3,
+            })
+        wizard_maj(request, {'groupe_id': groupe_id})
+        return redirect('wizard_abonnement')
+
+    return render(request, 'inscriptions/wizard_groupe.html', {
+        'groupes': groupes,
+        'age': _age_depuis_naissance(date_naissance),
+        'wizard_etape_num': 3,
+    })
 
 
 # TODO Étape 6D : liste TypeAbonnement filtrée (déjà existant, à réutiliser).
