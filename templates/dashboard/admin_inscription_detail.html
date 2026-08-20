@@ -1,5 +1,6 @@
 {% extends base_template %}
 {% load libelles_arabes %}
+{% load registration_tags %}
 
 {% block title %}تفاصيل الطلب{% endblock %}
 
@@ -96,11 +97,11 @@ pas seulement au moment du refus lui-même.
     {% endif %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">البرنامج</span>
-        <span style="font-weight:600;">{{ inscription.get_programme_display }}</span>
+        <span style="font-weight:600;">{% reponse_ou_ancien_champ inscription inscription.get_programme_display 'programme' %}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الرواية</span>
-        <span style="font-weight:600;">{{ inscription.get_riwaya_display }}</span>
+        <span style="font-weight:600;">{% reponse_ou_ancien_champ inscription inscription.get_riwaya_display 'riwaya' %}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">وسيلة الحضور</span>

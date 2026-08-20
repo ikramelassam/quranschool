@@ -2081,9 +2081,44 @@ def admin_valider_eleve(request, inscription_id):
         from courses.utils import matrice_vers_lignes_eleve
         matrice_vers_lignes_eleve(eleve, inscription.disponibilites)
 
+        # Chantier du moteur d'inscription configurable (Étape 5E, engagement
+        # explicite pris envers le client) : rattache automatiquement le
+        # nouvel Eleve au groupe choisi PENDANT la candidature (registration.
+        # utils.inscrire_eleve, InscriptionEleve.groupe_choisi) — SI ce choix
+        # est encore valable AUJOURD'HUI, jamais fait confiance tel quel (le
+        # groupe a pu être archivé/supprimé/rempli entre la candidature et la
+        # validation, parfois des jours plus tard). raison_incompatibilite_
+        # groupe est la MÊME fonction, avec les MÊMES règles bloquantes, que
+        # celle utilisée par l'ajout manuel (courses.views.groupe_ajouter_eleve)
+        # — aucune logique dupliquée. Si le choix n'est plus valable, RIEN
+        # n'est fait ici silencieusement : un message avertit le مدير/مشرف
+        # juste après la création du compte, pour qu'il assigne manuellement.
+        resultat_groupe_choisi = None
+        if inscription.groupe_choisi is not None:
+            from courses.utils import raison_incompatibilite_groupe
+            from courses.views import _ajouter_eleve_au_groupe
+
+            raison = raison_incompatibilite_groupe(eleve, inscription.groupe_choisi)
+            if raison is None:
+                _ajouter_eleve_au_groupe(eleve, inscription.groupe_choisi)
+                resultat_groupe_choisi = ('succes', inscription.groupe_choisi.nom, None)
+            else:
+                resultat_groupe_choisi = ('echec', inscription.groupe_choisi.nom, raison)
+
         # Change le statut
         inscription.statut = 'valide'
         inscription.save()
+
+    if resultat_groupe_choisi:
+        etat, nom_groupe, raison = resultat_groupe_choisi
+        if etat == 'succes':
+            messages.success(request, f'تم إلحاق الطالب تلقائياً بالمجموعة التي اختارها عند التسجيل: "{nom_groupe}".')
+        else:
+            messages.warning(
+                request,
+                f'الطالب كان قد اختار مجموعة "{nom_groupe}" عند التسجيل، لكن لم يعد بالإمكان إلحاقه بها تلقائياً '
+                f'({raison}) — يرجى إضافته يدوياً إلى مجموعة مناسبة.'
+            )
 
     envoyer_email_bienvenue(request, inscription.email, password_temp, inscription.nom)
 

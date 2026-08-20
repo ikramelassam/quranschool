@@ -2917,3 +2917,143 @@ class MoyenPaiementPresentationDelaisTests(TestCase):
         self.assertEqual(reponse.status_code, 302)  # redirige quand même (erreur via messages, pas 200)
         parametres_apres = get_parametres_inscriptions()
         self.assertEqual(parametres_apres.delai_paiement_jours, valeur_avant)  # inchangé
+
+
+# ============================================================================
+# CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5E : rattachement
+# automatique du nouvel Eleve à InscriptionEleve.groupe_choisi dans
+# admin_valider_eleve — engagement explicite pris envers le client (ne pas
+# laisser ce champ écrit par inscrire_eleve, Étape 4, sans jamais être
+# consommé par le reste du système).
+# ============================================================================
+@override_settings(STORAGES=_STORAGES_TEST)
+class AdminValiderEleveGroupeChoisiTests(TestCase):
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.client.force_login(self.admin)
+        self.creneau = Creneau.objects.create(
+            sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60,
+        )
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe = Groupe.objects.create(
+            nom='مجموعة مختارة عند التسجيل', creneau=self.creneau, statut='actif', capacite_max=10,
+        )
+
+    def test_eleve_rattache_automatiquement_au_groupe_choisi_si_toujours_valable(self):
+        inscription = _creer_inscription_eleve(
+            email='groupe_choisi_valide@zidni.test', date_naissance=datetime.date(2000, 1, 1),
+            groupe_choisi=self.groupe,
+        )
+        reponse = self.client.get(reverse('admin_valider_eleve', args=[inscription.id]))
+        self.assertEqual(reponse.status_code, 302)
+
+        eleve = Eleve.objects.get(user__email='groupe_choisi_valide@zidni.test')
+        self.assertTrue(self.groupe.eleves.filter(id=eleve.id).exists())
+        self.assertTrue(HistoriqueGroupeEleve.objects.filter(eleve=eleve, groupe=self.groupe).exists())
+
+    def test_avertissement_si_groupe_choisi_nest_plus_valable(self):
+        """Le groupe a été rempli/archivé entre la candidature et la
+        validation — RIEN n'est fait silencieusement, un avertissement
+        explicite est montré, l'élève est quand même créé."""
+        self.groupe.capacite_max = 0  # devenu incompatible (complet)
+        self.groupe.save()
+        inscription = _creer_inscription_eleve(
+            email='groupe_choisi_invalide@zidni.test', date_naissance=datetime.date(2000, 1, 1),
+            groupe_choisi=self.groupe,
+        )
+        reponse = self.client.get(reverse('admin_valider_eleve', args=[inscription.id]), follow=True)
+        self.assertEqual(reponse.status_code, 200)
+
+        eleve = Eleve.objects.get(user__email='groupe_choisi_invalide@zidni.test')
+        self.assertFalse(self.groupe.eleves.filter(id=eleve.id).exists())  # PAS ajouté
+
+        messages_affiches = [str(m) for m in reponse.context['messages']]
+        self.assertTrue(any('لم يعد بالإمكان إلحاقه' in m for m in messages_affiches))
+
+    def test_aucun_groupe_choisi_ne_change_rien_au_comportement_historique(self):
+        """Comportement inchangé pour toute candidature sans groupe_choisi
+        (100% des candidatures créées via l'ancien formulaire à une page,
+        toujours en service — voir inscriptions/views.py, non modifié)."""
+        inscription = _creer_inscription_eleve(email='sans_groupe_choisi@zidni.test', date_naissance=datetime.date(2000, 1, 1))
+        self.assertIsNone(inscription.groupe_choisi)
+        reponse = self.client.get(reverse('admin_valider_eleve', args=[inscription.id]))
+        self.assertEqual(reponse.status_code, 302)
+        self.assertTrue(Eleve.objects.filter(user__email='sans_groupe_choisi@zidni.test').exists())
+
+
+# ============================================================================
+# CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5E (2e tâche) :
+# fallback d'affichage Programme/Riwaya sur les 2 écrans historiques —
+# engagement explicite pris envers le client, avant toute activation en prod
+# du nouveau parcours (Partie signalée : ne jamais laisser "Riwaya : vide"
+# passer pour un bug alors que la réponse existe dans ReponseInscription).
+# ============================================================================
+@override_settings(STORAGES=_STORAGES_TEST)
+class FallbackAffichageProgrammeRiwayaTests(TestCase):
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.client.force_login(self.admin)
+
+    def test_ancien_champ_rempli_fait_toujours_foi(self):
+        """Candidature créée par l'ancien formulaire à une page — comportement
+        historique 100% inchangé."""
+        inscription = _creer_inscription_eleve(
+            email='ancien_champ_rempli@zidni.test', programme='hifz', riwaya='hafs',
+        )
+        reponse = self.client.get(reverse('admin_inscription_eleve_detail', args=[inscription.id]))
+        html = reponse.content.decode('utf-8')
+        self.assertIn(inscription.get_programme_display(), html)
+        self.assertIn(inscription.get_riwaya_display(), html)
+
+    def test_nouveau_parcours_sans_ancien_champ_affiche_la_reponseinscription(self):
+        """Candidature créée par inscrire_eleve() (Étape 4) — programme/riwaya
+        vides sur le modèle, mais une vraie réponse existe dans
+        ReponseInscription : ne doit JAMAIS s'afficher vide."""
+        from registration.models import ChampInscription, Critere, CritereOption, EtapeInscription, ReponseInscription
+
+        etape = EtapeInscription.objects.create(code='programme_fallback_test', titre='اختيار البرنامج')
+        critere_riwaya = Critere.objects.create(code='riwaya', label='الرواية')
+        option_hafs = CritereOption.objects.create(critere=critere_riwaya, code='hafs', label='حفص')
+        champ_riwaya = ChampInscription.objects.create(etape=etape, critere=critere_riwaya, label='الرواية', ordre=1)
+
+        inscription = _creer_inscription_eleve(
+            email='nouveau_parcours_fallback@zidni.test', programme='', riwaya='',
+        )
+        ReponseInscription.objects.create(inscription=inscription, champ=champ_riwaya, critere=critere_riwaya, option=option_hafs)
+
+        reponse = self.client.get(reverse('admin_inscription_eleve_detail', args=[inscription.id]))
+        html = reponse.content.decode('utf-8')
+        self.assertIn('حفص', html)  # récupéré depuis ReponseInscription, pas depuis inscription.riwaya (vide)
+
+    def test_rien_nulle_part_affiche_non_determine_jamais_vide_silencieux(self):
+        inscription = _creer_inscription_eleve(
+            email='rien_nulle_part_fallback@zidni.test', programme='', riwaya='',
+        )
+        reponse = self.client.get(reverse('admin_inscription_eleve_detail', args=[inscription.id]))
+        html = reponse.content.decode('utf-8')
+        self.assertIn('غير محدد', html)
+
+    def test_fallback_fonctionne_aussi_sur_la_fiche_eleve_validee(self):
+        from registration.models import ChampInscription, Critere, CritereOption, EtapeInscription, ReponseInscription
+
+        etape = EtapeInscription.objects.create(code='programme_fallback_eleve', titre='اختيار البرنامج')
+        critere_riwaya = Critere.objects.create(code='riwaya', label='الرواية')
+        option_warsh = CritereOption.objects.create(critere=critere_riwaya, code='warsh', label='ورش')
+        champ_riwaya = ChampInscription.objects.create(etape=etape, critere=critere_riwaya, label='الرواية', ordre=1)
+
+        inscription = _creer_inscription_eleve(
+            email='fallback_fiche_eleve@zidni.test', programme='', riwaya='', statut='valide',
+        )
+        ReponseInscription.objects.create(inscription=inscription, champ=champ_riwaya, critere=critere_riwaya, option=option_warsh)
+
+        user = User.objects.create_user(
+            username='fallback_fiche_eleve@zidni.test', email='fallback_fiche_eleve@zidni.test',
+            password='xX!test12345', first_name=inscription.nom, role='eleve',
+        )
+        eleve = Eleve.objects.create(user=user, sexe=inscription.sexe, inscription=inscription)
+
+        reponse = self.client.get(reverse('admin_eleve_detail', args=[eleve.id]))
+        html = reponse.content.decode('utf-8')
+        self.assertIn('ورش', html)
