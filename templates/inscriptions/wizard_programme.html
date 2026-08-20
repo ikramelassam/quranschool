@@ -1,0 +1,121 @@
+{% extends 'inscriptions/_wizard_base.html' %}
+{% block wizard_title %}اختيار البرنامج{% endblock %}
+{% block wizard_content %}
+<div class="page-title">اختيار البرنامج</div>
+<div class="page-subtitle">الخطوة 2 من 6</div>
+
+<form method="POST">
+    {% csrf_token %}
+
+    {% for champ in champs %}
+    <div class="mb-3">
+        <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
+
+        {% if champ.critere.backend == 'nb_slots' %}
+            <div class="row g-2" id="nb_seances_container" data-champ-id="{{ champ.id }}" data-champ-container="{{ champ.id }}">
+                <div style="color:#888; font-size:0.85rem;">اختر باقي الحقول أعلاه لعرض عدد الحصص المتاح.</div>
+            </div>
+        {% elif champ.critere %}
+            <div class="row g-2" data-champ-container="{{ champ.id }}">
+                {% for option in champ.critere.options.all %}
+                {% if option.est_actif %}
+                <div class="col-6">
+                    <div class="select-btn"
+                         data-critere-id="{{ champ.critere.id }}"
+                         onclick="selectionnerOption({{ champ.id }}, {{ champ.critere.id }}, '{{ option.code }}', {% if champ.critere.type_champ == 'choix_multiple' %}true{% else %}false{% endif %}, this)">
+                        {{ option.label }}
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <input type="text" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="btn-submit">التالي ←</button>
+    <a href="{% url 'wizard_identite' %}" class="btn-back">رجوع</a>
+</form>
+
+<script>
+    const DONNEES_FILTRAGE = {{ donnees_filtrage_json|safe }};
+    const selections = {};
+
+    function selectionnerOption(champId, critereId, code, multiple, element) {
+        if (multiple) {
+            selections[critereId] = selections[critereId] || [];
+            const idx = selections[critereId].indexOf(code);
+            if (idx > -1) {
+                selections[critereId].splice(idx, 1);
+                element.classList.remove('active');
+            } else {
+                selections[critereId].push(code);
+                element.classList.add('active');
+            }
+        } else {
+            selections[critereId] = code;
+            document.querySelectorAll(`[data-critere-id="${critereId}"]`).forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+        }
+        mettreAJourInputsCaches(champId, critereId, multiple);
+        recalculerNbSeances();
+    }
+
+    function mettreAJourInputsCaches(champId, critereId, multiple) {
+        const container = document.querySelector(`[data-champ-container="${champId}"]`);
+        container.querySelectorAll('input[type=hidden]').forEach(i => i.remove());
+        const valeurs = multiple ? (selections[critereId] || []) : [selections[critereId]];
+        valeurs.forEach(v => {
+            if (!v) return;
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = `champ_${champId}`;
+            input.value = v;
+            container.appendChild(input);
+        });
+    }
+
+    function recalculerNbSeances() {
+        const container = document.getElementById('nb_seances_container');
+        if (!container) return;
+        const champId = container.dataset.champId;
+
+        const groupesCompatibles = DONNEES_FILTRAGE.filter(g => {
+            return Object.keys(selections).every(critereId => {
+                const val = selections[critereId];
+                if (!val || (Array.isArray(val) && val.length === 0)) return true;
+                const gVal = g.valeurs[critereId];
+                if (Array.isArray(val)) return val.includes(gVal);
+                return gVal === val;
+            });
+        });
+        const nbSlotsDisponibles = [...new Set(groupesCompatibles.map(g => g.nb_slots))].sort((a, b) => a - b);
+
+        if (nbSlotsDisponibles.length === 0) {
+            container.innerHTML = '<div style="color:#888; font-size:0.85rem;">لا يوجد عدد حصص متاح للاختيارات الحالية بعد.</div>';
+            return;
+        }
+        container.innerHTML = nbSlotsDisponibles.map(n => `
+            <div class="col-3">
+                <div class="select-btn" onclick="selectionnerNbSeances(${champId}, ${n}, this)">${n}</div>
+            </div>
+        `).join('');
+    }
+
+    function selectionnerNbSeances(champId, n, element) {
+        document.querySelectorAll('#nb_seances_container .select-btn').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+        const container = document.querySelector(`[data-champ-container="${champId}"]`);
+        container.querySelectorAll('input[type=hidden]').forEach(i => i.remove());
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = `champ_${champId}`;
+        input.value = n;
+        container.appendChild(input);
+    }
+
+    document.addEventListener('DOMContentLoaded', recalculerNbSeances);
+</script>
+{% endblock %}

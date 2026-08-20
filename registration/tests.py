@@ -668,3 +668,165 @@ class WizardIdentiteTests(TestCase):
         reponse = client.post(reverse('wizard_identite'), self._reponses_valides(telephone_confirmation='0600999999'))
         self.assertIn('غير متطابقين', reponse.content.decode('utf-8'))  # inscriptions.views.MESSAGE_TELEPHONE_MISMATCH
         self.assertNotIn('wizard_inscription', client.session)
+
+
+# ============================================================================
+# Étape 6B — wizard_programme (Étape 2). Point critique explicitement testé :
+# le nombre de séances proposé n'est JAMAIS codé en dur, toujours dérivé des
+# groupes réels (registration.views._donnees_filtrage_json_pour_wizard).
+# ============================================================================
+@override_settings(STORAGES=_STORAGES_TEST)
+class WizardProgrammeTests(TestCase):
+    def setUp(self):
+        # Critères seedés par la migration 0002_seed_wizard_config.
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+    def _avancer_a_etape_2(self, client):
+        client.post(reverse('wizard_identite'), {
+            'nom': 'يوسف العلوي', 'sexe': 'homme', 'email': 'youssef.wizard@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0600112233', 'telephone_confirmation': '0600112233',
+        })
+
+    def test_get_affiche_les_4_criteres_seedes(self):
+        client = Client()
+        self._avancer_a_etape_2(client)
+        reponse = client.get(reverse('wizard_programme'))
+        self.assertEqual(reponse.status_code, 200)
+        html = reponse.content.decode('utf-8')
+        for label in ['البرنامج', 'الرواية', 'نوع الحصة', 'عدد الحصص الأسبوعية']:
+            self.assertIn(label, html)
+
+    def test_redirige_vers_identite_si_etape_1_pas_encore_faite(self):
+        """Accès direct à /wizard/programme/ sans être passé par l'étape 1 —
+        pas de session encore peuplée."""
+        reponse = Client().get(reverse('wizard_programme'))
+        self.assertRedirects(reponse, reverse('wizard_identite'))
+
+    def test_nouveau_groupe_a_nombre_de_seances_inedit_apparait_sans_code(self):
+        """LE test explicitement demandé : un groupe à un nombre de séances
+        JAMAIS VU ailleurs dans cette suite (5) doit apparaître dans les
+        données de filtrage consommées par le JS de l'étape 2, sans la
+        moindre modification de code — la fonction ne connaît aucune valeur
+        1/2/3/4 codée en dur, elle ne fait que lire creneau.slots.count()."""
+        from registration.views import _donnees_filtrage_json_pour_wizard
+
+        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(creneau, [
+            {'jour': j, 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}
+            for j in ['lun', 'mar', 'mer', 'jeu', 'ven']
+        ])
+        Groupe.objects.create(nom='مجموعة 5 حصص أسبوعياً', creneau=creneau, statut='actif')
+
+        donnees = _donnees_filtrage_json_pour_wizard()
+        nb_slots_presents = {d['nb_slots'] for d in donnees}
+        self.assertIn(5, nb_slots_presents)
+
+        # Bout en bout : la page réellement rendue embarque bien cette valeur
+        # dans le JSON consommé par le JS (pas seulement la fonction isolée).
+        client = Client()
+        self._avancer_a_etape_2(client)
+        html = client.get(reverse('wizard_programme')).content.decode('utf-8')
+        self.assertIn('"nb_slots": 5', html)
+
+    def test_nb_seances_ne_propose_jamais_une_valeur_absente_des_groupes_reels(self):
+        """Symétrique du test précédent : si aucun groupe n'a 7 séances/semaine,
+        7 ne doit jamais apparaître dans les données de filtrage."""
+        from registration.views import _donnees_filtrage_json_pour_wizard
+
+        donnees = _donnees_filtrage_json_pour_wizard()
+        nb_slots_presents = {d['nb_slots'] for d in donnees}
+        self.assertNotIn(7, nb_slots_presents)
+
+    def test_soumission_valide_avance_a_letape_groupe(self):
+        client = Client()
+        self._avancer_a_etape_2(client)
+        reponse = client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        self.assertRedirects(reponse, reverse('wizard_groupe'), fetch_redirect_response=False)
+        self.assertEqual(client.session['wizard_inscription'][f'champ_{self.champ_riwaya.id}'], 'hafs')
+
+    def test_champ_obligatoire_manquant_refuse(self):
+        client = Client()
+        self._avancer_a_etape_2(client)
+        reponse = client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            # riwaya manquant
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('إلزامي', reponse.content.decode('utf-8'))
+
+    def test_option_dun_autre_critere_est_rejetee(self):
+        """Sécurité (réutilise _reponses_a_creer_pour_champ, Étape 4) : un
+        code d'option valide mais appartenant à un AUTRE critère (ex: 'hafs'
+        soumis pour le champ 'نوع الحصة') doit être refusé."""
+        client = Client()
+        self._avancer_a_etape_2(client)
+        reponse = client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'hafs',  # code d'un AUTRE critère
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('خيار غير صالح', reponse.content.decode('utf-8'))
+
+    def test_regle_conditionnelle_masque_un_champ(self):
+        """Un champ masqué par une RegleCondition satisfaite ne doit ni
+        s'afficher, ni être exigé comme obligatoire."""
+        from django.contrib.contenttypes.models import ContentType
+
+        champ_special = ChampInscription.objects.create(
+            etape=self.champ_riwaya.etape, critere=None, type_champ='texte',
+            label='حقل خاص بحفص فقط', obligatoire=True, ordre=99,
+        )
+        RegleCondition.objects.create(
+            cible_content_type=ContentType.objects.get_for_model(ChampInscription),
+            cible_object_id=champ_special.id,
+            critere_condition=self.critere_riwaya, operateur='different', valeurs=['hafs'],
+        )
+
+        client = Client()
+        self._avancer_a_etape_2(client)
+        # riwaya pas encore répondu -> aucune réponse ne satisfait la règle
+        # ('different' exige une réponse NON-vide qui diffère de 'hafs') ->
+        # le champ spécial reste visible par défaut (comportement déjà
+        # couvert par RegleConditionMasquageTests.test_etape_masquee_si_
+        # regle_satisfaite, "aucune réponse -> visible").
+        html_avant = client.get(reverse('wizard_programme')).content.decode('utf-8')
+        self.assertIn('حقل خاص بحفص فقط', html_avant)
+
+        # Répond riwaya=hafs -> 'different' de 'hafs' est FAUX -> règle NON
+        # satisfaite -> champ spécial toujours VISIBLE et obligatoire ->
+        # soumettre sans lui doit échouer.
+        reponse_hafs = client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        self.assertEqual(reponse_hafs.status_code, 200)
+        self.assertIn('حقل خاص بحفص فقط', reponse_hafs.content.decode('utf-8'))
+
+        # Répond riwaya=warsh -> 'different' de 'hafs' est VRAI -> règle
+        # satisfaite -> champ spécial MASQUÉ -> soumettre sans lui doit réussir.
+        reponse_warsh = client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'warsh',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        self.assertRedirects(reponse_warsh, reverse('wizard_groupe'), fetch_redirect_response=False)
