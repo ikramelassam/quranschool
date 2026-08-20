@@ -1,0 +1,41 @@
+{% extends 'inscriptions/_wizard_base.html' %}
+{% block wizard_title %}الدفع{% endblock %}
+{% block wizard_extra_style %}
+.coordonnees-box {
+    background: var(--color-bg-cream); border-radius: 10px; padding: 14px 18px; margin-top: 10px;
+    white-space: pre-line; font-size: 0.9rem; color: #444; display: none;
+}
+.coordonnees-box.active { display: block; }
+{% endblock %}
+{% block wizard_content %}
+<div class="page-title">طريقة الدفع</div>
+<div class="page-subtitle">الخطوة 5 من 6</div>
+
+<div style="background:#FDF3E0; border-right:3px solid var(--color-brand-gold-dark); border-radius:8px; padding:12px 16px; margin-bottom:20px; font-size:0.9rem; color:#7a4a00;">
+    آخر أجل لأداء الاشتراك: <strong>{{ date_limite|date:"d-m-Y" }}</strong> ({{ delai_paiement_jours }} أيام من تاريخ التسجيل)
+</div>
+
+<form method="POST">
+    {% csrf_token %}
+
+    {% for moyen in moyens %}
+    <div class="select-btn mb-2" onclick="selectionnerMoyen('{{ moyen.code }}', this)">{{ moyen.label }}</div>
+    <div class="coordonnees-box" id="coord_{{ moyen.code }}">{{ moyen.coordonnees }}</div>
+    {% endfor %}
+
+    <input type="hidden" name="moyen_paiement_code" id="moyen_paiement_value">
+    <button type="submit" class="btn-submit">تأكيد التسجيل ✅</button>
+    <a href="{% url 'wizard_abonnement' %}" class="btn-back">رجوع</a>
+</form>
+
+<script>
+    function selectionnerMoyen(code, element) {
+        document.getElementById('moyen_paiement_value').value = code;
+        document.querySelectorAll('.select-btn').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.coordonnees-box').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+        const box = document.getElementById('coord_' + code);
+        if (box) box.classList.add('active');
+    }
+</script>
+{% endblock %}

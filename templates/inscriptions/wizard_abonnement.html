@@ -1,0 +1,33 @@
+{% extends 'inscriptions/_wizard_base.html' %}
+{% block wizard_title %}الاشتراك{% endblock %}
+{% block wizard_content %}
+<div class="page-title">اختيار نوع الاشتراك</div>
+<div class="page-subtitle">الخطوة 4 من 6</div>
+
+<form method="POST">
+    {% csrf_token %}
+
+    {% if not abonnements %}
+    <div style="text-align:center; padding:30px; color:#888;">لا توجد حالياً أنواع اشتراك متاحة لاختياراتك. يرجى التواصل مع الإدارة.</div>
+    {% endif %}
+
+    {% for abonnement in abonnements %}
+    <div class="select-btn mb-2" onclick="selectionnerAbonnement('{{ abonnement.code }}', this)" style="display:flex; justify-content:space-between; text-align:right;">
+        <span>{{ abonnement.label }}</span>
+        <span style="font-weight:700;">{{ abonnement.prix }} د.م.</span>
+    </div>
+    {% endfor %}
+
+    <input type="hidden" name="abonnement_code" id="abonnement_code_value">
+    <button type="submit" class="btn-submit">التالي ←</button>
+    <a href="{% url 'wizard_programme' %}" class="btn-back">رجوع</a>
+</form>
+
+<script>
+    function selectionnerAbonnement(code, element) {
+        document.getElementById('abonnement_code_value').value = code;
+        document.querySelectorAll('.select-btn').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+    }
+</script>
+{% endblock %}

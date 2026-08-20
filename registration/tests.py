@@ -1006,3 +1006,116 @@ class WizardGroupeTests(TestCase):
     def test_acces_direct_sans_session_redirige_a_identite(self):
         reponse = Client().get(reverse('wizard_groupe'))
         self.assertRedirects(reponse, reverse('wizard_identite'))
+
+
+# ============================================================================
+# Étape 6D — wizard_abonnement (Étape 4) + wizard_paiement (Étape 5, affichage
+# uniquement — la soumission finale/inscrire_eleve() arrive à l'Étape 6E).
+# ============================================================================
+@override_settings(STORAGES=_STORAGES_TEST)
+class WizardAbonnementPaiementTests(TestCase):
+    def setUp(self):
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe = Groupe.objects.create(
+            nom='مجموعة اختبار الاشتراك', creneau=self.creneau, statut='actif', type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(groupe=self.groupe, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=self.groupe, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
+
+        self.abo_groupe = TypeAbonnement.objects.create(
+            code='test_wizard_abo_groupe', label='جماعي شهري', prix=80, type_offre='groupe', cible_age='les_deux', ordre=1,
+        )
+        self.abo_individuel = TypeAbonnement.objects.create(
+            code='test_wizard_abo_individuel', label='فردي شهري', prix=400, type_offre='individuel', cible_age='les_deux', ordre=2,
+        )
+
+        from payments.models import MoyenPaiement
+        self.moyen = MoyenPaiement.objects.create(code='test_wizard_cih', label='CIH بنك', coordonnees='RIB: 000111222', est_actif=True)
+
+    def _avancer_a_etape_4(self, client, type_offre='groupe', choisir_groupe=True):
+        client.post(reverse('wizard_identite'), {
+            'nom': 'ليلى بنسعيد', 'sexe': 'femme', 'email': 'laila.wizard@zidni.test',
+            'date_naissance': '1995-01-01',
+            'indicatif_pays': '212', 'telephone': '0600778899', 'telephone_confirmation': '0600778899',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': type_offre,
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        if type_offre == 'groupe' and choisir_groupe:
+            client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+
+    def test_abonnement_filtre_par_type_offre_groupe(self):
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='groupe')
+        reponse = client.get(reverse('wizard_abonnement'))
+        html = reponse.content.decode('utf-8')
+        self.assertIn('جماعي شهري', html)
+        self.assertNotIn('فردي شهري', html)
+
+    def test_abonnement_filtre_par_type_offre_individuel(self):
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='individuel')
+        reponse = client.get(reverse('wizard_abonnement'))
+        html = reponse.content.decode('utf-8')
+        self.assertIn('فردي شهري', html)
+        self.assertNotIn('جماعي شهري', html)
+
+    def test_acces_abonnement_avec_groupe_pas_encore_choisi_redirige_a_groupe(self):
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='groupe', choisir_groupe=False)
+        reponse = client.get(reverse('wizard_abonnement'))
+        self.assertRedirects(reponse, reverse('wizard_groupe'))
+
+    def test_post_abonnement_valide_avance_au_paiement(self):
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='groupe')
+        reponse = client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abo_groupe.code})
+        self.assertRedirects(reponse, reverse('wizard_paiement'), fetch_redirect_response=False)
+        self.assertEqual(client.session['wizard_inscription']['abonnement_code'], self.abo_groupe.code)
+
+    def test_post_abonnement_invalide_refuse(self):
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='groupe')
+        reponse = client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abo_individuel.code})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertNotIn('abonnement_code', client.session.get('wizard_inscription', {}))
+
+    def test_paiement_affiche_moyens_et_date_limite_configurable(self):
+        from inscriptions.models import get_parametres_inscriptions
+        from django.utils import timezone
+
+        parametres = get_parametres_inscriptions()
+        parametres.delai_paiement_jours = 7
+        parametres.save()
+
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='groupe')
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abo_groupe.code})
+        reponse = client.get(reverse('wizard_paiement'))
+        self.assertEqual(reponse.status_code, 200)
+        html = reponse.content.decode('utf-8')
+        self.assertIn('CIH بنك', html)
+        date_limite_attendue = timezone.localdate() + datetime.timedelta(days=7)
+        self.assertIn(date_limite_attendue.strftime('%d-%m-%Y'), html)
+
+    def test_acces_paiement_sans_abonnement_redirige(self):
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='groupe')
+        reponse = client.get(reverse('wizard_paiement'))
+        self.assertRedirects(reponse, reverse('wizard_abonnement'))

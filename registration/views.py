@@ -349,16 +349,86 @@ def wizard_groupe(request):
     })
 
 
-# TODO Étape 6D : liste TypeAbonnement filtrée (déjà existant, à réutiliser).
 def wizard_abonnement(request):
-    return redirect('wizard_groupe')
+    """Étape 4 — point de convergence Groupe + Individuel. Réutilise
+    TypeAbonnement TEL QUEL (déjà un système dynamique fonctionnel, Étape 5C/
+    TypeAbonnement.type_offre/cible_age) — rien de reconstruit ici, juste
+    filtré par les réponses déjà en session."""
+    from courses.utils import tranche_age_depuis_naissance
+    from inscriptions.models import TypeAbonnement
+
+    donnees = wizard_donnees(request)
+    if 'nom' not in donnees:
+        return redirect('wizard_identite')
+
+    type_offre_valeur, _ = _type_offre_et_reponses_filtrage(donnees)
+    if type_offre_valeur == 'groupe' and 'groupe_id' not in donnees:
+        # Choix "Groupe" fait mais aucun groupe encore retenu — retour à
+        # l'étape 3 plutôt que de proposer un abonnement sans groupe associé.
+        return redirect('wizard_groupe')
+
+    date_naissance = datetime.date.fromisoformat(donnees['date_naissance'])
+    type_age = tranche_age_depuis_naissance(date_naissance)
+
+    abonnements = TypeAbonnement.objects.filter(est_actif=True, cible_age__in=[type_age, 'les_deux'])
+    if type_offre_valeur:
+        abonnements = abonnements.filter(type_offre=type_offre_valeur)
+    abonnements = abonnements.order_by('ordre')
+
+    if request.method == 'POST':
+        code = request.POST.get('abonnement_code', '')
+        if not abonnements.filter(code=code).exists():
+            return render(request, 'inscriptions/wizard_abonnement.html', {
+                'abonnements': abonnements,
+                'erreurs': ['يرجى اختيار نوع اشتراك صالح.'],
+                'wizard_etape_num': 4,
+            })
+        wizard_maj(request, {'abonnement_code': code})
+        return redirect('wizard_paiement')
+
+    return render(request, 'inscriptions/wizard_abonnement.html', {
+        'abonnements': abonnements, 'wizard_etape_num': 4,
+    })
 
 
-# TODO Étape 6D : moyens de paiement + date limite + soumission finale.
 def wizard_paiement(request):
-    return redirect('wizard_abonnement')
+    """Étape 5 — moyens de paiement actifs (Étape 5C) + date limite dérivée
+    de ParametresInscriptions.delai_paiement_jours (JAMAIS recalculée en dur).
+    Le bouton de confirmation de CETTE étape déclenche la revalidation
+    complète et l'appel à inscrire_eleve() (Partie 22) — voir la docstring
+    détaillée plus bas, section 'REVALIDATION FINALE'. En cas de succès,
+    redirige vers wizard_confirmation (Étape 6, affichage seul) en transitant
+    par la session, même patron que dashboard.views.confirmation_creation_compte."""
+    from django.utils import timezone
+    from inscriptions.models import get_parametres_inscriptions
+    from payments.models import MoyenPaiement
+
+    donnees = wizard_donnees(request)
+    if 'nom' not in donnees:
+        return redirect('wizard_identite')
+    if 'abonnement_code' not in donnees:
+        return redirect('wizard_abonnement')
+
+    moyens = MoyenPaiement.objects.filter(est_actif=True).order_by('ordre')
+    parametres = get_parametres_inscriptions()
+    date_limite = timezone.localdate() + datetime.timedelta(days=parametres.delai_paiement_jours)
+
+    if request.method == 'POST':
+        return _wizard_confirmer_inscription(request, donnees, moyens, date_limite, parametres)
+
+    return render(request, 'inscriptions/wizard_paiement.html', {
+        'moyens': moyens, 'date_limite': date_limite,
+        'delai_paiement_jours': parametres.delai_paiement_jours,
+        'wizard_etape_num': 5,
+    })
 
 
-# TODO Étape 6E : affichage du message de bienvenue après inscrire_eleve().
+# TODO Étape 6E : revalidation complète + inscrire_eleve() + message de
+# bienvenue. Stub temporaire pour que 6D (abonnement/paiement) soit testable
+# et committable indépendamment.
+def _wizard_confirmer_inscription(request, donnees, moyens, date_limite, parametres):
+    return redirect('wizard_paiement')
+
+
 def wizard_confirmation(request):
     return redirect('wizard_intro')
