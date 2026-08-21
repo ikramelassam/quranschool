@@ -2818,6 +2818,45 @@ class EtapeChampRegleInscriptionCRUDTests(TestCase):
         self.assertEqual(regle.cible, etape_groupe)
         self.assertEqual(regle.valeurs, ['groupe'])
 
+    def test_generique_nouveau_critere_et_champ_apparaissent_sans_code_supplementaire(self):
+        """Vérification demandée le 2026-08-22 : l'écran "إضافة قاعدة شرطية"
+        n'affichait que 4 critères (البرنامج/الرواية/نوع الحصة/عدد الحصص
+        الأسبوعية) — question posée : liste codée en dur, ou dynamique et ces
+        4 sont juste les seuls critères existants en base ?
+
+        Réponse (ce test) : lecture de dashboard.views.admin_regle_
+        inscription_ajouter confirme déjà que 'criteres', 'champs' et
+        'etapes' viennent tous de requêtes ORM génériques (Critere.objects.
+        filter(est_actif=True), ChampInscription.objects.select_related(...),
+        EtapeInscription.objects.all()) — AUCUN code trouvé. Ce test le
+        PROUVE avec un critère + un champ JAMAIS vus ailleurs dans cette
+        suite ('outil_communication_prefere' — distinct de 'learning_mode'/
+        'langue_preferee' déjà utilisés dans registration.tests), sans
+        aucune modification de code : RÉSULTAT — déjà générique, rien à
+        corriger."""
+        critere_inedit = CritereInscription.objects.create(
+            code='outil_communication_prefere', label='الأداة المفضلة للتواصل', filtrable=True,
+        )
+        CritereOption.objects.create(critere=critere_inedit, code='whatsapp', label='واتساب', ordre=1)
+        CritereOption.objects.create(critere=critere_inedit, code='telegram', label='تيليجرام', ordre=2)
+
+        etape_inedite = EtapeInscription.objects.create(code='etape_inedite_regle', titre='مرحلة اختبار التعميم')
+        champ_inedit = ChampInscription.objects.create(
+            etape=etape_inedite, critere=None, label='حقل اختبار تعميم القواعد الشرطية', ordre=1,
+        )
+
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_regle_inscription_ajouter')).content.decode('utf-8')
+
+        # 1. "المعيار الشرطي" : le nouveau critère apparaît dans le <select>.
+        self.assertIn('الأداة المفضلة للتواصل', html)
+        # 2. "القيمة/القيم" : ses options réelles apparaissent dans le JS
+        # généré côté serveur (OPTIONS_PAR_CRITERE), pas seulement le nom du critère.
+        self.assertIn('واتساب', html)
+        self.assertIn('تيليجرام', html)
+        # 3. "إخفاء → حقل واحد" : le nouveau champ apparaît dans le <select>.
+        self.assertIn('حقل اختبار تعميم القواعد الشرطية', html)
+
     def test_suppression_regle_reussit(self):
         etape = EtapeInscription.objects.create(code='test_programme', titre='برنامج')
         critere = CritereInscription.objects.create(code='test_riwaya', label='الرواية')
