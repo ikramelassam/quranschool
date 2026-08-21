@@ -1730,3 +1730,110 @@ class WizardConfirmationTests(TestCase):
     def test_confirmation_sans_session_prealable_redirige_a_lintro(self):
         reponse = Client().get(reverse('wizard_confirmation'))
         self.assertRedirects(reponse, reverse('wizard_intro'))
+
+
+# ============================================================================
+# BUG signalé le 2026-08-22 : du texte de commentaire technique s'affichait
+# littéralement à l'écran, à au moins 2 endroits (page de confirmation
+# finale, étape "nombre de séances"). Cause identifiée : {# ... #} est un tag
+# Django MONO-LIGNE UNIQUEMENT (documentation officielle, confirmé
+# empiriquement lors de l'investigation) — un commentaire étalé sur
+# plusieurs lignes n'est PAS reconnu comme un commentaire par le parseur et
+# s'affiche tel quel, verbatim, dans le HTML rendu.
+#
+# Recherche EXHAUSTIVE de tout le dépôt (regex {#(.*?)#} en mode DOTALL sur
+# templates/**/*.html) : exactement 3 occurrences trouvées, TOUTES
+# introduites au commit précédent (bugs A/B/C, 2026-08-21) — wizard_
+# confirmation.html, wizard_programme.html, admin_eleve_ajouter_manuel.html.
+# Aucune autre occurrence ailleurs dans le reste (bien plus ancien) du
+# dépôt — corrigées en {% comment %}/{% endcomment %}, le seul tag Django
+# qui supporte correctement un commentaire multi-lignes (vérifié
+# empiriquement lui aussi, y compris avec un {# ... #} littéral À
+# L'INTÉRIEUR du bloc comment, pour documenter la cause sans la reproduire).
+# ============================================================================
+class AucuneFuiteDeCommentaireTechniqueTests(TestCase):
+    """Charge CHAQUE page du wizard public (parcours Groupe, jusqu'à la
+    confirmation finale) + admin_eleve_ajouter_manuel (Étape 7), et vérifie
+    qu'aucune ne contient jamais '{#' ni '#}' littéralement dans le HTML
+    rendu — garde-fou GÉNÉRIQUE contre toute régression future de ce type,
+    pas seulement les 3 spots déjà connus et déjà corrigés ci-dessus."""
+
+    def setUp(self):
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe = Groupe.objects.create(
+            nom='مجموعة اختبار تسرب التعليقات', creneau=self.creneau, statut='actif', type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(groupe=self.groupe, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=self.groupe, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
+
+        self.abo_groupe = TypeAbonnement.objects.create(
+            code='test_fuite_abo_groupe', label='جماعي شهري', prix=80, type_offre='groupe', cible_age='les_deux', ordre=1,
+        )
+        from payments.models import MoyenPaiement
+        self.moyen = MoyenPaiement.objects.create(code='test_fuite_cih', label='CIH بنك', coordonnees='RIB', est_actif=True)
+
+    def _assert_pas_de_fuite(self, reponse, contexte):
+        html = reponse.content.decode('utf-8')
+        self.assertNotIn('{#', html, f"Fuite de commentaire technique détectée sur : {contexte}")
+        self.assertNotIn('#}', html, f"Fuite de commentaire technique détectée sur : {contexte}")
+
+    def test_toutes_les_pages_du_wizard_public_sans_fuite_de_commentaire(self):
+        client = Client()
+        self._assert_pas_de_fuite(client.get(reverse('wizard_intro')), 'wizard_intro')
+        self._assert_pas_de_fuite(client.get(reverse('wizard_identite')), 'wizard_identite')
+
+        client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار تسرب التعليقات', 'sexe': 'homme', 'email': 'fuite.commentaire.wizard@zidni.test',
+            'date_naissance': '1998-01-01',
+            'indicatif_pays': '212', 'telephone': '0611998877', 'telephone_confirmation': '0611998877',
+        })
+        self._assert_pas_de_fuite(client.get(reverse('wizard_programme')), 'wizard_programme (avant réponse)')
+
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '1',
+        })
+        self._assert_pas_de_fuite(client.get(reverse('wizard_groupe')), 'wizard_groupe')
+
+        client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+        self._assert_pas_de_fuite(client.get(reverse('wizard_abonnement')), 'wizard_abonnement')
+
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abo_groupe.code})
+        self._assert_pas_de_fuite(client.get(reverse('wizard_paiement')), 'wizard_paiement')
+
+        reponse_paiement = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+        self.assertRedirects(reponse_paiement, reverse('wizard_confirmation'), fetch_redirect_response=False)
+        self._assert_pas_de_fuite(client.get(reverse('wizard_confirmation')), 'wizard_confirmation')
+
+    def test_admin_eleve_ajouter_manuel_sans_fuite_de_commentaire(self):
+        admin = _creer_admin(email='admin_fuite_commentaire@zidni.test')
+        client = Client()
+        client.force_login(admin)
+
+        self._assert_pas_de_fuite(client.get(reverse('admin_eleve_ajouter_manuel')), 'admin_eleve_ajouter_manuel (round identité)')
+
+        reponse_round2 = client.post(reverse('admin_eleve_ajouter_manuel'), {
+            'round_form': 'identite',
+            'nom': 'اختبار تسرب يدوي', 'sexe': 'homme', 'email': 'fuite.commentaire.manuel@zidni.test',
+            'date_naissance': '1998-01-01',
+            'indicatif_pays': '212', 'telephone': '0611556677', 'telephone_confirmation': '0611556677',
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '1',
+        })
+        self._assert_pas_de_fuite(reponse_round2, 'admin_eleve_ajouter_manuel (round confirmation)')

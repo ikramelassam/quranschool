@@ -49,9 +49,13 @@
         {% for c in champs_affiches %}
         {% if not c.masque %}
             {% if c.champ.critere.backend == 'nb_slots' %}
-            {# Caché par défaut (bug UX signalé le 2026-08-21, même correctif
+            {% comment %}
+            Caché par défaut (bug UX signalé le 2026-08-21, même correctif
             que le wizard public) : révélé par JS une fois les champs critère
-            obligatoires précédents remplis. #}
+            obligatoires précédents remplis.
+            Correction du 2026-08-22 : le tag de commentaire mono-ligne de
+            Django rendait ce commentaire littéralement à l'écran tel quel.
+            {% endcomment %}
             <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
                 <label class="form-label" style="font-weight:600;">{{ c.champ.label }}{% if c.champ.obligatoire %} *{% endif %}</label>
                 <select name="champ_{{ c.champ.id }}" class="form-select mt-1" id="nb_seances_select" data-champ-id="{{ c.champ.id }}" {% if c.champ.obligatoire %}required{% endif %}>

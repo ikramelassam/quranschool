@@ -9,9 +9,13 @@
 
     {% for champ in champs %}
         {% if champ.critere.backend == 'nb_slots' %}
-        {# Caché par défaut (bug UX signalé le 2026-08-21) : affiché par JS
+        {% comment %}
+        Caché par défaut (bug UX signalé le 2026-08-21) : affiché par JS
         (recalculerNbSeances) uniquement une fois tous les champs obligatoires
-        précédents remplis — jamais un état vide statique affiché d'emblée. #}
+        précédents remplis — jamais un état vide statique affiché d'emblée.
+        Correction du 2026-08-22 : le tag de commentaire mono-ligne de Django
+        rendait ce commentaire littéralement à l'écran tel quel.
+        {% endcomment %}
         <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
             <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
             <div class="row g-2" id="nb_seances_container" data-champ-id="{{ champ.id }}" data-champ-container="{{ champ.id }}">

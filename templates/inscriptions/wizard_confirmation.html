@@ -16,13 +16,20 @@
         سيتواصل معك فريقنا خلال {{ delai_contact_heures }} ساعة.
     </div>
 
-    {# Bug signalé le 2026-08-21 : aucun bouton "تسجيل الدخول" ici — la
+    {% comment %}
+    Bug signalé le 2026-08-21 : aucun bouton "تسجيل الدخول" ici — la
     candidature vient d'être créée mais N'EST PAS ENCORE VALIDÉE (aucun
     compte élève actif n'existe à ce stade tant que le مدير/مشرف n'a pas
     cliqué "قبول الطلب"). Proposer une connexion serait trompeur. Simple
     message de confirmation, sans bouton d'action — pas de page d'accueil
     publique distincte du login dans ce projet (core/urls.py redirige déjà
     la racine '/' vers 'login'), donc rien de cohérent à proposer à la
-    place tant qu'un compte n'existe pas réellement. #}
+    place tant qu'un compte n'existe pas réellement.
+
+    Correction du 2026-08-22 : le tag de commentaire mono-ligne de Django
+    rendait ce texte littéralement à l'écran dès qu'il s'étalait sur
+    plusieurs lignes — le tag bloc dédié aux commentaires multi-lignes,
+    utilisé ici, est le seul qui supporte correctement ce cas.
+    {% endcomment %}
 </div>
 {% endblock %}
