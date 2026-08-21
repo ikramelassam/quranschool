@@ -39,6 +39,42 @@ class TypeAbonnement(models.Model):
         verbose_name_plural = "Types d'abonnement"
 
 
+class GrillePrixAbonnement(models.Model):
+    """Prix EXACT d'un TypeAbonnement pour un nombre de séances/semaine donné
+    (Étape 9 du chantier "moteur d'inscription configurable", 2026-08-21) —
+    PAS de calcul de supplément : le مدير configure directement le montant
+    final de chaque combinaison (type_abonnement, nb_slots), lu tel quel.
+
+    PAS de champ type_offre ici (décision explicite, voir résumé de session) :
+    TypeAbonnement.type_offre reste TEL QUEL le seul axe groupe/individuel —
+    chaque TypeAbonnement reste dédié à un seul type d'offre (ex: "Mensuel
+    Individuel" et "Mensuel Groupe" restent 2 lignes TypeAbonnement séparées,
+    comme aujourd'hui). Ajouter type_offre ici aurait permis la contradiction
+    d'une ligne de grille pour un type_offre différent de celui de son
+    TypeAbonnement — nb_slots suffit donc comme seul axe supplémentaire.
+
+    Si aucune ligne active ne correspond au nb_slots demandé pour un
+    TypeAbonnement donné, TypeAbonnement.prix sert de repli — voir
+    registration.utils.prix_effectif() : l'élève voit TOUJOURS un prix,
+    jamais un blocage silencieux du wizard le temps que le مدير configure
+    chaque combinaison. registration.utils.couverture_grille_prix() sert de
+    son côté à avertir le مدير (non bloquant) des combinaisons encore
+    couvertes seulement par ce repli."""
+    type_abonnement = models.ForeignKey(TypeAbonnement, on_delete=models.CASCADE, related_name='grille_prix')
+    nb_slots = models.PositiveSmallIntegerField()
+    prix = models.DecimalField(max_digits=8, decimal_places=2)
+    est_actif = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.type_abonnement.label} — {self.nb_slots} حصص/أسبوع ({self.prix} درهم)"
+
+    class Meta:
+        unique_together = ('type_abonnement', 'nb_slots')
+        ordering = ['type_abonnement__ordre', 'nb_slots']
+        verbose_name = "Prix de grille (abonnement × nb séances)"
+        verbose_name_plural = "Grille de prix des abonnements"
+
+
 class InscriptionEleve(models.Model):
     STATUT_CHOICES = [
         ('en_attente', 'قيد الانتظار'),
