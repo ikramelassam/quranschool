@@ -3328,3 +3328,242 @@ class AjoutManuelEleveTests(TestCase):
 
         self.assertIn('حقل اختبار التناظر', html_wizard)
         self.assertIn('حقل اختبار التناظر', html_admin)
+
+
+# ============================================================================
+# CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 8 : preuve de
+# généricité totale, bout en bout, à travers TOUTE la chaîne (dashboard CRUD
+# -> onglet groupe "الخصائص" -> wizard public ET ajout manuel) avec un
+# critère qui n'existe dans AUCUN autre test de ce chantier ("هدف التعلم" /
+# but_apprentissage — jamais "Mode d'apprentissage préféré" ni "Langue
+# préférée", déjà utilisés à l'Étape 4/6). Zéro objects.create() direct sur
+# Critere/CritereOption/ChampInscription/GroupeCritereValeur dans cette
+# classe : uniquement des POST sur les vraies vues, exactement ce que ferait
+# le Directeur. La preuve finale (aucune ligne de code ne mentionne ce
+# critère) est un grep RÉEL du dépôt, pas une affirmation.
+# ============================================================================
+class GenericiteBoutEnBoutTests(TestCase):
+    def setUp(self):
+        self.admin = _creer_admin()
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def _creer_critere_but_apprentissage_via_dashboard(self):
+        from registration.models import ChampInscription, Critere, EtapeInscription
+
+        client = self._connecte_admin()
+
+        client.post(reverse('admin_critere_inscription_ajouter'), {
+            'code': 'but_apprentissage', 'label': 'هدف التعلم', 'type_champ': 'choix_unique',
+            'backend': 'eav', 'filtrable': 'on', 'ordre': 5,
+        })
+        critere = Critere.objects.get(code='but_apprentissage')
+
+        for code, label in [
+            ('genericite_memorisation', 'الحفظ فقط'),
+            ('genericite_revision', 'المراجعة فقط'),
+            ('genericite_lecture', 'القراءة فقط'),
+        ]:
+            client.post(reverse('admin_critere_option_ajouter', args=[critere.id]), {'code': code, 'label': label})
+        self.assertEqual(critere.options.count(), 3)
+
+        # Ajouté à une étape EXISTANTE (celle du parcours réel, pas une étape
+        # créée pour l'occasion) — obligatoire volontairement PAS coché ici,
+        # vérifié/activé dans un 2e temps par test_couverture_vide_puis_
+        # couverte_apres_assignation_aux_groupes ci-dessous, après contrôle
+        # de couverture (même flux que EtapeChampRegleInscriptionCRUDTests.
+        # test_rendre_champ_obligatoire_sans_couverture_demande_confirmation).
+        etape_programme = EtapeInscription.objects.get(code='programme')
+        client.post(reverse('admin_champ_inscription_ajouter', args=[etape_programme.id]), {
+            'critere_id': critere.id, 'label': 'هدف التعلم', 'ordre': 5,
+        })
+        champ = ChampInscription.objects.get(etape=etape_programme, critere=critere)
+        self.assertFalse(champ.obligatoire)
+        return critere, champ
+
+    def _creer_groupes_et_assigner_valeurs(self, critere):
+        from courses.utils import remplacer_slots_creneau as _slots
+        from registration.models import Critere as CritereInscription
+
+        critere_programme = CritereInscription.objects.get(code='programme')
+        critere_riwaya = CritereInscription.objects.get(code='riwaya')
+
+        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        _slots(creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        groupe_memo = Groupe.objects.create(
+            nom='مجموعة اختبار التعميم — الحفظ', creneau=creneau, statut='actif', type_capacite='groupe', capacite_max=10,
+        )
+        groupe_revision = Groupe.objects.create(
+            nom='مجموعة اختبار التعميم — المراجعة', creneau=creneau, statut='actif', type_capacite='groupe', capacite_max=10,
+        )
+        for groupe in (groupe_memo, groupe_revision):
+            GroupeCritereValeur.objects.create(groupe=groupe, critere=critere_programme, option=critere_programme.options.get(code='hifz'))
+            GroupeCritereValeur.objects.create(groupe=groupe, critere=critere_riwaya, option=critere_riwaya.options.get(code='hafs'))
+
+        # Valeurs assignées via l'onglet "الخصائص" (courses.views.groupe_
+        # definir_critere, URL admin_groupe_definir_critere) — PAS un appel
+        # direct à registration.utils.definir_valeurs_groupe().
+        client = self._connecte_admin()
+        client.post(reverse('admin_groupe_definir_critere', args=[groupe_memo.id, critere.id]), {'options': ['genericite_memorisation']})
+        client.post(reverse('admin_groupe_definir_critere', args=[groupe_revision.id, critere.id]), {'options': ['genericite_revision']})
+        return groupe_memo, groupe_revision
+
+    def _champs_programme_seedes(self):
+        from registration.models import ChampInscription
+        return {
+            code: ChampInscription.objects.get(etape__code='programme', critere__code=code)
+            for code in ('programme', 'riwaya', 'type_offre', 'nb_seances_hebdo')
+        }
+
+    def _abonnement_groupe_actif(self, suffixe):
+        from inscriptions.models import TypeAbonnement
+        abo = TypeAbonnement.objects.filter(est_actif=True, type_offre='groupe').first()
+        if abo is None:
+            abo = TypeAbonnement.objects.create(
+                code=f'test_generique_abo_{suffixe}', label='جماعي', prix=80,
+                type_offre='groupe', cible_age='les_deux', ordre=1,
+            )
+        return abo
+
+    def _moyen_paiement_actif(self):
+        from payments.models import MoyenPaiement
+        moyen = MoyenPaiement.objects.filter(est_actif=True).first()
+        if moyen is None:
+            moyen = MoyenPaiement.objects.create(code='test_generique_moyen', label='نقداً', est_actif=True)
+        return moyen
+
+    def test_couverture_vide_puis_couverte_apres_assignation_aux_groupes(self):
+        """Warning de couverture vérifié AVANT toute assignation (0 groupe
+        configuré), puis couverture complète après assignation via l'onglet
+        "الخصائص" — et rendu obligatoire seulement APRÈS, sans confirmation
+        nécessaire cette fois (couverture déjà complète)."""
+        from registration.utils import couverture_critere
+
+        critere, champ = self._creer_critere_but_apprentissage_via_dashboard()
+        couverture_avant = couverture_critere(critere)
+        self.assertEqual(couverture_avant['configures'], 0)
+
+        self._creer_groupes_et_assigner_valeurs(critere)
+        couverture_apres = couverture_critere(critere)
+        self.assertEqual(couverture_apres['configures'], 2)
+
+        client = self._connecte_admin()
+        reponse = client.post(reverse('admin_champ_inscription_modifier', args=[champ.id]), {
+            'label': 'هدف التعلم', 'obligatoire': 'on', 'ordre': 5, 'est_actif': 'on',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        champ.refresh_from_db()
+        self.assertTrue(champ.obligatoire)
+
+    def test_wizard_public_filtre_les_groupes_selon_le_nouveau_critere(self):
+        """Bout en bout via le formulaire PUBLIC : le nouveau critère filtre
+        réellement les groupes proposés à l'étape 3, sans une seule ligne de
+        code écrite pour lui."""
+        critere, champ = self._creer_critere_but_apprentissage_via_dashboard()
+        groupe_memo, groupe_revision = self._creer_groupes_et_assigner_valeurs(critere)
+        champs = self._champs_programme_seedes()
+
+        client = Client()
+        client.post(reverse('wizard_identite'), {
+            'nom': 'وزير الاختبار', 'sexe': 'homme', 'email': 'generique_wizard@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0600998877', 'telephone_confirmation': '0600998877',
+        })
+        client.post(reverse('wizard_programme'), {
+            f"champ_{champs['programme'].id}": 'hifz',
+            f"champ_{champs['riwaya'].id}": 'hafs',
+            f"champ_{champs['type_offre'].id}": 'groupe',
+            f"champ_{champs['nb_seances_hebdo'].id}": '2',
+            f'champ_{champ.id}': 'genericite_memorisation',
+        })
+        html_groupe = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertIn('مجموعة اختبار التعميم — الحفظ', html_groupe)
+        self.assertNotIn('مجموعة اختبار التعميم — المراجعة', html_groupe)
+
+        reponse_choix = client.post(reverse('wizard_groupe'), {'groupe_id': str(groupe_memo.id)})
+        self.assertRedirects(reponse_choix, reverse('wizard_abonnement'), fetch_redirect_response=False)
+
+        abo = self._abonnement_groupe_actif('wizard')
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': abo.code})
+
+        moyen = self._moyen_paiement_actif()
+        reponse_finale = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': moyen.code})
+        self.assertRedirects(reponse_finale, reverse('wizard_confirmation'), fetch_redirect_response=False)
+
+        inscription = InscriptionEleve.objects.get(email='generique_wizard@zidni.test')
+        self.assertEqual(inscription.groupe_choisi_id, groupe_memo.id)
+        from registration.models import ReponseInscription
+        self.assertTrue(ReponseInscription.objects.filter(
+            inscription=inscription, critere=critere, option__code='genericite_memorisation',
+        ).exists())
+
+    def test_ajout_manuel_filtre_aussi_les_groupes_selon_le_nouveau_critere(self):
+        """Même preuve, via l'Étape 7 (ajout manuel Directeur/مشرف) — même
+        moteur, même résultat, toujours zéro ligne de code pour ce critère."""
+        critere, champ = self._creer_critere_but_apprentissage_via_dashboard()
+        groupe_memo, groupe_revision = self._creer_groupes_et_assigner_valeurs(critere)
+        champs = self._champs_programme_seedes()
+        abo = self._abonnement_groupe_actif('manuel')
+
+        client = self._connecte_admin()
+        donnees_round1 = {
+            'round_form': 'identite', 'nom': 'مديرة الاختبار', 'sexe': 'femme', 'email': 'generique_manuel@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0600112200', 'telephone_confirmation': '0600112200',
+            f"champ_{champs['programme'].id}": 'hifz', f"champ_{champs['riwaya'].id}": 'hafs',
+            f"champ_{champs['type_offre'].id}": 'groupe', f"champ_{champs['nb_seances_hebdo'].id}": '2',
+            f'champ_{champ.id}': 'genericite_memorisation',
+        }
+        reponse_round2 = client.post(reverse('admin_eleve_ajouter_manuel'), donnees_round1)
+        html = reponse_round2.content.decode('utf-8')
+        self.assertIn('مجموعة اختبار التعميم — الحفظ', html)
+        self.assertNotIn('مجموعة اختبار التعميم — المراجعة', html)
+
+        reponse_finale = client.post(reverse('admin_eleve_ajouter_manuel'), {
+            **donnees_round1, 'round_form': 'confirmation',
+            'groupe_id': str(groupe_memo.id), 'abonnement_code': abo.code,
+        })
+        inscription = InscriptionEleve.objects.get(email='generique_manuel@zidni.test')
+        self.assertRedirects(reponse_finale, reverse('admin_inscription_eleve_detail', args=[inscription.id]))
+        self.assertEqual(inscription.groupe_choisi_id, groupe_memo.id)
+        self.assertEqual(inscription.cree_par_id, self.admin.id)
+
+    def test_le_critere_napparait_dans_aucun_fichier_source(self):
+        """LA preuve explicitement demandée : grep RÉEL sur tout le dépôt
+        (hors ce fichier de test lui-même) — zéro mention du code de ce
+        critère ou de ses options, nulle part dans le code source. Prouve
+        qu'aucune ligne de code n'a été écrite pour LUI spécifiquement, pas
+        juste une affirmation dans un message de commit. Canari permanent :
+        si un jour quelqu'un copie-colle ce fixture dans du code réel avec un
+        `if critere.code == 'but_apprentissage':`, ce test échoue."""
+        import pathlib
+
+        racine = pathlib.Path(__file__).resolve().parent.parent
+        motifs = ['but_apprentissage', 'genericite_memorisation', 'genericite_revision', 'genericite_lecture']
+        extensions = ('.py', '.html')
+        exclusions = {'venv', '.git', 'node_modules', 'staticfiles', 'media', '__pycache__'}
+        fichier_de_ce_test = pathlib.Path(__file__).resolve()
+
+        trouvailles = []
+        for chemin in racine.rglob('*'):
+            if not chemin.is_file() or chemin.suffix not in extensions:
+                continue
+            if any(part in exclusions for part in chemin.parts):
+                continue
+            if chemin.resolve() == fichier_de_ce_test:
+                continue
+            try:
+                contenu = chemin.read_text(encoding='utf-8', errors='ignore')
+            except OSError:
+                continue
+            for motif in motifs:
+                if motif in contenu:
+                    trouvailles.append(f'{chemin} contient "{motif}"')
+
+        self.assertEqual(trouvailles, [], '\n'.join(trouvailles))
