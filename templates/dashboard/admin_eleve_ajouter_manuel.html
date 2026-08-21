@@ -1,0 +1,212 @@
+{% extends base_template %}
+{% block title %}إضافة تلميذ يدوياً{% endblock %}
+{% block content %}
+<div class="page-title">إضافة تلميذ يدوياً</div>
+<div class="page-subtitle" style="margin-bottom:20px;">
+    لتسجيل طالب تم التواصل معه هاتفياً أو حضورياً — يستخدم بالضبط نفس محرك التسجيل العمومي (نفس الحقول، نفس الشروط)،
+    ثم يُنشئ طلب تسجيل تراجعه/تقبله كأي طلب آخر من "طلبات التسجيل".
+</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:720px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    {% if round_form == 'identite' %}
+    {# ==================== ROUND 1 : IDENTITÉ + CHAMPS ACTIFS ==================== #}
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="round_form" value="identite">
+
+        <div class="mb-3">
+            <label class="form-label" style="font-weight:600;">الاسم الكامل *</label>
+            <input type="text" name="nom" class="form-control mt-1" value="{{ valeurs_form.nom|default:'' }}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight:600;">اسم ولي الأمر (إن كان المسجَّل قاصراً)</label>
+            <input type="text" name="nom_parent" class="form-control mt-1" value="{{ valeurs_form.nom_parent|default:'' }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight:600;">الجنس *</label>
+            <select name="sexe" class="form-select mt-1" required>
+                <option value="">— اختر —</option>
+                <option value="homme" {% if valeurs_form.sexe == 'homme' %}selected{% endif %}>ذكر</option>
+                <option value="femme" {% if valeurs_form.sexe == 'femme' %}selected{% endif %}>أنثى</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight:600;">البريد الإلكتروني *</label>
+            <input type="email" name="email" class="form-control mt-1" value="{{ valeurs_form.email|default:'' }}" required>
+        </div>
+
+        {% include 'inscriptions/_verification_whatsapp.html' %}
+
+        <div class="mb-3">
+            <label class="form-label" style="font-weight:600;">تاريخ الميلاد *</label>
+            <input type="date" name="date_naissance" class="form-control mt-1" value="{{ valeurs_form.date_naissance|default:'' }}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" style="font-weight:600;">العمل الحالي (أو عمل ولي الأمر إن كان المسجَّل قاصراً)</label>
+            <input type="text" name="job_actuel" class="form-control mt-1" value="{{ valeurs_form.job_actuel|default:'' }}">
+        </div>
+
+        {% for c in champs_affiches %}
+        {% if not c.masque %}
+        <div class="mb-3">
+            <label class="form-label" style="font-weight:600;">{{ c.champ.label }}{% if c.champ.obligatoire %} *{% endif %}</label>
+
+            {% if c.champ.critere.backend == 'nb_slots' %}
+                <select name="champ_{{ c.champ.id }}" class="form-select mt-1" id="nb_seances_select" data-champ-id="{{ c.champ.id }}" {% if c.champ.obligatoire %}required{% endif %}>
+                    <option value="">اختر باقي الحقول أعلاه أولاً</option>
+                </select>
+            {% elif c.champ.critere.type_champ == 'choix_multiple' %}
+                <select name="champ_{{ c.champ.id }}" class="form-select mt-1" multiple data-critere-id="{{ c.champ.critere.id }}" onchange="recalculerNbSeances()">
+                    {% for option in c.champ.critere.options.all %}
+                    {% if option.est_actif %}
+                    <option value="{{ option.code }}" {% if option.code in c.valeurs_liste %}selected{% endif %}>{{ option.label }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            {% elif c.champ.critere %}
+                <select name="champ_{{ c.champ.id }}" class="form-select mt-1" data-critere-id="{{ c.champ.critere.id }}" onchange="recalculerNbSeances()" {% if c.champ.obligatoire %}required{% endif %}>
+                    <option value="">— اختر —</option>
+                    {% for option in c.champ.critere.options.all %}
+                    {% if option.est_actif %}
+                    <option value="{{ option.code }}" {% if option.code == c.valeur %}selected{% endif %}>{{ option.label }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            {% else %}
+                <input type="text" name="champ_{{ c.champ.id }}" class="form-control mt-1" value="{{ c.valeur }}" {% if c.champ.obligatoire %}required{% endif %}>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        <div class="d-flex gap-3 mt-4">
+            <button type="submit"
+                style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                متابعة ←
+            </button>
+            <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
+        </div>
+    </form>
+
+    <script>
+        const DONNEES_FILTRAGE = {{ donnees_filtrage_json|safe }};
+
+        function recalculerNbSeances() {
+            const select = document.getElementById('nb_seances_select');
+            if (!select) return;
+            const selections = {};
+            document.querySelectorAll('[data-critere-id]').forEach(el => {
+                if (el.multiple) {
+                    selections[el.dataset.critereId] = Array.from(el.selectedOptions).map(o => o.value).filter(v => v);
+                } else if (el.value) {
+                    selections[el.dataset.critereId] = el.value;
+                }
+            });
+            const groupesCompatibles = DONNEES_FILTRAGE.filter(g => {
+                return Object.keys(selections).every(critereId => {
+                    const val = selections[critereId];
+                    const gVal = g.valeurs[critereId];
+                    if (Array.isArray(val)) return val.length === 0 || val.includes(gVal);
+                    return gVal === val;
+                });
+            });
+            const nbSlotsDisponibles = [...new Set(groupesCompatibles.map(g => g.nb_slots))].sort((a, b) => a - b);
+            const valeurActuelle = select.value;
+            select.innerHTML = '<option value="">— اختر —</option>' + nbSlotsDisponibles.map(n => `<option value="${n}">${n}</option>`).join('');
+            if (nbSlotsDisponibles.map(String).includes(valeurActuelle)) select.value = valeurActuelle;
+        }
+        document.addEventListener('DOMContentLoaded', recalculerNbSeances);
+    </script>
+
+    {% else %}
+    {# ==================== ROUND 2 : GROUPE + ABONNEMENT + CONFIRMATION ==================== #}
+    {% if avertissement %}
+    <div style="background:#FFF3CD; border-right:3px solid #E0A800; border-radius:8px; padding:14px 18px; margin-bottom:20px; color:#664D03;">
+        ⚠️ المجموعة المختارة لا تتوافق تماماً مع أحد المعايير غير الإلزامية. يمكنك تأكيد التسجيل رغم ذلك (بصفتك مدير/مشرف)، أو اختيار مجموعة أخرى أدناه.
+    </div>
+    {% endif %}
+
+    <div style="background:var(--color-bg-cream, #f7f2ea); border-radius:10px; padding:14px 18px; margin-bottom:20px; font-size:0.9rem;">
+        <strong>{{ valeurs_form.nom }}</strong> — {{ valeurs_form.email }}
+        {% if age %}— العمر: {{ age }} سنة{% endif %}
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="round_form" value="confirmation">
+        {% if avertissement %}<input type="hidden" name="confirme_override" value="0" id="confirme_override_input">{% endif %}
+
+        {# ---- champs cachés : rejoue round 1 tel quel (identité + champs actifs) ---- #}
+        <input type="hidden" name="nom" value="{{ valeurs_form.nom }}">
+        <input type="hidden" name="nom_parent" value="{{ valeurs_form.nom_parent }}">
+        <input type="hidden" name="sexe" value="{{ valeurs_form.sexe }}">
+        <input type="hidden" name="email" value="{{ valeurs_form.email }}">
+        <input type="hidden" name="date_naissance" value="{{ valeurs_form.date_naissance }}">
+        <input type="hidden" name="job_actuel" value="{{ valeurs_form.job_actuel }}">
+        <input type="hidden" name="indicatif_pays" value="{{ valeurs_form.indicatif_pays }}">
+        <input type="hidden" name="indicatif_pays_autre" value="{{ valeurs_form.indicatif_pays_autre }}">
+        <input type="hidden" name="telephone" value="{{ valeurs_form.telephone_brut }}">
+        <input type="hidden" name="telephone_confirmation" value="{{ valeurs_form.telephone_confirmation }}">
+        {% for c in champs_affiches %}
+        {% if not c.masque %}
+        {% for v in c.valeurs_liste %}
+        <input type="hidden" name="champ_{{ c.champ.id }}" value="{{ v }}">
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+
+        {% if type_offre_valeur == 'groupe' %}
+        <div class="mb-3">
+            <label class="form-label" style="font-weight:600;">اختيار المجموعة *</label>
+            {% if not groupes %}
+            <div style="color:#888; padding:10px 0;">لا توجد حالياً أي مجموعة متوافقة مع الاختيارات المدخلة.</div>
+            {% endif %}
+            <select name="groupe_id" class="form-select mt-1" required>
+                <option value="">— اختر مجموعة —</option>
+                {% for groupe in groupes %}
+                <option value="{{ groupe.id }}" {% if groupe.id|stringformat:"s" == groupe_id_selectionne %}selected{% endif %}>
+                    {{ groupe.nom }} — {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}بدون أستاذ بعد{% endif %}
+                    — {{ groupe.eleves.count }}/{{ groupe.capacite_max }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div class="mb-3">
+            <label class="form-label" style="font-weight:600;">نوع الاشتراك *</label>
+            {% if not abonnements %}
+            <div style="color:#888; padding:10px 0;">لا توجد حالياً أنواع اشتراك متاحة لهذه الاختيارات.</div>
+            {% endif %}
+            <select name="abonnement_code" class="form-select mt-1" required>
+                <option value="">— اختر —</option>
+                {% for abonnement in abonnements %}
+                <option value="{{ abonnement.code }}" {% if abonnement.code == abonnement_selectionne %}selected{% endif %}>
+                    {{ abonnement.label }} — {{ abonnement.prix }} د.م.
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="d-flex gap-3 mt-4">
+            {% if avertissement %}
+            <button type="submit" onclick="document.getElementById('confirme_override_input').value='1';"
+                style="background:#E0A800; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                تأكيد التسجيل رغم التحذير ⚠️
+            </button>
+            {% else %}
+            <button type="submit"
+                style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+                تأكيد وإنشاء طلب التسجيل ✅
+            </button>
+            {% endif %}
+            <button type="submit" name="retour" value="1" formnovalidate
+                style="background:none; border:1px solid #ccc; color:#555; border-radius:8px; padding:10px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">
+                ← تعديل المعلومات الشخصية
+            </button>
+            <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

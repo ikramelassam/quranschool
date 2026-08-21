@@ -733,7 +733,7 @@ class WizardIdentiteTests(TestCase):
 # ============================================================================
 # Étape 6B — wizard_programme (Étape 2). Point critique explicitement testé :
 # le nombre de séances proposé n'est JAMAIS codé en dur, toujours dérivé des
-# groupes réels (registration.views._donnees_filtrage_json_pour_wizard).
+# groupes réels (registration.utils.donnees_filtrage_json_pour_wizard).
 # ============================================================================
 @override_settings(STORAGES=_STORAGES_TEST)
 class WizardProgrammeTests(TestCase):
@@ -776,7 +776,7 @@ class WizardProgrammeTests(TestCase):
         données de filtrage consommées par le JS de l'étape 2, sans la
         moindre modification de code — la fonction ne connaît aucune valeur
         1/2/3/4 codée en dur, elle ne fait que lire creneau.slots.count()."""
-        from registration.views import _donnees_filtrage_json_pour_wizard
+        from registration.utils import donnees_filtrage_json_pour_wizard
 
         creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
         remplacer_slots_creneau(creneau, [
@@ -785,7 +785,7 @@ class WizardProgrammeTests(TestCase):
         ])
         Groupe.objects.create(nom='مجموعة 5 حصص أسبوعياً', creneau=creneau, statut='actif')
 
-        donnees = _donnees_filtrage_json_pour_wizard()
+        donnees = donnees_filtrage_json_pour_wizard()
         nb_slots_presents = {d['nb_slots'] for d in donnees}
         self.assertIn(5, nb_slots_presents)
 
@@ -799,9 +799,9 @@ class WizardProgrammeTests(TestCase):
     def test_nb_seances_ne_propose_jamais_une_valeur_absente_des_groupes_reels(self):
         """Symétrique du test précédent : si aucun groupe n'a 7 séances/semaine,
         7 ne doit jamais apparaître dans les données de filtrage."""
-        from registration.views import _donnees_filtrage_json_pour_wizard
+        from registration.utils import donnees_filtrage_json_pour_wizard
 
-        donnees = _donnees_filtrage_json_pour_wizard()
+        donnees = donnees_filtrage_json_pour_wizard()
         nb_slots_presents = {d['nb_slots'] for d in donnees}
         self.assertNotIn(7, nb_slots_presents)
 

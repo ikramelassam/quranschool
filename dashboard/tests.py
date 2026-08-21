@@ -2716,16 +2716,19 @@ class EtapeChampRegleInscriptionCRUDTests(TestCase):
             self.assertTrue(EtapeInscription.objects.filter(code=f'etape_test_{i}').exists())
 
     def test_detail_etape_affiche_les_champs_et_le_formulaire_ajout(self):
-        etape = EtapeInscription.objects.create(code='programme', titre='اختيار البرنامج')
-        critere = CritereInscription.objects.create(code='riwaya', label='الرواية')
+        # Codes test_ : la base de test contient déjà 'programme'/'riwaya'/
+        # 'identite'/'type_offre' seedés par registration/migrations/0002_seed_
+        # wizard_config.py (Étape 6A) — mêmes codes distincts qu'ailleurs.
+        etape = EtapeInscription.objects.create(code='test_programme', titre='اختيار البرنامج')
+        critere = CritereInscription.objects.create(code='test_riwaya', label='الرواية')
         client = self._connecte_admin()
         reponse = client.get(reverse('admin_etape_inscription_detail', args=[etape.id]))
         self.assertEqual(reponse.status_code, 200)
         self.assertIn('الرواية', reponse.content.decode('utf-8'))
 
     def test_ajout_champ_avec_critere_et_champ_informatif(self):
-        etape = EtapeInscription.objects.create(code='identite', titre='المعلومات الشخصية')
-        critere = CritereInscription.objects.create(code='riwaya', label='الرواية')
+        etape = EtapeInscription.objects.create(code='test_identite', titre='المعلومات الشخصية')
+        critere = CritereInscription.objects.create(code='test_riwaya', label='الرواية')
         client = self._connecte_admin()
 
         # Champ lié à un critère.
@@ -2743,7 +2746,7 @@ class EtapeChampRegleInscriptionCRUDTests(TestCase):
         self.assertEqual(champ_info.type_champ, 'texte')
 
     def test_suppression_etape_avec_champs_est_refusee(self):
-        etape = EtapeInscription.objects.create(code='programme', titre='اختيار البرنامج')
+        etape = EtapeInscription.objects.create(code='test_programme', titre='اختيار البرنامج')
         ChampInscription.objects.create(etape=etape, label='حقل', ordre=1)
         client = self._connecte_admin()
         client.get(reverse('admin_etape_inscription_supprimer', args=[etape.id]))
@@ -2753,7 +2756,7 @@ class EtapeChampRegleInscriptionCRUDTests(TestCase):
         from inscriptions.models import InscriptionEleve
         from registration.models import ReponseInscription
 
-        etape = EtapeInscription.objects.create(code='identite', titre='المعلومات')
+        etape = EtapeInscription.objects.create(code='test_identite', titre='المعلومات')
         champ = ChampInscription.objects.create(etape=etape, label='البلد', type_champ='texte', ordre=1)
         inscription = InscriptionEleve.objects.create(
             nom='طالب اختبار', date_naissance='2000-01-01', sexe='homme',
@@ -2769,7 +2772,7 @@ class EtapeChampRegleInscriptionCRUDTests(TestCase):
         from courses.models import Creneau, Groupe
         from courses.utils import remplacer_slots_creneau as _slots
 
-        etape = EtapeInscription.objects.create(code='programme', titre='اختيار البرنامج')
+        etape = EtapeInscription.objects.create(code='test_programme', titre='اختيار البرنامج')
         critere = CritereInscription.objects.create(code='objectif', label='الهدف', filtrable=True)
         champ = ChampInscription.objects.create(etape=etape, critere=critere, label='الهدف', obligatoire=False, ordre=1)
         creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
@@ -2794,7 +2797,7 @@ class EtapeChampRegleInscriptionCRUDTests(TestCase):
     def test_liste_et_ajout_regle_condition(self):
         etape_groupe = EtapeInscription.objects.create(code='choix_groupe', titre='اختيار المجموعة')
         critere = CritereInscription.objects.create(
-            code='type_offre', label='نوع الحصة', backend='champ_groupe', champ_modele_groupe='type_capacite',
+            code='test_type_offre', label='نوع الحصة', backend='champ_groupe', champ_modele_groupe='type_capacite',
         )
         CritereOption.objects.create(critere=critere, code='groupe', label='جماعي')
         CritereOption.objects.create(critere=critere, code='individuel', label='فردي')
@@ -2816,8 +2819,8 @@ class EtapeChampRegleInscriptionCRUDTests(TestCase):
         self.assertEqual(regle.valeurs, ['groupe'])
 
     def test_suppression_regle_reussit(self):
-        etape = EtapeInscription.objects.create(code='programme', titre='برنامج')
-        critere = CritereInscription.objects.create(code='riwaya', label='الرواية')
+        etape = EtapeInscription.objects.create(code='test_programme', titre='برنامج')
+        critere = CritereInscription.objects.create(code='test_riwaya', label='الرواية')
         from django.contrib.contenttypes.models import ContentType
         regle = RegleCondition.objects.create(
             cible_content_type=ContentType.objects.get_for_model(EtapeInscription),
@@ -3013,9 +3016,14 @@ class FallbackAffichageProgrammeRiwayaTests(TestCase):
         ReponseInscription : ne doit JAMAIS s'afficher vide."""
         from registration.models import ChampInscription, Critere, CritereOption, EtapeInscription, ReponseInscription
 
+        # critere_riwaya : LE vrai critère seedé (code='riwaya', migration 0002)
+        # — pas un double 'test_riwaya' comme ailleurs dans ce fichier. Le tag
+        # de fallback (registration.templatetags.registration_tags.
+        # reponse_ou_ancien_champ) cherche explicitement critere__code='riwaya'
+        # (voir sa docstring) : lui donner un autre code romprait le test.
         etape = EtapeInscription.objects.create(code='programme_fallback_test', titre='اختيار البرنامج')
-        critere_riwaya = Critere.objects.create(code='riwaya', label='الرواية')
-        option_hafs = CritereOption.objects.create(critere=critere_riwaya, code='hafs', label='حفص')
+        critere_riwaya = Critere.objects.get(code='riwaya')
+        option_hafs = CritereOption.objects.get(critere=critere_riwaya, code='hafs')
         champ_riwaya = ChampInscription.objects.create(etape=etape, critere=critere_riwaya, label='الرواية', ordre=1)
 
         inscription = _creer_inscription_eleve(
@@ -3038,9 +3046,12 @@ class FallbackAffichageProgrammeRiwayaTests(TestCase):
     def test_fallback_fonctionne_aussi_sur_la_fiche_eleve_validee(self):
         from registration.models import ChampInscription, Critere, CritereOption, EtapeInscription, ReponseInscription
 
+        # Même remarque que test_nouveau_parcours_sans_ancien_champ_affiche_la_
+        # reponseinscription ci-dessus : critere_riwaya DOIT être le vrai
+        # critère seedé (code='riwaya'), pas un double renommé.
         etape = EtapeInscription.objects.create(code='programme_fallback_eleve', titre='اختيار البرنامج')
-        critere_riwaya = Critere.objects.create(code='riwaya', label='الرواية')
-        option_warsh = CritereOption.objects.create(critere=critere_riwaya, code='warsh', label='ورش')
+        critere_riwaya = Critere.objects.get(code='riwaya')
+        option_warsh = CritereOption.objects.get(critere=critere_riwaya, code='warsh')
         champ_riwaya = ChampInscription.objects.create(etape=etape, critere=critere_riwaya, label='الرواية', ordre=1)
 
         inscription = _creer_inscription_eleve(
@@ -3107,6 +3118,7 @@ class PariteDirecteurMshrifConsolideeTests(TestCase):
             ('admin_presentation_inscription', []),
             ('admin_gestion_inscriptions', []),
             ('admin_groupe_detail', [self.groupe.id]),
+            ('admin_eleve_ajouter_manuel', []),  # Étape 7
         ]
 
     def test_directeur_et_mshrif_recoivent_exactement_le_meme_statut_partout(self):
@@ -3141,3 +3153,178 @@ class PariteDirecteurMshrifConsolideeTests(TestCase):
                 reponse.status_code, 200,
                 f'{url_name} accessible à un élève connecté — role_required manquant ou incorrect ?'
             )
+
+
+# ============================================================================
+# CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 7 : ajout manuel d'une
+# candidature élève par le Directeur/مشرف, via EXACTEMENT le même service
+# (registration.utils.inscrire_eleve) que le wizard public (Étape 6). Même
+# exigence de parité stricte Directeur/مشرف que 5A-5E.
+# ============================================================================
+class AjoutManuelEleveTests(TestCase):
+    def setUp(self):
+        from courses.utils import remplacer_slots_creneau as _slots
+        from inscriptions.models import TypeAbonnement
+        from registration.models import ChampInscription, Critere as CritereInscription
+
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+        self.prof = _creer_prof('prof_ajout_manuel@zidni.test')
+
+        self.critere_programme = CritereInscription.objects.get(code='programme')
+        self.critere_riwaya = CritereInscription.objects.get(code='riwaya')
+        self.critere_type_offre = CritereInscription.objects.get(code='type_offre')
+        self.critere_nb_seances = CritereInscription.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        self.creneau_hafs = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        _slots(self.creneau_hafs, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe_hafs = Groupe.objects.create(
+            nom='مجموعة حفص — إضافة يدوية', creneau=self.creneau_hafs, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(groupe=self.groupe_hafs, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=self.groupe_hafs, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
+
+        self.creneau_warsh = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='warsh', age_min=6, age_max=60)
+        _slots(self.creneau_warsh, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe_warsh = Groupe.objects.create(
+            nom='مجموعة ورش — إضافة يدوية', creneau=self.creneau_warsh, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(groupe=self.groupe_warsh, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=self.groupe_warsh, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='warsh'))
+
+        self.abo_groupe = TypeAbonnement.objects.create(
+            code='test_ajout_manuel_abo', label='جماعي شهري', prix=80, type_offre='groupe', cible_age='les_deux', ordre=1,
+        )
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def _connecte_mshrif(self):
+        client = Client()
+        client.force_login(self.mshrif)
+        return client
+
+    def _round1_donnees(self, email):
+        return {
+            'round_form': 'identite',
+            'nom': 'سلمى الإدريسي', 'sexe': 'femme', 'email': email,
+            'date_naissance': '2010-01-01',
+            'indicatif_pays': '212', 'telephone': '0611223344', 'telephone_confirmation': '0611223344',
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        }
+
+    def test_directeur_et_mshrif_peuvent_tous_les_deux_creer_une_inscription(self):
+        for i, (client, user, email) in enumerate([
+            (self._connecte_admin(), self.admin, 'parite_admin_ajout_manuel@zidni.test'),
+            (self._connecte_mshrif(), self.mshrif, 'parite_mshrif_ajout_manuel@zidni.test'),
+        ]):
+            reponse_round2 = client.post(reverse('admin_eleve_ajouter_manuel'), self._round1_donnees(email))
+            self.assertEqual(reponse_round2.status_code, 200)
+            self.assertIn('مجموعة حفص — إضافة يدوية', reponse_round2.content.decode('utf-8'))
+
+            reponse_finale = client.post(reverse('admin_eleve_ajouter_manuel'), {
+                **self._round1_donnees(email),
+                'round_form': 'confirmation',
+                'groupe_id': str(self.groupe_hafs.id),
+                'abonnement_code': self.abo_groupe.code,
+            })
+            inscription = InscriptionEleve.objects.get(email=email)
+            self.assertRedirects(reponse_finale, reverse('admin_inscription_eleve_detail', args=[inscription.id]))
+            self.assertEqual(inscription.cree_par_id, user.id)
+            self.assertEqual(inscription.groupe_choisi_id, self.groupe_hafs.id)
+
+    def test_prof_na_pas_acces(self):
+        client = Client()
+        client.force_login(self.prof.user)
+        reponse = client.get(reverse('admin_eleve_ajouter_manuel'))
+        self.assertNotEqual(reponse.status_code, 200)
+        reponse_post = client.post(reverse('admin_eleve_ajouter_manuel'), self._round1_donnees('prof_tente_ajout@zidni.test'))
+        self.assertNotEqual(reponse_post.status_code, 200)
+        self.assertFalse(InscriptionEleve.objects.filter(email='prof_tente_ajout@zidni.test').exists())
+
+    def test_desaccord_non_bloquant_affiche_avertissement_sans_creer(self):
+        """riwaya répondue = hafs, mais groupe_id posté = celui en warsh (non
+        bloquant, filtrable) — AUCUNE création tant que confirme_override
+        n'est pas explicitement transmis."""
+        client = self._connecte_admin()
+        email = 'avertissement_ajout_manuel@zidni.test'
+        client.post(reverse('admin_eleve_ajouter_manuel'), self._round1_donnees(email))
+
+        reponse = client.post(reverse('admin_eleve_ajouter_manuel'), {
+            **self._round1_donnees(email),
+            'round_form': 'confirmation',
+            'groupe_id': str(self.groupe_warsh.id),
+            'abonnement_code': self.abo_groupe.code,
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(InscriptionEleve.objects.filter(email=email).exists())
+        html = reponse.content.decode('utf-8')
+        self.assertIn('تأكيد التسجيل رغم التحذير', html)
+
+    def test_confirme_override_cree_malgre_lavertissement(self):
+        client = self._connecte_admin()
+        email = 'override_ajout_manuel@zidni.test'
+        client.post(reverse('admin_eleve_ajouter_manuel'), self._round1_donnees(email))
+
+        # Round 2, tentative sans confirmation : rien créé (déjà couvert
+        # ci-dessus, refait ici pour prouver le contraste avec l'étape suivante).
+        client.post(reverse('admin_eleve_ajouter_manuel'), {
+            **self._round1_donnees(email),
+            'round_form': 'confirmation',
+            'groupe_id': str(self.groupe_warsh.id),
+            'abonnement_code': self.abo_groupe.code,
+        })
+        self.assertFalse(InscriptionEleve.objects.filter(email=email).exists())
+
+        reponse = client.post(reverse('admin_eleve_ajouter_manuel'), {
+            **self._round1_donnees(email),
+            'round_form': 'confirmation',
+            'groupe_id': str(self.groupe_warsh.id),
+            'abonnement_code': self.abo_groupe.code,
+            'confirme_override': '1',
+        })
+        inscription = InscriptionEleve.objects.get(email=email)
+        self.assertRedirects(reponse, reverse('admin_inscription_eleve_detail', args=[inscription.id]))
+        self.assertEqual(inscription.groupe_choisi_id, self.groupe_warsh.id)
+        self.assertEqual(inscription.cree_par_id, self.admin.id)
+
+    def test_meme_source_champs_actifs_que_wizard_public(self):
+        """Preuve bout en bout (pas juste "même fonction appelée") : un critère
+        tout juste créé et rattaché à l'étape 'programme' apparaît SANS AUCUNE
+        modification de code aussi bien sur le wizard public que sur l'ajout
+        manuel — les deux lisent la même table ChampInscription, jamais 2
+        listes maintenues séparément."""
+        from registration.models import ChampInscription, EtapeInscription
+
+        etape_programme = EtapeInscription.objects.get(code='programme')
+        champ = ChampInscription.objects.create(etape=etape_programme, critere=None, label='حقل اختبار التناظر', ordre=99)
+
+        client_wizard = Client()
+        client_wizard.post(reverse('wizard_identite'), {
+            'nom': 'test', 'sexe': 'homme', 'email': 'test_parite_wizard@zidni.test', 'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0600000000', 'telephone_confirmation': '0600000000',
+        })
+        html_wizard = client_wizard.get(reverse('wizard_programme')).content.decode('utf-8')
+
+        client_admin = self._connecte_admin()
+        html_admin = client_admin.get(reverse('admin_eleve_ajouter_manuel')).content.decode('utf-8')
+
+        self.assertIn('حقل اختبار التناظر', html_wizard)
+        self.assertIn('حقل اختبار التناظر', html_admin)

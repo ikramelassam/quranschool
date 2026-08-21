@@ -181,6 +181,45 @@ def couverture_critere(critere):
     }
 
 
+def statut_compatibilite_groupe(groupe_id, reponses_pour_filtrage, date_naissance):
+    """'ok' (groupe strictement compatible, aucun avertissement), 'contournable'
+    (incompatible sur au moins un critère filtrable NON bloquant seulement —
+    l'âge et tout critère bloquant=True restent respectés) ou 'incompatible'
+    (âge ou critère bloquant en désaccord — jamais contournable, même par
+    confirme_override). 'incompatible' aussi si groupe_id est vide/invalide.
+
+    Vérification en LECTURE SEULE — n'écrit rien, ne crée rien. Applique
+    EXACTEMENT la même règle que inscrire_eleve() (Partie 22) en interne pour
+    décider si confirme_override peut s'appliquer : les deux appellent
+    groupes_compatibles_avec_age() avec, respectivement, TOUTES les réponses
+    filtrables puis SEULEMENT les réponses bloquantes. Utilisée par
+    dashboard.views.admin_eleve_ajouter_manuel (Étape 7) pour savoir, AVANT
+    tout appel à inscrire_eleve(), s'il faut afficher un avertissement
+    contournable ou une erreur dure — jamais pour décider de la sécurité
+    elle-même, qui reste entièrement portée par inscrire_eleve()."""
+    if not groupe_id:
+        return 'incompatible'
+    if groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance).filter(id=groupe_id).exists():
+        return 'ok'
+    reponses_bloquantes = {c: v for c, v in reponses_pour_filtrage.items() if c.bloquant}
+    if groupes_compatibles_avec_age(reponses_bloquantes, date_naissance).filter(id=groupe_id).exists():
+        return 'contournable'
+    return 'incompatible'
+
+
+def abonnements_disponibles(type_offre_valeur, type_age):
+    """TypeAbonnement actifs cohérents avec la tranche d'âge et, si connu, le
+    type_offre (groupe/individuel) — factorisé depuis wizard_abonnement
+    (Étape 6D) pour que l'ajout manuel (Étape 7) propose exactement la même
+    liste, jamais une 2e requête maintenue séparément."""
+    from inscriptions.models import TypeAbonnement
+
+    abonnements = TypeAbonnement.objects.filter(est_actif=True, cible_age__in=[type_age, 'les_deux'])
+    if type_offre_valeur:
+        abonnements = abonnements.filter(type_offre=type_offre_valeur)
+    return abonnements.order_by('ordre')
+
+
 def definir_valeurs_groupe(groupe, critere, options):
     """Remplace l'ENSEMBLE des GroupeCritereValeur d'un (groupe, critere) par
     `options` (liste de CritereOption, 0 à N selon type_champ) — même idiome
@@ -287,6 +326,74 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
     # possible — un Critere peut très bien ne jamais servir au filtrage).
     texte = valeur_brute.strip() if isinstance(valeur_brute, str) else valeur_brute
     return ([(None, texte)] if texte not in (None, '') else []), None
+
+
+def extraire_champs_depuis_post(post_data):
+    """dict {champ_<id>: valeur} depuis un QueryDict POST — valeur = liste si
+    plusieurs valeurs soumises sous la même clé (choix multiple), sinon chaîne
+    simple. Déplacé depuis registration/views.py vers ce module (Étape 7) : à
+    l'origine réservé à wizard_programme (évaluer les RegleCondition avec les
+    réponses de LA soumission EN COURS, pas seulement celles déjà en session),
+    désormais aussi utilisé par dashboard.views.admin_eleve_ajouter_manuel pour
+    construire reponses_brutes à partir d'un POST brut — MÊME fonction, jamais
+    une 2e version réécrite côté admin."""
+    extrait = {}
+    for cle in post_data:
+        if cle.startswith('champ_'):
+            valeurs = post_data.getlist(cle)
+            extrait[cle] = valeurs if len(valeurs) > 1 else valeurs[0]
+    return extrait
+
+
+def donnees_filtrage_json_pour_wizard():
+    """Un objet par Groupe actif avec créneau : {groupe_id, valeurs:
+    {critere_id: code_ou_valeur}, nb_slots} — sert au calcul EN DIRECT (JS,
+    sans requête serveur) du nombre de séances réellement proposables, à
+    mesure que l'élève (ou le Directeur/مشرف à l'Étape 7) répond aux autres
+    champs de la même étape (Programme/Riwaya/Groupe-ou-Individuel). Même
+    patron que creneaux_json déjà utilisé par l'ancien formulaire à une page
+    (eleve_formulaire.html) pour filtrer les créneaux par âge/sexe côté
+    client — PUREMENT un confort d'affichage immédiat, jamais la source de
+    vérité : le filtrage définitif et sécurisé est TOUJOURS refait côté
+    serveur par groupes_compatibles() (wizard_groupe, admin_eleve_ajouter_
+    manuel, inscrire_eleve()), qui ne fait JAMAIS confiance à ce qu'affichait
+    le navigateur. Déplacé depuis registration/views.py (Étape 7) : fonction
+    pure, sans dépendance à `request`, partagée par le wizard public ET
+    l'ajout manuel Directeur/مشرف — jamais 2 versions maintenues séparément.
+
+    N'inclut QUE les critères filtrable=True et backend != 'nb_slots' (ce
+    dernier étant précisément la valeur qu'on cherche à calculer, pas un
+    filtre)."""
+    from courses.models import Groupe
+    from .models import Critere
+
+    criteres_filtrables = list(
+        Critere.objects.filter(est_actif=True, filtrable=True).exclude(backend='nb_slots')
+    )
+    groupes = (
+        Groupe.actifs.filter(statut='actif', creneau__isnull=False)
+        .prefetch_related('valeurs_criteres__option', 'creneau__slots')
+    )
+
+    donnees = []
+    for groupe in groupes:
+        valeurs_par_critere = {v.critere_id: v.option_id for v in groupe.valeurs_criteres.all()}
+        valeurs = {}
+        for critere in criteres_filtrables:
+            if critere.backend == 'champ_groupe':
+                valeurs[critere.id] = getattr(groupe, critere.champ_modele_groupe, None)
+            else:
+                option_id = valeurs_par_critere.get(critere.id)
+                option = next(
+                    (v.option for v in groupe.valeurs_criteres.all() if v.option_id == option_id), None
+                ) if option_id else None
+                valeurs[critere.id] = option.code if option else None
+        donnees.append({
+            'groupe_id': groupe.id,
+            'valeurs': valeurs,
+            'nb_slots': groupe.creneau.slots.count(),
+        })
+    return donnees
 
 
 # ==================== ÉVALUATION PARTAGÉE DES CHAMPS ACTIFS (Étape 6C) ====================
@@ -539,6 +646,7 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
             job_actuel=(reponses_brutes.get('job_actuel') or '').strip(),
             abonnement=abonnement.code,
             groupe_choisi=groupe_choisi,
+            cree_par=cree_par,
             accepte_conditions=reponses_brutes.get('accepte_conditions') == 'oui',
             remarques=(reponses_brutes.get('remarques') or '').strip(),
         )

@@ -161,6 +161,12 @@ class ChampsInscriptionVisiblesTests(TestCase):
             # conditionnellement (statut='rejete' seulement), voir
             # test_motif_refus_affiche_quand_rejete ci-dessous.
             'motif_refus',
+            # Chantier du moteur d'inscription configurable, Étape 7 (ajout
+            # manuel Directeur/مشرف) — affiché conditionnellement (seulement
+            # quand rempli, càd une candidature créée via admin_eleve_ajouter_
+            # manuel, jamais pour le formulaire public), voir
+            # test_cree_par_affiche_quand_renseigne ci-dessous.
+            'cree_par',
         }
         champs_connus = champs_verifies_affiches | set(self.CHAMPS_EXCLUS_ELEVE)
         champs_nouveaux = champs_reels - champs_connus
@@ -183,6 +189,20 @@ class ChampsInscriptionVisiblesTests(TestCase):
         url = reverse('admin_inscription_eleve_detail', args=[inscription.id])
         contenu = self.client.get(url).content.decode('utf-8')
         self.assertIn('MotifRefusMarqueurQ3k7', contenu)
+
+    def test_cree_par_affiche_quand_renseigne(self):
+        """Étape 7 (ajout manuel Directeur/مشرف) — cree_par n'est affiché que
+        pour une candidature créée via admin_eleve_ajouter_manuel (jamais pour
+        le formulaire public, où il reste None), donc vérifié séparément de
+        test_page_candidature_eleve_affiche_les_champs_attendus ci-dessus."""
+        createur = User.objects.create_user(
+            username='createur_test_champs@zidni.test', email='createur_test_champs@zidni.test',
+            password='xX!test12345', first_name='CreateurMarqueurP8n2', role='admin',
+        )
+        inscription = self._creer_inscription_eleve(cree_par=createur)
+        url = reverse('admin_inscription_eleve_detail', args=[inscription.id])
+        contenu = self.client.get(url).content.decode('utf-8')
+        self.assertIn('CreateurMarqueurP8n2', contenu)
 
     # ------------------------------------------------------------------
     # InscriptionProf

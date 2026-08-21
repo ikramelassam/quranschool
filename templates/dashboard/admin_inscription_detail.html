@@ -147,6 +147,12 @@ pas seulement au moment du refus lui-même.
         <span style="color:#888;">تاريخ التقديم</span>
         <span style="font-weight:600;">{{ inscription.date_soumission|date:"d-m-Y H:i" }}</span>
     </div>
+    {% if inscription.cree_par %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0;">
+        <span style="color:#888;">أُضيف يدوياً بواسطة</span>
+        <span style="font-weight:600;">{{ inscription.cree_par.get_full_name|default:inscription.cree_par.email }}</span>
+    </div>
+    {% endif %}
 
     <!-- Groupes/créneaux compatibles -->
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">🎯 المجموعات المتوافقة</div>

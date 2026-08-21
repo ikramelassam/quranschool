@@ -111,20 +111,6 @@ def wizard_identite(request):
     })
 
 
-def _extraire_champs_depuis_post(post_data):
-    """dict {champ_<id>: valeur} depuis un QueryDict POST — valeur = liste
-    si plusieurs valeurs soumises sous la même clé (choix multiple), sinon
-    chaîne simple. Utilisé pour évaluer les RegleCondition avec les réponses
-    de LA soumission EN COURS (voir wizard_programme), pas seulement celles
-    déjà enregistrées en session avant elle."""
-    extrait = {}
-    for cle in post_data:
-        if cle.startswith('champ_'):
-            valeurs = post_data.getlist(cle)
-            extrait[cle] = valeurs if len(valeurs) > 1 else valeurs[0]
-    return extrait
-
-
 def _champs_programme_visibles(donnees):
     """ChampInscription actifs liés à l'étape 'programme', MOINS ceux masqués
     par une RegleCondition satisfaite (champ_est_masque, Étape 4) compte tenu
@@ -167,55 +153,6 @@ def _codes_repondus_depuis_session(donnees, tous_les_champs):
     return codes
 
 
-def _donnees_filtrage_json_pour_wizard():
-    """Un objet par Groupe actif avec créneau : {groupe_id, valeurs:
-    {critere_id: code_ou_valeur}, nb_slots} — sert au calcul EN DIRECT (JS,
-    sans requête serveur) du nombre de séances réellement proposables à
-    l'étape 2, à mesure que l'élève répond aux autres champs de la MÊME
-    étape (Programme/Riwaya/Groupe-ou-Individuel). Même patron que
-    creneaux_json déjà utilisé par l'ancien formulaire à une page
-    (eleve_formulaire.html) pour filtrer les créneaux par âge/sexe côté
-    client — PUREMENT un confort d'affichage immédiat, jamais la source de
-    vérité : le filtrage définitif et sécurisé est TOUJOURS refait côté
-    serveur par groupes_compatibles() à l'étape 3 et à la confirmation
-    finale (Étape 6E), qui ne font JAMAIS confiance à ce qu'affichait le
-    navigateur.
-
-    N'inclut QUE les critères filtrable=True et backend != 'nb_slots' (ce
-    dernier étant précisément la valeur qu'on cherche à calculer, pas un
-    filtre)."""
-    from courses.models import Groupe
-    from .models import Critere
-
-    criteres_filtrables = list(
-        Critere.objects.filter(est_actif=True, filtrable=True).exclude(backend='nb_slots')
-    )
-    groupes = (
-        Groupe.actifs.filter(statut='actif', creneau__isnull=False)
-        .prefetch_related('valeurs_criteres__option', 'creneau__slots')
-    )
-
-    donnees = []
-    for groupe in groupes:
-        valeurs_par_critere = {v.critere_id: v.option_id for v in groupe.valeurs_criteres.all()}
-        valeurs = {}
-        for critere in criteres_filtrables:
-            if critere.backend == 'champ_groupe':
-                valeurs[critere.id] = getattr(groupe, critere.champ_modele_groupe, None)
-            else:
-                option_id = valeurs_par_critere.get(critere.id)
-                option = next(
-                    (v.option for v in groupe.valeurs_criteres.all() if v.option_id == option_id), None
-                ) if option_id else None
-                valeurs[critere.id] = option.code if option else None
-        donnees.append({
-            'groupe_id': groupe.id,
-            'valeurs': valeurs,
-            'nb_slots': groupe.creneau.slots.count(),
-        })
-    return donnees
-
-
 def wizard_programme(request):
     """Étape 2 — رendu générique des ChampInscription actifs de l'étape
     'programme' (au minimum, prévus dès le lancement via la migration de
@@ -225,11 +162,14 @@ def wizard_programme(request):
 
     RÈGLE CRITIQUE : le champ backend='nb_slots' (nombre de séances) n'a
     JAMAIS d'options codées en dur — le template reçoit uniquement le JSON
-    de _donnees_filtrage_json_pour_wizard() et calcule les valeurs proposées
+    de donnees_filtrage_json_pour_wizard() et calcule les valeurs proposées
     EN DIRECT en JS à partir des groupes réels. Un nouveau groupe à N séances
     créé demain par le مدير apparaît automatiquement, sans toucher au code
     (voir WizardProgrammeNbSeancesDynamiqueTests)."""
-    from .utils import _reponses_a_creer_pour_champ, wizard_donnees, wizard_maj
+    from .utils import (
+        _reponses_a_creer_pour_champ, donnees_filtrage_json_pour_wizard,
+        extraire_champs_depuis_post, wizard_donnees, wizard_maj,
+    )
 
     donnees = wizard_donnees(request)
     if 'nom' not in donnees:
@@ -243,7 +183,7 @@ def wizard_programme(request):
         # (bug détecté par WizardProgrammeTests.test_regle_conditionnelle_
         # masque_un_champ). Fusion purement locale à ce calcul, la session
         # elle-même n'est mise à jour qu'après validation complète, plus bas.
-        donnees_pour_masquage = {**donnees, **_extraire_champs_depuis_post(request.POST)}
+        donnees_pour_masquage = {**donnees, **extraire_champs_depuis_post(request.POST)}
         champs = _champs_programme_visibles(donnees_pour_masquage)
 
         erreurs = []
@@ -269,14 +209,14 @@ def wizard_programme(request):
 
         return render(request, 'inscriptions/wizard_programme.html', {
             'champs': champs, 'erreurs': erreurs, 'valeurs_form': {**donnees, **request.POST.dict()},
-            'donnees_filtrage_json': json.dumps(_donnees_filtrage_json_pour_wizard()),
+            'donnees_filtrage_json': json.dumps(donnees_filtrage_json_pour_wizard()),
             'wizard_etape_num': 2,
         })
 
     champs = _champs_programme_visibles(donnees)
     return render(request, 'inscriptions/wizard_programme.html', {
         'champs': champs, 'valeurs_form': donnees,
-        'donnees_filtrage_json': json.dumps(_donnees_filtrage_json_pour_wizard()),
+        'donnees_filtrage_json': json.dumps(donnees_filtrage_json_pour_wizard()),
         'wizard_etape_num': 2,
     })
 
@@ -356,7 +296,7 @@ def wizard_abonnement(request):
     TypeAbonnement.type_offre/cible_age) — rien de reconstruit ici, juste
     filtré par les réponses déjà en session."""
     from courses.utils import tranche_age_depuis_naissance
-    from inscriptions.models import TypeAbonnement
+    from .utils import abonnements_disponibles
 
     donnees = wizard_donnees(request)
     if 'nom' not in donnees:
@@ -371,10 +311,10 @@ def wizard_abonnement(request):
     date_naissance = datetime.date.fromisoformat(donnees['date_naissance'])
     type_age = tranche_age_depuis_naissance(date_naissance)
 
-    abonnements = TypeAbonnement.objects.filter(est_actif=True, cible_age__in=[type_age, 'les_deux'])
-    if type_offre_valeur:
-        abonnements = abonnements.filter(type_offre=type_offre_valeur)
-    abonnements = abonnements.order_by('ordre')
+    # abonnements_disponibles (registration.utils, Étape 7) : même requête que
+    # dashboard.views.admin_eleve_ajouter_manuel, jamais 2 versions maintenues
+    # séparément.
+    abonnements = abonnements_disponibles(type_offre_valeur, type_age)
 
     if request.method == 'POST':
         code = request.POST.get('abonnement_code', '')

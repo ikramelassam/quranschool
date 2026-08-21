@@ -119,6 +119,23 @@ class InscriptionEleve(models.Model):
         blank=True,
         related_name='candidatures_le_choisissant',
     )
+    # Étape 7 du chantier du moteur d'inscription configurable — trace QUI a
+    # créé la candidature quand ce n'est PAS l'élève lui-même (ajout manuel
+    # par le Directeur ou le مشرف via dashboard.views.admin_eleve_ajouter_
+    # manuel, registration.utils.inscrire_eleve(cree_par=request.user)).
+    # None = formulaire public (l'écrasante majorité des candidatures) — la
+    # valeur par défaut de inscrire_eleve() est cree_par=None, donc ce champ
+    # ne se remplit QUE quand un membre du staff est explicitement à
+    # l'origine de la création. SET_NULL : la suppression du compte staff ne
+    # doit jamais faire perdre la candidature elle-même, seulement la trace
+    # de qui l'a créée (même raisonnement que groupe_choisi ci-dessus).
+    cree_par = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='candidatures_eleve_creees_manuellement',
+    )
     programme = models.CharField(max_length=20, choices=PROGRAMME_CHOICES, blank=True, default='')
     riwaya = models.CharField(max_length=10, choices=RIWAYA_CHOICES, blank=True, default='')
     # blank/default ajoutés au chantier du moteur d'inscription configurable :

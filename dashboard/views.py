@@ -6382,3 +6382,270 @@ def admin_presentation_inscription(request):
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_presentation_inscription.html', context)
+
+
+# ==================== MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 7 ====================
+# Ajout manuel d'une candidature élève par le Directeur ou le مشرف — même
+# service que le wizard public (registration.utils.inscrire_eleve), même
+# source de champs (registration.utils.evaluer_champs_actifs). Directeur et
+# مشرف : accès strictement identique (role_required('admin', 'mshrif'), pas
+# de hiérarchie entre eux, comme partout ailleurs dans ce chantier).
+
+def _champs_identite_bruts(request):
+    """Extrait les champs d'identité fixes depuis request.POST — même liste
+    de clés que registration.views.wizard_identite (Étape 6A), jamais une 2e
+    liste divergente. Le téléphone n'est PAS inclus ici : sa construction
+    passe par inscriptions.views._construire_et_valider_telephone (voir
+    admin_eleve_ajouter_manuel), qui a besoin de request en entier."""
+    return {
+        'nom': request.POST.get('nom', '').strip(),
+        'nom_parent': request.POST.get('nom_parent', '').strip(),
+        'sexe': request.POST.get('sexe', ''),
+        'email': request.POST.get('email', '').strip(),
+        'date_naissance': request.POST.get('date_naissance', ''),
+        'job_actuel': request.POST.get('job_actuel', '').strip(),
+    }
+
+
+def _champs_pour_template(resultats, valeurs_form):
+    """Transforme la sortie de evaluer_champs_actifs (liste de dicts {champ,
+    paires, erreur, masque}) en une liste directement consommable par le
+    template (chaque champ porte déjà sa valeur déjà soumise, le template
+    n'a donc jamais besoin d'un lookup dict-par-variable, non supporté
+    nativement par le moteur de templates Django). 'valeur' : scalaire (pour
+    pré-remplir un input/select), 'valeurs_liste' : toujours une liste, même
+    à un seul élément (pour rejouer un choix_multiple en champs cachés vers
+    le round 'confirmation' sans en perdre aucun — voir admin_eleve_ajouter_
+    manuel.html)."""
+    champs = []
+    for r in resultats:
+        valeur_brute = (valeurs_form or {}).get(f"champ_{r['champ'].id}")
+        if isinstance(valeur_brute, list):
+            valeurs_liste = valeur_brute
+            valeur = valeur_brute[0] if valeur_brute else ''
+        else:
+            valeurs_liste = [valeur_brute] if valeur_brute else []
+            valeur = valeur_brute or ''
+        champs.append({'champ': r['champ'], 'masque': r['masque'], 'valeur': valeur, 'valeurs_liste': valeurs_liste})
+    return champs
+
+
+@role_required('admin', 'mshrif')
+def admin_eleve_ajouter_manuel(request):
+    """Étape 7 du chantier du moteur d'inscription configurable — ajout manuel
+    d'une candidature élève par le Directeur ou le مشرف (permissions
+    strictement identiques, voir le décorateur ci-dessus), pour le cas d'une
+    inscription prise par téléphone/en présentiel, jamais passée par le
+    formulaire public.
+
+    ZÉRO logique dupliquée avec le wizard public (registration/views.py,
+    Étape 6) :
+    - registration.utils.evaluer_champs_actifs() pour la liste des champs à
+      afficher (toutes étapes actives, dans l'ordre, RegleCondition évaluées)
+      — LA MÊME requête ChampInscription que le wizard, jamais une 2e liste
+      maintenue ici (voir AdminAjouterEleveManuelTests.test_meme_source_
+      champs_actifs_que_wizard_public).
+    - registration.utils.groupes_compatibles_avec_age()/statut_compatibilite_
+      groupe() pour la compatibilité groupe — même règle exacte que celle que
+      inscrire_eleve() applique en interne à la confirmation finale.
+    - registration.utils.inscrire_eleve() pour la création finale, avec
+      cree_par=request.user (contrairement au wizard public où cree_par=None)
+      pour tracer qui a fait l'ajout manuel.
+    - inscriptions.views._construire_et_valider_telephone(request) réutilisée
+      TEL QUEL, exactement comme le wizard public (Étape 4 l'anticipait déjà
+      explicitement pour "l'Étape 6/7").
+
+    Différence de comportement AUTORISÉE, réservée à cette vue (jamais au
+    formulaire public) : un désaccord sur un critère filtrable NON bloquant
+    entre les réponses et le groupe choisi n'empêche pas la création — un
+    avertissement est affiché, contournable par une confirmation explicite du
+    Directeur/مشرف (confirme_override=True, transmis tel quel à inscrire_
+    eleve()). L'âge et tout critère bloquant=True restent des contraintes
+    dures, non contournables — inscrire_eleve() lui-même l'impose, pas cette
+    vue (voir statut_compatibilite_groupe : jamais 'contournable' dans ces
+    2 cas).
+
+    Flux en 2 temps, sans état serveur (contrairement au wizard public : une
+    saisie manuelle se fait en une seule session de travail continue, de
+    simples champs cachés HTML suffisent) :
+    1. round_form='identite' (par défaut) : nom/sexe/email/téléphone/date de
+       naissance + tous les ChampInscription actifs, rendu générique. Soumis
+       -> calcule les réponses, AUCUNE création à ce stade.
+    2. round_form='confirmation' : choix du groupe (si le critère champ_groupe
+       vaut 'groupe', liste calculée par groupes_compatibles_avec_age, comme
+       wizard_groupe) et de l'abonnement, le reste en champs cachés (identité
+       + champ_<id> déjà répondus, MÊME limite déjà acceptée par le wizard
+       public : un choix_multiple n'est pas re-coché visuellement s'il faut
+       revenir en arrière, voir wizard_programme.html). Soumis :
+       - si un avertissement contournable existe et n'a pas encore été
+         confirmé (confirme_override absent) -> réaffiche CE round avec le
+         bandeau d'avertissement + un bouton de confirmation explicite, AUCUNE
+         création.
+       - sinon -> inscrire_eleve(donnees, cree_par=request.user,
+         confirme_override=<coché ou non>) — SEUL point de création,
+         identique au wizard public.
+
+    Aucune vue de modification n'existe sur la candidature créée ni ses
+    ReponseInscription (immutabilité, comme le public, voir registration/
+    views.py) — succès redirige vers la fiche de candidature EXISTANTE
+    (admin_inscription_eleve_detail), où le Directeur/مشرف la valide ensuite
+    EXACTEMENT comme n'importe quelle autre candidature (admin_valider_eleve,
+    déjà existant, inchangé par cette vue) : choix délibérément prudent et
+    réversible — rien n'est activé automatiquement, un second geste explicite
+    reste nécessaire avant la création réelle du compte élève. Documenté
+    comme tel dans le résumé de fin de session : si le Directeur préfère à
+    l'usage une validation immédiate en un seul clic pour ce cas précis
+    (ajout manuel = déjà "vérifié" par construction), c'est un changement
+    ultérieur simple (appeler admin_valider_eleve juste après), pas encore
+    fait ici faute d'une confirmation explicite que ce comportement est
+    voulu."""
+    import json
+    from courses.utils import _age_depuis_naissance, tranche_age_depuis_naissance
+    from inscriptions.views import _construire_et_valider_telephone
+    from registration.utils import (
+        donnees_filtrage_json_pour_wizard, evaluer_champs_actifs, extraire_champs_depuis_post,
+        groupes_compatibles_avec_age, inscrire_eleve, reponses_pour_filtrage_depuis_resultats,
+        statut_compatibilite_groupe, abonnements_disponibles,
+    )
+
+    round_form = request.POST.get('round_form', 'identite') if request.method == 'POST' else 'identite'
+
+    def _rendre_round_identite(donnees_prefill=None):
+        donnees_prefill = donnees_prefill or {}
+        resultats = evaluer_champs_actifs(donnees_prefill)
+        return render(request, 'dashboard/admin_eleve_ajouter_manuel.html', {
+            'round_form': 'identite',
+            'champs_affiches': _champs_pour_template(resultats, donnees_prefill),
+            'valeurs_form': donnees_prefill,
+            'donnees_filtrage_json': json.dumps(donnees_filtrage_json_pour_wizard()),
+            'base_template': _base_template_admin_ou_mshrif(request),
+            **_contexte_base_mshrif(request),
+        })
+
+    if request.method == 'POST' and request.POST.get('retour') == '1':
+        # Bouton "تعديل المعلومات الشخصية" du round 2 -- repart du round 1
+        # pre-rempli avec ce qui etait deja dans les champs caches du round 2
+        # (jamais une validation, juste un retour en arriere, AUCUNE creation).
+        return _rendre_round_identite({**_champs_identite_bruts(request), **extraire_champs_depuis_post(request.POST)})
+
+    if round_form == 'identite':
+        if request.method != 'POST':
+            return _rendre_round_identite()
+
+        telephone, erreur_tel = _construire_et_valider_telephone(request)
+        if erreur_tel:
+            messages.error(request, erreur_tel)
+            return _rendre_round_identite({**_champs_identite_bruts(request), **extraire_champs_depuis_post(request.POST)})
+
+        donnees = {
+            **_champs_identite_bruts(request), 'telephone': telephone,
+            **extraire_champs_depuis_post(request.POST),
+        }
+        resultats = evaluer_champs_actifs(donnees)
+        reponses_pour_filtrage = reponses_pour_filtrage_depuis_resultats(resultats)
+        critere_type_offre = next((c for c in reponses_pour_filtrage if c.backend == 'champ_groupe'), None)
+        type_offre_valeur = reponses_pour_filtrage.get(critere_type_offre) if critere_type_offre else None
+
+        date_naissance = None
+        try:
+            date_naissance = datetime.date.fromisoformat(donnees.get('date_naissance', ''))
+        except (ValueError, TypeError):
+            pass
+
+        groupes, abonnements, type_age = None, [], None
+        if date_naissance is not None:
+            type_age = tranche_age_depuis_naissance(date_naissance)
+            abonnements = abonnements_disponibles(type_offre_valeur, type_age)
+            if type_offre_valeur == 'groupe':
+                groupes = groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance).prefetch_related(
+                    'valeurs_criteres__critere', 'valeurs_criteres__option',
+                )
+
+        return render(request, 'dashboard/admin_eleve_ajouter_manuel.html', {
+            'round_form': 'confirmation',
+            'champs_affiches': _champs_pour_template(resultats, donnees),
+            'valeurs_form': {**donnees, 'indicatif_pays': request.POST.get('indicatif_pays', ''),
+                              'indicatif_pays_autre': request.POST.get('indicatif_pays_autre', ''),
+                              'telephone_brut': request.POST.get('telephone', ''),
+                              'telephone_confirmation': request.POST.get('telephone_confirmation', '')},
+            'type_offre_valeur': type_offre_valeur,
+            'groupes': groupes,
+            'abonnements': abonnements,
+            'age': _age_depuis_naissance(date_naissance) if date_naissance else None,
+            'base_template': _base_template_admin_ou_mshrif(request),
+            **_contexte_base_mshrif(request),
+        })
+
+    # ---- round_form == 'confirmation' ----
+    telephone, erreur_tel = _construire_et_valider_telephone(request)
+    if erreur_tel:
+        messages.error(request, erreur_tel)
+        return _rendre_round_identite({**_champs_identite_bruts(request), **extraire_champs_depuis_post(request.POST)})
+
+    donnees = {
+        **_champs_identite_bruts(request), 'telephone': telephone,
+        **extraire_champs_depuis_post(request.POST),
+        'groupe_id': request.POST.get('groupe_id', ''),
+        'abonnement_code': request.POST.get('abonnement_code', ''),
+    }
+    resultats = evaluer_champs_actifs(donnees)
+    reponses_pour_filtrage = reponses_pour_filtrage_depuis_resultats(resultats)
+    critere_type_offre = next((c for c in reponses_pour_filtrage if c.backend == 'champ_groupe'), None)
+    type_offre_valeur = reponses_pour_filtrage.get(critere_type_offre) if critere_type_offre else None
+
+    confirme = request.POST.get('confirme_override') == '1'
+    groupe_id = donnees.get('groupe_id')
+
+    date_naissance = None
+    try:
+        date_naissance = datetime.date.fromisoformat(donnees.get('date_naissance', ''))
+    except (ValueError, TypeError):
+        pass
+
+    def _rendre_round_confirmation(avertissement=False):
+        type_age = tranche_age_depuis_naissance(date_naissance) if date_naissance else None
+        abonnements = abonnements_disponibles(type_offre_valeur, type_age) if type_age else []
+        groupes = None
+        if date_naissance is not None and type_offre_valeur == 'groupe':
+            groupes = groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance).prefetch_related(
+                'valeurs_criteres__critere', 'valeurs_criteres__option',
+            )
+        return render(request, 'dashboard/admin_eleve_ajouter_manuel.html', {
+            'round_form': 'confirmation',
+            'champs_affiches': _champs_pour_template(resultats, donnees),
+            'valeurs_form': {**donnees, 'indicatif_pays': request.POST.get('indicatif_pays', ''),
+                              'indicatif_pays_autre': request.POST.get('indicatif_pays_autre', ''),
+                              'telephone_brut': request.POST.get('telephone', ''),
+                              'telephone_confirmation': request.POST.get('telephone_confirmation', '')},
+            'type_offre_valeur': type_offre_valeur,
+            'groupes': groupes,
+            'abonnements': abonnements,
+            'age': _age_depuis_naissance(date_naissance) if date_naissance else None,
+            'groupe_id_selectionne': groupe_id,
+            'abonnement_selectionne': donnees.get('abonnement_code'),
+            'avertissement': avertissement,
+            'base_template': _base_template_admin_ou_mshrif(request),
+            **_contexte_base_mshrif(request),
+        })
+
+    if type_offre_valeur == 'groupe' and groupe_id and not confirme and date_naissance is not None:
+        statut_compat = statut_compatibilite_groupe(groupe_id, reponses_pour_filtrage, date_naissance)
+        if statut_compat == 'contournable':
+            messages.warning(
+                request,
+                'المجموعة المختارة لا تتوافق تماماً مع أحد المعايير غير الإلزامية — '
+                'يمكنك تأكيد التسجيل رغم ذلك، أو اختيار مجموعة أخرى.',
+            )
+            return _rendre_round_confirmation(avertissement=True)
+
+    inscription, erreurs = inscrire_eleve(donnees, cree_par=request.user, confirme_override=confirme)
+    if erreurs:
+        for erreur in erreurs:
+            messages.error(request, erreur)
+        return _rendre_round_confirmation(avertissement=False)
+
+    messages.success(
+        request,
+        f'تم إنشاء طلب تسجيل "{inscription.nom}" بنجاح. راجع الطلب ثم اضغط "قبول الطلب" لإتمام إنشاء الحساب.',
+    )
+    return redirect('admin_inscription_eleve_detail', inscription_id=inscription.id)

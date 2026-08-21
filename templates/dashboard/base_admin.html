@@ -224,7 +224,7 @@
             <span class="icon">📢</span> الإعلانات
         </a>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_eleves' or request.resolver_match.url_name == 'admin_profs' or request.resolver_match.url_name == 'admin_inscriptions' or request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_eleves' or request.resolver_match.url_name == 'admin_profs' or request.resolver_match.url_name == 'admin_inscriptions' or request.resolver_match.url_name == 'admin_eleve_ajouter_manuel' or request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}open{% endif %}>
             <summary>إدارة المستخدمين</summary>
             <a href="{% url 'admin_eleves' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_eleves' %}active{% endif %}">
@@ -237,6 +237,10 @@
             <a href="{% url 'admin_inscriptions' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_inscriptions' %}active{% endif %}">
                 <span class="icon">📋</span> طلبات التسجيل
+            </a>
+            <a href="{% url 'admin_eleve_ajouter_manuel' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_eleve_ajouter_manuel' %}active{% endif %}">
+                <span class="icon">➕</span> إضافة تلميذ يدوياً
             </a>
             <a href="{% url 'admin_superviseurs' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}active{% endif %}">

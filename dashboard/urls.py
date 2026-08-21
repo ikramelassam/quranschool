@@ -205,4 +205,7 @@ urlpatterns = [
     path('admin/moyens-paiement/<int:moyen_id>/modifier/', views.admin_moyen_paiement_modifier, name='admin_moyen_paiement_modifier'),
     path('admin/moyens-paiement/<int:moyen_id>/toggle/', views.admin_moyen_paiement_toggle, name='admin_moyen_paiement_toggle'),
     path('admin/presentation-inscription/', views.admin_presentation_inscription, name='admin_presentation_inscription'),
+
+    # ---- Étape 7 : ajout manuel d'une candidature élève (Directeur/مشرف) ----
+    path('admin/eleves/ajouter-manuel/', views.admin_eleve_ajouter_manuel, name='admin_eleve_ajouter_manuel'),
 ]
