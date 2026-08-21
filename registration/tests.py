@@ -5,13 +5,13 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 
-from accounts.models import User
+from accounts.models import Eleve, User
 from courses.models import Creneau, Groupe
 from courses.utils import remplacer_slots_creneau
 from inscriptions.models import InscriptionEleve, TypeAbonnement
 from .models import ChampInscription, Critere, CritereOption, EtapeInscription, GroupeCritereValeur, RegleCondition
 from .utils import (
-    couverture_critere, groupes_compatibles, groupes_compatibles_avec_age,
+    couverture_critere, groupes_avec_place_disponible, groupes_compatibles, groupes_compatibles_avec_age,
     inscrire_eleve, nb_seances_disponibles, champ_est_masque,
 )
 
@@ -170,6 +170,66 @@ class GroupesCompatiblesBackendsTests(TestCase):
         self.assertIn(self.groupe_hafs_groupe, resultat_adulte)  # 40 ans -> dans [6,60]
 
 
+def _remplir_groupe(groupe, nb_eleves, prefixe):
+    """Inscrit nb_eleves Eleve réels dans groupe.eleves (M2M) — pour simuler
+    un groupe qui a atteint sa capacite_max, sans jamais deviner un raccourci
+    (ex: bidouiller directement capacite_max=0, comme le faisait déjà
+    test_groupe_complet_est_refuse plus bas pour un autre besoin) : ici on
+    veut le cas RÉEL demandé — capacite_max=X avec VRAIMENT X élèves déjà
+    inscrits."""
+    for i in range(nb_eleves):
+        email = f'{prefixe}_{i}@zidni.test'
+        user = User.objects.create_user(username=email, email=email, password=MOT_DE_PASSE, role='eleve')
+        eleve = Eleve.objects.create(user=user, sexe='homme')
+        groupe.eleves.add(eleve)
+
+
+class GroupesAvecPlaceDisponibleTests(TestCase):
+    """Bug signalé le 2026-08-21 : groupes_compatibles()/groupes_compatibles_
+    avec_age() ne filtraient QUE sur les critères et l'âge, jamais sur la
+    capacité — un groupe déjà plein (capacite_max atteinte) apparaissait donc
+    dans la liste affichée à l'étape 3 du wizard, alors même que le POST/la
+    confirmation finale le refusaient déjà après coup (voir WizardGroupeTests.
+    test_groupe_complet_est_refuse et WizardConfirmationTests plus bas). Tests
+    du correctif : groupes_avec_place_disponible()."""
+
+    def setUp(self):
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe_plein = Groupe.objects.create(
+            nom='مجموعة ممتلئة تماماً', creneau=self.creneau, statut='actif', capacite_max=3,
+        )
+        _remplir_groupe(self.groupe_plein, 3, 'plein')  # capacite_max=3, 3 élèves déjà inscrits -> plein
+
+        self.groupe_presque_plein = Groupe.objects.create(
+            nom='مجموعة شبه ممتلئة', creneau=self.creneau, statut='actif', capacite_max=3,
+        )
+        _remplir_groupe(self.groupe_presque_plein, 2, 'presque')  # 2/3 -> encore 1 place
+
+    def test_groupe_plein_exclu_groupe_avec_place_inclus(self):
+        resultat = groupes_avec_place_disponible(Groupe.objects.filter(id__in=[self.groupe_plein.id, self.groupe_presque_plein.id]))
+        self.assertNotIn(self.groupe_plein, resultat)
+        self.assertIn(self.groupe_presque_plein, resultat)
+
+    def test_compose_correctement_avec_groupes_compatibles(self):
+        """Le vrai chemin utilisé par les vues (wizard_groupe, ajout manuel) :
+        groupes_avec_place_disponible(groupes_compatibles_avec_age(...))."""
+        resultat = groupes_avec_place_disponible(
+            groupes_compatibles_avec_age({}, datetime.date(2000, 1, 1))
+        )
+        self.assertNotIn(self.groupe_plein, resultat)
+        self.assertIn(self.groupe_presque_plein, resultat)
+
+    def test_groupe_devient_plein_apres_1_inscription_de_plus(self):
+        """Le dernier siège pris fait bien disparaître le groupe de la liste
+        — pas seulement les groupes déjà pleins au moment du fixture."""
+        _remplir_groupe(self.groupe_presque_plein, 1, 'dernier')  # 3/3 maintenant
+        resultat = groupes_avec_place_disponible(Groupe.objects.filter(id=self.groupe_presque_plein.id))
+        self.assertNotIn(self.groupe_presque_plein, resultat)
+
+
 class NbSeancesDisponiblesTests(TestCase):
     """La base de test contient déjà 23 groupes RÉELS (seedés/backfillés par
     registration/migrations/0002_seed_wizard_config.py, Étape 6A) — un
@@ -208,6 +268,77 @@ class NbSeancesDisponiblesTests(TestCase):
 
         self.assertEqual(nb_seances_disponibles({riwaya: riwaya.options.get(code='hafs')}), [1])
         self.assertEqual(nb_seances_disponibles({riwaya: riwaya.options.get(code='warsh')}), [2])
+
+    def test_individuel_sans_groupe_individuel_reel_reste_selectionnable(self):
+        """LE bug signalé le 2026-08-21 : en parcours Individuel, le nombre de
+        séances est PUREMENT INDICATIF (décision déjà actée — voir
+        ReponseInscription.valeur_texte dans registration/models.py) — il ne
+        doit JAMAIS être filtré/bloqué par l'absence d'un groupe individuel
+        réel déjà configuré pour la combinaison exacte de critères choisie.
+
+        Ici : riwaya=warsh + type_offre=individuel, mais AUCUN groupe
+        individuel n'existe pour warsh (seul un groupe GROUPE existe pour
+        warsh, à 3 séances) — l'ancien comportement (filtrage strict) aurait
+        renvoyé [] et bloqué l'inscription. Le nouveau comportement doit
+        renvoyer une liste non vide, dérivée de TOUS les groupes du système."""
+        riwaya = _creer_critere('test_riwaya_individuel', options=[('hafs', 'حفص'), ('warsh', 'ورش')])
+        type_offre = _creer_critere(
+            'test_type_offre_individuel', backend='champ_groupe', champ_modele_groupe='type_capacite',
+            options=[('groupe', 'جماعي'), ('individuel', 'فردي')],
+        )
+        # Seul groupe existant pour warsh : un groupe GROUPE (pas individuel), à 3 séances.
+        groupe_warsh = Groupe.objects.create(
+            nom='مجموعة ورش جماعية', creneau=_creer_creneau(nb_slots=3), statut='actif', type_capacite='groupe',
+        )
+        GroupeCritereValeur.objects.create(groupe=groupe_warsh, critere=riwaya, option=riwaya.options.get(code='warsh'))
+
+        # Ancien comportement (filtrage strict, bugué) : liste VIDE — aucun
+        # groupe individuel+warsh n'existe. Vérifié explicitement ici pour
+        # documenter le contraste avec le comportement corrigé ci-dessous.
+        candidats_strict = groupes_compatibles({
+            riwaya: riwaya.options.get(code='warsh'),
+            type_offre: 'individuel',
+        })
+        self.assertEqual(list(candidats_strict), [])
+
+        # Comportement corrigé : le nombre de séances reste sélectionnable,
+        # dérivé de TOUS les groupes du système (ici, le seul groupe existant
+        # à 3 séances, même s'il est de type "groupe" et pas "individuel").
+        resultat = nb_seances_disponibles({
+            riwaya: riwaya.options.get(code='warsh'),
+            type_offre: 'individuel',
+        })
+        self.assertEqual(resultat, [3])
+        self.assertNotEqual(resultat, [])
+
+    def test_groupe_reste_filtre_strictement_meme_apres_le_correctif_individuel(self):
+        """Non-régression explicite : le comportement 'groupe' (filtrage
+        strict) ne doit PAS être affecté par le correctif Individuel
+        ci-dessus — un groupe à 3 séances existe pour warsh, mais si
+        type_offre='groupe' est choisi, seul 3 doit apparaître, jamais une
+        union globale du système."""
+        riwaya = _creer_critere('test_riwaya_groupe_strict', options=[('hafs', 'حفص'), ('warsh', 'ورش')])
+        type_offre = _creer_critere(
+            'test_type_offre_groupe_strict', backend='champ_groupe', champ_modele_groupe='type_capacite',
+            options=[('groupe', 'جماعي'), ('individuel', 'فردي')],
+        )
+        groupe_warsh = Groupe.objects.create(
+            nom='مجموعة ورش جماعية 2', creneau=_creer_creneau(nb_slots=3), statut='actif', type_capacite='groupe',
+        )
+        GroupeCritereValeur.objects.create(groupe=groupe_warsh, critere=riwaya, option=riwaya.options.get(code='warsh'))
+        # Un 2e groupe, hafs, à 4 séances -> ne doit JAMAIS apparaître pour
+        # une réponse riwaya=warsh + type_offre=groupe (filtrage strict).
+        groupe_hafs = Groupe.objects.create(
+            nom='مجموعة حفص جماعية', creneau=_creer_creneau(nb_slots=4), statut='actif', type_capacite='groupe',
+        )
+        GroupeCritereValeur.objects.create(groupe=groupe_hafs, critere=riwaya, option=riwaya.options.get(code='hafs'))
+
+        resultat = nb_seances_disponibles({
+            riwaya: riwaya.options.get(code='warsh'),
+            type_offre: 'groupe',
+        })
+        self.assertEqual(resultat, [3])
+        self.assertNotIn(4, resultat)
 
 
 class CouvertureCritereTests(TestCase):
@@ -764,6 +895,19 @@ class WizardProgrammeTests(TestCase):
         for label in ['البرنامج', 'الرواية', 'نوع الحصة', 'عدد الحصص الأسبوعية']:
             self.assertIn(label, html)
 
+    def test_html_expose_les_attributs_js_necessaires_au_correctif_individuel(self):
+        """La logique du correctif (bugs A+B du 2026-08-21) vit côté JS —
+        aucun moteur JS dans les tests Django (pas de Selenium/Playwright dans
+        ce projet, jamais eu jusqu'ici) — donc on vérifie ce que le serveur
+        peut garantir : les data-* dont le JS a besoin sont bien présents dans
+        le HTML rendu, et le champ nombre de séances démarre caché (Bug B)."""
+        client = Client()
+        self._avancer_a_etape_2(client)
+        html = client.get(reverse('wizard_programme')).content.decode('utf-8')
+        self.assertIn('data-backend="champ_groupe"', html)  # identifie type_offre génériquement
+        self.assertIn('id="nb_seances_wrapper" style="display:none;"', html)  # Bug B : caché par défaut
+        self.assertIn('data-obligatoire="1"', html)
+
     def test_redirige_vers_identite_si_etape_1_pas_encore_faite(self):
         """Accès direct à /wizard/programme/ sans être passé par l'étape 1 —
         pas de session encore peuplée."""
@@ -1002,6 +1146,26 @@ class WizardGroupeTests(TestCase):
         reponse = client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
         self.assertEqual(reponse.status_code, 200)
         self.assertNotIn('groupe_id', client.session.get('wizard_inscription', {}))
+
+    def test_groupe_plein_napparait_pas_du_tout_dans_la_liste_affichee(self):
+        """LE bug signalé le 2026-08-21 : contrairement à test_groupe_complet_
+        est_refuse ci-dessus (qui vérifie seulement que le POST est refusé),
+        ce test vérifie que le groupe COMPLET (capacite_max réellement atteinte
+        par de vrais élèves inscrits, pas capacite_max=0) n'apparaît même pas
+        dans le HTML de la liste — un visiteur ne doit jamais avoir la
+        possibilité de le voir/cliquer dessus en premier lieu."""
+        _remplir_groupe(self.groupe, self.groupe.capacite_max, 'wizard_plein')
+
+        client = Client()
+        self._avancer_a_etape_3(client, type_offre='groupe')
+        reponse = client.get(reverse('wizard_groupe'))
+        self.assertEqual(reponse.status_code, 200)
+        html = reponse.content.decode('utf-8')
+        # Assertion volontairement limitée à CE groupe (pas "la liste est
+        # vide") : la base de test contient aussi 23 groupes réels seedés
+        # (migration 0002) qui peuvent, selon leur propre configuration,
+        # apparaître ou non pour ces mêmes critères — pas l'objet de ce test.
+        self.assertNotIn(self.groupe.nom, html)
 
     def test_acces_direct_sans_session_redirige_a_identite(self):
         reponse = Client().get(reverse('wizard_groupe'))
@@ -1283,6 +1447,43 @@ class WizardConfirmationTests(TestCase):
         self.assertEqual(reponse.status_code, 200)
         self.assertFalse(InscriptionEleve.objects.filter(email='tentative.contournement@zidni.test').exists())
         self.assertIn('لم تعد متاحة', reponse.content.decode('utf-8'))
+
+    def test_groupe_devenu_complet_entre_etape_3_et_confirmation_est_rejete_proprement(self):
+        """Variante CAPACITÉ du test ci-dessus (bug signalé le 2026-08-21) :
+        un groupe COMPATIBLE (bons critères/âge) mais devenu complet — soit
+        parce qu'un autre élève s'est inscrit entretemps, soit simulé ici en
+        injectant son id directement en session, en court-circuitant
+        wizard_groupe (qui l'aurait déjà exclu de sa propre liste depuis le
+        correctif groupes_avec_place_disponible). Prouve que inscrire_eleve()
+        revalide la capacité en toute indépendance, avec son message dédié
+        ("مكتملة العدد", pas le message générique) — jamais un plantage."""
+        _remplir_groupe(self.groupe, self.groupe.capacite_max, 'confirm_devient_plein')
+
+        client = Client()
+        client.post(reverse('wizard_identite'), {
+            'nom': 'محاولة مقعد ممتلئ', 'sexe': 'homme', 'email': 'groupe.devenu.plein@zidni.test',
+            'date_naissance': '1998-01-01',
+            'indicatif_pays': '212', 'telephone': '0611778899', 'telephone_confirmation': '0611778899',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+
+        session = client.session
+        donnees = session.get('wizard_inscription', {})
+        donnees['groupe_id'] = str(self.groupe.id)
+        session['wizard_inscription'] = donnees
+        session.save()
+
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abo_groupe.code})
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(InscriptionEleve.objects.filter(email='groupe.devenu.plein@zidni.test').exists())
+        self.assertIn('مكتملة العدد', reponse.content.decode('utf-8'))
 
     def test_groupe_id_dun_groupe_inexistant_est_rejete_sans_planter(self):
         """Variante : un groupe_id qui ne correspond à AUCUN Groupe réel

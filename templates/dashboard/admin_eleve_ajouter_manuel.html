@@ -48,34 +48,47 @@
 
         {% for c in champs_affiches %}
         {% if not c.masque %}
-        <div class="mb-3">
-            <label class="form-label" style="font-weight:600;">{{ c.champ.label }}{% if c.champ.obligatoire %} *{% endif %}</label>
-
             {% if c.champ.critere.backend == 'nb_slots' %}
+            {# Caché par défaut (bug UX signalé le 2026-08-21, même correctif
+            que le wizard public) : révélé par JS une fois les champs critère
+            obligatoires précédents remplis. #}
+            <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
+                <label class="form-label" style="font-weight:600;">{{ c.champ.label }}{% if c.champ.obligatoire %} *{% endif %}</label>
                 <select name="champ_{{ c.champ.id }}" class="form-select mt-1" id="nb_seances_select" data-champ-id="{{ c.champ.id }}" {% if c.champ.obligatoire %}required{% endif %}>
-                    <option value="">اختر باقي الحقول أعلاه أولاً</option>
-                </select>
-            {% elif c.champ.critere.type_champ == 'choix_multiple' %}
-                <select name="champ_{{ c.champ.id }}" class="form-select mt-1" multiple data-critere-id="{{ c.champ.critere.id }}" onchange="recalculerNbSeances()">
-                    {% for option in c.champ.critere.options.all %}
-                    {% if option.est_actif %}
-                    <option value="{{ option.code }}" {% if option.code in c.valeurs_liste %}selected{% endif %}>{{ option.label }}</option>
-                    {% endif %}
-                    {% endfor %}
-                </select>
-            {% elif c.champ.critere %}
-                <select name="champ_{{ c.champ.id }}" class="form-select mt-1" data-critere-id="{{ c.champ.critere.id }}" onchange="recalculerNbSeances()" {% if c.champ.obligatoire %}required{% endif %}>
                     <option value="">— اختر —</option>
-                    {% for option in c.champ.critere.options.all %}
-                    {% if option.est_actif %}
-                    <option value="{{ option.code }}" {% if option.code == c.valeur %}selected{% endif %}>{{ option.label }}</option>
-                    {% endif %}
-                    {% endfor %}
                 </select>
+            </div>
             {% else %}
-                <input type="text" name="champ_{{ c.champ.id }}" class="form-control mt-1" value="{{ c.valeur }}" {% if c.champ.obligatoire %}required{% endif %}>
+            <div class="mb-3">
+                <label class="form-label" style="font-weight:600;">{{ c.champ.label }}{% if c.champ.obligatoire %} *{% endif %}</label>
+
+                {% if c.champ.critere.type_champ == 'choix_multiple' %}
+                    <select name="champ_{{ c.champ.id }}" class="form-select mt-1" multiple
+                            data-critere-id="{{ c.champ.critere.id }}" data-backend="{{ c.champ.critere.backend }}"
+                            data-obligatoire="{% if c.champ.obligatoire %}1{% else %}0{% endif %}" onchange="recalculerNbSeances()">
+                        {% for option in c.champ.critere.options.all %}
+                        {% if option.est_actif %}
+                        <option value="{{ option.code }}" {% if option.code in c.valeurs_liste %}selected{% endif %}>{{ option.label }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                {% elif c.champ.critere %}
+                    <select name="champ_{{ c.champ.id }}" class="form-select mt-1"
+                            data-critere-id="{{ c.champ.critere.id }}" data-backend="{{ c.champ.critere.backend }}"
+                            data-obligatoire="{% if c.champ.obligatoire %}1{% else %}0{% endif %}" onchange="recalculerNbSeances()"
+                            {% if c.champ.obligatoire %}required{% endif %}>
+                        <option value="">— اختر —</option>
+                        {% for option in c.champ.critere.options.all %}
+                        {% if option.est_actif %}
+                        <option value="{{ option.code }}" {% if option.code == c.valeur %}selected{% endif %}>{{ option.label }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                {% else %}
+                    <input type="text" name="champ_{{ c.champ.id }}" class="form-control mt-1" value="{{ c.valeur }}" {% if c.champ.obligatoire %}required{% endif %}>
+                {% endif %}
+            </div>
             {% endif %}
-        </div>
         {% endif %}
         {% endfor %}
 
@@ -91,9 +104,24 @@
     <script>
         const DONNEES_FILTRAGE = {{ donnees_filtrage_json|safe }};
 
+        function champsObligatoiresRepondus(selections) {
+            // Même correctif UX que le wizard public (bug signalé le
+            // 2026-08-21) : ne révéler "nombre de séances" qu'une fois tous
+            // les champs critère OBLIGATOIRES précédents remplis — jamais
+            // les champs non-obligatoires.
+            let ok = true;
+            document.querySelectorAll('[data-critere-id][data-obligatoire="1"]').forEach(el => {
+                const val = selections[el.dataset.critereId];
+                if (!val || (Array.isArray(val) && val.length === 0)) ok = false;
+            });
+            return ok;
+        }
+
         function recalculerNbSeances() {
+            const wrapper = document.getElementById('nb_seances_wrapper');
             const select = document.getElementById('nb_seances_select');
-            if (!select) return;
+            if (!select || !wrapper) return;
+
             const selections = {};
             document.querySelectorAll('[data-critere-id]').forEach(el => {
                 if (el.multiple) {
@@ -102,15 +130,37 @@
                     selections[el.dataset.critereId] = el.value;
                 }
             });
-            const groupesCompatibles = DONNEES_FILTRAGE.filter(g => {
-                return Object.keys(selections).every(critereId => {
-                    const val = selections[critereId];
-                    const gVal = g.valeurs[critereId];
-                    if (Array.isArray(val)) return val.length === 0 || val.includes(gVal);
-                    return gVal === val;
+
+            if (!champsObligatoiresRepondus(selections)) {
+                wrapper.style.display = 'none';
+                return;
+            }
+            wrapper.style.display = '';
+
+            // Critère backend='champ_groupe' identifié GÉNÉRIQUEMENT (jamais
+            // par nom/code de critère) via data-backend.
+            const elTypeOffre = document.querySelector('[data-backend="champ_groupe"][data-critere-id]');
+            const typeOffreValeur = elTypeOffre ? selections[elTypeOffre.dataset.critereId] : null;
+
+            let nbSlotsDisponibles;
+            if (typeOffreValeur === 'individuel') {
+                // Individuel = nombre de séances PUREMENT INDICATIF (décision
+                // actée de ce chantier) : union de TOUS les groupes du
+                // système, tous types/critères confondus — jamais une liste
+                // vide qui bloque l'ajout manuel.
+                nbSlotsDisponibles = [...new Set(DONNEES_FILTRAGE.map(g => g.nb_slots))].sort((a, b) => a - b);
+            } else {
+                const groupesCompatibles = DONNEES_FILTRAGE.filter(g => {
+                    return Object.keys(selections).every(critereId => {
+                        const val = selections[critereId];
+                        const gVal = g.valeurs[critereId];
+                        if (Array.isArray(val)) return val.length === 0 || val.includes(gVal);
+                        return gVal === val;
+                    });
                 });
-            });
-            const nbSlotsDisponibles = [...new Set(groupesCompatibles.map(g => g.nb_slots))].sort((a, b) => a - b);
+                nbSlotsDisponibles = [...new Set(groupesCompatibles.map(g => g.nb_slots))].sort((a, b) => a - b);
+            }
+
             const valeurActuelle = select.value;
             select.innerHTML = '<option value="">— اختر —</option>' + nbSlotsDisponibles.map(n => `<option value="${n}">${n}</option>`).join('');
             if (nbSlotsDisponibles.map(String).includes(valeurActuelle)) select.value = valeurActuelle;

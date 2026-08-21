@@ -16,6 +16,13 @@
         سيتواصل معك فريقنا خلال {{ delai_contact_heures }} ساعة.
     </div>
 
-    <a href="{% url 'login' %}" class="btn-submit" style="display:block; text-decoration:none;">تسجيل الدخول</a>
+    {# Bug signalé le 2026-08-21 : aucun bouton "تسجيل الدخول" ici — la
+    candidature vient d'être créée mais N'EST PAS ENCORE VALIDÉE (aucun
+    compte élève actif n'existe à ce stade tant que le مدير/مشرف n'a pas
+    cliqué "قبول الطلب"). Proposer une connexion serait trompeur. Simple
+    message de confirmation, sans bouton d'action — pas de page d'accueil
+    publique distincte du login dans ce projet (core/urls.py redirige déjà
+    la racine '/' vers 'login'), donc rien de cohérent à proposer à la
+    place tant qu'un compte n'existe pas réellement. #}
 </div>
 {% endblock %}

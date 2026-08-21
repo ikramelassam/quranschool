@@ -245,7 +245,7 @@ def wizard_groupe(request):
     HTTP (voir WizardGroupeSecuriteTests.test_acces_direct_avec_session_
     individuel_redirige_meme_en_forcant_lurl)."""
     from courses.utils import _age_depuis_naissance
-    from .utils import groupes_compatibles_avec_age, wizard_donnees, wizard_maj
+    from .utils import groupes_avec_place_disponible, groupes_compatibles_avec_age, wizard_donnees, wizard_maj
 
     donnees = wizard_donnees(request)
     if 'nom' not in donnees:
@@ -260,17 +260,23 @@ def wizard_groupe(request):
     # de groupes_compatibles_avec_age lui-même) — évite un N+1 sur les
     # critères de chaque groupe affiché (riwaya, etc., montrés génériquement,
     # jamais par nom de critère en dur).
-    groupes = groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance).prefetch_related(
-        'valeurs_criteres__critere', 'valeurs_criteres__option',
-    )
+    # groupes_avec_place_disponible (bug du 2026-08-21) : un groupe complet ne
+    # doit JAMAIS apparaître dans la liste — cette même variable `groupes` sert
+    # aussi au POST juste en dessous, donc la capacité y est désormais
+    # garantie AVANT même le clic, pas seulement revérifiée après coup.
+    groupes = groupes_avec_place_disponible(
+        groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance)
+    ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
 
     if request.method == 'POST':
         groupe_id = request.POST.get('groupe_id')
         groupe_choisi = groupes.filter(id=groupe_id).first() if groupe_id else None
-        # Capacité revérifiée ICI (pas seulement à la confirmation finale,
-        # Étape 6E) — groupes_compatibles_avec_age ne filtre que sur les
-        # critères/l'âge, jamais sur la capacité (raison structurelle
-        # distincte, voir courses.utils.raison_incompatibilite_groupe).
+        # Garde-fou redondant mais volontairement conservé : `groupes` exclut
+        # déjà les groupes complets depuis le correctif ci-dessus, donc cette
+        # 2e vérification ne devrait plus jamais se déclencher en pratique —
+        # gardée en défense en profondeur contre un futur changement de
+        # `groupes` qui oublierait de repasser par groupes_avec_place_
+        # disponible (jamais confiance aveugle à un seul point de contrôle).
         if groupe_choisi is not None and groupe_choisi.eleves.count() >= groupe_choisi.capacite_max:
             groupe_choisi = None
         if groupe_choisi is None:

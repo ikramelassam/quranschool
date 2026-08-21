@@ -6504,8 +6504,8 @@ def admin_eleve_ajouter_manuel(request):
     from inscriptions.views import _construire_et_valider_telephone
     from registration.utils import (
         donnees_filtrage_json_pour_wizard, evaluer_champs_actifs, extraire_champs_depuis_post,
-        groupes_compatibles_avec_age, inscrire_eleve, reponses_pour_filtrage_depuis_resultats,
-        statut_compatibilite_groupe, abonnements_disponibles,
+        groupes_avec_place_disponible, groupes_compatibles_avec_age, inscrire_eleve,
+        reponses_pour_filtrage_depuis_resultats, statut_compatibilite_groupe, abonnements_disponibles,
     )
 
     round_form = request.POST.get('round_form', 'identite') if request.method == 'POST' else 'identite'
@@ -6557,9 +6557,12 @@ def admin_eleve_ajouter_manuel(request):
             type_age = tranche_age_depuis_naissance(date_naissance)
             abonnements = abonnements_disponibles(type_offre_valeur, type_age)
             if type_offre_valeur == 'groupe':
-                groupes = groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance).prefetch_related(
-                    'valeurs_criteres__critere', 'valeurs_criteres__option',
-                )
+                # groupes_avec_place_disponible (même correctif que registration.
+                # views.wizard_groupe, 2026-08-21) : un groupe complet ne doit
+                # jamais apparaître dans le <select> proposé au Directeur/مشرف.
+                groupes = groupes_avec_place_disponible(
+                    groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance)
+                ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
 
         return render(request, 'dashboard/admin_eleve_ajouter_manuel.html', {
             'round_form': 'confirmation',
@@ -6607,9 +6610,9 @@ def admin_eleve_ajouter_manuel(request):
         abonnements = abonnements_disponibles(type_offre_valeur, type_age) if type_age else []
         groupes = None
         if date_naissance is not None and type_offre_valeur == 'groupe':
-            groupes = groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance).prefetch_related(
-                'valeurs_criteres__critere', 'valeurs_criteres__option',
-            )
+            groupes = groupes_avec_place_disponible(
+                groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance)
+            ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
         return render(request, 'dashboard/admin_eleve_ajouter_manuel.html', {
             'round_form': 'confirmation',
             'champs_affiches': _champs_pour_template(resultats, donnees),

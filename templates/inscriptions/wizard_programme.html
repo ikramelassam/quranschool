@@ -8,20 +8,28 @@
     {% csrf_token %}
 
     {% for champ in champs %}
-    <div class="mb-3">
-        <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
-
         {% if champ.critere.backend == 'nb_slots' %}
+        {# Caché par défaut (bug UX signalé le 2026-08-21) : affiché par JS
+        (recalculerNbSeances) uniquement une fois tous les champs obligatoires
+        précédents remplis — jamais un état vide statique affiché d'emblée. #}
+        <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
+            <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
             <div class="row g-2" id="nb_seances_container" data-champ-id="{{ champ.id }}" data-champ-container="{{ champ.id }}">
-                <div style="color:#888; font-size:0.85rem;">اختر باقي الحقول أعلاه لعرض عدد الحصص المتاح.</div>
             </div>
-        {% elif champ.critere %}
+        </div>
+        {% else %}
+        <div class="mb-3">
+            <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
+
+            {% if champ.critere %}
             <div class="row g-2" data-champ-container="{{ champ.id }}">
                 {% for option in champ.critere.options.all %}
                 {% if option.est_actif %}
                 <div class="col-6">
                     <div class="select-btn"
                          data-critere-id="{{ champ.critere.id }}"
+                         data-backend="{{ champ.critere.backend }}"
+                         data-obligatoire="{% if champ.obligatoire %}1{% else %}0{% endif %}"
                          onclick="selectionnerOption({{ champ.id }}, {{ champ.critere.id }}, '{{ option.code }}', {% if champ.critere.type_champ == 'choix_multiple' %}true{% else %}false{% endif %}, this)">
                         {{ option.label }}
                     </div>
@@ -29,10 +37,11 @@
                 {% endif %}
                 {% endfor %}
             </div>
-        {% else %}
+            {% else %}
             <input type="text" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
+            {% endif %}
+        </div>
         {% endif %}
-    </div>
     {% endfor %}
 
     <button type="submit" class="btn-submit">التالي ←</button>
@@ -77,21 +86,65 @@
         });
     }
 
+    function champsObligatoiresRepondus() {
+        // Tous les champs critère obligatoires (hors nb_slots, qui n'a pas
+        // d'options statiques) doivent avoir une réponse avant de révéler le
+        // champ "nombre de séances" (bug UX signalé le 2026-08-21) — jamais
+        // les champs non-obligatoires, qu'un visiteur peut légitimement
+        // laisser vides.
+        const requisIds = new Set();
+        document.querySelectorAll('[data-critere-id][data-obligatoire="1"]').forEach(el => {
+            requisIds.add(el.dataset.critereId);
+        });
+        for (const id of requisIds) {
+            const val = selections[id];
+            if (!val || (Array.isArray(val) && val.length === 0)) return false;
+        }
+        return true;
+    }
+
+    function typeOffreValeur() {
+        // Identifie le critère backend='champ_groupe' GÉNÉRIQUEMENT (jamais
+        // par nom/code de critère) — voir data-backend posé sur chaque
+        // bouton d'option ci-dessus.
+        const el = document.querySelector('[data-backend="champ_groupe"][data-critere-id]');
+        if (!el) return null;
+        return selections[el.dataset.critereId] || null;
+    }
+
     function recalculerNbSeances() {
+        const wrapper = document.getElementById('nb_seances_wrapper');
         const container = document.getElementById('nb_seances_container');
-        if (!container) return;
+        if (!container || !wrapper) return;
         const champId = container.dataset.champId;
 
-        const groupesCompatibles = DONNEES_FILTRAGE.filter(g => {
-            return Object.keys(selections).every(critereId => {
-                const val = selections[critereId];
-                if (!val || (Array.isArray(val) && val.length === 0)) return true;
-                const gVal = g.valeurs[critereId];
-                if (Array.isArray(val)) return val.includes(gVal);
-                return gVal === val;
+        if (!champsObligatoiresRepondus()) {
+            wrapper.style.display = 'none';
+            return;
+        }
+        wrapper.style.display = '';
+
+        let nbSlotsDisponibles;
+        if (typeOffreValeur() === 'individuel') {
+            // Individuel = nombre de séances PUREMENT INDICATIF (décision
+            // actée de ce chantier — voir ReponseInscription.valeur_texte) :
+            // aucun groupe individuel réel n'existe forcément pour cette
+            // combinaison exacte de critères, l'école monte l'horaire sur
+            // mesure après coup. Union de TOUS les groupes du système, tous
+            // types/critères confondus — jamais une liste vide qui bloque.
+            nbSlotsDisponibles = [...new Set(DONNEES_FILTRAGE.map(g => g.nb_slots))].sort((a, b) => a - b);
+        } else {
+            const groupesCompatibles = DONNEES_FILTRAGE.filter(g => {
+                return Object.keys(selections).every(critereId => {
+                    const val = selections[critereId];
+                    if (!val || (Array.isArray(val) && val.length === 0)) return true;
+                    const gVal = g.valeurs[critereId];
+                    if (Array.isArray(val)) return val.includes(gVal);
+                    return gVal === val;
+                });
             });
-        });
-        const nbSlotsDisponibles = [...new Set(groupesCompatibles.map(g => g.nb_slots))].sort((a, b) => a - b);
+            nbSlotsDisponibles = [...new Set(groupesCompatibles.map(g => g.nb_slots))].sort((a, b) => a - b);
+        }
 
         if (nbSlotsDisponibles.length === 0) {
             container.innerHTML = '<div style="color:#888; font-size:0.85rem;">لا يوجد عدد حصص متاح للاختيارات الحالية بعد.</div>';

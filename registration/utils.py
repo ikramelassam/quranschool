@@ -138,18 +138,75 @@ def groupes_compatibles_avec_age(reponses, date_naissance):
     return groupes_compatibles(reponses).filter(creneau__age_min__lte=age, creneau__age_max__gte=age)
 
 
+def groupes_avec_place_disponible(queryset):
+    """Exclut les groupes dont le nombre d'élèves a déjà atteint capacite_max
+    — RÉSERVÉ À L'AFFICHAGE d'une liste de choix (wizard_groupe étape 3,
+    admin_eleve_ajouter_manuel round 2, Étape 7) : ne jamais montrer un groupe
+    complet comme une option cliquable, plutôt que le laisser choisir puis le
+    refuser après coup avec un message générique.
+
+    Correction du bug signalé le 2026-08-21 : groupes_compatibles()/
+    groupes_compatibles_avec_age() ne filtraient QUE sur les critères et
+    l'âge, jamais sur la capacité — la vérification de capacité existait déjà
+    (voir inscrire_eleve() et le POST de wizard_groupe), mais seulement pour
+    REFUSER un choix déjà fait, jamais pour retirer un groupe complet de la
+    liste affichée en premier lieu.
+
+    Volontairement une fonction SÉPARÉE, PAS fusionnée dans groupes_
+    compatibles()/groupes_compatibles_avec_age() elles-mêmes : inscrire_eleve()
+    a besoin de distinguer "groupe complet" (message dédié "المجموعة المختارة
+    مكتملة العدد") d'un désaccord de critère/âge (message générique "لم تعد
+    متاحة أو لا تتوافق") — si groupes_compatibles() excluait déjà les groupes
+    complets de sa requête, inscrire_eleve() ne recevrait plus jamais ce cas
+    précis à la ligne où il vérifie explicitement la capacité (le groupe
+    aurait déjà disparu de `candidats` plus haut) et perdrait ce message
+    spécifique. La capacité reste donc revalidée séparément, une 2e fois, à
+    la confirmation finale (inscrire_eleve, déjà en place, INCHANGÉ par ce
+    correctif) — jamais contournable, y compris par confirme_override
+    (Directeur/مشرف, voir Partie 17)."""
+    from django.db.models import Count, F
+
+    return queryset.annotate(_nb_eleves_actuel=Count('eleves', distinct=True)).filter(
+        _nb_eleves_actuel__lt=F('capacite_max')
+    )
+
+
 def nb_seances_disponibles(reponses_sans_nb_slots):
     """Valeurs de 'nombre de séances hebdomadaires' RÉELLEMENT proposables à
-    l'élève à l'étape 2, compte tenu des réponses déjà données (programme/
-    riwaya/groupe-ou-individuel...) — jamais 1/2/3/4 codés en dur. reponses_sans_
-    nb_slots : même format que groupes_compatibles(), SANS le critère nb_slots
-    lui-même (on cherche justement ses valeurs possibles, pas à filtrer dessus).
+    l'élève à l'étape 2 — jamais 1/2/3/4 codés en dur. reponses_sans_nb_slots :
+    même format que groupes_compatibles(), SANS le critère nb_slots lui-même
+    (on cherche justement ses valeurs possibles, pas à filtrer dessus).
+
+    COMPORTEMENT DISTINCT SELON type_offre (bug signalé le 2026-08-21 —
+    contredisait une décision déjà actée, voir ReponseInscription.valeur_texte
+    dans registration/models.py : "nb_seances_hebdo en parcours Individuel,
+    purement indicatif") :
+    - 'groupe' (ou type_offre absent/pas encore répondu) : filtré STRICTEMENT
+      contre les vrais CreneauSlot des groupes compatibles avec TOUTES les
+      réponses déjà données (programme/riwaya/...) — comportement historique,
+      inchangé.
+    - 'individuel' : en Individuel, il n'existe structurellement PAS de groupe
+      individuel réel préconfiguré pour chaque combinaison de critères — c'est
+      l'école qui monte l'horaire sur mesure après coup. Filtrer strictement
+      donnerait donc souvent une liste VIDE, bloquant l'inscription à tort.
+      Retourne à la place l'union des nb_slots de TOUS les groupes actifs du
+      système (tous types de groupes, tous critères confondus, PAS restreint
+      à individuel+riwaya+programme exacts) — une liste de choix raisonnable,
+      jamais vide tant qu'au moins un groupe existe quelque part.
 
     Recalculée à CHAQUE appel, jamais mise en cache — un nouveau groupe à 5
     séances/semaine créé par le مدير apparaît immédiatement à la prochaine
     requête, sans action supplémentaire (même philosophie que
     courses.utils.lien_seance_est_actif)."""
-    qs = groupes_compatibles(reponses_sans_nb_slots).exclude(creneau__isnull=True)
+    critere_type_offre = next((c for c in reponses_sans_nb_slots if c.backend == 'champ_groupe'), None)
+    type_offre_valeur = reponses_sans_nb_slots.get(critere_type_offre) if critere_type_offre else None
+
+    if type_offre_valeur == 'individuel':
+        from courses.models import Groupe
+        qs = Groupe.actifs.filter(statut='actif').exclude(creneau__isnull=True)
+    else:
+        qs = groupes_compatibles(reponses_sans_nb_slots).exclude(creneau__isnull=True)
+
     valeurs = qs.annotate(_n=Count('creneau__slots', distinct=True)).values_list('_n', flat=True)
     return sorted({v for v in valeurs if v})
 

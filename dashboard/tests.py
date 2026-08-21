@@ -3250,6 +3250,21 @@ class AjoutManuelEleveTests(TestCase):
             self.assertEqual(inscription.cree_par_id, user.id)
             self.assertEqual(inscription.groupe_choisi_id, self.groupe_hafs.id)
 
+    def test_groupe_plein_napparait_pas_dans_le_select_de_ladmin(self):
+        """Même correctif que registration.views.wizard_groupe (bug signalé
+        le 2026-08-21), côté ajout manuel (Étape 7) : un groupe complet ne
+        doit pas apparaître comme option choisissable pour le Directeur/مشرف
+        non plus."""
+        for i in range(self.groupe_hafs.capacite_max):
+            email = f'admin_ajout_plein_{i}@zidni.test'
+            u = User.objects.create_user(username=email, email=email, password='xX!test12345', role='eleve')
+            self.groupe_hafs.eleves.add(Eleve.objects.create(user=u, sexe='homme'))
+
+        client = self._connecte_admin()
+        reponse = client.post(reverse('admin_eleve_ajouter_manuel'), self._round1_donnees('admin_verif_groupe_plein@zidni.test'))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertNotIn('مجموعة حفص — إضافة يدوية', reponse.content.decode('utf-8'))
+
     def test_prof_na_pas_acces(self):
         client = Client()
         client.force_login(self.prof.user)
@@ -3328,6 +3343,16 @@ class AjoutManuelEleveTests(TestCase):
 
         self.assertIn('حقل اختبار التناظر', html_wizard)
         self.assertIn('حقل اختبار التناظر', html_admin)
+
+    def test_html_expose_les_attributs_js_necessaires_au_correctif_individuel(self):
+        """Même correctif que registration.tests.WizardProgrammeTests.test_
+        html_expose_les_attributs_js_necessaires_au_correctif_individuel
+        (bugs A+B du 2026-08-21), côté ajout manuel."""
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_eleve_ajouter_manuel')).content.decode('utf-8')
+        self.assertIn('data-backend="champ_groupe"', html)
+        self.assertIn('id="nb_seances_wrapper" style="display:none;"', html)
+        self.assertIn('data-obligatoire="1"', html)
 
 
 # ============================================================================
