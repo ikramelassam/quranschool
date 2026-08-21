@@ -360,6 +360,20 @@ def abonnements_disponibles(type_offre_valeur, type_age):
     return abonnements.order_by('ordre')
 
 
+def abonnements_avec_prix_effectif(abonnements, nb_slots):
+    """Liste de TypeAbonnement (à partir du queryset abonnements_disponibles)
+    avec un attribut supplémentaire `.prix_affiche` = prix_effectif(
+    abonnement, nb_slots) posé sur chaque instance — jamais écrit en base,
+    seulement pour l'affichage (Étape 9, GrillePrixAbonnement). Centralisé
+    ici pour que wizard_abonnement (Étape 4) et admin_eleve_ajouter_manuel
+    (Étape 7) affichent EXACTEMENT le même prix pour la même combinaison,
+    jamais 2 boucles maintenues séparément."""
+    resultat = list(abonnements)
+    for abonnement in resultat:
+        abonnement.prix_affiche = prix_effectif(abonnement, nb_slots)
+    return resultat
+
+
 def definir_valeurs_groupe(groupe, critere, options):
     """Remplace l'ENSEMBLE des GroupeCritereValeur d'un (groupe, critere) par
     `options` (liste de CritereOption, 0 à N selon type_champ) — même idiome

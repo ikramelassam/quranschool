@@ -3250,6 +3250,24 @@ class AjoutManuelEleveTests(TestCase):
             self.assertEqual(inscription.cree_par_id, user.id)
             self.assertEqual(inscription.groupe_choisi_id, self.groupe_hafs.id)
 
+    def test_prix_affiche_repli_puis_grille_si_ligne_configuree(self):
+        """Étape 9 (GrillePrixAbonnement, 2026-08-21) : même comportement que
+        registration.views.wizard_abonnement — repli sur TypeAbonnement.prix
+        tant qu'aucune ligne de grille ne matche exactement nb_slots=2 (déjà
+        répondu par _round1_donnees), puis prix de la grille dès qu'une
+        ligne active existe pour cette combinaison."""
+        from inscriptions.models import GrillePrixAbonnement
+
+        client = self._connecte_admin()
+        reponse = client.post(reverse('admin_eleve_ajouter_manuel'), self._round1_donnees('prix_repli_ajout_manuel@zidni.test'))
+        abonnements = {a.code: a for a in reponse.context['abonnements']}
+        self.assertEqual(abonnements[self.abo_groupe.code].prix_affiche, self.abo_groupe.prix)
+
+        GrillePrixAbonnement.objects.create(type_abonnement=self.abo_groupe, nb_slots=2, prix=999)
+        reponse2 = client.post(reverse('admin_eleve_ajouter_manuel'), self._round1_donnees('prix_grille_ajout_manuel@zidni.test'))
+        abonnements2 = {a.code: a for a in reponse2.context['abonnements']}
+        self.assertEqual(abonnements2[self.abo_groupe.code].prix_affiche, 999)
+
     def test_groupe_plein_napparait_pas_dans_le_select_de_ladmin(self):
         """Même correctif que registration.views.wizard_groupe (bug signalé
         le 2026-08-21), côté ajout manuel (Étape 7) : un groupe complet ne

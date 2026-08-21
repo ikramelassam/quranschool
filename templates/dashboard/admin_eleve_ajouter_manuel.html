@@ -232,7 +232,7 @@
                 <option value="">— اختر —</option>
                 {% for abonnement in abonnements %}
                 <option value="{{ abonnement.code }}" {% if abonnement.code == abonnement_selectionne %}selected{% endif %}>
-                    {{ abonnement.label }} — {{ abonnement.prix }} د.م.
+                    {{ abonnement.label }} — {{ abonnement.prix_affiche }} د.م.
                 </option>
                 {% endfor %}
             </select>

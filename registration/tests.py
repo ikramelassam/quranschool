@@ -1346,6 +1346,26 @@ class WizardAbonnementPaiementTests(TestCase):
         self.assertIn('فردي شهري', html)
         self.assertNotIn('جماعي شهري', html)
 
+    def test_prix_affiche_repli_sur_type_abonnement_sans_ligne_de_grille(self):
+        """Étape 9 (GrillePrixAbonnement, 2026-08-21) : sans aucune ligne de
+        grille configurée, le prix affiché reste TypeAbonnement.prix — jamais
+        de blocage/prix vide."""
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='groupe')
+        reponse = client.get(reverse('wizard_abonnement'))
+        abonnements = {a.code: a for a in reponse.context['abonnements']}
+        self.assertEqual(abonnements[self.abo_groupe.code].prix_affiche, self.abo_groupe.prix)
+
+    def test_prix_affiche_utilise_la_grille_si_combinaison_configuree(self):
+        """nb_seances_hebdo=2 déjà répondu (via _avancer_a_etape_4) doit
+        matcher exactement la ligne de grille nb_slots=2 ci-dessous."""
+        GrillePrixAbonnement.objects.create(type_abonnement=self.abo_groupe, nb_slots=2, prix=999)
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='groupe')
+        reponse = client.get(reverse('wizard_abonnement'))
+        abonnements = {a.code: a for a in reponse.context['abonnements']}
+        self.assertEqual(abonnements[self.abo_groupe.code].prix_affiche, 999)
+
     def test_acces_abonnement_avec_groupe_pas_encore_choisi_redirige_a_groupe(self):
         client = Client()
         self._avancer_a_etape_4(client, type_offre='groupe', choisir_groupe=False)

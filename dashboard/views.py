@@ -6503,9 +6503,10 @@ def admin_eleve_ajouter_manuel(request):
     from courses.utils import _age_depuis_naissance, tranche_age_depuis_naissance
     from inscriptions.views import _construire_et_valider_telephone
     from registration.utils import (
-        donnees_filtrage_json_pour_wizard, evaluer_champs_actifs, extraire_champs_depuis_post,
-        groupes_avec_place_disponible, groupes_compatibles_avec_age, inscrire_eleve,
-        reponses_pour_filtrage_depuis_resultats, statut_compatibilite_groupe, abonnements_disponibles,
+        abonnements_avec_prix_effectif, donnees_filtrage_json_pour_wizard, evaluer_champs_actifs,
+        extraire_champs_depuis_post, groupes_avec_place_disponible, groupes_compatibles_avec_age, inscrire_eleve,
+        nb_slots_repondu, reponses_pour_filtrage_depuis_resultats, statut_compatibilite_groupe,
+        abonnements_disponibles,
     )
 
     round_form = request.POST.get('round_form', 'identite') if request.method == 'POST' else 'identite'
@@ -6555,7 +6556,14 @@ def admin_eleve_ajouter_manuel(request):
         groupes, abonnements, type_age = None, [], None
         if date_naissance is not None:
             type_age = tranche_age_depuis_naissance(date_naissance)
-            abonnements = abonnements_disponibles(type_offre_valeur, type_age)
+            # abonnements_avec_prix_effectif (Étape 9, GrillePrixAbonnement,
+            # 2026-08-21) : pose `.prix_affiche` sur chaque TypeAbonnement à
+            # partir du nb_slots déjà répondu dans ce même round — même
+            # fonction que wizard_abonnement, jamais 2 affichages qui
+            # pourraient diverger pour la même combinaison.
+            abonnements = abonnements_avec_prix_effectif(
+                abonnements_disponibles(type_offre_valeur, type_age), nb_slots_repondu(donnees)
+            )
             if type_offre_valeur == 'groupe':
                 # groupes_avec_place_disponible (même correctif que registration.
                 # views.wizard_groupe, 2026-08-21) : un groupe complet ne doit
@@ -6607,7 +6615,12 @@ def admin_eleve_ajouter_manuel(request):
 
     def _rendre_round_confirmation(avertissement=False):
         type_age = tranche_age_depuis_naissance(date_naissance) if date_naissance else None
-        abonnements = abonnements_disponibles(type_offre_valeur, type_age) if type_age else []
+        abonnements = (
+            abonnements_avec_prix_effectif(
+                abonnements_disponibles(type_offre_valeur, type_age), nb_slots_repondu(donnees)
+            )
+            if type_age else []
+        )
         groupes = None
         if date_naissance is not None and type_offre_valeur == 'groupe':
             groupes = groupes_avec_place_disponible(

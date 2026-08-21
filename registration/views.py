@@ -300,9 +300,14 @@ def wizard_abonnement(request):
     """Étape 4 — point de convergence Groupe + Individuel. Réutilise
     TypeAbonnement TEL QUEL (déjà un système dynamique fonctionnel, Étape 5C/
     TypeAbonnement.type_offre/cible_age) — rien de reconstruit ici, juste
-    filtré par les réponses déjà en session."""
+    filtré par les réponses déjà en session.
+
+    Prix affiché (Étape 9, GrillePrixAbonnement, 2026-08-21) : nb_slots est
+    déjà connu à ce stade (répondu à l'étape 2, avant Groupe/Individuel) —
+    abonnements_avec_prix_effectif() pose `.prix_affiche` sur chaque
+    TypeAbonnement, jamais TypeAbonnement.prix affiché brut directement."""
     from courses.utils import tranche_age_depuis_naissance
-    from .utils import abonnements_disponibles
+    from .utils import abonnements_avec_prix_effectif, abonnements_disponibles, nb_slots_repondu
 
     donnees = wizard_donnees(request)
     if 'nom' not in donnees:
@@ -316,6 +321,7 @@ def wizard_abonnement(request):
 
     date_naissance = datetime.date.fromisoformat(donnees['date_naissance'])
     type_age = tranche_age_depuis_naissance(date_naissance)
+    nb_slots = nb_slots_repondu(donnees)
 
     # abonnements_disponibles (registration.utils, Étape 7) : même requête que
     # dashboard.views.admin_eleve_ajouter_manuel, jamais 2 versions maintenues
@@ -326,7 +332,7 @@ def wizard_abonnement(request):
         code = request.POST.get('abonnement_code', '')
         if not abonnements.filter(code=code).exists():
             return render(request, 'inscriptions/wizard_abonnement.html', {
-                'abonnements': abonnements,
+                'abonnements': abonnements_avec_prix_effectif(abonnements, nb_slots),
                 'erreurs': ['يرجى اختيار نوع اشتراك صالح.'],
                 'wizard_etape_num': 4,
             })
@@ -334,7 +340,7 @@ def wizard_abonnement(request):
         return redirect('wizard_paiement')
 
     return render(request, 'inscriptions/wizard_abonnement.html', {
-        'abonnements': abonnements, 'wizard_etape_num': 4,
+        'abonnements': abonnements_avec_prix_effectif(abonnements, nb_slots), 'wizard_etape_num': 4,
     })
 
 
