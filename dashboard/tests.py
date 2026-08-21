@@ -3283,6 +3283,30 @@ class AjoutManuelEleveTests(TestCase):
         self.assertEqual(reponse.status_code, 200)
         self.assertNotIn('مجموعة حفص — إضافة يدوية', reponse.content.decode('utf-8'))
 
+    def test_regression_sexe_2026_08_22_femme_ne_voit_pas_un_groupe_hommes(self):
+        """Même correctif que registration.utils.groupes_compatibles_avec_age
+        (régression signalée le 2026-08-22), côté ajout manuel (Étape 7) —
+        les 2 entrées partagent la même fonction, donc le même correctif."""
+        creneau_hommes = Creneau.objects.create(
+            sexe_cible='homme', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60,
+        )
+        remplacer_slots_creneau(creneau_hommes, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        groupe_hommes = Groupe.objects.create(
+            nom='مجموعة رجال — إضافة يدوية', creneau=creneau_hommes, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(groupe=groupe_hommes, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=groupe_hommes, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
+
+        client = self._connecte_admin()
+        # _round1_donnees soumet sexe='femme' (voir sa définition ci-dessus).
+        reponse = client.post(reverse('admin_eleve_ajouter_manuel'), self._round1_donnees('regression_sexe_femme@zidni.test'))
+        html = reponse.content.decode('utf-8')
+        self.assertIn('مجموعة حفص — إضافة يدوية', html)  # groupe mixte, toujours visible
+        self.assertNotIn('مجموعة رجال — إضافة يدوية', html)  # groupe hommes, jamais visible pour une femme
+
     def test_prof_na_pas_acces(self):
         client = Client()
         client.force_login(self.prof.user)

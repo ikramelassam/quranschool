@@ -6621,7 +6621,7 @@ def admin_eleve_ajouter_manuel(request):
                 # views.wizard_groupe, 2026-08-21) : un groupe complet ne doit
                 # jamais apparaître dans le <select> proposé au Directeur/مشرف.
                 groupes = groupes_avec_place_disponible(
-                    groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance)
+                    groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, donnees.get('sexe', ''))
                 ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
 
         return render(request, 'dashboard/admin_eleve_ajouter_manuel.html', {
@@ -6676,7 +6676,7 @@ def admin_eleve_ajouter_manuel(request):
         groupes = None
         if date_naissance is not None and type_offre_valeur == 'groupe':
             groupes = groupes_avec_place_disponible(
-                groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance)
+                groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, donnees.get('sexe', ''))
             ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
         return render(request, 'dashboard/admin_eleve_ajouter_manuel.html', {
             'round_form': 'confirmation',
@@ -6697,7 +6697,7 @@ def admin_eleve_ajouter_manuel(request):
         })
 
     if type_offre_valeur == 'groupe' and groupe_id and not confirme and date_naissance is not None:
-        statut_compat = statut_compatibilite_groupe(groupe_id, reponses_pour_filtrage, date_naissance)
+        statut_compat = statut_compatibilite_groupe(groupe_id, reponses_pour_filtrage, date_naissance, donnees.get('sexe', ''))
         if statut_compat == 'contournable':
             messages.warning(
                 request,

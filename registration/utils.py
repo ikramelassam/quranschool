@@ -38,7 +38,7 @@ silencieuses) :
 import datetime
 
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 
 
 # ==================== ÉTAT DU WIZARD CÔTÉ SERVEUR (Étape 6) ====================
@@ -126,16 +126,35 @@ def groupes_compatibles(reponses):
     return qs.distinct().select_related('creneau', 'prof__user').prefetch_related('creneau__slots')
 
 
-def groupes_compatibles_avec_age(reponses, date_naissance):
-    """groupes_compatibles() + contrainte d'âge structurelle (Creneau.age_min/
-    age_max — champ dédié, PAS un Critere, voir la décision explicite à ce sujet).
-    Toujours appliquée, jamais contournable par confirme_override (même principe
-    que courses.utils.raison_incompatibilite_groupe, où l'âge reste bloquant même
-    pour le مدير)."""
+def groupes_compatibles_avec_age(reponses, date_naissance, sexe):
+    """groupes_compatibles() + 2 contraintes STRUCTURELLES (Creneau.age_min/
+    age_max ET Creneau.sexe_cible — champs dédiés, PAS des Critere, voir la
+    décision explicite à ce sujet). Toujours appliquées, jamais contournables
+    par confirme_override (même principe que courses.utils.raison_
+    incompatibilite_groupe, où l'âge reste bloquant même pour le مدير).
+
+    sexe filtrant ajouté le 2026-08-22 (régression signalée par le client :
+    "élève femme ne doit jamais voir un groupe hommes et vice-versa") — cette
+    fonction n'a JAMAIS filtré sur le sexe depuis la toute première version du
+    moteur (308f28e) : ce n'est pas une régression d'un commit récent (fix
+    capacité/bugs A/B/C/GrillePrixAbonnement, tous vérifiés innocents — voir
+    RegressionSexeGroupesTests), mais un angle mort présent depuis l'origine
+    de ce moteur, jamais couvert par un test jusqu'ici.
+
+    Volontairement traité EXACTEMENT comme l'âge (structurel, jamais
+    relâché par confirme_override) et PAS comme courses.utils.
+    raison_incompatibilite_groupe/avertissements_groupe (où sexe est informatif
+    seulement depuis la Tâche 14, décision distincte qui concerne l'ADMIN
+    réassignant un Eleve déjà existant à un groupe, un contexte différent) :
+    ce moteur régit l'inscription initiale d'un nouvel élève, où la
+    ségrégation par sexe est une contrainte dure, jamais négociable, exactement
+    comme l'âge — voir RegressionSexeGroupesTests pour la discussion."""
     from courses.utils import _age_depuis_naissance
 
     age = _age_depuis_naissance(date_naissance)
-    return groupes_compatibles(reponses).filter(creneau__age_min__lte=age, creneau__age_max__gte=age)
+    return groupes_compatibles(reponses).filter(
+        creneau__age_min__lte=age, creneau__age_max__gte=age,
+    ).filter(Q(creneau__sexe_cible='mixte') | Q(creneau__sexe_cible=sexe))
 
 
 def groupes_avec_place_disponible(queryset):
@@ -321,12 +340,13 @@ def couverture_critere(critere):
     }
 
 
-def statut_compatibilite_groupe(groupe_id, reponses_pour_filtrage, date_naissance):
+def statut_compatibilite_groupe(groupe_id, reponses_pour_filtrage, date_naissance, sexe):
     """'ok' (groupe strictement compatible, aucun avertissement), 'contournable'
     (incompatible sur au moins un critère filtrable NON bloquant seulement —
-    l'âge et tout critère bloquant=True restent respectés) ou 'incompatible'
-    (âge ou critère bloquant en désaccord — jamais contournable, même par
-    confirme_override). 'incompatible' aussi si groupe_id est vide/invalide.
+    l'âge, le sexe et tout critère bloquant=True restent respectés) ou
+    'incompatible' (âge, sexe ou critère bloquant en désaccord — jamais
+    contournable, même par confirme_override). 'incompatible' aussi si
+    groupe_id est vide/invalide.
 
     Vérification en LECTURE SEULE — n'écrit rien, ne crée rien. Applique
     EXACTEMENT la même règle que inscrire_eleve() (Partie 22) en interne pour
@@ -339,10 +359,10 @@ def statut_compatibilite_groupe(groupe_id, reponses_pour_filtrage, date_naissanc
     elle-même, qui reste entièrement portée par inscrire_eleve()."""
     if not groupe_id:
         return 'incompatible'
-    if groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance).filter(id=groupe_id).exists():
+    if groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, sexe).filter(id=groupe_id).exists():
         return 'ok'
     reponses_bloquantes = {c: v for c, v in reponses_pour_filtrage.items() if c.bloquant}
-    if groupes_compatibles_avec_age(reponses_bloquantes, date_naissance).filter(id=groupe_id).exists():
+    if groupes_compatibles_avec_age(reponses_bloquantes, date_naissance, sexe).filter(id=groupe_id).exists():
         return 'contournable'
     return 'incompatible'
 
@@ -747,16 +767,16 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
         elif date_naissance is None:
             pass  # déjà signalé plus haut
         else:
-            candidats = groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance)
+            candidats = groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, sexe)
             groupe_choisi = candidats.filter(id=groupe_id).first()
 
             if groupe_choisi is None and cree_par is not None and confirme_override:
                 # Override réservé au Directeur/مشرف (Partie 17) : ne relâche QUE
-                # les critères filtrable non bloquants — l'âge (structurel) et
-                # tout critère bloquant=True restent des contraintes dures, même
-                # avec confirme_override=True.
+                # les critères filtrable non bloquants — l'âge et le sexe
+                # (structurels) et tout critère bloquant=True restent des
+                # contraintes dures, même avec confirme_override=True.
                 reponses_bloquantes = {c: v for c, v in reponses_pour_filtrage.items() if c.bloquant}
-                candidats_permissifs = groupes_compatibles_avec_age(reponses_bloquantes, date_naissance)
+                candidats_permissifs = groupes_compatibles_avec_age(reponses_bloquantes, date_naissance, sexe)
                 groupe_choisi = candidats_permissifs.filter(id=groupe_id).first()
 
             if groupe_choisi is None:

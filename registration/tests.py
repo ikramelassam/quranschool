@@ -163,10 +163,10 @@ class GroupesCompatiblesBackendsTests(TestCase):
         naissance_6_ans = datetime.date.today().replace(year=datetime.date.today().year - 6)
         naissance_40_ans = datetime.date.today().replace(year=datetime.date.today().year - 40)
 
-        resultat_enfant = groupes_compatibles_avec_age({}, naissance_6_ans)
+        resultat_enfant = groupes_compatibles_avec_age({}, naissance_6_ans, 'homme')
         self.assertIn(groupe_enfants, resultat_enfant)  # 6 ans -> dans [4,10]
 
-        resultat_adulte = groupes_compatibles_avec_age({}, naissance_40_ans)
+        resultat_adulte = groupes_compatibles_avec_age({}, naissance_40_ans, 'homme')
         self.assertNotIn(groupe_enfants, resultat_adulte)  # 40 ans -> hors [4,10]
         self.assertIn(self.groupe_hafs_groupe, resultat_adulte)  # 40 ans -> dans [6,60]
 
@@ -218,7 +218,7 @@ class GroupesAvecPlaceDisponibleTests(TestCase):
         """Le vrai chemin utilisé par les vues (wizard_groupe, ajout manuel) :
         groupes_avec_place_disponible(groupes_compatibles_avec_age(...))."""
         resultat = groupes_avec_place_disponible(
-            groupes_compatibles_avec_age({}, datetime.date(2000, 1, 1))
+            groupes_compatibles_avec_age({}, datetime.date(2000, 1, 1), 'homme')
         )
         self.assertNotIn(self.groupe_plein, resultat)
         self.assertIn(self.groupe_presque_plein, resultat)
@@ -1276,6 +1276,106 @@ class WizardGroupeTests(TestCase):
     def test_acces_direct_sans_session_redirige_a_identite(self):
         reponse = Client().get(reverse('wizard_groupe'))
         self.assertRedirects(reponse, reverse('wizard_identite'))
+
+
+# ============================================================================
+# RÉGRESSION signalée le 2026-08-22 : le filtre par sexe des halaqat (élève
+# femme -> seulement halaqat femmes, élève homme -> seulement halaqat hommes)
+# ne fonctionnait plus. Investigation (git log --all -p sur registration/
+# utils.py depuis 308f28e, tout premier commit du moteur) : groupes_
+# compatibles_avec_age() n'a JAMAIS filtré sur Creneau.sexe_cible, à AUCUN
+# moment de l'historique de ce moteur — ce n'est donc PAS une régression
+# introduite par un des 3 commits récents (fix capacité groupes_avec_place_
+# disponible, bugs A/B/C wizard_programme, GrillePrixAbonnement — vérifiés
+# un par un, aucun ne touche à groupes_compatibles_avec_age ni à sexe) mais
+# un angle mort présent depuis l'origine de ce moteur, jamais couvert par un
+# test avant celui-ci. Corrigé le même jour (voir groupes_compatibles_avec_
+# age, désormais un paramètre sexe obligatoire, traité EXACTEMENT comme
+# l'âge : structurel, jamais contournable par confirme_override) —
+# volontairement distinct de courses.utils.raison_incompatibilite_groupe/
+# avertissements_groupe, où sexe reste informatif seulement depuis la Tâche
+# 14 (décision explicite du client, mais pour l'ADMIN réassignant un Eleve
+# DÉJÀ EXISTANT à un groupe — un contexte différent de l'inscription
+# initiale d'un nouvel élève, traitée ici).
+# ============================================================================
+class RegressionSexeGroupesTests(TestCase):
+    def setUp(self):
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        self.groupe_hommes = self._creer_groupe('مجموعة رجال — اختبار الانحدار', sexe_cible='homme')
+        self.groupe_femmes = self._creer_groupe('مجموعة نساء — اختبار الانحدار', sexe_cible='femme')
+        self.groupe_mixte = self._creer_groupe('مجموعة مختلطة — اختبار الانحدار', sexe_cible='mixte')
+
+    def _creer_groupe(self, nom, sexe_cible):
+        creneau = Creneau.objects.create(
+            sexe_cible=sexe_cible, type_seance='hifz', riwaya='hafs', age_min=18, age_max=90,
+        )
+        remplacer_slots_creneau(creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        groupe = Groupe.objects.create(nom=nom, creneau=creneau, statut='actif', type_capacite='groupe', capacite_max=10)
+        GroupeCritereValeur.objects.create(groupe=groupe, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=groupe, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
+        return groupe
+
+    def test_unitaire_femme_exclut_groupe_hommes_inclut_femmes_et_mixte(self):
+        resultat = groupes_compatibles_avec_age({}, datetime.date(1995, 1, 1), 'femme')
+        self.assertNotIn(self.groupe_hommes, resultat)
+        self.assertIn(self.groupe_femmes, resultat)
+        self.assertIn(self.groupe_mixte, resultat)
+
+    def test_unitaire_homme_exclut_groupe_femmes_inclut_hommes_et_mixte(self):
+        resultat = groupes_compatibles_avec_age({}, datetime.date(1995, 1, 1), 'homme')
+        self.assertNotIn(self.groupe_femmes, resultat)
+        self.assertIn(self.groupe_hommes, resultat)
+        self.assertIn(self.groupe_mixte, resultat)
+
+    def _avancer_a_etape_3(self, client, sexe):
+        client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار الانحدار', 'sexe': sexe, 'email': f'regression.sexe.{sexe}@zidni.test',
+            'date_naissance': '1995-01-01',
+            'indicatif_pays': '212', 'telephone': '0600334455', 'telephone_confirmation': '0600334455',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '1',
+        })
+
+    def test_bout_en_bout_wizard_public_femme_ne_voit_jamais_un_groupe_hommes(self):
+        client = Client()
+        self._avancer_a_etape_3(client, sexe='femme')
+        html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertIn(self.groupe_femmes.nom, html)
+        self.assertIn(self.groupe_mixte.nom, html)
+        self.assertNotIn(self.groupe_hommes.nom, html)
+
+    def test_bout_en_bout_wizard_public_homme_ne_voit_jamais_un_groupe_femmes(self):
+        client = Client()
+        self._avancer_a_etape_3(client, sexe='homme')
+        html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertIn(self.groupe_hommes.nom, html)
+        self.assertIn(self.groupe_mixte.nom, html)
+        self.assertNotIn(self.groupe_femmes.nom, html)
+
+    def test_post_groupe_hommes_refuse_pour_une_femme_meme_en_forcant_lid(self):
+        """Sécurité serveur (Partie 22) : même en POSTant directement l'ID du
+        groupe hommes (visible ou non côté client), la soumission doit être
+        refusée pour une élève femme — jamais une confiance aveugle en un ID
+        valide en base."""
+        client = Client()
+        self._avancer_a_etape_3(client, sexe='femme')
+        reponse = client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe_hommes.id)})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertNotIn('groupe_id', client.session.get('wizard_inscription', {}))
 
 
 # ============================================================================

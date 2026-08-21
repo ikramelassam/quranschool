@@ -265,7 +265,7 @@ def wizard_groupe(request):
     # aussi au POST juste en dessous, donc la capacité y est désormais
     # garantie AVANT même le clic, pas seulement revérifiée après coup.
     groupes = groupes_avec_place_disponible(
-        groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance)
+        groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, donnees['sexe'])
     ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
 
     if request.method == 'POST':
