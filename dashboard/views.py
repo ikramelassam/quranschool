@@ -4706,6 +4706,58 @@ def admin_abonnement_toggle(request, abonnement_id):
     return redirect('admin_parametres_abonnements')
 
 
+@role_required('admin', 'mshrif')
+def admin_abonnement_grille_prix(request, abonnement_id):
+    """Étape 9 (GrillePrixAbonnement, décidé le 2026-08-21) — page dédiée à
+    UN TypeAbonnement : une ligne par nb_slots réellement présent dans le
+    système (nb_slots_reels_systeme(), jamais 1..N codé en dur — un nouveau
+    groupe à 6 séances/semaine ajoute sa ligne ici sans aucun code
+    supplémentaire), prix éditable par ligne + case "نشط".
+
+    Soumission = remplace TOUTES les lignes de ce TypeAbonnement en une seule
+    transaction (update_or_create par nb_slots posté avec un prix non vide,
+    suppression de la ligne si le champ est laissé vide) — même idiome
+    "remplacer, jamais accumuler" que definir_valeurs_groupe/
+    remplacer_slots_creneau.
+
+    Le warning de couverture_grille_prix() reste PASSIF, jamais un gate à
+    confirmer : contrairement à admin_critere_inscription_modifier (qui
+    protège une ACTIVATION filtrable=True), il n'y a rien à activer ici — le
+    repli sur TypeAbonnement.prix (prix_effectif) couvre déjà le cas d'une
+    combinaison non configurée côté élève ; ce warning informe seulement le
+    مدير, sans jamais bloquer la sauvegarde."""
+    from inscriptions.models import GrillePrixAbonnement, TypeAbonnement
+    from registration.utils import couverture_grille_prix, nb_slots_reels_systeme
+
+    type_abonnement = get_object_or_404(TypeAbonnement, id=abonnement_id)
+    valeurs = nb_slots_reels_systeme()
+
+    if request.method == 'POST':
+        with transaction.atomic():
+            for nb_slots in valeurs:
+                valeur_postee = (request.POST.get(f'prix_{nb_slots}') or '').strip()
+                if valeur_postee == '':
+                    GrillePrixAbonnement.objects.filter(type_abonnement=type_abonnement, nb_slots=nb_slots).delete()
+                    continue
+                GrillePrixAbonnement.objects.update_or_create(
+                    type_abonnement=type_abonnement, nb_slots=nb_slots,
+                    defaults={'prix': valeur_postee, 'est_actif': request.POST.get(f'actif_{nb_slots}') == 'on'},
+                )
+        messages.success(request, 'تم حفظ شبكة الأسعار بنجاح.')
+        return redirect('admin_abonnement_grille_prix', abonnement_id=type_abonnement.id)
+
+    lignes_existantes = {ligne.nb_slots: ligne for ligne in type_abonnement.grille_prix.all()}
+    lignes = [{'nb_slots': v, 'ligne': lignes_existantes.get(v)} for v in valeurs]
+
+    return render(request, 'dashboard/admin_abonnement_grille_prix.html', {
+        'type_abonnement': type_abonnement,
+        'lignes': lignes,
+        'couverture': couverture_grille_prix(type_abonnement),
+        'base_template': _base_template_admin_ou_mshrif(request),
+        **_contexte_base_mshrif(request),
+    })
+
+
 # ==================== ADMIN — GRILLE TARIFAIRE DE RÉMUNÉRATION DES PROFS ====================
 # Grille fixe à 4 lignes (type_capacite × tranche_age) — contrairement à
 # TypeAbonnement/Critere ci-dessus, pas d'ajout/suppression: seul le montant

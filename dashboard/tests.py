@@ -3374,6 +3374,102 @@ class AjoutManuelEleveTests(TestCase):
 
 
 # ============================================================================
+# Étape 9 — admin_abonnement_grille_prix : page dashboard où le مدير/مشرف
+# configure GrillePrixAbonnement (prix par nb_slots, décidé le 2026-08-21).
+# ============================================================================
+class AdminAbonnementGrillePrixTests(TestCase):
+    def setUp(self):
+        from inscriptions.models import TypeAbonnement
+
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+        self.prof = _creer_prof()
+        self.abonnement = TypeAbonnement.objects.create(
+            code='test_grille_prix_abo', label='شهري تجريبي', prix=80, type_offre='groupe', cible_age='les_deux',
+        )
+        # Garantit au moins un nb_slots réel connu et déterministe pour les
+        # tests (la base de test contient aussi des groupes seedés réels,
+        # mais leur nb_slots exact n'est pas supposé ici).
+        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(creneau, [
+            {'jour': j, 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}
+            for j in ['lun', 'mar', 'mer']
+        ])
+        Groupe.objects.create(nom='مجموعة شبكة أسعار', creneau=creneau, statut='actif')
+        self.nb_slots = 3
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def test_role_required_refuse_un_prof(self):
+        client = Client()
+        client.force_login(self.prof.user)
+        reponse = client.get(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]))
+        self.assertEqual(reponse.status_code, 302)
+
+    def test_mshrif_peut_acceder(self):
+        client = Client()
+        client.force_login(self.mshrif)
+        reponse = client.get(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]))
+        self.assertEqual(reponse.status_code, 200)
+
+    def test_get_affiche_une_ligne_par_nb_slots_reel(self):
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id])).content.decode('utf-8')
+        self.assertIn(f'name="prix_{self.nb_slots}"', html)
+        self.assertIn(f'{self.nb_slots} حصص', html)
+
+    def test_post_cree_une_ligne_puis_la_modifie(self):
+        from inscriptions.models import GrillePrixAbonnement
+
+        client = self._connecte_admin()
+        client.post(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]), {
+            f'prix_{self.nb_slots}': '999', f'actif_{self.nb_slots}': 'on',
+        })
+        ligne = GrillePrixAbonnement.objects.get(type_abonnement=self.abonnement, nb_slots=self.nb_slots)
+        self.assertEqual(ligne.prix, 999)
+        self.assertTrue(ligne.est_actif)
+
+        # Re-soumission SANS la case "نشط" cochée (jamais envoyée par un
+        # navigateur pour une checkbox décochée) -> désactive la ligne sans
+        # la supprimer, prix mis à jour dans le même passage.
+        client.post(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]), {
+            f'prix_{self.nb_slots}': '500',
+        })
+        ligne.refresh_from_db()
+        self.assertEqual(ligne.prix, 500)
+        self.assertFalse(ligne.est_actif)
+
+    def test_post_champ_vide_supprime_la_ligne_existante(self):
+        from inscriptions.models import GrillePrixAbonnement
+
+        GrillePrixAbonnement.objects.create(type_abonnement=self.abonnement, nb_slots=self.nb_slots, prix=200)
+        client = self._connecte_admin()
+        client.post(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]), {
+            f'prix_{self.nb_slots}': '',
+        })
+        self.assertFalse(
+            GrillePrixAbonnement.objects.filter(type_abonnement=self.abonnement, nb_slots=self.nb_slots).exists()
+        )
+
+    def test_warning_configures_zero_puis_couvert_apres_ajout(self):
+        client = self._connecte_admin()
+        html_avant = client.get(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id])).content.decode('utf-8')
+        self.assertIn('لم يُحدد أي سعر خاص بعد', html_avant)
+
+        client.post(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]), {
+            f'prix_{self.nb_slots}': '999', f'actif_{self.nb_slots}': 'on',
+        })
+        html_apres = client.get(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id])).content.decode('utf-8')
+        # Reste 'partiellement couvert' si d'autres nb_slots réels existent
+        # (groupes seedés), sinon 'entièrement couvert' -- les deux messages
+        # excluent l'ancien état "aucun prix défini".
+        self.assertNotIn('لم يُحدد أي سعر خاص بعد', html_apres)
+
+
+# ============================================================================
 # CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 8 : preuve de
 # généricité totale, bout en bout, à travers TOUTE la chaîne (dashboard CRUD
 # -> onglet groupe "الخصائص" -> wizard public ET ajout manuel) avec un

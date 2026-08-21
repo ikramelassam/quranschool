@@ -101,6 +101,7 @@ urlpatterns = [
     path('admin/parametres/abonnements/ajouter/', views.admin_abonnement_ajouter, name='admin_abonnement_ajouter'),
     path('admin/parametres/abonnements/<int:abonnement_id>/modifier/', views.admin_abonnement_modifier, name='admin_abonnement_modifier'),
     path('admin/parametres/abonnements/<int:abonnement_id>/toggle/', views.admin_abonnement_toggle, name='admin_abonnement_toggle'),
+    path('admin/parametres/abonnements/<int:abonnement_id>/grille-prix/', views.admin_abonnement_grille_prix, name='admin_abonnement_grille_prix'),
 
     # Admin — grille tarifaire de rémunération des profs
     path('admin/parametres/remuneration/', views.admin_tarifs_remuneration, name='admin_tarifs_remuneration'),
