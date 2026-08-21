@@ -8,11 +8,12 @@ from django.urls import reverse
 from accounts.models import Eleve, User
 from courses.models import Creneau, Groupe
 from courses.utils import remplacer_slots_creneau
-from inscriptions.models import InscriptionEleve, TypeAbonnement
+from inscriptions.models import GrillePrixAbonnement, InscriptionEleve, TypeAbonnement
 from .models import ChampInscription, Critere, CritereOption, EtapeInscription, GroupeCritereValeur, RegleCondition
 from .utils import (
-    couverture_critere, groupes_avec_place_disponible, groupes_compatibles, groupes_compatibles_avec_age,
-    inscrire_eleve, nb_seances_disponibles, champ_est_masque,
+    couverture_critere, couverture_grille_prix, groupes_avec_place_disponible, groupes_compatibles,
+    groupes_compatibles_avec_age, inscrire_eleve, nb_seances_disponibles, nb_slots_reels_systeme,
+    nb_slots_repondu, prix_effectif, champ_est_masque,
 )
 
 MOT_DE_PASSE = 'xX!test12345'
@@ -372,6 +373,111 @@ class CouvertureCritereTests(TestCase):
         couverture = couverture_critere(objectif)
         self.assertEqual(couverture['configures'], 0)
         self.assertEqual(couverture['total'], total_avant + 1)
+
+
+# ============================================================================
+# Étape 9 — GrillePrixAbonnement (prix par nb_slots, décidé le 2026-08-21) :
+# nb_slots_reels_systeme (factorisation), nb_slots_repondu, prix_effectif
+# (repli sur TypeAbonnement.prix) et couverture_grille_prix (warning non
+# bloquant, même esprit que CouvertureCritereTests ci-dessus).
+# ============================================================================
+
+class NbSlotsReelsSystemeTests(TestCase):
+    def test_factorisation_identique_a_la_branche_individuel_de_nb_seances_disponibles(self):
+        """Non-régression du refactor (Étape 9) : nb_slots_reels_systeme()
+        doit renvoyer EXACTEMENT ce que renvoyait déjà la branche 'individuel'
+        de nb_seances_disponibles avant l'extraction — jamais 2 calculs qui
+        pourraient diverger."""
+        tag = _creer_critere('test_tag_nb_slots_reels', options=[('oui', 'نعم')])
+        groupe = Groupe.objects.create(nom='مجموعة نظام', creneau=_creer_creneau(nb_slots=5), statut='actif')
+        GroupeCritereValeur.objects.create(groupe=groupe, critere=tag, option=tag.options.get(code='oui'))
+        type_offre = _creer_critere(
+            'test_type_offre_nb_slots_reels', backend='champ_groupe', champ_modele_groupe='type_capacite',
+        )
+        self.assertIn(5, nb_slots_reels_systeme())
+        self.assertEqual(nb_slots_reels_systeme(), nb_seances_disponibles({type_offre: 'individuel'}))
+
+
+class NbSlotsReponduTests(TestCase):
+    def setUp(self):
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+    def test_none_si_rien_repondu(self):
+        self.assertIsNone(nb_slots_repondu({}))
+
+    def test_valeur_entiere_si_deja_repondu(self):
+        self.assertEqual(nb_slots_repondu({f'champ_{self.champ_nb_seances.id}': '3'}), 3)
+
+    def test_none_si_valeur_non_entiere(self):
+        self.assertIsNone(nb_slots_repondu({f'champ_{self.champ_nb_seances.id}': 'abc'}))
+
+
+class PrixEffectifTests(TestCase):
+    """Le repli sur TypeAbonnement.prix (jamais de blocage silencieux du
+    wizard tant qu'une combinaison précise n'a pas de ligne de grille) —
+    décision actée explicitement le 2026-08-21."""
+
+    def setUp(self):
+        self.abonnement = TypeAbonnement.objects.create(
+            code='test_prix_effectif_mensuel', label='شهري تجريبي', prix=80, type_offre='groupe',
+        )
+
+    def test_repli_sur_prix_type_abonnement_si_aucune_ligne_de_grille(self):
+        self.assertEqual(prix_effectif(self.abonnement, 2), self.abonnement.prix)
+
+    def test_repli_sur_prix_type_abonnement_si_nb_slots_none(self):
+        GrillePrixAbonnement.objects.create(type_abonnement=self.abonnement, nb_slots=2, prix=150)
+        self.assertEqual(prix_effectif(self.abonnement, None), self.abonnement.prix)
+
+    def test_utilise_le_prix_de_la_grille_si_combinaison_exacte_configuree(self):
+        GrillePrixAbonnement.objects.create(type_abonnement=self.abonnement, nb_slots=4, prix=180)
+        self.assertEqual(prix_effectif(self.abonnement, 4), 180)
+        # nb_slots=2 n'a aucune ligne -> repli, jamais le prix de la ligne nb_slots=4.
+        self.assertEqual(prix_effectif(self.abonnement, 2), self.abonnement.prix)
+
+    def test_ligne_desactivee_ignoree_repli_sur_type_abonnement(self):
+        GrillePrixAbonnement.objects.create(type_abonnement=self.abonnement, nb_slots=3, prix=999, est_actif=False)
+        self.assertEqual(prix_effectif(self.abonnement, 3), self.abonnement.prix)
+
+
+class CouvertureGrillePrixTests(TestCase):
+    def test_total_configures_et_manquants(self):
+        groupe = Groupe.objects.create(nom='مجموعة تغطية شبكة', creneau=_creer_creneau(nb_slots=5), statut='actif')
+        abonnement = TypeAbonnement.objects.create(
+            code='test_couverture_grille', label='اختبار تغطية', prix=100, type_offre='groupe',
+        )
+        valeurs = nb_slots_reels_systeme()
+        self.assertIn(5, valeurs)
+        # Configure seulement nb_slots=5, parmi potentiellement plusieurs valeurs réelles.
+        GrillePrixAbonnement.objects.create(type_abonnement=abonnement, nb_slots=5, prix=250)
+
+        couverture = couverture_grille_prix(abonnement)
+        self.assertEqual(couverture['total'], len(valeurs))
+        self.assertEqual(couverture['configures'], 1)
+        self.assertNotIn(5, couverture['nb_slots_manquants'])
+        for v in valeurs:
+            if v != 5:
+                self.assertIn(v, couverture['nb_slots_manquants'])
+
+    def test_zero_ligne_configuree(self):
+        Groupe.objects.create(nom='مجموعة بدون تسعير', creneau=_creer_creneau(nb_slots=3), statut='actif')
+        abonnement = TypeAbonnement.objects.create(
+            code='test_couverture_grille_vide', label='اختبار فارغ', prix=100, type_offre='groupe',
+        )
+        couverture = couverture_grille_prix(abonnement)
+        self.assertEqual(couverture['configures'], 0)
+        self.assertIn(3, couverture['nb_slots_manquants'])
+
+    def test_ligne_desactivee_compte_comme_non_configuree(self):
+        Groupe.objects.create(nom='مجموعة معطلة', creneau=_creer_creneau(nb_slots=4), statut='actif')
+        abonnement = TypeAbonnement.objects.create(
+            code='test_couverture_grille_off', label='اختبار معطل', prix=100, type_offre='groupe',
+        )
+        GrillePrixAbonnement.objects.create(type_abonnement=abonnement, nb_slots=4, prix=300, est_actif=False)
+        couverture = couverture_grille_prix(abonnement)
+        self.assertEqual(couverture['configures'], 0)
+        self.assertIn(4, couverture['nb_slots_manquants'])
 
 
 class RegleConditionMasquageTests(TestCase):

@@ -202,13 +202,96 @@ def nb_seances_disponibles(reponses_sans_nb_slots):
     type_offre_valeur = reponses_sans_nb_slots.get(critere_type_offre) if critere_type_offre else None
 
     if type_offre_valeur == 'individuel':
-        from courses.models import Groupe
-        qs = Groupe.actifs.filter(statut='actif').exclude(creneau__isnull=True)
-    else:
-        qs = groupes_compatibles(reponses_sans_nb_slots).exclude(creneau__isnull=True)
+        return nb_slots_reels_systeme()
 
+    qs = groupes_compatibles(reponses_sans_nb_slots).exclude(creneau__isnull=True)
     valeurs = qs.annotate(_n=Count('creneau__slots', distinct=True)).values_list('_n', flat=True)
     return sorted({v for v in valeurs if v})
+
+
+def nb_slots_reels_systeme():
+    """Union des nb_slots réels (Groupe.creneau.slots) de TOUS les groupes
+    actifs du système, tous critères/type_offre confondus — jamais 1/2/3/4
+    codés en dur. Factorisé depuis la branche 'individuel' de nb_seances_
+    disponibles ci-dessus (Étape 9, GrillePrixAbonnement) : la grille de prix
+    a besoin EXACTEMENT de la même liste de valeurs pour construire ses
+    lignes et son warning de couverture (couverture_grille_prix ci-dessous)
+    — un nouveau groupe à 5 séances/semaine doit apparaître aux deux endroits
+    en même temps, jamais 2 calculs qui pourraient diverger.
+
+    Recalculée à CHAQUE appel, jamais mise en cache — même philosophie que
+    nb_seances_disponibles/couverture_critere."""
+    from courses.models import Groupe
+
+    qs = Groupe.actifs.filter(statut='actif').exclude(creneau__isnull=True)
+    valeurs = qs.annotate(_n=Count('creneau__slots', distinct=True)).values_list('_n', flat=True)
+    return sorted({v for v in valeurs if v})
+
+
+def nb_slots_repondu(reponses_brutes):
+    """Valeur entière déjà répondue pour le champ backend='nb_slots' (ou None
+    si pas encore répondu/invalide/masqué) — reponses_brutes au même format
+    que wizard_donnees(request)/un POST brut (dict {champ_<id>: valeur}).
+
+    Volontairement PAS filtrée par critere.filtrable (contrairement à
+    reponses_pour_filtrage_depuis_resultats) : ici on veut la valeur que
+    l'élève a choisie pour l'AFFICHER (calcul du prix effectif, Étape 9),
+    pas son rôle dans le filtrage des groupes compatibles — un مدير qui
+    désactiverait filtrable sur ce critère ne doit pas faire disparaître le
+    prix affiché."""
+    resultats = evaluer_champs_actifs(reponses_brutes)
+    for r in resultats:
+        if r['masque'] or r['erreur'] or not r['paires']:
+            continue
+        if r['champ'].critere is not None and r['champ'].critere.backend == 'nb_slots':
+            try:
+                return int(r['paires'][0][1])
+            except (ValueError, TypeError):
+                return None
+    return None
+
+
+def prix_effectif(type_abonnement, nb_slots):
+    """Prix à afficher pour ce TypeAbonnement compte tenu du nombre de
+    séances/semaine choisi (Étape 9, GrillePrixAbonnement) : celui de la
+    grille si une ligne ACTIVE existe pour cette combinaison EXACTE
+    (type_abonnement, nb_slots), sinon TypeAbonnement.prix comme repli —
+    l'élève voit TOUJOURS un prix, jamais un blocage silencieux du wizard le
+    temps que le مدير configure chaque combinaison une à une.
+
+    nb_slots=None (pas encore répondu à ce stade du parcours) : aucune ligne
+    de grille ne peut jamais matcher None, retombe directement sur
+    TypeAbonnement.prix — comportement identique à avant ce chantier.
+
+    C'est précisément quand ce repli est utilisé que la combinaison apparaît
+    dans couverture_grille_prix()['nb_slots_manquants'] côté dashboard — les
+    deux fonctions lisent la même réalité, jamais 2 sources qui divergent."""
+    if nb_slots is not None:
+        ligne = type_abonnement.grille_prix.filter(nb_slots=nb_slots, est_actif=True).first()
+        if ligne is not None:
+            return ligne.prix
+    return type_abonnement.prix
+
+
+def couverture_grille_prix(type_abonnement):
+    """{'total', 'configures', 'nb_slots_manquants'} — même esprit que
+    couverture_critere() ci-dessous (Parties 7-8) : matière première d'un
+    warning NON BLOQUANT affiché au مدير sur la page de tarification de ce
+    TypeAbonnement (Étape 9), jamais un gate qui empêcherait le wizard de
+    continuer — le repli TypeAbonnement.prix (voir prix_effectif) couvre
+    déjà ce cas côté élève.
+
+    Recalculée à CHAQUE appel, jamais mise en cache — même philosophie que
+    nb_seances_disponibles/couverture_critere."""
+    valeurs = nb_slots_reels_systeme()
+    configures = set(
+        type_abonnement.grille_prix.filter(est_actif=True, nb_slots__in=valeurs).values_list('nb_slots', flat=True)
+    )
+    return {
+        'total': len(valeurs),
+        'configures': len(configures),
+        'nb_slots_manquants': sorted(set(valeurs) - configures),
+    }
 
 
 # ==================== COUVERTURE D'UN CRITÈRE (Parties 7-8) ====================
