@@ -867,6 +867,7 @@ class WizardIntroTests(TestCase):
         presentation.save()
 
         client = Client()
+        _choisir_categorie_age(client)  # Étape -1 (2026-08-22) : sinon SAUT SERVEUR vers wizard_categorie_age
         reponse = client.get(reverse('wizard_intro'))
         self.assertEqual(reponse.status_code, 200)
         html = reponse.content.decode('utf-8')
@@ -877,6 +878,7 @@ class WizardIntroTests(TestCase):
     def test_intro_accessible_sans_authentification(self):
         """Page publique — aucun compte requis, contrairement au dashboard."""
         client = Client()
+        _choisir_categorie_age(client)  # Étape -1 (2026-08-22) : sinon SAUT SERVEUR vers wizard_categorie_age
         reponse = client.get(reverse('wizard_intro'))
         self.assertEqual(reponse.status_code, 200)
 
@@ -1003,11 +1005,63 @@ class WizardCategorieAgeTests(TestCase):
         client = Client()
         client.post(reverse('wizard_categorie_age'), {'type_age': 'enfant'})
         reponse = client.post(reverse('wizard_identite'), {
-            'nom': 'اختبار التطابق', 'sexe': 'homme', 'email': 'coherence.age@zidni.test',
+            'nom': 'اختبار التطابق', 'nom_parent': 'ولي أمر الاختبار',
+            'sexe': 'homme', 'email': 'coherence.age@zidni.test',
             'date_naissance': '2015-01-01',
             'indicatif_pays': '212', 'telephone': '0600112255', 'telephone_confirmation': '0600112255',
         })
         self.assertRedirects(reponse, reverse('wizard_programme'), fetch_redirect_response=False)
+
+    def test_nom_parent_absent_si_adulte_choisi(self):
+        """Demande du 2026-08-22 : le champ dépend du choix déjà fait à
+        l'étape -1, jamais une mention conditionnelle vague."""
+        client = Client()
+        client.post(reverse('wizard_categorie_age'), {'type_age': 'adulte'})
+        html = client.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertNotIn('name="nom_parent"', html)
+        # 'ولي الأمر' seul apparaît AUSSI dans le label du champ job_actuel
+        # ("العمل الحالي (أو عمل ولي الأمر إن كان المسجَّل قاصراً)"), sans
+        # rapport avec nom_parent -> on vérifie le label PROPRE à nom_parent,
+        # jamais la sous-chaîne générique.
+        self.assertNotIn('اسم ولي الأمر', html)
+
+    def test_nom_parent_obligatoire_sans_mention_si_enfant_choisi(self):
+        client = Client()
+        client.post(reverse('wizard_categorie_age'), {'type_age': 'enfant'})
+        html = client.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertIn('name="nom_parent"', html)
+        self.assertIn('اسم ولي الأمر', html)
+        # L'ancien label vague ("اسم ولي الأمر (إن كان المسجَّل قاصراً)",
+        # seedé en 0004) ne doit plus apparaître pour nom_parent — on vérifie
+        # la chaîne EXACTE de cet ancien label, pas la sous-chaîne générique
+        # "إن كان المسجَّل قاصراً" qui appartient aussi (légitimement) au
+        # label du champ job_actuel, non concerné par cette demande.
+        self.assertNotIn('اسم ولي الأمر (إن كان المسجَّل قاصراً)', html)
+
+    def test_nom_parent_obligatoire_bloque_si_enfant_et_vide(self):
+        client = Client()
+        client.post(reverse('wizard_categorie_age'), {'type_age': 'enfant'})
+        reponse = client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار ولي الأمر', 'sexe': 'homme', 'email': 'wali.amr.manquant@zidni.test',
+            'date_naissance': '2015-01-01', 'nom_parent': '',
+            'indicatif_pays': '212', 'telephone': '0600112266', 'telephone_confirmation': '0600112266',
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('إلزامي', reponse.content.decode('utf-8'))
+        self.assertNotIn('nom', client.session.get('wizard_inscription', {}))  # rien enregistré, validation refusée
+
+    def test_nom_parent_ignore_meme_si_poste_pour_un_adulte(self):
+        """Sécurité serveur : même si nom_parent est posté malicieusement
+        pour un adulte, il n'est jamais lu ni stocké."""
+        client = Client()
+        client.post(reverse('wizard_categorie_age'), {'type_age': 'adulte'})
+        reponse = client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار تجاهل', 'sexe': 'homme', 'email': 'ignore.wali@zidni.test',
+            'date_naissance': '2000-01-01', 'nom_parent': 'محاولة تمرير',
+            'indicatif_pays': '212', 'telephone': '0600112277', 'telephone_confirmation': '0600112277',
+        })
+        self.assertRedirects(reponse, reverse('wizard_programme'), fetch_redirect_response=False)
+        self.assertNotIn('nom_parent', client.session['wizard_inscription'])
 
 
 # ============================================================================
@@ -1533,6 +1587,78 @@ class WizardGroupeAucunMatchExactTests(TestCase):
         demande = DemandeNonSatisfaite.objects.get()
         self.assertEqual(demande.inscription_id, inscription.id)
 
+    def test_bouton_suivant_desactive_avant_tout_choix(self):
+        """Refonte du 2026-08-22 : aucune progression possible sans un choix
+        explicite (groupe proche ou attente)."""
+        client = Client()
+        self._avancer_a_etape_3(client)
+        html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertIn('id="btn_suivant_aucun_match" disabled', html)
+
+    def test_groupe_proche_devient_selectionnable_et_enregistre_quand_meme_la_demande(self):
+        """Refonte du 2026-08-22 : les groupes proches ne sont plus juste
+        informatifs — l'élève peut les choisir. La combinaison EXACTE
+        demandée reste tracée même dans ce cas (utile au مدير)."""
+        from registration.models import DemandeNonSatisfaite
+
+        client = Client()
+        self._avancer_a_etape_3(client)
+        reponse = client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe_proche.id)})
+        self.assertRedirects(reponse, reverse('wizard_abonnement'), fetch_redirect_response=False)
+        self.assertEqual(client.session['wizard_inscription']['groupe_id'], str(self.groupe_proche.id))
+
+        demande = DemandeNonSatisfaite.objects.get()
+        self.assertEqual(demande.nb_slots, 77)
+
+    def test_aucun_choix_soumis_est_refuse(self):
+        client = Client()
+        self._avancer_a_etape_3(client)
+        reponse = client.post(reverse('wizard_groupe'), {})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('يرجى اختيار مجموعة قريبة أو تأكيد الانتظار', reponse.content.decode('utf-8'))
+        self.assertNotIn('groupe_id', client.session.get('wizard_inscription', {}))
+
+    def test_groupe_id_hors_liste_proche_est_refuse(self):
+        """Sécurité serveur (Partie 22) : un groupe_id qui existe réellement
+        mais ne fait PAS partie des groupes proches proposés (ne respecte
+        même pas les critères non négociables) est refusé, jamais une
+        confiance aveugle dans l'ID posté."""
+        creneau_hors_sujet = Creneau.objects.create(sexe_cible='femme', type_seance='hifz', riwaya='warsh', age_min=6, age_max=10)
+        remplacer_slots_creneau(creneau_hors_sujet, [
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        groupe_hors_sujet = Groupe.objects.create(
+            nom='مجموعة خارج الاقتراحات', creneau=creneau_hors_sujet, statut='actif', type_capacite='groupe', capacite_max=10,
+        )
+
+        client = Client()
+        self._avancer_a_etape_3(client)  # homme, 2000-01-01 -> adulte
+        reponse = client.post(reverse('wizard_groupe'), {'groupe_id': str(groupe_hors_sujet.id)})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('يرجى اختيار مجموعة قريبة أو تأكيد الانتظار', reponse.content.decode('utf-8'))
+        self.assertNotIn('groupe_id', client.session.get('wizard_inscription', {}))
+
+    def test_inscription_reussit_avec_un_groupe_proche_choisi(self):
+        """Bout en bout : le groupe proche choisi à l'étape 3 est bien celui
+        de l'inscription finale, malgré le mismatch sur le nombre de séances."""
+        from inscriptions.models import InscriptionEleve, TypeAbonnement
+        from payments.models import MoyenPaiement
+
+        abo = TypeAbonnement.objects.create(
+            code='test_groupe_proche_abo', label='شهري جماعي', prix=80, type_offre='groupe', cible_age='les_deux',
+        )
+        moyen = MoyenPaiement.objects.create(code='test_groupe_proche_cih', label='CIH بنك', coordonnees='RIB', est_actif=True)
+
+        client = Client()
+        self._avancer_a_etape_3(client, email='groupe.proche.confirme@zidni.test')
+        client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe_proche.id)})
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': abo.code})
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': moyen.code})
+        self.assertRedirects(reponse, reverse('wizard_confirmation'), fetch_redirect_response=False)
+
+        inscription = InscriptionEleve.objects.get(email='groupe.proche.confirme@zidni.test')
+        self.assertEqual(inscription.groupe_choisi, self.groupe_proche)
+
 
 # ============================================================================
 # RÉGRESSION signalée le 2026-08-22 : le filtre par sexe des halaqat (élève
@@ -1854,6 +1980,10 @@ class WizardConfirmationTests(TestCase):
         self.assertIn('نور الدين حمزة', html)
         self.assertIn('مرحباً بك معنا!', html)
         self.assertIn('24', html)  # délai de contact configurable, jamais codé en dur
+        # Bouton retour (demande du 2026-08-22) : vers l'accueil du site
+        # public, jamais "تسجيل الدخول" (aucun compte élève actif à ce stade).
+        self.assertIn('العودة إلى الصفحة الرئيسية', html)
+        self.assertNotIn('تسجيل الدخول', html)
 
         # Session vidée -> rafraîchir la page de confirmation ne réaffiche rien.
         self.assertNotIn('wizard_inscription', client.session)

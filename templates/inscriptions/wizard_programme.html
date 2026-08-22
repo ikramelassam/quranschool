@@ -23,7 +23,6 @@
             <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
             <input type="number" name="champ_{{ champ.id }}" class="form-control mt-1" min="1" step="1"
                    placeholder="مثال: 3" {% if champ.obligatoire %}required{% endif %}>
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">اختر العدد الذي يناسبك، دون قيود.</div>
         </div>
         {% else %}
         <div class="mb-3">

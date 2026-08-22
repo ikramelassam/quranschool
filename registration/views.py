@@ -129,11 +129,28 @@ def wizard_identite(request):
     donnees_session = wizard_donnees(request)
     if 'type_age_choisi' not in donnees_session:
         return redirect('wizard_categorie_age')
+    type_age_choisi = donnees_session['type_age_choisi']
 
     champs_info = _champs_informatifs_actifs('identite')
     configs = champs_structurels_actifs('identite')
     configs_par_cle = {c.champ_cle: c for c in configs}
     CLES_GENERIQUES = ('nom', 'nom_parent', 'job_actuel', 'niveau_scolaire')
+
+    # nom_parent dépend du choix بالغ/طفل déjà fait à l'étape -1 (demande du
+    # 2026-08-22) — jamais une mention conditionnelle vague ("إن كان
+    # المسجَّل قاصراً") : le système SAIT déjà si c'est un mineur. Mutation
+    # EN MÉMOIRE seulement (jamais persistée) — n'affecte que ce rendu/cette
+    # validation, pas la configuration réelle du مدير. Si le مدير a
+    # lui-même désactivé ce champ (absent de configs_par_cle), ce choix
+    # reste prioritaire : rien ci-dessous ne le réactive.
+    nom_parent_config = configs_par_cle.get('nom_parent')
+    if nom_parent_config is not None:
+        if type_age_choisi == 'adulte':
+            configs = [c for c in configs if c.champ_cle != 'nom_parent']
+            del configs_par_cle['nom_parent']
+        else:  # 'enfant'
+            nom_parent_config.label = 'اسم ولي الأمر'
+            nom_parent_config.obligatoire = True
 
     def _avec_valeurs_actuelles(valeurs):
         # Pose `.valeur_actuelle` sur chaque config à partir d'un dict/
@@ -358,15 +375,21 @@ def wizard_groupe(request):
     nombre de séances n'étant plus limité à ce qui existe déjà (voir
     wizard_programme), AUCUN groupe ne correspond parfois à la combinaison
     EXACTE choisie — généralisé à TOUTE combinaison de critères, pas
-    seulement le nombre de séances. Dans ce cas : message configurable
-    (PresentationInscription.message_aucun_groupe_exact) + liste INFORMATIVE
-    (non cliquable) des groupes qui correspondent au moins aux critères
-    non négociables (âge/sexe structurels + tout critère bloquant=True,
-    même repli que confirme_override — voir groupes_compatibles_avec_age)
-    + bouton "متابعة دون تحديد مجموعة الآن", qui enregistre une
-    DemandeNonSatisfaite (traçabilité pour le مدير/مشرف) et avance sans
-    groupe_choisi, comme le parcours Individuel."""
+    seulement le nombre de séances.
+
+    Refonte du 2026-08-22 (suite aux tests en local) : dans ce cas, message
+    CONCRET (dit explicitement qu'aucune combinaison exacte n'existe) +
+    groupes "proches" (correspondant au moins aux critères non négociables
+    — âge/sexe structurels + tout critère bloquant=True, même repli que
+    confirme_override) DEVENUS SÉLECTIONNABLES, à égalité avec une option
+    explicite "لا، أنتظر حتى يتم إنشاء الحلقة" (avec le délai de contact
+    configuré, même esprit que le message final de wizard_confirmation) —
+    un choix (groupe proche OU attente) est OBLIGATOIRE avant de pouvoir
+    avancer. Dans les 2 cas, une DemandeNonSatisfaite est enregistrée : la
+    combinaison exacte demandée reste une donnée utile pour le مدير/مشرف
+    même quand l'élève accepte finalement un groupe proche."""
     from courses.utils import _age_depuis_naissance
+    from inscriptions.models import get_parametres_inscriptions
     from .models import DemandeNonSatisfaite, get_presentation_inscription
     from .utils import (
         groupes_avec_place_disponible, groupes_compatibles_avec_age, snapshot_criteres_pour_demande,
@@ -399,29 +422,55 @@ def wizard_groupe(request):
     aucun_groupe_exact = not groupes.exists()
     groupes_proches = None
     message_aucun_groupe = None
+    delai_contact_heures = None
     if aucun_groupe_exact:
         reponses_bloquantes = {c: v for c, v in reponses_pour_filtrage.items() if c.bloquant}
         groupes_proches = groupes_avec_place_disponible(
             groupes_compatibles_avec_age(reponses_bloquantes, date_naissance, sexe)
         ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
         message_aucun_groupe = get_presentation_inscription().message_aucun_groupe_exact
+        delai_contact_heures = get_parametres_inscriptions().delai_contact_heures
 
     contexte_commun = {
         'groupes': groupes, 'groupes_proches': groupes_proches,
         'aucun_groupe_exact': aucun_groupe_exact, 'message_aucun_groupe': message_aucun_groupe,
+        'delai_contact_heures': delai_contact_heures,
         'age': age, 'wizard_etape_num': 3,
     }
 
+    def _enregistrer_demande_non_satisfaite():
+        nb_slots_valeur = next((v for c, v in reponses_pour_filtrage.items() if c.backend == 'nb_slots'), None)
+        return DemandeNonSatisfaite.objects.create(
+            criteres_json=snapshot_criteres_pour_demande(reponses_pour_filtrage),
+            type_offre='groupe', nb_slots=nb_slots_valeur, age=age, sexe=sexe,
+        )
+
     if request.method == 'POST':
-        if aucun_groupe_exact and request.POST.get('continuer_sans_groupe') == '1':
-            nb_slots_valeur = next(
-                (v for c, v in reponses_pour_filtrage.items() if c.backend == 'nb_slots'), None
-            )
-            demande = DemandeNonSatisfaite.objects.create(
-                criteres_json=snapshot_criteres_pour_demande(reponses_pour_filtrage),
-                type_offre='groupe', nb_slots=nb_slots_valeur, age=age, sexe=sexe,
-            )
-            wizard_maj(request, {'groupe_id': '', 'demande_non_satisfaite_id': str(demande.id)})
+        if aucun_groupe_exact:
+            choix_attente = request.POST.get('continuer_sans_groupe') == '1'
+            groupe_id = request.POST.get('groupe_id')
+            groupe_choisi = None
+            if not choix_attente and groupe_id:
+                # Revérifié SERVEUR contre groupes_proches (jamais `groupes`,
+                # vide ici) — jamais une confiance aveugle dans l'ID posté,
+                # même principe que le chemin normal ci-dessous.
+                groupe_choisi = groupes_proches.filter(id=groupe_id).first()
+                if groupe_choisi is not None and groupe_choisi.eleves.count() >= groupe_choisi.capacite_max:
+                    groupe_choisi = None
+
+            if not choix_attente and groupe_choisi is None:
+                return render(request, 'inscriptions/wizard_groupe.html', {
+                    **contexte_commun,
+                    'erreurs': ['يرجى اختيار مجموعة قريبة أو تأكيد الانتظار قبل المتابعة.'],
+                })
+
+            # Un choix valide a été fait (groupe proche OU attente) — la
+            # combinaison exacte demandée reste tracée dans les 2 cas.
+            demande = _enregistrer_demande_non_satisfaite()
+            wizard_maj(request, {
+                'groupe_id': str(groupe_choisi.id) if groupe_choisi else '',
+                'demande_non_satisfaite_id': str(demande.id),
+            })
             return redirect('wizard_abonnement')
 
         groupe_id = request.POST.get('groupe_id')

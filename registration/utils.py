@@ -895,6 +895,20 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
             candidats = groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, sexe)
             groupe_choisi = candidats.filter(id=groupe_id).first()
 
+            if groupe_choisi is None and demande_id:
+                # "Groupe proche" choisi via l'écran "aucun groupe exact" de
+                # wizard_groupe (chantier du 2026-08-22) — MÊME relaxation
+                # que confirme_override (critères non bloquants seulement,
+                # âge/sexe toujours durs), mais pour le PUBLIC : demande_id
+                # prouve que ce choix a déjà été proposé et validé serveur à
+                # l'étape 3 (wizard_groupe ne propose QUE des groupes de
+                # reponses_bloquantes dans ce cas), jamais une confiance
+                # aveugle — la requête ci-dessous revérifie ce match de toute
+                # façon, demande_id ne fait que décider SI on tente ce repli.
+                reponses_bloquantes = {c: v for c, v in reponses_pour_filtrage.items() if c.bloquant}
+                candidats_permissifs = groupes_compatibles_avec_age(reponses_bloquantes, date_naissance, sexe)
+                groupe_choisi = candidats_permissifs.filter(id=groupe_id).first()
+
             if groupe_choisi is None and cree_par is not None and confirme_override:
                 # Override réservé au Directeur/مشرف (Partie 17) : ne relâche QUE
                 # les critères filtrable non bloquants — l'âge et le sexe
