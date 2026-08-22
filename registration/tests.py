@@ -14,9 +14,10 @@ from .models import (
     GroupeCritereValeur, RegleCondition,
 )
 from .utils import (
-    champs_structurels_actifs, couverture_critere, couverture_grille_prix, groupes_avec_place_disponible,
-    groupes_compatibles, groupes_compatibles_avec_age, inscrire_eleve, nb_seances_disponibles,
-    nb_slots_reels_systeme, nb_slots_repondu, prix_effectif, valider_champ_structurel_libre, champ_est_masque,
+    abonnements_disponibles, champs_structurels_actifs, couverture_critere, couverture_grille_prix,
+    groupes_avec_place_disponible, groupes_compatibles, groupes_compatibles_avec_age, inscrire_eleve,
+    nb_seances_disponibles, nb_slots_reels_systeme, nb_slots_repondu, prix_effectif,
+    valider_champ_structurel_libre, champ_est_masque,
 )
 
 MOT_DE_PASSE = 'xX!test12345'
@@ -452,6 +453,47 @@ class PrixEffectifTests(TestCase):
     def test_ligne_desactivee_ignoree_repli_sur_type_abonnement(self):
         GrillePrixAbonnement.objects.create(type_abonnement=self.abonnement, nb_slots=3, prix=999, est_actif=False)
         self.assertEqual(prix_effectif(self.abonnement, 3), self.abonnement.prix)
+
+
+class AbonnementsDisponiblesCibleAgeTests(TestCase):
+    """Correction 7 (2026-08-22, suite au test local) : signalé "un seul
+    abonnement apparaît pour Individuel + une tranche d'âge donnée" —
+    reproduit ici pour vérifier s'il s'agit d'un vrai bug de filtrage ou de
+    données de test incomplètes (cible_age non 'les_deux' sur certaines
+    lignes). Conclusion : PAS un bug — abonnements_disponibles() filtre
+    volontairement sur cible_age (voir sa docstring), donc 2 TypeAbonnement
+    Individuel de durées différentes mais de cible_age DIFFÉRENTE
+    ('adulte' vs 'enfant', au lieu de 'les_deux') ne peuvent normalement
+    JAMAIS apparaître tous les deux pour une même tranche d'âge — c'est
+    exactement le comportement voulu (restreindre une offre à une tranche),
+    pas une régression. Ce test protège ce comportement intentionnel."""
+
+    def test_cible_age_specifique_exclut_lautre_tranche(self):
+        # assertIn/assertNotIn plutôt qu'une égalité de liste stricte : les 4
+        # TypeAbonnement seedés (0004_seed_types_abonnement, cible_age=
+        # 'les_deux' par défaut) sont aussi présents en base de test et
+        # apparaîtraient légitimement dans les 2 résultats — pas pertinent
+        # pour ce que ce test vérifie (l'EXCLUSION mutuelle des 2 lignes
+        # ci-dessous, chacune restreinte à une seule tranche d'âge).
+        abo_adulte = TypeAbonnement.objects.create(
+            code='test_cible_adulte', label='شهر', prix=400, type_offre='individuel', cible_age='adulte',
+        )
+        abo_enfant = TypeAbonnement.objects.create(
+            code='test_cible_enfant', label='3 أشهر', prix=500, type_offre='individuel', cible_age='enfant',
+        )
+        resultat_adulte = abonnements_disponibles('individuel', 'adulte')
+        resultat_enfant = abonnements_disponibles('individuel', 'enfant')
+        self.assertIn(abo_adulte, resultat_adulte)
+        self.assertNotIn(abo_adulte, resultat_enfant)
+        self.assertIn(abo_enfant, resultat_enfant)
+        self.assertNotIn(abo_enfant, resultat_adulte)
+
+    def test_les_deux_apparait_pour_nimporte_quelle_tranche(self):
+        abo = TypeAbonnement.objects.create(
+            code='test_cible_les_deux', label='شهر', prix=400, type_offre='individuel', cible_age='les_deux',
+        )
+        self.assertIn(abo, abonnements_disponibles('individuel', 'adulte'))
+        self.assertIn(abo, abonnements_disponibles('individuel', 'enfant'))
 
 
 class TypeAbonnementDureeAfficheeTests(TestCase):
