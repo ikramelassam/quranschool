@@ -4678,21 +4678,67 @@ def admin_abonnement_ajouter(request):
 
 @role_required('admin', 'mshrif')
 def admin_abonnement_modifier(request, abonnement_id):
-    from inscriptions.models import TypeAbonnement
+    """Page fusionnée (correction du 2026-08-22, chantier grille de prix
+    incohérente/incomplète) : les infos générales du TypeAbonnement ET sa
+    grille de prix par nombre de séances vivent désormais sur UNE SEULE
+    page/UN SEUL formulaire — auparavant séparées (admin_abonnement_
+    modifier + admin_abonnement_grille_prix), avec 2 notions de "prix"
+    concurrentes et peu claires pour le مدير.
+
+    TypeAbonnement.prix reste le seul champ "officiel" mais relabellisé
+    "السعر الافتراضي" : le repli utilisé par prix_effectif() quand aucune
+    ligne de grille n'existe pour le nb_slots demandé — jamais un prix
+    concurrent, juste le cas par défaut.
+
+    La grille elle-même propose désormais TOUJOURS la plage fixe
+    plage_nb_slots_grille_prix() (1..10), plus jamais limitée aux nb_slots
+    des groupes réellement existants (registration.utils.
+    nb_slots_reels_systeme(), qui reste correcte pour le WIZARD PUBLIC mais
+    ne doit RIEN dicter à la tarification) — c'est cette limitation qui
+    empêchait de tarifer un nombre de séances jamais encore demandé par un
+    vrai groupe (bug reproduit le 2026-08-22 : Individuel + 4 séances/
+    semaine affichait le prix par défaut, faute de pouvoir configurer une
+    ligne pour 4).
+
+    Soumission = 1 seule transaction : met à jour les champs du
+    TypeAbonnement ET remplace TOUTES les lignes de sa grille (update_or_
+    create par nb_slots posté avec un prix non vide, suppression si laissé
+    vide) — même idiome que l'ancienne page dédiée."""
+    from inscriptions.models import GrillePrixAbonnement, TypeAbonnement
+    from registration.utils import couverture_grille_prix, plage_nb_slots_grille_prix
+
     type_abonnement = get_object_or_404(TypeAbonnement, id=abonnement_id)
+    valeurs = plage_nb_slots_grille_prix()
 
     if request.method == 'POST':
-        type_abonnement.label = request.POST.get('label')
-        type_abonnement.prix = request.POST.get('prix')
-        type_abonnement.cible_age = request.POST.get('cible_age', 'les_deux')
-        type_abonnement.ordre = request.POST.get('ordre', 0)
-        type_abonnement.save()
+        with transaction.atomic():
+            type_abonnement.label = request.POST.get('label')
+            type_abonnement.prix = request.POST.get('prix')
+            type_abonnement.cible_age = request.POST.get('cible_age', 'les_deux')
+            type_abonnement.ordre = request.POST.get('ordre', 0)
+            type_abonnement.save()
+
+            for nb_slots in valeurs:
+                valeur_postee = (request.POST.get(f'prix_{nb_slots}') or '').strip()
+                if valeur_postee == '':
+                    GrillePrixAbonnement.objects.filter(type_abonnement=type_abonnement, nb_slots=nb_slots).delete()
+                    continue
+                GrillePrixAbonnement.objects.update_or_create(
+                    type_abonnement=type_abonnement, nb_slots=nb_slots,
+                    defaults={'prix': valeur_postee, 'est_actif': request.POST.get(f'actif_{nb_slots}') == 'on'},
+                )
         messages.success(request, 'تم تعديل نوع الاشتراك بنجاح.')
         return redirect('admin_parametres_abonnements')
 
+    lignes_existantes = {ligne.nb_slots: ligne for ligne in type_abonnement.grille_prix.all()}
+    lignes = [{'nb_slots': v, 'ligne': lignes_existantes.get(v)} for v in valeurs]
+
     return render(request, 'dashboard/admin_abonnement_modifier.html', {
         'type_abonnement': type_abonnement,
+        'lignes': lignes,
+        'couverture': couverture_grille_prix(type_abonnement),
         'base_template': _base_template_admin_ou_mshrif(request),
+        **_contexte_base_mshrif(request),
     })
 
 
@@ -4708,54 +4754,15 @@ def admin_abonnement_toggle(request, abonnement_id):
 
 @role_required('admin', 'mshrif')
 def admin_abonnement_grille_prix(request, abonnement_id):
-    """Étape 9 (GrillePrixAbonnement, décidé le 2026-08-21) — page dédiée à
-    UN TypeAbonnement : une ligne par nb_slots réellement présent dans le
-    système (nb_slots_reels_systeme(), jamais 1..N codé en dur — un nouveau
-    groupe à 6 séances/semaine ajoute sa ligne ici sans aucun code
-    supplémentaire), prix éditable par ligne + case "نشط".
-
-    Soumission = remplace TOUTES les lignes de ce TypeAbonnement en une seule
-    transaction (update_or_create par nb_slots posté avec un prix non vide,
-    suppression de la ligne si le champ est laissé vide) — même idiome
-    "remplacer, jamais accumuler" que definir_valeurs_groupe/
-    remplacer_slots_creneau.
-
-    Le warning de couverture_grille_prix() reste PASSIF, jamais un gate à
-    confirmer : contrairement à admin_critere_inscription_modifier (qui
-    protège une ACTIVATION filtrable=True), il n'y a rien à activer ici — le
-    repli sur TypeAbonnement.prix (prix_effectif) couvre déjà le cas d'une
-    combinaison non configurée côté élève ; ce warning informe seulement le
-    مدير, sans jamais bloquer la sauvegarde."""
-    from inscriptions.models import GrillePrixAbonnement, TypeAbonnement
-    from registration.utils import couverture_grille_prix, nb_slots_reels_systeme
-
-    type_abonnement = get_object_or_404(TypeAbonnement, id=abonnement_id)
-    valeurs = nb_slots_reels_systeme()
-
-    if request.method == 'POST':
-        with transaction.atomic():
-            for nb_slots in valeurs:
-                valeur_postee = (request.POST.get(f'prix_{nb_slots}') or '').strip()
-                if valeur_postee == '':
-                    GrillePrixAbonnement.objects.filter(type_abonnement=type_abonnement, nb_slots=nb_slots).delete()
-                    continue
-                GrillePrixAbonnement.objects.update_or_create(
-                    type_abonnement=type_abonnement, nb_slots=nb_slots,
-                    defaults={'prix': valeur_postee, 'est_actif': request.POST.get(f'actif_{nb_slots}') == 'on'},
-                )
-        messages.success(request, 'تم حفظ شبكة الأسعار بنجاح.')
-        return redirect('admin_abonnement_grille_prix', abonnement_id=type_abonnement.id)
-
-    lignes_existantes = {ligne.nb_slots: ligne for ligne in type_abonnement.grille_prix.all()}
-    lignes = [{'nb_slots': v, 'ligne': lignes_existantes.get(v)} for v in valeurs]
-
-    return render(request, 'dashboard/admin_abonnement_grille_prix.html', {
-        'type_abonnement': type_abonnement,
-        'lignes': lignes,
-        'couverture': couverture_grille_prix(type_abonnement),
-        'base_template': _base_template_admin_ou_mshrif(request),
-        **_contexte_base_mshrif(request),
-    })
+    """ANCIENNE page dédiée à la grille de prix — fusionnée dans
+    admin_abonnement_modifier le 2026-08-22 (chantier grille de prix
+    incohérente/incomplète : 2 pages avec 2 notions de "prix" différentes
+    pour un même abonnement, source de confusion pour le مدير). Route
+    conservée en simple redirection (jamais supprimée) pour tout ancien
+    favori/lien déjà enregistré — aucune autre partie du code n'y référait
+    plus (vérifié le 2026-08-22 : seuls admin_parametres_abonnements.html,
+    ce fichier et les tests la mentionnaient)."""
+    return redirect('admin_abonnement_modifier', abonnement_id=abonnement_id)
 
 
 # ==================== ADMIN — GRILLE TARIFAIRE DE RÉMUNÉRATION DES PROFS ====================

@@ -3353,6 +3353,35 @@ class AjoutManuelEleveTests(TestCase):
         abonnements2 = {a.code: a for a in reponse2.context['abonnements']}
         self.assertEqual(abonnements2[self.abo_groupe.code].prix_affiche, 999)
 
+    def test_prix_individuel_configure_sur_la_page_fusionnee_saffiche_cote_ajout_manuel(self):
+        """Correction du 2026-08-22 (grille de prix incohérente/incomplète,
+        étape D) : reproduit le scénario signalé (Individuel + 4 séances/
+        semaine) en passant RÉELLEMENT par la page fusionnée admin_
+        abonnement_modifier (jamais un objects.create() direct sur
+        GrillePrixAbonnement ici) — preuve bout en bout que le مدير peut
+        désormais configurer un nombre de séances jamais présent dans un
+        vrai groupe, et que admin_eleve_ajouter_manuel le reflète aussitôt
+        via la même abonnements_avec_prix_effectif() que le wizard public."""
+        from inscriptions.models import TypeAbonnement
+
+        abo_individuel = TypeAbonnement.objects.create(
+            code='test_ajout_manuel_abo_indiv', label='فردي شهري', prix=400,
+            type_offre='individuel', cible_age='les_deux', ordre=2,
+        )
+        client = self._connecte_admin()
+        client.post(reverse('admin_abonnement_modifier', args=[abo_individuel.id]), {
+            'label': abo_individuel.label, 'prix': str(abo_individuel.prix), 'cible_age': 'les_deux', 'ordre': '2',
+            'prix_4': '777', 'actif_4': 'on',
+        })
+
+        reponse = client.post(reverse('admin_eleve_ajouter_manuel'), {
+            **self._round1_donnees('prix_individuel_4_ajout_manuel@zidni.test'),
+            f'champ_{self.champ_type_offre.id}': 'individuel',
+            f'champ_{self.champ_nb_seances.id}': '4',
+        })
+        abonnements = {a.code: a for a in reponse.context['abonnements']}
+        self.assertEqual(abonnements[abo_individuel.code].prix_affiche, 777)
+
     def test_groupe_plein_napparait_pas_dans_le_select_de_ladmin(self):
         """Même correctif que registration.views.wizard_groupe (bug signalé
         le 2026-08-21), côté ajout manuel (Étape 7) : un groupe complet ne
@@ -3517,10 +3546,17 @@ class AjoutManuelEleveTests(TestCase):
 
 
 # ============================================================================
-# Étape 9 — admin_abonnement_grille_prix : page dashboard où le مدير/مشرف
-# configure GrillePrixAbonnement (prix par nb_slots, décidé le 2026-08-21).
+# Correction du 2026-08-22 (chantier grille de prix incohérente/incomplète) :
+# admin_abonnement_modifier fusionne désormais les infos générales du
+# TypeAbonnement ET sa grille de prix (auparavant 2 pages séparées :
+# admin_abonnement_modifier + admin_abonnement_grille_prix). La grille
+# propose systématiquement 1..10 séances/semaine, plus jamais limitée aux
+# nb_slots de vrais groupes existants (bug corrigé : impossible auparavant
+# de tarifer un nombre de séances jamais demandé par un vrai groupe, alors
+# que l'Individuel n'a besoin d'AUCUN groupe réel, chantier "liberté totale
+# du nombre de séances").
 # ============================================================================
-class AdminAbonnementGrillePrixTests(TestCase):
+class AdminAbonnementModifierTests(TestCase):
     def setUp(self):
         from inscriptions.models import TypeAbonnement
 
@@ -3530,16 +3566,9 @@ class AdminAbonnementGrillePrixTests(TestCase):
         self.abonnement = TypeAbonnement.objects.create(
             code='test_grille_prix_abo', label='شهري تجريبي', prix=80, type_offre='groupe', cible_age='les_deux',
         )
-        # Garantit au moins un nb_slots réel connu et déterministe pour les
-        # tests (la base de test contient aussi des groupes seedés réels,
-        # mais leur nb_slots exact n'est pas supposé ici).
-        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
-        remplacer_slots_creneau(creneau, [
-            {'jour': j, 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}
-            for j in ['lun', 'mar', 'mer']
-        ])
-        Groupe.objects.create(nom='مجموعة شبكة أسعار', creneau=creneau, statut='actif')
-        self.nb_slots = 3
+        # AUCUN vrai groupe créé ici, volontairement — preuve que la grille
+        # (1..10) ne dépend plus d'aucun groupe réellement existant.
+        self.nb_slots = 4
 
     def _connecte_admin(self):
         client = Client()
@@ -3549,28 +3578,39 @@ class AdminAbonnementGrillePrixTests(TestCase):
     def test_role_required_refuse_un_prof(self):
         client = Client()
         client.force_login(self.prof.user)
-        reponse = client.get(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]))
+        reponse = client.get(reverse('admin_abonnement_modifier', args=[self.abonnement.id]))
         self.assertEqual(reponse.status_code, 302)
 
     def test_mshrif_peut_acceder(self):
         client = Client()
         client.force_login(self.mshrif)
-        reponse = client.get(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]))
+        reponse = client.get(reverse('admin_abonnement_modifier', args=[self.abonnement.id]))
         self.assertEqual(reponse.status_code, 200)
 
-    def test_get_affiche_une_ligne_par_nb_slots_reel(self):
+    def test_get_affiche_les_infos_generales_et_les_10_lignes_de_grille(self):
         client = self._connecte_admin()
-        html = client.get(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id])).content.decode('utf-8')
-        self.assertIn(f'name="prix_{self.nb_slots}"', html)
-        self.assertIn(f'{self.nb_slots} حصص', html)
+        html = client.get(reverse('admin_abonnement_modifier', args=[self.abonnement.id])).content.decode('utf-8')
+        self.assertIn('name="label"', html)
+        self.assertIn('name="cible_age"', html)
+        # Preuve du bug corrigé : une ligne existe pour 4 séances/semaine
+        # bien qu'AUCUN groupe réel n'ait jamais eu 4 créneaux dans ce test.
+        for n in range(1, 11):
+            self.assertIn(f'name="prix_{n}"', html)
+        self.assertNotIn('name="prix_11"', html)
 
-    def test_post_cree_une_ligne_puis_la_modifie(self):
-        from inscriptions.models import GrillePrixAbonnement
+    def test_post_met_a_jour_les_infos_generales_et_cree_une_ligne_de_grille(self):
+        from inscriptions.models import GrillePrixAbonnement, TypeAbonnement
 
         client = self._connecte_admin()
-        client.post(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]), {
+        client.post(reverse('admin_abonnement_modifier', args=[self.abonnement.id]), {
+            'label': 'شهري معدّل', 'prix': '90', 'cible_age': 'adulte', 'ordre': '2',
             f'prix_{self.nb_slots}': '999', f'actif_{self.nb_slots}': 'on',
         })
+        self.abonnement.refresh_from_db()
+        self.assertEqual(self.abonnement.label, 'شهري معدّل')
+        self.assertEqual(self.abonnement.prix, 90)
+        self.assertEqual(self.abonnement.cible_age, 'adulte')
+
         ligne = GrillePrixAbonnement.objects.get(type_abonnement=self.abonnement, nb_slots=self.nb_slots)
         self.assertEqual(ligne.prix, 999)
         self.assertTrue(ligne.est_actif)
@@ -3578,7 +3618,8 @@ class AdminAbonnementGrillePrixTests(TestCase):
         # Re-soumission SANS la case "نشط" cochée (jamais envoyée par un
         # navigateur pour une checkbox décochée) -> désactive la ligne sans
         # la supprimer, prix mis à jour dans le même passage.
-        client.post(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]), {
+        client.post(reverse('admin_abonnement_modifier', args=[self.abonnement.id]), {
+            'label': 'شهري معدّل', 'prix': '90', 'cible_age': 'adulte', 'ordre': '2',
             f'prix_{self.nb_slots}': '500',
         })
         ligne.refresh_from_db()
@@ -3590,26 +3631,35 @@ class AdminAbonnementGrillePrixTests(TestCase):
 
         GrillePrixAbonnement.objects.create(type_abonnement=self.abonnement, nb_slots=self.nb_slots, prix=200)
         client = self._connecte_admin()
-        client.post(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]), {
+        client.post(reverse('admin_abonnement_modifier', args=[self.abonnement.id]), {
+            'label': self.abonnement.label, 'prix': str(self.abonnement.prix), 'cible_age': 'les_deux', 'ordre': '0',
             f'prix_{self.nb_slots}': '',
         })
         self.assertFalse(
             GrillePrixAbonnement.objects.filter(type_abonnement=self.abonnement, nb_slots=self.nb_slots).exists()
         )
 
-    def test_warning_configures_zero_puis_couvert_apres_ajout(self):
+    def test_warning_configures_zero_puis_partiellement_couvert_apres_ajout(self):
         client = self._connecte_admin()
-        html_avant = client.get(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id])).content.decode('utf-8')
+        html_avant = client.get(reverse('admin_abonnement_modifier', args=[self.abonnement.id])).content.decode('utf-8')
         self.assertIn('لم يُحدد أي سعر خاص بعد', html_avant)
 
-        client.post(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]), {
+        client.post(reverse('admin_abonnement_modifier', args=[self.abonnement.id]), {
+            'label': self.abonnement.label, 'prix': str(self.abonnement.prix), 'cible_age': 'les_deux', 'ordre': '0',
             f'prix_{self.nb_slots}': '999', f'actif_{self.nb_slots}': 'on',
         })
-        html_apres = client.get(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id])).content.decode('utf-8')
-        # Reste 'partiellement couvert' si d'autres nb_slots réels existent
-        # (groupes seedés), sinon 'entièrement couvert' -- les deux messages
-        # excluent l'ancien état "aucun prix défini".
+        html_apres = client.get(reverse('admin_abonnement_modifier', args=[self.abonnement.id])).content.decode('utf-8')
+        # 1 seule ligne configurée sur 10 -> "partiellement couvert", jamais
+        # "entièrement couvert" ni "aucun sécifié" (les 2 autres messages).
         self.assertNotIn('لم يُحدد أي سعر خاص بعد', html_apres)
+        self.assertIn('1 من أصل 10', html_apres)
+
+    def test_ancienne_route_grille_prix_redirige_vers_la_page_fusionnee(self):
+        """La route dédiée n'existe plus mais reste en redirection simple
+        (jamais un 404) pour tout ancien favori/lien déjà enregistré."""
+        client = self._connecte_admin()
+        reponse = client.get(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]))
+        self.assertRedirects(reponse, reverse('admin_abonnement_modifier', args=[self.abonnement.id]))
 
 
 # ============================================================================

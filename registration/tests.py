@@ -455,35 +455,35 @@ class PrixEffectifTests(TestCase):
 
 
 class CouvertureGrillePrixTests(TestCase):
+    """Base de calcul changée le 2026-08-22 : plage_nb_slots_grille_prix()
+    (fixe, 1..10) au lieu de nb_slots_reels_systeme() (groupes réels) —
+    AUCUN vrai groupe créé dans ces tests, volontairement, preuve que la
+    couverture ne dépend plus d'aucun groupe existant."""
+
     def test_total_configures_et_manquants(self):
-        groupe = Groupe.objects.create(nom='مجموعة تغطية شبكة', creneau=_creer_creneau(nb_slots=5), statut='actif')
         abonnement = TypeAbonnement.objects.create(
             code='test_couverture_grille', label='اختبار تغطية', prix=100, type_offre='groupe',
         )
-        valeurs = nb_slots_reels_systeme()
-        self.assertIn(5, valeurs)
-        # Configure seulement nb_slots=5, parmi potentiellement plusieurs valeurs réelles.
+        # Configure seulement nb_slots=5, parmi la plage fixe 1..10.
         GrillePrixAbonnement.objects.create(type_abonnement=abonnement, nb_slots=5, prix=250)
 
         couverture = couverture_grille_prix(abonnement)
-        self.assertEqual(couverture['total'], len(valeurs))
+        self.assertEqual(couverture['total'], 10)
         self.assertEqual(couverture['configures'], 1)
         self.assertNotIn(5, couverture['nb_slots_manquants'])
-        for v in valeurs:
+        for v in range(1, 11):
             if v != 5:
                 self.assertIn(v, couverture['nb_slots_manquants'])
 
     def test_zero_ligne_configuree(self):
-        Groupe.objects.create(nom='مجموعة بدون تسعير', creneau=_creer_creneau(nb_slots=3), statut='actif')
         abonnement = TypeAbonnement.objects.create(
             code='test_couverture_grille_vide', label='اختبار فارغ', prix=100, type_offre='groupe',
         )
         couverture = couverture_grille_prix(abonnement)
         self.assertEqual(couverture['configures'], 0)
-        self.assertIn(3, couverture['nb_slots_manquants'])
+        self.assertEqual(couverture['nb_slots_manquants'], list(range(1, 11)))
 
     def test_ligne_desactivee_compte_comme_non_configuree(self):
-        Groupe.objects.create(nom='مجموعة معطلة', creneau=_creer_creneau(nb_slots=4), statut='actif')
         abonnement = TypeAbonnement.objects.create(
             code='test_couverture_grille_off', label='اختبار معطل', prix=100, type_offre='groupe',
         )
@@ -1798,7 +1798,7 @@ class WizardAbonnementPaiementTests(TestCase):
         from payments.models import MoyenPaiement
         self.moyen = MoyenPaiement.objects.create(code='test_wizard_cih', label='CIH بنك', coordonnees='RIB: 000111222', est_actif=True)
 
-    def _avancer_a_etape_4(self, client, type_offre='groupe', choisir_groupe=True):
+    def _avancer_a_etape_4(self, client, type_offre='groupe', choisir_groupe=True, nb_seances='2'):
         _choisir_categorie_age(client)
         client.post(reverse('wizard_identite'), {
             'nom': 'ليلى بنسعيد', 'sexe': 'femme', 'email': 'laila.wizard@zidni.test',
@@ -1809,7 +1809,7 @@ class WizardAbonnementPaiementTests(TestCase):
             f'champ_{self.champ_programme.id}': 'hifz',
             f'champ_{self.champ_riwaya.id}': 'hafs',
             f'champ_{self.champ_type_offre.id}': type_offre,
-            f'champ_{self.champ_nb_seances.id}': '2',
+            f'champ_{self.champ_nb_seances.id}': nb_seances,
         })
         if type_offre == 'groupe' and choisir_groupe:
             client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
@@ -1849,6 +1849,20 @@ class WizardAbonnementPaiementTests(TestCase):
         reponse = client.get(reverse('wizard_abonnement'))
         abonnements = {a.code: a for a in reponse.context['abonnements']}
         self.assertEqual(abonnements[self.abo_groupe.code].prix_affiche, 999)
+
+    def test_prix_affiche_individuel_utilise_le_nb_slots_reellement_choisi(self):
+        """Correction du 2026-08-22 (grille de prix incohérente/incomplète) :
+        reproduit le scénario signalé (Individuel + 4 séances/semaine
+        affichait le prix de 2) — une fois qu'une ligne de grille EXISTE
+        pour nb_slots=4 (désormais possible pour n'importe quel nombre,
+        chantier grille de prix), le wizard affiche bien ce prix, jamais
+        celui d'une autre combinaison."""
+        GrillePrixAbonnement.objects.create(type_abonnement=self.abo_individuel, nb_slots=4, prix=777)
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='individuel', nb_seances='4')
+        reponse = client.get(reverse('wizard_abonnement'))
+        abonnements = {a.code: a for a in reponse.context['abonnements']}
+        self.assertEqual(abonnements[self.abo_individuel.code].prix_affiche, 777)
 
     def test_acces_abonnement_avec_groupe_pas_encore_choisi_redirige_a_groupe(self):
         client = Client()

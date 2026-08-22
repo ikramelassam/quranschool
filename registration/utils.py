@@ -360,6 +360,26 @@ def prix_effectif(type_abonnement, nb_slots):
     return type_abonnement.prix
 
 
+NB_SLOTS_GRILLE_PRIX_MAX = 10
+
+
+def plage_nb_slots_grille_prix():
+    """[1..NB_SLOTS_GRILLE_PRIX_MAX] — plage FIXE proposée au مدير pour
+    éditer GrillePrixAbonnement (correction du 2026-08-22, chantier grille
+    de prix incohérente/incomplète).
+
+    Volontairement DÉCORRÉLÉE de nb_slots_reels_systeme() (groupes réels) :
+    cette dernière reste valable pour le WIZARD PUBLIC (proposer des
+    groupes compatibles à un élève), mais ne dit rien de pertinent pour la
+    TARIFICATION — un abonnement Individuel n'a besoin d'AUCUN groupe réel
+    pour qu'un nombre de séances soit un choix valide (liberté totale
+    depuis le chantier 5). Limiter la grille aux nb_slots déjà présents
+    dans de vrais groupes empêchait le مدير de tarifer un nombre de
+    séances encore jamais demandé par un vrai groupe (ex: 4 séances/semaine
+    en Individuel) — bug reproduit et confirmé le 2026-08-22."""
+    return list(range(1, NB_SLOTS_GRILLE_PRIX_MAX + 1))
+
+
 def couverture_grille_prix(type_abonnement):
     """{'total', 'configures', 'nb_slots_manquants'} — même esprit que
     couverture_critere() ci-dessous (Parties 7-8) : matière première d'un
@@ -368,9 +388,14 @@ def couverture_grille_prix(type_abonnement):
     continuer — le repli TypeAbonnement.prix (voir prix_effectif) couvre
     déjà ce cas côté élève.
 
+    Base de calcul changée le 2026-08-22 : plage_nb_slots_grille_prix()
+    (fixe, 1..10) au lieu de nb_slots_reels_systeme() (groupes réels) — un
+    indicateur universel valable pour Groupe ET Individuel, jamais biaisé
+    par l'absence de vrai groupe à un nb_slots donné (voir sa docstring).
+
     Recalculée à CHAQUE appel, jamais mise en cache — même philosophie que
     nb_seances_disponibles/couverture_critere."""
-    valeurs = nb_slots_reels_systeme()
+    valeurs = plage_nb_slots_grille_prix()
     configures = set(
         type_abonnement.grille_prix.filter(est_actif=True, nb_slots__in=valeurs).values_list('nb_slots', flat=True)
     )
