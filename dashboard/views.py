@@ -4699,20 +4699,34 @@ def admin_abonnement_modifier(request, abonnement_id):
     ligne de grille n'existe pour le nb_slots demandé — jamais un prix
     concurrent, juste le cas par défaut.
 
-    La grille elle-même propose désormais TOUJOURS la plage fixe
-    plage_nb_slots_grille_prix() (1..10), plus jamais limitée aux nb_slots
-    des groupes réellement existants (registration.utils.
-    nb_slots_reels_systeme(), qui reste correcte pour le WIZARD PUBLIC mais
-    ne doit RIEN dicter à la tarification) — c'est cette limitation qui
-    empêchait de tarifer un nombre de séances jamais encore demandé par un
-    vrai groupe (bug reproduit le 2026-08-22 : Individuel + 4 séances/
-    semaine affichait le prix par défaut, faute de pouvoir configurer une
-    ligne pour 4).
+    La grille elle-même reste décorrélée de nb_slots_reels_systeme() (groupes
+    réels) — registration.utils.plage_nb_slots_grille_prix() (1..10) reste
+    la plage AUTORISÉE côté validation serveur (une ligne hors 1..10 n'est
+    jamais lue ni créée, quoi que le navigateur poste), même principe
+    qu'avant ce chantier : un abonnement Individuel n'a besoin d'AUCUN
+    groupe réel pour qu'un nombre de séances soit un choix valide (liberté
+    totale depuis le chantier 5).
+
+    Affichage refondu le 2026-08-22 (correction 6, suite au test local :
+    "10 lignes fixes avec cases vides à remplir une par une, pas
+    ergonomique, une case vide est ambiguë") : SEULES les lignes déjà
+    configurées (GrillePrixAbonnement existante) sont affichées, éditables
+    ou désactivables (case "نشط" déjà existante — jamais une suppression
+    définitive, même convention que Creneau.est_actif partout ailleurs) ;
+    "+ إضافة سعر لعدد حصص" (JS pur, pas de nouvelle route) propose un
+    <select> limité aux nombres de séances 1..10 PAS ENCORE configurés, pour
+    ajouter une nouvelle ligne. Les nombres non configurés restent listés
+    explicitement dans le bandeau de couverture ci-dessous ("utilisent le
+    prix par défaut"), jamais une case vide trompeuse.
 
     Soumission = 1 seule transaction : met à jour les champs du
-    TypeAbonnement ET remplace TOUTES les lignes de sa grille (update_or_
-    create par nb_slots posté avec un prix non vide, suppression si laissé
-    vide) — même idiome que l'ancienne page dédiée."""
+    TypeAbonnement ET remplace les lignes de sa grille (update_or_create par
+    nb_slots posté avec un prix non vide, suppression si laissé vide) — la
+    boucle serveur reste sur TOUTE la plage 1..10 (jamais seulement les
+    lignes affichées au chargement) : elle traite aussi bien les lignes déjà
+    existantes que celles tout juste ajoutées côté client par le JS
+    ci-dessus, sans avoir besoin d'un champ supplémentaire pour lister
+    "les nb_slots soumis" — même idiome que l'ancienne page dédiée."""
     from inscriptions.models import GrillePrixAbonnement, TypeAbonnement
     from registration.utils import couverture_grille_prix, plage_nb_slots_grille_prix
 
@@ -4740,12 +4754,14 @@ def admin_abonnement_modifier(request, abonnement_id):
         messages.success(request, 'تم تعديل نوع الاشتراك بنجاح.')
         return redirect('admin_parametres_abonnements')
 
-    lignes_existantes = {ligne.nb_slots: ligne for ligne in type_abonnement.grille_prix.all()}
-    lignes = [{'nb_slots': v, 'ligne': lignes_existantes.get(v)} for v in valeurs]
+    lignes = list(type_abonnement.grille_prix.order_by('nb_slots'))
+    nb_slots_configures = {ligne.nb_slots for ligne in lignes}
+    nb_slots_disponibles = [n for n in valeurs if n not in nb_slots_configures]
 
     return render(request, 'dashboard/admin_abonnement_modifier.html', {
         'type_abonnement': type_abonnement,
         'lignes': lignes,
+        'nb_slots_disponibles': nb_slots_disponibles,
         'couverture': couverture_grille_prix(type_abonnement),
         'base_template': _base_template_admin_ou_mshrif(request),
         **_contexte_base_mshrif(request),

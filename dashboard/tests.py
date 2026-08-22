@@ -3651,17 +3651,42 @@ class AdminAbonnementModifierTests(TestCase):
         reponse = client.get(reverse('admin_abonnement_modifier', args=[self.abonnement.id]))
         self.assertEqual(reponse.status_code, 200)
 
-    def test_get_affiche_les_infos_generales_et_les_10_lignes_de_grille(self):
+    def test_get_affiche_les_infos_generales_et_aucune_ligne_vide(self):
+        """Refonte du 2026-08-22 (correction 6) : plus de 10 lignes fixes à
+        cases vides ambiguës — SEULES les lignes déjà configurées
+        s'affichent (ici aucune), "+ إضافة" propose les 10 nombres de
+        séances possibles, aucun n'étant encore configuré."""
         client = self._connecte_admin()
         html = client.get(reverse('admin_abonnement_modifier', args=[self.abonnement.id])).content.decode('utf-8')
         self.assertIn('name="label"', html)
         self.assertIn('name="duree"', html)
         self.assertIn('name="cible_age"', html)
-        # Preuve du bug corrigé : une ligne existe pour 4 séances/semaine
-        # bien qu'AUCUN groupe réel n'ait jamais eu 4 créneaux dans ce test.
         for n in range(1, 11):
-            self.assertIn(f'name="prix_{n}"', html)
-        self.assertNotIn('name="prix_11"', html)
+            self.assertNotIn(f'name="prix_{n}"', html)
+        self.assertIn('لا يوجد أي سعر خاص محدد بعد', html)
+        self.assertIn('+ إضافة سعر لعدد حصص', html)
+        for n in range(1, 11):
+            self.assertIn(f'<option value="{n}">', html)
+
+    def test_get_affiche_uniquement_les_lignes_deja_configurees(self):
+        """Preuve du bug corrigé à l'origine (4 séances/semaine tarifable
+        sans qu'aucun groupe réel n'ait jamais eu 4 créneaux) : cette ligne
+        s'affiche bien, éditable — mais les 9 autres nombres, non
+        configurés, ne créent AUCUNE case vide, seulement une option
+        disponible dans "+ إضافة"."""
+        from inscriptions.models import GrillePrixAbonnement
+
+        GrillePrixAbonnement.objects.create(type_abonnement=self.abonnement, nb_slots=self.nb_slots, prix=300)
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_abonnement_modifier', args=[self.abonnement.id])).content.decode('utf-8')
+        self.assertIn(f'name="prix_{self.nb_slots}"', html)
+        self.assertNotIn('لا يوجد أي سعر خاص محدد بعد', html)
+        for n in range(1, 11):
+            if n == self.nb_slots:
+                continue
+            self.assertNotIn(f'name="prix_{n}"', html)
+            self.assertIn(f'<option value="{n}">', html)
+        self.assertNotIn(f'<option value="{self.nb_slots}">', html)  # déjà configuré -> plus proposé à l'ajout
 
     def test_post_met_a_jour_les_infos_generales_et_cree_une_ligne_de_grille(self):
         from inscriptions.models import GrillePrixAbonnement, TypeAbonnement
