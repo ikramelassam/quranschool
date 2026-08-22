@@ -10,16 +10,20 @@
     {% for champ in champs %}
         {% if champ.critere.backend == 'nb_slots' %}
         {% comment %}
-        Caché par défaut (bug UX signalé le 2026-08-21) : affiché par JS
-        (recalculerNbSeances) uniquement une fois tous les champs obligatoires
+        Caché par défaut (bug UX signalé le 2026-08-21) : révélé par JS
+        (toggleNbSeances) uniquement une fois tous les champs obligatoires
         précédents remplis — jamais un état vide statique affiché d'emblée.
-        Correction du 2026-08-22 : le tag de commentaire mono-ligne de Django
-        rendait ce commentaire littéralement à l'écran tel quel.
+        Chantier du 2026-08-22 ("liberté totale du nombre de séances") :
+        simple nombre libre, PLUS de liste calculée depuis les groupes
+        réels existants — étendu du parcours Individuel (déjà indicatif)
+        au parcours Groupe (voir wizard_groupe : le repli "aucun groupe
+        exact" y est désormais géré génériquement, pas seulement ici).
         {% endcomment %}
         <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
             <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
-            <div class="row g-2" id="nb_seances_container" data-champ-id="{{ champ.id }}" data-champ-container="{{ champ.id }}">
-            </div>
+            <input type="number" name="champ_{{ champ.id }}" class="form-control mt-1" min="1" step="1"
+                   placeholder="مثال: 3" {% if champ.obligatoire %}required{% endif %}>
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">اختر العدد الذي يناسبك، دون قيود.</div>
         </div>
         {% else %}
         <div class="mb-3">
@@ -53,7 +57,6 @@
 </form>
 
 <script>
-    const DONNEES_FILTRAGE = {{ donnees_filtrage_json|safe }};
     const selections = {};
 
     function selectionnerOption(champId, critereId, code, multiple, element) {
@@ -73,7 +76,7 @@
             element.classList.add('active');
         }
         mettreAJourInputsCaches(champId, critereId, multiple);
-        recalculerNbSeances();
+        toggleNbSeances();
     }
 
     function mettreAJourInputsCaches(champId, critereId, multiple) {
@@ -107,72 +110,16 @@
         return true;
     }
 
-    function typeOffreValeur() {
-        // Identifie le critère backend='champ_groupe' GÉNÉRIQUEMENT (jamais
-        // par nom/code de critère) — voir data-backend posé sur chaque
-        // bouton d'option ci-dessus.
-        const el = document.querySelector('[data-backend="champ_groupe"][data-critere-id]');
-        if (!el) return null;
-        return selections[el.dataset.critereId] || null;
-    }
-
-    function recalculerNbSeances() {
+    function toggleNbSeances() {
+        // Chantier du 2026-08-22 : nombre de séances désormais un simple
+        // input libre (min="1"), plus de calcul depuis les groupes réels —
+        // seule la RÉVÉLATION du champ reste conditionnée aux champs
+        // obligatoires précédents (Bug B, inchangé).
         const wrapper = document.getElementById('nb_seances_wrapper');
-        const container = document.getElementById('nb_seances_container');
-        if (!container || !wrapper) return;
-        const champId = container.dataset.champId;
-
-        if (!champsObligatoiresRepondus()) {
-            wrapper.style.display = 'none';
-            return;
-        }
-        wrapper.style.display = '';
-
-        let nbSlotsDisponibles;
-        if (typeOffreValeur() === 'individuel') {
-            // Individuel = nombre de séances PUREMENT INDICATIF (décision
-            // actée de ce chantier — voir ReponseInscription.valeur_texte) :
-            // aucun groupe individuel réel n'existe forcément pour cette
-            // combinaison exacte de critères, l'école monte l'horaire sur
-            // mesure après coup. Union de TOUS les groupes du système, tous
-            // types/critères confondus — jamais une liste vide qui bloque.
-            nbSlotsDisponibles = [...new Set(DONNEES_FILTRAGE.map(g => g.nb_slots))].sort((a, b) => a - b);
-        } else {
-            const groupesCompatibles = DONNEES_FILTRAGE.filter(g => {
-                return Object.keys(selections).every(critereId => {
-                    const val = selections[critereId];
-                    if (!val || (Array.isArray(val) && val.length === 0)) return true;
-                    const gVal = g.valeurs[critereId];
-                    if (Array.isArray(val)) return val.includes(gVal);
-                    return gVal === val;
-                });
-            });
-            nbSlotsDisponibles = [...new Set(groupesCompatibles.map(g => g.nb_slots))].sort((a, b) => a - b);
-        }
-
-        if (nbSlotsDisponibles.length === 0) {
-            container.innerHTML = '<div style="color:#888; font-size:0.85rem;">لا يوجد عدد حصص متاح للاختيارات الحالية بعد.</div>';
-            return;
-        }
-        container.innerHTML = nbSlotsDisponibles.map(n => `
-            <div class="col-3">
-                <div class="select-btn" onclick="selectionnerNbSeances(${champId}, ${n}, this)">${n}</div>
-            </div>
-        `).join('');
+        if (!wrapper) return;
+        wrapper.style.display = champsObligatoiresRepondus() ? '' : 'none';
     }
 
-    function selectionnerNbSeances(champId, n, element) {
-        document.querySelectorAll('#nb_seances_container .select-btn').forEach(el => el.classList.remove('active'));
-        element.classList.add('active');
-        const container = document.querySelector(`[data-champ-container="${champId}"]`);
-        container.querySelectorAll('input[type=hidden]').forEach(i => i.remove());
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = `champ_${champId}`;
-        input.value = n;
-        container.appendChild(input);
-    }
-
-    document.addEventListener('DOMContentLoaded', recalculerNbSeances);
+    document.addEventListener('DOMContentLoaded', toggleNbSeances);
 </script>
 {% endblock %}

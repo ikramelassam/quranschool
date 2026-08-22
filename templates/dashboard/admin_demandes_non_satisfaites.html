@@ -1,0 +1,65 @@
+{% extends base_template %}
+{% block title %}طلبات غير ملبّاة{% endblock %}
+{% block content %}
+<div class="page-title">طلبات غير ملبّاة</div>
+<div class="page-subtitle" style="margin-bottom:20px;">
+    كل مرة لم تكن فيها أي مجموعة متوافقة تماماً مع اختيارات طالب أثناء التسجيل — استخدمها لمعرفة أكثر التركيبات
+    المطلوبة، لاتخاذ قرار فتح مجموعات جديدة.
+</div>
+
+<div class="d-flex gap-3 mb-4" style="flex-wrap:wrap;">
+    <div style="background:white; border-radius:12px; padding:16px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); min-width:160px;">
+        <div style="font-size:1.6rem; font-weight:700; color:var(--color-role-admin);">{{ total }}</div>
+        <div style="color:#888; font-size:0.85rem;">إجمالي الطلبات غير الملبّاة</div>
+    </div>
+    <div style="background:white; border-radius:12px; padding:16px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); min-width:160px;">
+        <div style="font-size:1.6rem; font-weight:700; color:var(--color-success);">{{ nb_liees_a_une_inscription }}</div>
+        <div style="color:#888; font-size:0.85rem;">تحولت إلى طلب تسجيل فعلي</div>
+    </div>
+</div>
+
+<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">أكثر التركيبات طلباً</div>
+<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; margin-bottom:32px;">
+    {% for t in tendances %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 22px; border-bottom:1px solid #f0f0f0; flex-wrap:wrap; gap:8px;">
+        <div>
+            {% for libelle in t.libelles %}
+            <span style="background:#f0f0f0; border-radius:12px; padding:3px 12px; margin-left:6px; font-size:0.85rem;">{{ libelle }}</span>
+            {% endfor %}
+            {% if t.nb_slots %}
+            <span style="background:#f0f0f0; border-radius:12px; padding:3px 12px; margin-left:6px; font-size:0.85rem;">عدد الحصص: {{ t.nb_slots }}</span>
+            {% endif %}
+        </div>
+        <div style="font-weight:700; color:var(--color-role-admin);">{{ t.nombre }} طلب</div>
+    </div>
+    {% empty %}
+    <div style="text-align:center; padding:40px; color:#aaa;">لا توجد أي طلبات غير ملبّاة بعد.</div>
+    {% endfor %}
+</div>
+
+<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">كل الطلبات (بالتفصيل)</div>
+<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+    {% for d in demandes %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 22px; border-bottom:1px solid #f0f0f0; flex-wrap:wrap; gap:8px;">
+        <div>
+            <div style="font-size:0.85rem; color:#555;">
+                عدد الحصص: {{ d.nb_slots|default:"—" }} — العمر: {{ d.age|default:"—" }} — الجنس: {{ d.sexe|default:"—" }}
+            </div>
+            <div style="color:#888; font-size:0.78rem;">{{ d.date_demande|date:"Y-m-d H:i" }}</div>
+        </div>
+        <div>
+            {% if d.inscription %}
+                <a href="{% url 'admin_inscription_eleve_detail' d.inscription_id %}"
+                   style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem; text-decoration:none;">
+                   تحوّلت إلى طلب تسجيل ✅
+                </a>
+            {% else %}
+                <span style="background:#f0f0f0; color:#888; border-radius:20px; padding:4px 12px; font-size:0.8rem;">لم يُكمل التسجيل</span>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div style="text-align:center; padding:40px; color:#aaa;">لا توجد أي طلبات غير ملبّاة بعد.</div>
+    {% endfor %}
+</div>
+{% endblock %}

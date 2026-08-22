@@ -240,6 +240,24 @@ def groupes_avec_place_disponible(queryset):
     )
 
 
+def snapshot_criteres_pour_demande(reponses_pour_filtrage):
+    """{code_critere: valeur_ou_liste_de_codes} à partir du dict {Critere:
+    valeur} déjà utilisé par groupes_compatibles() — JAMAIS l'objet Python
+    lui-même (non sérialisable en JSONField) : le CODE (stable, lisible),
+    jamais le label (recalculé à la lecture depuis Critere/CritereOption,
+    voir DemandeNonSatisfaite.__doc__). Utilisé pour enregistrer une
+    DemandeNonSatisfaite (chantier du 2026-08-22)."""
+    snapshot = {}
+    for critere, valeur in reponses_pour_filtrage.items():
+        if critere.backend in ('nb_slots', 'champ_groupe'):
+            snapshot[critere.code] = valeur
+        elif isinstance(valeur, (list, tuple, set)):
+            snapshot[critere.code] = [o.code for o in valeur]
+        else:
+            snapshot[critere.code] = valeur.code
+    return snapshot
+
+
 def nb_seances_disponibles(reponses_sans_nb_slots):
     """Valeurs de 'nombre de séances hebdomadaires' RÉELLEMENT proposables à
     l'élève à l'étape 2 — jamais 1/2/3/4 codés en dur. reponses_sans_nb_slots :
@@ -522,11 +540,25 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
         return ([(None, texte)] if texte not in (None, '') else []), None
 
     if critere.backend == 'nb_slots':
-        # Pas de CritereOption pour ce backend (valeurs calculées à la volée,
-        # voir nb_seances_disponibles) — stocké en texte brut, jamais comme
-        # option puisqu'aucune ligne CritereOption n'existe pour ces valeurs.
+        # Pas de CritereOption pour ce backend — stocké en texte brut, jamais
+        # comme option puisqu'aucune ligne CritereOption n'existe pour ces
+        # valeurs. Chantier du 2026-08-22 ("liberté totale du nombre de
+        # séances") : un simple <input type="number"> libre côté client,
+        # donc une VRAIE validation serveur devient nécessaire ici (avant,
+        # seules des valeurs déjà calculées/valides pouvaient être postées
+        # depuis la grille de boutons JS) — entier positif uniquement, sinon
+        # message d'erreur, jamais une valeur texte arbitraire silencieusement
+        # acceptée.
         texte = str(valeur_brute).strip() if valeur_brute not in (None, '') else ''
-        return ([(None, texte)] if texte else []), None
+        if not texte:
+            return [], None
+        try:
+            nombre = int(texte)
+        except (ValueError, TypeError):
+            return [], f'"{champ.label}" يجب أن يكون رقماً صحيحاً.'
+        if nombre < 1:
+            return [], f'"{champ.label}" يجب أن يكون على الأقل 1.'
+        return [(None, str(nombre))], None
 
     if critere.type_champ == 'choix_multiple':
         codes = [c for c in (valeur_brute if isinstance(valeur_brute, (list, tuple)) else [valeur_brute]) if c]
@@ -837,9 +869,26 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
 
     groupe_choisi = None
     groupe_id = reponses_brutes.get('groupe_id')
+    demande_id = reponses_brutes.get('demande_non_satisfaite_id')
+    # continuer_sans_groupe : pendant du wizard public (demande_id déjà créée
+    # à l'étape 3) pour l'ajout manuel (Étape 7, pas d'étape intermédiaire
+    # séparée) — crée ET lie la DemandeNonSatisfaite en un seul passage ici.
+    continuer_sans_groupe = reponses_brutes.get('continuer_sans_groupe') == '1'
     if type_offre_valeur == 'groupe':
         if not groupe_id:
-            erreurs.append('يرجى اختيار مجموعة.')
+            # "Continuer sans groupe" (chantier du 2026-08-22, liberté totale
+            # du nombre de séances) : accepté SEULEMENT si aucun groupe ne
+            # correspond RÉELLEMENT à la combinaison exacte — jamais une
+            # confiance aveugle en demande_id/continuer_sans_groupe posté
+            # (POST manipulé), revérifié ici comme tout le reste (Partie 22).
+            candidats_exacts = (
+                groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, sexe)
+                if date_naissance is not None else Groupe.objects.none()
+            )
+            if (demande_id or continuer_sans_groupe) and date_naissance is not None and not candidats_exacts.exists():
+                groupe_choisi = None
+            else:
+                erreurs.append('يرجى اختيار مجموعة.')
         elif date_naissance is None:
             pass  # déjà signalé plus haut
         else:
@@ -908,5 +957,27 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
             )
             for champ, option, texte in a_creer
         ])
+        if demande_id:
+            # Rattache la DemandeNonSatisfaite (déjà créée par wizard_groupe)
+            # à la candidature créée (chantier du 2026-08-22) — silencieux si
+            # l'ID est invalide/déjà lié à autre chose, jamais une erreur
+            # bloquante pour l'inscription elle-même.
+            from .models import DemandeNonSatisfaite
+            DemandeNonSatisfaite.objects.filter(id=demande_id, inscription__isnull=True).update(
+                inscription=inscription
+            )
+        elif continuer_sans_groupe and groupe_choisi is None:
+            # Ajout manuel (Étape 7) : pas d'étape intermédiaire séparée pour
+            # créer la demande à l'avance — créée ET liée ici, en un seul passage.
+            from courses.utils import _age_depuis_naissance
+            from .models import DemandeNonSatisfaite
+            nb_slots_valeur = next(
+                (v for c, v in reponses_pour_filtrage.items() if c.backend == 'nb_slots'), None
+            )
+            DemandeNonSatisfaite.objects.create(
+                criteres_json=snapshot_criteres_pour_demande(reponses_pour_filtrage),
+                type_offre='groupe', nb_slots=nb_slots_valeur,
+                age=_age_depuis_naissance(date_naissance), sexe=sexe, inscription=inscription,
+            )
 
     return inscription, []

@@ -3392,6 +3392,39 @@ class AjoutManuelEleveTests(TestCase):
         self.assertIn('مجموعة حفص — إضافة يدوية', html)  # groupe mixte, toujours visible
         self.assertNotIn('مجموعة رجال — إضافة يدوية', html)  # groupe hommes, jamais visible pour une femme
 
+    def test_continuer_sans_groupe_reussit_et_enregistre_une_demande(self):
+        """Chantier du 2026-08-22 : nombre de séances libre (77, jamais réel)
+        -> aucune des 2 groupes seedées (self.groupe_hafs/warsh, nb_slots=2)
+        ne correspond exactement -> l'admin doit pouvoir continuer sans
+        groupe, avec traçabilité (DemandeNonSatisfaite)."""
+        from registration.models import DemandeNonSatisfaite
+
+        client = self._connecte_admin()
+        donnees_round1 = {
+            'round_form': 'identite',
+            'nom': 'سلمى الإدريسي', 'sexe': 'femme', 'email': 'sans_groupe_manuel@zidni.test',
+            'date_naissance': '2010-01-01',
+            'indicatif_pays': '212', 'telephone': '0611229900', 'telephone_confirmation': '0611229900',
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '77',
+        }
+        reponse_round2 = client.post(reverse('admin_eleve_ajouter_manuel'), donnees_round1)
+        html = reponse_round2.content.decode('utf-8')
+        self.assertIn('لا توجد حالياً أي مجموعة تتوافق تماماً', html)
+
+        reponse_finale = client.post(reverse('admin_eleve_ajouter_manuel'), {
+            **donnees_round1, 'round_form': 'confirmation',
+            'continuer_sans_groupe': '1', 'abonnement_code': self.abo_groupe.code,
+        })
+        inscription = InscriptionEleve.objects.get(email='sans_groupe_manuel@zidni.test')
+        self.assertRedirects(reponse_finale, reverse('admin_inscription_eleve_detail', args=[inscription.id]))
+        self.assertIsNone(inscription.groupe_choisi)
+        demande = DemandeNonSatisfaite.objects.get()
+        self.assertEqual(demande.inscription_id, inscription.id)
+        self.assertEqual(demande.nb_slots, 77)
+
     def test_prof_na_pas_acces(self):
         client = Client()
         client.force_login(self.prof.user)
@@ -3815,3 +3848,48 @@ class GenericiteBoutEnBoutTests(TestCase):
                     trouvailles.append(f'{chemin} contient "{motif}"')
 
         self.assertEqual(trouvailles, [], '\n'.join(trouvailles))
+
+
+class AdminDemandesNonSatisfaitesTests(TestCase):
+    """Page dashboard listant les DemandeNonSatisfaite (chantier du
+    2026-08-22) — comptage par combinaison pour identifier les tendances."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def test_page_vide_sans_erreur(self):
+        client = self._connecte_admin()
+        reponse = client.get(reverse('admin_demandes_non_satisfaites'))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('لا توجد أي طلبات غير ملبّاة بعد', reponse.content.decode('utf-8'))
+
+    def test_regroupe_et_compte_les_demandes_identiques(self):
+        from registration.models import DemandeNonSatisfaite
+
+        for _ in range(3):
+            DemandeNonSatisfaite.objects.create(
+                criteres_json={'riwaya': 'hafs'}, type_offre='groupe', nb_slots=6, age=10, sexe='homme',
+            )
+        DemandeNonSatisfaite.objects.create(
+            criteres_json={'riwaya': 'warsh'}, type_offre='groupe', nb_slots=4, age=12, sexe='femme',
+        )
+
+        client = self._connecte_admin()
+        reponse = client.get(reverse('admin_demandes_non_satisfaites'))
+        self.assertEqual(reponse.status_code, 200)
+        html = reponse.content.decode('utf-8')
+        self.assertIn('4', html)  # total
+        self.assertIn('3 طلب', html)  # la combinaison répétée 3 fois
+        self.assertIn('عدد الحصص: 6', html)
+        self.assertIn('عدد الحصص: 4', html)
+
+    def test_prof_na_pas_acces(self):
+        client = Client()
+        client.force_login(_creer_prof('prof_demandes_non_satisfaites@zidni.test').user)
+        reponse = client.get(reverse('admin_demandes_non_satisfaites'))
+        self.assertNotEqual(reponse.status_code, 200)

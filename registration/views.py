@@ -11,7 +11,6 @@ pas validé en conditions réelles, comme demandé explicitement.
 wizard_maj) — jamais dans des champs cachés HTML entre 2 requêtes."""
 
 import datetime
-import json
 
 from django.shortcuts import render, redirect
 from django.views.decorators.cache import never_cache
@@ -204,16 +203,14 @@ def wizard_programme(request):
     respectant les RegleCondition déjà satisfaites par les réponses données
     à l'étape 1 ou plus tôt dans cette même étape.
 
-    RÈGLE CRITIQUE : le champ backend='nb_slots' (nombre de séances) n'a
-    JAMAIS d'options codées en dur — le template reçoit uniquement le JSON
-    de donnees_filtrage_json_pour_wizard() et calcule les valeurs proposées
-    EN DIRECT en JS à partir des groupes réels. Un nouveau groupe à N séances
-    créé demain par le مدير apparaît automatiquement, sans toucher au code
-    (voir WizardProgrammeNbSeancesDynamiqueTests)."""
-    from .utils import (
-        _reponses_a_creer_pour_champ, donnees_filtrage_json_pour_wizard,
-        extraire_champs_depuis_post, wizard_donnees, wizard_maj,
-    )
+    Chantier du 2026-08-22 ("liberté totale du nombre de séances") : le
+    champ backend='nb_slots' est désormais un simple nombre libre (aucune
+    liste calculée depuis les groupes réels existants, contrairement à
+    avant) — un élève peut demander N'IMPORTE QUEL nombre, même si aucun
+    groupe n'a jamais eu ce nombre de séances. Si ça mène à zéro groupe
+    correspondant exactement, voir wizard_groupe (message configurable +
+    DemandeNonSatisfaite, généralisé à TOUTE combinaison de critères)."""
+    from .utils import _reponses_a_creer_pour_champ, extraire_champs_depuis_post, wizard_donnees, wizard_maj
 
     donnees = wizard_donnees(request)
     if 'nom' not in donnees:
@@ -253,14 +250,12 @@ def wizard_programme(request):
 
         return render(request, 'inscriptions/wizard_programme.html', {
             'champs': champs, 'erreurs': erreurs, 'valeurs_form': {**donnees, **request.POST.dict()},
-            'donnees_filtrage_json': json.dumps(donnees_filtrage_json_pour_wizard()),
             'wizard_etape_num': 2,
         })
 
     champs = _champs_programme_visibles(donnees)
     return render(request, 'inscriptions/wizard_programme.html', {
         'champs': champs, 'valeurs_form': donnees,
-        'donnees_filtrage_json': json.dumps(donnees_filtrage_json_pour_wizard()),
         'wizard_etape_num': 2,
     })
 
@@ -287,9 +282,26 @@ def wizard_groupe(request):
     — pas un masquage JS, un visiteur qui force cette URL avec une session
     'individuel' en cours est TOUJOURS redirigé, quelle que soit la méthode
     HTTP (voir WizardGroupeSecuriteTests.test_acces_direct_avec_session_
-    individuel_redirige_meme_en_forcant_lurl)."""
+    individuel_redirige_meme_en_forcant_lurl).
+
+    Chantier du 2026-08-22 ("liberté totale du nombre de séances") : le
+    nombre de séances n'étant plus limité à ce qui existe déjà (voir
+    wizard_programme), AUCUN groupe ne correspond parfois à la combinaison
+    EXACTE choisie — généralisé à TOUTE combinaison de critères, pas
+    seulement le nombre de séances. Dans ce cas : message configurable
+    (PresentationInscription.message_aucun_groupe_exact) + liste INFORMATIVE
+    (non cliquable) des groupes qui correspondent au moins aux critères
+    non négociables (âge/sexe structurels + tout critère bloquant=True,
+    même repli que confirme_override — voir groupes_compatibles_avec_age)
+    + bouton "متابعة دون تحديد مجموعة الآن", qui enregistre une
+    DemandeNonSatisfaite (traçabilité pour le مدير/مشرف) et avance sans
+    groupe_choisi, comme le parcours Individuel."""
     from courses.utils import _age_depuis_naissance
-    from .utils import groupes_avec_place_disponible, groupes_compatibles_avec_age, wizard_donnees, wizard_maj
+    from .models import DemandeNonSatisfaite, get_presentation_inscription
+    from .utils import (
+        groupes_avec_place_disponible, groupes_compatibles_avec_age, snapshot_criteres_pour_demande,
+        wizard_donnees, wizard_maj,
+    )
 
     donnees = wizard_donnees(request)
     if 'nom' not in donnees:
@@ -300,6 +312,8 @@ def wizard_groupe(request):
         return redirect('wizard_abonnement')
 
     date_naissance = datetime.date.fromisoformat(donnees['date_naissance'])
+    sexe = donnees['sexe']
+    age = _age_depuis_naissance(date_naissance)
     # prefetch propre à L'AFFICHAGE de cette page (pas au contrat réutilisable
     # de groupes_compatibles_avec_age lui-même) — évite un N+1 sur les
     # critères de chaque groupe affiché (riwaya, etc., montrés génériquement,
@@ -309,10 +323,37 @@ def wizard_groupe(request):
     # aussi au POST juste en dessous, donc la capacité y est désormais
     # garantie AVANT même le clic, pas seulement revérifiée après coup.
     groupes = groupes_avec_place_disponible(
-        groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, donnees['sexe'])
+        groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, sexe)
     ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
 
+    aucun_groupe_exact = not groupes.exists()
+    groupes_proches = None
+    message_aucun_groupe = None
+    if aucun_groupe_exact:
+        reponses_bloquantes = {c: v for c, v in reponses_pour_filtrage.items() if c.bloquant}
+        groupes_proches = groupes_avec_place_disponible(
+            groupes_compatibles_avec_age(reponses_bloquantes, date_naissance, sexe)
+        ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
+        message_aucun_groupe = get_presentation_inscription().message_aucun_groupe_exact
+
+    contexte_commun = {
+        'groupes': groupes, 'groupes_proches': groupes_proches,
+        'aucun_groupe_exact': aucun_groupe_exact, 'message_aucun_groupe': message_aucun_groupe,
+        'age': age, 'wizard_etape_num': 3,
+    }
+
     if request.method == 'POST':
+        if aucun_groupe_exact and request.POST.get('continuer_sans_groupe') == '1':
+            nb_slots_valeur = next(
+                (v for c, v in reponses_pour_filtrage.items() if c.backend == 'nb_slots'), None
+            )
+            demande = DemandeNonSatisfaite.objects.create(
+                criteres_json=snapshot_criteres_pour_demande(reponses_pour_filtrage),
+                type_offre='groupe', nb_slots=nb_slots_valeur, age=age, sexe=sexe,
+            )
+            wizard_maj(request, {'groupe_id': '', 'demande_non_satisfaite_id': str(demande.id)})
+            return redirect('wizard_abonnement')
+
         groupe_id = request.POST.get('groupe_id')
         groupe_choisi = groupes.filter(id=groupe_id).first() if groupe_id else None
         # Garde-fou redondant mais volontairement conservé : `groupes` exclut
@@ -325,19 +366,12 @@ def wizard_groupe(request):
             groupe_choisi = None
         if groupe_choisi is None:
             return render(request, 'inscriptions/wizard_groupe.html', {
-                'groupes': groupes,
-                'erreurs': ['يرجى اختيار مجموعة من القائمة المتاحة.'],
-                'age': _age_depuis_naissance(date_naissance),
-                'wizard_etape_num': 3,
+                **contexte_commun, 'erreurs': ['يرجى اختيار مجموعة من القائمة المتاحة.'],
             })
         wizard_maj(request, {'groupe_id': groupe_id})
         return redirect('wizard_abonnement')
 
-    return render(request, 'inscriptions/wizard_groupe.html', {
-        'groupes': groupes,
-        'age': _age_depuis_naissance(date_naissance),
-        'wizard_etape_num': 3,
-    })
+    return render(request, 'inscriptions/wizard_groupe.html', contexte_commun)
 
 
 def wizard_abonnement(request):

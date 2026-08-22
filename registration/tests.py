@@ -712,6 +712,29 @@ class InscrireEleveTests(TestCase):
         inscription, erreurs = inscrire_eleve(reponses, cree_par=mshrif, confirme_override=True)
         self.assertEqual(erreurs, [])
 
+    def test_sans_groupe_accepte_seulement_si_aucun_groupe_ne_correspond_vraiment(self):
+        """Défense en profondeur PROPRE à inscrire_eleve (chantier du
+        2026-08-22, indépendante du garde-fou déjà côté vue wizard_groupe) :
+        un 'demande_non_satisfaite_id' posté ne suffit JAMAIS à lui seul —
+        revérifié ici qu'aucun groupe ne correspond réellement à la
+        combinaison exacte avant d'accepter groupe_choisi=None."""
+        reponses = self._reponses_de_base(demande_non_satisfaite_id='999')
+        del reponses['groupe_id']
+        # self.groupe correspond réellement (setUp) -> refusé malgré le flag.
+        inscription, erreurs = inscrire_eleve(reponses)
+        self.assertIsNone(inscription)
+        self.assertTrue(any('يرجى اختيار مجموعة' in e for e in erreurs))
+
+    def test_sans_groupe_accepte_si_vraiment_aucun_groupe_ne_correspond(self):
+        reponses = self._reponses_de_base(
+            demande_non_satisfaite_id='999',
+            **{f"champ_{self.config['champ_nb_seances'].id}": '77'},  # jamais réel
+        )
+        del reponses['groupe_id']
+        inscription, erreurs = inscrire_eleve(reponses)
+        self.assertEqual(erreurs, [])
+        self.assertIsNone(inscription.groupe_choisi)
+
 
 # ============================================================================
 # TEST DE GÉNÉRICITÉ — Partie 24 : un critère jamais imaginé aujourd'hui doit
@@ -1029,40 +1052,41 @@ class WizardProgrammeTests(TestCase):
         reponse = Client().get(reverse('wizard_programme'))
         self.assertRedirects(reponse, reverse('wizard_identite'))
 
-    def test_nouveau_groupe_a_nombre_de_seances_inedit_apparait_sans_code(self):
-        """LE test explicitement demandé : un groupe à un nombre de séances
-        JAMAIS VU ailleurs dans cette suite (5) doit apparaître dans les
-        données de filtrage consommées par le JS de l'étape 2, sans la
-        moindre modification de code — la fonction ne connaît aucune valeur
-        1/2/3/4 codée en dur, elle ne fait que lire creneau.slots.count()."""
-        from registration.utils import donnees_filtrage_json_pour_wizard
-
-        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
-        remplacer_slots_creneau(creneau, [
-            {'jour': j, 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}
-            for j in ['lun', 'mar', 'mer', 'jeu', 'ven']
-        ])
-        Groupe.objects.create(nom='مجموعة 5 حصص أسبوعياً', creneau=creneau, statut='actif')
-
-        donnees = donnees_filtrage_json_pour_wizard()
-        nb_slots_presents = {d['nb_slots'] for d in donnees}
-        self.assertIn(5, nb_slots_presents)
-
-        # Bout en bout : la page réellement rendue embarque bien cette valeur
-        # dans le JSON consommé par le JS (pas seulement la fonction isolée).
+    def test_nombre_de_seances_libre_meme_sans_aucun_groupe_reel_a_ce_nombre(self):
+        """Chantier du 2026-08-22 ("liberté totale du nombre de séances") :
+        99 séances/semaine n'existe RÉELLEMENT nulle part dans le système —
+        avant ce chantier, seules les valeurs calculées depuis les groupes
+        réels étaient acceptées. Doit désormais être accepté sans erreur,
+        pour Groupe comme pour Individuel (plus de distinction)."""
         client = Client()
         self._avancer_a_etape_2(client)
-        html = client.get(reverse('wizard_programme')).content.decode('utf-8')
-        self.assertIn('"nb_slots": 5', html)
+        reponse = client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '99',
+        })
+        self.assertRedirects(reponse, reverse('wizard_groupe'), fetch_redirect_response=False)
+        self.assertEqual(client.session['wizard_inscription'][f'champ_{self.champ_nb_seances.id}'], '99')
 
-    def test_nb_seances_ne_propose_jamais_une_valeur_absente_des_groupes_reels(self):
-        """Symétrique du test précédent : si aucun groupe n'a 7 séances/semaine,
-        7 ne doit jamais apparaître dans les données de filtrage."""
-        from registration.utils import donnees_filtrage_json_pour_wizard
-
-        donnees = donnees_filtrage_json_pour_wizard()
-        nb_slots_presents = {d['nb_slots'] for d in donnees}
-        self.assertNotIn(7, nb_slots_presents)
+    def test_nombre_de_seances_zero_ou_non_numerique_refuse(self):
+        """Liberté totale ne veut pas dire aucune validation : un input libre
+        côté client nécessite une vraie validation serveur (avant, seules des
+        valeurs déjà calculées/valides pouvaient être postées)."""
+        client = Client()
+        self._avancer_a_etape_2(client)
+        for valeur_invalide in ('0', '-1', 'abc'):
+            reponse = client.post(reverse('wizard_programme'), {
+                f'champ_{self.champ_programme.id}': 'hifz',
+                f'champ_{self.champ_riwaya.id}': 'hafs',
+                f'champ_{self.champ_type_offre.id}': 'groupe',
+                f'champ_{self.champ_nb_seances.id}': valeur_invalide,
+            })
+            # Jamais redirigé vers l'étape suivante -> valeur bien rejetée.
+            self.assertEqual(reponse.status_code, 200, valeur_invalide)
+            self.assertNotIn(
+                f'champ_{self.champ_nb_seances.id}', client.session.get('wizard_inscription', {}), valeur_invalide
+            )
 
     def test_soumission_valide_avance_a_letape_groupe(self):
         client = Client()
@@ -1285,6 +1309,122 @@ class WizardGroupeTests(TestCase):
     def test_acces_direct_sans_session_redirige_a_identite(self):
         reponse = Client().get(reverse('wizard_groupe'))
         self.assertRedirects(reponse, reverse('wizard_identite'))
+
+    def test_continuer_sans_groupe_ignore_si_un_groupe_correspond_vraiment(self):
+        """Sécurité serveur (Partie 22, chantier du 2026-08-22) : POSTer
+        continuer_sans_groupe=1 alors qu'un groupe correspond RÉELLEMENT à la
+        combinaison exacte (self.groupe, ici) doit être ignoré — jamais une
+        confiance aveugle dans ce flag posté côté client. aucun_groupe_exact
+        est calculé SERVEUR, pas lu depuis le POST."""
+        from registration.models import DemandeNonSatisfaite
+
+        client = Client()
+        self._avancer_a_etape_3(client, type_offre='groupe')  # self.groupe correspond exactement
+        reponse = client.post(reverse('wizard_groupe'), {'continuer_sans_groupe': '1'})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('يرجى اختيار مجموعة', reponse.content.decode('utf-8'))
+        self.assertEqual(DemandeNonSatisfaite.objects.count(), 0)
+        self.assertNotIn('groupe_id', client.session.get('wizard_inscription', {}))
+
+
+# ============================================================================
+# Chantier du 2026-08-22 — "liberté totale du nombre de séances" : quand
+# AUCUN groupe ne correspond à la combinaison EXACTE de critères (généralisé
+# à TOUTE combinaison, pas seulement le nombre de séances) : message
+# configurable + liste informative de groupes proches (critères non
+# négociables seulement) + DemandeNonSatisfaite pour traçabilité.
+# ============================================================================
+class WizardGroupeAucunMatchExactTests(TestCase):
+    def setUp(self):
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        # Groupe "proche" : correspond à l'âge/sexe (non négociables) et au
+        # programme/riwaya, mais PAS au nombre de séances demandé (77,
+        # jamais réel) -> apparaît dans groupes_proches, jamais dans groupes.
+        creneau_proche = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(creneau_proche, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe_proche = Groupe.objects.create(
+            nom='مجموعة قريبة اختبار عدم التطابق', creneau=creneau_proche, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(groupe=self.groupe_proche, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=self.groupe_proche, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
+
+    def _avancer_a_etape_3(self, client, email='aucun.match@zidni.test', nb_seances='77'):
+        client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار عدم التطابق', 'sexe': 'homme', 'email': email,
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0600112233', 'telephone_confirmation': '0600112233',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': nb_seances,
+        })
+
+    def test_affiche_message_configurable_et_groupes_proches(self):
+        from registration.models import get_presentation_inscription
+
+        presentation = get_presentation_inscription()
+        presentation.message_aucun_groupe_exact = 'رسالة اعتذار اختبار خاصة'
+        presentation.save()
+
+        client = Client()
+        self._avancer_a_etape_3(client)
+        html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertIn('رسالة اعتذار اختبار خاصة', html)
+        self.assertIn('مجموعة قريبة اختبار عدم التطابق', html)
+
+    def test_continuer_sans_groupe_enregistre_une_demande_non_satisfaite(self):
+        from registration.models import DemandeNonSatisfaite
+
+        client = Client()
+        self._avancer_a_etape_3(client)
+        self.assertEqual(DemandeNonSatisfaite.objects.count(), 0)
+        reponse = client.post(reverse('wizard_groupe'), {'continuer_sans_groupe': '1'})
+        self.assertRedirects(reponse, reverse('wizard_abonnement'), fetch_redirect_response=False)
+
+        demande = DemandeNonSatisfaite.objects.get()
+        self.assertEqual(demande.nb_slots, 77)
+        # reponses_pour_filtrage_depuis_resultats stocke TOUJOURS une liste
+        # pour un backend 'eav', même en choix_unique (voir groupes_
+        # compatibles, qui accepte les deux formes) — snapshot fidèle, pas
+        # une chaîne brute.
+        self.assertEqual(demande.criteres_json.get(self.critere_riwaya.code), ['hafs'])
+        self.assertIsNone(demande.inscription)
+        self.assertEqual(client.session['wizard_inscription']['groupe_id'], '')
+
+    def test_inscription_reussit_sans_groupe_et_lie_la_demande(self):
+        from inscriptions.models import InscriptionEleve, TypeAbonnement
+        from payments.models import MoyenPaiement
+        from registration.models import DemandeNonSatisfaite
+
+        abo = TypeAbonnement.objects.create(
+            code='test_aucun_match_abo', label='شهري جماعي', prix=80, type_offre='groupe', cible_age='les_deux',
+        )
+        moyen = MoyenPaiement.objects.create(code='test_aucun_match_cih', label='CIH بنك', coordonnees='RIB', est_actif=True)
+
+        client = Client()
+        self._avancer_a_etape_3(client, email='aucun.match.confirme@zidni.test')
+        client.post(reverse('wizard_groupe'), {'continuer_sans_groupe': '1'})
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': abo.code})
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': moyen.code})
+        self.assertRedirects(reponse, reverse('wizard_confirmation'), fetch_redirect_response=False)
+
+        inscription = InscriptionEleve.objects.get(email='aucun.match.confirme@zidni.test')
+        self.assertIsNone(inscription.groupe_choisi)
+        demande = DemandeNonSatisfaite.objects.get()
+        self.assertEqual(demande.inscription_id, inscription.id)
 
 
 # ============================================================================

@@ -6482,6 +6482,10 @@ def admin_presentation_inscription(request):
         presentation.intro = request.POST.get('intro', '').strip()
         presentation.bouton_texte = request.POST.get('bouton_texte', '').strip() or 'متابعة التسجيل'
         presentation.message_bienvenue = request.POST.get('message_bienvenue', '').strip()
+        # Chantier du 2026-08-22 ("liberté totale du nombre de séances") :
+        # message affiché à wizard_groupe quand aucun groupe ne correspond
+        # exactement — voir registration.models.DemandeNonSatisfaite.
+        presentation.message_aucun_groupe_exact = request.POST.get('message_aucun_groupe_exact', '').strip()
         presentation.save()
         messages.success(request, 'تم تحديث صفحة تقديم التسجيل بنجاح.')
         return redirect('admin_presentation_inscription')
@@ -6492,6 +6496,67 @@ def admin_presentation_inscription(request):
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_presentation_inscription.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_demandes_non_satisfaites(request):
+    """Liste + comptage par combinaison des DemandeNonSatisfaite (chantier
+    du 2026-08-22, "liberté totale du nombre de séances") — objectif :
+    identifier les combinaisons les plus demandées pour décider quels
+    nouveaux groupes ouvrir. Regroupement en Python (pas de GROUP BY SQL
+    lisible sur un JSONField) : le volume réel de ces demandes reste faible
+    (un événement occasionnel, pas une table à fort trafic), une boucle
+    Python est largement suffisante et bien plus lisible qu'une agrégation
+    SQL sur JSON."""
+    from collections import Counter
+    from registration.models import Critere, CritereOption, DemandeNonSatisfaite
+
+    demandes = list(DemandeNonSatisfaite.objects.select_related('inscription').order_by('-date_demande'))
+
+    # Regroupe par (criteres_json, nb_slots) — âge/sexe restent des détails
+    # individuels affichés par demande, pas un axe de regroupement (sinon
+    # 2 demandes identiques par ailleurs mais d'âges différents ne
+    # compteraient jamais comme "la même tendance").
+    compteur = Counter()
+    exemple_par_cle = {}
+    for d in demandes:
+        cle = (tuple(sorted(d.criteres_json.items())), d.nb_slots)
+        compteur[cle] += 1
+        exemple_par_cle.setdefault(cle, d)
+
+    # Labels lisibles résolus à la LECTURE (Critere/CritereOption restent la
+    # seule source de vérité, jamais dupliqués dans DemandeNonSatisfaite).
+    criteres_par_code = {c.code: c for c in Critere.objects.all()}
+    options_par_cle = {(o.critere_id, o.code): o for o in CritereOption.objects.select_related('critere')}
+
+    tendances = []
+    for cle, nombre in compteur.most_common():
+        criteres_dict, nb_slots = cle
+        libelles = []
+        for code_critere, valeur in criteres_dict:
+            critere = criteres_par_code.get(code_critere)
+            if critere is None:
+                continue
+            if critere.backend in ('nb_slots', 'champ_groupe'):
+                libelles.append(f"{critere.label}: {valeur}")
+            elif isinstance(valeur, list):
+                labels = [options_par_cle[(critere.id, c)].label for c in valeur if (critere.id, c) in options_par_cle]
+                if labels:
+                    libelles.append(f"{critere.label}: {', '.join(labels)}")
+            else:
+                option = options_par_cle.get((critere.id, valeur))
+                libelles.append(f"{critere.label}: {option.label if option else valeur}")
+        tendances.append({'libelles': libelles, 'nb_slots': nb_slots, 'nombre': nombre})
+
+    context = {
+        'demandes': demandes,
+        'tendances': tendances,
+        'total': len(demandes),
+        'nb_liees_a_une_inscription': sum(1 for d in demandes if d.inscription_id),
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_demandes_non_satisfaites.html', context)
 
 
 # ==================== MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 7 ====================
@@ -6614,10 +6679,10 @@ def admin_eleve_ajouter_manuel(request):
     from courses.utils import _age_depuis_naissance, tranche_age_depuis_naissance
     from inscriptions.views import _construire_et_valider_telephone
     from registration.utils import (
-        abonnements_avec_prix_effectif, champs_structurels_actifs, donnees_filtrage_json_pour_wizard,
-        evaluer_champs_actifs, extraire_champs_depuis_post, groupes_avec_place_disponible,
-        groupes_compatibles_avec_age, inscrire_eleve, nb_slots_repondu,
-        reponses_pour_filtrage_depuis_resultats, statut_compatibilite_groupe, abonnements_disponibles,
+        abonnements_avec_prix_effectif, champs_structurels_actifs, evaluer_champs_actifs,
+        extraire_champs_depuis_post, groupes_avec_place_disponible, groupes_compatibles_avec_age,
+        inscrire_eleve, nb_slots_repondu, reponses_pour_filtrage_depuis_resultats,
+        statut_compatibilite_groupe, abonnements_disponibles,
     )
 
     round_form = request.POST.get('round_form', 'identite') if request.method == 'POST' else 'identite'
@@ -6633,7 +6698,6 @@ def admin_eleve_ajouter_manuel(request):
             'champs_affiches': _champs_pour_template(resultats, donnees_prefill),
             'configs_structurels': configs,
             'valeurs_form': donnees_prefill,
-            'donnees_filtrage_json': json.dumps(donnees_filtrage_json_pour_wizard()),
             'base_template': _base_template_admin_ou_mshrif(request),
             **_contexte_base_mshrif(request),
         })
@@ -6722,6 +6786,7 @@ def admin_eleve_ajouter_manuel(request):
         **extraire_champs_depuis_post(request.POST),
         'groupe_id': request.POST.get('groupe_id', ''),
         'abonnement_code': request.POST.get('abonnement_code', ''),
+        'continuer_sans_groupe': request.POST.get('continuer_sans_groupe', ''),
     }
     resultats = evaluer_champs_actifs(donnees)
     reponses_pour_filtrage = reponses_pour_filtrage_depuis_resultats(resultats)

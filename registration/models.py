@@ -390,6 +390,12 @@ class PresentationInscription(models.Model):
     # contact (ParametresInscriptions.delai_contact_heures, inscriptions/models.py)
     # est injecté dans ce texte au rendu, jamais recopié en dur ici.
     message_bienvenue = models.TextField(blank=True)
+    # Chantier du 2026-08-22 ("liberté totale du nombre de séances") — affiché
+    # à wizard_groupe quand AUCUN groupe n'existe pour la combinaison EXACTE
+    # de critères choisis (voir DemandeNonSatisfaite ci-dessous) : un défaut
+    # raisonnable est fourni par get_presentation_inscription() si vide,
+    # jamais un texte brut codé en dur dans le template.
+    message_aucun_groupe_exact = models.TextField(blank=True)
     date_modification = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -402,6 +408,57 @@ class PresentationInscription(models.Model):
 
 def get_presentation_inscription():
     """Renvoie l'unique instance de PresentationInscription, en la créant (vide) si
-    elle n'existe pas encore — même patron singleton que accounts.models.get_charte()."""
-    presentation, _ = PresentationInscription.objects.get_or_create(pk=1)
+    elle n'existe pas encore — même patron singleton que accounts.models.get_charte().
+    message_aucun_groupe_exact reçoit un texte par défaut raisonnable À LA CRÉATION
+    seulement (jamais réécrit après coup si le مدير le vide volontairement) — même
+    logique que TypeAbonnement.prix ou n'importe quel champ éditable avec une
+    valeur de départ sensée."""
+    presentation, cree = PresentationInscription.objects.get_or_create(
+        pk=1,
+        defaults={'message_aucun_groupe_exact': (
+            'نأسف، لا توجد حالياً مجموعة تتوافق تماماً مع اختياراتك. '
+            'يمكنك الاطلاع أدناه على المجموعات القريبة المتاحة، أو متابعة التسجيل '
+            'وسيتواصل معك فريقنا لإيجاد الحل الأنسب.'
+        )},
+    )
     return presentation
+
+
+class DemandeNonSatisfaite(models.Model):
+    """Trace chaque fois qu'AUCUN groupe n'existe pour la combinaison EXACTE
+    de critères choisie par un candidat (chantier du 2026-08-22, "liberté
+    totale du nombre de séances" — le nombre de séances n'est plus limité
+    à ce qui existe déjà, donc ce cas devient possible pour n'importe quelle
+    combinaison, pas seulement le nombre de séances). Objectif : que le
+    مدير/مشرف identifie, depuis le dashboard, les combinaisons les plus
+    demandées pour décider quels nouveaux groupes ouvrir.
+
+    criteres_json : {code_critere: valeur_ou_liste_de_codes} — snapshot BRUT
+    des réponses filtrables au moment de la demande. Les labels humains sont
+    recalculés à la LECTURE (Critere/CritereOption restent la seule source
+    de vérité) — jamais dupliqués ici, un critère renommé après coup ne doit
+    pas laisser d'anciens libellés figés et incohérents.
+
+    inscription : renseigné a posteriori si le candidat choisit malgré tout
+    de continuer (voir registration.utils.inscrire_eleve) — None tant que
+    la candidature n'est pas allée au bout, ou si le visiteur abandonne en
+    cours de route (SET_NULL : la suppression d'une candidature ne doit
+    jamais faire disparaître la trace statistique de la demande elle-même)."""
+    criteres_json = models.JSONField(default=dict)
+    type_offre = models.CharField(max_length=20, blank=True, default='')
+    nb_slots = models.IntegerField(null=True, blank=True)
+    age = models.IntegerField(null=True, blank=True)
+    sexe = models.CharField(max_length=10, blank=True, default='')
+    date_demande = models.DateTimeField(auto_now_add=True)
+    inscription = models.ForeignKey(
+        'inscriptions.InscriptionEleve', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='demandes_non_satisfaites',
+    )
+
+    def __str__(self):
+        return f"طلب غير ملبى — {self.date_demande.strftime('%Y-%m-%d')}"
+
+    class Meta:
+        ordering = ['-date_demande']
+        verbose_name = "Demande non satisfaite"
+        verbose_name_plural = "Demandes non satisfaites"

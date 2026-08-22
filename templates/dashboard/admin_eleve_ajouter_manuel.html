@@ -63,9 +63,9 @@
             {% endcomment %}
             <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
                 <label class="form-label" style="font-weight:600;">{{ c.champ.label }}{% if c.champ.obligatoire %} *{% endif %}</label>
-                <select name="champ_{{ c.champ.id }}" class="form-select mt-1" id="nb_seances_select" data-champ-id="{{ c.champ.id }}" {% if c.champ.obligatoire %}required{% endif %}>
-                    <option value="">— اختر —</option>
-                </select>
+                <input type="number" name="champ_{{ c.champ.id }}" class="form-control mt-1" min="1" step="1"
+                       placeholder="مثال: 3" value="{{ c.valeur }}" {% if c.champ.obligatoire %}required{% endif %}>
+                <div style="color:#888; font-size:0.8rem; margin-top:4px;">أي عدد، دون قيود.</div>
             </div>
             {% else %}
             <div class="mb-3">
@@ -74,7 +74,7 @@
                 {% if c.champ.critere.type_champ == 'choix_multiple' %}
                     <select name="champ_{{ c.champ.id }}" class="form-select mt-1" multiple
                             data-critere-id="{{ c.champ.critere.id }}" data-backend="{{ c.champ.critere.backend }}"
-                            data-obligatoire="{% if c.champ.obligatoire %}1{% else %}0{% endif %}" onchange="recalculerNbSeances()">
+                            data-obligatoire="{% if c.champ.obligatoire %}1{% else %}0{% endif %}" onchange="toggleNbSeancesManuel()">
                         {% for option in c.champ.critere.options.all %}
                         {% if option.est_actif %}
                         <option value="{{ option.code }}" {% if option.code in c.valeurs_liste %}selected{% endif %}>{{ option.label }}</option>
@@ -84,7 +84,7 @@
                 {% elif c.champ.critere %}
                     <select name="champ_{{ c.champ.id }}" class="form-select mt-1"
                             data-critere-id="{{ c.champ.critere.id }}" data-backend="{{ c.champ.critere.backend }}"
-                            data-obligatoire="{% if c.champ.obligatoire %}1{% else %}0{% endif %}" onchange="recalculerNbSeances()"
+                            data-obligatoire="{% if c.champ.obligatoire %}1{% else %}0{% endif %}" onchange="toggleNbSeancesManuel()"
                             {% if c.champ.obligatoire %}required{% endif %}>
                         <option value="">— اختر —</option>
                         {% for option in c.champ.critere.options.all %}
@@ -111,8 +111,6 @@
     </form>
 
     <script>
-        const DONNEES_FILTRAGE = {{ donnees_filtrage_json|safe }};
-
         function champsObligatoiresRepondus(selections) {
             // Même correctif UX que le wizard public (bug signalé le
             // 2026-08-21) : ne révéler "nombre de séances" qu'une fois tous
@@ -126,10 +124,13 @@
             return ok;
         }
 
-        function recalculerNbSeances() {
+        function toggleNbSeancesManuel() {
+            // Chantier du 2026-08-22 : nombre de séances désormais un simple
+            // input libre (min="1"), plus de calcul depuis les groupes réels
+            // — seule la RÉVÉLATION du champ reste conditionnée aux champs
+            // obligatoires précédents (Bug B, inchangé).
             const wrapper = document.getElementById('nb_seances_wrapper');
-            const select = document.getElementById('nb_seances_select');
-            if (!select || !wrapper) return;
+            if (!wrapper) return;
 
             const selections = {};
             document.querySelectorAll('[data-critere-id]').forEach(el => {
@@ -139,42 +140,9 @@
                     selections[el.dataset.critereId] = el.value;
                 }
             });
-
-            if (!champsObligatoiresRepondus(selections)) {
-                wrapper.style.display = 'none';
-                return;
-            }
-            wrapper.style.display = '';
-
-            // Critère backend='champ_groupe' identifié GÉNÉRIQUEMENT (jamais
-            // par nom/code de critère) via data-backend.
-            const elTypeOffre = document.querySelector('[data-backend="champ_groupe"][data-critere-id]');
-            const typeOffreValeur = elTypeOffre ? selections[elTypeOffre.dataset.critereId] : null;
-
-            let nbSlotsDisponibles;
-            if (typeOffreValeur === 'individuel') {
-                // Individuel = nombre de séances PUREMENT INDICATIF (décision
-                // actée de ce chantier) : union de TOUS les groupes du
-                // système, tous types/critères confondus — jamais une liste
-                // vide qui bloque l'ajout manuel.
-                nbSlotsDisponibles = [...new Set(DONNEES_FILTRAGE.map(g => g.nb_slots))].sort((a, b) => a - b);
-            } else {
-                const groupesCompatibles = DONNEES_FILTRAGE.filter(g => {
-                    return Object.keys(selections).every(critereId => {
-                        const val = selections[critereId];
-                        const gVal = g.valeurs[critereId];
-                        if (Array.isArray(val)) return val.length === 0 || val.includes(gVal);
-                        return gVal === val;
-                    });
-                });
-                nbSlotsDisponibles = [...new Set(groupesCompatibles.map(g => g.nb_slots))].sort((a, b) => a - b);
-            }
-
-            const valeurActuelle = select.value;
-            select.innerHTML = '<option value="">— اختر —</option>' + nbSlotsDisponibles.map(n => `<option value="${n}">${n}</option>`).join('');
-            if (nbSlotsDisponibles.map(String).includes(valeurActuelle)) select.value = valeurActuelle;
+            wrapper.style.display = champsObligatoiresRepondus(selections) ? '' : 'none';
         }
-        document.addEventListener('DOMContentLoaded', recalculerNbSeances);
+        document.addEventListener('DOMContentLoaded', toggleNbSeancesManuel);
     </script>
 
     {% else %}
@@ -219,9 +187,12 @@
         <div class="mb-3">
             <label class="form-label" style="font-weight:600;">اختيار المجموعة *</label>
             {% if not groupes %}
-            <div style="color:#888; padding:10px 0;">لا توجد حالياً أي مجموعة متوافقة مع الاختيارات المدخلة.</div>
+            <div style="background:#fff3cd; color:#856404; border-radius:8px; padding:10px 14px; margin-bottom:8px;">
+                لا توجد حالياً أي مجموعة تتوافق تماماً مع الاختيارات المدخلة. يمكنك المتابعة دون تحديد مجموعة الآن
+                (سيُسجَّل هذا الطلب لتتبع الحاجة إلى مجموعات جديدة).
+            </div>
             {% endif %}
-            <select name="groupe_id" class="form-select mt-1" required>
+            <select name="groupe_id" id="groupe_id_select" class="form-select mt-1" {% if groupes %}required{% endif %}>
                 <option value="">— اختر مجموعة —</option>
                 {% for groupe in groupes %}
                 <option value="{{ groupe.id }}" {% if groupe.id|stringformat:"s" == groupe_id_selectionne %}selected{% endif %}>
@@ -230,6 +201,9 @@
                 </option>
                 {% endfor %}
             </select>
+            {% if not groupes %}
+            <input type="hidden" name="continuer_sans_groupe" value="1">
+            {% endif %}
         </div>
         {% endif %}
 
