@@ -14,37 +14,42 @@
         {% csrf_token %}
         <input type="hidden" name="round_form" value="identite">
 
-        <div class="mb-3">
-            <label class="form-label" style="font-weight:600;">الاسم الكامل *</label>
-            <input type="text" name="nom" class="form-control mt-1" value="{{ valeurs_form.nom|default:'' }}" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label" style="font-weight:600;">اسم ولي الأمر (إن كان المسجَّل قاصراً)</label>
-            <input type="text" name="nom_parent" class="form-control mt-1" value="{{ valeurs_form.nom_parent|default:'' }}">
-        </div>
-        <div class="mb-3">
-            <label class="form-label" style="font-weight:600;">الجنس *</label>
-            <select name="sexe" class="form-select mt-1" required>
-                <option value="">— اختر —</option>
-                <option value="homme" {% if valeurs_form.sexe == 'homme' %}selected{% endif %}>ذكر</option>
-                <option value="femme" {% if valeurs_form.sexe == 'femme' %}selected{% endif %}>أنثى</option>
-            </select>
-        </div>
-        <div class="mb-3">
-            <label class="form-label" style="font-weight:600;">البريد الإلكتروني *</label>
-            <input type="email" name="email" class="form-control mt-1" value="{{ valeurs_form.email|default:'' }}" required>
-        </div>
-
-        {% include 'inscriptions/_verification_whatsapp.html' %}
-
-        <div class="mb-3">
-            <label class="form-label" style="font-weight:600;">تاريخ الميلاد *</label>
-            <input type="date" name="date_naissance" class="form-control mt-1" value="{{ valeurs_form.date_naissance|default:'' }}" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label" style="font-weight:600;">العمل الحالي (أو عمل ولي الأمر إن كان المسجَّل قاصراً)</label>
-            <input type="text" name="job_actuel" class="form-control mt-1" value="{{ valeurs_form.job_actuel|default:'' }}">
-        </div>
+        {% for config in configs_structurels %}
+            {% if config.champ_cle == 'sexe' %}
+            <div class="mb-3">
+                <label class="form-label" style="font-weight:600;">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
+                <select name="sexe" class="form-select mt-1" {% if config.obligatoire %}required{% endif %}>
+                    <option value="">— اختر —</option>
+                    <option value="homme" {% if config.valeur_actuelle == 'homme' %}selected{% endif %}>ذكر</option>
+                    <option value="femme" {% if config.valeur_actuelle == 'femme' %}selected{% endif %}>أنثى</option>
+                </select>
+            </div>
+            {% elif config.champ_cle == 'email' %}
+            <div class="mb-3">
+                <label class="form-label" style="font-weight:600;">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
+                <input type="email" name="email" class="form-control mt-1" value="{{ config.valeur_actuelle|default:'' }}" {% if config.obligatoire %}required{% endif %}>
+            </div>
+            {% elif config.champ_cle == 'telephone' %}
+            {% include 'inscriptions/_verification_whatsapp.html' with telephone_obligatoire=config.obligatoire %}
+            {% elif config.champ_cle == 'date_naissance' %}
+            <div class="mb-3">
+                <label class="form-label" style="font-weight:600;">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
+                <input type="date" name="date_naissance" class="form-control mt-1" value="{{ config.valeur_actuelle|default:'' }}" {% if config.obligatoire %}required{% endif %}>
+            </div>
+            {% else %}
+            <div class="mb-3">
+                <label class="form-label" style="font-weight:600;">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
+                {% if config.type_champ == 'texte_multiligne' %}
+                <textarea name="{{ config.champ_cle }}" class="form-control mt-1" placeholder="{{ config.placeholder }}" {% if config.obligatoire %}required{% endif %}>{{ config.valeur_actuelle|default:'' }}</textarea>
+                {% else %}
+                <input type="text" name="{{ config.champ_cle }}" class="form-control mt-1" placeholder="{{ config.placeholder }}" value="{{ config.valeur_actuelle|default:'' }}" {% if config.obligatoire %}required{% endif %}>
+                {% endif %}
+                {% if config.texte_aide %}
+                <div style="color:#888; font-size:0.8rem; margin-top:4px;">{{ config.texte_aide }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+        {% endfor %}
 
         {% for c in champs_affiches %}
         {% if not c.masque %}
@@ -197,6 +202,7 @@
         <input type="hidden" name="email" value="{{ valeurs_form.email }}">
         <input type="hidden" name="date_naissance" value="{{ valeurs_form.date_naissance }}">
         <input type="hidden" name="job_actuel" value="{{ valeurs_form.job_actuel }}">
+        <input type="hidden" name="niveau_scolaire" value="{{ valeurs_form.niveau_scolaire }}">
         <input type="hidden" name="indicatif_pays" value="{{ valeurs_form.indicatif_pays }}">
         <input type="hidden" name="indicatif_pays_autre" value="{{ valeurs_form.indicatif_pays_autre }}">
         <input type="hidden" name="telephone" value="{{ valeurs_form.telephone_brut }}">

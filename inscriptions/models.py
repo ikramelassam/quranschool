@@ -125,6 +125,11 @@ class InscriptionEleve(models.Model):
     # Optionnel (blank=True) : contrairement à InscriptionProf.job_actuel
     # (obligatoire), rien ici n'a demandé de le rendre requis.
     job_actuel = models.CharField(max_length=100, blank=True, default='')
+    # Nouveau champ structurel ajouté le 2026-08-22 (chantier "champs
+    # structurels configurables") — même statut que job_actuel : une vraie
+    # colonne, jamais migrée vers l'EAV, optionnelle par défaut (obligatoire
+    # géré par registration.models.ConfigurationChampStructurel, pas ici).
+    niveau_scolaire = models.CharField(max_length=100, blank=True, default='')
 
     # Programme
     creneau_souhaite = models.ForeignKey(

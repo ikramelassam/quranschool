@@ -6128,6 +6128,12 @@ def admin_etape_inscription_detail(request, etape_id):
     context = {
         'etape': etape,
         'champs': etape.champs.all().select_related('critere').order_by('ordre', 'id'),
+        # ConfigurationChampStructurel (chantier du 2026-08-22) : affichés
+        # dans la MÊME liste "الحقول" que les ChampInscription — le مدير voit
+        # tout au même endroit, jamais "لا توجد حقول بعد" alors que des
+        # champs structurels réels (nom/sexe/téléphone...) sont déjà en
+        # place et utilisés.
+        'champs_structurels': etape.champs_structurels.all().order_by('ordre', 'id'),
         'criteres_disponibles': Critere.objects.filter(est_actif=True).order_by('ordre'),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
@@ -6274,6 +6280,58 @@ def admin_champ_inscription_supprimer(request, champ_id):
             f'يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.'
         )
     return redirect('admin_etape_inscription_detail', etape_id)
+
+
+# ---- Champs structurels (chantier du 2026-08-22) ----
+# Configuration d'AFFICHAGE des champs structurels fixes de InscriptionEleve
+# (nom/nom_parent/sexe/telephone/date_naissance/email/job_actuel/
+# niveau_scolaire) — voir registration.models.ConfigurationChampStructurel
+# pour la décision complète. PAS de vue "ajouter" (les 8 lignes sont seedées
+# une fois, jamais recréées depuis l'admin — même esprit que courses.models.
+# TarifRemuneration, "grille fixe... seul le montant est modifiable") ni de
+# vue "supprimer" (une vraie colonne ne peut pas disparaître : "supprimer"
+# un champ structurel = le désactiver, même convention que Creneau.est_actif/
+# ChampInscription.est_actif partout ailleurs dans ce projet).
+
+@role_required('admin', 'mshrif')
+def admin_champ_structurel_modifier(request, config_id):
+    from registration.models import ConfigurationChampStructurel, EtapeInscription
+
+    config = get_object_or_404(ConfigurationChampStructurel, id=config_id)
+    verrouille = config.champ_cle in ConfigurationChampStructurel.CLES_VERROUILLEES
+    sans_type_champ = config.champ_cle in ConfigurationChampStructurel.CLES_SANS_TYPE_CHAMP
+
+    if request.method == 'POST':
+        config.label = request.POST.get('label', '').strip() or config.label
+        config.ordre = request.POST.get('ordre') or 0
+        # Le reste est ignoré pour les clés verrouillées (sexe/date_naissance/
+        # email) — model.save() les réécrit de toute façon (défense en
+        # profondeur), mais autant ne pas prétendre les avoir pris en compte.
+        if not verrouille:
+            etape_id = request.POST.get('etape_id')
+            if etape_id:
+                config.etape = get_object_or_404(EtapeInscription, id=etape_id)
+            config.obligatoire = request.POST.get('obligatoire') == 'on'
+            config.est_actif = request.POST.get('est_actif') == 'on'
+            if not sans_type_champ:
+                config.type_champ = request.POST.get('type_champ', 'texte')
+                config.placeholder = request.POST.get('placeholder', '').strip()
+                config.texte_aide = request.POST.get('texte_aide', '').strip()
+                config.regex_validation = request.POST.get('regex_validation', '').strip()
+                config.message_erreur_regex = request.POST.get('message_erreur_regex', '').strip()
+        config.save()
+        messages.success(request, f'تم تعديل الحقل البنيوي "{config.label}" بنجاح.')
+        return redirect('admin_etape_inscription_detail', config.etape_id)
+
+    context = {
+        'config': config,
+        'verrouille': verrouille,
+        'sans_type_champ': sans_type_champ,
+        'etapes': EtapeInscription.objects.filter(est_actif=True).order_by('ordre'),
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_champ_structurel_modifier.html', context)
 
 
 # ---- Règles conditionnelles ----
@@ -6456,6 +6514,7 @@ def _champs_identite_bruts(request):
         'email': request.POST.get('email', '').strip(),
         'date_naissance': request.POST.get('date_naissance', ''),
         'job_actuel': request.POST.get('job_actuel', '').strip(),
+        'niveau_scolaire': request.POST.get('niveau_scolaire', '').strip(),
     }
 
 
@@ -6555,10 +6614,10 @@ def admin_eleve_ajouter_manuel(request):
     from courses.utils import _age_depuis_naissance, tranche_age_depuis_naissance
     from inscriptions.views import _construire_et_valider_telephone
     from registration.utils import (
-        abonnements_avec_prix_effectif, donnees_filtrage_json_pour_wizard, evaluer_champs_actifs,
-        extraire_champs_depuis_post, groupes_avec_place_disponible, groupes_compatibles_avec_age, inscrire_eleve,
-        nb_slots_repondu, reponses_pour_filtrage_depuis_resultats, statut_compatibilite_groupe,
-        abonnements_disponibles,
+        abonnements_avec_prix_effectif, champs_structurels_actifs, donnees_filtrage_json_pour_wizard,
+        evaluer_champs_actifs, extraire_champs_depuis_post, groupes_avec_place_disponible,
+        groupes_compatibles_avec_age, inscrire_eleve, nb_slots_repondu,
+        reponses_pour_filtrage_depuis_resultats, statut_compatibilite_groupe, abonnements_disponibles,
     )
 
     round_form = request.POST.get('round_form', 'identite') if request.method == 'POST' else 'identite'
@@ -6566,9 +6625,13 @@ def admin_eleve_ajouter_manuel(request):
     def _rendre_round_identite(donnees_prefill=None):
         donnees_prefill = donnees_prefill or {}
         resultats = evaluer_champs_actifs(donnees_prefill)
+        configs = champs_structurels_actifs('identite')
+        for c in configs:
+            c.valeur_actuelle = donnees_prefill.get(c.champ_cle, '')
         return render(request, 'dashboard/admin_eleve_ajouter_manuel.html', {
             'round_form': 'identite',
             'champs_affiches': _champs_pour_template(resultats, donnees_prefill),
+            'configs_structurels': configs,
             'valeurs_form': donnees_prefill,
             'donnees_filtrage_json': json.dumps(donnees_filtrage_json_pour_wizard()),
             'base_template': _base_template_admin_ou_mshrif(request),
@@ -6585,7 +6648,16 @@ def admin_eleve_ajouter_manuel(request):
         if request.method != 'POST':
             return _rendre_round_identite()
 
-        telephone, erreur_tel = _construire_et_valider_telephone(request)
+        # telephone (registration.models.ConfigurationChampStructurel) :
+        # non-obligatoire configurable, même logique que wizard_identite —
+        # skip la validation dédiée si vide ET non obligatoire, jamais
+        # d'erreur bloquante dans ce cas.
+        telephone_config = {c.champ_cle: c for c in champs_structurels_actifs('identite')}.get('telephone')
+        telephone_brut = request.POST.get('telephone', '').strip()
+        if telephone_config is not None and not telephone_config.obligatoire and not telephone_brut:
+            telephone, erreur_tel = '', None
+        else:
+            telephone, erreur_tel = _construire_et_valider_telephone(request)
         if erreur_tel:
             messages.error(request, erreur_tel)
             return _rendre_round_identite({**_champs_identite_bruts(request), **extraire_champs_depuis_post(request.POST)})

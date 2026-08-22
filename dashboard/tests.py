@@ -16,8 +16,8 @@ from courses.models import (
 )
 from courses.utils import remplacer_slots_creneau
 from registration.models import (
-    ChampInscription, Critere as CritereInscription, CritereOption, EtapeInscription,
-    GroupeCritereValeur, RegleCondition,
+    ChampInscription, ConfigurationChampStructurel, Critere as CritereInscription, CritereOption,
+    EtapeInscription, GroupeCritereValeur, RegleCondition,
 )
 from evaluations.models import Evaluation, CommentaireMensuel, Critere, NoteEvaluation
 from examens.models import Examen
@@ -2856,6 +2856,52 @@ class EtapeChampRegleInscriptionCRUDTests(TestCase):
         self.assertIn('تيليجرام', html)
         # 3. "إخفاء → حقل واحد" : le nouveau champ apparaît dans le <select>.
         self.assertIn('حقل اختبار تعميم القواعد الشرطية', html)
+
+    def test_etape_identite_naffiche_plus_aucun_champ_bidon_grace_aux_champs_structurels(self):
+        """Bug signalé le 2026-08-22 : l'étape "المعلومات الشخصية" affichait
+        "لا توجد حقول بعد" alors que nom/sexe/telephone/... existent et sont
+        utilisés — corrigé par ConfigurationChampStructurel, affiché dans la
+        MÊME liste que les ChampInscription."""
+        etape_identite = EtapeInscription.objects.get(code='identite')
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_etape_inscription_detail', args=[etape_identite.id])).content.decode('utf-8')
+        self.assertNotIn('لا توجد حقول بعد', html)
+        self.assertIn('الاسم الكامل', html)
+        self.assertIn('المستوى الدراسي', html)  # niveau_scolaire, nouveau champ
+
+    def test_modifier_champ_structurel_non_verrouille_reussit(self):
+        config = ConfigurationChampStructurel.objects.get(champ_cle='job_actuel')
+        client = self._connecte_admin()
+        reponse = client.post(reverse('admin_champ_structurel_modifier', args=[config.id]), {
+            'label': 'مهنتك الحالية', 'ordre': 5, 'etape_id': config.etape_id,
+            'obligatoire': 'on', 'est_actif': 'on', 'type_champ': 'texte',
+            'placeholder': 'مثال: مهندس', 'texte_aide': 'اختياري',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        config.refresh_from_db()
+        self.assertEqual(config.label, 'مهنتك الحالية')
+        self.assertTrue(config.obligatoire)
+        self.assertEqual(config.placeholder, 'مثال: مهندس')
+
+    def test_modifier_champ_verrouille_ignore_toute_tentative_hors_label_ordre(self):
+        """Défense en profondeur écran + modèle (déjà testée côté modèle) :
+        même en POSTant obligatoire/est_actif/etape_id pour 'sexe', seuls
+        label et ordre sont réellement pris en compte."""
+        autre_etape = EtapeInscription.objects.create(code='test_autre_etape_ecran', titre='أخرى', ordre=88)
+        config = ConfigurationChampStructurel.objects.get(champ_cle='sexe')
+        etape_originale_id = config.etape_id
+
+        client = self._connecte_admin()
+        reponse = client.post(reverse('admin_champ_structurel_modifier', args=[config.id]), {
+            'label': 'جنس المسجَّل', 'ordre': 1,
+            'obligatoire': '', 'est_actif': '', 'etape_id': autre_etape.id,
+        })
+        self.assertEqual(reponse.status_code, 302)
+        config.refresh_from_db()
+        self.assertEqual(config.label, 'جنس المسجَّل')  # label : bien pris en compte
+        self.assertTrue(config.obligatoire)  # jamais relâché
+        self.assertTrue(config.est_actif)  # jamais relâché
+        self.assertEqual(config.etape_id, etape_originale_id)  # jamais déplacé
 
     def test_suppression_regle_reussit(self):
         etape = EtapeInscription.objects.create(code='test_programme', titre='برنامج')

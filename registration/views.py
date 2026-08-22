@@ -48,41 +48,88 @@ def _champs_informatifs_actifs(code_etape):
 
 
 def wizard_identite(request):
-    """Étape 1 — champs structurels fixes (déjà de vraies colonnes sur
-    InscriptionEleve, JAMAIS transformés en EAV, voir registration.models.
-    ChampInscription.__doc__) + champs informatifs configurables (Étape 1,
-    critere=NULL) rendus génériquement à la suite.
+    """Étape 1 — champs structurels CONFIGURABLES (registration.models.
+    ConfigurationChampStructurel, chantier du 2026-08-22 : label/ordre/
+    obligatoire/actif/placeholder/aide/regex, jamais le stockage — voir sa
+    docstring) + champs informatifs configurables (Étape 1, critere=NULL)
+    rendus génériquement à la suite.
 
-    Téléphone/WhatsApp : réutilise TEL QUEL inscriptions.views._construire_et_
-    valider_telephone (même template partiel inscriptions/_verification_
-    whatsapp.html, même fonction de validation serveur) — rien de nouveau
-    réimplémenté ici, exactement comme demandé."""
+    sexe/date_naissance/email gardent leur validation DÉDIÉE existante
+    (contraintes structurelles, verrouillées obligatoire=True — voir
+    CLES_VERROUILLEES) ; telephone garde son widget spécial (indicatif+
+    confirmation WhatsApp, _construire_et_valider_telephone) mais devient
+    optionnel si configuré ainsi (skip la validation si vide ET non
+    obligatoire, jamais un <input> simple). nom/nom_parent/job_actuel/
+    niveau_scolaire sont ENTIÈREMENT génériques (valider_champ_structurel_
+    libre). Un champ absent de champs_structurels_actifs('identite')
+    (est_actif=False) n'est ni affiché, ni validé, ni lu depuis le POST.
+
+    LIMITE ASSUMÉE : seule cette étape sait aujourd'hui rendre des champs
+    structurels génériquement — les déplacer vers une autre étape (`etape`
+    reste modifiable en base) n'a pas encore d'effet visible ailleurs,
+    hors scope de ce chantier."""
     from inscriptions.views import _construire_et_valider_telephone
+    from .utils import champs_structurels_actifs, valider_champ_structurel_libre
 
     champs_info = _champs_informatifs_actifs('identite')
+    configs = champs_structurels_actifs('identite')
+    configs_par_cle = {c.champ_cle: c for c in configs}
+    CLES_GENERIQUES = ('nom', 'nom_parent', 'job_actuel', 'niveau_scolaire')
+
+    def _avec_valeurs_actuelles(valeurs):
+        # Pose `.valeur_actuelle` sur chaque config à partir d'un dict/
+        # QueryDict — évite le piège classique "lookup de dict par variable"
+        # en template Django (bug #1 historique du projet, voir CLAUDE.md) :
+        # {{ valeurs_form.champ_cle }} ne marche PAS avec un nom dynamique,
+        # {{ config.valeur_actuelle }} si.
+        for c in configs:
+            c.valeur_actuelle = valeurs.get(c.champ_cle, '')
+        return configs
 
     if request.method == 'POST':
         erreurs = []
-        nom = request.POST.get('nom', '').strip()
-        sexe = request.POST.get('sexe', '')
-        email = request.POST.get('email', '').strip()
-        date_naissance_str = request.POST.get('date_naissance', '')
+        nouvelles_valeurs = {}
 
-        if not nom:
-            erreurs.append('الاسم الكامل إلزامي.')
-        if sexe not in ('homme', 'femme'):
-            erreurs.append('الجنس إلزامي.')
-        if not email:
-            erreurs.append('البريد الإلكتروني إلزامي.')
+        for cle in CLES_GENERIQUES:
+            config = configs_par_cle.get(cle)
+            if config is None:
+                continue
+            valeur = request.POST.get(cle, '').strip()
+            erreur = valider_champ_structurel_libre(config, valeur)
+            if erreur:
+                erreurs.append(erreur)
+            nouvelles_valeurs[cle] = valeur
 
-        try:
-            datetime.date.fromisoformat(date_naissance_str)
-        except (ValueError, TypeError):
-            erreurs.append('يرجى إدخال تاريخ ميلاد صحيح.')
+        if 'sexe' in configs_par_cle:
+            sexe = request.POST.get('sexe', '')
+            if sexe not in ('homme', 'femme'):
+                erreurs.append(f'"{configs_par_cle["sexe"].label}" إلزامي.')
+            nouvelles_valeurs['sexe'] = sexe
 
-        telephone, erreur_tel = _construire_et_valider_telephone(request)
-        if erreur_tel:
-            erreurs.append(erreur_tel)
+        if 'email' in configs_par_cle:
+            email = request.POST.get('email', '').strip()
+            if not email:
+                erreurs.append(f'"{configs_par_cle["email"].label}" إلزامي.')
+            nouvelles_valeurs['email'] = email
+
+        if 'date_naissance' in configs_par_cle:
+            date_naissance_str = request.POST.get('date_naissance', '')
+            try:
+                datetime.date.fromisoformat(date_naissance_str)
+            except (ValueError, TypeError):
+                erreurs.append('يرجى إدخال تاريخ ميلاد صحيح.')
+            nouvelles_valeurs['date_naissance'] = date_naissance_str
+
+        telephone_config = configs_par_cle.get('telephone')
+        if telephone_config is not None:
+            telephone_brut = request.POST.get('telephone', '').strip()
+            if not telephone_config.obligatoire and not telephone_brut:
+                telephone = ''
+            else:
+                telephone, erreur_tel = _construire_et_valider_telephone(request)
+                if erreur_tel:
+                    erreurs.append(erreur_tel)
+            nouvelles_valeurs['telephone'] = telephone
 
         for champ in champs_info:
             valeur = request.POST.get(f'champ_{champ.id}', '').strip()
@@ -90,23 +137,20 @@ def wizard_identite(request):
                 erreurs.append(f'"{champ.label}" إلزامي.')
 
         if not erreurs:
-            nouvelles_valeurs = {
-                'nom': nom, 'nom_parent': request.POST.get('nom_parent', '').strip(),
-                'sexe': sexe, 'telephone': telephone, 'date_naissance': date_naissance_str,
-                'email': email, 'job_actuel': request.POST.get('job_actuel', '').strip(),
-            }
             for champ in champs_info:
                 nouvelles_valeurs[f'champ_{champ.id}'] = request.POST.get(f'champ_{champ.id}', '').strip()
             wizard_maj(request, nouvelles_valeurs)
             return redirect('wizard_programme')
 
         return render(request, 'inscriptions/wizard_identite.html', {
-            'champs_info': champs_info, 'erreurs': erreurs, 'valeurs_form': request.POST,
+            'champs_info': champs_info, 'configs': _avec_valeurs_actuelles(request.POST),
+            'erreurs': erreurs, 'valeurs_form': request.POST,
             'wizard_etape_num': 1,
         })
 
     return render(request, 'inscriptions/wizard_identite.html', {
-        'champs_info': champs_info, 'valeurs_form': wizard_donnees(request),
+        'champs_info': champs_info, 'configs': _avec_valeurs_actuelles(wizard_donnees(request)),
+        'valeurs_form': wizard_donnees(request),
         'wizard_etape_num': 1,
     })
 

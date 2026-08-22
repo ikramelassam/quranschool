@@ -36,6 +36,7 @@ silencieuses) :
 """
 
 import datetime
+import re
 
 from django.db import transaction
 from django.db.models import Count, Q
@@ -51,6 +52,55 @@ from django.db.models import Count, Q
 # aux autres étapes.
 
 WIZARD_SESSION_KEY = 'wizard_inscription'
+
+
+# ==================== CHAMPS STRUCTURELS CONFIGURABLES (chantier 2026-08-22) ====================
+# nom/nom_parent/sexe/telephone/date_naissance/email/job_actuel/niveau_scolaire
+# restent de VRAIES colonnes InscriptionEleve (jamais migrées vers l'EAV) —
+# voir registration.models.ConfigurationChampStructurel.__doc__ pour la
+# décision complète. Ces 2 fonctions centralisent la lecture/validation
+# GÉNÉRIQUE (label/ordre/obligatoire/regex) partagée par wizard_identite ET
+# dashboard.views.admin_eleve_ajouter_manuel — jamais 2 versions maintenues
+# séparément, même principe que tout le reste de ce moteur.
+
+def champs_structurels_actifs(code_etape):
+    """ConfigurationChampStructurel actifs liés à l'EtapeInscription de code
+    `code_etape`, dans l'ordre configuré — liste vide (jamais une exception)
+    si l'étape n'existe pas encore."""
+    from .models import ConfigurationChampStructurel
+
+    return list(
+        ConfigurationChampStructurel.objects.filter(
+            etape__code=code_etape, etape__est_actif=True, est_actif=True,
+        ).order_by('ordre', 'id')
+    )
+
+
+def valider_champ_structurel_libre(config, valeur):
+    """Validation GÉNÉRIQUE (obligatoire + regex optionnelle) pour un champ
+    structurel NON verrouillé et sans widget spécial (nom/nom_parent/
+    job_actuel/niveau_scolaire — jamais sexe/date_naissance/email/telephone,
+    voir ConfigurationChampStructurel.CLES_SANS_TYPE_CHAMP, qui gardent leur
+    validation dédiée existante, inchangée par ce chantier). Retourne un
+    message d'erreur arabe, ou None si valide.
+
+    La regex n'est appliquée QUE si config.regex_validation est non vide ET
+    valeur est non vide — un champ non obligatoire laissé vide ne doit
+    jamais être rejeté par une regex qui ne concerne que sa FORME quand il
+    est rempli."""
+    valeur = (valeur or '').strip()
+    if config.obligatoire and not valeur:
+        return f'"{config.label}" إلزامي.'
+    if valeur and config.regex_validation:
+        try:
+            if not re.fullmatch(config.regex_validation, valeur):
+                return config.message_erreur_regex or f'"{config.label}" غير صالح.'
+        except re.error:
+            # Regex mal formée par le مدير — jamais un 500 pour l'élève,
+            # signalé nulle part d'autre qu'ici : mieux vaut laisser passer
+            # une regex cassée que planter le formulaire public.
+            pass
+    return None
 
 
 def wizard_donnees(request):
@@ -654,7 +704,9 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
     - champs d'identité structurels, clés directes (jamais transformés en EAV) :
       'nom', 'nom_parent', 'sexe', 'telephone' (DÉJÀ validé/assemblé par
       l'appelant, voir docstring du module), 'date_naissance' (ISO 'AAAA-MM-JJ'),
-      'email', 'job_actuel', 'remarques', 'accepte_conditions' ('oui'/autre).
+      'email', 'job_actuel', 'niveau_scolaire', 'remarques', 'accepte_conditions'
+      ('oui'/autre) — présence/obligation de chacun pilotée par registration.
+      models.ConfigurationChampStructurel (chantier du 2026-08-22).
     - réponse à un ChampInscription dynamique : clé 'champ_<id>', valeur = code
       d'option (choix), liste de codes (choix multiple), texte/nombre brut, ou
       entier (nb_slots).
@@ -689,22 +741,46 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
 
     erreurs = []
 
-    # ---- 1. Identité structurelle ----
-    nom = (reponses_brutes.get('nom') or '').strip()
-    sexe = reponses_brutes.get('sexe') or ''
-    email = (reponses_brutes.get('email') or '').strip()
-    telephone = (reponses_brutes.get('telephone') or '').strip()
+    # ---- 1. Identité structurelle (registration.models.ConfigurationChamp
+    # Structurel, chantier du 2026-08-22) — nom/nom_parent/job_actuel/
+    # niveau_scolaire génériques (label/obligatoire/regex configurables) ;
+    # sexe/date_naissance/email gardent leur validation dédiée (contraintes
+    # structurelles verrouillées, voir CLES_VERROUILLEES) ; telephone garde
+    # son mécanisme dédié (déjà validé/assemblé par l'appelant) mais devient
+    # non-obligatoire si configuré ainsi. Point UNIQUE partagé par le wizard
+    # public ET l'ajout manuel — jamais 2 validations qui pourraient diverger.
+    configs_identite = champs_structurels_actifs('identite')
+    configs_par_cle = {c.champ_cle: c for c in configs_identite}
+    CLES_GENERIQUES = ('nom', 'nom_parent', 'job_actuel', 'niveau_scolaire')
 
-    if not nom:
-        erreurs.append('الاسم الكامل إلزامي.')
-    if sexe not in ('homme', 'femme'):
-        erreurs.append('الجنس إلزامي.')
-    if not telephone:
-        erreurs.append('رقم الهاتف إلزامي.')
-    if not email:
-        erreurs.append('البريد الإلكتروني إلزامي.')
-    elif _email_bloque_pour_candidature_eleve(email):
-        erreurs.append(MESSAGE_EMAIL_DEJA_UTILISE)
+    valeurs_structurelles = {}
+    for cle in CLES_GENERIQUES:
+        config = configs_par_cle.get(cle)
+        valeur = (reponses_brutes.get(cle) or '').strip()
+        if config is None:
+            valeurs_structurelles[cle] = ''
+            continue
+        erreur = valider_champ_structurel_libre(config, valeur)
+        if erreur:
+            erreurs.append(erreur)
+        valeurs_structurelles[cle] = valeur
+    nom = valeurs_structurelles['nom']
+
+    sexe = reponses_brutes.get('sexe') or ''
+    if 'sexe' in configs_par_cle and sexe not in ('homme', 'femme'):
+        erreurs.append(f'"{configs_par_cle["sexe"].label}" إلزامي.')
+
+    telephone_config = configs_par_cle.get('telephone')
+    telephone = (reponses_brutes.get('telephone') or '').strip()
+    if telephone_config is not None and telephone_config.obligatoire and not telephone:
+        erreurs.append(f'"{telephone_config.label}" إلزامي.')
+
+    email = (reponses_brutes.get('email') or '').strip()
+    if 'email' in configs_par_cle:
+        if not email:
+            erreurs.append(f'"{configs_par_cle["email"].label}" إلزامي.')
+        elif _email_bloque_pour_candidature_eleve(email):
+            erreurs.append(MESSAGE_EMAIL_DEJA_UTILISE)
 
     date_naissance = None
     try:
@@ -812,12 +888,13 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
     with transaction.atomic():
         inscription = InscriptionEleve.objects.create(
             nom=nom,
-            nom_parent=(reponses_brutes.get('nom_parent') or '').strip(),
+            nom_parent=valeurs_structurelles['nom_parent'],
             date_naissance=date_naissance,
             sexe=sexe,
             telephone=telephone,
             email=email,
-            job_actuel=(reponses_brutes.get('job_actuel') or '').strip(),
+            job_actuel=valeurs_structurelles['job_actuel'],
+            niveau_scolaire=valeurs_structurelles['niveau_scolaire'],
             abonnement=abonnement.code,
             groupe_choisi=groupe_choisi,
             cree_par=cree_par,

@@ -9,11 +9,14 @@ from accounts.models import Eleve, User
 from courses.models import Creneau, Groupe
 from courses.utils import remplacer_slots_creneau
 from inscriptions.models import GrillePrixAbonnement, InscriptionEleve, TypeAbonnement
-from .models import ChampInscription, Critere, CritereOption, EtapeInscription, GroupeCritereValeur, RegleCondition
+from .models import (
+    ChampInscription, ConfigurationChampStructurel, Critere, CritereOption, EtapeInscription,
+    GroupeCritereValeur, RegleCondition,
+)
 from .utils import (
-    couverture_critere, couverture_grille_prix, groupes_avec_place_disponible, groupes_compatibles,
-    groupes_compatibles_avec_age, inscrire_eleve, nb_seances_disponibles, nb_slots_reels_systeme,
-    nb_slots_repondu, prix_effectif, champ_est_masque,
+    champs_structurels_actifs, couverture_critere, couverture_grille_prix, groupes_avec_place_disponible,
+    groupes_compatibles, groupes_compatibles_avec_age, inscrire_eleve, nb_seances_disponibles,
+    nb_slots_reels_systeme, nb_slots_repondu, prix_effectif, valider_champ_structurel_libre, champ_est_masque,
 )
 
 MOT_DE_PASSE = 'xX!test12345'
@@ -935,7 +938,13 @@ class WizardIdentiteTests(TestCase):
         del reponses['nom']
         reponse = client.post(reverse('wizard_identite'), reponses)
         self.assertEqual(reponse.status_code, 200)
-        self.assertIn('الاسم الكامل إلزامي', reponse.content.decode('utf-8'))
+        # Message générique depuis le 2026-08-22 (ConfigurationChampStructurel,
+        # valider_champ_structurel_libre) : "&quot;{label}&quot; إلزامي."
+        # remplace l'ancien message codé en dur spécifique à 'nom' — même
+        # format que TOUS les champs structurels génériques désormais.
+        html = reponse.content.decode('utf-8')
+        self.assertIn('الاسم الكامل', html)
+        self.assertIn('إلزامي', html)
         self.assertNotIn('wizard_inscription', client.session)
 
     def test_champ_informatif_obligatoire_est_valide(self):
@@ -1837,3 +1846,115 @@ class AucuneFuiteDeCommentaireTechniqueTests(TestCase):
             f'champ_{self.champ_nb_seances.id}': '1',
         })
         self._assert_pas_de_fuite(reponse_round2, 'admin_eleve_ajouter_manuel (round confirmation)')
+
+
+# ============================================================================
+# CHANTIER du 2026-08-22 — champs structurels 100% configurables (nom/
+# nom_parent/sexe/telephone/date_naissance/email/job_actuel/niveau_scolaire),
+# SAUF sexe/date_naissance/email (verrouillés : label+ordre seulement) —
+# voir registration.models.ConfigurationChampStructurel.__doc__.
+# ============================================================================
+class ChampsStructurelsConfigurablesTests(TestCase):
+    def test_seed_contient_les_8_champs_actifs_par_defaut(self):
+        cles = set(ConfigurationChampStructurel.objects.values_list('champ_cle', flat=True))
+        self.assertEqual(cles, {
+            'nom', 'nom_parent', 'sexe', 'telephone', 'date_naissance', 'email',
+            'job_actuel', 'niveau_scolaire',
+        })
+        self.assertEqual(len(champs_structurels_actifs('identite')), 8)
+
+    def test_champs_verrouilles_toujours_obligatoires_et_actifs_meme_si_on_essaie_le_contraire(self):
+        for cle in ConfigurationChampStructurel.CLES_VERROUILLEES:
+            config = ConfigurationChampStructurel.objects.get(champ_cle=cle)
+            config.obligatoire = False
+            config.est_actif = False
+            config.save()
+            config.refresh_from_db()
+            self.assertTrue(config.obligatoire, cle)
+            self.assertTrue(config.est_actif, cle)
+
+    def test_champ_verrouille_etape_non_modifiable_meme_si_on_essaie(self):
+        autre_etape = EtapeInscription.objects.create(code='test_autre_etape_verrou', titre='مرحلة أخرى', ordre=99)
+        config = ConfigurationChampStructurel.objects.get(champ_cle='email')
+        etape_originale_id = config.etape_id
+        config.etape = autre_etape
+        config.save()
+        config.refresh_from_db()
+        self.assertEqual(config.etape_id, etape_originale_id)
+
+    def test_valider_champ_structurel_libre_obligatoire_vide(self):
+        config = ConfigurationChampStructurel.objects.get(champ_cle='job_actuel')
+        config.obligatoire = True
+        config.save()
+        self.assertIsNotNone(valider_champ_structurel_libre(config, ''))
+        self.assertIsNone(valider_champ_structurel_libre(config, 'مهندس'))
+
+    def test_valider_champ_structurel_libre_regex_appliquee_seulement_si_rempli(self):
+        config = ConfigurationChampStructurel.objects.get(champ_cle='niveau_scolaire')
+        config.regex_validation = r'^[0-9]{1,2}$'
+        config.message_erreur_regex = 'يجب أن يكون رقماً'
+        config.obligatoire = False
+        config.save()
+        self.assertIsNone(valider_champ_structurel_libre(config, '6'))
+        self.assertEqual(valider_champ_structurel_libre(config, 'سادسة'), 'يجب أن يكون رقماً')
+        # Non obligatoire + vide -> jamais rejeté par la regex.
+        self.assertIsNone(valider_champ_structurel_libre(config, ''))
+
+
+class WizardIdentiteChampsStructurelsTests(TestCase):
+    def _reponses_valides(self, **overrides):
+        base = {
+            'nom': 'سارة بنعلي', 'sexe': 'femme', 'email': 'sara.structurel@zidni.test',
+            'date_naissance': '1998-01-01',
+            'indicatif_pays': '212', 'telephone': '0611223344', 'telephone_confirmation': '0611223344',
+        }
+        base.update(overrides)
+        return base
+
+    def test_champ_desactive_disparait_du_formulaire_et_nest_jamais_exige(self):
+        ConfigurationChampStructurel.objects.filter(champ_cle='job_actuel').update(est_actif=False)
+
+        client = Client()
+        html = client.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertNotIn('name="job_actuel"', html)
+
+        reponse = client.post(reverse('wizard_identite'), self._reponses_valides(job_actuel='ignoré'))
+        self.assertRedirects(reponse, reverse('wizard_programme'), fetch_redirect_response=False)
+        self.assertNotIn('job_actuel', client.session['wizard_inscription'])
+
+    def test_champ_generique_rendu_obligatoire_bloque_si_vide(self):
+        config = ConfigurationChampStructurel.objects.get(champ_cle='job_actuel')
+        config.obligatoire = True
+        config.save()
+
+        client = Client()
+        reponse = client.post(reverse('wizard_identite'), self._reponses_valides(job_actuel=''))
+        self.assertEqual(reponse.status_code, 200)
+        html = reponse.content.decode('utf-8')
+        # Django échappe les guillemets ("&quot;") dans {{ erreur }} — on
+        # vérifie le label ET "إلزامي" séparément plutôt que la chaîne brute
+        # avec guillemets littéraux.
+        self.assertIn(config.label, html)
+        self.assertIn('إلزامي', html)
+
+    def test_telephone_optionnel_si_configure_ainsi(self):
+        ConfigurationChampStructurel.objects.filter(champ_cle='telephone').update(obligatoire=False)
+
+        client = Client()
+        reponse = client.post(reverse('wizard_identite'), self._reponses_valides(
+            indicatif_pays='', telephone='', telephone_confirmation='',
+        ))
+        self.assertRedirects(reponse, reverse('wizard_programme'), fetch_redirect_response=False)
+        self.assertEqual(client.session['wizard_inscription']['telephone'], '')
+
+    def test_label_personnalise_par_le_madir_saffiche_a_lelevi(self):
+        ConfigurationChampStructurel.objects.filter(champ_cle='email').update(label='بريدك الشخصي')
+
+        html = Client().get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertIn('بريدك الشخصي', html)
+
+    def test_niveau_scolaire_optionnel_par_defaut_et_bien_stocke(self):
+        client = Client()
+        reponse = client.post(reverse('wizard_identite'), self._reponses_valides(niveau_scolaire='الثالثة إعدادي'))
+        self.assertRedirects(reponse, reverse('wizard_programme'), fetch_redirect_response=False)
+        self.assertEqual(client.session['wizard_inscription']['niveau_scolaire'], 'الثالثة إعدادي')

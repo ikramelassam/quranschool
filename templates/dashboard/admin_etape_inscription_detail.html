@@ -22,6 +22,31 @@
 <div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">الحقول</div>
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; margin-bottom:24px;">
+    {% for config in champs_structurels %}
+    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:14px 22px; border-bottom:1px solid #f0f0f0; background:#fbfaf7;">
+        <div>
+            <div style="font-weight:700;">{{ config.ordre }}. {{ config.label }}</div>
+            <div style="color:#888; font-size:0.8rem;">
+                {% if config.est_verrouille %}🔒 حقل بنيوي مقفل{% else %}🏗️ حقل بنيوي{% endif %}
+                — عمود حقيقي: {{ config.get_champ_cle_display }}
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            {% if config.obligatoire %}
+                {% include 'dashboard/_badge_statut.html' with type='danger' texte='إلزامي' %}
+            {% else %}
+                {% include 'dashboard/_badge_statut.html' with type='neutre' texte='اختياري' %}
+            {% endif %}
+            {% if config.est_actif %}
+                {% include 'dashboard/_badge_statut.html' with type='success' texte='نشط' %}
+            {% else %}
+                {% include 'dashboard/_badge_statut.html' with type='danger' texte='محذوف (معطَّل)' %}
+            {% endif %}
+            <a href="{% url 'admin_champ_structurel_modifier' config.id %}"
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">تعديل ✏️</a>
+        </div>
+    </div>
+    {% endfor %}
     {% for champ in champs %}
     <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:14px 22px; border-bottom:1px solid #f0f0f0;">
         <div>
@@ -57,7 +82,9 @@
         </div>
     </div>
     {% empty %}
+    {% if not champs_structurels %}
     <div style="text-align:center; padding:40px; color:#aaa;">لا توجد حقول بعد في هذه المرحلة</div>
+    {% endif %}
     {% endfor %}
 </div>
 

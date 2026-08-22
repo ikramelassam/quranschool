@@ -145,6 +145,104 @@ class EtapeInscription(models.Model):
         verbose_name_plural = "Étapes d'inscription"
 
 
+class ConfigurationChampStructurel(models.Model):
+    """Configuration d'AFFICHAGE (jamais de stockage) des champs structurels
+    fixes de InscriptionEleve — nom/nom_parent/sexe/telephone/date_naissance/
+    email/job_actuel/niveau_scolaire restent de VRAIES colonnes du modèle,
+    jamais migrées vers l'EAV/ReponseInscription (décision actée le
+    2026-08-22, chantier "champs structurels configurables") : cette table
+    ne configure QUE label/ordre/étape/obligatoire/actif/placeholder/aide/
+    validation — jamais où la donnée est stockée ni son type Python réel.
+
+    sexe/date_naissance/email sont VERROUILLÉS (CLES_VERROUILLEES) : ils
+    cassent une vraie logique métier si rendus optionnels/masqués/déplacés —
+    sexe et date_naissance sont des contraintes STRUCTURELLES du filtrage de
+    groupes (registration.utils.groupes_compatibles_avec_age, jamais
+    relâchées même par confirme_override, voir RegressionSexeGroupesTests
+    du 2026-08-22), email est la clé de dédoublonnage ET la convention
+    username=email à la création du compte élève (accounts app). Pour ces 3
+    UNIQUEMENT : label et ordre restent modifiables, rien d'autre — save()
+    réécrit silencieusement obligatoire=True/est_actif=True/etape=l'étape
+    déjà en base pour eux à chaque sauvegarde, jamais une confiance aveugle
+    dans le formulaire d'édition seul (même défense en profondeur que
+    Groupe.eleves.count() revérifié serveur malgré le filtrage d'affichage).
+
+    Un NOUVEAU champ structurel (= une VRAIE colonne Django) nécessite
+    TOUJOURS un développeur (migration) — techniquement impossible à éviter,
+    une colonne ne s'invente pas depuis un formulaire (niveau_scolaire,
+    ajouté au 2026-08-22, en est un exemple). Pour un champ que le مدير veut
+    ajouter LUI-MÊME, sans aucun code : le mécanisme déjà existant et déjà
+    100% fonctionnel est le "champ informatif" (ChampInscription avec
+    critere=None, voir registration.views._champs_informatifs_actifs,
+    stocké via ReponseInscription comme n'importe quelle réponse EAV) — CE
+    modèle-ci ne le remplace pas, il configure uniquement les colonnes déjà
+    câblées en dur dans le code Python (wizard_identite,
+    admin_eleve_ajouter_manuel, inscrire_eleve)."""
+
+    CHAMP_CLE_CHOICES = [
+        ('nom', 'الاسم الكامل'),
+        ('nom_parent', 'اسم ولي الأمر'),
+        ('sexe', 'الجنس'),
+        ('telephone', 'الهاتف'),
+        ('date_naissance', 'تاريخ الميلاد'),
+        ('email', 'البريد الإلكتروني'),
+        ('job_actuel', 'المهنة'),
+        ('niveau_scolaire', 'المستوى الدراسي'),
+    ]
+    TYPE_CHAMP_CHOICES = [
+        ('texte', 'نص قصير'),
+        ('texte_multiligne', 'نص طويل'),
+    ]
+    # sexe/date_naissance/email : voir la docstring ci-dessus — jamais
+    # optionnels/masquables/déplaçables, seuls label/ordre restent éditables.
+    CLES_VERROUILLEES = {'sexe', 'date_naissance', 'email'}
+    # telephone (widget indicatif+numéro+confirmation WhatsApp, PAS un
+    # <input> simple) rejoint sexe/date_naissance/email pour type_champ/
+    # placeholder/regex uniquement (il reste, lui, déplaçable/masquable/
+    # optionnel — juste pas un champ texte configurable comme les 4 autres).
+    CLES_SANS_TYPE_CHAMP = CLES_VERROUILLEES | {'telephone'}
+
+    champ_cle = models.CharField(max_length=30, choices=CHAMP_CLE_CHOICES, unique=True)
+    label = models.CharField(max_length=100)
+    ordre = models.IntegerField(default=0)
+    etape = models.ForeignKey(EtapeInscription, on_delete=models.PROTECT, related_name='champs_structurels')
+    obligatoire = models.BooleanField(default=True)
+    est_actif = models.BooleanField(default=True)
+    # Non pertinent pour CLES_SANS_TYPE_CHAMP (widget/type Python fixe) —
+    # laissé blank pour eux, jamais lu par le rendu dans ce cas.
+    type_champ = models.CharField(max_length=20, choices=TYPE_CHAMP_CHOICES, default='texte', blank=True)
+    placeholder = models.CharField(max_length=200, blank=True, default='')
+    texte_aide = models.CharField(max_length=300, blank=True, default='')
+    # Regex Python optionnelle (re.fullmatch), appliquée UNIQUEMENT si non
+    # vide ET valeur non vide déjà présente — jamais pour CLES_SANS_TYPE_CHAMP
+    # (leur validation dédiée existante reste seule autorité).
+    regex_validation = models.CharField(max_length=200, blank=True, default='')
+    message_erreur_regex = models.CharField(max_length=200, blank=True, default='')
+
+    def save(self, *args, **kwargs):
+        if self.champ_cle in self.CLES_VERROUILLEES:
+            self.obligatoire = True
+            self.est_actif = True
+            if self.pk:
+                self.etape_id = ConfigurationChampStructurel.objects.get(pk=self.pk).etape_id
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.label} ({self.get_champ_cle_display()})"
+
+    @property
+    def est_verrouille(self):
+        """Utilisé côté template (pas de lookup de dict par variable, voir le
+        bug historique documenté ailleurs dans ce chantier) plutôt que de
+        passer un set brut dans le contexte de chaque vue."""
+        return self.champ_cle in self.CLES_VERROUILLEES
+
+    class Meta:
+        ordering = ['etape__ordre', 'ordre', 'id']
+        verbose_name = "Configuration de champ structurel"
+        verbose_name_plural = "Configuration des champs structurels"
+
+
 class ChampInscription(models.Model):
     """Un champ affiché dans une étape. Deux cas, distingués par critere :
     - critere renseigné : champ de filtrage/critère dynamique, type_champ/options lus

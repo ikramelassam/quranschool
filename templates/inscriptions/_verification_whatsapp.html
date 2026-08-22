@@ -31,7 +31,7 @@ le format. Usage : {% include 'inscriptions/_verification_whatsapp.html' %}
         </div>
         <div class="col-8">
             <input type="tel" name="telephone" id="wa_telephone" class="form-control"
-                   placeholder="رقم الهاتف" required
+                   placeholder="رقم الهاتف" {% if telephone_obligatoire|default:True %}required{% endif %}
                    oninput="wa_miseAJourLien(); wa_verifierTelephoneMatch();">
         </div>
     </div>
@@ -44,7 +44,7 @@ le format. Usage : {% include 'inscriptions/_verification_whatsapp.html' %}
     <div class="mt-2">
         <label class="form-label" style="font-size:0.9rem;">تأكيد رقم الواتساب *</label>
         <input type="tel" name="telephone_confirmation" id="wa_telephone_confirmation" class="form-control"
-               placeholder="أعد كتابة رقم الهاتف" required
+               placeholder="أعد كتابة رقم الهاتف" {% if telephone_obligatoire|default:True %}required{% endif %}
                oninput="wa_verifierTelephoneMatch();">
         <div id="wa_erreur_confirmation" style="display:none; color:#B3261E; font-size:0.85rem; margin-top:6px;">
             ⚠️ رقم التأكيد لا يطابق رقم الهاتف المدخل
