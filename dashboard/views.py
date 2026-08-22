@@ -4664,6 +4664,7 @@ def admin_abonnement_ajouter(request):
         TypeAbonnement.objects.create(
             code=request.POST.get('code'),
             label=request.POST.get('label'),
+            duree=request.POST.get('duree', '').strip(),
             prix=request.POST.get('prix'),
             cible_age=request.POST.get('cible_age', 'les_deux'),
             ordre=request.POST.get('ordre', 0),
@@ -4713,6 +4714,7 @@ def admin_abonnement_modifier(request, abonnement_id):
     if request.method == 'POST':
         with transaction.atomic():
             type_abonnement.label = request.POST.get('label')
+            type_abonnement.duree = request.POST.get('duree', '').strip()
             type_abonnement.prix = request.POST.get('prix')
             type_abonnement.cible_age = request.POST.get('cible_age', 'les_deux')
             type_abonnement.ordre = request.POST.get('ordre', 0)

@@ -454,6 +454,21 @@ class PrixEffectifTests(TestCase):
         self.assertEqual(prix_effectif(self.abonnement, 3), self.abonnement.prix)
 
 
+class TypeAbonnementDureeAfficheeTests(TestCase):
+    """Correction 5 (2026-08-22, chantier grille de prix) : `duree` est un
+    champ à part de `label`, jamais dérivé par découpage de texte en code —
+    duree_affichee() retombe simplement sur `label` en entier si `duree`
+    n'est pas renseignée."""
+
+    def test_duree_renseignee_est_utilisee(self):
+        abo = TypeAbonnement.objects.create(code='test_duree_1', label='جماعي - شهر', duree='شهر', prix=80)
+        self.assertEqual(abo.duree_affichee, 'شهر')
+
+    def test_duree_vide_retombe_sur_le_label_complet(self):
+        abo = TypeAbonnement.objects.create(code='test_duree_2', label='جماعي - شهر', prix=80)
+        self.assertEqual(abo.duree_affichee, 'جماعي - شهر')
+
+
 class CouvertureGrillePrixTests(TestCase):
     """Base de calcul changée le 2026-08-22 : plage_nb_slots_grille_prix()
     (fixe, 1..10) au lieu de nb_slots_reels_systeme() (groupes réels) —
@@ -1829,6 +1844,27 @@ class WizardAbonnementPaiementTests(TestCase):
         html = reponse.content.decode('utf-8')
         self.assertIn('فردي شهري', html)
         self.assertNotIn('جماعي شهري', html)
+
+    def test_affichage_montre_uniquement_la_duree_sans_repeter_le_type_offre(self):
+        """Correction 5 (2026-08-22) : type d'offre déjà choisi 2 étapes plus
+        tôt (Programme) — la ligne de prix à l'étape Abonnement ne doit plus
+        répéter "جماعي"/"فردي", seule la durée (TypeAbonnement.duree) doit
+        apparaître."""
+        self.abo_groupe.duree = 'شهر'
+        self.abo_groupe.save()
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='groupe')
+        html = client.get(reverse('wizard_abonnement')).content.decode('utf-8')
+        self.assertIn('شهر', html)
+        self.assertNotIn('جماعي شهري', html)
+
+    def test_affichage_retombe_sur_le_label_complet_si_duree_non_renseignee(self):
+        """duree vide (compte non encore mis à jour par le مدير) -> repli sur
+        label en entier, jamais un texte manquant."""
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='groupe')
+        html = client.get(reverse('wizard_abonnement')).content.decode('utf-8')
+        self.assertIn('جماعي شهري', html)
 
     def test_prix_affiche_repli_sur_type_abonnement_sans_ligne_de_grille(self):
         """Étape 9 (GrillePrixAbonnement, 2026-08-21) : sans aucune ligne de

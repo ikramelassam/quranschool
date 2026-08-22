@@ -22,6 +22,16 @@ class TypeAbonnement(models.Model):
 
     code = models.SlugField(max_length=30, unique=True)
     label = models.CharField(max_length=100)
+    # Durée SEULE (ex: "شهر", "3 أشهر"), sans répéter جماعي/فردي — ajouté le
+    # 2026-08-22 (correction 5, chantier grille de prix) : à l'étape
+    # Abonnement du wizard ET à admin_eleve_ajouter_manuel, le type d'offre
+    # (جماعي/فردي) a déjà été choisi 2 étapes plus tôt, répéter "جماعي - شهر"
+    # sur chaque ligne de prix était redondant. `label` reste INCHANGÉ et
+    # continue de porter le nom complet partout ailleurs (liste مدير,
+    # InscriptionEleve, etc.) — `duree` est un champ à part, jamais dérivé
+    # de `label` par un découpage de texte fragile. Vide -> duree_affichee
+    # retombe sur `label` en entier (jamais un champ vide affiché).
+    duree = models.CharField(max_length=50, blank=True, default='')
     prix = models.DecimalField(max_digits=8, decimal_places=2)
     # Utilisé pour comparer un abonnement choisi à l'inscription au type_capacite
     # d'un Groupe (courses.utils.raison_incompatibilite_groupe*).
@@ -32,6 +42,14 @@ class TypeAbonnement(models.Model):
 
     def __str__(self):
         return f"{self.label} ({self.prix} درهم)"
+
+    @property
+    def duree_affichee(self):
+        """Texte à afficher là où le type d'offre est déjà connu par le
+        parcours (wizard public étape Abonnement, admin_eleve_ajouter_
+        manuel) — `duree` si le مدير l'a renseignée, sinon `label` en
+        entier (jamais un texte vide)."""
+        return self.duree or self.label
 
     class Meta:
         ordering = ['ordre']

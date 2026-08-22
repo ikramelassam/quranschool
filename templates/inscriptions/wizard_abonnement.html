@@ -13,7 +13,7 @@
 
     {% for abonnement in abonnements %}
     <div class="select-btn mb-2" onclick="selectionnerAbonnement('{{ abonnement.code }}', this)" style="display:flex; justify-content:space-between; text-align:right;">
-        <span>{{ abonnement.label }}</span>
+        <span>{{ abonnement.duree_affichee }}</span>
         <span style="font-weight:700;">{{ abonnement.prix_affiche }} د.م.</span>
     </div>
     {% endfor %}

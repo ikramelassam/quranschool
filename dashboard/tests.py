@@ -3382,6 +3382,18 @@ class AjoutManuelEleveTests(TestCase):
         abonnements = {a.code: a for a in reponse.context['abonnements']}
         self.assertEqual(abonnements[abo_individuel.code].prix_affiche, 777)
 
+    def test_affichage_abonnement_montre_uniquement_la_duree(self):
+        """Correction 5 (2026-08-22) : même simplification que le wizard
+        public (type d'offre déjà choisi 2 étapes plus tôt) — vérifie que la
+        duplication n'existe plus ici non plus."""
+        self.abo_groupe.duree = 'شهر'
+        self.abo_groupe.save()
+        client = self._connecte_admin()
+        reponse = client.post(reverse('admin_eleve_ajouter_manuel'), self._round1_donnees('duree_ajout_manuel@zidni.test'))
+        html = reponse.content.decode('utf-8')
+        self.assertIn('شهر', html)
+        self.assertNotIn('جماعي شهري', html)
+
     def test_groupe_plein_napparait_pas_dans_le_select_de_ladmin(self):
         """Même correctif que registration.views.wizard_groupe (bug signalé
         le 2026-08-21), côté ajout manuel (Étape 7) : un groupe complet ne
@@ -3591,6 +3603,7 @@ class AdminAbonnementModifierTests(TestCase):
         client = self._connecte_admin()
         html = client.get(reverse('admin_abonnement_modifier', args=[self.abonnement.id])).content.decode('utf-8')
         self.assertIn('name="label"', html)
+        self.assertIn('name="duree"', html)
         self.assertIn('name="cible_age"', html)
         # Preuve du bug corrigé : une ligne existe pour 4 séances/semaine
         # bien qu'AUCUN groupe réel n'ait jamais eu 4 créneaux dans ce test.
@@ -3603,11 +3616,12 @@ class AdminAbonnementModifierTests(TestCase):
 
         client = self._connecte_admin()
         client.post(reverse('admin_abonnement_modifier', args=[self.abonnement.id]), {
-            'label': 'شهري معدّل', 'prix': '90', 'cible_age': 'adulte', 'ordre': '2',
+            'label': 'شهري معدّل', 'duree': 'شهر', 'prix': '90', 'cible_age': 'adulte', 'ordre': '2',
             f'prix_{self.nb_slots}': '999', f'actif_{self.nb_slots}': 'on',
         })
         self.abonnement.refresh_from_db()
         self.assertEqual(self.abonnement.label, 'شهري معدّل')
+        self.assertEqual(self.abonnement.duree, 'شهر')
         self.assertEqual(self.abonnement.prix, 90)
         self.assertEqual(self.abonnement.cible_age, 'adulte')
 
