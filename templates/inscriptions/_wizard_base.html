@@ -49,22 +49,35 @@
             border-radius: 8px; border: 1px solid #ddd; font-family: 'Tajawal', sans-serif; text-align: right;
         }
         .select-btn {
-            border: 2px solid #ddd; border-radius: 10px; padding: 10px 16px; cursor: pointer;
-            text-align: center; transition: all 0.2s; background: white; width: 100%;
-            font-family: 'Tajawal', sans-serif; font-size: 0.95rem;
+            border: 2px solid #EADFC8; border-radius: 10px; padding: 12px 16px; cursor: pointer;
+            text-align: center; transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.15s ease;
+            background: var(--color-bg-cream); width: 100%;
+            font-family: 'Tajawal', sans-serif; font-size: 0.95rem; line-height: 1.5;
         }
-        .select-btn:hover { border-color: var(--color-role-eleve-solid); background: #FDF3E7; }
-        .select-btn.active { border-color: var(--color-role-eleve-solid); background: #FDF3E7; color: var(--color-role-eleve-solid); font-weight: 600; }
+        .select-btn:hover {
+            border-color: var(--color-role-eleve-solid); background: var(--color-role-eleve-solid);
+            color: white; transform: translateY(-1px);
+        }
+        .select-btn.active {
+            border-color: var(--color-role-prof-solid); background: var(--color-role-eleve-solid);
+            color: white; font-weight: 600;
+        }
         .btn-submit {
             background-color: var(--color-role-eleve-solid); color: white; border: none; border-radius: 8px;
             padding: 12px; font-size: 1rem; font-weight: 600; width: 100%; margin-top: 16px;
-            font-family: 'Tajawal', sans-serif; cursor: pointer; transition: all 0.2s;
+            font-family: 'Tajawal', sans-serif; cursor: pointer;
+            transition: background-color 0.25s ease, transform 0.15s ease, box-shadow 0.25s ease;
         }
-        .btn-submit:hover { background-color: var(--color-role-prof-solid); }
-        .btn-back { display: block; border: 2px solid #ddd; color: #888; background: white; border-radius: 8px;
-            padding: 10px; text-align: center; text-decoration: none; margin-top: 10px;
-            font-family: 'Tajawal', sans-serif; transition: all 0.2s; }
-        .btn-back:hover { border-color: #aaa; color: #555; }
+        .btn-submit:hover {
+            background-color: var(--color-role-prof-solid); transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(44,21,0,0.18);
+        }
+        .btn-back {
+            display: block; border: 2px solid #EADFC8; color: var(--color-brand-gold-dark); background: var(--color-bg-cream);
+            border-radius: 8px; padding: 10px; text-align: center; text-decoration: none; margin-top: 10px;
+            font-family: 'Tajawal', sans-serif; transition: background-color 0.25s ease, border-color 0.25s ease;
+        }
+        .btn-back:hover { border-color: var(--color-role-eleve-solid); background: #F3E7D3; }
         {% block wizard_extra_style %}{% endblock %}
     </style>
 </head>

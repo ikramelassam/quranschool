@@ -1,6 +1,27 @@
 {% extends base_template %}
 {% block title %}إضافة تلميذ يدوياً{% endblock %}
 {% block content %}
+<style>
+    /* Cohérence visuelle avec le wizard public (chantier du 2026-08-22) :
+       transition douce + retour visuel clair au survol, sans dépendre d'une
+       couleur précise (filter: brightness fonctionne quelle que soit la
+       couleur de fond déjà posée en inline plus bas). */
+    #admin-ajouter-eleve button[type="submit"],
+    #admin-ajouter-eleve a[style*="border-radius:8px"] {
+        transition: filter 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    }
+    #admin-ajouter-eleve button[type="submit"]:hover,
+    #admin-ajouter-eleve a[style*="border-radius:8px"]:hover {
+        filter: brightness(1.12);
+        transform: translateY(-1px);
+    }
+    #admin-ajouter-eleve .form-control:focus,
+    #admin-ajouter-eleve .form-select:focus {
+        border-color: var(--color-role-admin-solid);
+        box-shadow: 0 0 0 3px rgba(44,21,0,0.1);
+    }
+</style>
+<div id="admin-ajouter-eleve">
 <div class="page-title">إضافة تلميذ يدوياً</div>
 <div class="page-subtitle" style="margin-bottom:20px;">
     لتسجيل طالب تم التواصل معه هاتفياً أو حضورياً — يستخدم بالضبط نفس محرك التسجيل العمومي (نفس الحقول، نفس الشروط)،
@@ -242,5 +263,6 @@
         </div>
     </form>
     {% endif %}
+</div>
 </div>
 {% endblock %}
