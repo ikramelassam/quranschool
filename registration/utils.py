@@ -103,6 +103,95 @@ def valider_champ_structurel_libre(config, valeur):
     return None
 
 
+# ==================== NAVIGATION DYNAMIQUE (correction 8, 2026-08-22) ====================
+# Avant cette correction, l'enchaînement des pages du wizard public était
+# figé dans le CODE (chaque vue faisait redirect('wizard_X') avec X en dur) —
+# EtapeInscription.ordre ne triait alors que les ChampInscription À
+# L'INTÉRIEUR d'une étape, jamais la SÉQUENCE des étapes elle-même. Les 3
+# fonctions ci-dessous font de `ordre`/`est_actif` la SEULE source de vérité
+# pour "quelle est la page suivante" — voir EtapeInscription.__doc__ pour la
+# liste des étapes verrouillées (CODES_VERROUILLES) qui ne peuvent jamais
+# être désactivées, ni celles librement réordonnables/désactivables.
+#
+# 'intro' (Étape 0, ميثاق) reste HORS de ce mapping : simple écran de
+# présentation (PresentationInscription), jamais une étape à reconfigurer.
+
+URL_PAR_CODE_ETAPE = {
+    'categorie_age': 'wizard_categorie_age',
+    'identite': 'wizard_identite',
+    'programme': 'wizard_programme',
+    'groupe': 'wizard_groupe',
+    'abonnement': 'wizard_abonnement',
+    'paiement': 'wizard_paiement',
+    'confirmation': 'wizard_confirmation',
+}
+
+
+def etape_est_active(code_etape):
+    """True si l'EtapeInscription de ce code existe et est active — False si
+    le مدير l'a désactivée, ou si elle n'existe pas encore (jamais une
+    exception, même défense qu'ailleurs dans ce chantier)."""
+    from .models import EtapeInscription
+
+    return EtapeInscription.objects.filter(code=code_etape, est_actif=True).exists()
+
+
+def etape_suivante(code_etape_actuelle):
+    """Code de la PROCHAINE étape active après `code_etape_actuelle`, selon
+    EtapeInscription.ordre — jamais un enchaînement figé dans les vues.
+
+    `code_etape_actuelle` reste inclus dans le calcul même s'il est
+    lui-même désactivé (ex: 'groupe' sauté pour l'Individuel, ou désactivé
+    par le مدير) — dans les 2 cas, on cherche "la prochaine étape active
+    après SA POSITION", peu importe si elle est elle-même active ou non :
+    aucun besoin de distinguer les 2 raisons de saut ici, la vue appelante
+    n'a jamais à passer de règle métier en plus.
+
+    Retourne None si `code_etape_actuelle` est la dernière étape active —
+    ne doit jamais arriver en pratique pour un code du parcours réel tant
+    que 'confirmation' (verrouillée active, seed en dernière position)
+    reste la dernière étape existante."""
+    from .models import EtapeInscription
+
+    codes_actifs = list(
+        EtapeInscription.objects.filter(est_actif=True).order_by('ordre', 'id').values_list('code', flat=True)
+    )
+    if code_etape_actuelle in codes_actifs:
+        candidats = codes_actifs[codes_actifs.index(code_etape_actuelle) + 1:]
+    else:
+        # L'étape actuelle est désactivée (ou inexistante) — retombe sur sa
+        # position dans l'ordre COMPLET (actives + inactives) pour retrouver
+        # quand même la suite logique, jamais un crash.
+        tous_les_codes = list(EtapeInscription.objects.order_by('ordre', 'id').values_list('code', flat=True))
+        position = tous_les_codes.index(code_etape_actuelle) if code_etape_actuelle in tous_les_codes else -1
+        candidats = [c for c in tous_les_codes[position + 1:] if c in codes_actifs]
+    return candidats[0] if candidats else None
+
+
+def url_etape_suivante(code_etape_actuelle, repli='wizard_confirmation'):
+    """Nom de vue Django de la prochaine étape active après
+    `code_etape_actuelle`. Ignore toute étape CUSTOM (créée librement par le
+    مدير via admin_etape_inscription_ajouter, un code hors des 7 réels de
+    URL_PAR_CODE_ETAPE) en continuant à chercher la suite — sans ça, une
+    étape personnalisée insérée avec un `ordre` malheureux ferait
+    disparaître silencieusement une ou plusieurs vraies pages du parcours
+    (URL_PAR_CODE_ETAPE.get() serait alors None, et `repli` sauterait
+    directement à la confirmation). `repli` n'est donc utilisé que si
+    aucune vraie étape ne suit du tout (ne devrait jamais arriver tant que
+    'confirmation' reste verrouillée active en dernière position) — jamais
+    un 500 pour un élève réel."""
+    code = code_etape_actuelle
+    # Garde-fou anti-boucle : le nombre d'EtapeInscription est fini, cette
+    # boucle ne peut de toute façon jamais dépasser ce nombre d'itérations.
+    for _ in range(100):
+        code = etape_suivante(code)
+        if code is None:
+            return repli
+        if code in URL_PAR_CODE_ETAPE:
+            return URL_PAR_CODE_ETAPE[code]
+    return repli
+
+
 def wizard_donnees(request):
     """Dict accumulé des réponses du wizard en cours pour cette session —
     jamais None, {} si rien n'a encore été soumis."""
@@ -899,7 +988,13 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
     # à l'étape 3) pour l'ajout manuel (Étape 7, pas d'étape intermédiaire
     # séparée) — crée ET lie la DemandeNonSatisfaite en un seul passage ici.
     continuer_sans_groupe = reponses_brutes.get('continuer_sans_groupe') == '1'
-    if type_offre_valeur == 'groupe':
+    # etape_est_active('groupe') (correction 8, 2026-08-22, navigation
+    # dynamique) : si le مدير a désactivé cette étape, wizard_groupe ne
+    # demande alors JAMAIS de groupe (voir sa propre garde) — exiger
+    # groupe_id ici bloquerait TOUTE inscription 'groupe', même avec cette
+    # étape volontairement désactivée. Même repli que l'Individuel
+    # (groupe_id ignoré), pas une erreur.
+    if type_offre_valeur == 'groupe' and etape_est_active('groupe'):
         if not groupe_id:
             # "Continuer sans groupe" (chantier du 2026-08-22, liberté totale
             # du nombre de séances) : accepté SEULEMENT si aucun groupe ne

@@ -17,7 +17,10 @@
     <a href="{% url 'admin_etape_inscription_detail' etape.id %}"
        style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:inherit;">
         <div>
-            <div style="font-weight:700; color:#222;">{{ etape.ordre }}. {{ etape.titre }}</div>
+            <div style="font-weight:700; color:#222;">
+                {{ etape.ordre }}. {{ etape.titre }}
+                {% if etape.est_verrouillee %}<span title="مرحلة أساسية، لا يمكن تعطيلها">🔒</span>{% endif %}
+            </div>
             <div style="color:#888; font-size:0.82rem;">الرمز: {{ etape.code }} — {{ etape.champs.count }} حقل</div>
         </div>
         {% if etape.est_actif %}

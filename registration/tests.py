@@ -1590,6 +1590,217 @@ class WizardGroupeTests(TestCase):
 
 
 # ============================================================================
+# Correction 8 (2026-08-22) — navigation dynamique : EtapeInscription.ordre/
+# est_actif pilote RÉELLEMENT la page suivante visitée par l'élève, plus une
+# simple valeur cosmétique. Avant cette correction, seules 2 étapes sur 7
+# (identite/programme) existaient en base — les 5 autres (catégorie d'âge,
+# groupe, abonnement, paiement, confirmation) étaient de pures vues Python
+# 100% codées en dur (bug signalé le 2026-08-22 : la page مدير des étapes
+# n'en listait que 2).
+# ============================================================================
+class EtapeInscriptionVerrouilleeTests(TestCase):
+    """5 des 7 étapes ne peuvent jamais être désactivées (EtapeInscription.
+    CODES_VERROUILLES) — chacune est un vrai prérequis dur ailleurs dans le
+    code, voir EtapeInscription.__doc__ pour le détail par étape."""
+
+    def test_tentative_de_desactivation_est_ignoree_pour_les_etapes_verrouillees(self):
+        from registration.models import EtapeInscription
+
+        for code in EtapeInscription.CODES_VERROUILLES:
+            etape = EtapeInscription.objects.get(code=code)
+            etape.est_actif = False
+            etape.save()
+            etape.refresh_from_db()
+            self.assertTrue(etape.est_actif, f'{code} aurait dû rester active')
+
+    def test_programme_et_groupe_restent_desactivables(self):
+        """Les 2 SEULES étapes librement activables/désactivables — preuve
+        négative que CODES_VERROUILLES ne verrouille pas tout par excès de
+        prudence."""
+        from registration.models import EtapeInscription
+
+        for code in ('programme', 'groupe'):
+            etape = EtapeInscription.objects.get(code=code)
+            etape.est_actif = False
+            etape.save()
+            etape.refresh_from_db()
+            self.assertFalse(etape.est_actif, f'{code} aurait dû pouvoir être désactivée')
+            etape.est_actif = True  # remis en état pour ne pas polluer les autres tests
+            etape.save()
+
+
+class EtapeSuivanteResolverTests(TestCase):
+    """registration.utils.etape_suivante/etape_est_active/url_etape_suivante
+    en isolation — la séquence par défaut (seed) doit correspondre EXACTEMENT
+    à l'ancien enchaînement figé, avant toute reconfiguration par le مدير."""
+
+    def test_sequence_par_defaut_identique_a_lancien_enchainement_fige(self):
+        from registration.utils import etape_suivante
+
+        self.assertEqual(etape_suivante('categorie_age'), 'identite')
+        self.assertEqual(etape_suivante('identite'), 'programme')
+        self.assertEqual(etape_suivante('programme'), 'groupe')
+        self.assertEqual(etape_suivante('groupe'), 'abonnement')
+        self.assertEqual(etape_suivante('abonnement'), 'paiement')
+        self.assertEqual(etape_suivante('paiement'), 'confirmation')
+        self.assertIsNone(etape_suivante('confirmation'))
+
+    def test_etape_desactivee_est_sautee(self):
+        from registration.models import EtapeInscription
+        from registration.utils import etape_suivante
+
+        EtapeInscription.objects.filter(code='groupe').update(est_actif=False)
+        self.assertEqual(etape_suivante('programme'), 'abonnement')
+        self.assertEqual(etape_suivante('groupe'), 'abonnement')
+
+    def test_reordonnancement_change_reellement_la_sequence(self):
+        from registration.models import EtapeInscription
+        from registration.utils import etape_suivante
+
+        EtapeInscription.objects.filter(code='groupe').update(ordre=10)  # après paiement/confirmation
+        self.assertEqual(etape_suivante('programme'), 'abonnement')
+        self.assertEqual(etape_suivante('abonnement'), 'paiement')
+
+    def test_etape_custom_du_madir_est_transparente_pour_la_navigation(self):
+        """Une étape créée librement par le مدير (code hors des 7 réels,
+        admin_etape_inscription_ajouter) ne doit JAMAIS faire disparaître une
+        vraie page — url_etape_suivante l'ignore et continue de chercher la
+        suite (voir sa docstring, correctif anti-régression explicite)."""
+        from registration.models import EtapeInscription
+        from registration.utils import url_etape_suivante
+
+        EtapeInscription.objects.create(code='test_etape_custom', titre='مرحلة مخصصة', ordre=3, est_actif=True)
+        # Insérée juste après 'programme' (ordre=2) et avant 'groupe' (ordre=3
+        # aussi, mais id plus petit -> 'groupe' passe en premier ; peu
+        # importe l'ordre exact entre les deux, seul compte qu'aucune vraie
+        # page ne disparaisse).
+        self.assertEqual(url_etape_suivante('programme'), 'wizard_groupe')
+
+
+class WizardNavigationDynamiqueTests(TestCase):
+    """Bout en bout (vraies requêtes HTTP, pas juste la fonction resolver en
+    isolation) : désactiver/réordonner une étape depuis le dashboard change
+    RÉELLEMENT le parcours vécu par l'élève."""
+
+    def setUp(self):
+        from registration.models import EtapeInscription
+
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+        self.etape_groupe = EtapeInscription.objects.get(code='groupe')
+        self.etape_programme = EtapeInscription.objects.get(code='programme')
+
+    def _identite(self, client):
+        _choisir_categorie_age(client)
+        client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار التنقل', 'sexe': 'homme', 'email': 'nav.dynamique@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0600778899', 'telephone_confirmation': '0600778899',
+        })
+
+    def _programme(self, client, type_offre='individuel'):
+        return client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': type_offre,
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+
+    def test_etape_groupe_desactivee_saute_meme_pour_un_choix_groupe(self):
+        """Contrairement au saut Individuel (déjà existant avant cette
+        correction) : ici c'est le choix 'groupe' qui est fait, mais l'étape
+        elle-même est désactivée par le مدير — le saut doit quand même avoir
+        lieu, ET inscrire_eleve() ne doit jamais bloquer faute de groupe_id
+        (voir InscrireEleveNavigationDynamiqueTests ci-dessous)."""
+        self.etape_groupe.est_actif = False
+        self.etape_groupe.save()
+
+        client = Client()
+        self._identite(client)
+        reponse = self._programme(client, type_offre='groupe')
+        self.assertRedirects(reponse, reverse('wizard_abonnement'), fetch_redirect_response=False)
+        # GET direct sur l'URL de l'étape groupe, forcée malgré tout : sautée aussi.
+        reponse_get = client.get(reverse('wizard_groupe'))
+        self.assertRedirects(reponse_get, reverse('wizard_abonnement'), fetch_redirect_response=False)
+
+    def test_etape_programme_desactivee_saute_directement_vers_groupe(self):
+        self.etape_programme.est_actif = False
+        self.etape_programme.save()
+
+        client = Client()
+        self._identite(client)
+        reponse_get = client.get(reverse('wizard_programme'))
+        self.assertRedirects(reponse_get, reverse('wizard_groupe'), fetch_redirect_response=False)
+        # POST direct forcé malgré tout : sauté aussi, aucune donnée retenue.
+        reponse_post = client.post(reverse('wizard_programme'), {f'champ_{self.champ_programme.id}': 'hifz'})
+        self.assertRedirects(reponse_post, reverse('wizard_groupe'), fetch_redirect_response=False)
+        self.assertNotIn(f'champ_{self.champ_programme.id}', client.session.get('wizard_inscription', {}))
+
+    def test_reordonnancement_change_le_parcours_reellement_visite(self):
+        """'groupe' déplacé APRÈS 'paiement'/'confirmation' (ordre=10, au lieu
+        de 3) — preuve que le réordonnancement affecte RÉELLEMENT la
+        séquence : url_etape_suivante('abonnement') pointe désormais vers
+        'paiement' (groupe n'est plus juste après), et 'groupe' lui-même,
+        devenu la toute dernière étape active, n'a plus rien après lui."""
+        from registration.utils import url_etape_suivante
+
+        self.etape_groupe.ordre = 10  # après paiement(5)/confirmation(6)
+        self.etape_groupe.save()
+        self.assertEqual(url_etape_suivante('abonnement'), 'wizard_paiement')
+        self.assertEqual(url_etape_suivante('paiement'), 'wizard_confirmation')
+        # 'groupe' devenu la toute dernière étape active dans l'ordre : plus
+        # rien après elle -> repli sur 'wizard_confirmation' (comportement
+        # documenté, pas une erreur — un مدير qui réordonne ainsi obtient un
+        # parcours cohérent uniquement s'il réordonne aussi les étapes
+        # voisines en conséquence, responsabilité assumée comme partout
+        # ailleurs dans ce chantier).
+        self.assertEqual(url_etape_suivante('groupe'), 'wizard_confirmation')
+
+
+class InscrireEleveNavigationDynamiqueTests(TestCase):
+    """inscrire_eleve() ne doit jamais bloquer une inscription 'groupe' faute
+    de groupe_id quand l'étape 'groupe' a été désactivée par le مدير — même
+    repli que l'Individuel (groupe_id ignoré), pas une erreur."""
+
+    def setUp(self):
+        from registration.models import EtapeInscription
+
+        EtapeInscription.objects.filter(code='groupe').update(est_actif=False)
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+        self.abonnement = TypeAbonnement.objects.create(
+            code='test_nav_dyn_abo', label='شهر', prix=80, type_offre='groupe', cible_age='les_deux',
+        )
+
+    def test_inscription_groupe_reussit_sans_groupe_id_si_etape_desactivee(self):
+        reponses = {
+            'nom': 'اختبار بدون مجموعة', 'sexe': 'homme', 'email': 'sans.groupe.etape@zidni.test',
+            'date_naissance': '2000-01-01', 'telephone': '0600112233',
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+            'abonnement_code': self.abonnement.code,
+        }
+        inscription, erreurs = inscrire_eleve(reponses)
+        self.assertEqual(erreurs, [])
+        self.assertIsNotNone(inscription)
+        self.assertIsNone(inscription.groupe_choisi)
+
+
+# ============================================================================
 # Chantier du 2026-08-22 — "liberté totale du nombre de séances" : quand
 # AUCUN groupe ne correspond à la combinaison EXACTE de critères (généralisé
 # à TOUTE combinaison, pas seulement le nombre de séances) : message

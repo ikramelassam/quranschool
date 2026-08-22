@@ -63,19 +63,26 @@ def wizard_intro(request):
     """Étape 0 — présentation (ميثاق), contenu entièrement lu depuis
     PresentationInscription (Étape 5C), jamais codé en dur dans le template.
     Simple écran d'accueil, aucune donnée à soumettre ici — le bouton mène
-    directement à l'étape 1.
+    à la prochaine étape active après 'categorie_age' (correction 8,
+    2026-08-22, navigation dynamique) — 'identite' normalement, mais
+    résolu dynamiquement pour rester cohérent si elle venait à changer de
+    position (elle reste verrouillée première en pratique, voir
+    EtapeInscription.CODES_VERROUILLES, mais jamais un lien codé en dur ici
+    non plus).
 
     SAUT SERVEUR si la catégorie d'âge n'a pas encore été choisie (chantier
     du 2026-08-22) — pas un simple masquage JS, un visiteur qui force cette
     URL directement est TOUJOURS redirigé, même méthode que le saut Individuel
     de wizard_groupe (Partie 3/26)."""
     from .models import get_presentation_inscription
+    from .utils import url_etape_suivante
 
     if 'type_age_choisi' not in wizard_donnees(request):
         return redirect('wizard_categorie_age')
 
     return render(request, 'inscriptions/wizard_intro.html', {
         'presentation': get_presentation_inscription(),
+        'url_suivante': url_etape_suivante('categorie_age'),
     })
 
 
@@ -124,7 +131,7 @@ def wizard_identite(request):
     SEULE source de vérité, jamais dupliquée — voir wizard_categorie_age)."""
     from courses.utils import tranche_age_depuis_naissance
     from inscriptions.views import MESSAGE_AGE_NE_CORRESPOND_PAS, _construire_et_valider_telephone
-    from .utils import champs_structurels_actifs, valider_champ_structurel_libre
+    from .utils import champs_structurels_actifs, url_etape_suivante, valider_champ_structurel_libre
 
     donnees_session = wizard_donnees(request)
     if 'type_age_choisi' not in donnees_session:
@@ -239,7 +246,7 @@ def wizard_identite(request):
             for champ in champs_info:
                 nouvelles_valeurs[f'champ_{champ.id}'] = request.POST.get(f'champ_{champ.id}', '').strip()
             wizard_maj(request, nouvelles_valeurs)
-            return redirect('wizard_programme')
+            return redirect(url_etape_suivante('identite'))
 
         return render(request, 'inscriptions/wizard_identite.html', {
             'champs_info': champs_info, 'configs': _avec_valeurs_actuelles(request.POST),
@@ -309,12 +316,22 @@ def wizard_programme(request):
     avant) — un élève peut demander N'IMPORTE QUEL nombre, même si aucun
     groupe n'a jamais eu ce nombre de séances. Si ça mène à zéro groupe
     correspondant exactement, voir wizard_groupe (message configurable +
-    DemandeNonSatisfaite, généralisé à TOUTE combinaison de critères)."""
-    from .utils import _reponses_a_creer_pour_champ, extraire_champs_depuis_post, wizard_donnees, wizard_maj
+    DemandeNonSatisfaite, généralisé à TOUTE combinaison de critères).
+
+    SAUT SERVEUR si l'étape 'programme' a été désactivée par le مدير
+    (correction 8, 2026-08-22, navigation dynamique) — même principe que le
+    saut Individuel de wizard_groupe : un visiteur qui force cette URL est
+    TOUJOURS redirigé, quelle que soit la méthode HTTP."""
+    from .utils import (
+        _reponses_a_creer_pour_champ, etape_est_active, extraire_champs_depuis_post, url_etape_suivante,
+        wizard_donnees, wizard_maj,
+    )
 
     donnees = wizard_donnees(request)
     if 'nom' not in donnees:
         return redirect('wizard_identite')
+    if not etape_est_active('programme'):
+        return redirect(url_etape_suivante('programme'))
 
     if request.method == 'POST':
         # IMPORTANT : les RegleCondition doivent être évaluées avec les
@@ -346,7 +363,7 @@ def wizard_programme(request):
 
         if not erreurs:
             wizard_maj(request, nouvelles_valeurs)
-            return redirect('wizard_groupe')
+            return redirect(url_etape_suivante('programme'))
 
         return render(request, 'inscriptions/wizard_programme.html', {
             'champs': champs, 'erreurs': erreurs, 'valeurs_form': {**donnees, **request.POST.dict()},
@@ -405,17 +422,22 @@ def wizard_groupe(request):
     from inscriptions.models import get_parametres_inscriptions
     from .models import DemandeNonSatisfaite, get_presentation_inscription
     from .utils import (
-        groupes_avec_place_disponible, groupes_compatibles_avec_age, snapshot_criteres_pour_demande,
-        wizard_donnees, wizard_maj,
+        etape_est_active, groupes_avec_place_disponible, groupes_compatibles_avec_age,
+        snapshot_criteres_pour_demande, url_etape_suivante, wizard_donnees, wizard_maj,
     )
 
     donnees = wizard_donnees(request)
     if 'nom' not in donnees:
         return redirect('wizard_identite')
 
+    # SAUT SERVEUR (correction 8, 2026-08-22, navigation dynamique) : soit le
+    # critère type_offre vaut 'individuel' (déjà le cas avant cette
+    # correction), soit le مدير a lui-même désactivé cette étape — dans les
+    # 2 cas, url_etape_suivante('groupe') retrouve la même page suivante,
+    # aucun besoin de distinguer la raison ici.
     type_offre_valeur, reponses_pour_filtrage = _type_offre_et_reponses_filtrage(donnees)
-    if type_offre_valeur != 'groupe':
-        return redirect('wizard_abonnement')
+    if type_offre_valeur != 'groupe' or not etape_est_active('groupe'):
+        return redirect(url_etape_suivante('groupe'))
 
     date_naissance = datetime.date.fromisoformat(donnees['date_naissance'])
     sexe = donnees['sexe']
@@ -484,7 +506,7 @@ def wizard_groupe(request):
                 'groupe_id': str(groupe_choisi.id) if groupe_choisi else '',
                 'demande_non_satisfaite_id': str(demande.id),
             })
-            return redirect('wizard_abonnement')
+            return redirect(url_etape_suivante('groupe'))
 
         groupe_id = request.POST.get('groupe_id')
         groupe_choisi = groupes.filter(id=groupe_id).first() if groupe_id else None
@@ -501,7 +523,7 @@ def wizard_groupe(request):
                 **contexte_commun, 'erreurs': ['يرجى اختيار مجموعة من القائمة المتاحة.'],
             })
         wizard_maj(request, {'groupe_id': groupe_id})
-        return redirect('wizard_abonnement')
+        return redirect(url_etape_suivante('groupe'))
 
     return render(request, 'inscriptions/wizard_groupe.html', contexte_commun)
 
@@ -517,14 +539,19 @@ def wizard_abonnement(request):
     abonnements_avec_prix_effectif() pose `.prix_affiche` sur chaque
     TypeAbonnement, jamais TypeAbonnement.prix affiché brut directement."""
     from courses.utils import tranche_age_depuis_naissance
-    from .utils import abonnements_avec_prix_effectif, abonnements_disponibles, nb_slots_repondu
+    from .utils import abonnements_avec_prix_effectif, abonnements_disponibles, etape_est_active, nb_slots_repondu, url_etape_suivante
 
     donnees = wizard_donnees(request)
     if 'nom' not in donnees:
         return redirect('wizard_identite')
 
     type_offre_valeur, _ = _type_offre_et_reponses_filtrage(donnees)
-    if type_offre_valeur == 'groupe' and 'groupe_id' not in donnees:
+    # etape_est_active('groupe') évite une boucle infinie (correction 8,
+    # 2026-08-22) : si cette étape est désactivée par le مدير, groupe_id ne
+    # sera JAMAIS en session (wizard_groupe redirige déjà lui-même vers la
+    # suite sans jamais le demander) — sans cette condition, ce garde-fou
+    # renverrait indéfiniment vers wizard_groupe, qui renverrait aussitôt ici.
+    if type_offre_valeur == 'groupe' and etape_est_active('groupe') and 'groupe_id' not in donnees:
         # Choix "Groupe" fait mais aucun groupe encore retenu — retour à
         # l'étape 3 plutôt que de proposer un abonnement sans groupe associé.
         return redirect('wizard_groupe')
@@ -547,7 +574,7 @@ def wizard_abonnement(request):
                 'wizard_etape_num': 4,
             })
         wizard_maj(request, {'abonnement_code': code})
-        return redirect('wizard_paiement')
+        return redirect(url_etape_suivante('abonnement'))
 
     return render(request, 'inscriptions/wizard_abonnement.html', {
         'abonnements': abonnements_avec_prix_effectif(abonnements, nb_slots), 'wizard_etape_num': 4,
@@ -608,7 +635,7 @@ def _wizard_confirmer_inscription(request, donnees, moyens, date_limite, paramet
       test_groupe_id_devenu_incompatible_entre_etape_3_et_confirmation_est_
       rejete_a_la_confirmation)."""
     from .models import get_presentation_inscription
-    from .utils import inscrire_eleve
+    from .utils import inscrire_eleve, url_etape_suivante
 
     moyen_code = request.POST.get('moyen_paiement_code', '')
     if not moyens.filter(code=moyen_code).exists():
@@ -639,7 +666,7 @@ def _wizard_confirmer_inscription(request, donnees, moyens, date_limite, paramet
         'message_bienvenue': presentation.message_bienvenue,
         'delai_contact_heures': parametres.delai_contact_heures,
     }
-    return redirect('wizard_confirmation')
+    return redirect(url_etape_suivante('paiement'))
 
 
 @never_cache

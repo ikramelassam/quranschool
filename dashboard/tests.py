@@ -2707,6 +2707,62 @@ class EtapeChampRegleInscriptionCRUDTests(TestCase):
             reponse = client.get(reverse('admin_etapes_inscription'))
             self.assertEqual(reponse.status_code, 200)
 
+    def test_liste_affiche_les_7_vraies_etapes_du_parcours(self):
+        """Correction 8 (2026-08-22) : bug signalé — seules 2 étapes sur 7
+        s'affichaient (identite/programme, seules seedées avant la migration
+        0007). Vérifie que TOUTES les vraies étapes du parcours public sont
+        désormais listées."""
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_etapes_inscription')).content.decode('utf-8')
+        for code in ('categorie_age', 'identite', 'programme', 'groupe', 'abonnement', 'paiement', 'confirmation'):
+            self.assertIn(code, html, f'{code} devrait apparaître dans la liste')
+
+    def test_etapes_verrouillees_affichent_le_cadenas_et_pas_de_bouton_toggle(self):
+        client = self._connecte_admin()
+        for code in EtapeInscription.CODES_VERROUILLES:
+            etape = EtapeInscription.objects.get(code=code)
+            html = client.get(reverse('admin_etape_inscription_detail', args=[etape.id])).content.decode('utf-8')
+            self.assertIn('🔒', html)
+            self.assertNotIn(reverse('admin_etape_inscription_toggle', args=[etape.id]), html)
+            self.assertNotIn(reverse('admin_etape_inscription_supprimer', args=[etape.id]), html)
+
+    def test_toggle_refuse_pour_une_etape_verrouillee(self):
+        client = self._connecte_admin()
+        etape = EtapeInscription.objects.get(code='abonnement')
+        client.get(reverse('admin_etape_inscription_toggle', args=[etape.id]))
+        etape.refresh_from_db()
+        self.assertTrue(etape.est_actif)
+
+    def test_toggle_fonctionne_pour_une_etape_non_verrouillee(self):
+        client = self._connecte_admin()
+        etape = EtapeInscription.objects.get(code='groupe')
+        client.get(reverse('admin_etape_inscription_toggle', args=[etape.id]))
+        etape.refresh_from_db()
+        self.assertFalse(etape.est_actif)
+        etape.est_actif = True  # remis en état
+        etape.save()
+
+    def test_suppression_refusee_pour_une_etape_verrouillee_meme_sans_champs(self):
+        """Ces étapes n'ont souvent AUCUN ChampInscription (groupe/abonnement/
+        paiement/confirmation/categorie_age ne rendent jamais de champ
+        générique) — le garde-fou ProtectedError (déjà testé ailleurs pour
+        une étape avec champs) ne se déclencherait donc JAMAIS pour elles ;
+        ce test vérifie le garde-fou explicite dédié aux étapes verrouillées."""
+        client = self._connecte_admin()
+        etape = EtapeInscription.objects.get(code='confirmation')
+        self.assertEqual(etape.champs.count(), 0)
+        client.get(reverse('admin_etape_inscription_supprimer', args=[etape.id]))
+        self.assertTrue(EtapeInscription.objects.filter(id=etape.id).exists())
+
+    def test_modifier_ignore_est_actif_poste_pour_une_etape_verrouillee(self):
+        client = self._connecte_admin()
+        etape = EtapeInscription.objects.get(code='paiement')
+        client.post(reverse('admin_etape_inscription_modifier', args=[etape.id]), {
+            'titre': etape.titre, 'ordre': etape.ordre,  # 'est_actif' volontairement absent (décoché)
+        })
+        etape.refresh_from_db()
+        self.assertTrue(etape.est_actif)
+
     def test_ajout_etape_reussit_pour_les_deux_roles(self):
         for i, client in enumerate((self._connecte_admin(), self._connecte_mshrif())):
             reponse = client.post(reverse('admin_etape_inscription_ajouter'), {

@@ -129,15 +129,63 @@ class EtapeInscription(models.Model):
     """Une étape du parcours d'inscription (المعلومات الشخصية، اختيار البرنامج...).
     Le contenu texte de l'étape 0 (présentation/ميثاق) vit dans PresentationInscription,
     pas ici — une EtapeInscription ne porte que la structure du formulaire, jamais du
-    texte de présentation libre."""
+    texte de présentation libre.
+
+    Chantier du 2026-08-22 (correction 8, "navigation dynamique") : représente
+    désormais les 7 VRAIES étapes du parcours public (catégorie d'âge, identité,
+    programme, groupe, abonnement, paiement, confirmation) — pas seulement
+    identite/programme comme avant cette correction. `ordre` pilote RÉELLEMENT
+    la page suivante visitée par l'élève (voir registration.utils.
+    etape_suivante), plus une simple valeur cosmétique pour trier les
+    ChampInscription à l'intérieur d'une étape. L'étape 0 (ميثاق/wizard_intro)
+    reste HORS de ce modèle : un simple écran de présentation
+    (PresentationInscription), jamais une étape avec `ordre`/`est_actif` à
+    reconfigurer.
+
+    CODES_VERROUILLES : 5 des 7 étapes ne peuvent PAS être désactivées (save()
+    y réécrit silencieusement est_actif=True, même défense en profondeur que
+    ConfigurationChampStructurel.CLES_VERROUILLEES) car chacune est un VRAI
+    prérequis dur ailleurs dans le code, pas juste une préférence d'affichage :
+    - categorie_age : porte d'entrée du parcours — sans elle, aucune tranche
+      d'âge connue pour filtrer quoi que ce soit.
+    - identite : sexe/date_naissance/email y sont eux-mêmes verrouillés
+      (contraintes structurelles, voir ConfigurationChampStructurel) —
+      désactiver l'ÉTAPE entière les rendrait invisibles ET non validés
+      (champs_structurels_actifs filtre sur etape__est_actif), cassant leur
+      propre verrouillage par la bande.
+    - abonnement : inscrire_eleve() EXIGE toujours un abonnement_code valide
+      (aucun repli "abonnement par défaut") — désactiver cette étape rendrait
+      TOUTE inscription impossible à finaliser, un vrai blocage silencieux.
+    - paiement : héberge le POST qui déclenche réellement inscrire_eleve()
+      (_wizard_confirmer_inscription) — aucune autre vue ne le fait, la
+      désactiver reviendrait à supprimer le bouton "s'inscrire" lui-même.
+    - confirmation : rien après elle, purement l'écran de succès.
+    'programme' et 'groupe' restent librement activables/désactivables ET
+    réordonnables : 'groupe' est déjà conditionnel (ignoré si type_offre=
+    'individuel', voir registration.utils.etape_est_active) et 'programme'
+    dégrade déjà proprement à vide si désactivée (champs_structurels_actifs
+    style, jamais une exception)."""
 
     code = models.SlugField(max_length=50, unique=True)
     titre = models.CharField(max_length=200)
     ordre = models.IntegerField(default=0)
     est_actif = models.BooleanField(default=True)
 
+    CODES_VERROUILLES = {'categorie_age', 'identite', 'abonnement', 'paiement', 'confirmation'}
+
+    def save(self, *args, **kwargs):
+        if self.code in self.CODES_VERROUILLES:
+            self.est_actif = True
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.titre
+
+    @property
+    def est_verrouillee(self):
+        """Utilisé côté template (pas de lookup de dict par variable, même
+        principe que ConfigurationChampStructurel.est_verrouille)."""
+        return self.code in self.CODES_VERROUILLES
 
     class Meta:
         ordering = ['ordre', 'id']

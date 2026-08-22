@@ -6176,19 +6176,29 @@ def admin_etape_inscription_detail(request, etape_id):
 
 @role_required('admin', 'mshrif')
 def admin_etape_inscription_modifier(request, etape_id):
+    """Correction 8 (2026-08-22, navigation dynamique) : `ordre` pilote
+    désormais RÉELLEMENT la page suivante visitée par l'élève (voir
+    registration.utils.etape_suivante) — plus une simple valeur cosmétique.
+    Une étape verrouillée (EtapeInscription.CODES_VERROUILLES) reste
+    modifiable en titre/ordre, mais `est_actif` posté est ignoré : model.
+    save() le réécrirait de toute façon (défense en profondeur), même
+    principe exact que admin_champ_structurel_modifier."""
     from registration.models import EtapeInscription
 
     etape = get_object_or_404(EtapeInscription, id=etape_id)
+    verrouillee = etape.est_verrouillee
     if request.method == 'POST':
         etape.titre = request.POST.get('titre', '').strip()
         etape.ordre = request.POST.get('ordre') or 0
-        etape.est_actif = request.POST.get('est_actif') == 'on'
+        if not verrouillee:
+            etape.est_actif = request.POST.get('est_actif') == 'on'
         etape.save()
         messages.success(request, f'تم تعديل المرحلة "{etape.titre}" بنجاح.')
         return redirect('admin_etape_inscription_detail', etape.id)
 
     return render(request, 'dashboard/admin_etape_inscription_modifier.html', {
         'etape': etape,
+        'verrouillee': verrouillee,
         'base_template': _base_template_admin_ou_mshrif(request),
     })
 
@@ -6197,6 +6207,12 @@ def admin_etape_inscription_modifier(request, etape_id):
 def admin_etape_inscription_toggle(request, etape_id):
     from registration.models import EtapeInscription
     etape = get_object_or_404(EtapeInscription, id=etape_id)
+    if etape.est_verrouillee:
+        messages.error(
+            request,
+            f'"{etape.titre}" مرحلة أساسية للتسجيل ولا يمكن تعطيلها — راجع تفاصيل المرحلة لمعرفة السبب.'
+        )
+        return redirect('admin_etapes_inscription')
     etape.est_actif = not etape.est_actif
     etape.save()
     messages.info(request, 'تم تفعيل المرحلة.' if etape.est_actif else 'تم تعطيل المرحلة — لن تظهر في نموذج التسجيل.')
@@ -6210,6 +6226,16 @@ def admin_etape_inscription_supprimer(request, etape_id):
 
     etape = get_object_or_404(EtapeInscription, id=etape_id)
     titre = etape.titre
+    if etape.est_verrouillee:
+        # Contrairement au garde-fou ProtectedError ci-dessous (déclenché
+        # seulement si des ChampInscription y sont déjà rattachés) : ces 5
+        # étapes n'ont souvent AUCUN champ (groupe/abonnement/paiement/
+        # confirmation/categorie_age ne rendent jamais de ChampInscription
+        # générique) — ProtectedError ne se déclencherait donc jamais pour
+        # elles, un vrai risque de suppression silencieuse sans ce garde
+        # explicite.
+        messages.error(request, f'"{titre}" مرحلة أساسية للتسجيل ولا يمكن حذفها.')
+        return redirect('admin_etapes_inscription')
     try:
         etape.delete()
         messages.success(request, f'تم حذف المرحلة "{titre}".')

@@ -2,6 +2,16 @@
 {% block title %}تعديل {{ etape.titre }}{% endblock %}
 {% block content %}
 <div class="page-title">تعديل مرحلة: {{ etape.titre }}</div>
+<div class="page-subtitle">ترتيب الظهور يُحدد فعلياً الصفحة التالية التي يزورها المسجِّل — وليس مجرد قيمة تجميلية.</div>
+
+{% if verrouillee %}
+<div style="background:#fff3cd; border-radius:12px; padding:16px 20px; margin-bottom:24px;">
+    <div style="color:#856404; font-weight:600;">
+        🔒 هذه مرحلة أساسية للتسجيل — لا يمكن تعطيلها (شرط حقيقي في الكود يعتمد عليها، راجع التوثيق التقني إن
+        احتجت التفاصيل). فقط العنوان المعروض والترتيب قابلان للتعديل.
+    </div>
+</div>
+{% endif %}
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
@@ -18,10 +28,14 @@
             <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
             <input type="number" name="ordre" class="form-control mt-1" value="{{ etape.ordre }}">
         </div>
+        {% if verrouillee %}
+            <div style="color:#888; font-size:0.85rem; margin-bottom:16px;">🔒 نشطة دائماً (غير قابلة للتعطيل)</div>
+        {% else %}
         <div class="form-check mb-3">
             <input type="checkbox" name="est_actif" id="est_actif" class="form-check-input" {% if etape.est_actif %}checked{% endif %}>
             <label class="form-check-label" for="est_actif" style="font-weight:600; color:#333;">نشطة</label>
         </div>
+        {% endif %}
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
