@@ -4646,10 +4646,18 @@ def admin_calendrier(request):
 
 @role_required('admin', 'mshrif')
 def admin_parametres_abonnements(request):
+    """Correction 5 (2026-08-22, suite au test local) : la liste est séparée
+    en 2 sections claires ("Groupe"/"Individuel", TypeAbonnement.type_offre)
+    au lieu d'une seule liste plate mélangeant les deux — même axe déjà
+    utilisé partout ailleurs pour ce champ (registration.utils.
+    abonnements_disponibles, GrillePrixAbonnement.__doc__). Toujours
+    ordonnées par `ordre` À L'INTÉRIEUR de chaque section, jamais un tri
+    global qui mélangerait à nouveau les 2 types."""
     from inscriptions.models import TypeAbonnement
     types_abonnement = TypeAbonnement.objects.all().order_by('ordre')
     context = {
-        'types_abonnement': types_abonnement,
+        'types_abonnement_groupe': [t for t in types_abonnement if t.type_offre == 'groupe'],
+        'types_abonnement_individuel': [t for t in types_abonnement if t.type_offre == 'individuel'],
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))

@@ -3557,6 +3557,58 @@ class AjoutManuelEleveTests(TestCase):
         self.assertIn('data-obligatoire="1"', html)
 
 
+class AdminParametresAbonnementsTests(TestCase):
+    """Correction 5 (2026-08-22, suite au test local) : la liste sépare
+    désormais Groupe/Individuel en 2 sections claires, au lieu d'une seule
+    liste plate mélangeant les deux."""
+
+    def setUp(self):
+        from inscriptions.models import TypeAbonnement
+
+        self.admin = _creer_admin()
+        self.prof = _creer_prof()
+        self.abo_groupe = TypeAbonnement.objects.create(
+            code='test_section_groupe', label='شهر تجريبي', prix=80, type_offre='groupe',
+        )
+        self.abo_individuel = TypeAbonnement.objects.create(
+            code='test_section_individuel', label='شهر تجريبي فردي', prix=400, type_offre='individuel',
+        )
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def test_role_required_refuse_un_prof(self):
+        client = Client()
+        client.force_login(self.prof.user)
+        reponse = client.get(reverse('admin_parametres_abonnements'))
+        self.assertEqual(reponse.status_code, 302)
+
+    def test_2_sections_separent_groupe_et_individuel(self):
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_parametres_abonnements')).content.decode('utf-8')
+        self.assertIn('اشتراكات جماعية', html)
+        self.assertIn('اشتراكات فردية', html)
+        # Chaque abonnement apparaît, et une SEULE fois (pas dans les 2 sections).
+        self.assertEqual(html.count('شهر تجريبي فردي'), 1)
+        # L'abonnement groupe apparaît dans la section جماعية AVANT فردية.
+        position_section_groupe = html.index('اشتراكات جماعية')
+        position_section_individuelle = html.index('اشتراكات فردية')
+        position_abo_groupe = html.index('test_section_groupe')
+        position_abo_individuel = html.index('test_section_individuel')
+        self.assertTrue(position_section_groupe < position_abo_groupe < position_section_individuelle)
+        self.assertTrue(position_section_individuelle < position_abo_individuel)
+
+    def test_section_vide_affiche_message_dedie(self):
+        from inscriptions.models import TypeAbonnement
+        TypeAbonnement.objects.filter(type_offre='individuel').delete()
+
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_parametres_abonnements')).content.decode('utf-8')
+        self.assertIn('لا توجد أنواع اشتراك من هذا النوع بعد', html)
+
+
 # ============================================================================
 # Correction du 2026-08-22 (chantier grille de prix incohérente/incomplète) :
 # admin_abonnement_modifier fusionne désormais les infos générales du
