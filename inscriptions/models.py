@@ -21,16 +21,19 @@ class TypeAbonnement(models.Model):
     ]
 
     code = models.SlugField(max_length=30, unique=True)
+    # Depuis la correction 4 du 2026-08-22 (page مدير, suite au test local) :
+    # `label` ne répète PLUS le type d'offre (ex: "شهر", jamais "جماعي -
+    # شهر") — ce dernier est déjà visible ailleurs partout où `label` est
+    # affiché seul (section dédiée de la liste مدير, voir correction 5 du
+    # même cycle ; étape précédente du wizard public). Migration 0025 a
+    # nettoyé les libellés existants en base (best-effort, réversible).
+    # Avant cette correction, `label` portait le nom complet ("جماعي -
+    # شهر") — voir `duree`, ajouté un cycle plus tôt pour le même problème
+    # mais uniquement à l'AFFICHAGE (jamais persisté) ; les 2 corrections
+    # se recoupent maintenant : `duree` reste un champ à part (jamais
+    # dérivé de `label`), simplement rarement nécessaire aujourd'hui que
+    # `label` est déjà court.
     label = models.CharField(max_length=100)
-    # Durée SEULE (ex: "شهر", "3 أشهر"), sans répéter جماعي/فردي — ajouté le
-    # 2026-08-22 (correction 5, chantier grille de prix) : à l'étape
-    # Abonnement du wizard ET à admin_eleve_ajouter_manuel, le type d'offre
-    # (جماعي/فردي) a déjà été choisi 2 étapes plus tôt, répéter "جماعي - شهر"
-    # sur chaque ligne de prix était redondant. `label` reste INCHANGÉ et
-    # continue de porter le nom complet partout ailleurs (liste مدير,
-    # InscriptionEleve, etc.) — `duree` est un champ à part, jamais dérivé
-    # de `label` par un découpage de texte fragile. Vide -> duree_affichee
-    # retombe sur `label` en entier (jamais un champ vide affiché).
     duree = models.CharField(max_length=50, blank=True, default='')
     prix = models.DecimalField(max_digits=8, decimal_places=2)
     # Utilisé pour comparer un abonnement choisi à l'inscription au type_capacite
@@ -41,7 +44,11 @@ class TypeAbonnement(models.Model):
     ordre = models.IntegerField(default=0)
 
     def __str__(self):
-        return f"{self.label} ({self.prix} درهم)"
+        # get_type_offre_display() plutôt que `label` seul (depuis la
+        # correction 4, `label` ne porte plus le type d'offre) — utile
+        # notamment dans l'admin Django natif (inscriptions.admin), qui
+        # n'a pas de section dédiée par type comme la liste مدير.
+        return f"{self.get_type_offre_display()} - {self.label} ({self.prix} درهم)"
 
     @property
     def duree_affichee(self):
@@ -84,7 +91,9 @@ class GrillePrixAbonnement(models.Model):
     est_actif = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.type_abonnement.label} — {self.nb_slots} حصص/أسبوع ({self.prix} درهم)"
+        # str(self.type_abonnement) plutôt que .label seul (depuis la
+        # correction 4, .label ne porte plus le type d'offre جماعي/فردي).
+        return f"{self.type_abonnement} — {self.nb_slots} حصص/أسبوع ({self.prix} درهم)"
 
     class Meta:
         unique_together = ('type_abonnement', 'nb_slots')
