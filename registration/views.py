@@ -152,6 +152,19 @@ def wizard_identite(request):
             nom_parent_config.label = 'اسم ولي الأمر'
             nom_parent_config.obligatoire = True
 
+    # job_actuel : même incohérence que nom_parent (label seedé en 0004
+    # avec une mention conditionnelle vague, "أو عمل ولي الأمر إن كان
+    # المسجَّل قاصراً") — même correction, même principe (le choix بالغ/طفل
+    # est déjà connu, jamais reposer la question implicitement dans le
+    # label). Contrairement à nom_parent, ce champ reste affiché dans les
+    # 2 cas (juste sa CIBLE change) — jamais supprimé de `configs`.
+    job_actuel_config = configs_par_cle.get('job_actuel')
+    if job_actuel_config is not None:
+        if type_age_choisi == 'adulte':
+            job_actuel_config.label = 'العمل الحالي'
+        else:  # 'enfant'
+            job_actuel_config.label = 'عمل ولي الأمر'
+
     def _avec_valeurs_actuelles(valeurs):
         # Pose `.valeur_actuelle` sur chaque config à partir d'un dict/
         # QueryDict — évite le piège classique "lookup de dict par variable"

@@ -469,6 +469,33 @@ class TypeAbonnementDureeAfficheeTests(TestCase):
         self.assertEqual(abo.duree_affichee, 'جماعي - شهر')
 
 
+class TypeAbonnementLabelNettoyeTests(TestCase):
+    """Correction 4 (2026-08-22, suite au test local de la page مدير) :
+    `label` ne doit plus répéter le type d'offre (جماعي/فردي) — c'est la
+    DONNÉE elle-même qui devait être nettoyée (migration 0025), pas
+    seulement l'affichage (déjà réglé par `duree`, correction 5 du cycle
+    précédent). Vérifié sur les 4 codes seedés réellement en base, pas sur
+    un objet recréé dans le test (la migration ne s'exécute pas à chaque
+    test, seulement une fois pour de vrai — ce test vérifie donc l'état
+    réel après migration, sur toutes les bases où elle tourne, y compris
+    en production)."""
+
+    def test_labels_seedes_ne_contiennent_plus_le_prefixe_type_offre(self):
+        for code in ('groupe_1mois', 'groupe_3mois', 'individuel_1mois', 'individuel_3mois'):
+            abo = TypeAbonnement.objects.get(code=code)
+            self.assertFalse(abo.label.startswith('جماعي - '), f'{code}: {abo.label!r}')
+            self.assertFalse(abo.label.startswith('فردي - '), f'{code}: {abo.label!r}')
+
+    def test_str_conserve_le_type_offre_malgre_le_label_nettoye(self):
+        """__str__ (utilisé notamment par l'admin Django natif,
+        inscriptions.admin) doit continuer à distinguer جماعي/فردي même si
+        `label` seul ne le porte plus."""
+        abo = TypeAbonnement.objects.get(code='groupe_1mois')
+        self.assertIn('جماعي', str(abo))
+        abo_individuel = TypeAbonnement.objects.get(code='individuel_1mois')
+        self.assertIn('فردي', str(abo_individuel))
+
+
 class CouvertureGrillePrixTests(TestCase):
     """Base de calcul changée le 2026-08-22 : plage_nb_slots_grille_prix()
     (fixe, 1..10) au lieu de nb_slots_reels_systeme() (groupes réels) —
@@ -1077,6 +1104,24 @@ class WizardCategorieAgeTests(TestCase):
         })
         self.assertRedirects(reponse, reverse('wizard_programme'), fetch_redirect_response=False)
         self.assertNotIn('nom_parent', client.session['wizard_inscription'])
+
+    def test_job_actuel_cible_eleve_si_adulte_choisi(self):
+        """Même incohérence que nom_parent (demande du 2026-08-22) : le label
+        seedé ("العمل الحالي (أو عمل ولي الأمر إن كان المسجَّل قاصراً)") est
+        remplacé par un label ciblé selon le choix بالغ/طفل déjà fait."""
+        client = Client()
+        client.post(reverse('wizard_categorie_age'), {'type_age': 'adulte'})
+        html = client.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertIn('العمل الحالي', html)
+        self.assertNotIn('عمل ولي الأمر', html)
+        self.assertNotIn('العمل الحالي (أو عمل ولي الأمر إن كان المسجَّل قاصراً)', html)
+
+    def test_job_actuel_cible_wali_al_amr_si_enfant_choisi(self):
+        client = Client()
+        client.post(reverse('wizard_categorie_age'), {'type_age': 'enfant'})
+        html = client.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertIn('عمل ولي الأمر', html)
+        self.assertNotIn('العمل الحالي (أو عمل ولي الأمر إن كان المسجَّل قاصراً)', html)
 
 
 # ============================================================================
@@ -2362,13 +2407,17 @@ class WizardIdentiteChampsStructurelsTests(TestCase):
         self.assertNotIn('job_actuel', client.session['wizard_inscription'])
 
     def test_champ_generique_rendu_obligatoire_bloque_si_vide(self):
-        config = ConfigurationChampStructurel.objects.get(champ_cle='job_actuel')
+        # niveau_scolaire plutôt que job_actuel : depuis la correction du
+        # 2026-08-22 (label ciblé selon بالغ/طفل), job_actuel n'affiche plus
+        # jamais son label brut de configuration — voir test_job_actuel_*
+        # dans WizardCategorieAgeTests pour ce comportement spécifique.
+        config = ConfigurationChampStructurel.objects.get(champ_cle='niveau_scolaire')
         config.obligatoire = True
         config.save()
 
         client = Client()
         _choisir_categorie_age(client)
-        reponse = client.post(reverse('wizard_identite'), self._reponses_valides(job_actuel=''))
+        reponse = client.post(reverse('wizard_identite'), self._reponses_valides(niveau_scolaire=''))
         self.assertEqual(reponse.status_code, 200)
         html = reponse.content.decode('utf-8')
         # Django échappe les guillemets ("&quot;") dans {{ erreur }} — on
