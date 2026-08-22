@@ -3959,3 +3959,29 @@ class AdminDemandesNonSatisfaitesTests(TestCase):
         client.force_login(_creer_prof('prof_demandes_non_satisfaites@zidni.test').user)
         reponse = client.get(reverse('admin_demandes_non_satisfaites'))
         self.assertNotEqual(reponse.status_code, 200)
+
+    def test_criteres_json_avec_une_liste_ne_plante_pas(self):
+        """Bug du 2026-08-22 : un critère choix_multiple stocke sa valeur
+        sous forme de LISTE dans criteres_json (voir snapshot_criteres_pour_
+        demande) — reproduit exactement le scénario signalé (élève ayant
+        cliqué "لا، أنتظر حتى يتم إنشاء الحلقة" à l'étape Groupe avec un
+        critère choix_multiple répondu). Avant fix : TypeError: unhashable
+        type: 'list' (une liste utilisée telle quelle dans une clé de dict/
+        Counter pour le regroupement par combinaison)."""
+        from registration.models import Critere, CritereOption, DemandeNonSatisfaite
+
+        langue = Critere.objects.create(code='test_langue_dns', label='اللغة', type_champ='choix_multiple')
+        CritereOption.objects.create(critere=langue, code='ar', label='العربية', ordre=0)
+        CritereOption.objects.create(critere=langue, code='fr', label='الفرنسية', ordre=1)
+
+        DemandeNonSatisfaite.objects.create(
+            criteres_json={'test_langue_dns': ['ar', 'fr']}, type_offre='groupe', nb_slots=5, age=9, sexe='homme',
+        )
+
+        client = self._connecte_admin()
+        reponse = client.get(reverse('admin_demandes_non_satisfaites'))
+        self.assertEqual(reponse.status_code, 200)
+        html = reponse.content.decode('utf-8')
+        self.assertIn('اللغة:', html)
+        self.assertIn('العربية', html)
+        self.assertIn('الفرنسية', html)

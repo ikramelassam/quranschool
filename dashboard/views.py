@@ -6525,11 +6525,21 @@ def admin_demandes_non_satisfaites(request):
     # Regroupe par (criteres_json, nb_slots) — âge/sexe restent des détails
     # individuels affichés par demande, pas un axe de regroupement (sinon
     # 2 demandes identiques par ailleurs mais d'âges différents ne
-    # compteraient jamais comme "la même tendance").
+    # compteraient jamais comme "la même tendance"). criteres_json peut
+    # contenir des LISTES en valeur (critères choix_multiple, voir
+    # DemandeNonSatisfaite.criteres_json) — une liste n'est pas hashable,
+    # donc pas utilisable telle quelle comme clé de dict/Counter (bug du
+    # 2026-08-22, TypeError: unhashable type: 'list'). On la convertit en
+    # tuple avant hachage, uniquement pour cette clé de regroupement —
+    # jamais persisté, criteres_json lui-même reste un dict/liste normal.
     compteur = Counter()
     exemple_par_cle = {}
     for d in demandes:
-        cle = (tuple(sorted(d.criteres_json.items())), d.nb_slots)
+        criteres_hashables = tuple(sorted(
+            (k, tuple(v) if isinstance(v, list) else v)
+            for k, v in d.criteres_json.items()
+        ))
+        cle = (criteres_hashables, d.nb_slots)
         compteur[cle] += 1
         exemple_par_cle.setdefault(cle, d)
 
@@ -6548,7 +6558,7 @@ def admin_demandes_non_satisfaites(request):
                 continue
             if critere.backend in ('nb_slots', 'champ_groupe'):
                 libelles.append(f"{critere.label}: {valeur}")
-            elif isinstance(valeur, list):
+            elif isinstance(valeur, (list, tuple)):
                 labels = [options_par_cle[(critere.id, c)].label for c in valeur if (critere.id, c) in options_par_cle]
                 if labels:
                     libelles.append(f"{critere.label}: {', '.join(labels)}")
