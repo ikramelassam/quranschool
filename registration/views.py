@@ -18,12 +18,61 @@ from django.views.decorators.cache import never_cache
 from .utils import wizard_donnees, wizard_maj, wizard_reinitialiser
 
 
+def wizard_categorie_age(request):
+    """Étape -1 (avant même l'introduction/ميثاق) — RESTAURÉE depuis l'ancien
+    système (inscriptions.views.inscription_eleve_choix/eleve_choix.html) à
+    la demande du client, 2026-08-22 : le visiteur choisit d'abord بالغ/طفل,
+    comme aux tout débuts du projet.
+
+    Ce choix N'EST JAMAIS une 2e source de vérité pour l'âge — pas de logique
+    d'âge dupliquée : la SEULE source réelle reste tranche_age_depuis_
+    naissance(date_naissance), calculée à l'étape 1 (identité) et utilisée
+    PARTOUT ailleurs (groupes, abonnements, ouverture par catégorie). Ce
+    choix précoce sert à :
+    1. Fermer l'accès tôt si la catégorie choisie est fermée — RÉUTILISE TEL
+       QUEL le mécanisme déjà existant (inscriptions.views.
+       _reponse_categorie_fermee, ParametresInscriptions.ouverte_eleve_*),
+       jamais un 2e écran "فتح التسجيل" à maintenir séparément.
+    2. Être REVÉRIFIÉ à l'étape 1 contre la VRAIE date de naissance (voir
+       wizard_identite, inscriptions.views.MESSAGE_AGE_NE_CORRESPOND_PAS
+       réutilisé TEL QUEL) — jamais fait confiance seul, exactement comme
+       le faisait déjà l'ancien inscription_eleve_formulaire."""
+    from inscriptions.models import get_parametres_inscriptions
+    from inscriptions.views import _reponse_categorie_fermee
+
+    if request.method == 'POST':
+        type_age_choisi = request.POST.get('type_age', '')
+        if type_age_choisi not in ('enfant', 'adulte'):
+            return render(request, 'inscriptions/wizard_categorie_age.html', {
+                'erreurs': ['يرجى اختيار الفئة العمرية.'],
+            })
+
+        parametres = get_parametres_inscriptions()
+        if type_age_choisi == 'adulte' and not parametres.ouverte_eleve_adulte:
+            return _reponse_categorie_fermee(request, 'adulte')
+        if type_age_choisi == 'enfant' and not parametres.ouverte_eleve_enfant:
+            return _reponse_categorie_fermee(request, 'enfant')
+
+        wizard_maj(request, {'type_age_choisi': type_age_choisi})
+        return redirect('wizard_intro')
+
+    return render(request, 'inscriptions/wizard_categorie_age.html', {})
+
+
 def wizard_intro(request):
     """Étape 0 — présentation (ميثاق), contenu entièrement lu depuis
     PresentationInscription (Étape 5C), jamais codé en dur dans le template.
     Simple écran d'accueil, aucune donnée à soumettre ici — le bouton mène
-    directement à l'étape 1."""
+    directement à l'étape 1.
+
+    SAUT SERVEUR si la catégorie d'âge n'a pas encore été choisie (chantier
+    du 2026-08-22) — pas un simple masquage JS, un visiteur qui force cette
+    URL directement est TOUJOURS redirigé, même méthode que le saut Individuel
+    de wizard_groupe (Partie 3/26)."""
     from .models import get_presentation_inscription
+
+    if 'type_age_choisi' not in wizard_donnees(request):
+        return redirect('wizard_categorie_age')
 
     return render(request, 'inscriptions/wizard_intro.html', {
         'presentation': get_presentation_inscription(),
@@ -66,9 +115,20 @@ def wizard_identite(request):
     LIMITE ASSUMÉE : seule cette étape sait aujourd'hui rendre des champs
     structurels génériquement — les déplacer vers une autre étape (`etape`
     reste modifiable en base) n'a pas encore d'effet visible ailleurs,
-    hors scope de ce chantier."""
-    from inscriptions.views import _construire_et_valider_telephone
+    hors scope de ce chantier.
+
+    Chantier du 2026-08-22 (restauration du choix بالغ/طفل, Étape -1) : SAUT
+    SERVEUR si ce choix n'a pas encore été fait (même principe que le saut
+    Individuel de wizard_groupe) ; ET revérification de la VRAIE date de
+    naissance contre ce choix précoce (tranche_age_depuis_naissance reste la
+    SEULE source de vérité, jamais dupliquée — voir wizard_categorie_age)."""
+    from courses.utils import tranche_age_depuis_naissance
+    from inscriptions.views import MESSAGE_AGE_NE_CORRESPOND_PAS, _construire_et_valider_telephone
     from .utils import champs_structurels_actifs, valider_champ_structurel_libre
+
+    donnees_session = wizard_donnees(request)
+    if 'type_age_choisi' not in donnees_session:
+        return redirect('wizard_categorie_age')
 
     champs_info = _champs_informatifs_actifs('identite')
     configs = champs_structurels_actifs('identite')
@@ -114,9 +174,19 @@ def wizard_identite(request):
         if 'date_naissance' in configs_par_cle:
             date_naissance_str = request.POST.get('date_naissance', '')
             try:
-                datetime.date.fromisoformat(date_naissance_str)
+                date_naissance_obj = datetime.date.fromisoformat(date_naissance_str)
             except (ValueError, TypeError):
                 erreurs.append('يرجى إدخال تاريخ ميلاد صحيح.')
+            else:
+                # Revérifie la VRAIE date de naissance contre le choix
+                # précoce بالغ/طفل (wizard_categorie_age) — tranche_age_
+                # depuis_naissance reste la SEULE source de vérité, jamais
+                # dupliquée ; ce choix précoce n'était qu'une déclaration,
+                # jamais fait confiance seul (même principe que l'ancien
+                # inscription_eleve_formulaire, réutilise le même message).
+                categorie_reelle = tranche_age_depuis_naissance(date_naissance_obj)
+                if categorie_reelle != donnees_session.get('type_age_choisi'):
+                    erreurs.append(MESSAGE_AGE_NE_CORRESPOND_PAS[categorie_reelle])
             nouvelles_valeurs['date_naissance'] = date_naissance_str
 
         telephone_config = configs_par_cle.get('telephone')

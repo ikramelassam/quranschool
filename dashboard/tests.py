@@ -3492,6 +3492,7 @@ class AjoutManuelEleveTests(TestCase):
         champ = ChampInscription.objects.create(etape=etape_programme, critere=None, label='حقل اختبار التناظر', ordre=99)
 
         client_wizard = Client()
+        client_wizard.post(reverse('wizard_categorie_age'), {'type_age': 'adulte'})  # Étape -1, restaurée le 2026-08-22
         client_wizard.post(reverse('wizard_identite'), {
             'nom': 'test', 'sexe': 'homme', 'email': 'test_parite_wizard@zidni.test', 'date_naissance': '2000-01-01',
             'indicatif_pays': '212', 'telephone': '0600000000', 'telephone_confirmation': '0600000000',
@@ -3751,6 +3752,7 @@ class GenericiteBoutEnBoutTests(TestCase):
         champs = self._champs_programme_seedes()
 
         client = Client()
+        client.post(reverse('wizard_categorie_age'), {'type_age': 'adulte'})  # Étape -1, restaurée le 2026-08-22
         client.post(reverse('wizard_identite'), {
             'nom': 'وزير الاختبار', 'sexe': 'homme', 'email': 'generique_wizard@zidni.test',
             'date_naissance': '2000-01-01',

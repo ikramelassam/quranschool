@@ -1,0 +1,36 @@
+{% extends 'inscriptions/_wizard_base.html' %}
+{% block wizard_title %}التسجيل كطالب{% endblock %}
+{% block wizard_content %}
+<div class="page-title">التسجيل كطالب</div>
+<div class="page-subtitle">اختر الفئة العمرية</div>
+
+<form method="POST">
+    {% csrf_token %}
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <div class="select-btn" id="carte_enfant" onclick="selectionnerCategorie('enfant', this)" style="padding:24px 12px;">
+                <div style="font-size:2rem;">👶</div>
+                <div style="font-weight:700; margin-top:6px;">طفل (أقل من 18 سنة)</div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="select-btn" id="carte_adulte" onclick="selectionnerCategorie('adulte', this)" style="padding:24px 12px;">
+                <div style="font-size:2rem;">🎓</div>
+                <div style="font-weight:700; margin-top:6px;">بالغ (18 سنة فما فوق)</div>
+            </div>
+        </div>
+    </div>
+    <input type="hidden" name="type_age" id="type_age_value">
+    <button type="submit" class="btn-submit">متابعة ←</button>
+    <a href="{% url 'login' %}" class="btn-back">رجوع لتسجيل الدخول</a>
+</form>
+
+<script>
+    function selectionnerCategorie(valeur, element) {
+        document.getElementById('type_age_value').value = valeur;
+        document.getElementById('carte_enfant').classList.remove('active');
+        document.getElementById('carte_adulte').classList.remove('active');
+        element.classList.add('active');
+    }
+</script>
+{% endblock %}

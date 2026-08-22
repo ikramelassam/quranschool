@@ -7,6 +7,7 @@ from . import views
 # parcours n'est pas validé en conditions réelles).
 urlpatterns = [
     path('wizard/', views.wizard_intro, name='wizard_intro'),
+    path('wizard/categorie-age/', views.wizard_categorie_age, name='wizard_categorie_age'),
     path('wizard/identite/', views.wizard_identite, name='wizard_identite'),
     path('wizard/programme/', views.wizard_programme, name='wizard_programme'),
     path('wizard/groupe/', views.wizard_groupe, name='wizard_groupe'),

@@ -31,6 +31,16 @@ _STORAGES_TEST = {
 }
 
 
+def _choisir_categorie_age(client, type_age='adulte'):
+    """Étape -1 restaurée le 2026-08-22 (بالغ/طفل) — TOUS les tests qui
+    avancent le wizard public depuis wizard_identite doivent d'abord passer
+    par cette étape (SAUT SERVEUR sinon, voir wizard_identite). Toutes les
+    dates de naissance utilisées dans ce fichier correspondent à 'adulte'
+    (défaut ici) — passer type_age='enfant' explicitement pour un scénario
+    mineur."""
+    return client.post(reverse('wizard_categorie_age'), {'type_age': type_age})
+
+
 def _creer_admin(email='admin_registration@zidni.test'):
     return User.objects.create_user(
         username=email, email=email, password=MOT_DE_PASSE,
@@ -922,6 +932,85 @@ class WizardSessionHelpersTests(TestCase):
 
 
 # ============================================================================
+# Chantier du 2026-08-22 — Étape -1 restaurée : choix بالغ/طفل EN TOUT DÉBUT
+# de parcours (comme dans l'ancien système, inscriptions.views.
+# inscription_eleve_choix). Réutilise TEL QUEL les mécanismes déjà existants
+# (ParametresInscriptions.ouverte_eleve_*, _reponse_categorie_fermee,
+# MESSAGE_AGE_NE_CORRESPOND_PAS) — jamais une 2e source de vérité sur l'âge.
+# ============================================================================
+@override_settings(STORAGES=_STORAGES_TEST)
+class WizardCategorieAgeTests(TestCase):
+    def test_get_affiche_le_formulaire(self):
+        reponse = Client().get(reverse('wizard_categorie_age'))
+        self.assertEqual(reponse.status_code, 200)
+        html = reponse.content.decode('utf-8')
+        self.assertIn('طفل', html)
+        self.assertIn('بالغ', html)
+
+    def test_choix_valide_avance_vers_intro(self):
+        client = Client()
+        reponse = client.post(reverse('wizard_categorie_age'), {'type_age': 'adulte'})
+        self.assertRedirects(reponse, reverse('wizard_intro'), fetch_redirect_response=False)
+        self.assertEqual(client.session['wizard_inscription']['type_age_choisi'], 'adulte')
+
+    def test_choix_invalide_refuse_sans_rien_enregistrer(self):
+        client = Client()
+        reponse = client.post(reverse('wizard_categorie_age'), {'type_age': 'autre_chose'})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertNotIn('wizard_inscription', client.session)
+
+    def test_categorie_fermee_bloque_immediatement_meme_reutilisation_du_mecanisme_existant(self):
+        from inscriptions.models import get_parametres_inscriptions
+
+        parametres = get_parametres_inscriptions()
+        parametres.ouverte_eleve_adulte = False
+        parametres.save()
+
+        client = Client()
+        reponse = client.post(reverse('wizard_categorie_age'), {'type_age': 'adulte'})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertNotIn('wizard_inscription', client.session)
+        # Même écran que l'ancien système (inscriptions/inscription_fermee.html).
+        self.assertIn('التسجيل مغلق حالياً لفئة الطلاب البالغون', reponse.content.decode('utf-8'))
+
+    def test_wizard_intro_saute_vers_categorie_age_si_pas_encore_choisi(self):
+        reponse = Client().get(reverse('wizard_intro'))
+        self.assertRedirects(reponse, reverse('wizard_categorie_age'))
+
+    def test_wizard_identite_saute_vers_categorie_age_si_pas_encore_choisi(self):
+        reponse = Client().get(reverse('wizard_identite'))
+        self.assertRedirects(reponse, reverse('wizard_categorie_age'))
+
+    def test_date_naissance_incoherente_avec_le_choix_precoce_est_rejetee(self):
+        """LE test explicitement demandé : le choix précoce بالغ/طفل est
+        REVÉRIFIÉ contre la VRAIE date de naissance à l'étape 1 — jamais fait
+        confiance seul, même principe que l'ancien inscription_eleve_
+        formulaire (categorie_reelle != type_age -> erreur)."""
+        client = Client()
+        client.post(reverse('wizard_categorie_age'), {'type_age': 'adulte'})
+        reponse = client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار التناقض', 'sexe': 'homme', 'email': 'incoherence.age@zidni.test',
+            'date_naissance': '2015-01-01',  # ~11 ans en 2026 -> enfant, pas adulte
+            'indicatif_pays': '212', 'telephone': '0600112244', 'telephone_confirmation': '0600112244',
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('يبدو أنك طفل', reponse.content.decode('utf-8'))
+        # type_age_choisi reste seul en session (posé par wizard_categorie_age
+        # juste avant) — nom/sexe/... de CETTE soumission rejetée, eux, jamais.
+        self.assertNotIn('nom', client.session.get('wizard_inscription', {}))
+
+    def test_date_naissance_coherente_avec_le_choix_precoce_reussit(self):
+        client = Client()
+        client.post(reverse('wizard_categorie_age'), {'type_age': 'enfant'})
+        reponse = client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار التطابق', 'sexe': 'homme', 'email': 'coherence.age@zidni.test',
+            'date_naissance': '2015-01-01',
+            'indicatif_pays': '212', 'telephone': '0600112255', 'telephone_confirmation': '0600112255',
+        })
+        self.assertRedirects(reponse, reverse('wizard_programme'), fetch_redirect_response=False)
+
+
+# ============================================================================
 # Étape 6A (suite) — wizard_identite (Étape 1 du parcours public).
 # ============================================================================
 @override_settings(STORAGES=_STORAGES_TEST)
@@ -935,13 +1024,22 @@ class WizardIdentiteTests(TestCase):
         base.update(overrides)
         return base
 
-    def test_get_affiche_le_formulaire(self):
+    def test_get_sans_categorie_age_choisie_redirige(self):
+        """SAUT SERVEUR (chantier du 2026-08-22, Étape -1 restaurée) : accès
+        direct sans être passé par wizard_categorie_age."""
         reponse = Client().get(reverse('wizard_identite'))
+        self.assertRedirects(reponse, reverse('wizard_categorie_age'))
+
+    def test_get_affiche_le_formulaire(self):
+        client = Client()
+        _choisir_categorie_age(client)
+        reponse = client.get(reverse('wizard_identite'))
         self.assertEqual(reponse.status_code, 200)
         self.assertIn('المعلومات الشخصية', reponse.content.decode('utf-8'))
 
     def test_post_valide_enregistre_en_session_et_avance(self):
         client = Client()
+        _choisir_categorie_age(client)
         reponse = client.post(reverse('wizard_identite'), self._reponses_valides())
         # fetch_redirect_response=False : wizard_programme est encore un stub
         # (TODO Étape 6B) qui redirige lui-même — seul le SAUT vers cette URL
@@ -957,6 +1055,7 @@ class WizardIdentiteTests(TestCase):
 
     def test_post_incomplet_reaffiche_le_formulaire_avec_erreur(self):
         client = Client()
+        _choisir_categorie_age(client)
         reponses = self._reponses_valides()
         del reponses['nom']
         reponse = client.post(reverse('wizard_identite'), reponses)
@@ -968,7 +1067,7 @@ class WizardIdentiteTests(TestCase):
         html = reponse.content.decode('utf-8')
         self.assertIn('الاسم الكامل', html)
         self.assertIn('إلزامي', html)
-        self.assertNotIn('wizard_inscription', client.session)
+        self.assertNotIn('nom', client.session.get('wizard_inscription', {}))
 
     def test_champ_informatif_obligatoire_est_valide(self):
         from .models import ChampInscription, EtapeInscription
@@ -978,6 +1077,7 @@ class WizardIdentiteTests(TestCase):
             etape=etape, critere=None, type_champ='texte', label='البلد', obligatoire=True, ordre=10,
         )
         client = Client()
+        _choisir_categorie_age(client)
 
         # Sans le champ "البلد" -> refusé (guillemets échappés en HTML : &quot;).
         reponse = client.post(reverse('wizard_identite'), self._reponses_valides())
@@ -994,9 +1094,10 @@ class WizardIdentiteTests(TestCase):
 
     def test_telephones_non_correspondants_refuses(self):
         client = Client()
+        _choisir_categorie_age(client)
         reponse = client.post(reverse('wizard_identite'), self._reponses_valides(telephone_confirmation='0600999999'))
         self.assertIn('غير متطابقين', reponse.content.decode('utf-8'))  # inscriptions.views.MESSAGE_TELEPHONE_MISMATCH
-        self.assertNotIn('wizard_inscription', client.session)
+        self.assertNotIn('nom', client.session.get('wizard_inscription', {}))
 
 
 # ============================================================================
@@ -1018,6 +1119,7 @@ class WizardProgrammeTests(TestCase):
         self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
 
     def _avancer_a_etape_2(self, client):
+        _choisir_categorie_age(client)
         client.post(reverse('wizard_identite'), {
             'nom': 'يوسف العلوي', 'sexe': 'homme', 'email': 'youssef.wizard@zidni.test',
             'date_naissance': '2000-01-01',
@@ -1048,9 +1150,12 @@ class WizardProgrammeTests(TestCase):
 
     def test_redirige_vers_identite_si_etape_1_pas_encore_faite(self):
         """Accès direct à /wizard/programme/ sans être passé par l'étape 1 —
-        pas de session encore peuplée."""
+        pas de session encore peuplée. fetch_redirect_response=False : sans
+        catégorie d'âge choisie non plus (chantier du 2026-08-22), la cible
+        elle-même redirige encore vers wizard_categorie_age — seul le
+        PREMIER saut nous intéresse ici."""
         reponse = Client().get(reverse('wizard_programme'))
-        self.assertRedirects(reponse, reverse('wizard_identite'))
+        self.assertRedirects(reponse, reverse('wizard_identite'), fetch_redirect_response=False)
 
     def test_nombre_de_seances_libre_meme_sans_aucun_groupe_reel_a_ce_nombre(self):
         """Chantier du 2026-08-22 ("liberté totale du nombre de séances") :
@@ -1208,6 +1313,7 @@ class WizardGroupeTests(TestCase):
         )
 
     def _avancer_a_etape_3(self, client, type_offre='groupe'):
+        _choisir_categorie_age(client)
         client.post(reverse('wizard_identite'), {
             'nom': 'كريم الفاسي', 'sexe': 'homme', 'email': 'karim.wizard@zidni.test',
             'date_naissance': '2000-01-01',
@@ -1308,7 +1414,7 @@ class WizardGroupeTests(TestCase):
 
     def test_acces_direct_sans_session_redirige_a_identite(self):
         reponse = Client().get(reverse('wizard_groupe'))
-        self.assertRedirects(reponse, reverse('wizard_identite'))
+        self.assertRedirects(reponse, reverse('wizard_identite'), fetch_redirect_response=False)
 
     def test_continuer_sans_groupe_ignore_si_un_groupe_correspond_vraiment(self):
         """Sécurité serveur (Partie 22, chantier du 2026-08-22) : POSTer
@@ -1360,6 +1466,7 @@ class WizardGroupeAucunMatchExactTests(TestCase):
         GroupeCritereValeur.objects.create(groupe=self.groupe_proche, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
 
     def _avancer_a_etape_3(self, client, email='aucun.match@zidni.test', nb_seances='77'):
+        _choisir_categorie_age(client)
         client.post(reverse('wizard_identite'), {
             'nom': 'اختبار عدم التطابق', 'sexe': 'homme', 'email': email,
             'date_naissance': '2000-01-01',
@@ -1487,6 +1594,7 @@ class RegressionSexeGroupesTests(TestCase):
         self.assertIn(self.groupe_mixte, resultat)
 
     def _avancer_a_etape_3(self, client, sexe):
+        _choisir_categorie_age(client)
         client.post(reverse('wizard_identite'), {
             'nom': 'اختبار الانحدار', 'sexe': sexe, 'email': f'regression.sexe.{sexe}@zidni.test',
             'date_naissance': '1995-01-01',
@@ -1565,6 +1673,7 @@ class WizardAbonnementPaiementTests(TestCase):
         self.moyen = MoyenPaiement.objects.create(code='test_wizard_cih', label='CIH بنك', coordonnees='RIB: 000111222', est_actif=True)
 
     def _avancer_a_etape_4(self, client, type_offre='groupe', choisir_groupe=True):
+        _choisir_categorie_age(client)
         client.post(reverse('wizard_identite'), {
             'nom': 'ليلى بنسعيد', 'sexe': 'femme', 'email': 'laila.wizard@zidni.test',
             'date_naissance': '1995-01-01',
@@ -1710,6 +1819,7 @@ class WizardConfirmationTests(TestCase):
         parametres.save()
 
     def _avancer_jusquau_paiement(self, client, email, type_offre='groupe', abonnement_code=None):
+        _choisir_categorie_age(client)
         client.post(reverse('wizard_identite'), {
             'nom': 'نور الدين حمزة', 'sexe': 'homme', 'email': email,
             'date_naissance': '1998-01-01',
@@ -1748,7 +1858,11 @@ class WizardConfirmationTests(TestCase):
         # Session vidée -> rafraîchir la page de confirmation ne réaffiche rien.
         self.assertNotIn('wizard_inscription', client.session)
         reponse_rafraichie = client.get(reverse('wizard_confirmation'))
-        self.assertRedirects(reponse_rafraichie, reverse('wizard_intro'))
+        # fetch_redirect_response=False : wizard_reinitialiser() vide TOUTE la
+        # session, type_age_choisi compris (chantier du 2026-08-22) — la
+        # cible elle-même redirige donc encore une fois vers wizard_
+        # categorie_age, seul ce PREMIER saut nous intéresse ici.
+        self.assertRedirects(reponse_rafraichie, reverse('wizard_intro'), fetch_redirect_response=False)
 
     def test_parcours_complet_individuel_saute_le_groupe_jusquau_bout(self):
         client = Client()
@@ -1789,6 +1903,7 @@ class WizardConfirmationTests(TestCase):
         )
 
         client = Client()
+        _choisir_categorie_age(client)
         # Avance légitimement jusqu'à l'étape 3 (choisit hafs) SANS jamais
         # poster wizard_groupe -> pas de groupe_id en session pour l'instant.
         client.post(reverse('wizard_identite'), {
@@ -1835,6 +1950,7 @@ class WizardConfirmationTests(TestCase):
         _remplir_groupe(self.groupe, self.groupe.capacite_max, 'confirm_devient_plein')
 
         client = Client()
+        _choisir_categorie_age(client)
         client.post(reverse('wizard_identite'), {
             'nom': 'محاولة مقعد ممتلئ', 'sexe': 'homme', 'email': 'groupe.devenu.plein@zidni.test',
             'date_naissance': '1998-01-01',
@@ -1878,7 +1994,7 @@ class WizardConfirmationTests(TestCase):
 
     def test_confirmation_sans_session_prealable_redirige_a_lintro(self):
         reponse = Client().get(reverse('wizard_confirmation'))
-        self.assertRedirects(reponse, reverse('wizard_intro'))
+        self.assertRedirects(reponse, reverse('wizard_intro'), fetch_redirect_response=False)
 
 
 # ============================================================================
@@ -1940,6 +2056,8 @@ class AucuneFuiteDeCommentaireTechniqueTests(TestCase):
 
     def test_toutes_les_pages_du_wizard_public_sans_fuite_de_commentaire(self):
         client = Client()
+        self._assert_pas_de_fuite(client.get(reverse('wizard_categorie_age')), 'wizard_categorie_age')
+        _choisir_categorie_age(client)
         self._assert_pas_de_fuite(client.get(reverse('wizard_intro')), 'wizard_intro')
         self._assert_pas_de_fuite(client.get(reverse('wizard_identite')), 'wizard_identite')
 
@@ -2055,6 +2173,7 @@ class WizardIdentiteChampsStructurelsTests(TestCase):
         ConfigurationChampStructurel.objects.filter(champ_cle='job_actuel').update(est_actif=False)
 
         client = Client()
+        _choisir_categorie_age(client)
         html = client.get(reverse('wizard_identite')).content.decode('utf-8')
         self.assertNotIn('name="job_actuel"', html)
 
@@ -2068,6 +2187,7 @@ class WizardIdentiteChampsStructurelsTests(TestCase):
         config.save()
 
         client = Client()
+        _choisir_categorie_age(client)
         reponse = client.post(reverse('wizard_identite'), self._reponses_valides(job_actuel=''))
         self.assertEqual(reponse.status_code, 200)
         html = reponse.content.decode('utf-8')
@@ -2081,6 +2201,7 @@ class WizardIdentiteChampsStructurelsTests(TestCase):
         ConfigurationChampStructurel.objects.filter(champ_cle='telephone').update(obligatoire=False)
 
         client = Client()
+        _choisir_categorie_age(client)
         reponse = client.post(reverse('wizard_identite'), self._reponses_valides(
             indicatif_pays='', telephone='', telephone_confirmation='',
         ))
@@ -2090,11 +2211,14 @@ class WizardIdentiteChampsStructurelsTests(TestCase):
     def test_label_personnalise_par_le_madir_saffiche_a_lelevi(self):
         ConfigurationChampStructurel.objects.filter(champ_cle='email').update(label='بريدك الشخصي')
 
-        html = Client().get(reverse('wizard_identite')).content.decode('utf-8')
+        client = Client()
+        _choisir_categorie_age(client)
+        html = client.get(reverse('wizard_identite')).content.decode('utf-8')
         self.assertIn('بريدك الشخصي', html)
 
     def test_niveau_scolaire_optionnel_par_defaut_et_bien_stocke(self):
         client = Client()
+        _choisir_categorie_age(client)
         reponse = client.post(reverse('wizard_identite'), self._reponses_valides(niveau_scolaire='الثالثة إعدادي'))
         self.assertRedirects(reponse, reverse('wizard_programme'), fetch_redirect_response=False)
         self.assertEqual(client.session['wizard_inscription']['niveau_scolaire'], 'الثالثة إعدادي')
