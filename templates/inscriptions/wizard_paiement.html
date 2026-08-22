@@ -3,9 +3,16 @@
 {% block wizard_extra_style %}
 .coordonnees-box {
     background: var(--color-bg-cream); border-radius: 10px; padding: 14px 18px; margin-top: 10px;
-    white-space: pre-line; font-size: 0.9rem; color: #444; display: none;
+    display: none;
 }
 .coordonnees-box.active { display: block; }
+.coordonnees-texte { white-space: pre-line; font-size: 0.9rem; color: #444; }
+.btn-copier-coordonnees {
+    margin-top: 10px; background: var(--gradient-cta-gold); color: var(--color-cta-gold-text);
+    border: none; border-radius: 8px; padding: 7px 16px; font-weight: 700; font-size: 0.85rem;
+    cursor: pointer; font-family: 'Tajawal', sans-serif;
+}
+.confirmation-copie { display: none; margin-inline-start: 10px; color: var(--color-success); font-size: 0.85rem; font-weight: 600; }
 {% endblock %}
 {% block wizard_content %}
 <div class="page-title">طريقة الدفع</div>
@@ -20,7 +27,13 @@
 
     {% for moyen in moyens %}
     <div class="select-btn mb-2" onclick="selectionnerMoyen('{{ moyen.code }}', this)">{{ moyen.label }}</div>
-    <div class="coordonnees-box" id="coord_{{ moyen.code }}">{{ moyen.coordonnees }}</div>
+    <div class="coordonnees-box" id="coord_{{ moyen.code }}">
+        <div class="coordonnees-texte">{{ moyen.coordonnees }}</div>
+        {% if moyen.coordonnees %}
+        <button type="button" class="btn-copier-coordonnees" onclick="copierCoordonnees('{{ moyen.code }}')">📋 نسخ</button>
+        <span class="confirmation-copie" id="confirmation_copie_{{ moyen.code }}">✔ تم النسخ</span>
+        {% endif %}
+    </div>
     {% endfor %}
 
     <input type="hidden" name="moyen_paiement_code" id="moyen_paiement_value">
@@ -36,6 +49,31 @@
         element.classList.add('active');
         const box = document.getElementById('coord_' + code);
         if (box) box.classList.add('active');
+    }
+
+    function copierCoordonnees(code) {
+        const boite = document.getElementById('coord_' + code);
+        const texte = boite.querySelector('.coordonnees-texte').textContent.trim();
+        const afficherConfirmation = () => {
+            const confirmation = document.getElementById('confirmation_copie_' + code);
+            if (confirmation) {
+                confirmation.style.display = 'inline';
+                setTimeout(() => { confirmation.style.display = 'none'; }, 2500);
+            }
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(texte).then(afficherConfirmation);
+        } else {
+            const zoneTemp = document.createElement('textarea');
+            zoneTemp.value = texte;
+            zoneTemp.style.position = 'fixed';
+            zoneTemp.style.opacity = '0';
+            document.body.appendChild(zoneTemp);
+            zoneTemp.select();
+            document.execCommand('copy');
+            document.body.removeChild(zoneTemp);
+            afficherConfirmation();
+        }
     }
 </script>
 {% endblock %}
