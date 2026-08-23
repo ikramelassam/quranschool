@@ -265,6 +265,42 @@ class InscriptionEleve(models.Model):
         type_abo = TypeAbonnement.objects.filter(code=self.abonnement).first()
         return type_abo.type_offre if type_abo else None
 
+    def abonnement_obj(self):
+        """L'instance TypeAbonnement choisie, ou None si supprimée depuis —
+        ajouté le 2026-08-22 (audit page détail candidature) pour afficher le
+        prix effectif SANS dupliquer la requête déjà faite par abonnement_
+        label()/abonnement_type_offre() (chacune reste inchangée, existait déjà
+        avant cet ajout)."""
+        return TypeAbonnement.objects.filter(code=self.abonnement).first()
+
+    def nb_slots_choisi(self):
+        """Nombre de séances/semaine RÉELLEMENT répondu par le candidat au
+        nouveau parcours (registration.models.ReponseInscription, critère
+        backend='nb_slots', chantier "liberté totale du nombre de séances") —
+        None si jamais répondu (masqué par une règle, ou candidature de
+        l'ANCIEN formulaire à une page, qui n'a jamais eu ce concept — aucune
+        ReponseInscription n'existe alors pour cette candidature)."""
+        reponse = self.reponses.filter(critere__backend='nb_slots').exclude(valeur_texte='').first()
+        if reponse is None:
+            return None
+        try:
+            return int(reponse.valeur_texte)
+        except (ValueError, TypeError):
+            return None
+
+    def prix_effectif_calcule(self):
+        """Prix RÉELLEMENT applicable à cette candidature (registration.utils.
+        prix_effectif, même fonction que le wizard/l'ajout manuel) — None si
+        l'abonnement a été supprimé depuis (voir abonnement_obj). Ajouté le
+        2026-08-22 (audit page détail candidature, point 6) : jusque-là la
+        page affichait le nom de l'abonnement sans aucun prix."""
+        from registration.utils import prix_effectif
+
+        type_abo = self.abonnement_obj()
+        if type_abo is None:
+            return None
+        return prix_effectif(type_abo, self.nb_slots_choisi())
+
     class Meta:
         verbose_name = "Inscription Élève"
         verbose_name_plural = "Inscriptions Élèves"

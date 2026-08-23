@@ -2229,7 +2229,27 @@ def admin_rejeter_eleve(request, inscription_id):
 
 @role_required('admin', 'mshrif')
 def admin_inscription_eleve_detail(request, inscription_id):
+    """Audit du 2026-08-22 (page détail candidature pas à jour avec le
+    nouveau moteur d'inscription configurable) : `a_reponses_nouveau_wizard`
+    distingue une candidature du NOUVEAU parcours (registration.utils.
+    inscrire_eleve, au moins une ReponseInscription) d'une candidature de
+    l'ANCIEN formulaire à une page (aucune ReponseInscription, jamais créée
+    par ce moteur) — même discriminant déjà utilisé par registration_tags.
+    reponse_ou_ancien_champ pour 'programme'/'riwaya'.
+
+    L'ancien moteur de suggestion (courses.utils.groupes_compatibles_pour_
+    inscription, basé sur inscription.disponibilites + inscription.
+    programme/riwaya, colonnes TOUJOURS vides pour une candidature du nouveau
+    wizard) n'est calculé QUE pour une candidature legacy — inutile et
+    trompeur sinon (retournerait "aucun groupe compatible" pour la quasi-
+    totalité des candidatures Individuel, qui n'ont structurellement besoin
+    d'aucun groupe). Pour le nouveau parcours, la page affiche directement
+    groupe_choisi (déjà le résultat du VRAI moteur, registration.utils.
+    groupes_compatibles_avec_age, au moment de l'inscription) ou l'état
+    "attente" (DemandeNonSatisfaite liée, chantier "liberté totale du nombre
+    de séances") — jamais une 2e suggestion recalculée après coup."""
     from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO, groupes_compatibles_pour_inscription
+    from registration.models import get_presentation_inscription
 
     inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
     if inscription.statut == 'valide':
@@ -2245,6 +2265,8 @@ def admin_inscription_eleve_detail(request, inscription_id):
     # admin_valider_eleve (conflit['partage_eleve_possible']) pour que ce que montre
     # cette page corresponde toujours à ce que fera réellement le clic sur "قبول".
     peut_accepter = (not conflit['conflit']) or conflit['partage_eleve_possible']
+
+    a_reponses_nouveau_wizard = inscription.reponses.exists()
     context = {
         'inscription': inscription,
         'conflit': conflit,
@@ -2252,7 +2274,14 @@ def admin_inscription_eleve_detail(request, inscription_id):
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
         'valeurs_dispo': set(inscription.disponibilites),
-        'groupes_suggeres': groupes_compatibles_pour_inscription(inscription),
+        'a_reponses_nouveau_wizard': a_reponses_nouveau_wizard,
+        'presentation_inscription': get_presentation_inscription(),
+        'demande_non_satisfaite': (
+            inscription.demandes_non_satisfaites.first() if a_reponses_nouveau_wizard else None
+        ),
+        'groupes_suggeres': (
+            [] if a_reponses_nouveau_wizard else groupes_compatibles_pour_inscription(inscription)
+        ),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))

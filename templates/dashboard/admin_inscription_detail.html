@@ -60,6 +60,17 @@ pas seulement au moment du refus lui-même.
         <span style="font-weight:600;">{{ inscription.job_actuel }}</span>
     </div>
     {% endif %}
+    {% comment %}
+    Audit du 2026-08-22 : المستوى الدراسي (chantier "champs structurels
+    configurables") est une colonne réelle depuis ce chantier, mais jamais
+    ajoutée à cette page — corrigé ici.
+    {% endcomment %}
+    {% if inscription.niveau_scolaire %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">المستوى الدراسي</span>
+        <span style="font-weight:600;">{{ inscription.niveau_scolaire }}</span>
+    </div>
+    {% endif %}
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">البريد الإلكتروني</span>
         <span style="font-weight:600; display:flex; align-items:center; gap:10px;">
@@ -103,14 +114,73 @@ pas seulement au moment du refus lui-même.
         <span style="color:#888;">الرواية</span>
         <span style="font-weight:600;">{% reponse_ou_ancien_champ inscription inscription.get_riwaya_display 'riwaya' %}</span>
     </div>
+    {% comment %}
+    Audit du 2026-08-22 : "وسيلة الحضور" (inscription.outil) reste pertinent
+    pour une candidature de l'ANCIEN formulaire (encore renseigné) — mais ce
+    champ n'existe pas dans le nouveau parcours et vaut TOUJOURS "" pour une
+    candidature du nouveau wizard, donc affichait une ligne vide sur 100%
+    des nouvelles candidatures avant ce correctif. Rendu conditionnel comme
+    job_actuel plus haut.
+    {% endcomment %}
+    {% if inscription.outil %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">وسيلة الحضور</span>
         <span style="font-weight:600;">{{ inscription.get_outil_display }}</span>
     </div>
+    {% endif %}
+    {% comment %}
+    نوع الحصة (جماعي/فردي) — inscription.abonnement_type_offre() lit
+    TypeAbonnement.type_offre via la colonne `abonnement` (toujours
+    renseignée, ancienne ET nouvelle candidature) : aucune requête EAV
+    nécessaire, fonctionne uniformément pour les deux parcours.
+    {% endcomment %}
+    {% if inscription.abonnement_type_offre %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">نوع الحصة</span>
+        <span style="font-weight:600;">{% if inscription.abonnement_type_offre == 'individuel' %}فردي{% else %}جماعي{% endif %}</span>
+    </div>
+    {% endif %}
+    {% comment %}
+    عدد الحصص الأسبوعية + السعر — regroupés dans le MÊME {% with %} (la
+    valeur nb_slots sert aussi au badge "سعر خاص بـ N حصص" juste après).
+    nb_slots_choisi() = None pour toute candidature de l'ancien formulaire
+    (concept propre au nouveau parcours, chantier "liberté totale du
+    nombre de séances") -> ligne masquée dans ce cas.
+    {% endcomment %}
+    {% with nb_slots=inscription.nb_slots_choisi %}
+    {% if nb_slots %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">عدد الحصص الأسبوعية</span>
+        <span style="font-weight:600;">{{ nb_slots }}</span>
+    </div>
+    {% endif %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">الاشتراك</span>
         <span style="font-weight:600;">{{ inscription.abonnement_label }}</span>
     </div>
+    {% comment %}
+    Audit du 2026-08-22 (point 6) : السعر المطبَّق فعلياً — registration.
+    utils.prix_effectif, MÊME fonction que le wizard/l'ajout manuel, jamais
+    un calcul dupliqué ici. N'affiche la comparaison avec السعر الافتراضي
+    QUE quand elle diffère réellement (une ligne de grille s'applique) —
+    sinon 2 lignes identiques n'apporteraient rien au مدير.
+    {% endcomment %}
+    {% with type_abo=inscription.abonnement_obj prix_effectif=inscription.prix_effectif_calcule %}
+    {% if prix_effectif is not None %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">السعر</span>
+        <span style="font-weight:600;">
+            {{ prix_effectif }} درهم
+            {% if type_abo and prix_effectif != type_abo.prix %}
+            <span style="background:#f0ebe3; color:var(--color-role-admin-solid); border-radius:20px; padding:2px 10px; font-size:0.78rem; font-weight:700; margin-right:8px;">
+                سعر خاص بـ {{ nb_slots }} حصص/أسبوع — السعر الافتراضي: {{ type_abo.prix }} درهم
+            </span>
+            {% endif %}
+        </span>
+    </div>
+    {% endif %}
+    {% endwith %}
+    {% endwith %}
 
     <!-- Disponibilités horaires -->
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">التفرغ الأسبوعي المصرَّح به</div>
@@ -155,9 +225,51 @@ pas seulement au moment du refus lui-même.
     {% endif %}
 
     <!-- Groupes/créneaux compatibles -->
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">🎯 المجموعات المتوافقة</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">
+        🎯 {% if a_reponses_nouveau_wizard %}المجموعة{% else %}المجموعات المتوافقة{% endif %}
+    </div>
 
-    {% if groupes_suggeres %}
+    {% comment %}
+    Refonte du 2026-08-22 (audit page détail, point 5) : l'ancien moteur de
+    suggestion (groupes_suggeres, courses.utils.groupes_compatibles_pour_
+    inscription) ne dit RIEN de fiable pour une candidature du nouveau
+    wizard (basé sur inscription.disponibilites/programme/riwaya, toujours
+    vides dans ce cas — voir la docstring de la vue). Pour ce parcours, on
+    affiche directement le RÉSULTAT déjà obtenu par le vrai moteur au
+    moment de l'inscription (groupe_choisi), ou l'état "attente" (Demande
+    NonSatisfaite liée), ou "aucun groupe requis" (Individuel) — jamais une
+    2e suggestion recalculée après coup qui pourrait diverger.
+    {% endcomment %}
+    {% if a_reponses_nouveau_wizard %}
+        {% if inscription.groupe_choisi %}
+        <div style="background:#e8f5e9; border-radius:10px; padding:14px 18px; color:var(--color-success);">
+            <div style="font-weight:700; margin-bottom:4px;">✅ المجموعة المختارة</div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:600; color:#333;">{{ inscription.groupe_choisi.nom }}</span>
+                <span style="color:#666; font-size:0.85rem;">
+                    {{ inscription.groupe_choisi.creneau }}
+                    ({{ inscription.groupe_choisi.eleves.count }}/{{ inscription.groupe_choisi.capacite_max }})
+                </span>
+            </div>
+        </div>
+        {% elif inscription.abonnement_type_offre == 'individuel' %}
+        <div style="background:#f0ebe3; border-radius:10px; padding:12px 16px; color:#555; font-size:0.9rem;">
+            ℹ️ اشتراك فردي — لا حاجة إلى مجموعة/حلقة.
+        </div>
+        {% elif demande_non_satisfaite %}
+        <div style="background:#fff3cd; border-radius:10px; padding:14px 18px; color:#856404;">
+            <div style="font-weight:700; margin-bottom:6px;">⏳ اختار الطالب الانتظار حتى تُنشأ حلقة مناسبة</div>
+            <div style="margin-bottom:8px;">{{ presentation_inscription.message_aucun_groupe_exact }}</div>
+            <a href="{% url 'admin_demandes_non_satisfaites' %}" style="color:var(--color-role-admin-solid); font-weight:600;">
+                ← عرض كل الطلبات غير المُلبّاة (لتحديد الاتجاهات)
+            </a>
+        </div>
+        {% else %}
+        <div style="background:#fff3cd; border-radius:8px; padding:12px 16px; color:#856404; font-size:0.9rem;">
+            لم يتم اختيار مجموعة لهذا الطلب. يمكنك رغم ذلك قبول الطلب، ثم إنشاء مجموعة جديدة أو التواصل مع الطالب لاحقاً.
+        </div>
+        {% endif %}
+    {% elif groupes_suggeres %}
         {% for groupe in groupes_suggeres %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
             <span style="font-weight:600;">{{ groupe.nom }}</span>

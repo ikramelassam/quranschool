@@ -4049,6 +4049,185 @@ class GenericiteBoutEnBoutTests(TestCase):
         self.assertEqual(trouvailles, [], '\n'.join(trouvailles))
 
 
+# ============================================================================
+# Audit du 2026-08-22 : la page détail candidature (admin_inscription_
+# eleve_detail) n'était pas à jour avec le nouveau moteur d'inscription
+# configurable — corrigée pour afficher نوع الحصة, عدد الحصص الأسبوعية,
+# المستوى الدراسي, le prix effectif, et distinguer groupe choisi/attente/
+# individuel au lieu de l'ancien moteur de suggestion (courses.utils.
+# groupes_compatibles_pour_inscription, basé sur des données que le nouveau
+# wizard ne collecte plus).
+# ============================================================================
+@override_settings(STORAGES=_STORAGES_TEST)
+class AdminInscriptionDetailAuditTests(TestCase):
+    def setUp(self):
+        from registration.models import ChampInscription
+
+        self.admin = _creer_admin()
+        self.champs = {
+            code: ChampInscription.objects.get(etape__code='programme', critere__code=code)
+            for code in ('programme', 'riwaya', 'type_offre', 'nb_seances_hebdo')
+        }
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe = Groupe.objects.create(
+            nom='مجموعة اختبار تدقيق الصفحة', creneau=self.creneau, statut='actif', type_capacite='groupe', capacite_max=10,
+        )
+        from registration.models import Critere as CritereInscription, GroupeCritereValeur
+        critere_programme = CritereInscription.objects.get(code='programme')
+        critere_riwaya = CritereInscription.objects.get(code='riwaya')
+        GroupeCritereValeur.objects.create(groupe=self.groupe, critere=critere_programme, option=critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=self.groupe, critere=critere_riwaya, option=critere_riwaya.options.get(code='hafs'))
+
+        from inscriptions.models import TypeAbonnement
+        self.abo_groupe = TypeAbonnement.objects.create(
+            code='test_audit_abo_groupe', label='جماعي شهري', prix=80,
+            type_offre='groupe', cible_age='les_deux', ordre=1,
+        )
+        self.abo_individuel = TypeAbonnement.objects.create(
+            code='test_audit_abo_indiv', label='فردي شهري', prix=400,
+            type_offre='individuel', cible_age='les_deux', ordre=2,
+        )
+        from payments.models import MoyenPaiement
+        self.moyen = MoyenPaiement.objects.create(code='test_audit_cih', label='CIH بنك', est_actif=True)
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def _avancer_wizard(self, client, email, type_offre='groupe', nb_seances='2', niveau_scolaire=''):
+        client.post(reverse('wizard_categorie_age'), {'type_age': 'adulte'})
+        client.post(reverse('wizard_identite'), {
+            'nom': 'مترشح تدقيق الصفحة', 'sexe': 'homme', 'email': email,
+            'date_naissance': '2000-01-01', 'niveau_scolaire': niveau_scolaire,
+            'indicatif_pays': '212', 'telephone': '0600110022', 'telephone_confirmation': '0600110022',
+        })
+        client.post(reverse('wizard_programme'), {
+            f"champ_{self.champs['programme'].id}": 'hifz',
+            f"champ_{self.champs['riwaya'].id}": 'hafs',
+            f"champ_{self.champs['type_offre'].id}": type_offre,
+            f"champ_{self.champs['nb_seances_hebdo'].id}": nb_seances,
+        })
+
+    def _terminer_wizard_groupe(self, client, abonnement):
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': abonnement.code})
+        client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+
+    def test_type_offre_affiche_et_wisilat_hudur_masquee(self):
+        """Points 2 : نوع الحصة remplace/complète l'ancien "وسيلة الحضور",
+        toujours vide (inscription.outil) pour une candidature du nouveau
+        wizard — masqué plutôt qu'affiché vide."""
+        client = Client()
+        self._avancer_wizard(client, 'audit_type_offre@zidni.test', type_offre='groupe', nb_seances='2')
+        client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+        self._terminer_wizard_groupe(client, self.abo_groupe)
+
+        inscription = InscriptionEleve.objects.get(email='audit_type_offre@zidni.test')
+        html = self._connecte_admin().get(reverse('admin_inscription_eleve_detail', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn('نوع الحصة', html)
+        self.assertIn('جماعي', html)
+        self.assertNotIn('وسيلة الحضور', html)
+
+    def test_nb_slots_et_niveau_scolaire_affiches(self):
+        """Points 3 et 4."""
+        client = Client()
+        self._avancer_wizard(client, 'audit_nb_slots@zidni.test', type_offre='individuel', nb_seances='4', niveau_scolaire='الثانية باكالوريا')
+        self._terminer_wizard_groupe(client, self.abo_individuel)
+
+        inscription = InscriptionEleve.objects.get(email='audit_nb_slots@zidni.test')
+        html = self._connecte_admin().get(reverse('admin_inscription_eleve_detail', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn('عدد الحصص الأسبوعية', html)
+        self.assertIn('4', html)
+        self.assertIn('المستوى الدراسي', html)
+        self.assertIn('الثانية باكالوريا', html)
+
+    def test_groupe_choisi_affiche_comme_choisi_pas_comme_suggestion(self):
+        """Point 5 (groupe) : le groupe RÉELLEMENT choisi par le wizard est
+        montré directement, jamais recalculé via l'ancien moteur de
+        suggestion (qui afficherait à tort "aucune مجموعة متوافقة", voir
+        docstring de la vue)."""
+        client = Client()
+        self._avancer_wizard(client, 'audit_groupe_choisi@zidni.test', type_offre='groupe', nb_seances='2')
+        client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+        self._terminer_wizard_groupe(client, self.abo_groupe)
+
+        inscription = InscriptionEleve.objects.get(email='audit_groupe_choisi@zidni.test')
+        html = self._connecte_admin().get(reverse('admin_inscription_eleve_detail', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn('المجموعة المختارة', html)
+        self.assertIn('مجموعة اختبار تدقيق الصفحة', html)
+        self.assertNotIn('لا توجد حلقة/مجموعة متوافقة حالياً', html)
+
+    def test_individuel_naffiche_aucun_avertissement_de_groupe(self):
+        """Point 5 (individuel) : un abonnement فردي n'a structurellement
+        besoin d'aucun groupe — l'ancienne page affichait quand même
+        l'avertissement "aucune مجموعة متوافقة", trompeur."""
+        client = Client()
+        self._avancer_wizard(client, 'audit_individuel@zidni.test', type_offre='individuel', nb_seances='2')
+        self._terminer_wizard_groupe(client, self.abo_individuel)
+
+        inscription = InscriptionEleve.objects.get(email='audit_individuel@zidni.test')
+        html = self._connecte_admin().get(reverse('admin_inscription_eleve_detail', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn('لا حاجة إلى مجموعة', html)
+        self.assertNotIn('لا توجد حلقة/مجموعة متوافقة حالياً', html)
+
+    def test_attente_affiche_message_configurable_et_lien_vers_demandes(self):
+        """Point 5 (attente) : le choix "لا، أنتظر حتى يتم إنشاء الحلقة"
+        (chantier "liberté totale du nombre de séances") doit être visible
+        ici, avec le message CONFIGURABLE (message_aucun_groupe_exact),
+        jamais l'ancien texte codé en dur."""
+        from registration.models import get_presentation_inscription
+
+        presentation = get_presentation_inscription()
+        presentation.message_aucun_groupe_exact = 'رسالة اختبار قابلة للتخصيص'
+        presentation.save()
+
+        client = Client()
+        # nb_seances=55, jamais réel -> aucun groupe exact, écran d'attente.
+        self._avancer_wizard(client, 'audit_attente@zidni.test', type_offre='groupe', nb_seances='55')
+        client.post(reverse('wizard_groupe'), {'continuer_sans_groupe': '1'})
+        self._terminer_wizard_groupe(client, self.abo_groupe)
+
+        inscription = InscriptionEleve.objects.get(email='audit_attente@zidni.test')
+        self.assertIsNone(inscription.groupe_choisi)
+        html = self._connecte_admin().get(reverse('admin_inscription_eleve_detail', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn('رسالة اختبار قابلة للتخصيص', html)
+        self.assertIn(reverse('admin_demandes_non_satisfaites'), html)
+
+    def test_prix_grille_affiche_badge_seulement_si_different_du_defaut(self):
+        """Point 6 : le badge "سعر خاص بـ N حصص" n'apparaît QUE si une ligne
+        de grille s'applique réellement — jamais 2 lignes redondantes quand
+        le prix effectif == le prix par défaut."""
+        from inscriptions.models import GrillePrixAbonnement
+
+        GrillePrixAbonnement.objects.create(type_abonnement=self.abo_groupe, nb_slots=2, prix=999)
+
+        client = Client()
+        self._avancer_wizard(client, 'audit_prix_grille@zidni.test', type_offre='groupe', nb_seances='2')
+        client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+        self._terminer_wizard_groupe(client, self.abo_groupe)
+
+        inscription = InscriptionEleve.objects.get(email='audit_prix_grille@zidni.test')
+        html = self._connecte_admin().get(reverse('admin_inscription_eleve_detail', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn('999', html)
+        self.assertIn('سعر خاص بـ 2 حصص/أسبوع', html)
+        self.assertIn('80', html)  # السعر الافتراضي rappelé dans le badge
+
+    def test_candidature_ancien_formulaire_garde_son_comportement_historique(self):
+        """Non-régression : une candidature de l'ANCIEN formulaire (aucune
+        ReponseInscription) garde exactement l'ancien titre pluriel et
+        l'ancien moteur de suggestion, jamais le nouveau vocabulaire
+        "المجموعة المختارة"."""
+        inscription = _creer_inscription_eleve(email='audit_ancien_formulaire@zidni.test')
+        html = self._connecte_admin().get(reverse('admin_inscription_eleve_detail', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn('المجموعات المتوافقة', html)
+        self.assertNotIn('المجموعة المختارة', html)
+
+
 class AdminDemandesNonSatisfaitesTests(TestCase):
     """Page dashboard listant les DemandeNonSatisfaite (chantier du
     2026-08-22) — comptage par combinaison pour identifier les tendances."""
