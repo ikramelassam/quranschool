@@ -196,11 +196,6 @@ urlpatterns = [
     path('admin/champs-inscription/<int:champ_id>/supprimer/', views.admin_champ_inscription_supprimer, name='admin_champ_inscription_supprimer'),
     path('admin/champs-structurels/<int:config_id>/modifier/', views.admin_champ_structurel_modifier, name='admin_champ_structurel_modifier'),
 
-    path('admin/regles-inscription/', views.admin_regles_inscription, name='admin_regles_inscription'),
-    path('admin/regles-inscription/ajouter/', views.admin_regle_inscription_ajouter, name='admin_regle_inscription_ajouter'),
-    path('admin/regles-inscription/<int:regle_id>/toggle/', views.admin_regle_inscription_toggle, name='admin_regle_inscription_toggle'),
-    path('admin/regles-inscription/<int:regle_id>/supprimer/', views.admin_regle_inscription_supprimer, name='admin_regle_inscription_supprimer'),
-
     # ---- Étape 5C : Moyens de paiement / Présentation de l'inscription ----
     path('admin/moyens-paiement/', views.admin_moyens_paiement, name='admin_moyens_paiement'),
     path('admin/moyens-paiement/ajouter/', views.admin_moyen_paiement_ajouter, name='admin_moyen_paiement_ajouter'),

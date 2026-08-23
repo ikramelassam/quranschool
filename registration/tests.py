@@ -1,7 +1,6 @@
 import datetime
 
 from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 
@@ -11,13 +10,13 @@ from courses.utils import remplacer_slots_creneau
 from inscriptions.models import GrillePrixAbonnement, InscriptionEleve, TypeAbonnement
 from .models import (
     ChampInscription, ConfigurationChampStructurel, Critere, CritereOption, EtapeInscription,
-    GroupeCritereValeur, RegleCondition,
+    GroupeCritereValeur,
 )
 from .utils import (
     abonnements_disponibles, champs_structurels_actifs, couverture_critere, couverture_grille_prix,
     groupes_avec_place_disponible, groupes_compatibles, groupes_compatibles_avec_age, inscrire_eleve,
     nb_seances_disponibles, nb_slots_reels_systeme, nb_slots_repondu, prix_effectif,
-    valider_champ_structurel_libre, champ_est_masque,
+    valider_champ_structurel_libre,
 )
 
 MOT_DE_PASSE = 'xX!test12345'
@@ -577,32 +576,6 @@ class CouvertureGrillePrixTests(TestCase):
         self.assertIn(4, couverture['nb_slots_manquants'])
 
 
-class RegleConditionMasquageTests(TestCase):
-    def test_etape_masquee_si_regle_satisfaite(self):
-        etape_groupe = EtapeInscription.objects.create(code='test_choix_groupe', titre='اختيار المجموعة', ordre=3)
-        type_offre = _creer_critere(
-            'test_type_offre', backend='champ_groupe', champ_modele_groupe='type_capacite',
-            options=[('groupe', 'جماعي'), ('individuel', 'فردي')],
-        )
-        RegleCondition.objects.create(
-            cible_content_type=ContentType.objects.get_for_model(etape_groupe),
-            cible_object_id=etape_groupe.id,
-            critere_condition=type_offre, operateur='different', valeurs=['groupe'],
-        )
-        champ = ChampInscription.objects.create(etape=etape_groupe, label='اختر مجموعتك', ordre=1)
-
-        # Réponse 'individuel' -> 'different' de 'groupe' -> règle satisfaite -> masqué.
-        codes = {type_offre.id: {'individuel'}}
-        self.assertTrue(champ_est_masque(champ, codes))
-
-        # Réponse 'groupe' -> pas 'different' -> règle non satisfaite -> visible.
-        codes_groupe = {type_offre.id: {'groupe'}}
-        self.assertFalse(champ_est_masque(champ, codes_groupe))
-
-        # Aucune réponse encore -> règle non satisfaite (ensemble vide) -> visible par défaut.
-        self.assertFalse(champ_est_masque(champ, {}))
-
-
 def _config_standard():
     """Configuration minimale réaliste (Programme/Riwaya/Groupe-ou-Individuel/
     Nombre de séances) — réutilisée par les tests inscrire_eleve(). Codes
@@ -610,8 +583,6 @@ def _config_standard():
     'riwaya'/'type_offre'/'nb_seances_hebdo' seedés par la migration
     registration/0002_seed_wizard_config.py (Étape 6A) — mêmes codes
     distincts que pour TypeAbonnement plus bas, même raison."""
-    from django.contrib.contenttypes.models import ContentType
-
     etape_identite = EtapeInscription.objects.create(code='test_identite', titre='المعلومات الشخصية', ordre=1)
     etape_programme = EtapeInscription.objects.create(code='test_programme', titre='اختيار البرنامج', ordre=2)
     etape_groupe = EtapeInscription.objects.create(code='test_choix_groupe', titre='اختيار المجموعة', ordre=3)
@@ -627,12 +598,6 @@ def _config_standard():
     champ_type_offre = ChampInscription.objects.create(etape=etape_programme, critere=type_offre, label='نوع الحصة', obligatoire=True, ordre=2)
     champ_nb_seances = ChampInscription.objects.create(etape=etape_programme, critere=nb_seances, label='عدد الحصص', obligatoire=False, ordre=3)
     champ_groupe_select = ChampInscription.objects.create(etape=etape_groupe, label='اختر مجموعتك', ordre=1)
-
-    RegleCondition.objects.create(
-        cible_content_type=ContentType.objects.get_for_model(etape_groupe),
-        cible_object_id=etape_groupe.id,
-        critere_condition=type_offre, operateur='different', valeurs=['groupe'],
-    )
 
     # Codes préfixés test_ : la base de test contient déjà les TypeAbonnement
     # réels seedés par inscriptions/migrations/0004_seed_types_abonnement.py
@@ -1002,6 +967,79 @@ class ChampAvecCritereSurEtapeIdentiteTests(TestCase):
         html = reponse.content.decode('utf-8')
         self.assertIn('لغة التواصل المفضلة', html)
         self.assertIn('الفرنسية', html)
+
+    @staticmethod
+    def _motif_bloc_champ_critere(label, champ_id, critere_id, backend='eav'):
+        """Regex de la STRUCTURE exacte attendue pour un champ avec critère
+        (label -> conteneur .row g-2 -> bouton .select-btn avec ses
+        data-attributes) — même motif, quelle que soit l'étape qui le
+        rend, puisque les 2 passent par le MÊME partial _champs_
+        dynamiques.html (voir son .__doc__). Utilisé pour prouver, pas
+        juste affirmer, qu'Identité et Programme produisent la même forme
+        (chantier du 2026-08-23, régression signalée après la Partie 3A)."""
+        import re
+        return re.compile(
+            r'<div class="mb-3">\s*<label class="form-label">' + re.escape(label) + r'.*?</label>\s*'
+            r'<div class="row g-2" data-champ-container="' + str(champ_id) + r'">\s*'
+            r'<div class="col-6">\s*<div class="select-btn"\s*'
+            r'data-critere-id="' + str(critere_id) + r'"\s*'
+            r'data-backend="' + backend + r'"',
+            re.DOTALL,
+        )
+
+    def test_rendu_structurellement_identique_a_un_champ_critere_sur_programme(self):
+        """LE test demandé : preuve, pas affirmation, que le partial
+        _champs_dynamiques.html produit EXACTEMENT la même structure
+        (label -> .row.g-2 -> .select-btn avec ses data-attributes) pour un
+        champ avec critère sur Identité que pour un champ avec critère sur
+        Programme — même motif regex appliqué aux 2 pages. Garde-fou contre
+        toute future régression de ce partial partagé."""
+        client = Client()
+        _choisir_categorie_age(client)
+        html_identite = client.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertRegex(
+            html_identite,
+            self._motif_bloc_champ_critere('لغة التواصل المفضلة', self.champ_langue.id, self.critere_langue.id),
+            "Le champ avec critère sur Identité n'a PAS la structure boutons stylés attendue.",
+        )
+
+        client.post(reverse('wizard_identite'), {
+            'nom': 'test structure', 'sexe': 'homme', 'email': 'test_structure_identique@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0611000111', 'telephone_confirmation': '0611000111',
+            f'champ_{self.champ_langue.id}': 'ar',
+        })
+        html_programme = client.get(reverse('wizard_programme')).content.decode('utf-8')
+        self.assertRegex(
+            html_programme,
+            self._motif_bloc_champ_critere('البرنامج', self.champ_programme.id, self.critere_programme.id),
+            "Le champ avec critère sur Programme n'a plus la structure boutons stylés attendue "
+            "(référence de comparaison cassée — vérifier _champs_dynamiques.html).",
+        )
+
+    def test_critere_sans_option_active_naffiche_aucun_bouton_ni_erreur(self):
+        """Documente un comportement RÉEL et NON un bug de rendu : un champ
+        attaché à un critère qui n'a AUCUNE CritereOption active produit un
+        conteneur .row.g-2 vide (label seul, sans bouton) — même structure
+        de base (.mb-3/.row.g-2), juste sans enfant à boucler, PAS un champ
+        cassé/mal formé. Signalé le 2026-08-23 comme "rendu cassé" pour un
+        champ de test — cette régression écarte l'hypothèse d'un bug dans
+        _champs_dynamiques.html : un critère RÉELLEMENT doté d'options
+        actives (test ci-dessus) rend correctement sur les 2 étapes."""
+        critere_vide = Critere.objects.create(
+            code='critere_sans_option_debug', label='معيار بلا خيارات', backend='eav',
+            filtrable=False, bloquant=False, ordre=100,
+        )
+        champ_vide = ChampInscription.objects.create(
+            etape=self.etape_identite, critere=critere_vide, label='حقل بلا خيارات',
+            obligatoire=False, ordre=100,
+        )
+        client = Client()
+        _choisir_categorie_age(client)
+        html = client.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertIn('حقل بلا خيارات', html)
+        self.assertIn(f'data-champ-container="{champ_vide.id}"', html)
+        self.assertNotIn('select-btn', html.split(f'data-champ-container="{champ_vide.id}"')[1][:100])
 
     def test_obligatoire_bloque_la_progression_si_non_repondu(self):
         client = Client()
@@ -1546,53 +1584,6 @@ class WizardProgrammeTests(TestCase):
         })
         self.assertEqual(reponse.status_code, 200)
         self.assertIn('خيار غير صالح', reponse.content.decode('utf-8'))
-
-    def test_regle_conditionnelle_masque_un_champ(self):
-        """Un champ masqué par une RegleCondition satisfaite ne doit ni
-        s'afficher, ni être exigé comme obligatoire."""
-        from django.contrib.contenttypes.models import ContentType
-
-        champ_special = ChampInscription.objects.create(
-            etape=self.champ_riwaya.etape, critere=None, type_champ='texte',
-            label='حقل خاص بحفص فقط', obligatoire=True, ordre=99,
-        )
-        RegleCondition.objects.create(
-            cible_content_type=ContentType.objects.get_for_model(ChampInscription),
-            cible_object_id=champ_special.id,
-            critere_condition=self.critere_riwaya, operateur='different', valeurs=['hafs'],
-        )
-
-        client = Client()
-        self._avancer_a_etape_2(client)
-        # riwaya pas encore répondu -> aucune réponse ne satisfait la règle
-        # ('different' exige une réponse NON-vide qui diffère de 'hafs') ->
-        # le champ spécial reste visible par défaut (comportement déjà
-        # couvert par RegleConditionMasquageTests.test_etape_masquee_si_
-        # regle_satisfaite, "aucune réponse -> visible").
-        html_avant = client.get(reverse('wizard_programme')).content.decode('utf-8')
-        self.assertIn('حقل خاص بحفص فقط', html_avant)
-
-        # Répond riwaya=hafs -> 'different' de 'hafs' est FAUX -> règle NON
-        # satisfaite -> champ spécial toujours VISIBLE et obligatoire ->
-        # soumettre sans lui doit échouer.
-        reponse_hafs = client.post(reverse('wizard_programme'), {
-            f'champ_{self.champ_programme.id}': 'hifz',
-            f'champ_{self.champ_riwaya.id}': 'hafs',
-            f'champ_{self.champ_type_offre.id}': 'groupe',
-            f'champ_{self.champ_nb_seances.id}': '2',
-        })
-        self.assertEqual(reponse_hafs.status_code, 200)
-        self.assertIn('حقل خاص بحفص فقط', reponse_hafs.content.decode('utf-8'))
-
-        # Répond riwaya=warsh -> 'different' de 'hafs' est VRAI -> règle
-        # satisfaite -> champ spécial MASQUÉ -> soumettre sans lui doit réussir.
-        reponse_warsh = client.post(reverse('wizard_programme'), {
-            f'champ_{self.champ_programme.id}': 'hifz',
-            f'champ_{self.champ_riwaya.id}': 'warsh',
-            f'champ_{self.champ_type_offre.id}': 'groupe',
-            f'champ_{self.champ_nb_seances.id}': '2',
-        })
-        self.assertRedirects(reponse_warsh, reverse('wizard_groupe'), fetch_redirect_response=False)
 
 
 # ============================================================================

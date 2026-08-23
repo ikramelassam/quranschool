@@ -17,7 +17,7 @@ from courses.models import (
 from courses.utils import remplacer_slots_creneau
 from registration.models import (
     ChampInscription, ConfigurationChampStructurel, Critere as CritereInscription, CritereOption,
-    EtapeInscription, GroupeCritereValeur, RegleCondition,
+    EtapeInscription, GroupeCritereValeur,
 )
 from evaluations.models import Evaluation, CommentaireMensuel, Critere, NoteEvaluation
 from examens.models import Examen
@@ -2684,10 +2684,10 @@ class CritereInscriptionCRUDTests(TestCase):
 
 # ============================================================================
 # CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5B : CRUD
-# EtapeInscription / ChampInscription / RegleCondition. Même exigence de
+# EtapeInscription / ChampInscription. Même exigence de
 # parité stricte Directeur/مشرف que 5A.
 # ============================================================================
-class EtapeChampRegleInscriptionCRUDTests(TestCase):
+class EtapeChampInscriptionCRUDTests(TestCase):
     def setUp(self):
         self.admin = _creer_admin()
         self.mshrif = _creer_mshrif()
@@ -2850,69 +2850,6 @@ class EtapeChampRegleInscriptionCRUDTests(TestCase):
         champ.refresh_from_db()
         self.assertTrue(champ.obligatoire)
 
-    def test_liste_et_ajout_regle_condition(self):
-        etape_groupe = EtapeInscription.objects.create(code='choix_groupe', titre='اختيار المجموعة')
-        critere = CritereInscription.objects.create(
-            code='test_type_offre', label='نوع الحصة', backend='champ_groupe', champ_modele_groupe='type_capacite',
-        )
-        CritereOption.objects.create(critere=critere, code='groupe', label='جماعي')
-        CritereOption.objects.create(critere=critere, code='individuel', label='فردي')
-
-        client = self._connecte_mshrif()
-        reponse_liste = client.get(reverse('admin_regles_inscription'))
-        self.assertEqual(reponse_liste.status_code, 200)
-
-        reponse_ajout = client.get(reverse('admin_regle_inscription_ajouter'))
-        self.assertEqual(reponse_ajout.status_code, 200)
-
-        reponse_post = client.post(reverse('admin_regle_inscription_ajouter'), {
-            'critere_condition_id': critere.id, 'operateur': 'different',
-            'valeurs': ['groupe'], 'cible_type': 'etape', 'cible_id': etape_groupe.id,
-        })
-        self.assertEqual(reponse_post.status_code, 302)
-        regle = RegleCondition.objects.get()
-        self.assertEqual(regle.cible, etape_groupe)
-        self.assertEqual(regle.valeurs, ['groupe'])
-
-    def test_generique_nouveau_critere_et_champ_apparaissent_sans_code_supplementaire(self):
-        """Vérification demandée le 2026-08-22 : l'écran "إضافة قاعدة شرطية"
-        n'affichait que 4 critères (البرنامج/الرواية/نوع الحصة/عدد الحصص
-        الأسبوعية) — question posée : liste codée en dur, ou dynamique et ces
-        4 sont juste les seuls critères existants en base ?
-
-        Réponse (ce test) : lecture de dashboard.views.admin_regle_
-        inscription_ajouter confirme déjà que 'criteres', 'champs' et
-        'etapes' viennent tous de requêtes ORM génériques (Critere.objects.
-        filter(est_actif=True), ChampInscription.objects.select_related(...),
-        EtapeInscription.objects.all()) — AUCUN code trouvé. Ce test le
-        PROUVE avec un critère + un champ JAMAIS vus ailleurs dans cette
-        suite ('outil_communication_prefere' — distinct de 'learning_mode'/
-        'langue_preferee' déjà utilisés dans registration.tests), sans
-        aucune modification de code : RÉSULTAT — déjà générique, rien à
-        corriger."""
-        critere_inedit = CritereInscription.objects.create(
-            code='outil_communication_prefere', label='الأداة المفضلة للتواصل', filtrable=True,
-        )
-        CritereOption.objects.create(critere=critere_inedit, code='whatsapp', label='واتساب', ordre=1)
-        CritereOption.objects.create(critere=critere_inedit, code='telegram', label='تيليجرام', ordre=2)
-
-        etape_inedite = EtapeInscription.objects.create(code='etape_inedite_regle', titre='مرحلة اختبار التعميم')
-        champ_inedit = ChampInscription.objects.create(
-            etape=etape_inedite, critere=None, label='حقل اختبار تعميم القواعد الشرطية', ordre=1,
-        )
-
-        client = self._connecte_admin()
-        html = client.get(reverse('admin_regle_inscription_ajouter')).content.decode('utf-8')
-
-        # 1. "المعيار الشرطي" : le nouveau critère apparaît dans le <select>.
-        self.assertIn('الأداة المفضلة للتواصل', html)
-        # 2. "القيمة/القيم" : ses options réelles apparaissent dans le JS
-        # généré côté serveur (OPTIONS_PAR_CRITERE), pas seulement le nom du critère.
-        self.assertIn('واتساب', html)
-        self.assertIn('تيليجرام', html)
-        # 3. "إخفاء → حقل واحد" : le nouveau champ apparaît dans le <select>.
-        self.assertIn('حقل اختبار تعميم القواعد الشرطية', html)
-
     def test_etape_identite_naffiche_plus_aucun_champ_bidon_grace_aux_champs_structurels(self):
         """Bug signalé le 2026-08-22 : l'étape "المعلومات الشخصية" affichait
         "لا توجد حقول بعد" alors que nom/sexe/telephone/... existent et sont
@@ -2958,18 +2895,6 @@ class EtapeChampRegleInscriptionCRUDTests(TestCase):
         self.assertTrue(config.obligatoire)  # jamais relâché
         self.assertTrue(config.est_actif)  # jamais relâché
         self.assertEqual(config.etape_id, etape_originale_id)  # jamais déplacé
-
-    def test_suppression_regle_reussit(self):
-        etape = EtapeInscription.objects.create(code='test_programme', titre='برنامج')
-        critere = CritereInscription.objects.create(code='test_riwaya', label='الرواية')
-        from django.contrib.contenttypes.models import ContentType
-        regle = RegleCondition.objects.create(
-            cible_content_type=ContentType.objects.get_for_model(EtapeInscription),
-            cible_object_id=etape.id, critere_condition=critere, operateur='egal', valeurs=['hafs'],
-        )
-        client = self._connecte_admin()
-        client.get(reverse('admin_regle_inscription_supprimer', args=[regle.id]))
-        self.assertFalse(RegleCondition.objects.filter(id=regle.id).exists())
 
 
 # ============================================================================
@@ -3251,8 +3176,6 @@ class PariteDirecteurMshrifConsolideeTests(TestCase):
             ('admin_etape_inscription_detail', [self.etape.id]),
             ('admin_etape_inscription_modifier', [self.etape.id]),
             ('admin_champ_inscription_modifier', [self.champ.id]),
-            ('admin_regles_inscription', []),
-            ('admin_regle_inscription_ajouter', []),
             ('admin_moyens_paiement', []),
             ('admin_moyen_paiement_ajouter', []),
             ('admin_moyen_paiement_modifier', [self.moyen.id]),
@@ -3939,7 +3862,7 @@ class GenericiteBoutEnBoutTests(TestCase):
         # créée pour l'occasion) — obligatoire volontairement PAS coché ici,
         # vérifié/activé dans un 2e temps par test_couverture_vide_puis_
         # couverte_apres_assignation_aux_groupes ci-dessous, après contrôle
-        # de couverture (même flux que EtapeChampRegleInscriptionCRUDTests.
+        # de couverture (même flux que EtapeChampInscriptionCRUDTests.
         # test_rendre_champ_obligatoire_sans_couverture_demande_confirmation).
         etape_programme = EtapeInscription.objects.get(code='programme')
         client.post(reverse('admin_champ_inscription_ajouter', args=[etape_programme.id]), {

@@ -6161,7 +6161,7 @@ def admin_critere_option_supprimer(request, option_id):
 
 # ============================================================================
 # CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5B : CRUD
-# EtapeInscription / ChampInscription / RegleCondition. Directeur ET مشرف,
+# EtapeInscription / ChampInscription. Directeur ET مشرف,
 # accès strictement identique (voir Étape 5A pour la justification).
 # ============================================================================
 
@@ -6443,71 +6443,6 @@ def admin_champ_structurel_modifier(request, config_id):
     return render(request, 'dashboard/admin_champ_structurel_modifier.html', context)
 
 
-# ---- Règles conditionnelles ----
-
-@role_required('admin', 'mshrif')
-def admin_regles_inscription(request):
-    from registration.models import RegleCondition
-
-    regles = RegleCondition.objects.select_related('critere_condition', 'cible_content_type').order_by('id')
-    context = {
-        'regles': regles,
-        'base_template': _base_template_admin_ou_mshrif(request),
-    }
-    context.update(_contexte_base_mshrif(request))
-    return render(request, 'dashboard/admin_regles_inscription.html', context)
-
-
-@role_required('admin', 'mshrif')
-def admin_regle_inscription_ajouter(request):
-    from django.contrib.contenttypes.models import ContentType
-    from registration.models import ChampInscription, Critere, EtapeInscription, RegleCondition
-
-    if request.method == 'POST':
-        cible_type = request.POST.get('cible_type')  # 'etape' ou 'champ'
-        cible_id = request.POST.get('cible_id')
-        critere_condition = get_object_or_404(Critere, id=request.POST.get('critere_condition_id'))
-        modele_cible = EtapeInscription if cible_type == 'etape' else ChampInscription
-        cible = get_object_or_404(modele_cible, id=cible_id)
-
-        RegleCondition.objects.create(
-            cible_content_type=ContentType.objects.get_for_model(modele_cible),
-            cible_object_id=cible.id,
-            critere_condition=critere_condition,
-            operateur=request.POST.get('operateur', 'egal'),
-            valeurs=request.POST.getlist('valeurs'),
-        )
-        messages.success(request, 'تمت إضافة القاعدة الشرطية بنجاح.')
-        return redirect('admin_regles_inscription')
-
-    context = {
-        'etapes': EtapeInscription.objects.all().order_by('ordre'),
-        'champs': ChampInscription.objects.select_related('etape').order_by('etape__ordre', 'ordre'),
-        'criteres': Critere.objects.filter(est_actif=True).prefetch_related('options').order_by('ordre'),
-        'base_template': _base_template_admin_ou_mshrif(request),
-    }
-    context.update(_contexte_base_mshrif(request))
-    return render(request, 'dashboard/admin_regle_inscription_ajouter.html', context)
-
-
-@role_required('admin', 'mshrif')
-def admin_regle_inscription_toggle(request, regle_id):
-    from registration.models import RegleCondition
-    regle = get_object_or_404(RegleCondition, id=regle_id)
-    regle.est_actif = not regle.est_actif
-    regle.save()
-    messages.info(request, 'تم تفعيل القاعدة.' if regle.est_actif else 'تم تعطيل القاعدة.')
-    return redirect('admin_regles_inscription')
-
-
-@role_required('admin', 'mshrif')
-def admin_regle_inscription_supprimer(request, regle_id):
-    from registration.models import RegleCondition
-    get_object_or_404(RegleCondition, id=regle_id).delete()
-    messages.success(request, 'تم حذف القاعدة الشرطية.')
-    return redirect('admin_regles_inscription')
-
-
 # ============================================================================
 # CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5C : MoyenPaiement +
 # PresentationInscription. Directeur ET مشرف, accès strictement identique.
@@ -6736,10 +6671,10 @@ def admin_eleve_ajouter_manuel(request):
     ZÉRO logique dupliquée avec le wizard public (registration/views.py,
     Étape 6) :
     - registration.utils.evaluer_champs_actifs() pour la liste des champs à
-      afficher (toutes étapes actives, dans l'ordre, RegleCondition évaluées)
-      — LA MÊME requête ChampInscription que le wizard, jamais une 2e liste
-      maintenue ici (voir AdminAjouterEleveManuelTests.test_meme_source_
-      champs_actifs_que_wizard_public).
+      afficher (toutes étapes actives, dans l'ordre) — LA MÊME requête
+      ChampInscription que le wizard, jamais une 2e liste maintenue ici
+      (voir AdminAjouterEleveManuelTests.test_meme_source_champs_actifs_
+      que_wizard_public).
     - registration.utils.groupes_compatibles_avec_age()/statut_compatibilite_
       groupe() pour la compatibilité groupe — même règle exacte que celle que
       inscrire_eleve() applique en interne à la confirmation finale.

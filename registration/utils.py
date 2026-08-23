@@ -680,41 +680,6 @@ def definir_valeurs_groupe(groupe, critere, options):
     ])
 
 
-# ==================== RÈGLES CONDITIONNELLES (Phase 7 / Partie 16) ====================
-
-def _regle_satisfaite(regle, codes_options_repondus_par_critere):
-    """codes_options_repondus_par_critere : {critere_id: {code, code, ...}} — les
-    codes d'options déjà choisies pour chaque critère répondu jusqu'ici."""
-    codes_repondus = codes_options_repondus_par_critere.get(regle.critere_condition_id, set())
-    codes_regle = set(regle.valeurs)
-    if regle.operateur == 'egal' or regle.operateur == 'dans':
-        return bool(codes_repondus & codes_regle)
-    if regle.operateur == 'different':
-        return bool(codes_repondus) and not (codes_repondus & codes_regle)
-    return False
-
-
-def _regles_pour(instance):
-    from django.contrib.contenttypes.models import ContentType
-    from .models import RegleCondition
-
-    ct = ContentType.objects.get_for_model(instance)
-    return RegleCondition.objects.filter(
-        cible_content_type=ct, cible_object_id=instance.pk, est_actif=True
-    ).select_related('critere_condition')
-
-
-def champ_est_masque(champ, codes_options_repondus_par_critere):
-    """True si champ.etape OU champ lui-même est masqué par au moins une
-    RegleCondition satisfaite par les réponses déjà données. Une étape masquée
-    masque tous ses champs, sans qu'il faille dupliquer une règle par champ
-    (ex: 'SI type_offre != groupe -> masquer étape Choisir un groupe' masque
-    tous les champs de cette étape en une seule règle)."""
-    if any(_regle_satisfaite(r, codes_options_repondus_par_critere) for r in _regles_pour(champ.etape)):
-        return True
-    return any(_regle_satisfaite(r, codes_options_repondus_par_critere) for r in _regles_pour(champ))
-
-
 # ==================== VALIDATION D'UNE RÉPONSE DE CHAMP ====================
 
 def _reponses_a_creer_pour_champ(champ, valeur_brute):
@@ -782,10 +747,7 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
 def extraire_champs_depuis_post(post_data):
     """dict {champ_<id>: valeur} depuis un QueryDict POST — valeur = liste si
     plusieurs valeurs soumises sous la même clé (choix multiple), sinon chaîne
-    simple. Déplacé depuis registration/views.py vers ce module (Étape 7) : à
-    l'origine réservé à wizard_programme (évaluer les RegleCondition avec les
-    réponses de LA soumission EN COURS, pas seulement celles déjà en session),
-    désormais aussi utilisé par dashboard.views.admin_eleve_ajouter_manuel pour
+    simple. Utilisée par dashboard.views.admin_eleve_ajouter_manuel pour
     construire reponses_brutes à partir d'un POST brut — MÊME fonction, jamais
     une 2e version réécrite côté admin."""
     extrait = {}
@@ -798,12 +760,12 @@ def extraire_champs_depuis_post(post_data):
 
 def traiter_champs_dynamiques_post(post_data, champs):
     """Valide/extrait les réponses POST pour une liste de ChampInscription
-    (avec ou sans critère) déjà filtrée par étape et démasquage
-    (RegleCondition) par l'appelant — MÊME logique de fond que
-    _reponses_a_creer_pour_champ ci-dessus, mais restreinte aux champs
-    D'UNE SEULE PAGE du wizard (jamais un message "إلزامي" pour un champ
-    d'une AUTRE étape, contrairement à evaluer_champs_actifs qui, lui,
-    revalide TOUT à la confirmation finale, voir inscrire_eleve).
+    (avec ou sans critère) déjà filtrée par étape par l'appelant — MÊME
+    logique de fond que _reponses_a_creer_pour_champ ci-dessus, mais
+    restreinte aux champs D'UNE SEULE PAGE du wizard (jamais un message
+    "إلزامي" pour un champ d'une AUTRE étape, contrairement à evaluer_
+    champs_actifs qui, lui, revalide TOUT à la confirmation finale, voir
+    inscrire_eleve).
 
     Retourne (nouvelles_valeurs, erreurs) — nouvelles_valeurs prêtes à
     fusionner dans la session (wizard_maj), erreurs = liste de messages
@@ -894,34 +856,27 @@ def donnees_filtrage_json_pour_wizard():
 
 def evaluer_champs_actifs(reponses_brutes):
     """Parcourt tous les ChampInscription actifs (toutes étapes, dans
-    l'ordre), en respectant les RegleCondition (champ_est_masque) évaluées
-    AU FUR ET À MESURE avec les réponses déjà rencontrées dans CE MÊME
-    passage — un champ démasqué par une réponse plus haut dans le parcours
-    est donc pris en compte correctement. Retourne une liste ordonnée de
-    dicts {'champ', 'paires', 'erreur', 'masque'} — 'paires' et 'erreur' au
-    même format que _reponses_a_creer_pour_champ, vide/None si 'masque' est
-    True (jamais évalué dans ce cas)."""
+    l'ordre). Retourne une liste ordonnée de dicts {'champ', 'paires',
+    'erreur', 'masque'} — 'paires' et 'erreur' au même format que
+    _reponses_a_creer_pour_champ. 'masque' reste dans la forme du résultat
+    (toujours False) pour ne rien casser chez les appelants qui le
+    consultent encore (inscrire_eleve, reponses_pour_filtrage_depuis_
+    resultats, dashboard.views._champs_pour_template, admin_eleve_ajouter_
+    manuel.html) — chantier du 2026-08-23 : le masquage conditionnel par
+    RegleCondition a été retiré (jamais utilisé pour une vraie règle
+    depuis sa création, voir registration.models.__doc__), cette clé ne
+    peut donc plus jamais valoir True désormais."""
     from .models import ChampInscription
 
-    resultats = []
-    codes_options_repondus = {}
     champs_actifs = list(
         ChampInscription.objects.filter(est_actif=True, etape__est_actif=True)
         .select_related('critere', 'etape').order_by('etape__ordre', 'ordre')
     )
+    resultats = []
     for champ in champs_actifs:
-        if champ_est_masque(champ, codes_options_repondus):
-            resultats.append({'champ': champ, 'paires': [], 'erreur': None, 'masque': True})
-            continue
-
         valeur_brute = reponses_brutes.get(f'champ_{champ.id}')
         paires, erreur = _reponses_a_creer_pour_champ(champ, valeur_brute)
         resultats.append({'champ': champ, 'paires': paires, 'erreur': erreur, 'masque': False})
-
-        if champ.critere is not None and not erreur:
-            codes = {o.code for o, _ in paires if o is not None}
-            if codes:
-                codes_options_repondus.setdefault(champ.critere_id, set()).update(codes)
 
     return resultats
 

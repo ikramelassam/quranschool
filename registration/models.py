@@ -39,15 +39,27 @@ Appliquée ainsi dans tout ce fichier :
   créé par erreur, jamais publié).
 - Toute FK représentant un USAGE réel d'un Critere/CritereOption (attaché à un
   ChampInscription, répondu dans une ReponseInscription, assigné à un
-  GroupeCritereValeur, référencé par une RegleCondition) = PROTECT : dès qu'un critère
-  ou une option a servi ne serait-ce qu'une fois, sa suppression est bloquée — seule la
-  désactivation (est_actif=False) reste possible, cohérent avec le principe déjà établi
+  GroupeCritereValeur) = PROTECT : dès qu'un critère ou une option a servi ne
+  serait-ce qu'une fois, sa suppression est bloquée — seule la désactivation
+  (est_actif=False) reste possible, cohérent avec le principe déjà établi
   partout ailleurs dans ce projet (archivage réversible plutôt que suppression
   destructive dès qu'une donnée réelle est en jeu, voir courses.utils.
-  creneau_peut_etre_supprime/groupe_peut_etre_supprime)."""
+  creneau_peut_etre_supprime/groupe_peut_etre_supprime).
 
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
+RegleCondition (règles conditionnelles génériques de masquage, "SI critère X
+ALORS masquer étape/champ Y") a existé dans ce fichier jusqu'au chantier du
+2026-08-23 — retirée après audit : 0 ligne créée depuis sa mise en place
+(aucune migration de seed, base réelle vide), le seul cas d'usage qui aurait
+pu la justifier (masquer l'étape "اختيار المجموعة" quand l'élève choisit
+فردي) n'est en réalité PAS géré par elle mais par une condition Python fixe
+dans registration.views.wizard_groupe (voir sa docstring) — jamais modifiable
+depuis le dashboard, par choix. Aucun autre besoin réel identifié à ce jour
+(voir la clarification Système A/critères filtrables vs Système B/étapes de
+contenu statique, ni l'un ni l'autre n'a besoin de masquage conditionnel
+entre champs). Si un vrai besoin de ce type apparaît plus tard, un chantier
+séparé le réintroduira consciemment plutôt que de laisser du code générique
+non testé en pratique."""
+
 from django.db import models
 
 
@@ -324,42 +336,6 @@ class ChampInscription(models.Model):
         ordering = ['ordre', 'id']
         verbose_name = "Champ d'inscription"
         verbose_name_plural = "Champs d'inscription"
-
-
-class RegleCondition(models.Model):
-    """Règle conditionnelle générique : SI la réponse à critere_condition correspond
-    (selon operateur/valeurs) ALORS cible (une EtapeInscription ou un ChampInscription,
-    via GenericForeignKey) est masquée. cible_content_type est volontairement limité en
-    pratique à ces 2 modèles (appliqué au niveau du formulaire d'administration, pas
-    d'une contrainte DB — django.contrib.contenttypes ne permet pas de restreindre le
-    type au niveau du champ). critere_condition en CASCADE (pas PROTECT, contrairement
-    au reste du fichier) : une règle est de la pure configuration sans valeur
-    historique propre, sa perte à la suppression d'un critère n'efface aucune donnée
-    d'élève — voir la distinction PROTECT/CASCADE dans le docstring du module."""
-
-    OPERATEUR_CHOICES = [
-        ('egal', 'يساوي'),
-        ('different', 'يختلف عن'),
-        ('dans', 'ضمن'),
-    ]
-
-    cible_content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    cible_object_id = models.PositiveIntegerField()
-    cible = GenericForeignKey('cible_content_type', 'cible_object_id')
-
-    critere_condition = models.ForeignKey(Critere, on_delete=models.CASCADE, related_name='regles')
-    operateur = models.CharField(max_length=20, choices=OPERATEUR_CHOICES, default='egal')
-    # Codes de CritereOption (ex: ['individuel']) — comparés aux réponses de l'élève
-    # par registration.utils, jamais par nom de critère en dur.
-    valeurs = models.JSONField(default=list)
-    est_actif = models.BooleanField(default=True)
-
-    def __str__(self):
-        return f'قاعدة على {self.critere_condition}'
-
-    class Meta:
-        verbose_name = "Règle conditionnelle"
-        verbose_name_plural = "Règles conditionnelles"
 
 
 class ReponseInscription(models.Model):

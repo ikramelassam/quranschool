@@ -7,7 +7,6 @@ from .models import (
     GroupeCritereValeur,
     PresentationInscription,
     ReponseInscription,
-    RegleCondition,
 )
 
 # Django Admin natif enregistré ici pour usage technique/débogage uniquement — la
@@ -18,7 +17,6 @@ admin.site.register(Critere)
 admin.site.register(CritereOption)
 admin.site.register(EtapeInscription)
 admin.site.register(ChampInscription)
-admin.site.register(RegleCondition)
 admin.site.register(ReponseInscription)
 admin.site.register(GroupeCritereValeur)
 admin.site.register(PresentationInscription)

@@ -86,11 +86,10 @@ def wizard_intro(request):
     })
 
 
-def _champs_visibles_pour_etape(donnees, code_etape):
+def _champs_visibles_pour_etape(code_etape):
     """ChampInscription actifs liés à l'étape `code_etape` — informatifs
-    (critere=NULL) ET avec critère, MOINS ceux masqués par une
-    RegleCondition satisfaite (champ_est_masque) compte tenu des réponses
-    déjà en session — recalculé à chaque affichage, jamais mis en cache.
+    (critere=NULL) ET avec critère — recalculé à chaque affichage, jamais
+    mis en cache.
 
     Généralisée le 2026-08-23 (Partie 3A, "extension du moteur générique à
     l'étape Identité") depuis l'ancienne _champs_programme_visibles
@@ -102,20 +101,19 @@ def _champs_visibles_pour_etape(donnees, code_etape):
     étape personnalisée future, Partie 3B) — jamais 2 (ou 3) versions
     maintenues séparément. Liste vide (jamais une exception) si l'étape
     n'existe pas encore (مدير ne l'a pas créée) — comportement dégradé
-    propre, pas un 500."""
+    propre, pas un 500.
+
+    Ne prend plus les réponses déjà en session en paramètre depuis le
+    retrait du masquage conditionnel (RegleCondition, chantier du
+    2026-08-23 — jamais utilisé pour une vraie règle depuis sa création,
+    voir registration.models.__doc__) : la liste des champs d'une étape
+    ne dépend plus de ce que l'élève a déjà répondu ailleurs."""
     from .models import ChampInscription
-    from .utils import champ_est_masque
 
-    tous_les_champs = list(
-        ChampInscription.objects.filter(est_actif=True, etape__est_actif=True)
-        .select_related('critere', 'etape').order_by('etape__ordre', 'ordre')
+    return list(
+        ChampInscription.objects.filter(est_actif=True, etape__est_actif=True, etape__code=code_etape)
+        .select_related('critere', 'etape').order_by('ordre')
     )
-    codes_repondus = _codes_repondus_depuis_session(donnees, tous_les_champs)
-
-    return [
-        c for c in tous_les_champs
-        if c.etape.code == code_etape and not champ_est_masque(c, codes_repondus)
-    ]
 
 
 def wizard_identite(request):
@@ -150,7 +148,7 @@ def wizard_identite(request):
     from courses.utils import tranche_age_depuis_naissance
     from inscriptions.views import MESSAGE_AGE_NE_CORRESPOND_PAS, _construire_et_valider_telephone
     from .utils import (
-        champs_structurels_actifs, extraire_champs_depuis_post, traiter_champs_dynamiques_post,
+        champs_structurels_actifs, traiter_champs_dynamiques_post,
         url_etape_suivante, valider_champ_structurel_libre,
     )
 
@@ -258,13 +256,10 @@ def wizard_identite(request):
             nouvelles_valeurs['telephone'] = telephone
 
         # Champs dynamiques (informatifs OU avec critère, chantier du
-        # 2026-08-23) — même mécanique que wizard_programme : les
-        # RegleCondition sont évaluées avec les réponses de CETTE
-        # soumission (donnees_session fusionnées avec le POST en cours),
-        # jamais un état périmé. Erreurs ajoutées à celles déjà
-        # accumulées ci-dessus (structurels), un seul message par champ.
-        donnees_pour_masquage = {**donnees_session, **extraire_champs_depuis_post(request.POST)}
-        champs = _champs_visibles_pour_etape(donnees_pour_masquage, 'identite')
+        # 2026-08-23) — même mécanique que wizard_programme. Erreurs
+        # ajoutées à celles déjà accumulées ci-dessus (structurels), un
+        # seul message par champ.
+        champs = _champs_visibles_pour_etape('identite')
         nouvelles_valeurs_dyn, erreurs_dyn = traiter_champs_dynamiques_post(request.POST, champs)
         erreurs += erreurs_dyn
 
@@ -279,7 +274,7 @@ def wizard_identite(request):
             'wizard_etape_num': 1,
         })
 
-    champs = _champs_visibles_pour_etape(donnees_session, 'identite')
+    champs = _champs_visibles_pour_etape('identite')
     return render(request, 'inscriptions/wizard_identite.html', {
         'champs': champs, 'configs': _avec_valeurs_actuelles(wizard_donnees(request)),
         'valeurs_form': wizard_donnees(request),
@@ -287,34 +282,10 @@ def wizard_identite(request):
     })
 
 
-def _codes_repondus_depuis_session(donnees, tous_les_champs):
-    """{critere_id: {code, ...}} reconstruit depuis les réponses déjà en
-    session — même format que registration.utils.champ_est_masque attend,
-    nécessaire pour évaluer les RegleCondition à l'affichage (avant toute
-    soumission), cohérent avec ce qu'inscrire_eleve() referait à la
-    validation finale."""
-    from .models import CritereOption
-
-    codes = {}
-    for champ in tous_les_champs:
-        if champ.critere_id is None or champ.critere.backend == 'nb_slots':
-            continue
-        valeur_brute = donnees.get(f'champ_{champ.id}')
-        if not valeur_brute:
-            continue
-        valeurs = valeur_brute if isinstance(valeur_brute, list) else [valeur_brute]
-        options = CritereOption.objects.filter(critere_id=champ.critere_id, code__in=valeurs)
-        if options:
-            codes.setdefault(champ.critere_id, set()).update(o.code for o in options)
-    return codes
-
-
 def wizard_programme(request):
     """Étape 2 — رendu générique des ChampInscription actifs de l'étape
     'programme' (au minimum, prévus dès le lancement via la migration de
-    seed : Programme, Riwaya, Groupe-ou-Individuel, Nombre de séances), en
-    respectant les RegleCondition déjà satisfaites par les réponses données
-    à l'étape 1 ou plus tôt dans cette même étape.
+    seed : Programme, Riwaya, Groupe-ou-Individuel, Nombre de séances).
 
     Chantier du 2026-08-22 ("liberté totale du nombre de séances") : le
     champ backend='nb_slots' est désormais un simple nombre libre (aucune
@@ -329,7 +300,7 @@ def wizard_programme(request):
     saut Individuel de wizard_groupe : un visiteur qui force cette URL est
     TOUJOURS redirigé, quelle que soit la méthode HTTP."""
     from .utils import (
-        etape_est_active, extraire_champs_depuis_post, traiter_champs_dynamiques_post, url_etape_suivante,
+        etape_est_active, traiter_champs_dynamiques_post, url_etape_suivante,
         wizard_donnees, wizard_maj,
     )
 
@@ -340,15 +311,7 @@ def wizard_programme(request):
         return redirect(url_etape_suivante('programme'))
 
     if request.method == 'POST':
-        # IMPORTANT : les RegleCondition doivent être évaluées avec les
-        # réponses de CETTE soumission, pas seulement celles déjà en
-        # session AVANT elle — sinon un champ que la réponse en cours vient
-        # justement de démasquer/masquer serait jugé sur un état périmé
-        # (bug détecté par WizardProgrammeTests.test_regle_conditionnelle_
-        # masque_un_champ). Fusion purement locale à ce calcul, la session
-        # elle-même n'est mise à jour qu'après validation complète, plus bas.
-        donnees_pour_masquage = {**donnees, **extraire_champs_depuis_post(request.POST)}
-        champs = _champs_visibles_pour_etape(donnees_pour_masquage, 'programme')
+        champs = _champs_visibles_pour_etape('programme')
         nouvelles_valeurs, erreurs = traiter_champs_dynamiques_post(request.POST, champs)
 
         if not erreurs:
@@ -360,7 +323,7 @@ def wizard_programme(request):
             'wizard_etape_num': 2,
         })
 
-    champs = _champs_visibles_pour_etape(donnees, 'programme')
+    champs = _champs_visibles_pour_etape('programme')
     return render(request, 'inscriptions/wizard_programme.html', {
         'champs': champs, 'valeurs_form': donnees,
         'wizard_etape_num': 2,
@@ -677,9 +640,9 @@ def wizard_etape_personnalisee(request, code):
     exemple concret : "الشروط والأحكام" insérée entre 'abonnement' et
     'paiement'. RÉUTILISE À L'IDENTIQUE le moteur déjà partagé par
     wizard_identite/wizard_programme (Partie 3A) : _champs_visibles_pour_
-    etape (rendu + masquage RegleCondition) et traiter_champs_dynamiques_
-    post (validation) — jamais une 3e version divergente, une seule vue
-    Python sert un nombre illimité d'étapes personnalisées.
+    etape (rendu) et traiter_champs_dynamiques_post (validation) — jamais
+    une 3e version divergente, une seule vue Python sert un nombre
+    illimité d'étapes personnalisées.
 
     AVANT cette correction : une étape personnalisée n'avait tout
     simplement AUCUNE page — url_etape_suivante l'ignorait silencieusement
@@ -697,7 +660,7 @@ def wizard_etape_personnalisee(request, code):
     redirigé proprement au début du parcours, jamais un 404/500 réel."""
     from .models import EtapeInscription
     from .utils import (
-        URL_PAR_CODE_ETAPE, extraire_champs_depuis_post, traiter_champs_dynamiques_post,
+        URL_PAR_CODE_ETAPE, traiter_champs_dynamiques_post,
         url_etape_precedente, url_etape_suivante,
     )
 
@@ -713,11 +676,7 @@ def wizard_etape_personnalisee(request, code):
         return redirect('wizard_identite')
 
     if request.method == 'POST':
-        # Même précaution que wizard_programme (Partie 3A) : les
-        # RegleCondition sont évaluées avec les réponses de CETTE
-        # soumission, pas seulement celles déjà en session avant elle.
-        donnees_pour_masquage = {**donnees, **extraire_champs_depuis_post(request.POST)}
-        champs = _champs_visibles_pour_etape(donnees_pour_masquage, code)
+        champs = _champs_visibles_pour_etape(code)
         nouvelles_valeurs, erreurs = traiter_champs_dynamiques_post(request.POST, champs)
 
         if not erreurs:
@@ -729,7 +688,7 @@ def wizard_etape_personnalisee(request, code):
             'url_precedente': url_etape_precedente(code),
         })
 
-    champs = _champs_visibles_pour_etape(donnees, code)
+    champs = _champs_visibles_pour_etape(code)
     return render(request, 'inscriptions/wizard_etape_personnalisee.html', {
         'etape': etape, 'champs': champs,
         'url_precedente': url_etape_precedente(code),
