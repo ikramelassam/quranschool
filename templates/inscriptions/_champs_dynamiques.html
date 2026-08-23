@@ -1,0 +1,144 @@
+{% comment %}
+Rendu générique d'une liste de ChampInscription actifs (avec ou sans
+critère) — chantier du 2026-08-23, "extension du moteur générique à
+l'étape Identité" (Partie 3A). Extrait de wizard_programme.html (seule
+étape à l'avoir eu jusqu'ici) pour être partagé avec wizard_identite.html
+ET toute future étape personnalisée (Partie 3B) — un seul rendu/une seule
+logique JS, jamais 2 versions maintenues séparément (même principe que
+registration.utils.evaluer_champs_actifs côté serveur).
+
+Attend une variable `champs` dans le contexte : liste de ChampInscription
+(pas le format {'champ':, 'valeurs_liste':...} du round admin — voir
+admin_eleve_ajouter_manuel.html pour cet autre format, volontairement pas
+réutilisé ici : formulaire public multi-page vs formulaire admin
+mono-page, valeurs pré-remplies différemment).
+
+La page appelante DOIT définir un <form> englobant (csrf_token inclus) et
+appeler toggleNbSeances()/champsObligatoiresRepondus() au DOMContentLoaded
+si elle a son propre JS à coordonner (ex: wizard_identite.html revalide
+aussi ses champs structurels) — ce fragment se contente d'enregistrer ses
+propres fonctions, jamais d'imposer l'ordre d'exécution à la page.
+{% endcomment %}
+{% for champ in champs %}
+    {% if champ.critere.backend == 'nb_slots' %}
+    {% comment %}
+    Caché par défaut (bug UX signalé le 2026-08-21) : révélé par JS
+    (toggleNbSeances) uniquement une fois tous les champs obligatoires
+    précédents remplis — jamais un état vide statique affiché d'emblée.
+    {% endcomment %}
+    <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
+        <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
+        <input type="number" name="champ_{{ champ.id }}" class="form-control mt-1" min="1" step="1"
+               placeholder="مثال: 3" {% if champ.obligatoire %}required{% endif %}>
+    </div>
+    {% elif not champ.critere and champ.type_champ == 'booleen' %}
+    {% comment %}
+    Case à cocher (ex: "قبول الشروط", Partie 3B) — pas de label générique
+    au-dessus : la case ET son intitulé forment un seul bloc, convention
+    habituelle d'une checkbox, contrairement aux autres types.
+    {% endcomment %}
+    <div class="mb-3 form-check">
+        <input type="checkbox" name="champ_{{ champ.id }}" value="1" class="form-check-input"
+               id="champ_bool_{{ champ.id }}" {% if champ.obligatoire %}required{% endif %}>
+        <label class="form-check-label" for="champ_bool_{{ champ.id }}">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
+    </div>
+    {% else %}
+    <div class="mb-3">
+        <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
+
+        {% if champ.critere %}
+        <div class="row g-2" data-champ-container="{{ champ.id }}">
+            {% for option in champ.critere.options.all %}
+            {% if option.est_actif %}
+            <div class="col-6">
+                <div class="select-btn"
+                     data-critere-id="{{ champ.critere.id }}"
+                     data-backend="{{ champ.critere.backend }}"
+                     data-obligatoire="{% if champ.obligatoire %}1{% else %}0{% endif %}"
+                     onclick="selectionnerOptionChampDynamique({{ champ.id }}, {{ champ.critere.id }}, '{{ option.code }}', {% if champ.critere.type_champ == 'choix_multiple' %}true{% else %}false{% endif %}, this)">
+                    {{ option.label }}
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% elif champ.type_champ == 'nombre' %}
+        <input type="number" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
+        {% elif champ.type_champ == 'date' %}
+        <input type="date" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
+        {% elif champ.type_champ == 'email' %}
+        <input type="email" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
+        {% else %}
+        {# 'texte' et tout autre type_champ non modélisé par un widget dédié — même repli qu'avant ce chantier. #}
+        <input type="text" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
+        {% endif %}
+    </div>
+    {% endif %}
+{% endfor %}
+
+<script>
+    // Espace de noms distinct de wizard_identite.html (selectionnerSexe...) —
+    // ce fragment peut être inclus sur des pages qui ont déjà leur propre JS,
+    // jamais de collision de nom de fonction/variable globale.
+    window._champsDynamiquesSelections = window._champsDynamiquesSelections || {};
+
+    function selectionnerOptionChampDynamique(champId, critereId, code, multiple, element) {
+        const selections = window._champsDynamiquesSelections;
+        if (multiple) {
+            selections[critereId] = selections[critereId] || [];
+            const idx = selections[critereId].indexOf(code);
+            if (idx > -1) {
+                selections[critereId].splice(idx, 1);
+                element.classList.remove('active');
+            } else {
+                selections[critereId].push(code);
+                element.classList.add('active');
+            }
+        } else {
+            selections[critereId] = code;
+            document.querySelectorAll(`[data-critere-id="${critereId}"]`).forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+        }
+        _majInputsCachesChampDynamique(champId, critereId, multiple);
+        toggleNbSeances();
+    }
+
+    function _majInputsCachesChampDynamique(champId, critereId, multiple) {
+        const container = document.querySelector(`[data-champ-container="${champId}"]`);
+        container.querySelectorAll('input[type=hidden]').forEach(i => i.remove());
+        const selections = window._champsDynamiquesSelections;
+        const valeurs = multiple ? (selections[critereId] || []) : [selections[critereId]];
+        valeurs.forEach(v => {
+            if (!v) return;
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = `champ_${champId}`;
+            input.value = v;
+            container.appendChild(input);
+        });
+    }
+
+    function champsObligatoiresRepondus() {
+        // Tous les champs critère obligatoires (hors nb_slots, qui n'a pas
+        // d'options statiques) doivent avoir une réponse avant de révéler le
+        // champ "nombre de séances" — jamais les champs non-obligatoires.
+        const selections = window._champsDynamiquesSelections;
+        const requisIds = new Set();
+        document.querySelectorAll('[data-critere-id][data-obligatoire="1"]').forEach(el => {
+            requisIds.add(el.dataset.critereId);
+        });
+        for (const id of requisIds) {
+            const val = selections[id];
+            if (!val || (Array.isArray(val) && val.length === 0)) return false;
+        }
+        return true;
+    }
+
+    function toggleNbSeances() {
+        const wrapper = document.getElementById('nb_seances_wrapper');
+        if (!wrapper) return;
+        wrapper.style.display = champsObligatoiresRepondus() ? '' : 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', toggleNbSeances);
+</script>

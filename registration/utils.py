@@ -742,6 +742,41 @@ def extraire_champs_depuis_post(post_data):
     return extrait
 
 
+def traiter_champs_dynamiques_post(post_data, champs):
+    """Valide/extrait les réponses POST pour une liste de ChampInscription
+    (avec ou sans critère) déjà filtrée par étape et démasquage
+    (RegleCondition) par l'appelant — MÊME logique de fond que
+    _reponses_a_creer_pour_champ ci-dessus, mais restreinte aux champs
+    D'UNE SEULE PAGE du wizard (jamais un message "إلزامي" pour un champ
+    d'une AUTRE étape, contrairement à evaluer_champs_actifs qui, lui,
+    revalide TOUT à la confirmation finale, voir inscrire_eleve).
+
+    Retourne (nouvelles_valeurs, erreurs) — nouvelles_valeurs prêtes à
+    fusionner dans la session (wizard_maj), erreurs = liste de messages
+    arabes. Factorisée depuis wizard_programme (chantier du 2026-08-23,
+    Partie 3A "extension du moteur générique à l'étape Identité") : même
+    fonction pour 'programme' ET 'identite' (et toute étape personnalisée
+    future, Partie 3B) — jamais 2 versions divergentes maintenues par
+    étape."""
+    nouvelles_valeurs = {}
+    erreurs = []
+    for champ in champs:
+        cle = f'champ_{champ.id}'
+        if champ.critere and champ.critere.type_champ == 'choix_multiple':
+            valeur_brute = post_data.getlist(cle)
+        else:
+            valeur_brute = post_data.get(cle, '')
+        paires, erreur = _reponses_a_creer_pour_champ(champ, valeur_brute)
+        if erreur:
+            erreurs.append(erreur)
+            continue
+        if not paires and champ.obligatoire:
+            erreurs.append(f'"{champ.label}" إلزامي.')
+            continue
+        nouvelles_valeurs[cle] = valeur_brute
+    return nouvelles_valeurs, erreurs
+
+
 def donnees_filtrage_json_pour_wizard():
     """Un objet par Groupe actif avec créneau : {groupe_id, valeurs:
     {critere_id: code_ou_valeur}, nb_slots} — sert au calcul EN DIRECT (JS,

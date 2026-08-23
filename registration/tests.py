@@ -936,6 +936,165 @@ class RegistrationGenericiteTests(TestCase):
 
 
 # ============================================================================
+# Chantier du 2026-08-23 (Partie 3A, "extension du moteur générique à l'étape
+# Identité") — un ChampInscription AVEC critère attaché à l'étape RÉELLE
+# 'identite' (pas seulement critere=NULL comme avant cette correction) doit
+# fonctionner EXACTEMENT comme un champ attaché à 'programme' : affiché au
+# vrai wizard public, réponse enregistrée, groupes filtrés en conséquence —
+# à la fois côté public ET côté admin_eleve_ajouter_manuel. "لغة التواصل
+# المفضلة" (préférence de langue de communication) : critère JAMAIS
+# rencontré ailleurs dans ce fichier, choisi pour prouver que ce n'est pas
+# un cas particulier câblé en dur (même esprit que RegistrationGenericiteTests
+# ci-dessus, appliqué cette fois à l'étape Identité plutôt que Programme).
+# ============================================================================
+class ChampAvecCritereSurEtapeIdentiteTests(TestCase):
+    def setUp(self):
+        self.etape_identite = EtapeInscription.objects.get(code='identite')
+        self.critere_langue = Critere.objects.create(
+            code='langue_tawasul', label='لغة التواصل المفضلة', backend='eav',
+            filtrable=True, bloquant=False, ordre=99,
+        )
+        self.opt_ar = CritereOption.objects.create(critere=self.critere_langue, code='ar', label='العربية', ordre=1)
+        self.opt_fr = CritereOption.objects.create(critere=self.critere_langue, code='fr', label='الفرنسية', ordre=2)
+        # Attaché à l'étape IDENTITÉ (pas 'programme') — c'est précisément
+        # ce que le trou identifié par l'audit du 2026-08-23 rendait
+        # jusqu'ici invisible au wizard public, malgré une création admin
+        # sans erreur. Équivalent strict de ce que ferait le مدير depuis
+        # /dashboard/admin/etapes-inscription/<id>/champs/ajouter/ (voir
+        # RegistrationGenericiteTests._scenario_critere_jamais_prevu pour
+        # la même convention ORM-direct-équivaut-au-dashboard).
+        self.champ_langue = ChampInscription.objects.create(
+            etape=self.etape_identite, critere=self.critere_langue,
+            label='لغة التواصل المفضلة', obligatoire=True, ordre=99,
+        )
+
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        self.creneau = _creer_creneau(nb_slots=2, age_min=6, age_max=60)
+        self.groupe_arabophone = Groupe.objects.create(
+            nom='مجموعة تواصل بالعربية', creneau=self.creneau, statut='actif', type_capacite='groupe', capacite_max=10,
+        )
+        self.groupe_francophone = Groupe.objects.create(
+            nom='مجموعة تواصل بالفرنسية', creneau=self.creneau, statut='actif', type_capacite='groupe', capacite_max=10,
+        )
+        for groupe, option in [(self.groupe_arabophone, self.opt_ar), (self.groupe_francophone, self.opt_fr)]:
+            GroupeCritereValeur.objects.create(groupe=groupe, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+            GroupeCritereValeur.objects.create(groupe=groupe, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
+            GroupeCritereValeur.objects.create(groupe=groupe, critere=self.critere_langue, option=option)
+
+        self.abo_groupe = TypeAbonnement.objects.create(
+            code='test_langue_abo', label='جماعي شهري', prix=80, type_offre='groupe', cible_age='les_deux', ordre=1,
+        )
+
+    # ---- Côté wizard public ----
+
+    def test_apparait_sur_la_vraie_page_publique_wizard_identite(self):
+        client = Client()
+        _choisir_categorie_age(client)
+        reponse = client.get(reverse('wizard_identite'))
+        html = reponse.content.decode('utf-8')
+        self.assertIn('لغة التواصل المفضلة', html)
+        self.assertIn('الفرنسية', html)
+
+    def test_obligatoire_bloque_la_progression_si_non_repondu(self):
+        client = Client()
+        _choisir_categorie_age(client)
+        reponse = client.post(reverse('wizard_identite'), {
+            'nom': 'يوسف بلقاسم', 'sexe': 'homme', 'email': 'test_langue_manquante@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0611334455', 'telephone_confirmation': '0611334455',
+            # champ_<id> de langue_tawasul volontairement absent.
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('لغة التواصل المفضلة', reponse.content.decode('utf-8'))
+        self.assertIn('إلزامي', reponse.content.decode('utf-8'))
+
+    def test_filtre_les_groupes_bout_en_bout_wizard_public(self):
+        """LE test de généricité demandé : répond 'fr' à un critère attaché à
+        l'étape IDENTITÉ (jamais 'programme') et prouve qu'il filtre bien les
+        groupes à l'étape suivante — exactement comme Riwaya/Programme."""
+        client = Client()
+        _choisir_categorie_age(client)
+        reponse_identite = client.post(reverse('wizard_identite'), {
+            'nom': 'سارة الحسني', 'sexe': 'femme', 'email': 'test_langue_fr@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0611778899', 'telephone_confirmation': '0611778899',
+            f'champ_{self.champ_langue.id}': 'fr',
+        })
+        self.assertRedirects(reponse_identite, reverse('wizard_programme'), fetch_redirect_response=False)
+        # La réponse est bien accumulée en session (comme n'importe quel
+        # champ_<id> répondu à 'programme' — même mécanisme, pas un 2e format).
+        self.assertEqual(client.session['wizard_inscription'][f'champ_{self.champ_langue.id}'], 'fr')
+
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        reponse_groupe = client.get(reverse('wizard_groupe'))
+        ids_proposes = set(reponse_groupe.context['groupes'].values_list('id', flat=True))
+        self.assertEqual(ids_proposes, {self.groupe_francophone.id})
+        self.assertNotIn(self.groupe_arabophone.id, ids_proposes)
+
+    # ---- Côté ajout manuel admin ----
+
+    def test_fonctionne_aussi_cote_admin_ajouter_manuel(self):
+        """MÊME critère, MÊME étape, MÊME filtrage — via admin_eleve_ajouter_
+        manuel (déjà générique par étape avant cette correction, voir l'audit
+        du 2026-08-23 : evaluer_champs_actifs() ne filtre jamais par étape).
+        Vérifie qu'aucune divergence n'existe entre les 2 portes d'entrée."""
+        admin = User.objects.create_user(
+            username='admin_test_langue_identite@zidni.test', email='admin_test_langue_identite@zidni.test',
+            password='xX!test12345', role='admin', doit_changer_mot_de_passe=False,
+        )
+        client = Client()
+        client.force_login(admin)
+
+        reponse_round1 = client.post(reverse('admin_eleve_ajouter_manuel'), {
+            'round_form': 'identite',
+            'nom': 'كريم التازي', 'sexe': 'homme', 'email': 'test_langue_admin@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0611998877', 'telephone_confirmation': '0611998877',
+            f'champ_{self.champ_langue.id}': 'fr',
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        self.assertEqual(reponse_round1.status_code, 200)
+        self.assertEqual(reponse_round1.context['round_form'], 'confirmation')
+        ids_proposes = set(reponse_round1.context['groupes'].values_list('id', flat=True))
+        self.assertEqual(ids_proposes, {self.groupe_francophone.id})
+
+        reponse_finale = client.post(reverse('admin_eleve_ajouter_manuel'), {
+            'round_form': 'confirmation',
+            'nom': 'كريم التازي', 'sexe': 'homme', 'email': 'test_langue_admin@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0611998877', 'telephone_confirmation': '0611998877',
+            f'champ_{self.champ_langue.id}': 'fr',
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+            'groupe_id': str(self.groupe_francophone.id),
+            'abonnement_code': self.abo_groupe.code,
+        })
+        inscription = InscriptionEleve.objects.get(email='test_langue_admin@zidni.test')
+        self.assertRedirects(reponse_finale, reverse('admin_inscription_eleve_detail', args=[inscription.id]))
+        self.assertEqual(inscription.groupe_choisi_id, self.groupe_francophone.id)
+        reponse_langue = inscription.reponses.get(champ=self.champ_langue)
+        self.assertEqual(reponse_langue.option.code, 'fr')
+
+
+# ============================================================================
 # Étape 6A du chantier — fondations du wizard public : introduction (Étape 0)
 # + helpers de session serveur.
 # ============================================================================

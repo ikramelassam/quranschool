@@ -7,118 +7,14 @@
 <form method="POST">
     {% csrf_token %}
 
-    {% for champ in champs %}
-        {% if champ.critere.backend == 'nb_slots' %}
-        {% comment %}
-        Caché par défaut (bug UX signalé le 2026-08-21) : révélé par JS
-        (toggleNbSeances) uniquement une fois tous les champs obligatoires
-        précédents remplis — jamais un état vide statique affiché d'emblée.
-        Chantier du 2026-08-22 ("liberté totale du nombre de séances") :
-        simple nombre libre, PLUS de liste calculée depuis les groupes
-        réels existants — étendu du parcours Individuel (déjà indicatif)
-        au parcours Groupe (voir wizard_groupe : le repli "aucun groupe
-        exact" y est désormais géré génériquement, pas seulement ici).
-        {% endcomment %}
-        <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
-            <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
-            <input type="number" name="champ_{{ champ.id }}" class="form-control mt-1" min="1" step="1"
-                   placeholder="مثال: 3" {% if champ.obligatoire %}required{% endif %}>
-        </div>
-        {% else %}
-        <div class="mb-3">
-            <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
-
-            {% if champ.critere %}
-            <div class="row g-2" data-champ-container="{{ champ.id }}">
-                {% for option in champ.critere.options.all %}
-                {% if option.est_actif %}
-                <div class="col-6">
-                    <div class="select-btn"
-                         data-critere-id="{{ champ.critere.id }}"
-                         data-backend="{{ champ.critere.backend }}"
-                         data-obligatoire="{% if champ.obligatoire %}1{% else %}0{% endif %}"
-                         onclick="selectionnerOption({{ champ.id }}, {{ champ.critere.id }}, '{{ option.code }}', {% if champ.critere.type_champ == 'choix_multiple' %}true{% else %}false{% endif %}, this)">
-                        {{ option.label }}
-                    </div>
-                </div>
-                {% endif %}
-                {% endfor %}
-            </div>
-            {% else %}
-            <input type="text" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
-            {% endif %}
-        </div>
-        {% endif %}
-    {% endfor %}
+    {% comment %}
+    Chantier du 2026-08-23 (Partie 3A) : rendu générique factorisé dans
+    _champs_dynamiques.html — partagé avec wizard_identite.html, jamais
+    2 versions maintenues séparément.
+    {% endcomment %}
+    {% include 'inscriptions/_champs_dynamiques.html' %}
 
     <button type="submit" class="btn-submit">التالي ←</button>
     <a href="{% url 'wizard_identite' %}" class="btn-back">رجوع</a>
 </form>
-
-<script>
-    const selections = {};
-
-    function selectionnerOption(champId, critereId, code, multiple, element) {
-        if (multiple) {
-            selections[critereId] = selections[critereId] || [];
-            const idx = selections[critereId].indexOf(code);
-            if (idx > -1) {
-                selections[critereId].splice(idx, 1);
-                element.classList.remove('active');
-            } else {
-                selections[critereId].push(code);
-                element.classList.add('active');
-            }
-        } else {
-            selections[critereId] = code;
-            document.querySelectorAll(`[data-critere-id="${critereId}"]`).forEach(el => el.classList.remove('active'));
-            element.classList.add('active');
-        }
-        mettreAJourInputsCaches(champId, critereId, multiple);
-        toggleNbSeances();
-    }
-
-    function mettreAJourInputsCaches(champId, critereId, multiple) {
-        const container = document.querySelector(`[data-champ-container="${champId}"]`);
-        container.querySelectorAll('input[type=hidden]').forEach(i => i.remove());
-        const valeurs = multiple ? (selections[critereId] || []) : [selections[critereId]];
-        valeurs.forEach(v => {
-            if (!v) return;
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = `champ_${champId}`;
-            input.value = v;
-            container.appendChild(input);
-        });
-    }
-
-    function champsObligatoiresRepondus() {
-        // Tous les champs critère obligatoires (hors nb_slots, qui n'a pas
-        // d'options statiques) doivent avoir une réponse avant de révéler le
-        // champ "nombre de séances" (bug UX signalé le 2026-08-21) — jamais
-        // les champs non-obligatoires, qu'un visiteur peut légitimement
-        // laisser vides.
-        const requisIds = new Set();
-        document.querySelectorAll('[data-critere-id][data-obligatoire="1"]').forEach(el => {
-            requisIds.add(el.dataset.critereId);
-        });
-        for (const id of requisIds) {
-            const val = selections[id];
-            if (!val || (Array.isArray(val) && val.length === 0)) return false;
-        }
-        return true;
-    }
-
-    function toggleNbSeances() {
-        // Chantier du 2026-08-22 : nombre de séances désormais un simple
-        // input libre (min="1"), plus de calcul depuis les groupes réels —
-        // seule la RÉVÉLATION du champ reste conditionnée aux champs
-        // obligatoires précédents (Bug B, inchangé).
-        const wrapper = document.getElementById('nb_seances_wrapper');
-        if (!wrapper) return;
-        wrapper.style.display = champsObligatoiresRepondus() ? '' : 'none';
-    }
-
-    document.addEventListener('DOMContentLoaded', toggleNbSeances);
-</script>
 {% endblock %}

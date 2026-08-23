@@ -48,20 +48,13 @@
         {% endif %}
     {% endfor %}
 
-    {% for champ in champs_info %}
-    <div class="mb-3">
-        <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
-        {% if champ.type_champ == 'nombre' %}
-        <input type="number" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
-        {% elif champ.type_champ == 'date' %}
-        <input type="date" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
-        {% elif champ.type_champ == 'email' %}
-        <input type="email" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
-        {% else %}
-        <input type="text" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
-        {% endif %}
-    </div>
-    {% endfor %}
+    {% comment %}
+    Chantier du 2026-08-23 (Partie 3A) : champs dynamiques de l'étape
+    Identité — informatifs (comme avant) ET, désormais, avec critère
+    (filtrant les groupes exactement comme sur l'étape Programme) —
+    rendu générique factorisé, voir _champs_dynamiques.html.
+    {% endcomment %}
+    {% include 'inscriptions/_champs_dynamiques.html' %}
 
     <button type="submit" class="btn-submit">التالي ←</button>
     <a href="{% url 'wizard_intro' %}" class="btn-back">رجوع</a>

@@ -86,28 +86,46 @@ def wizard_intro(request):
     })
 
 
-def _champs_informatifs_actifs(code_etape):
-    """ChampInscription actifs, critere=NULL (informatifs purs), liés à
-    l'EtapeInscription de code `code_etape` — utilisé par l'Étape 1
-    (Partie "Plus : tout ChampInscription actif et lié à cette étape avec
-    critere=NULL, rendu génériquement après les champs fixes"). Liste vide
-    (jamais une exception) si l'étape n'existe pas encore (مدير ne l'a pas
-    créée) — comportement dégradé propre, pas un 500."""
-    from .models import ChampInscription
+def _champs_visibles_pour_etape(donnees, code_etape):
+    """ChampInscription actifs liés à l'étape `code_etape` — informatifs
+    (critere=NULL) ET avec critère, MOINS ceux masqués par une
+    RegleCondition satisfaite (champ_est_masque) compte tenu des réponses
+    déjà en session — recalculé à chaque affichage, jamais mis en cache.
 
-    return list(
-        ChampInscription.objects.filter(
-            etape__code=code_etape, etape__est_actif=True, est_actif=True, critere__isnull=True,
-        ).order_by('ordre', 'id')
+    Généralisée le 2026-08-23 (Partie 3A, "extension du moteur générique à
+    l'étape Identité") depuis l'ancienne _champs_programme_visibles
+    (réservée à 'programme') ET l'ancienne _champs_informatifs_actifs
+    (réservée à 'identite', critere=NULL uniquement — un ChampInscription
+    AVEC critère attaché à l'étape Identité n'était alors JAMAIS rendu,
+    bien que créable sans erreur depuis le dashboard : trou identifié par
+    l'audit du 2026-08-23). Une seule fonction pour TOUTE étape (et toute
+    étape personnalisée future, Partie 3B) — jamais 2 (ou 3) versions
+    maintenues séparément. Liste vide (jamais une exception) si l'étape
+    n'existe pas encore (مدير ne l'a pas créée) — comportement dégradé
+    propre, pas un 500."""
+    from .models import ChampInscription
+    from .utils import champ_est_masque
+
+    tous_les_champs = list(
+        ChampInscription.objects.filter(est_actif=True, etape__est_actif=True)
+        .select_related('critere', 'etape').order_by('etape__ordre', 'ordre')
     )
+    codes_repondus = _codes_repondus_depuis_session(donnees, tous_les_champs)
+
+    return [
+        c for c in tous_les_champs
+        if c.etape.code == code_etape and not champ_est_masque(c, codes_repondus)
+    ]
 
 
 def wizard_identite(request):
     """Étape 1 — champs structurels CONFIGURABLES (registration.models.
     ConfigurationChampStructurel, chantier du 2026-08-22 : label/ordre/
     obligatoire/actif/placeholder/aide/regex, jamais le stockage — voir sa
-    docstring) + champs informatifs configurables (Étape 1, critere=NULL)
-    rendus génériquement à la suite.
+    docstring) + champs dynamiques configurables de l'étape Identité,
+    informatifs OU avec critère (chantier du 2026-08-23, Partie 3A —
+    rendu générique EXACTEMENT comme l'étape Programme, voir
+    _champs_visibles_pour_etape) rendus génériquement à la suite.
 
     sexe/date_naissance/email gardent leur validation DÉDIÉE existante
     (contraintes structurelles, verrouillées obligatoire=True — voir
@@ -131,14 +149,16 @@ def wizard_identite(request):
     SEULE source de vérité, jamais dupliquée — voir wizard_categorie_age)."""
     from courses.utils import tranche_age_depuis_naissance
     from inscriptions.views import MESSAGE_AGE_NE_CORRESPOND_PAS, _construire_et_valider_telephone
-    from .utils import champs_structurels_actifs, url_etape_suivante, valider_champ_structurel_libre
+    from .utils import (
+        champs_structurels_actifs, extraire_champs_depuis_post, traiter_champs_dynamiques_post,
+        url_etape_suivante, valider_champ_structurel_libre,
+    )
 
     donnees_session = wizard_donnees(request)
     if 'type_age_choisi' not in donnees_session:
         return redirect('wizard_categorie_age')
     type_age_choisi = donnees_session['type_age_choisi']
 
-    champs_info = _champs_informatifs_actifs('identite')
     configs = champs_structurels_actifs('identite')
     configs_par_cle = {c.champ_cle: c for c in configs}
     CLES_GENERIQUES = ('nom', 'nom_parent', 'job_actuel', 'niveau_scolaire')
@@ -237,48 +257,34 @@ def wizard_identite(request):
                     erreurs.append(erreur_tel)
             nouvelles_valeurs['telephone'] = telephone
 
-        for champ in champs_info:
-            valeur = request.POST.get(f'champ_{champ.id}', '').strip()
-            if champ.obligatoire and not valeur:
-                erreurs.append(f'"{champ.label}" إلزامي.')
+        # Champs dynamiques (informatifs OU avec critère, chantier du
+        # 2026-08-23) — même mécanique que wizard_programme : les
+        # RegleCondition sont évaluées avec les réponses de CETTE
+        # soumission (donnees_session fusionnées avec le POST en cours),
+        # jamais un état périmé. Erreurs ajoutées à celles déjà
+        # accumulées ci-dessus (structurels), un seul message par champ.
+        donnees_pour_masquage = {**donnees_session, **extraire_champs_depuis_post(request.POST)}
+        champs = _champs_visibles_pour_etape(donnees_pour_masquage, 'identite')
+        nouvelles_valeurs_dyn, erreurs_dyn = traiter_champs_dynamiques_post(request.POST, champs)
+        erreurs += erreurs_dyn
 
         if not erreurs:
-            for champ in champs_info:
-                nouvelles_valeurs[f'champ_{champ.id}'] = request.POST.get(f'champ_{champ.id}', '').strip()
+            nouvelles_valeurs.update(nouvelles_valeurs_dyn)
             wizard_maj(request, nouvelles_valeurs)
             return redirect(url_etape_suivante('identite'))
 
         return render(request, 'inscriptions/wizard_identite.html', {
-            'champs_info': champs_info, 'configs': _avec_valeurs_actuelles(request.POST),
+            'champs': champs, 'configs': _avec_valeurs_actuelles(request.POST),
             'erreurs': erreurs, 'valeurs_form': request.POST,
             'wizard_etape_num': 1,
         })
 
+    champs = _champs_visibles_pour_etape(donnees_session, 'identite')
     return render(request, 'inscriptions/wizard_identite.html', {
-        'champs_info': champs_info, 'configs': _avec_valeurs_actuelles(wizard_donnees(request)),
+        'champs': champs, 'configs': _avec_valeurs_actuelles(wizard_donnees(request)),
         'valeurs_form': wizard_donnees(request),
         'wizard_etape_num': 1,
     })
-
-
-def _champs_programme_visibles(donnees):
-    """ChampInscription actifs liés à l'étape 'programme', MOINS ceux masqués
-    par une RegleCondition satisfaite (champ_est_masque, Étape 4) compte tenu
-    des réponses déjà en session — recalculé à chaque affichage, jamais mis
-    en cache."""
-    from .models import ChampInscription
-    from .utils import champ_est_masque
-
-    tous_les_champs = list(
-        ChampInscription.objects.filter(est_actif=True, etape__est_actif=True)
-        .select_related('critere', 'etape').order_by('etape__ordre', 'ordre')
-    )
-    codes_repondus = _codes_repondus_depuis_session(donnees, tous_les_champs)
-
-    return [
-        c for c in tous_les_champs
-        if c.etape.code == 'programme' and not champ_est_masque(c, codes_repondus)
-    ]
 
 
 def _codes_repondus_depuis_session(donnees, tous_les_champs):
@@ -323,7 +329,7 @@ def wizard_programme(request):
     saut Individuel de wizard_groupe : un visiteur qui force cette URL est
     TOUJOURS redirigé, quelle que soit la méthode HTTP."""
     from .utils import (
-        _reponses_a_creer_pour_champ, etape_est_active, extraire_champs_depuis_post, url_etape_suivante,
+        etape_est_active, extraire_champs_depuis_post, traiter_champs_dynamiques_post, url_etape_suivante,
         wizard_donnees, wizard_maj,
     )
 
@@ -342,24 +348,8 @@ def wizard_programme(request):
         # masque_un_champ). Fusion purement locale à ce calcul, la session
         # elle-même n'est mise à jour qu'après validation complète, plus bas.
         donnees_pour_masquage = {**donnees, **extraire_champs_depuis_post(request.POST)}
-        champs = _champs_programme_visibles(donnees_pour_masquage)
-
-        erreurs = []
-        nouvelles_valeurs = {}
-        for champ in champs:
-            cle = f'champ_{champ.id}'
-            if champ.critere and champ.critere.type_champ == 'choix_multiple':
-                valeur_brute = request.POST.getlist(cle)
-            else:
-                valeur_brute = request.POST.get(cle, '')
-            paires, erreur = _reponses_a_creer_pour_champ(champ, valeur_brute)
-            if erreur:
-                erreurs.append(erreur)
-                continue
-            if not paires and champ.obligatoire:
-                erreurs.append(f'"{champ.label}" إلزامي.')
-                continue
-            nouvelles_valeurs[cle] = valeur_brute
+        champs = _champs_visibles_pour_etape(donnees_pour_masquage, 'programme')
+        nouvelles_valeurs, erreurs = traiter_champs_dynamiques_post(request.POST, champs)
 
         if not erreurs:
             wizard_maj(request, nouvelles_valeurs)
@@ -370,7 +360,7 @@ def wizard_programme(request):
             'wizard_etape_num': 2,
         })
 
-    champs = _champs_programme_visibles(donnees)
+    champs = _champs_visibles_pour_etape(donnees, 'programme')
     return render(request, 'inscriptions/wizard_programme.html', {
         'champs': champs, 'valeurs_form': donnees,
         'wizard_etape_num': 2,
