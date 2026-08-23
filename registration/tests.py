@@ -1590,6 +1590,142 @@ class WizardGroupeTests(TestCase):
 
 
 # ============================================================================
+# Chantier du 2026-08-23 — "exclusion manuelle d'un groupe" : Groupe.
+# cache_du_wizard_public=True exclut un groupe UNIQUEMENT du formulaire
+# public (registration.utils.groupes_compatibles/groupes_compatibles_
+# avec_age), jamais de l'ajout manuel Directeur/مشرف (voir dashboard.tests.
+# GroupeCacheDuWizardPublicCoteAdminTests pour le pendant admin) ni du reste
+# du projet (le groupe reste statut='actif' partout ailleurs).
+# ============================================================================
+class GroupeCacheDuWizardPublicTests(TestCase):
+    def setUp(self):
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        # Groupe CACHÉ — matche PARFAITEMENT tous les critères (programme,
+        # riwaya, âge, sexe, nb_seances) : seul cache_du_wizard_public=True
+        # doit expliquer son absence des résultats publics.
+        self.groupe_cache = Groupe.objects.create(
+            nom='مجموعة مخفية يدوياً عن الاستمارة', creneau=self.creneau, statut='actif',
+            type_capacite='groupe', capacite_max=10, cache_du_wizard_public=True,
+        )
+        GroupeCritereValeur.objects.create(groupe=self.groupe_cache, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=self.groupe_cache, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
+
+        # Groupe NON caché (cache_du_wizard_public=False, la valeur par
+        # défaut) — même créneau/critères, sert de témoin de non-régression.
+        self.groupe_visible = Groupe.objects.create(
+            nom='مجموعة عادية غير مخفية', creneau=self.creneau, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(groupe=self.groupe_visible, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=self.groupe_visible, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
+
+        from inscriptions.models import TypeAbonnement
+        from payments.models import MoyenPaiement
+        self.abo_groupe = TypeAbonnement.objects.create(
+            code='test_cache_wizard_abo', label='جماعي شهري', prix=80, type_offre='groupe', cible_age='les_deux', ordre=1,
+        )
+        self.moyen = MoyenPaiement.objects.create(code='test_cache_wizard_cih', label='CIH بنك', coordonnees='RIB', est_actif=True)
+
+    def _reponses_pour_filtrage(self):
+        return {
+            self.critere_programme: self.critere_programme.options.get(code='hifz'),
+            self.critere_riwaya: self.critere_riwaya.options.get(code='hafs'),
+            self.critere_type_offre: 'groupe',
+        }
+
+    # ---- Niveau unitaire (appel direct des fonctions) ----
+
+    def test_groupe_cache_jamais_dans_groupes_compatibles(self):
+        resultat = groupes_compatibles(self._reponses_pour_filtrage())
+        self.assertNotIn(self.groupe_cache, resultat)
+        self.assertIn(self.groupe_visible, resultat)
+
+    def test_groupe_cache_jamais_dans_groupes_compatibles_avec_age(self):
+        resultat = groupes_compatibles_avec_age(self._reponses_pour_filtrage(), datetime.date(2000, 1, 1), 'homme')
+        self.assertNotIn(self.groupe_cache, resultat)
+        self.assertIn(self.groupe_visible, resultat)
+
+    def test_non_regression_groupe_non_cache_se_comporte_comme_avant(self):
+        """cache_du_wizard_public=False (valeur par défaut) : le comportement
+        de groupes_compatibles()/groupes_compatibles_avec_age() est
+        RIGOUREUSEMENT identique à avant cette modification — même résultat
+        que si le paramètre exclure_caches_wizard_public n'existait pas."""
+        self.assertQuerySetEqual(
+            groupes_compatibles(self._reponses_pour_filtrage()),
+            groupes_compatibles(self._reponses_pour_filtrage(), exclure_caches_wizard_public=False).exclude(id=self.groupe_cache.id),
+            ordered=False,
+        )
+        resultat_age = groupes_compatibles_avec_age(self._reponses_pour_filtrage(), datetime.date(2000, 1, 1), 'homme')
+        self.assertEqual(list(resultat_age), [self.groupe_visible])
+
+    # ---- Niveau intégration (vraie vue publique) ----
+
+    def _avancer_a_etape_3(self, client):
+        _choisir_categorie_age(client)
+        client.post(reverse('wizard_identite'), {
+            'nom': 'زائر اختبار الإخفاء', 'sexe': 'homme', 'email': 'cache_wizard_public@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0611556677', 'telephone_confirmation': '0611556677',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+
+    def test_groupe_cache_absent_de_la_vraie_page_publique_meme_sil_matche_tout(self):
+        client = Client()
+        self._avancer_a_etape_3(client)
+        reponse = client.get(reverse('wizard_groupe'))
+        html = reponse.content.decode('utf-8')
+        ids_proposes = set(reponse.context['groupes'].values_list('id', flat=True))
+        self.assertNotIn(self.groupe_cache.id, ids_proposes)
+        self.assertIn(self.groupe_visible.id, ids_proposes)
+        self.assertNotIn('مجموعة مخفية يدوياً عن الاستمارة', html)
+        self.assertIn('مجموعة عادية غير مخفية', html)
+
+    # ---- Sécurité anti-contournement (revalidation finale) ----
+
+    def test_groupe_id_cache_force_via_session_est_rejete_a_la_confirmation(self):
+        """Même patron que WizardAbonnementPaiementTests.test_groupe_id_
+        devenu_incompatible_entre_etape_3_et_confirmation_est_rejete_a_la_
+        confirmation : injecte directement en session le groupe CACHÉ
+        (jamais proposé par wizard_groupe, donc jamais choisi normalement),
+        en court-circuitant sa validation — la revalidation finale
+        (inscrire_eleve, cree_par=None -> exclure_caches_wizard_public=True)
+        doit rejeter proprement, jamais planter ni créer l'inscription."""
+        client = Client()
+        self._avancer_a_etape_3(client)
+
+        session = client.session
+        donnees = session.get('wizard_inscription', {})
+        donnees['groupe_id'] = str(self.groupe_cache.id)
+        session['wizard_inscription'] = donnees
+        session.save()
+
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abo_groupe.code})
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(InscriptionEleve.objects.filter(email='cache_wizard_public@zidni.test').exists())
+        self.assertIn('لم تعد متاحة', reponse.content.decode('utf-8'))
+
+
+# ============================================================================
 # Correction 8 (2026-08-22) — navigation dynamique : EtapeInscription.ordre/
 # est_actif pilote RÉELLEMENT la page suivante visitée par l'élève, plus une
 # simple valeur cosmétique. Avant cette correction, seules 2 étapes sur 7

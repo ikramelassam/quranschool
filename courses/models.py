@@ -292,6 +292,19 @@ class Groupe(models.Model):
         choices=[('actif', 'نشط'), ('archive', 'مؤرشف')],
         default='actif'
     )
+    # Masquage PONCTUEL du wizard public uniquement (chantier du 2026-08-23,
+    # "exclusion manuelle d'un groupe") — DIFFÉRENT de statut='archive' :
+    # le groupe reste statut='actif' et continue de fonctionner PARTOUT
+    # ailleurs (séances, présences, chat, ajout manuel admin...), seul le
+    # NOUVEAU parcours public (registration.utils.groupes_compatibles/
+    # groupes_compatibles_avec_age) l'exclut de ses résultats. Cas d'usage :
+    # groupe plein, en pause temporaire, ou que le مدير ne veut pas proposer
+    # ponctuellement — sans perdre l'historique/la config d'un vrai archivage.
+    # Volontairement PAS lu par l'ancien formulaire /register/student
+    # (inscriptions.views, jamais touché par ce chantier) ni par
+    # admin_eleve_ajouter_manuel — voir registration.utils.groupes_
+    # compatibles(exclure_caches_wizard_public).
+    cache_du_wizard_public = models.BooleanField(default=False)
     # Champ historique en texte libre — CONSERVÉ tel quel pour compatibilité
     # avec tout le code déjà branché dessus (lien_seance_est_actif,
     # _meet_icon.html, prof_seance_detail.html, eleve_seance_detail.html,

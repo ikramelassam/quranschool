@@ -223,7 +223,7 @@ def wizard_reinitialiser(request):
 
 # ==================== FILTRAGE GÉNÉRIQUE DES GROUPES (Phase 6) ====================
 
-def groupes_compatibles(reponses):
+def groupes_compatibles(reponses, exclure_caches_wizard_public=True):
     """reponses : dict {Critere: valeur}, valeur selon critere.backend :
     - 'eav' : une CritereOption, ou une liste/tuple/set de CritereOption (choix
       multiple — le groupe doit avoir AU MOINS UNE des options choisies).
@@ -247,7 +247,19 @@ def groupes_compatibles(reponses):
     ces 3 valeurs FERMÉES de critere.backend, jamais sur le nom métier du
     critère — c'est ce qui permet à "Mode d'apprentissage préféré"/"Langue
     préférée"/tout critère futur jamais imaginé aujourd'hui de fonctionner sans
-    une seule ligne de code neuve (voir RegistrationGenericiteTests)."""
+    une seule ligne de code neuve (voir RegistrationGenericiteTests).
+
+    exclure_caches_wizard_public (chantier du 2026-08-23, "exclusion manuelle
+    d'un groupe") : True par défaut — un Groupe.cache_du_wizard_public=True
+    n'est alors JAMAIS renvoyé, quels que soient les critères. Ce défaut sert
+    tous les appelants PUBLICS (wizard_groupe et, via inscrire_eleve(), la
+    revalidation finale d'une candidature créée par le formulaire public,
+    cree_par=None) sans qu'ils aient rien à préciser. Les appelants ADMIN
+    (statut_compatibilite_groupe, admin_eleve_ajouter_manuel, et
+    inscrire_eleve() quand cree_par n'est pas None) passent explicitement
+    False : ce champ ne doit JAMAIS affecter l'ajout manuel Directeur/مشرف —
+    le مدير reste libre de choisir consciemment un groupe qu'il a lui-même
+    masqué du formulaire public."""
     from courses.models import Groupe
 
     qs = Groupe.actifs.filter(statut='actif')
@@ -262,10 +274,12 @@ def groupes_compatibles(reponses):
         else:  # 'eav' — comportement par défaut de tout critère, y compris futur
             options = valeur if isinstance(valeur, (list, tuple, set)) else [valeur]
             qs = qs.filter(valeurs_criteres__critere=critere, valeurs_criteres__option__in=options)
+    if exclure_caches_wizard_public:
+        qs = qs.exclude(cache_du_wizard_public=True)
     return qs.distinct().select_related('creneau', 'prof__user').prefetch_related('creneau__slots')
 
 
-def groupes_compatibles_avec_age(reponses, date_naissance, sexe):
+def groupes_compatibles_avec_age(reponses, date_naissance, sexe, exclure_caches_wizard_public=True):
     """groupes_compatibles() + 2 contraintes STRUCTURELLES (Creneau.age_min/
     age_max ET Creneau.sexe_cible — champs dédiés, PAS des Critere, voir la
     décision explicite à ce sujet). Toujours appliquées, jamais contournables
@@ -287,11 +301,14 @@ def groupes_compatibles_avec_age(reponses, date_naissance, sexe):
     réassignant un Eleve déjà existant à un groupe, un contexte différent) :
     ce moteur régit l'inscription initiale d'un nouvel élève, où la
     ségrégation par sexe est une contrainte dure, jamais négociable, exactement
-    comme l'âge — voir RegressionSexeGroupesTests pour la discussion."""
+    comme l'âge — voir RegressionSexeGroupesTests pour la discussion.
+
+    exclure_caches_wizard_public : simplement transmis à groupes_compatibles()
+    ci-dessus — voir sa docstring, même règle exacte."""
     from courses.utils import _age_depuis_naissance
 
     age = _age_depuis_naissance(date_naissance)
-    return groupes_compatibles(reponses).filter(
+    return groupes_compatibles(reponses, exclure_caches_wizard_public=exclure_caches_wizard_public).filter(
         creneau__age_min__lte=age, creneau__age_max__gte=age,
     ).filter(Q(creneau__sexe_cible='mixte') | Q(creneau__sexe_cible=sexe))
 
@@ -538,13 +555,23 @@ def statut_compatibilite_groupe(groupe_id, reponses_pour_filtrage, date_naissanc
     dashboard.views.admin_eleve_ajouter_manuel (Étape 7) pour savoir, AVANT
     tout appel à inscrire_eleve(), s'il faut afficher un avertissement
     contournable ou une erreur dure — jamais pour décider de la sécurité
-    elle-même, qui reste entièrement portée par inscrire_eleve()."""
+    elle-même, qui reste entièrement portée par inscrire_eleve().
+
+    exclure_caches_wizard_public=False explicitement (chantier du 2026-08-23) :
+    cette fonction ne sert QU'à l'admin (admin_eleve_ajouter_manuel), jamais au
+    formulaire public — un groupe masqué du wizard public doit rester
+    normalement évaluable ('ok'/'contournable') ici, pas systématiquement
+    'incompatible' par un effet de bord du masquage."""
     if not groupe_id:
         return 'incompatible'
-    if groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, sexe).filter(id=groupe_id).exists():
+    if groupes_compatibles_avec_age(
+        reponses_pour_filtrage, date_naissance, sexe, exclure_caches_wizard_public=False,
+    ).filter(id=groupe_id).exists():
         return 'ok'
     reponses_bloquantes = {c: v for c, v in reponses_pour_filtrage.items() if c.bloquant}
-    if groupes_compatibles_avec_age(reponses_bloquantes, date_naissance, sexe).filter(id=groupe_id).exists():
+    if groupes_compatibles_avec_age(
+        reponses_bloquantes, date_naissance, sexe, exclure_caches_wizard_public=False,
+    ).filter(id=groupe_id).exists():
         return 'contournable'
     return 'incompatible'
 
@@ -1002,7 +1029,9 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
             # confiance aveugle en demande_id/continuer_sans_groupe posté
             # (POST manipulé), revérifié ici comme tout le reste (Partie 22).
             candidats_exacts = (
-                groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, sexe)
+                groupes_compatibles_avec_age(
+                    reponses_pour_filtrage, date_naissance, sexe, exclure_caches_wizard_public=(cree_par is None),
+                )
                 if date_naissance is not None else Groupe.objects.none()
             )
             if (demande_id or continuer_sans_groupe) and date_naissance is not None and not candidats_exacts.exists():
@@ -1012,7 +1041,9 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
         elif date_naissance is None:
             pass  # déjà signalé plus haut
         else:
-            candidats = groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, sexe)
+            candidats = groupes_compatibles_avec_age(
+                reponses_pour_filtrage, date_naissance, sexe, exclure_caches_wizard_public=(cree_par is None),
+            )
             groupe_choisi = candidats.filter(id=groupe_id).first()
 
             if groupe_choisi is None and demande_id:
@@ -1026,7 +1057,9 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
                 # aveugle — la requête ci-dessous revérifie ce match de toute
                 # façon, demande_id ne fait que décider SI on tente ce repli.
                 reponses_bloquantes = {c: v for c, v in reponses_pour_filtrage.items() if c.bloquant}
-                candidats_permissifs = groupes_compatibles_avec_age(reponses_bloquantes, date_naissance, sexe)
+                candidats_permissifs = groupes_compatibles_avec_age(
+                    reponses_bloquantes, date_naissance, sexe, exclure_caches_wizard_public=(cree_par is None),
+                )
                 groupe_choisi = candidats_permissifs.filter(id=groupe_id).first()
 
             if groupe_choisi is None and cree_par is not None and confirme_override:
@@ -1035,7 +1068,14 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
                 # (structurels) et tout critère bloquant=True restent des
                 # contraintes dures, même avec confirme_override=True.
                 reponses_bloquantes = {c: v for c, v in reponses_pour_filtrage.items() if c.bloquant}
-                candidats_permissifs = groupes_compatibles_avec_age(reponses_bloquantes, date_naissance, sexe)
+                # cree_par is not None ici (garde du if ci-dessus) : exclure_
+                # caches_wizard_public vaut donc toujours False dans cette
+                # branche — écrit pareil que les autres appels de cette
+                # fonction, jamais une valeur en dur qui diverge silencieusement
+                # si la garde changeait un jour.
+                candidats_permissifs = groupes_compatibles_avec_age(
+                    reponses_bloquantes, date_naissance, sexe, exclure_caches_wizard_public=(cree_par is None),
+                )
                 groupe_choisi = candidats_permissifs.filter(id=groupe_id).first()
 
             if groupe_choisi is None:

@@ -6854,8 +6854,14 @@ def admin_eleve_ajouter_manuel(request):
                 # groupes_avec_place_disponible (même correctif que registration.
                 # views.wizard_groupe, 2026-08-21) : un groupe complet ne doit
                 # jamais apparaître dans le <select> proposé au Directeur/مشرف.
+                # exclure_caches_wizard_public=False (chantier du 2026-08-23) :
+                # cette vue reste la porte manuelle Directeur/مشرف — un groupe
+                # masqué du formulaire public doit rester sélectionnable ici.
                 groupes = groupes_avec_place_disponible(
-                    groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, donnees.get('sexe', ''))
+                    groupes_compatibles_avec_age(
+                        reponses_pour_filtrage, date_naissance, donnees.get('sexe', ''),
+                        exclure_caches_wizard_public=False,
+                    )
                 ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
 
         return render(request, 'dashboard/admin_eleve_ajouter_manuel.html', {
@@ -6910,8 +6916,13 @@ def admin_eleve_ajouter_manuel(request):
         )
         groupes = None
         if date_naissance is not None and type_offre_valeur == 'groupe':
+            # exclure_caches_wizard_public=False : même raison que round 1
+            # ci-dessus — porte admin, jamais affectée par ce masquage.
             groupes = groupes_avec_place_disponible(
-                groupes_compatibles_avec_age(reponses_pour_filtrage, date_naissance, donnees.get('sexe', ''))
+                groupes_compatibles_avec_age(
+                    reponses_pour_filtrage, date_naissance, donnees.get('sexe', ''),
+                    exclure_caches_wizard_public=False,
+                )
             ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
         return render(request, 'dashboard/admin_eleve_ajouter_manuel.html', {
             'round_form': 'confirmation',

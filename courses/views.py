@@ -566,6 +566,7 @@ def groupe_modifier(request, groupe_id):
                     creneau_id=nouveau_creneau_id,
                     lien_meet_id=request.POST.get('lien_meet') or None,
                     categorie=request.POST.get('categorie', ''),
+                    cache_du_wizard_public=request.POST.get('cache_du_wizard_public') == 'on',
                 )
                 return render(request, 'courses/admin_groupe_modifier.html', {
                     'groupe': groupe_previsualise,
@@ -615,6 +616,11 @@ def groupe_modifier(request, groupe_id):
             groupe.prof_id = nouveau_prof_id
             groupe.creneau_id = nouveau_creneau_id
             groupe.categorie = request.POST.get('categorie', '')
+            # Chantier du 2026-08-23 ("exclusion manuelle d'un groupe") —
+            # n'affecte QUE le nouveau parcours public (registration.utils.
+            # groupes_compatibles), jamais ce formulaire ni le reste du
+            # projet : voir Groupe.cache_du_wizard_public.__doc__.
+            groupe.cache_du_wizard_public = request.POST.get('cache_du_wizard_public') == 'on'
             if nouvelle_photo:
                 groupe.photo = nouvelle_photo
             elif request.POST.get('supprimer_photo') == '1':

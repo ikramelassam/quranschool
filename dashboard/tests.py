@@ -3613,6 +3613,92 @@ class AjoutManuelEleveTests(TestCase):
         self.assertIn('data-obligatoire="1"', html)
 
 
+class GroupeCacheDuWizardPublicCoteAdminTests(TestCase):
+    """Chantier du 2026-08-23 ("exclusion manuelle d'un groupe") — côté
+    admin_eleve_ajouter_manuel UNIQUEMENT : un groupe cache_du_wizard_
+    public=True doit rester normalement affiché et sélectionnable ici,
+    jamais affecté par ce masquage (réservé au formulaire public, voir
+    registration.tests.GroupeCacheDuWizardPublicTests pour le pendant
+    public)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.critere_programme = CritereInscription.objects.get(code='programme')
+        self.critere_riwaya = CritereInscription.objects.get(code='riwaya')
+        self.critere_type_offre = CritereInscription.objects.get(code='type_offre')
+        self.critere_nb_seances = CritereInscription.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe_cache = Groupe.objects.create(
+            nom='مجموعة مخفية عن الاستمارة العامة', creneau=self.creneau, statut='actif',
+            type_capacite='groupe', capacite_max=10, cache_du_wizard_public=True,
+        )
+        GroupeCritereValeur.objects.create(groupe=self.groupe_cache, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=self.groupe_cache, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
+
+        from inscriptions.models import TypeAbonnement
+        self.abonnement = TypeAbonnement.objects.create(
+            code='test_cache_wizard_abo', label='جماعي شهري', prix=80, type_offre='groupe', cible_age='les_deux', ordre=1,
+        )
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def _round1_donnees(self, email):
+        return {
+            'round_form': 'identite',
+            'nom': 'تلميذ اختبار الإخفاء', 'sexe': 'homme', 'email': email,
+            'date_naissance': '2010-01-01',
+            'indicatif_pays': '212', 'telephone': '0611223344', 'telephone_confirmation': '0611223344',
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        }
+
+    def test_groupe_cache_apparait_dans_la_liste_de_selection_admin(self):
+        client = self._connecte_admin()
+        reponse = client.post(
+            reverse('admin_eleve_ajouter_manuel'),
+            self._round1_donnees('cache_visible_admin@zidni.test'),
+        )
+        self.assertEqual(reponse.status_code, 200)
+        ids_proposes = set(reponse.context['groupes'].values_list('id', flat=True))
+        self.assertIn(self.groupe_cache.id, ids_proposes)
+        self.assertIn('مجموعة مخفية عن الاستمارة العامة', reponse.content.decode('utf-8'))
+
+    def test_groupe_cache_reste_choisissable_pour_creer_reellement_linscription(self):
+        client = self._connecte_admin()
+        client.post(reverse('admin_eleve_ajouter_manuel'), self._round1_donnees('cache_choisi_admin@zidni.test'))
+        reponse = client.post(reverse('admin_eleve_ajouter_manuel'), {
+            'round_form': 'confirmation',
+            'nom': 'تلميذ اختبار الإخفاء', 'sexe': 'homme', 'email': 'cache_choisi_admin@zidni.test',
+            'date_naissance': '2010-01-01',
+            'indicatif_pays': '212', 'telephone': '0611223344', 'telephone_confirmation': '0611223344',
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+            'groupe_id': str(self.groupe_cache.id),
+            'abonnement_code': self.abonnement.code,
+        })
+        self.assertRedirects(
+            reponse, reverse('admin_inscription_eleve_detail', args=[InscriptionEleve.objects.get(email='cache_choisi_admin@zidni.test').id]),
+        )
+        inscription = InscriptionEleve.objects.get(email='cache_choisi_admin@zidni.test')
+        self.assertEqual(inscription.groupe_choisi_id, self.groupe_cache.id)
+
+
 class AdminParametresAbonnementsTests(TestCase):
     """Correction 5 (2026-08-22, suite au test local) : la liste sépare
     désormais Groupe/Individuel en 2 sections claires, au lieu d'une seule
