@@ -2267,6 +2267,26 @@ def admin_inscription_eleve_detail(request, inscription_id):
     peut_accepter = (not conflit['conflit']) or conflit['partage_eleve_possible']
 
     a_reponses_nouveau_wizard = inscription.reponses.exists()
+    # Chantier du 2026-08-23 (Partie 3B, "étapes repositionnables/insérables
+    # n'importe où") : programme/riwaya/type_offre/nb_seances_hebdo restent
+    # affichés ci-dessus par leurs lignes DÉDIÉES existantes (reponse_ou_
+    # ancien_champ, inscription.abonnement_type_offre/nb_slots_choisi) —
+    # tout le RESTE des ReponseInscription (champs informatifs comme "Pays",
+    # ET tout critère personnalisé attaché à une étape autre que 'programme',
+    # ex: un champ ajouté sur 'identite' ou sur une étape personnalisée)
+    # n'avait ENCORE AUCUN affichage ici avant cette correction — trou
+    # identifié en préparant le test bout en bout de la Partie 3B : une
+    # réponse réellement enregistrée mais jamais visible au مدير sur la
+    # fiche de la candidature, alors que couverte par groupes_compatibles()
+    # exactement comme programme/riwaya. Générique par construction (label
+    # du champ, jamais un nom de critère en dur) — jamais 2 versions
+    # maintenues séparément selon l'étape d'origine du champ.
+    autres_reponses = (
+        inscription.reponses.exclude(
+            champ__critere__code__in=['programme', 'riwaya', 'type_offre', 'nb_seances_hebdo']
+        ).select_related('champ', 'champ__critere', 'option').order_by('champ__etape__ordre', 'champ__ordre')
+        if a_reponses_nouveau_wizard else inscription.reponses.none()
+    )
     context = {
         'inscription': inscription,
         'conflit': conflit,
@@ -2275,6 +2295,7 @@ def admin_inscription_eleve_detail(request, inscription_id):
         'heures': generer_heures_grille(),
         'valeurs_dispo': set(inscription.disponibilites),
         'a_reponses_nouveau_wizard': a_reponses_nouveau_wizard,
+        'autres_reponses': autres_reponses,
         'presentation_inscription': get_presentation_inscription(),
         'demande_non_satisfaite': (
             inscription.demandes_non_satisfaites.first() if a_reponses_nouveau_wizard else None

@@ -668,3 +668,69 @@ def wizard_confirmation(request):
     if not info:
         return redirect('wizard_intro')
     return render(request, 'inscriptions/wizard_confirmation.html', info)
+
+
+def wizard_etape_personnalisee(request, code):
+    """Page GÉNÉRIQUE unique pour TOUTE étape personnalisée créée librement
+    par le مدير au-delà des 7 étapes réelles (Partie 3B, chantier du
+    2026-08-23, "étapes repositionnables/insérables n'importe où") —
+    exemple concret : "الشروط والأحكام" insérée entre 'abonnement' et
+    'paiement'. RÉUTILISE À L'IDENTIQUE le moteur déjà partagé par
+    wizard_identite/wizard_programme (Partie 3A) : _champs_visibles_pour_
+    etape (rendu + masquage RegleCondition) et traiter_champs_dynamiques_
+    post (validation) — jamais une 3e version divergente, une seule vue
+    Python sert un nombre illimité d'étapes personnalisées.
+
+    AVANT cette correction : une étape personnalisée n'avait tout
+    simplement AUCUNE page — url_etape_suivante l'ignorait silencieusement
+    (trou identifié par l'audit du 2026-08-23, voir son ancienne docstring).
+    Obligatoire non rempli -> erreur claire affichée ICI, jamais un blocage
+    silencieux plus loin dans le parcours (contrairement au trou déjà
+    documenté pour un champ attaché à une étape sans page dédiée avant ce
+    chantier) : cette vue EST la page dédiée, pour n'importe quel code.
+
+    SAUT SERVEUR (mêmes principes que les 7 vues réelles) : `code`
+    correspondant à une des 7 étapes réelles -> redirigé vers SA vraie vue
+    dédiée (jamais un rendu générique en doublon, qui bypasserait sa
+    logique propre — âge/sexe pour 'identite', groupes pour 'groupe'...) ;
+    étape inexistante/désactivée (URL forcée, supprimée entretemps) ->
+    redirigé proprement au début du parcours, jamais un 404/500 réel."""
+    from .models import EtapeInscription
+    from .utils import (
+        URL_PAR_CODE_ETAPE, extraire_champs_depuis_post, traiter_champs_dynamiques_post,
+        url_etape_precedente, url_etape_suivante,
+    )
+
+    if code in URL_PAR_CODE_ETAPE:
+        return redirect(URL_PAR_CODE_ETAPE[code])
+
+    etape = EtapeInscription.objects.filter(code=code, est_actif=True).first()
+    if etape is None:
+        return redirect('wizard_categorie_age')
+
+    donnees = wizard_donnees(request)
+    if 'nom' not in donnees:
+        return redirect('wizard_identite')
+
+    if request.method == 'POST':
+        # Même précaution que wizard_programme (Partie 3A) : les
+        # RegleCondition sont évaluées avec les réponses de CETTE
+        # soumission, pas seulement celles déjà en session avant elle.
+        donnees_pour_masquage = {**donnees, **extraire_champs_depuis_post(request.POST)}
+        champs = _champs_visibles_pour_etape(donnees_pour_masquage, code)
+        nouvelles_valeurs, erreurs = traiter_champs_dynamiques_post(request.POST, champs)
+
+        if not erreurs:
+            wizard_maj(request, nouvelles_valeurs)
+            return redirect(url_etape_suivante(code))
+
+        return render(request, 'inscriptions/wizard_etape_personnalisee.html', {
+            'etape': etape, 'champs': champs, 'erreurs': erreurs,
+            'url_precedente': url_etape_precedente(code),
+        })
+
+    champs = _champs_visibles_pour_etape(donnees, code)
+    return render(request, 'inscriptions/wizard_etape_personnalisee.html', {
+        'etape': etape, 'champs': champs,
+        'url_precedente': url_etape_precedente(code),
+    })

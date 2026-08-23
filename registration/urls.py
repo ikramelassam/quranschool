@@ -14,4 +14,9 @@ urlpatterns = [
     path('wizard/abonnement/', views.wizard_abonnement, name='wizard_abonnement'),
     path('wizard/paiement/', views.wizard_paiement, name='wizard_paiement'),
     path('wizard/confirmation/', views.wizard_confirmation, name='wizard_confirmation'),
+    # Partie 3B (chantier du 2026-08-23) : une seule vue générique sert un
+    # nombre illimité d'étapes personnalisées créées par le مدير — jamais un
+    # path() par étape. Placée en dernier : les 7 chemins ci-dessus, plus
+    # spécifiques, doivent toujours matcher en premier pour leurs propres codes.
+    path('wizard/etape/<slug:code>/', views.wizard_etape_personnalisee, name='wizard_etape_personnalisee'),
 ]

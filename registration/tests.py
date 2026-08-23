@@ -1956,20 +1956,27 @@ class EtapeSuivanteResolverTests(TestCase):
         self.assertEqual(etape_suivante('programme'), 'abonnement')
         self.assertEqual(etape_suivante('abonnement'), 'paiement')
 
-    def test_etape_custom_du_madir_est_transparente_pour_la_navigation(self):
-        """Une étape créée librement par le مدير (code hors des 7 réels,
-        admin_etape_inscription_ajouter) ne doit JAMAIS faire disparaître une
-        vraie page — url_etape_suivante l'ignore et continue de chercher la
-        suite (voir sa docstring, correctif anti-régression explicite)."""
+    def test_etape_custom_du_madir_est_desormais_servie_pas_sautee(self):
+        """Chantier du 2026-08-23 (Partie 3B, "étapes repositionnables/
+        insérables n'importe où") : une étape créée librement par le مدير
+        (code hors des 7 réels, admin_etape_inscription_ajouter) a désormais
+        SA PROPRE page (wizard_etape_personnalisee) — comportement CHANGÉ
+        délibérément par rapport à l'ancien (transparente/sautée, voir
+        historique de ce test) : avant cette correction, `ordre` la
+        positionnait bien dans la liste admin mais elle ne s'affichait
+        JAMAIS au candidat, trou identifié par l'audit du 2026-08-23."""
+        from django.urls import reverse
         from registration.models import EtapeInscription
         from registration.utils import url_etape_suivante
 
+        # 'groupe' repoussé à ordre=10 (même idiome que WizardNavigationDynamique
+        # Tests.test_reordonnancement_change_le_parcours_reellement_visite) pour
+        # insérer 'test_etape_custom' SANS ambiguïté juste après 'programme'(2) —
+        # ordre étant un IntegerField, 2 et 3 n'ont pas de valeur intermédiaire.
+        EtapeInscription.objects.filter(code='groupe').update(ordre=10)
         EtapeInscription.objects.create(code='test_etape_custom', titre='مرحلة مخصصة', ordre=3, est_actif=True)
-        # Insérée juste après 'programme' (ordre=2) et avant 'groupe' (ordre=3
-        # aussi, mais id plus petit -> 'groupe' passe en premier ; peu
-        # importe l'ordre exact entre les deux, seul compte qu'aucune vraie
-        # page ne disparaisse).
-        self.assertEqual(url_etape_suivante('programme'), 'wizard_groupe')
+        self.assertEqual(url_etape_suivante('programme'), reverse('wizard_etape_personnalisee', args=['test_etape_custom']))
+        self.assertEqual(url_etape_suivante('test_etape_custom'), reverse('wizard_abonnement'))
 
 
 class WizardNavigationDynamiqueTests(TestCase):
@@ -2047,15 +2054,20 @@ class WizardNavigationDynamiqueTests(TestCase):
 
         self.etape_groupe.ordre = 10  # après paiement(5)/confirmation(6)
         self.etape_groupe.save()
-        self.assertEqual(url_etape_suivante('abonnement'), 'wizard_paiement')
-        self.assertEqual(url_etape_suivante('paiement'), 'wizard_confirmation')
+        # Chantier du 2026-08-23 (Partie 3B) : url_etape_suivante() renvoie
+        # désormais un CHEMIN déjà résolu (reverse()), plus un simple nom de
+        # vue — nécessaire pour pouvoir aussi pointer vers une étape
+        # personnalisée (wizard_etape_personnalisee, paramétrée par son
+        # code) ; comparé ici à reverse('wizard_X'), jamais au nom brut.
+        self.assertEqual(url_etape_suivante('abonnement'), reverse('wizard_paiement'))
+        self.assertEqual(url_etape_suivante('paiement'), reverse('wizard_confirmation'))
         # 'groupe' devenu la toute dernière étape active dans l'ordre : plus
         # rien après elle -> repli sur 'wizard_confirmation' (comportement
         # documenté, pas une erreur — un مدير qui réordonne ainsi obtient un
         # parcours cohérent uniquement s'il réordonne aussi les étapes
         # voisines en conséquence, responsabilité assumée comme partout
         # ailleurs dans ce chantier).
-        self.assertEqual(url_etape_suivante('groupe'), 'wizard_confirmation')
+        self.assertEqual(url_etape_suivante('groupe'), reverse('wizard_confirmation'))
 
 
 class InscrireEleveNavigationDynamiqueTests(TestCase):
@@ -2093,6 +2105,156 @@ class InscrireEleveNavigationDynamiqueTests(TestCase):
         self.assertEqual(erreurs, [])
         self.assertIsNotNone(inscription)
         self.assertIsNone(inscription.groupe_choisi)
+
+
+# ============================================================================
+# Chantier du 2026-08-23 (Partie 3B, "étapes repositionnables/insérables
+# n'importe où") — une étape personnalisée créée par le مدير, positionnée
+# ENTRE 2 étapes réelles verrouillées ('abonnement' et 'paiement' ici), doit
+# avoir sa propre page (wizard_etape_personnalisee), bloquer la progression
+# si un champ obligatoire n'est pas rempli, et sa réponse doit être
+# enregistrée ET visible sur la fiche de la candidature — exactement comme
+# n'importe quelle étape réelle. "الشروط والأحكام" (case à cocher
+# obligatoire) : exemple concret donné, jamais un cas particulier câblé en
+# dur (même principe de preuve que ChampAvecCritereSurEtapeIdentiteTests).
+# ============================================================================
+class EtapePersonnaliseeInsereeEntreDeuxEtapesReellesTests(TestCase):
+    def setUp(self):
+        from registration.models import EtapeInscription
+
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        # paiement(5)/confirmation(6) repoussées à 6/7 (même idiome que
+        # WizardNavigationDynamiqueTests) pour insérer SANS ambiguïté la
+        # nouvelle étape à ordre=5, juste après 'abonnement'(4).
+        EtapeInscription.objects.filter(code='paiement').update(ordre=6)
+        EtapeInscription.objects.filter(code='confirmation').update(ordre=7)
+        self.etape_conditions = EtapeInscription.objects.create(
+            code='test_conditions', titre='الشروط والأحكام', ordre=5, est_actif=True,
+        )
+        self.champ_conditions = ChampInscription.objects.create(
+            etape=self.etape_conditions, critere=None, type_champ='booleen',
+            label='أوافق على شروط وأحكام التسجيل', obligatoire=True, ordre=1,
+        )
+
+        self.abonnement = TypeAbonnement.objects.create(
+            code='test_conditions_abo', label='فردي شهري', prix=400, type_offre='individuel', cible_age='les_deux', ordre=1,
+        )
+        from payments.models import MoyenPaiement
+        self.moyen = MoyenPaiement.objects.create(code='test_conditions_cih', label='CIH بنك', coordonnees='RIB', est_actif=True)
+
+    def _avancer_jusqua_abonnement(self, client, email):
+        _choisir_categorie_age(client)
+        client.post(reverse('wizard_identite'), {
+            'nom': 'عبد الرحمن الوزاني', 'sexe': 'homme', 'email': email,
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0611223344', 'telephone_confirmation': '0611223344',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'individuel',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        return client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abonnement.code})
+
+    def test_apparait_au_bon_endroit_entre_abonnement_et_paiement(self):
+        client = Client()
+        reponse = self._avancer_jusqua_abonnement(client, 'test_conditions_ordre@zidni.test')
+        self.assertRedirects(
+            reponse, reverse('wizard_etape_personnalisee', args=['test_conditions']), fetch_redirect_response=False,
+        )
+        reponse_page = client.get(reverse('wizard_etape_personnalisee', args=['test_conditions']))
+        self.assertEqual(reponse_page.status_code, 200)
+        html = reponse_page.content.decode('utf-8')
+        self.assertIn('الشروط والأحكام', html)
+        self.assertIn('أوافق على شروط وأحكام التسجيل', html)
+        self.assertIn(f'name="champ_{self.champ_conditions.id}"', html)
+
+    def test_bloque_la_progression_si_non_cochee(self):
+        client = Client()
+        self._avancer_jusqua_abonnement(client, 'test_conditions_bloque@zidni.test')
+        # Case NON cochée -> absente du POST (comportement HTML standard
+        # d'une checkbox non cochée, jamais envoyée par le navigateur).
+        reponse = client.post(reverse('wizard_etape_personnalisee', args=['test_conditions']), {})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('إلزامي', reponse.content.decode('utf-8'))
+        # Jamais avancé à 'paiement' -> jamais retenu en session non plus.
+        self.assertNotIn(f'champ_{self.champ_conditions.id}', client.session.get('wizard_inscription', {}))
+
+    def test_reponse_enregistree_bout_en_bout_et_visible_sur_fiche_admin(self):
+        """LE test bout en bout demandé : coche la case, termine l'inscription
+        (paiement), et vérifie que la réponse est bien enregistrée EN BASE
+        ET affichée sur /dashboard/admin/inscriptions/eleve/<id>/ (fiche
+        détail consultée par le مدير)."""
+        email = 'test_conditions_bout_en_bout@zidni.test'
+        client = Client()
+        self._avancer_jusqua_abonnement(client, email)
+
+        reponse_conditions = client.post(
+            reverse('wizard_etape_personnalisee', args=['test_conditions']),
+            {f'champ_{self.champ_conditions.id}': '1'},
+        )
+        self.assertRedirects(reponse_conditions, reverse('wizard_paiement'), fetch_redirect_response=False)
+
+        reponse_paiement = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+        self.assertRedirects(reponse_paiement, reverse('wizard_confirmation'), fetch_redirect_response=False)
+
+        inscription = InscriptionEleve.objects.get(email=email)
+        reponse_bd = inscription.reponses.get(champ=self.champ_conditions)
+        self.assertEqual(reponse_bd.valeur_texte, '1')
+
+        admin = User.objects.create_user(
+            username='admin_test_conditions@zidni.test', email='admin_test_conditions@zidni.test',
+            password='xX!test12345', role='admin', doit_changer_mot_de_passe=False,
+        )
+        client_admin = Client()
+        client_admin.force_login(admin)
+        html_fiche = client_admin.get(
+            reverse('admin_inscription_eleve_detail', args=[inscription.id])
+        ).content.decode('utf-8')
+        self.assertIn('أوافق على شروط وأحكام التسجيل', html_fiche)
+        self.assertIn('نعم', html_fiche)
+
+    def test_champ_obligatoire_etape_personnalisee_revalide_par_inscrire_eleve(self):
+        """Confirme (Partie 3B, point 4) que inscrire_eleve() — utilisé par
+        les 2 portes d'entrée — parcourt bien aussi les champs d'une étape
+        personnalisée pour l'obligatoire, EXACTEMENT comme n'importe quelle
+        autre étape (déjà le cas via evaluer_champs_actifs, qui ne filtre
+        jamais par étape — voir son docstring) : sans réponse au champ
+        obligatoire de 'test_conditions', la création échoue avec un message
+        clair, jamais une InscriptionEleve incomplète créée silencieusement."""
+        reponses = {
+            'nom': 'اختبار بدون موافقة', 'sexe': 'homme', 'email': 'test_conditions_sans_reponse@zidni.test',
+            'date_naissance': '2000-01-01', 'telephone': '0600112233',
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'individuel',
+            f'champ_{self.champ_nb_seances.id}': '2',
+            'abonnement_code': self.abonnement.code,
+            # champ_<id> de test_conditions volontairement absent.
+        }
+        inscription, erreurs = inscrire_eleve(reponses)
+        self.assertIsNone(inscription)
+        self.assertIn(f'"{self.champ_conditions.label}" إلزامي.', erreurs)
+        self.assertFalse(InscriptionEleve.objects.filter(email='test_conditions_sans_reponse@zidni.test').exists())
+
+    def test_etape_reelle_forcee_via_lurl_generique_redirige_vers_sa_vraie_vue(self):
+        """Garde-fou : /registration/wizard/etape/programme/ (un des 7 codes
+        réels) ne doit JAMAIS être rendu par la vue générique — toujours
+        redirigé vers sa vraie vue dédiée, qui seule porte sa logique propre
+        (âge/sexe pour 'identite', groupes pour 'groupe'...)."""
+        client = Client()
+        _choisir_categorie_age(client)
+        reponse = client.get(reverse('wizard_etape_personnalisee', args=['programme']))
+        self.assertRedirects(reponse, reverse('wizard_programme'), fetch_redirect_response=False)
 
 
 # ============================================================================

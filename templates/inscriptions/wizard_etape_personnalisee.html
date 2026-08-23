@@ -1,0 +1,22 @@
+{% extends 'inscriptions/_wizard_base.html' %}
+{% comment %}
+Chantier du 2026-08-23 (Partie 3B, "étapes repositionnables/insérables
+n'importe où") — page GÉNÉRIQUE unique pour TOUTE étape personnalisée créée
+par le مدير au-delà des 7 étapes réelles (admin_etape_inscription_ajouter).
+Aucun `wizard_etape_num` : la barre de progression à 6 points reste
+dimensionnée pour les 7 pages réelles historiques, une étape personnalisée
+n'a pas de position fixe qui y corresponde — jamais un point trompeur.
+{% endcomment %}
+{% block wizard_title %}{{ etape.titre }}{% endblock %}
+{% block wizard_content %}
+<div class="page-title">{{ etape.titre }}</div>
+
+<form method="POST">
+    {% csrf_token %}
+
+    {% include 'inscriptions/_champs_dynamiques.html' %}
+
+    <button type="submit" class="btn-submit">التالي ←</button>
+    <a href="{{ url_precedente }}" class="btn-back">رجوع</a>
+</form>
+{% endblock %}

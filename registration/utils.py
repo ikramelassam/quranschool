@@ -168,28 +168,82 @@ def etape_suivante(code_etape_actuelle):
     return candidats[0] if candidats else None
 
 
+def etape_precedente(code_etape_actuelle):
+    """Symétrique de etape_suivante() ci-dessus — code de l'étape active
+    PRÉCÉDANT `code_etape_actuelle`, selon EtapeInscription.ordre. Ajoutée
+    au chantier du 2026-08-23 (Partie 3B, "étapes repositionnables/
+    insérables n'importe où") pour donner un bouton "رجوع" correct à
+    wizard_etape_personnalisee — les 7 pages réelles gardent, elles, leur
+    lien "رجوع" codé en dur vers leur voisine habituelle (hors scope de
+    cette correction : les réordonner reste sans effet sur CE bouton précis
+    chez elles, seulement chez une étape personnalisée)."""
+    from .models import EtapeInscription
+
+    codes_actifs = list(
+        EtapeInscription.objects.filter(est_actif=True).order_by('ordre', 'id').values_list('code', flat=True)
+    )
+    if code_etape_actuelle in codes_actifs:
+        candidats = codes_actifs[:codes_actifs.index(code_etape_actuelle)]
+    else:
+        tous_les_codes = list(EtapeInscription.objects.order_by('ordre', 'id').values_list('code', flat=True))
+        position = tous_les_codes.index(code_etape_actuelle) if code_etape_actuelle in tous_les_codes else -1
+        candidats = [c for c in tous_les_codes[:position] if c in codes_actifs]
+    return candidats[-1] if candidats else None
+
+
+def _reverse_pour_etape(code_etape):
+    """Chemin RÉSOLU (django.urls.reverse) pour QUELCONQUE EtapeInscription
+    active — réelle (URL_PAR_CODE_ETAPE, sa propre vue dédiée) ou
+    PERSONNALISÉE (Partie 3B, chantier du 2026-08-23 : servie par la vue
+    générique wizard_etape_personnalisee, paramétrée par son code — avant
+    cette correction, une étape personnalisée n'avait tout simplement AUCUNE
+    page, voir url_etape_suivante ci-dessous)."""
+    from django.urls import reverse
+
+    if code_etape in URL_PAR_CODE_ETAPE:
+        return reverse(URL_PAR_CODE_ETAPE[code_etape])
+    return reverse('wizard_etape_personnalisee', kwargs={'code': code_etape})
+
+
 def url_etape_suivante(code_etape_actuelle, repli='wizard_confirmation'):
-    """Nom de vue Django de la prochaine étape active après
-    `code_etape_actuelle`. Ignore toute étape CUSTOM (créée librement par le
-    مدير via admin_etape_inscription_ajouter, un code hors des 7 réels de
-    URL_PAR_CODE_ETAPE) en continuant à chercher la suite — sans ça, une
-    étape personnalisée insérée avec un `ordre` malheureux ferait
-    disparaître silencieusement une ou plusieurs vraies pages du parcours
-    (URL_PAR_CODE_ETAPE.get() serait alors None, et `repli` sauterait
-    directement à la confirmation). `repli` n'est donc utilisé que si
-    aucune vraie étape ne suit du tout (ne devrait jamais arriver tant que
-    'confirmation' reste verrouillée active en dernière position) — jamais
-    un 500 pour un élève réel."""
-    code = code_etape_actuelle
-    # Garde-fou anti-boucle : le nombre d'EtapeInscription est fini, cette
-    # boucle ne peut de toute façon jamais dépasser ce nombre d'itérations.
-    for _ in range(100):
-        code = etape_suivante(code)
-        if code is None:
-            return repli
-        if code in URL_PAR_CODE_ETAPE:
-            return URL_PAR_CODE_ETAPE[code]
-    return repli
+    """Chemin résolu de la prochaine étape active après
+    `code_etape_actuelle` — réelle OU personnalisée (voir _reverse_pour_
+    etape). Toujours un CHEMIN déjà résolu (reverse()), jamais un simple nom
+    de vue : redirect() accepte les 2 formes de façon identique (même
+    en-tête Location produit), mais {% url %} côté template n'accepte QUE
+    des noms de vue SANS paramètre — un chemin déjà résolu reste correct
+    dans tous les cas (voir wizard_intro.html, seul endroit qui interpole
+    directement ce retour plutôt que de le passer à redirect()).
+
+    AVANT le chantier du 2026-08-23 (Partie 3B) : toute étape personnalisée
+    (code hors des 7 réels) était silencieusement IGNORÉE ici — trou
+    identifié par l'audit du 2026-08-23, `ordre` la positionnait bien dans
+    la liste admin mais elle ne s'affichait JAMAIS au candidat. Désormais
+    servie par wizard_etape_personnalisee au même titre que les 7 étapes
+    réelles — plus aucune étape active n'est sautée silencieusement, la
+    boucle anti-régression n'est donc plus nécessaire (etape_suivante()
+    renvoie déjà la bonne étape immédiate, réelle ou personnalisée).
+
+    `repli` n'est utilisé que si AUCUNE étape active ne suit du tout (ne
+    devrait jamais arriver tant que 'confirmation' reste verrouillée active
+    en dernière position) — jamais un 500 pour un élève réel."""
+    from django.urls import reverse
+
+    code = etape_suivante(code_etape_actuelle)
+    if code is None:
+        return reverse(repli)
+    return _reverse_pour_etape(code)
+
+
+def url_etape_precedente(code_etape_actuelle, repli='wizard_intro'):
+    """Symétrique de url_etape_suivante() ci-dessus, pour le bouton "رجوع"
+    de wizard_etape_personnalisee (Partie 3B) — voir etape_precedente()."""
+    from django.urls import reverse
+
+    code = etape_precedente(code_etape_actuelle)
+    if code is None:
+        return reverse(repli)
+    return _reverse_pour_etape(code)
 
 
 def wizard_donnees(request):

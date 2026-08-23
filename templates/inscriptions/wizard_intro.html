@@ -19,7 +19,16 @@
     {% if presentation.intro %}{{ presentation.intro }}{% else %}أهلاً بك في منصة زدني علماً لتعليم القرآن الكريم عن بعد.{% endif %}
 </div>
 
-<a href="{% url url_suivante %}" class="btn-submit" style="display:block; text-align:center; text-decoration:none;">
+{% comment %}
+Chantier du 2026-08-23 (Partie 3B) : url_etape_suivante() renvoie
+désormais toujours un CHEMIN déjà résolu (pas seulement un nom de vue) —
+nécessaire pour pouvoir pointer vers une étape personnalisée du مدير
+(wizard_etape_personnalisee, paramétrée par son code). Le tag "url" de
+Django exige un nom de vue, jamais un chemin : interpolation directe
+ci-dessous, comme toutes les redirections serveur (redirect()) qui,
+elles, acceptent déjà les 2 formes de façon strictement identique.
+{% endcomment %}
+<a href="{{ url_suivante }}" class="btn-submit" style="display:block; text-align:center; text-decoration:none;">
     {{ presentation.bouton_texte|default:"متابعة التسجيل" }} ←
 </a>
 <a href="{% url 'wizard_categorie_age' %}" class="btn-back">رجوع</a>
