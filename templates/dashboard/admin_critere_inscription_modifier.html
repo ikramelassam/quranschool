@@ -39,12 +39,12 @@
             <select name="type_champ" class="form-select mt-1">
                 <option value="choix_unique" {% if critere.type_champ == 'choix_unique' %}selected{% endif %}>اختيار واحد</option>
                 <option value="choix_multiple" {% if critere.type_champ == 'choix_multiple' %}selected{% endif %}>اختيار متعدد</option>
-                <option value="texte" {% if critere.type_champ == 'texte' %}selected{% endif %}>نص</option>
-                <option value="email" {% if critere.type_champ == 'email' %}selected{% endif %}>بريد إلكتروني</option>
-                <option value="telephone" {% if critere.type_champ == 'telephone' %}selected{% endif %}>هاتف</option>
-                <option value="nombre" {% if critere.type_champ == 'nombre' %}selected{% endif %}>رقم</option>
-                <option value="date" {% if critere.type_champ == 'date' %}selected{% endif %}>تاريخ</option>
-                <option value="booleen" {% if critere.type_champ == 'booleen' %}selected{% endif %}>نعم/لا</option>
+                {% if critere.type_champ != 'choix_unique' and critere.type_champ != 'choix_multiple' %}
+                {# Critère existant créé avant le chantier du 2026-08-23 (Partie 2) avec un type qui ne filtre
+                   jamais — conservé tel quel dans la liste pour ne pas changer silencieusement sa valeur
+                   actuelle si le مدير enregistre sans y toucher, mais plus jamais proposé pour un NOUVEAU critère. #}
+                <option value="{{ critere.type_champ }}" selected>{{ critere.get_type_champ_display }} (قديم — غيّره إن أمكن)</option>
+                {% endif %}
             </select>
         </div>
         <div class="mb-3">

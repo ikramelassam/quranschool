@@ -2782,6 +2782,26 @@ class EtapeChampInscriptionCRUDTests(TestCase):
         self.assertEqual(reponse.status_code, 200)
         self.assertIn('الرواية', reponse.content.decode('utf-8'))
 
+    def test_menu_systeme_a_exclut_les_criteres_qui_ne_filtrent_jamais(self):
+        """Chantier du 2026-08-23 (Partie 2, séparation Système A/B) : un
+        critère de type texte/nombre/date/... ne filtre RÉELLEMENT jamais
+        (registration.utils.groupes_compatibles ne compare que des
+        CritereOption) — même coché 'filtrable', c'est un piège pour le
+        مدير. Le menu "المعيار" du bloc Système A ("سؤال يُستخدم لتصفية
+        المجموعات") ne doit donc plus jamais le proposer, contrairement au
+        critère choix_unique/choix_multiple qui, lui, reste proposé."""
+        etape = EtapeInscription.objects.create(code='test_identite_systeme_a', titre='المعلومات الشخصية')
+        critere_texte = CritereInscription.objects.create(
+            code='test_critere_texte_piege', label='معيار نصي لا يُصفّي أبداً', type_champ='texte', filtrable=True,
+        )
+        critere_choix = CritereInscription.objects.create(
+            code='test_critere_choix_valide', label='معيار اختيار يُصفّي فعلاً', type_champ='choix_unique',
+        )
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_etape_inscription_detail', args=[etape.id])).content.decode('utf-8')
+        self.assertNotIn('معيار نصي لا يُصفّي أبداً', html)
+        self.assertIn('معيار اختيار يُصفّي فعلاً', html)
+
     def test_ajout_champ_avec_critere_et_champ_informatif(self):
         etape = EtapeInscription.objects.create(code='test_identite', titre='المعلومات الشخصية')
         critere = CritereInscription.objects.create(code='test_riwaya', label='الرواية')

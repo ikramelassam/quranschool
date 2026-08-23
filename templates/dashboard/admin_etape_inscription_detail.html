@@ -96,29 +96,72 @@
 </div>
 
 <div style="background:white; border-radius:16px; padding:24px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; margin-bottom:12px;">+ إضافة حقل جديد</div>
+    <div style="font-weight:700; margin-bottom:16px;">+ إضافة حقل جديد</div>
+
+    {% comment %}
+    Chantier du 2026-08-23 (Partie 2) : 2 usages bien séparés, choisis
+    EXPLICITEMENT avant de remplir quoi que ce soit — plus un seul
+    formulaire mélangeant les deux avec un <select> silencieux qui
+    changeait de sens sans prévenir. النظام أ (سؤال تصفية) : la réponse
+    filtre les مجموعات proposées — التسمية vient toujours d'un معيار déجà
+    créé (اختيار واحد/متعدد uniquement, les seuls types qui filtrent
+    réellement). النظام ب (محتوى/موافقة) : texte simple ou case à cocher,
+    jamais lié à un معيار, jamais utilisé pour le تصفية.
+    {% endcomment %}
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <div id="onglet_systeme_a" class="systeme-onglet actif" onclick="choisirSysteme('a')">
+                🎯 سؤال يُستخدم لتصفية المجموعات
+            </div>
+        </div>
+        <div class="col-6">
+            <div id="onglet_systeme_b" class="systeme-onglet" onclick="choisirSysteme('b')">
+                📝 محتوى إعلامي / موافقة
+            </div>
+        </div>
+    </div>
+
     <form method="POST" action="{% url 'admin_champ_inscription_ajouter' etape.id %}">
         {% csrf_token %}
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333; font-size:0.9rem;">مرتبط بمعيار (اختياري)</label>
-            <select name="critere_id" id="critere_select" class="form-select mt-1" onchange="toggleTypeChamp()">
-                <option value="">— حقل معلوماتي بدون معيار (مثال: البلد) —</option>
-                {% for critere in criteres_disponibles %}
-                <option value="{{ critere.id }}">{{ critere.label }}</option>
-                {% endfor %}
-            </select>
+
+        <div id="section_systeme_a">
+            <div style="background:#f0ebe3; border-radius:10px; padding:12px 16px; margin-bottom:16px; color:#555; font-size:0.82rem;">
+                إجابة الطالب هنا تُستخدم لتصفية المجموعات المقترحة عليه (تماماً مثل البرنامج أو الرواية). تُبنى فقط من معيار جاهز بخيارات محددة مسبقاً — لا علاقة لها بالتصفية إن اخترت "محتوى إعلامي".
+            </div>
+            <div class="mb-3">
+                <label style="font-weight:600; color:#333; font-size:0.9rem;">المعيار *</label>
+                <select name="critere_id" id="critere_select" class="form-select mt-1">
+                    <option value="">— اختر معياراً —</option>
+                    {% for critere in criteres_disponibles %}
+                    <option value="{{ critere.id }}">{{ critere.label }}</option>
+                    {% endfor %}
+                </select>
+                {% if not criteres_disponibles %}
+                <div style="color:#888; font-size:0.78rem; margin-top:4px;">
+                    لا يوجد بعد أي معيار من نوع "اختيار واحد/متعدد". أنشئ واحداً أولاً من
+                    <a href="{% url 'admin_critere_inscription_ajouter' %}">صفحة معايير التسجيل</a>.
+                </div>
+                {% endif %}
+            </div>
         </div>
-        <div class="mb-3" id="type_champ_wrapper">
-            <label style="font-weight:600; color:#333; font-size:0.9rem;">نوع الحقل (فقط إن لم يُختر معيار)</label>
-            <select name="type_champ" class="form-select mt-1">
-                <option value="texte">نص</option>
-                <option value="email">بريد إلكتروني</option>
-                <option value="telephone">هاتف</option>
-                <option value="nombre">رقم</option>
-                <option value="date">تاريخ</option>
-                <option value="booleen">نعم/لا</option>
-            </select>
+
+        <div id="section_systeme_b" style="display:none;">
+            <div style="background:#f0ebe3; border-radius:10px; padding:12px 16px; margin-bottom:16px; color:#555; font-size:0.82rem;">
+                نص بسيط أو خانة موافقة — لا يُستخدم أبداً لتصفية المجموعات، فقط يُعرض على الطالب ويُسجَّل مع طلبه (مثال: البلد، الموافقة على الشروط).
+            </div>
+            <div class="mb-3">
+                <label style="font-weight:600; color:#333; font-size:0.9rem;">نوع الحقل *</label>
+                <select name="type_champ" id="type_champ_select" class="form-select mt-1">
+                    <option value="texte">نص</option>
+                    <option value="email">بريد إلكتروني</option>
+                    <option value="telephone">هاتف</option>
+                    <option value="nombre">رقم</option>
+                    <option value="date">تاريخ</option>
+                    <option value="booleen">نعم/لا (خانة موافقة)</option>
+                </select>
+            </div>
         </div>
+
         <div class="mb-3">
             <label style="font-weight:600; color:#333; font-size:0.9rem;">التسمية المعروضة *</label>
             <input type="text" name="label" class="form-control mt-1" required>
@@ -145,11 +188,29 @@
     <a href="{% url 'admin_etapes_inscription' %}" style="color:#888; text-decoration:none;">← رجوع لقائمة المراحل</a>
 </div>
 
-<script>
-    function toggleTypeChamp() {
-        const critereChoisi = document.getElementById('critere_select').value;
-        document.getElementById('type_champ_wrapper').style.display = critereChoisi ? 'none' : 'block';
+<style>
+    .systeme-onglet {
+        border: 2px solid #EADFC8; border-radius: 10px; padding: 12px 14px; cursor: pointer;
+        text-align: center; font-size: 0.88rem; font-weight: 600; color: #666;
+        background: #fbfaf7; transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
     }
-    document.addEventListener('DOMContentLoaded', toggleTypeChamp);
+    .systeme-onglet.actif {
+        border-color: var(--color-role-admin); background: var(--color-role-admin); color: white;
+    }
+</style>
+<script>
+    function choisirSysteme(systeme) {
+        const estA = systeme === 'a';
+        document.getElementById('onglet_systeme_a').classList.toggle('actif', estA);
+        document.getElementById('onglet_systeme_b').classList.toggle('actif', !estA);
+        document.getElementById('section_systeme_a').style.display = estA ? 'block' : 'none';
+        document.getElementById('section_systeme_b').style.display = estA ? 'none' : 'block';
+        // Un seul des 2 champs (critere_id / type_champ) doit être requis à
+        // la fois — sinon le navigateur bloquerait la soumission sur le
+        // <select> caché resté "required" par défaut.
+        document.getElementById('critere_select').required = estA;
+        document.getElementById('type_champ_select').required = !estA;
+    }
+    document.addEventListener('DOMContentLoaded', function () { choisirSysteme('a'); });
 </script>
 {% endblock %}

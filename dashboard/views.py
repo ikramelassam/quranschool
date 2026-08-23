@@ -6217,7 +6217,17 @@ def admin_etape_inscription_detail(request, etape_id):
         # champs structurels réels (nom/sexe/téléphone...) sont déjà en
         # place et utilisés.
         'champs_structurels': etape.champs_structurels.all().order_by('ordre', 'id'),
-        'criteres_disponibles': Critere.objects.filter(est_actif=True).order_by('ordre'),
+        # Chantier du 2026-08-23 (Partie 2, séparation Système A/B) :
+        # SEULS les critères choix_unique/choix_multiple filtrent
+        # réellement (voir registration.utils.groupes_compatibles — le
+        # backend 'eav' ne compare jamais que des CritereOption, jamais du
+        # texte libre). Un critère texte/nombre/date/email/téléphone/
+        # booléen ne serait donc JAMAIS un choix utile ici, même si
+        # 'filtrable' est coché dessus — filtré pour ne plus jamais
+        # laisser le مدير se piéger en le liant à un champ "تصفية".
+        'criteres_disponibles': Critere.objects.filter(
+            est_actif=True, type_champ__in=['choix_unique', 'choix_multiple'],
+        ).order_by('ordre'),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
