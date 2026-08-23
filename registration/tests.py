@@ -3085,6 +3085,95 @@ class ChampsStructurelsConfigurablesTests(TestCase):
         self.assertIsNone(valider_champ_structurel_libre(config, ''))
 
 
+# ============================================================================
+# Partie 3 (chantier du 2026-08-23) — champ numérique informatif avec bornes
+# min/max (ex: "كم عدد الأحزاب التي تحفظها؟" entre 1 et 60). PUREMENT
+# informatif (Système B) : ne filtre JAMAIS les groupes par plage, voir
+# registration.models.ChampInscription.valeur_min/valeur_max.__doc__.
+# ============================================================================
+class ChampNumeriqueAvecBornesTests(TestCase):
+    def setUp(self):
+        from .utils import _reponses_a_creer_pour_champ
+        self._reponses_a_creer_pour_champ = _reponses_a_creer_pour_champ
+
+        self.etape_identite = EtapeInscription.objects.get(code='identite')
+        self.champ_hizb = ChampInscription.objects.create(
+            etape=self.etape_identite, critere=None, type_champ='nombre',
+            label='كم عدد الأحزاب التي تحفظها؟', valeur_min=1, valeur_max=60,
+            obligatoire=True, ordre=99,
+        )
+
+    # ---- Niveau unitaire (la fonction de validation elle-même) ----
+
+    def test_rejette_en_dessous_du_minimum(self):
+        paires, erreur = self._reponses_a_creer_pour_champ(self.champ_hizb, '0')
+        self.assertEqual(paires, [])
+        self.assertEqual(erreur, '"كم عدد الأحزاب التي تحفظها؟" يجب أن يكون 1 على الأقل.')
+
+    def test_rejette_au_dessus_du_maximum(self):
+        paires, erreur = self._reponses_a_creer_pour_champ(self.champ_hizb, '61')
+        self.assertEqual(paires, [])
+        self.assertEqual(erreur, '"كم عدد الأحزاب التي تحفظها؟" يجب ألا يتجاوز 60.')
+
+    def test_accepte_les_bornes_incluses(self):
+        for valeur in ('1', '60', '25'):
+            paires, erreur = self._reponses_a_creer_pour_champ(self.champ_hizb, valeur)
+            self.assertIsNone(erreur)
+            self.assertEqual(paires, [(None, valeur)])
+
+    def test_rejette_une_valeur_non_numerique(self):
+        paires, erreur = self._reponses_a_creer_pour_champ(self.champ_hizb, 'abc')
+        self.assertEqual(paires, [])
+        self.assertEqual(erreur, '"كم عدد الأحزاب التي تحفظها؟" يجب أن يكون رقماً صحيحاً.')
+
+    def test_champ_sans_bornes_najamais_de_limite(self):
+        """Non-régression : un champ numérique SANS min/max configurés (le
+        cas déjà existant avant cette Partie 3) continue d'accepter
+        n'importe quel entier, comme avant ce chantier."""
+        champ_libre = ChampInscription.objects.create(
+            etape=self.etape_identite, critere=None, type_champ='nombre',
+            label='عدد بدون حدود', ordre=100,
+        )
+        for valeur in ('-5', '0', '999999'):
+            paires, erreur = self._reponses_a_creer_pour_champ(champ_libre, valeur)
+            self.assertIsNone(erreur)
+
+    # ---- Bout en bout (vraie page publique) ----
+
+    def test_wizard_public_rejette_hors_bornes_et_accepte_dans_les_bornes(self):
+        client = Client()
+        _choisir_categorie_age(client)
+
+        donnees_base = {
+            'nom': 'اختبار الأحزاب', 'sexe': 'homme', 'email': 'test_bornes_numeriques@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0611223344', 'telephone_confirmation': '0611223344',
+        }
+
+        # Hors bornes (61) -> refusé, reste sur la même page, rien en session.
+        reponse_hors_bornes = client.post(reverse('wizard_identite'), {
+            **donnees_base, f'champ_{self.champ_hizb.id}': '61',
+        })
+        self.assertEqual(reponse_hors_bornes.status_code, 200)
+        self.assertIn('يجب ألا يتجاوز 60', reponse_hors_bornes.content.decode('utf-8'))
+        self.assertNotIn(f'champ_{self.champ_hizb.id}', client.session.get('wizard_inscription', {}))
+
+        # Dans les bornes (25) -> accepté, avance à l'étape suivante.
+        reponse_valide = client.post(reverse('wizard_identite'), {
+            **donnees_base, f'champ_{self.champ_hizb.id}': '25',
+        })
+        self.assertRedirects(reponse_valide, reverse('wizard_programme'), fetch_redirect_response=False)
+        self.assertEqual(client.session['wizard_inscription'][f'champ_{self.champ_hizb.id}'], '25')
+
+    def test_affiche_les_attributs_min_max_sur_le_vrai_wizard(self):
+        client = Client()
+        _choisir_categorie_age(client)
+        html = client.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertIn(f'name="champ_{self.champ_hizb.id}"', html)
+        self.assertIn('min="1"', html)
+        self.assertIn('max="60"', html)
+
+
 class WizardIdentiteChampsStructurelsTests(TestCase):
     def _reponses_valides(self, **overrides):
         base = {

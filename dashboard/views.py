@@ -6309,6 +6309,21 @@ def admin_etape_inscription_supprimer(request, etape_id):
 
 # ---- Champs d'une étape ----
 
+def _parse_entier_optionnel(valeur_brute):
+    """int ou None depuis un champ POST optionnel (ex: valeur_min/valeur_max,
+    Partie 3, chantier du 2026-08-23) — chaîne vide ou non numérique ->
+    None (aucune borne), jamais une erreur pour ce formulaire admin de
+    confiance (même esprit que `ordre` ailleurs dans ce fichier, jamais
+    validé non plus)."""
+    valeur_brute = (valeur_brute or '').strip()
+    if not valeur_brute:
+        return None
+    try:
+        return int(valeur_brute)
+    except ValueError:
+        return None
+
+
 @role_required('admin', 'mshrif')
 def admin_champ_inscription_ajouter(request, etape_id):
     from registration.models import ChampInscription, Critere, EtapeInscription
@@ -6317,11 +6332,18 @@ def admin_champ_inscription_ajouter(request, etape_id):
     if request.method == 'POST':
         critere_id = request.POST.get('critere_id') or None
         critere = get_object_or_404(Critere, id=critere_id) if critere_id else None
+        type_champ = request.POST.get('type_champ', '') if critere is None else ''
 
         ChampInscription.objects.create(
             etape=etape,
             critere=critere,
-            type_champ=request.POST.get('type_champ', '') if critere is None else '',
+            type_champ=type_champ,
+            # valeur_min/valeur_max (Partie 3) : sans objet hors type_champ=
+            # 'nombre' — jamais enregistrées dans les autres cas, même si le
+            # POST en contenait (champ caché côté client, mais jamais fait
+            # confiance côté serveur).
+            valeur_min=_parse_entier_optionnel(request.POST.get('valeur_min')) if type_champ == 'nombre' else None,
+            valeur_max=_parse_entier_optionnel(request.POST.get('valeur_max')) if type_champ == 'nombre' else None,
             label=request.POST.get('label', '').strip(),
             obligatoire=request.POST.get('obligatoire') == 'on',
             ordre=request.POST.get('ordre') or 0,
@@ -6361,6 +6383,16 @@ def admin_champ_inscription_modifier(request, champ_id):
         champ.est_actif = request.POST.get('est_actif') == 'on'
         if champ.critere is None:
             champ.type_champ = request.POST.get('type_champ', champ.type_champ)
+            # valeur_min/valeur_max (Partie 3, chantier du 2026-08-23) :
+            # sans objet hors type_champ='nombre' — remises à None dans les
+            # autres cas plutôt que de laisser une ancienne borne orpheline
+            # et invisible si le مدير change le type après coup.
+            if champ.type_champ == 'nombre':
+                champ.valeur_min = _parse_entier_optionnel(request.POST.get('valeur_min'))
+                champ.valeur_max = _parse_entier_optionnel(request.POST.get('valeur_max'))
+            else:
+                champ.valeur_min = None
+                champ.valeur_max = None
         champ.save()
         messages.success(request, 'تم تعديل الحقل بنجاح.')
         return redirect('admin_etape_inscription_detail', champ.etape_id)

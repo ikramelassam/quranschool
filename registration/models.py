@@ -324,6 +324,18 @@ class ChampInscription(models.Model):
     # Rempli SEULEMENT si critere est NULL (champ informatif). Sinon laissé vide —
     # le type vient alors de critere.type_champ, jamais dupliqué ici.
     type_champ = models.CharField(max_length=20, choices=Critere.TYPE_CHAMP_CHOICES, blank=True, default='')
+    # Bornes optionnelles (Partie 3, chantier du 2026-08-23) — SEULEMENT
+    # pertinentes si type_champ='nombre' (donc critere=NULL aussi, voir
+    # ci-dessus : jamais utilisées pour un champ lié à un critère). Simple
+    # validation de saisie (input HTML min/max + revalidation serveur,
+    # voir registration.utils._reponses_a_creer_pour_champ) — PUREMENT
+    # informatif, ne sert JAMAIS à filtrer les groupes par plage
+    # numérique : cette capacité n'existe pas dans ce moteur (le filtrage
+    # reste exclusivement Système A, critères choix_unique/choix_multiple
+    # avec des options prédéfinies) et n'est pas demandée par ce chantier.
+    # NULL = aucune borne (n'importe quel entier accepté).
+    valeur_min = models.IntegerField(null=True, blank=True)
+    valeur_max = models.IntegerField(null=True, blank=True)
     label = models.CharField(max_length=200)
     obligatoire = models.BooleanField(default=False)
     ordre = models.IntegerField(default=0)

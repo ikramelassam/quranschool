@@ -151,7 +151,7 @@
             </div>
             <div class="mb-3">
                 <label style="font-weight:600; color:#333; font-size:0.9rem;">نوع الحقل *</label>
-                <select name="type_champ" id="type_champ_select" class="form-select mt-1">
+                <select name="type_champ" id="type_champ_select" class="form-select mt-1" onchange="toggleBornesNumeriques()">
                     <option value="texte">نص</option>
                     <option value="email">بريد إلكتروني</option>
                     <option value="telephone">هاتف</option>
@@ -159,6 +159,22 @@
                     <option value="date">تاريخ</option>
                     <option value="booleen">نعم/لا (خانة موافقة)</option>
                 </select>
+            </div>
+            {% comment %}
+            Bornes optionnelles (Partie 3, chantier du 2026-08-23) — visibles
+            SEULEMENT si "رقم" est choisi juste au-dessus (toggleTypeChampBNumerique).
+            Vide = aucune limite. Purement informatif : ne sert JAMAIS à
+            filtrer les مجموعات par plage (voir la note du haut de ce bloc).
+            {% endcomment %}
+            <div class="row g-2" id="bornes_numeriques_wrapper" style="display:none;">
+                <div class="col-6">
+                    <label style="font-weight:600; color:#333; font-size:0.85rem;">الحد الأدنى</label>
+                    <input type="number" name="valeur_min" class="form-control mt-1" placeholder="بلا حد">
+                </div>
+                <div class="col-6">
+                    <label style="font-weight:600; color:#333; font-size:0.85rem;">الحد الأقصى</label>
+                    <input type="number" name="valeur_max" class="form-control mt-1" placeholder="بلا حد">
+                </div>
             </div>
         </div>
 
@@ -211,6 +227,10 @@
         document.getElementById('critere_select').required = estA;
         document.getElementById('type_champ_select').required = !estA;
     }
-    document.addEventListener('DOMContentLoaded', function () { choisirSysteme('a'); });
+    function toggleBornesNumeriques() {
+        const estNombre = document.getElementById('type_champ_select').value === 'nombre';
+        document.getElementById('bornes_numeriques_wrapper').style.display = estNombre ? 'flex' : 'none';
+    }
+    document.addEventListener('DOMContentLoaded', function () { choisirSysteme('a'); toggleBornesNumeriques(); });
 </script>
 {% endblock %}

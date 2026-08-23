@@ -63,7 +63,27 @@ propres fonctions, jamais d'imposer l'ordre d'exécution à la page.
             {% endfor %}
         </div>
         {% elif champ.type_champ == 'nombre' %}
-        <input type="number" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
+        {% comment %}
+        Bornes optionnelles (Partie 3, chantier du 2026-08-23) — min/max
+        HTML est un confort d'affichage SEULEMENT, jamais la seule
+        garantie : revalidé côté serveur dans tous les cas, voir
+        registration.utils._reponses_a_creer_pour_champ.
+        {% endcomment %}
+        <input type="number" name="champ_{{ champ.id }}" class="form-control mt-1"
+               {% if champ.valeur_min is not None %}min="{{ champ.valeur_min }}"{% endif %}
+               {% if champ.valeur_max is not None %}max="{{ champ.valeur_max }}"{% endif %}
+               {% if champ.obligatoire %}required{% endif %}>
+        {% if champ.valeur_min is not None or champ.valeur_max is not None %}
+        <div style="color:#888; font-size:0.8rem; margin-top:4px;">
+            {% if champ.valeur_min is not None and champ.valeur_max is not None %}
+            بين {{ champ.valeur_min }} و{{ champ.valeur_max }}
+            {% elif champ.valeur_min is not None %}
+            {{ champ.valeur_min }} على الأقل
+            {% else %}
+            بحد أقصى {{ champ.valeur_max }}
+            {% endif %}
+        </div>
+        {% endif %}
         {% elif champ.type_champ == 'date' %}
         <input type="date" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
         {% elif champ.type_champ == 'email' %}

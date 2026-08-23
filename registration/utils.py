@@ -696,6 +696,27 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
     if critere is None:
         # Champ informatif pur (Étape 1, ex: "Pays"/"Niveau scolaire") — jamais
         # d'option possible, type_champ vient du ChampInscription lui-même.
+        if champ.type_champ == 'nombre' and (champ.valeur_min is not None or champ.valeur_max is not None):
+            # Partie 3 (chantier du 2026-08-23) : bornes optionnelles sur un
+            # champ numérique informatif — l'attribut HTML min/max (voir
+            # _champs_dynamiques.html) est un confort d'affichage, JAMAIS la
+            # seule garantie (même principe que partout ailleurs dans ce
+            # moteur) : une valeur hors bornes est ici rejetée AVANT d'être
+            # écrite en ReponseInscription, quelle que soit la porte d'entrée
+            # (wizard public via inscrire_eleve, ajout manuel admin — les 2
+            # passent par evaluer_champs_actifs, donc par cette fonction).
+            texte = str(valeur_brute).strip() if valeur_brute not in (None, '') else ''
+            if not texte:
+                return [], None
+            try:
+                nombre = int(texte)
+            except (ValueError, TypeError):
+                return [], f'"{champ.label}" يجب أن يكون رقماً صحيحاً.'
+            if champ.valeur_min is not None and nombre < champ.valeur_min:
+                return [], f'"{champ.label}" يجب أن يكون {champ.valeur_min} على الأقل.'
+            if champ.valeur_max is not None and nombre > champ.valeur_max:
+                return [], f'"{champ.label}" يجب ألا يتجاوز {champ.valeur_max}.'
+            return [(None, str(nombre))], None
         texte = valeur_brute.strip() if isinstance(valeur_brute, str) else valeur_brute
         return ([(None, texte)] if texte not in (None, '') else []), None
 
