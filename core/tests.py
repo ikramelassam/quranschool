@@ -3,6 +3,8 @@ import re
 import unittest
 
 from django.conf import settings
+from django.test import Client, TestCase, override_settings
+from django.urls import reverse
 
 
 # Régression du 2026-08-14 — deux façons dont un commentaire de développement
@@ -83,3 +85,44 @@ class TemplatesSansFuiteDeCommentairesTests(unittest.TestCase):
             'Commentaire(s) HTML <!-- --> contenant du texte de développement, '
             'à convertir en {% comment %}...{% endcomment %} : ' + ', '.join(fautifs)
         )
+
+
+# Régression du 2026-08-24 — bug signalé "CSRF token from POST incorrect" :
+# aucun bug de code trouvé (parcours complet du wizard public revérifié avec
+# Client(enforce_csrf_checks=True), aucune anomalie), mais un vrai rejet
+# CSRF légitime (ex: formulaire resté ouvert longtemps, cookie renouvelé
+# entretemps) atterrissait sur la page 403 technique par défaut de Django —
+# en anglais, sans explication, sur une plateforme entièrement en arabe RTL
+# (voir CLAUDE.md §5). Voir core.views.csrf_failure.__doc__.
+_STORAGES_TEST_CORE = {
+    **settings.STORAGES,
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
+
+
+@override_settings(STORAGES=_STORAGES_TEST_CORE)
+class CsrfFailureViewTests(TestCase):
+    def test_token_dune_autre_session_affiche_la_page_arabe_personnalisee(self):
+        """Simule EXACTEMENT le mécanisme du bug signalé : un token CSRF qui
+        ne correspond plus au cookie courant (ici via 2 sessions distinctes,
+        même effet qu'un cookie renouvelé entretemps dans le même onglet) —
+        Django doit rejeter la requête (comportement de sécurité normal et
+        attendu, PAS un bug), mais via notre page 403 personnalisée."""
+        client_a = Client(enforce_csrf_checks=True)
+        client_b = Client(enforce_csrf_checks=True)
+        html_a = client_a.get(reverse('wizard_categorie_age')).content.decode('utf-8')
+        token_dune_autre_session = re.search(
+            r'name="csrfmiddlewaretoken" value="([^"]+)"', html_a
+        ).group(1)
+
+        client_b.get(reverse('wizard_categorie_age'))  # pose le cookie csrftoken PROPRE à client_b
+        reponse = client_b.post(reverse('wizard_categorie_age'), {
+            'type_age': 'adulte', 'csrfmiddlewaretoken': token_dune_autre_session,
+        })
+
+        self.assertEqual(reponse.status_code, 403)
+        html = reponse.content.decode('utf-8')
+        self.assertIn('انتهت صلاحية', html)
+        # Le bouton de réessai recharge la MÊME page (request.path), jamais
+        # un lien générique vers l'accueil qui ferait perdre où était l'utilisateur.
+        self.assertIn(reverse('wizard_categorie_age'), html)

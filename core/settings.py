@@ -42,6 +42,16 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
 # schéma complet (https://...), pas juste le nom d'hôte.
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
 
+# Bug signalé le 2026-08-24 : la page 403 par défaut de Django (technique,
+# en anglais) s'affichait sans aucune explication ni moyen de continuer
+# quand une vérification CSRF légitime échoue (ex: formulaire du wizard
+# public resté ouvert longtemps dans un onglet avant d'être soumis — voir
+# core.views.csrf_failure.__doc__ pour le diagnostic complet, aucun bug de
+# code trouvé après revérification complète du parcours avec
+# Client(enforce_csrf_checks=True)). Remplacée par une page arabe RTL
+# cohérente avec le reste du site, qui recharge la même page en un clic.
+CSRF_FAILURE_VIEW = 'core.views.csrf_failure'
+
 # Render place le service derrière un proxy HTTPS : la requête arrive en HTTP
 # en interne avec un header indiquant le protocole d'origine.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
