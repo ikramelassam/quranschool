@@ -364,14 +364,15 @@
         <div class="chat-liste-header"><h2>الرسائل</h2></div>
         {% comment %}
         Onglets de catégorie + recherche (Chantier catégorisation du
-        2026-08-18) — filtrent Groupe.categorie (النساء/الرجال/الأطفال,
-        réutilisées d'annonces.services.CANAUX), jamais categorie_collectif
-        (dérivée du créneau, système totalement séparé — voir
-        chat.services.repartition_conversations_par_categorie). Les
-        compteurs viennent de la vue (chat_liste/chat_conversation), calculés
-        une seule fois au chargement de la page — pas recalculés à chaque
-        poll de 10s (voir #chatListeContenu plus bas, qui lui EST rafraîchi
-        par le poll).
+        2026-08-18, PUIS correction du 2026-08-24) — النساء/الرجال filtrent
+        Groupe.categorie (partagé avec annonces.services.CANAUX, inchangé) ;
+        التلقين/البراعم/اليافعون filtrent sur Groupe.tranches_age_visees
+        (dérivée du créneau — voir chat.services.ONGLETS_CHAT/
+        _conversation_dans_onglet_chat pour la logique complète, y compris
+        le chevauchement multi-onglets). Les compteurs viennent de la vue
+        (chat_liste/chat_conversation), calculés une seule fois au
+        chargement de la page — pas recalculés à chaque poll de 10s (voir
+        #chatListeContenu plus bas, qui lui EST rafraîchi par le poll).
         {% endcomment %}
         <div class="chat-groupes-header">
             <div class="chat-groupes-titre">المجموعات</div>

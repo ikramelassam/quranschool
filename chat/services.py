@@ -9,6 +9,8 @@ import os
 from django.core.cache import cache
 from django.utils import timezone
 
+from courses.utils import TRANCHES_AGE_PRECISES
+
 from .models import Conversation, Message, LectureConversation, get_configuration_chat
 from .permissions import get_conversations_accessibles
 
@@ -167,34 +169,69 @@ def _compter_non_lus_par_conversation(conv_ids, lectures, user):
     return compteur
 
 
-def repartition_conversations_par_categorie(conversations):
-    """Onglets "المجموعات" (Chantier catégorisation du 2026-08-18) : compte,
-    pour une liste de conversations DÉJÀ chargée par conversations_avec_apercu
-    (donc groupe déjà select_related — AUCUNE requête supplémentaire ici),
-    combien appartiennent à chacune des 3 catégories métier.
+# Onglets "المجموعات" du Chat (Chantier catégorisation du 2026-08-18, PUIS
+# correction du 2026-08-24, demande explicite d'Ikram) — DIFFÈRE désormais
+# volontairement de annonces.services.CANAUX : les 2 catégories adultes
+# restent identiques (basées sur Groupe.categorie, champ manuel PARTAGÉ avec
+# les Annonces, INCHANGÉ) mais le 3e canal "mineurs" (unique, non précis) est
+# remplacé ici par les 3 tranches d'âge précises de Groupe.tranches_age_visees
+# (dérivées du créneau — voir son docstring dans courses.models) : un onglet
+# "الأطفال" unique masquait complètement quelle tranche d'âge une halaka
+# enfant vise réellement. Annonces reste à 3 canaux, volontairement non
+# touché par cette correction (décision explicite : un seul message
+# "لكل الأطفال" reste possible en diffusion, contrairement au Chat).
+_ONGLETS_CHAT_ADULTES = [
+    {'code': 'femmes_adultes', 'nom': 'النساء'},
+    {'code': 'hommes_adultes', 'nom': 'الرجال'},
+]
+_ONGLETS_CHAT_ENFANTS = [{'code': code, 'nom': label} for code, label, *_r in TRANCHES_AGE_PRECISES]
+ONGLETS_CHAT = _ONGLETS_CHAT_ADULTES + _ONGLETS_CHAT_ENFANTS
+_LABEL_PAR_CODE_TRANCHE = {code: label for code, label, *_r in TRANCHES_AGE_PRECISES}
 
-    Réutilise EXCLUSIVEMENT annonces.services.CANAUX — les mêmes 3 valeurs
-    (النساء/الرجال/الأطفال) déjà utilisées pour les canaux de diffusion des
-    Annonces, sur le même champ Groupe.categorie (voir Groupe.CATEGORIE_CHOICES
-    = Annonce.CIBLE_CHOICES). Aucune nouvelle catégorie, aucune valeur
-    inventée. Un groupe dont categorie est vide ('' — "غير مصنف", voir
-    Groupe.categorie.__doc__) n'est compté dans AUCUNE des 3 catégories, ce
-    qui l'exclut naturellement de leurs onglets tout en le laissant dans
-    "الكل" (1er élément retourné, count = total réel).
+
+def _conversation_dans_onglet_chat(conversation, code):
+    """Une conversation appartient à l'onglet `code` (l'un de ONGLETS_CHAT
+    ci-dessus) — pour un onglet adulte, simple égalité sur Groupe.categorie
+    comme avant. Pour un onglet tranche enfant (code d'une des 3 tranches),
+    2 conditions : Groupe.categorie == 'mineurs' ET son label figure dans
+    groupe.tranches_age_visees (dérivée du créneau).
+
+    2 conséquences volontaires (décisions explicites d'Ikram) :
+    - une conversation peut appartenir à PLUSIEURS onglets tranche à la fois,
+      si la halaka du groupe chevauche plusieurs tranches (ex: créneau
+      5-18 ans) — cohérent avec tranches_age_visees, qui peut déjà retourner
+      plusieurs labels pour un même groupe ;
+    - un groupe categorie='mineurs' SANS créneau exploitable (individuel, ou
+      sans créneau assigné — tranches_age_visees vide) n'appartient à AUCUN
+      des 3 onglets tranche, seulement à "الكل" (cas rare en pratique : une
+      halaka enfant sans créneau)."""
+    if code in _LABEL_PAR_CODE_TRANCHE:
+        return (
+            conversation.groupe.categorie == 'mineurs'
+            and _LABEL_PAR_CODE_TRANCHE[code] in conversation.groupe.tranches_age_visees
+        )
+    return conversation.groupe.categorie == code
+
+
+def repartition_conversations_par_categorie(conversations):
+    """Onglets "المجموعات" : compte, pour une liste de conversations DÉJÀ
+    chargée par conversations_avec_apercu (donc groupe + créneau déjà
+    select_related — AUCUNE requête supplémentaire ici), combien
+    appartiennent à chacun des onglets de ONGLETS_CHAT ci-dessus (une même
+    conversation peut compter dans plusieurs onglets tranche enfant à la
+    fois, voir _conversation_dans_onglet_chat).
 
     Retourne une liste de dicts {code, nom, count} : [{'code': '', 'nom':
     'الكل', 'count': N}, {'code': 'femmes_adultes', 'nom': 'النساء', ...}, ...]."""
-    from annonces.services import CANAUX
-
-    compte = {canal['code']: 0 for canal in CANAUX}
+    compte = {onglet['code']: 0 for onglet in ONGLETS_CHAT}
     for conversation in conversations:
-        cat = conversation.groupe.categorie
-        if cat in compte:
-            compte[cat] += 1
+        for onglet in ONGLETS_CHAT:
+            if _conversation_dans_onglet_chat(conversation, onglet['code']):
+                compte[onglet['code']] += 1
 
     return [{'code': '', 'nom': 'الكل', 'count': len(conversations)}] + [
-        {'code': canal['code'], 'nom': canal['nom'], 'count': compte[canal['code']]}
-        for canal in CANAUX
+        {'code': onglet['code'], 'nom': onglet['nom'], 'count': compte[onglet['code']]}
+        for onglet in ONGLETS_CHAT
     ]
 
 
@@ -202,14 +239,14 @@ def filtrer_conversations_par_categorie_et_recherche(conversations, categorie=''
     """Filtre EN MÉMOIRE une liste déjà chargée par conversations_avec_apercu
     (Point 8 du chantier catégorisation : pas de requête supplémentaire, le
     nombre de conversations d'un utilisateur reste petit — voir la docstring
-    de conversations_avec_apercu). `categorie` doit être l'un des 3 codes de
-    annonces.services.CANAUX (ou '' = pas de filtre catégorie — "الكل"), une
-    valeur inconnue ne fait planter/élargir rien : elle filtre juste vers une
-    liste vide, exactement comme un ?cat= inconnu sur admin_groupes.html.
+    de conversations_avec_apercu). `categorie` doit être l'un des codes de
+    ONGLETS_CHAT (ou '' = pas de filtre catégorie — "الكل"), une valeur
+    inconnue ne fait planter/élargir rien : elle filtre juste vers une liste
+    vide, exactement comme un ?cat= inconnu sur admin_groupes.html.
     `q` filtre par sous-chaîne (insensible à la casse) du nom du groupe."""
     resultat = conversations
     if categorie:
-        resultat = [c for c in resultat if c.groupe.categorie == categorie]
+        resultat = [c for c in resultat if _conversation_dans_onglet_chat(c, categorie)]
     q = q.strip().lower()
     if q:
         resultat = [c for c in resultat if q in c.groupe.nom.lower()]

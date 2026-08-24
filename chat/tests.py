@@ -4,13 +4,14 @@ from django.test import TestCase, Client
 from django.utils import timezone
 
 from accounts.models import User, Eleve, Prof, Superviseur
-from courses.models import Groupe
+from courses.models import Creneau, Groupe
 
 from .models import Conversation, Message, LectureConversation, get_configuration_chat
 from .permissions import can_access_conversation, get_conversations_accessibles
 from .services import (
     annoter_separateurs_jour, backfiller_conversations_manquantes,
-    conversations_avec_apercu, total_messages_non_lus, marquer_comme_lu,
+    conversations_avec_apercu, filtrer_conversations_par_categorie_et_recherche,
+    repartition_conversations_par_categorie, total_messages_non_lus, marquer_comme_lu,
     purger_messages_expires,
 )
 from .views import NB_MESSAGES_PAR_PAGE
@@ -1249,4 +1250,90 @@ class ParticipantsTrancheAgeTests(TestCase):
         participants = self.participants_conversation(conversation)
         eleve_entry = next(p for p in participants if p['role_code'] == 'eleve')
         self.assertEqual(eleve_entry['tranche_age_label'], '')
+
+
+class OngletsChatTranchesAgeTests(TestCase):
+    """Correction du 2026-08-24, demande explicite d'Ikram : les onglets
+    "المجموعات" du Chat divisent désormais الأطفال en التلقين/البراعم/اليافعون
+    (basé sur Groupe.tranches_age_visees, donc le créneau — pas les élèves),
+    tout en gardant النساء/الرجال inchangés. Voir chat.services.ONGLETS_CHAT/
+    _conversation_dans_onglet_chat."""
+
+    def _groupe_mineur(self, nom, age_min, age_max):
+        creneau = Creneau.objects.create(sexe_cible='mixte', age_min=age_min, age_max=age_max)
+        return Groupe.objects.create(
+            nom=nom, creneau=creneau, categorie='mineurs',
+            type_capacite='groupe', statut='actif', capacite_max=10,
+        )
+
+    def _groupe_adulte(self, nom, categorie):
+        creneau = Creneau.objects.create(sexe_cible='mixte', age_min=18, age_max=999)
+        return Groupe.objects.create(
+            nom=nom, creneau=creneau, categorie=categorie,
+            type_capacite='groupe', statut='actif', capacite_max=10,
+        )
+
+    def test_onglets_chat_couvrent_2_adultes_et_3_tranches_enfants(self):
+        from .services import ONGLETS_CHAT
+        codes = [onglet['code'] for onglet in ONGLETS_CHAT]
+        self.assertEqual(codes, ['femmes_adultes', 'hommes_adultes', 'talqin', 'baraim', 'yafiun'])
+
+    def test_repartition_compte_un_groupe_adulte_sous_son_onglet(self):
+        groupe = self._groupe_adulte('حلقة نساء اختبار', 'femmes_adultes')
+        conversation = Conversation.objects.get(groupe=groupe)
+        repartition = repartition_conversations_par_categorie([conversation])
+        compte = {r['code']: r['count'] for r in repartition}
+        self.assertEqual(compte['femmes_adultes'], 1)
+        self.assertEqual(compte['hommes_adultes'], 0)
+        self.assertEqual(compte[''], 1)
+
+    def test_repartition_compte_une_halaka_pile_dans_une_tranche(self):
+        groupe = self._groupe_mineur('حلقة براعم اختبار', age_min=8, age_max=13)
+        conversation = Conversation.objects.get(groupe=groupe)
+        repartition = repartition_conversations_par_categorie([conversation])
+        compte = {r['code']: r['count'] for r in repartition}
+        self.assertEqual(compte['baraim'], 1)
+        self.assertEqual(compte['talqin'], 0)
+        self.assertEqual(compte['yafiun'], 0)
+
+    def test_halaka_large_compte_dans_les_3_tranches_a_la_fois(self):
+        groupe = self._groupe_mineur('حلقة كل الأطفال اختبار', age_min=5, age_max=18)
+        conversation = Conversation.objects.get(groupe=groupe)
+        repartition = repartition_conversations_par_categorie([conversation])
+        compte = {r['code']: r['count'] for r in repartition}
+        self.assertEqual(compte['talqin'], 1)
+        self.assertEqual(compte['baraim'], 1)
+        self.assertEqual(compte['yafiun'], 1)
+        self.assertEqual(compte[''], 1)
+
+    def test_groupe_mineur_sans_creneau_najoute_a_aucune_tranche(self):
+        groupe = Groupe.objects.create(
+            nom='حلقة أطفال بدون خانة زمنية', creneau=None, categorie='mineurs',
+            type_capacite='groupe', statut='actif', capacite_max=10,
+        )
+        conversation = Conversation.objects.get(groupe=groupe)
+        repartition = repartition_conversations_par_categorie([conversation])
+        compte = {r['code']: r['count'] for r in repartition}
+        self.assertEqual(compte['talqin'], 0)
+        self.assertEqual(compte['baraim'], 0)
+        self.assertEqual(compte['yafiun'], 0)
+        self.assertEqual(compte[''], 1)  # reste visible dans "الكل"
+
+    def test_filtrer_par_tranche_ne_garde_que_les_halakat_concernees(self):
+        groupe_baraim = self._groupe_mineur('حلقة براعم فقط', age_min=8, age_max=13)
+        groupe_talqin = self._groupe_mineur('حلقة تلقين فقط', age_min=5, age_max=7)
+        conv_baraim = Conversation.objects.get(groupe=groupe_baraim)
+        conv_talqin = Conversation.objects.get(groupe=groupe_talqin)
+        resultat = filtrer_conversations_par_categorie_et_recherche(
+            [conv_baraim, conv_talqin], categorie='baraim'
+        )
+        self.assertEqual(resultat, [conv_baraim])
+
+    def test_filtrer_par_tranche_garde_une_halaka_large_meme_filtree_ailleurs(self):
+        groupe_large = self._groupe_mineur('حلقة واسعة', age_min=5, age_max=18)
+        conversation = Conversation.objects.get(groupe=groupe_large)
+        for code in ('talqin', 'baraim', 'yafiun'):
+            with self.subTest(code=code):
+                resultat = filtrer_conversations_par_categorie_et_recherche([conversation], categorie=code)
+                self.assertEqual(resultat, [conversation])
 
