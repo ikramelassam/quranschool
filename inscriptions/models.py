@@ -215,22 +215,6 @@ class InscriptionEleve(models.Model):
     # avant pour ce chemin-là, seule la contrainte "obligatoire" est relâchée).
     outil = models.CharField(max_length=20, choices=OUTIL_CHOICES, blank=True, default='')
     abonnement = models.CharField(max_length=30)
-    # Chantier du 2026-08-24 (Partie C) : combien de mois l'élève paie
-    # RÉELLEMENT à cette inscription (indépendant de la durée de
-    # l'abonnement choisi ci-dessus, ex: abonnement mensuel mais 3 mois
-    # payés d'un coup). PUREMENT INFORMATIF pour le مدير/مشرف — ne
-    # participe JAMAIS au calcul du prix affiché (registration.utils.
-    # prix_effectif), au filtrage, ni à aucune autre logique. Une vraie
-    # colonne (pas un ChampInscription/ReponseInscription EAV) : ce n'est
-    # ni un critère de filtrage ni un champ configurable par le مدير, mais
-    # une info fixe demandée par le client, même statut que job_actuel/
-    # niveau_scolaire ci-dessus. NULL = non précisé (candidature créée
-    # avant ce chantier, ou valeur jamais soumise) — jamais une valeur par
-    # défaut figée en base (le "par défaut cohérent avec la durée de
-    # l'abonnement" est calculé à l'affichage du formulaire, voir
-    # registration.utils.mois_payes_par_defaut, jamais stocké tel quel si
-    # l'élève ne l'a pas explicitement confirmé/modifié).
-    nombre_mois_payes = models.PositiveIntegerField(null=True, blank=True)
 
     # Extras
     accepte_conditions = models.BooleanField(default=False)

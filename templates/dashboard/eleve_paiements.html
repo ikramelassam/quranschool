@@ -10,24 +10,41 @@
     <form method="POST" enctype="multipart/form-data" class="row g-3" id="formPaiement">
         {% csrf_token %}
         <div class="col-md-3">
-            <label style="font-weight:600; color:#333; font-size:0.9rem;">الشهر المعني</label>
-            <input type="date" name="mois_reference" class="form-control mt-1" required>
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">من تاريخ</label>
+            <input type="date" name="date_debut" id="date_debut_input" class="form-control mt-1" required>
         </div>
         <div class="col-md-3">
-            <label style="font-weight:600; color:#333; font-size:0.9rem;">المبلغ (درهم)</label>
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">إلى تاريخ</label>
+            <input type="date" name="date_fin" id="date_fin_input" class="form-control mt-1" required>
+            <div style="color:#888; font-size:0.78rem; margin-top:4px;">
+                اختر نفس الشهر في الحقلين لدفع شهر واحد فقط، أو مدى أطول لدفع عدة أشهر دفعة واحدة.
+            </div>
+        </div>
+        <div class="col-md-2">
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">المبلغ الشهري (درهم)</label>
             <input type="number" step="0.01" name="montant" class="form-control mt-1" required>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <label style="font-weight:600; color:#333; font-size:0.9rem;">صورة إثبات الدفع</label>
             <input type="file" name="screenshot" class="form-control mt-1" accept="image/*" required>
         </div>
-        <div class="col-md-2 d-flex align-items-end">
+        <div class="col-md-1 d-flex align-items-end">
             <button type="submit" id="btnEnvoyerPaiement"
                 style="background:var(--color-role-eleve); color:white; border:none; border-radius:8px; padding:10px 20px; font-family:'Tajawal',sans-serif; cursor:pointer; width:100%;">
                 إرسال
             </button>
         </div>
     </form>
+    <script>
+        // Confort (chantier du 2026-08-24) : pré-remplit "إلى تاريخ" avec la
+        // même valeur que "من تاريخ" au premier choix, pour le cas le plus
+        // fréquent (un seul mois) — reste librement modifiable pour une
+        // période plus longue, jamais imposé.
+        document.getElementById('date_debut_input').addEventListener('change', function () {
+            var finInput = document.getElementById('date_fin_input');
+            if (!finInput.value) { finInput.value = this.value; }
+        });
+    </script>
     <script>
         // Anti-double-soumission côté client : désactive le bouton dès le
         // premier submit valide pour empêcher un 2e clic d'envoyer la même

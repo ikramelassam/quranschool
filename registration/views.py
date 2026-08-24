@@ -3,9 +3,12 @@
 configuration du dashboard (Étape 5) et branché sur registration.utils.
 inscrire_eleve() (Étape 4, déjà complet et testé isolément).
 
-Ne remplace PAS /register/student (inscriptions.views.inscription_eleve_*,
-inscriptions/urls.py) — les deux parcours coexistent tant que celui-ci n'est
-pas validé en conditions réelles, comme demandé explicitement.
+Bascule du 2026-08-24 (décision explicite du Directeur, voir registration/
+MIGRATION_NOTES.md) : ce parcours REMPLACE désormais /register/student
+(wizard_categorie_age y est monté directement, voir core/urls.py) —
+l'ancien formulaire à une page (inscriptions.views.inscription_eleve_*,
+inscriptions/urls.py) n'est plus lié nulle part publiquement mais reste en
+place, dormant, pas supprimé (rollback possible en 1 ligne dans core/urls.py).
 
 État accumulé dans la session (voir registration.utils.wizard_donnees/
 wizard_maj) — jamais dans des champs cachés HTML entre 2 requêtes."""
@@ -562,9 +565,8 @@ def wizard_paiement(request):
     redirige vers wizard_confirmation (Étape 6, affichage seul) en transitant
     par la session, même patron que dashboard.views.confirmation_creation_compte."""
     from django.utils import timezone
-    from inscriptions.models import get_parametres_inscriptions, TypeAbonnement
+    from inscriptions.models import get_parametres_inscriptions
     from payments.models import MoyenPaiement
-    from .utils import mois_payes_par_defaut
 
     donnees = wizard_donnees(request)
     if 'nom' not in donnees:
@@ -575,33 +577,23 @@ def wizard_paiement(request):
     moyens = MoyenPaiement.objects.filter(est_actif=True).order_by('ordre')
     parametres = get_parametres_inscriptions()
     date_limite = timezone.localdate() + datetime.timedelta(days=parametres.delai_paiement_jours)
-    # Partie C (2026-08-24) : suggestion PUREMENT indicative, pré-remplie
-    # mais librement modifiable — voir registration.utils.mois_payes_par_defaut.
-    abonnement_choisi = TypeAbonnement.objects.filter(code=donnees.get('abonnement_code')).first()
-    mois_par_defaut = mois_payes_par_defaut(abonnement_choisi)
 
     if request.method == 'POST':
-        return _wizard_confirmer_inscription(request, donnees, moyens, date_limite, parametres, mois_par_defaut)
+        return _wizard_confirmer_inscription(request, donnees, moyens, date_limite, parametres)
 
     return render(request, 'inscriptions/wizard_paiement.html', {
         'moyens': moyens, 'date_limite': date_limite,
         'delai_paiement_jours': parametres.delai_paiement_jours,
-        'mois_par_defaut': mois_par_defaut,
         'wizard_etape_num': 5,
     })
 
 
-def _wizard_confirmer_inscription(request, donnees, moyens, date_limite, parametres, mois_par_defaut=1):
+def _wizard_confirmer_inscription(request, donnees, moyens, date_limite, parametres):
     """Soumission finale (POST de wizard_paiement, Étape 6E) — REVALIDATION
     COMPLÈTE avant toute création (Partie 22 du cahier des charges) :
 
     - moyen_paiement_code : validé ici (purement informatif pour cette page,
       inscrire_eleve() ne le connaît pas et n'en a pas besoin).
-    - nombre_mois_payes (Partie C, 2026-08-24) : lu ici depuis le POST de
-      CETTE page (jamais mis en session comme le reste du parcours — c'est
-      la toute dernière page, pas besoin de survivre à une navigation
-      retour/avant) et fusionné dans une COPIE de `donnees` avant l'appel à
-      inscrire_eleve() — purement informatif, jamais une erreur possible ici.
     - TOUT LE RESTE (option appartenant au bon critère, obligatoire respecté,
       groupe_id revérifié contre groupes_compatibles_avec_age AU MOMENT DE
       CETTE CONFIRMATION — jamais celui, potentiellement périmé, calculé à
@@ -625,18 +617,15 @@ def _wizard_confirmer_inscription(request, donnees, moyens, date_limite, paramet
         return render(request, 'inscriptions/wizard_paiement.html', {
             'moyens': moyens, 'date_limite': date_limite,
             'delai_paiement_jours': parametres.delai_paiement_jours,
-            'mois_par_defaut': mois_par_defaut,
             'erreurs': ['يرجى اختيار طريقة دفع صالحة.'],
             'wizard_etape_num': 5,
         })
 
-    donnees_avec_paiement = {**donnees, 'nombre_mois_payes': request.POST.get('nombre_mois_payes', '')}
-    inscription, erreurs = inscrire_eleve(donnees_avec_paiement, cree_par=None)
+    inscription, erreurs = inscrire_eleve(donnees, cree_par=None)
     if erreurs:
         return render(request, 'inscriptions/wizard_paiement.html', {
             'moyens': moyens, 'date_limite': date_limite,
             'delai_paiement_jours': parametres.delai_paiement_jours,
-            'mois_par_defaut': mois_par_defaut,
             'erreurs': erreurs,
             'wizard_etape_num': 5,
         })

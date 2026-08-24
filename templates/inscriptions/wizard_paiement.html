@@ -38,19 +38,6 @@
 
     <input type="hidden" name="moyen_paiement_code" id="moyen_paiement_value">
 
-    {% comment %}
-    Partie C (chantier du 2026-08-24) : purement informatif — n'a AUCUN
-    effet sur le prix affiché, le filtrage, ni aucune autre logique (voir
-    InscriptionEleve.nombre_mois_payes.__doc__). Pré-rempli avec une
-    suggestion dérivée de la durée de l'abonnement choisi, librement
-    modifiable.
-    {% endcomment %}
-    <div class="mb-3">
-        <label class="form-label" style="font-weight:600;">كم شهراً ستدفع الآن؟</label>
-        <input type="number" name="nombre_mois_payes" class="form-control mt-1" min="1" step="1"
-               value="{{ mois_par_defaut }}">
-    </div>
-
     <button type="submit" class="btn-submit">تأكيد التسجيل ✅</button>
     <a href="{% url 'wizard_abonnement' %}" class="btn-back">رجوع</a>
 </form>

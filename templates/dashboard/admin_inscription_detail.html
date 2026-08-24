@@ -187,17 +187,6 @@ pas seulement au moment du refus lui-même.
     {% endif %}
     {% endwith %}
     {% endwith %}
-    {% comment %}
-    Partie C (chantier du 2026-08-24) : purement informatif — n'affecte
-    jamais le prix ci-dessus (voir InscriptionEleve.nombre_mois_payes.__doc__).
-    Absent (None) pour toute candidature créée avant ce chantier.
-    {% endcomment %}
-    {% if inscription.nombre_mois_payes %}
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">عدد الأشهر المدفوعة الآن</span>
-        <span style="font-weight:600;">{{ inscription.nombre_mois_payes }}</span>
-    </div>
-    {% endif %}
 
     <!-- Disponibilités horaires -->
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">التفرغ الأسبوعي المصرَّح به</div>

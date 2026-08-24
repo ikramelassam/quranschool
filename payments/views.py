@@ -1,5 +1,6 @@
 import datetime
 
+from django.core.files.base import ContentFile
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -17,7 +18,43 @@ from .models import Paiement
 # heurter la contrainte unique_together (eleve, mois_reference) du modèle
 # Paiement en cas de double-clic rapide (qui lèverait sinon une IntegrityError
 # non rattrapée -> erreur 500).
+#
+# Chantier du 2026-08-24 (sélecteur de PÉRIODE "من تاريخ"/"إلى تاريخ", en
+# remplacement du champ "combien de mois payer" retiré de l'inscription —
+# voir registration.utils, plus de trace de nombre_mois_payes) : la
+# vérification "ce mois a-t-il déjà un Paiement ?" (voir _creer_paiements_
+# pour_periode ci-dessous) rend cette fenêtre largement redondante pour les
+# resoumissions (idempotent par construction désormais), mais elle reste la
+# seule protection contre une VRAIE course entre 2 requêtes quasi-
+# simultanées (double-clic) sur un même mois pas encore en base au moment du
+# 2e check — gardée telle quelle, jamais retirée.
 FENETRE_ANTI_DOUBLON_SECONDES = 5
+
+# Plafond de sécurité (chantier du 2026-08-24) : une période mal saisie (ex:
+# année de début tapée par erreur) ne doit jamais pouvoir créer des centaines
+# de Paiement d'un coup — aucun élève réel ne paie plus de 2 ans à l'avance.
+NB_MOIS_MAX_PAR_PERIODE = 24
+
+
+def _mois_entre_inclus(date_debut, date_fin):
+    """Liste de date(annee, mois, 1) — un par mois — du mois de `date_debut`
+    au mois de `date_fin` INCLUS (le jour exact du mois dans `date_debut`/
+    `date_fin` n'a jamais d'importance, seul le couple année/mois compte,
+    exactement comme partout ailleurs où Paiement.mois_reference est comparé
+    — voir payments.views.suivi_paiements_eleves, qui groupe déjà par
+    mois_reference__year/__month plutôt que par égalité de date exacte).
+    `date_debut` et `date_fin` dans le MÊME mois -> liste à un seul élément,
+    comportement strictement identique à l'ancien champ "الشهر المعني" (un
+    seul mois par soumission)."""
+    mois = []
+    annee, num_mois = date_debut.year, date_debut.month
+    while (annee, num_mois) <= (date_fin.year, date_fin.month):
+        mois.append(datetime.date(annee, num_mois, 1))
+        num_mois += 1
+        if num_mois > 12:
+            num_mois = 1
+            annee += 1
+    return mois
 
 
 def _base_template_admin_ou_mshrif(request):
@@ -48,38 +85,88 @@ def eleve_paiements(request):
 
         from dashboard.templatetags.libelles_arabes import mois_annee_ar
 
-        # Garde anti-double-soumission : une preuve identique (même élève,
-        # même montant, même mois) vient d'être envoyée il y a quelques
-        # secondes -> on se comporte comme si l'envoi avait réussi, sans
-        # insérer de 2e ligne ni renvoyer une 2e notification Telegram.
-        seuil_anti_doublon = timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_SECONDES)
-        if Paiement.objects.filter(
-            eleve=eleve, montant=request.POST.get('montant'), mois_reference=request.POST.get('mois_reference'),
-            date__gte=seuil_anti_doublon,
-        ).exists():
-            messages.success(request, 'تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة.')
+        # Chantier du 2026-08-24 : sélecteur de PÉRIODE ("من تاريخ"/"إلى
+        # تاريخ") en remplacement de l'ancien champ unique "الشهر المعني" —
+        # même page, même modèle Paiement (toujours un Paiement PAR mois,
+        # unique_together (eleve, mois_reference) inchangé), juste une
+        # boucle sur tous les mois de la période au lieu d'une création
+        # unique. Une période sur un seul mois (من/إلى identiques) reproduit
+        # exactement l'ancien comportement.
+        try:
+            date_debut = datetime.date.fromisoformat(request.POST.get('date_debut', ''))
+            date_fin = datetime.date.fromisoformat(request.POST.get('date_fin', ''))
+        except (ValueError, TypeError):
+            messages.error(request, 'يرجى إدخال فترة صحيحة ("من تاريخ" و"إلى تاريخ").')
             return redirect('eleve_paiements')
 
-        paiement = Paiement.objects.create(
-            eleve=eleve,
-            montant=request.POST.get('montant'),
-            mois_reference=request.POST.get('mois_reference'),
-            screenshot=request.FILES.get('screenshot'),
-        )
-        # .create() ne convertit pas mois_reference (chaîne POST brute) en objet
-        # date en mémoire — nécessaire pour mois_annee_ar() ci-dessous.
-        paiement.refresh_from_db()
-        lien_fiche = request.build_absolute_uri(
-            reverse('admin_paiement_detail', args=[paiement.id])
-        )
-        envoyer_notification_telegram(
-            f'💰 دفعة جديدة بانتظار المراجعة\n'
-            f'الطالب: {eleve.user.get_full_name()}\n'
-            f'المبلغ: {paiement.montant} د.م.\n'
-            f'الشهر المعني: {mois_annee_ar(paiement.mois_reference)}\n'
-            f'رابط الملف: {lien_fiche}'
-        )
-        messages.success(request, 'تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة.')
+        if date_fin < date_debut:
+            messages.error(request, '"إلى تاريخ" يجب أن يكون بعد "من تاريخ" أو مساوياً له.')
+            return redirect('eleve_paiements')
+
+        mois_periode = _mois_entre_inclus(date_debut, date_fin)
+        if len(mois_periode) > NB_MOIS_MAX_PAR_PERIODE:
+            messages.error(
+                request,
+                f'المدة المختارة طويلة جداً ({len(mois_periode)} شهراً) — الحد الأقصى '
+                f'{NB_MOIS_MAX_PAR_PERIODE} شهراً في نفس الإرسال.',
+            )
+            return redirect('eleve_paiements')
+
+        # Fichier lu UNE SEULE FOIS (chantier du 2026-08-24) : le même
+        # justificatif peut couvrir plusieurs mois -> plusieurs Paiement
+        # distincts, chacun avec sa PROPRE copie du fichier (ContentFile,
+        # jamais le même objet UploadedFile réutilisé directement sur
+        # plusieurs .save() — son flux serait déjà épuisé après la 1ère
+        # écriture).
+        screenshot_upload = request.FILES.get('screenshot')
+        contenu_screenshot = screenshot_upload.read() if screenshot_upload else None
+
+        montant = request.POST.get('montant')
+        seuil_anti_doublon = timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_SECONDES)
+        mois_crees, mois_deja_existants = [], []
+        for mois in mois_periode:
+            # Idempotent par construction : un mois déjà enregistré (peu
+            # importe son statut — قيد المراجعة/مقبول/مرفوض, la contrainte
+            # unique_together interdit de toute façon un 2e Paiement pour ce
+            # même mois) est simplement ignoré, jamais une IntegrityError non
+            # rattrapée. La fenêtre anti-doublon (FENETRE_ANTI_DOUBLON_SECONDES)
+            # reste la protection contre un VRAI double-clic quasi-simultané
+            # sur un mois pas encore visible par ce check.
+            deja_present = Paiement.objects.filter(
+                eleve=eleve, mois_reference__year=mois.year, mois_reference__month=mois.month,
+            ).exists()
+            deja_soumis_a_linstant = Paiement.objects.filter(
+                eleve=eleve, montant=montant, mois_reference=mois, date__gte=seuil_anti_doublon,
+            ).exists()
+            if deja_present or deja_soumis_a_linstant:
+                mois_deja_existants.append(mois)
+                continue
+
+            paiement = Paiement(eleve=eleve, montant=montant, mois_reference=mois)
+            if contenu_screenshot is not None:
+                paiement.screenshot.save(screenshot_upload.name, ContentFile(contenu_screenshot), save=False)
+            paiement.save()
+            mois_crees.append(paiement)
+
+        if mois_crees:
+            lignes_mois = '\n'.join(
+                f'— {mois_annee_ar(p.mois_reference)} : {p.montant} د.م. '
+                f'({request.build_absolute_uri(reverse("admin_paiement_detail", args=[p.id]))})'
+                for p in mois_crees
+            )
+            envoyer_notification_telegram(
+                f'💰 دفعة جديدة بانتظار المراجعة\n'
+                f'الطالب: {eleve.user.get_full_name()}\n'
+                f'{lignes_mois}'
+            )
+            messages.success(
+                request,
+                f'تم إرسال إثبات الدفع لـ {len(mois_crees)} شهر بنجاح، سيتم مراجعته من طرف الإدارة.'
+                if len(mois_crees) > 1 else 'تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة.'
+            )
+        if mois_deja_existants:
+            noms = '، '.join(mois_annee_ar(m) for m in mois_deja_existants)
+            messages.info(request, f'الأشهر التالية كانت مسجلة مسبقاً ولم تُرسَل مجدداً: {noms}')
         return redirect('eleve_paiements')
 
     paiements = Paiement.objects.filter(eleve=eleve).order_by('-mois_reference')
