@@ -182,6 +182,21 @@ def tranche_age_ar(date_naissance):
     return 'بالغ' if tranche_age_depuis_naissance(date_naissance) == 'adulte' else 'طفل'
 
 
+@register.filter
+def tranche_age_precise_ar(date_naissance):
+    """Label arabe de la tranche d'âge précise (Partie B, 2026-08-24 —
+    التلقين/البراعم/اليافعون, voir courses.utils.tranche_age_precise.__doc__)
+    calculée depuis une date de naissance. Chaîne vide si date_naissance est
+    None, ou si l'âge réel tombe hors 5-18 ans (adulte) — jamais une valeur
+    trompeuse dans ce cas, même principe que tranche_age_ar ci-dessus."""
+    if not date_naissance:
+        return ''
+    from courses.utils import tranche_age_precise
+
+    resultat = tranche_age_precise(date_naissance)
+    return resultat[1] if resultat else ''
+
+
 # Icône + couleur du carré selon l'extension du fichier joint à un
 # ElementHakiba (refonte du 2026-08-05) — même liste blanche que
 # dashboard.views.EXTENSIONS_HAKIBA_AUTORISEES, reproduite ici uniquement

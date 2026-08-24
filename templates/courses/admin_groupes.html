@@ -134,6 +134,19 @@
                 📅 الجدول:
                 {% if groupe.creneau %}{{ groupe.creneau }}{% else %}غير محدد{% endif %}
             </div>
+            {% if groupe.tranches_age_frequentees %}
+            {% comment %}
+            Partie B (2026-08-24) : tranches d'âge précises RÉELLEMENT
+            fréquentées aujourd'hui par les élèves actifs de ce groupe (voir
+            Groupe.tranches_age_frequentees.__doc__) — jamais affiché si
+            aucune (groupe vide, ou élèves tous adultes/hors 5-18 ans).
+            {% endcomment %}
+            <div style="margin-bottom:6px;">
+                {% for tranche in groupe.tranches_age_frequentees %}
+                <span style="background:#eef5f0; color:var(--color-success); border-radius:20px; padding:2px 10px; font-size:0.75rem; margin-inline-end:4px;">{{ tranche }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
             <div style="margin-bottom:16px;">
                 {% if groupe.lien_reunion %}
                 {% include 'dashboard/_badge_statut.html' with type='success' texte='رابط مضاف ✓' %}

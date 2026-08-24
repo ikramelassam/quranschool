@@ -1848,3 +1848,78 @@ class GroupeOngletCriteresTests(TestCase):
             {'options': ['code_inexistant']},
         )
         self.assertFalse(GroupeCritereValeur.objects.filter(groupe=self.groupe, critere=self.critere_riwaya).exists())
+
+
+# ============================================================================
+# Partie B (chantier du 2026-08-24) — tranches d'âge précises (التلقين/
+# البراعم/اليافعون), pure fonction du calendrier, jamais stockée. Ne remplace
+# JAMAIS AGE_SEUIL_ADULTE/tranche_age_depuis_naissance (voir courses.utils.
+# tranche_age_precise.__doc__).
+# ============================================================================
+
+def _date_naissance_pour_age(age):
+    """Date de naissance donnant exactement `age` ans aujourd'hui — anniversaire
+    déjà passé cette année pour éviter toute ambiguïté avec _age_depuis_naissance
+    (comparaison (mois, jour))."""
+    from django.utils import timezone
+    aujourd_hui = timezone.localdate()
+    return aujourd_hui.replace(year=aujourd_hui.year - age, month=1, day=1)
+
+
+class TrancheAgePreciseTests(TestCase):
+    def test_bornes_des_3_tranches(self):
+        from .utils import tranche_age_precise
+        self.assertIsNone(tranche_age_precise(_date_naissance_pour_age(4)))
+        self.assertEqual(tranche_age_precise(_date_naissance_pour_age(5))[0], 'talqin')
+        self.assertEqual(tranche_age_precise(_date_naissance_pour_age(7))[0], 'talqin')
+        self.assertEqual(tranche_age_precise(_date_naissance_pour_age(8))[0], 'baraim')
+        self.assertEqual(tranche_age_precise(_date_naissance_pour_age(13))[0], 'baraim')
+        self.assertEqual(tranche_age_precise(_date_naissance_pour_age(14))[0], 'yafiun')
+        self.assertEqual(tranche_age_precise(_date_naissance_pour_age(18))[0], 'yafiun')
+        self.assertIsNone(tranche_age_precise(_date_naissance_pour_age(19)))  # adulte, hors périmètre
+
+    def test_none_si_date_naissance_absente(self):
+        from .utils import tranche_age_precise
+        self.assertIsNone(tranche_age_precise(None))
+
+    def test_ne_remplace_pas_le_systeme_enfant_adulte_existant(self):
+        """Un élève de 19 ans reste 'adulte' pour AGE_SEUIL_ADULTE/tranche_age_
+        depuis_naissance (ouverture par catégorie, filtrage réel des groupes)
+        même s'il n'appartient à aucune des 3 tranches précises."""
+        from .utils import tranche_age_depuis_naissance, tranche_age_precise
+        naissance_19_ans = _date_naissance_pour_age(19)
+        self.assertEqual(tranche_age_depuis_naissance(naissance_19_ans), 'adulte')
+        self.assertIsNone(tranche_age_precise(naissance_19_ans))
+
+
+class GroupeTranchesAgeFrequenteesTests(TestCase):
+    def setUp(self):
+        self.creneau = _creer_creneau(age_min=5, age_max=18)
+        self.groupe = Groupe.objects.create(
+            nom='مجموعة اختبار الفئات العمرية', creneau=self.creneau, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+
+    def _ajouter_eleve(self, age):
+        u = User.objects.create_user(
+            username=f'eleve_tranche_{age}@zidni.test', email=f'eleve_tranche_{age}@zidni.test',
+            password=MOT_DE_PASSE, first_name='طالب', last_name='تجريبي', role='eleve',
+            doit_changer_mot_de_passe=False, date_naissance=_date_naissance_pour_age(age),
+        )
+        eleve = Eleve.objects.create(user=u, sexe='homme', statut='actif')
+        self.groupe.eleves.add(eleve)
+        return eleve
+
+    def test_vide_si_aucun_eleve(self):
+        self.assertEqual(self.groupe.tranches_age_frequentees, [])
+
+    def test_liste_dedupliquee_dans_lordre_des_tranches(self):
+        self._ajouter_eleve(15)  # اليافعون
+        self._ajouter_eleve(6)   # التلقين
+        self._ajouter_eleve(9)   # البراعم
+        self._ajouter_eleve(10)  # البراعم (doublon, ne doit apparaître qu'une fois)
+        self.assertEqual(self.groupe.tranches_age_frequentees, ['التلقين', 'البراعم', 'اليافعون'])
+
+    def test_eleve_adulte_napparait_dans_aucune_tranche(self):
+        self._ajouter_eleve(25)
+        self.assertEqual(self.groupe.tranches_age_frequentees, [])

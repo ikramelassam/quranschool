@@ -1209,3 +1209,44 @@ class SuppressionMessageTests(TestCase):
         message.refresh_from_db()
         self.assertFalse(message.est_supprime)
 
+
+# ============================================================================
+# Partie B (chantier du 2026-08-24) — tranche d'âge précise affichée à côté
+# du nom de chaque élève dans le panneau "membres" (voir chat.permissions.
+# participants_conversation.__doc__).
+# ============================================================================
+
+class ParticipantsTrancheAgeTests(TestCase):
+    def setUp(self):
+        from .permissions import participants_conversation
+
+        self.participants_conversation = participants_conversation
+        self.groupe = Groupe.objects.create(nom='مجموعة اختبار الفئة العمرية')
+
+    def _ajouter_eleve(self, age, email):
+        naissance = timezone.localdate().replace(year=timezone.localdate().year - age, month=1, day=1)
+        u = User.objects.create_user(
+            username=email, email=email, password=MOT_DE_PASSE,
+            first_name='طالب', last_name='تجريبي', role='eleve',
+            doit_changer_mot_de_passe=False, date_naissance=naissance,
+        )
+        eleve = Eleve.objects.create(user=u, sexe='homme', statut='actif')
+        self.groupe.eleves.add(eleve)
+        return eleve
+
+    def test_eleve_dans_une_tranche_porte_le_bon_label(self):
+        Conversation.objects.get_or_create(groupe=self.groupe)
+        self._ajouter_eleve(9, 'eleve_baraim@zidni.test')
+        conversation = Conversation.objects.get(groupe=self.groupe)
+        participants = self.participants_conversation(conversation)
+        eleve_entry = next(p for p in participants if p['role_code'] == 'eleve')
+        self.assertEqual(eleve_entry['tranche_age_label'], 'البراعم')
+
+    def test_eleve_adulte_naffiche_aucune_tranche(self):
+        Conversation.objects.get_or_create(groupe=self.groupe)
+        self._ajouter_eleve(25, 'eleve_adulte_chat@zidni.test')
+        conversation = Conversation.objects.get(groupe=self.groupe)
+        participants = self.participants_conversation(conversation)
+        eleve_entry = next(p for p in participants if p['role_code'] == 'eleve')
+        self.assertEqual(eleve_entry['tranche_age_label'], '')
+

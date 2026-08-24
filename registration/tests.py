@@ -3465,3 +3465,34 @@ class NombreMoisPayesTests(TestCase):
         })
         inscription = InscriptionEleve.objects.get(email='mois.payes.manuel@zidni.test')
         self.assertEqual(inscription.nombre_mois_payes, 5)
+
+
+class WizardTrancheAgePreciseAffichageTests(TestCase):
+    """Partie B (2026-08-24) — simple info affichée à l'étape Programme,
+    AUCUN effet sur le reste du parcours (voir courses.utils.tranche_age_
+    precise.__doc__ et registration.views.wizard_programme)."""
+
+    def test_tranche_precise_affichee_pour_un_enfant_de_9_ans(self):
+        client = Client()
+        _choisir_categorie_age(client, type_age='enfant')
+        client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار الفئة العمرية', 'nom_parent': 'ولي الأمر', 'sexe': 'homme',
+            'email': 'tranche.precise@zidni.test',
+            'date_naissance': str(datetime.date.today().year - 9) + '-01-01',
+            'indicatif_pays': '212', 'telephone': '0611223300', 'telephone_confirmation': '0611223300',
+        })
+        html = client.get(reverse('wizard_programme')).content.decode('utf-8')
+        self.assertIn('البراعم', html)
+
+    def test_aucune_tranche_affichee_pour_un_adulte(self):
+        client = Client()
+        _choisir_categorie_age(client, type_age='adulte')
+        client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار بالغ', 'sexe': 'homme', 'email': 'tranche.adulte@zidni.test',
+            'date_naissance': '1990-01-01',
+            'indicatif_pays': '212', 'telephone': '0611223301', 'telephone_confirmation': '0611223301',
+        })
+        html = client.get(reverse('wizard_programme')).content.decode('utf-8')
+        self.assertNotIn('التلقين', html)
+        self.assertNotIn('البراعم', html)
+        self.assertNotIn('اليافعون', html)

@@ -811,6 +811,46 @@ def age_correspond_a_categorie(date_naissance, type_age):
     return tranche_age_depuis_naissance(date_naissance) == type_age
 
 
+# ==================== TRANCHES D'ÂGE PRÉCISES (Partie B, 2026-08-24) ====================
+# Sous-catégorisation à 3 niveaux DEMANDÉE PAR LE CLIENT, réservée à
+# l'AFFICHAGE (badge groupe, Chat, parcours d'inscription) — PURE fonction
+# du calendrier, JAMAIS stockée sur aucun modèle (même principe que
+# Groupe.categorie_collectif ci-dessus : recalculée à chaque lecture, un
+# élève change de tranche automatiquement le jour de son anniversaire, sans
+# aucune action ni migration de données).
+#
+# NE REMPLACE PAS le système enfant/adulte existant (AGE_SEUIL_ADULTE=18,
+# tranche_age_depuis_naissance ci-dessus) : les 3 tranches couvrent
+# exactement 5-18 ans, c'est-à-dire l'INTÉRIEUR de la catégorie "enfant"
+# existante (qui reste, elle, la SEULE source de vérité pour l'ouverture des
+# inscriptions par catégorie, le filtrage réel des groupes par Creneau.
+# age_min/age_max, et le choix "بالغ/طفل" de wizard_categorie_age — AUCUN de
+# ces mécanismes n'est modifié ici). Un élève de moins de 5 ans ou de 18 ans
+# et plus (adulte) n'appartient à AUCUNE des 3 tranches (retourne None) —
+# jamais une tranche approximative/erronée pour ces cas hors périmètre.
+TRANCHES_AGE_PRECISES = [
+    ('talqin', 'التلقين', 5, 7),
+    ('baraim', 'البراعم', 8, 13),
+    ('yafiun', 'اليافعون', 14, 18),
+]
+
+
+def tranche_age_precise(date_naissance):
+    """(code, label) de la tranche d'âge précise correspondant à
+    `date_naissance` aujourd'hui, ou None si l'âge réel ne tombe dans
+    AUCUNE des 3 tranches (hors 5-18 ans). None aussi si date_naissance est
+    None (élève sans date de naissance renseignée — ne devrait pas arriver
+    en pratique, date_naissance étant verrouillée obligatoire, mais jamais
+    une exception ici)."""
+    if date_naissance is None:
+        return None
+    age = _age_depuis_naissance(date_naissance)
+    for code, label, age_min, age_max in TRANCHES_AGE_PRECISES:
+        if age_min <= age <= age_max:
+            return code, label
+    return None
+
+
 def _tranche_age_eleve(eleve):
     """'enfant'/'adulte' pour un Eleve déjà validé, ou None si l'âge est
     inconnu (élève sans dossier d'inscription lié, ou dossier sans date de

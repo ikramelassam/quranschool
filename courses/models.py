@@ -377,6 +377,23 @@ class Groupe(models.Model):
         automatiquement). Chaîne vide si None (pas de sous-catégorie)."""
         return dict(self.CATEGORIE_COLLECTIF_CHOICES).get(self.categorie_collectif, '')
 
+    @property
+    def tranches_age_frequentees(self):
+        """Labels arabes (dédupliqués, dans l'ordre التلقين/البراعم/اليافعون)
+        des tranches d'âge précises (Partie B, 2026-08-24, voir courses.utils.
+        TRANCHES_AGE_PRECISES) RÉELLEMENT présentes parmi les élèves actifs de
+        CE groupe aujourd'hui — jamais stocké, recalculé à chaque lecture
+        (même principe que categorie_collectif ci-dessus). Liste vide si
+        aucun élève actif, ou si tous sont hors 5-18 ans (adultes)."""
+        from .utils import TRANCHES_AGE_PRECISES, tranche_age_precise
+
+        codes_presents = set()
+        for eleve in self.eleves.filter(statut='actif').select_related('user'):
+            resultat = tranche_age_precise(eleve.user.date_naissance)
+            if resultat is not None:
+                codes_presents.add(resultat[0])
+        return [label for code, label, *_r in TRANCHES_AGE_PRECISES if code in codes_presents]
+
     class Meta:
         verbose_name = "Groupe"
         verbose_name_plural = "Groupes"

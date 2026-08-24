@@ -90,6 +90,12 @@ pas seulement au moment du refus lui-même.
         <span style="font-weight:600;">
             {{ inscription.date_naissance }}
             <span style="background:#f0ebe3; color:var(--color-role-admin-solid); border-radius:20px; padding:2px 10px; font-size:0.78rem; font-weight:700; margin-right:8px;">{{ inscription.date_naissance|tranche_age_ar }}</span>
+            {% with tranche_precise=inscription.date_naissance|tranche_age_precise_ar %}
+            {% if tranche_precise %}
+            {# Partie B (2026-08-24) : voir courses.utils.tranche_age_precise.__doc__ #}
+            <span style="background:#eef5f0; color:var(--color-success); border-radius:20px; padding:2px 10px; font-size:0.78rem; font-weight:700; margin-right:8px;">{{ tranche_precise }}</span>
+            {% endif %}
+            {% endwith %}
         </span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">

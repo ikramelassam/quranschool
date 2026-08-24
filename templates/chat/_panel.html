@@ -50,6 +50,10 @@ de chat.views._contexte_messages_initiaux pour le détail du bug corrigé).
         <div class="chat-membre-ligne">
             <span class="chat-membre-nom">{{ p.user.get_full_name }}</span>
             <span class="chat-membre-role">{{ p.role_label }}</span>
+            {% if p.tranche_age_label %}
+            {# Partie B (2026-08-24) : voir chat.permissions.participants_conversation.__doc__ #}
+            <span class="chat-membre-role" style="background:#eef5f0; color:var(--color-success);">{{ p.tranche_age_label }}</span>
+            {% endif %}
             {% if user.role == 'admin' %}
             <span class="chat-membre-contact">
                 {% include 'dashboard/_whatsapp_icon.html' with telephone=p.user.telephone %}

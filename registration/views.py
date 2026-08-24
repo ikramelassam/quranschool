@@ -299,6 +299,7 @@ def wizard_programme(request):
     (correction 8, 2026-08-22, navigation dynamique) — même principe que le
     saut Individuel de wizard_groupe : un visiteur qui force cette URL est
     TOUJOURS redirigé, quelle que soit la méthode HTTP."""
+    from courses.utils import tranche_age_precise
     from .utils import (
         etape_est_active, traiter_champs_dynamiques_post, url_etape_suivante,
         wizard_donnees, wizard_maj,
@@ -310,6 +311,17 @@ def wizard_programme(request):
     if not etape_est_active('programme'):
         return redirect(url_etape_suivante('programme'))
 
+    # Partie B (2026-08-24) : simple info affichée au candidat (n'a AUCUN
+    # effet sur le filtrage/ouverture — voir courses.utils.tranche_age_
+    # precise.__doc__, qui ne remplace jamais tranche_age_depuis_naissance/
+    # AGE_SEUIL_ADULTE, seule source de vérité pour l'ouverture par
+    # catégorie et le filtrage réel des groupes). None (adulte, ou hors
+    # 5-18 ans) -> tranche_age_label reste vide, rien n'est affiché.
+    resultat_tranche = tranche_age_precise(
+        datetime.date.fromisoformat(donnees['date_naissance']) if donnees.get('date_naissance') else None
+    )
+    tranche_age_label = resultat_tranche[1] if resultat_tranche else ''
+
     if request.method == 'POST':
         champs = _champs_visibles_pour_etape('programme')
         nouvelles_valeurs, erreurs = traiter_champs_dynamiques_post(request.POST, champs)
@@ -320,12 +332,14 @@ def wizard_programme(request):
 
         return render(request, 'inscriptions/wizard_programme.html', {
             'champs': champs, 'erreurs': erreurs, 'valeurs_form': {**donnees, **request.POST.dict()},
+            'tranche_age_label': tranche_age_label,
             'wizard_etape_num': 2,
         })
 
     champs = _champs_visibles_pour_etape('programme')
     return render(request, 'inscriptions/wizard_programme.html', {
         'champs': champs, 'valeurs_form': donnees,
+        'tranche_age_label': tranche_age_label,
         'wizard_etape_num': 2,
     })
 

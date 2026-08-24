@@ -120,6 +120,21 @@
                 <span style="color:#888;">الحالة</span>
                 <span style="font-weight:600;">{{ groupe.get_statut_display }}</span>
             </div>
+            {% comment %}
+            Partie B (2026-08-24) : voir Groupe.tranches_age_frequentees.__doc__
+            — jamais affiché si aucun élève actif ne tombe dans les 3 tranches
+            (5-18 ans).
+            {% endcomment %}
+            {% if groupe.tranches_age_frequentees %}
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+                <span style="color:#888;">الفئات العمرية</span>
+                <span style="font-weight:600;">
+                    {% for tranche in groupe.tranches_age_frequentees %}
+                    <span style="background:#eef5f0; color:var(--color-success); border-radius:20px; padding:2px 10px; font-size:0.78rem; margin-inline-start:4px;">{{ tranche }}</span>
+                    {% endfor %}
+                </span>
+            </div>
+            {% endif %}
             <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0;">
                 <span style="color:#888;">🔗 رابط الحصص</span>
                 {% if groupe.lien_reunion %}

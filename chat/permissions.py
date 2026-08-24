@@ -112,7 +112,10 @@ def participants_conversation(conversation):
     permission, voir can_access_conversation ci-dessus). Chaque entrée est un
     dict {user, role_code, role_label} : le template n'affiche JAMAIS
     user.email / user.telephone directement (règle de sécurité des contacts,
-    Point 4) — seulement get_full_name() + role_label."""
+    Point 4) — seulement get_full_name() + role_label. Pour un rôle 'eleve'
+    UNIQUEMENT, une clé supplémentaire 'tranche_age_label' (Partie B,
+    2026-08-24) : chaîne vide si l'élève est hors 5-18 ans (adulte) ou sans
+    date de naissance, jamais une exception."""
     from accounts.models import User, Superviseur
 
     groupe = conversation.groupe
@@ -122,7 +125,16 @@ def participants_conversation(conversation):
         participants.append({'user': groupe.prof.user, 'role_code': 'prof', 'role_label': 'الأستاذ'})
 
     for eleve in groupe.eleves.filter(statut='actif').select_related('user').order_by('user__first_name'):
-        participants.append({'user': eleve.user, 'role_code': 'eleve', 'role_label': 'التلميذ'})
+        # Partie B (2026-08-24) : tranche d'âge précise affichée à côté du nom
+        # de l'élève dans le panneau "membres" — voir courses.utils.
+        # tranche_age_precise.__doc__. None (adulte, ou date_naissance absente)
+        # -> tranche_age_label reste vide, jamais affiché dans ce cas.
+        from courses.utils import tranche_age_precise
+        resultat_tranche = tranche_age_precise(eleve.user.date_naissance)
+        participants.append({
+            'user': eleve.user, 'role_code': 'eleve', 'role_label': 'التلميذ',
+            'tranche_age_label': resultat_tranche[1] if resultat_tranche else '',
+        })
 
     if groupe.prof_id:
         superviseurs = Superviseur.objects.filter(profs_assignes=groupe.prof).select_related('user')

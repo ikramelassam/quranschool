@@ -4,6 +4,16 @@
 <div class="page-title">اختيار البرنامج</div>
 <div class="page-subtitle">الخطوة 2 من 6</div>
 
+{% if tranche_age_label %}
+{% comment %}
+Partie B (2026-08-24) : simple info, aucun effet sur la suite du parcours —
+voir courses.utils.tranche_age_precise.__doc__.
+{% endcomment %}
+<div style="background:var(--color-bg-cream); border-radius:10px; padding:10px 16px; margin-bottom:16px; font-size:0.85rem; color:#555;">
+    الفئة العمرية: <strong>{{ tranche_age_label }}</strong>
+</div>
+{% endif %}
+
 <form method="POST">
     {% csrf_token %}
 
