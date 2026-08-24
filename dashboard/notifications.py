@@ -1,10 +1,13 @@
-"""Panneau 🔔 الإشعارات (Chantier notifications du 2026-08-19) — Option A
-validée explicitement avec l'utilisateur : calcul à la volée, jamais un
-nouveau modèle stockant une ligne par notification individuelle.
+"""Panneau 🔔 الإشعارات (Chantier notifications du 2026-08-19, étendu au
+مدير/مشرف le 2026-08-24) — Option A validée explicitement avec
+l'utilisateur : calcul à la volée, jamais un nouveau modèle stockant une
+ligne par notification individuelle.
 
-SCOPE VOLONTAIRE : ce module n'est appelé QUE depuis dashboard_eleve et
-dashboard_prof (leur page d'accueil respective) — jamais depuis un context
-processor global comme chat.context_processors.chat_badge_context ou
+SCOPE VOLONTAIRE : ce module n'est appelé QUE depuis les pages d'accueil de
+chaque rôle — dashboard_eleve/dashboard_prof à l'origine (Chantier du
+2026-08-19), dashboard_admin/dashboard_mshrif depuis le 2026-08-24 (voir
+notifications_direction ci-dessous) — jamais depuis un context processor
+global comme chat.context_processors.chat_badge_context ou
 annonces.context_processors.annonces_badge_context, qui eux tournent sur
 CHAQUE page du site. Coût mesuré : 0 requête supplémentaire sur toute page
 qui n'est pas la page d'accueil, contre une requête (mise en cache 15s, mais
@@ -228,3 +231,55 @@ def notifications_prof(prof, user, limite=LIMITE_PAR_GROUPE):
 
     total = len(evenements_evaluations) + len(evenements_hakiba)
     return groupes, total
+
+
+def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
+    """(groupes, total) pour le panneau 🔔 côté مدير/مشرف (Chantier du
+    2026-08-24) — même patron que notifications_eleve/notifications_prof
+    ci-dessus, mais un seul événement pour l'instant : nouvelle demande
+    d'inscription élève (InscriptionEleve.date_soumission, auto_now_add —
+    même garantie anti-fausse-notification que le reste du module, voir
+    docstring en tête de fichier), qu'elle vienne du wizard public
+    (registration.views, cree_par=None) OU de l'ajout manuel Directeur/مشرف
+    (dashboard.views.admin_eleve_ajouter_manuel, cree_par=request.user) —
+    inscrire_eleve() est le point de création UNIQUE pour les deux chemins
+    (voir registration.utils.inscrire_eleve.__doc__), donc AUCUNE distinction
+    de source n'est nécessaire ici : une seule requête couvre les deux.
+
+    Un seul `cle` ('demandes_inscription') PARTAGÉ par مدير ET مشرف : les
+    deux rôles pointent vers la même page cible (admin_inscriptions, voir
+    dashboard.views.admin_inscriptions) et le même besoin — chacun garde
+    NÉANMOINS son propre repère de lecture individuel, DerniereVisiteNotification
+    étant déjà keyée par (user, cle) et pas juste par cle : la visite de
+    l'un ne marque jamais "lu" pour l'autre.
+
+    Volontairement PAS les candidatures profs (InscriptionProf) : le chantier
+    demandé porte explicitement sur "nouvelle demande d'inscription (wizard
+    public ou ajout manuel)", qui ne couvre que le parcours élève — étendre
+    aux profs plus tard est un chantier séparé, pas une extension silencieuse
+    ici."""
+    from inscriptions.models import InscriptionEleve
+
+    seuils = _seuils(user, ['demandes_inscription'])
+
+    demandes = list(
+        InscriptionEleve.objects.filter(
+            statut='en_attente', date_soumission__gt=seuils['demandes_inscription'],
+        ).order_by('-date_soumission')[:LIMITE_FETCH]
+    )
+    evenements_demandes = [
+        {
+            'texte': f'طلب تسجيل جديد: {d.nom}',
+            'url': reverse('admin_inscription_eleve_detail', args=[d.id]),
+            'date': d.date_soumission,
+        }
+        for d in demandes
+    ]
+
+    groupes = []
+    if evenements_demandes:
+        groupes.append({
+            'icone': '📝', 'label': 'طلبات تسجيل جديدة', 'evenements': evenements_demandes[:limite],
+        })
+
+    return groupes, len(evenements_demandes)

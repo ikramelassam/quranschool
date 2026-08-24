@@ -2460,12 +2460,6 @@ class NotificationsChantierTests(TestCase):
         self.assertEqual(response.context['notif_total'], 0)
 
     # ---------- Rôles sans ce déclencheur ----------
-    def test_admin_naffiche_jamais_le_panneau_notifications(self):
-        admin = _creer_admin()
-        self.client.force_login(admin)
-        response = self.client.get(reverse('dashboard_admin'))
-        self.assertNotContains(response, 'id="notifWrap"')
-
     def test_superviseur_naffiche_jamais_le_panneau_notifications(self):
         self.client.force_login(self.superviseur.user)
         response = self.client.get(reverse('dashboard_superviseur'))
@@ -2482,6 +2476,72 @@ class NotificationsChantierTests(TestCase):
         self.client.force_login(self.superviseur.user)
         response = self.client.get(reverse('mes_notifications'))
         self.assertNotEqual(response.status_code, 200)
+
+
+# ---------- Chantier du 2026-08-24 : panneau 🔔 étendu au مدير/مشرف ----------
+class NotificationsDirectionTests(TestCase):
+    """Voir dashboard.notifications.notifications_direction — un seul
+    événement : nouvelle demande d'inscription élève (wizard public OU ajout
+    manuel, inscrire_eleve() étant le point de création unique des deux)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def test_nouvelle_inscription_eleve_declenche_le_badge_admin_et_mshrif(self):
+        InscriptionEleve.objects.create(
+            nom='مرشح جديد', date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+            telephone='0600000001', email='notif_demande@zidni.test',
+            programme='hifz', riwaya='hafs', outil='whatsapp', abonnement='groupe_1mois',
+            statut='en_attente',
+        )
+        self.client.force_login(self.admin)
+        reponse_admin = self.client.get(reverse('dashboard_admin'))
+        self.assertEqual(reponse_admin.context['notif_total'], 1)
+        self.assertContains(reponse_admin, 'طلب تسجيل جديد: مرشح جديد')
+
+        self.client.force_login(self.mshrif)
+        reponse_mshrif = self.client.get(reverse('dashboard_mshrif'))
+        self.assertEqual(reponse_mshrif.context['notif_total'], 1)
+
+    def test_inscription_deja_validee_ne_declenche_pas(self):
+        """Une candidature déjà traitée (valide/rejetée) ne concerne plus une
+        NOUVELLE demande — jamais une fausse notification."""
+        InscriptionEleve.objects.create(
+            nom='مرشح مقبول مسبقاً', date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+            telephone='0600000002', email='notif_deja_valide@zidni.test',
+            programme='hifz', riwaya='hafs', outil='whatsapp', abonnement='groupe_1mois',
+            statut='valide',
+        )
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('dashboard_admin'))
+        self.assertEqual(response.context['notif_total'], 0)
+
+    def test_visiter_admin_inscriptions_marque_le_type_comme_lu_independamment_par_compte(self):
+        InscriptionEleve.objects.create(
+            nom='مرشح آخر', date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+            telephone='0600000003', email='notif_lu@zidni.test',
+            programme='hifz', riwaya='hafs', outil='whatsapp', abonnement='groupe_1mois',
+            statut='en_attente',
+        )
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 1)
+        self.client.get(reverse('admin_inscriptions'))  # marque 'demandes_inscription' comme lu POUR l'admin
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 0)
+
+        # مشرف garde SON PROPRE repère de lecture (pas encore visité) — même
+        # cle partagée, mais DerniereVisiteNotification est keyée par (user, cle).
+        self.client.force_login(self.mshrif)
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 1)
+
+    def test_admin_et_mshrif_voient_le_panneau_et_la_page_voir_tout(self):
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse('dashboard_admin')), 'id="notifWrap"')
+        self.assertEqual(self.client.get(reverse('mes_notifications')).status_code, 200)
+
+        self.client.force_login(self.mshrif)
+        self.assertContains(self.client.get(reverse('dashboard_mshrif')), 'id="notifWrap"')
+        self.assertEqual(self.client.get(reverse('mes_notifications')).status_code, 200)
 
 
 class DepuisRelatifFiltreTests(TestCase):

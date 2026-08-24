@@ -30,7 +30,7 @@ Correctif du 2026-08-16 (suite) : les raccourcis الإعلانات (مشرف n'
 accès au chat) ne doivent apparaître QUE sur cette page d'accueil, pas sur
 tout le site — inclusion déplacée depuis base_mshrif.html.
 {% endcomment %}
-{% include 'dashboard/_header_raccourcis.html' with afficher_messages=False afficher_annonces=True afficher_notifications=False url_annonces='annonces_gestion' couleur_role='var(--color-role-mshrif-solid)' %}
+{% include 'dashboard/_header_raccourcis.html' with afficher_messages=False afficher_annonces=True afficher_notifications=True url_annonces='annonces_gestion' couleur_role='var(--color-role-mshrif-solid)' %}
 <div class="page-title">أهلاً بك 👋</div>
 <div class="page-subtitle">نظرة عامة على المنصة</div>
 

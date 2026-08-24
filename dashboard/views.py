@@ -265,28 +265,35 @@ def mes_notes_personnelles(request):
     return render(request, 'dashboard/mes_notes_personnelles.html', context)
 
 
-@role_required('eleve', 'prof')
+@role_required('eleve', 'prof', 'admin', 'mshrif')
 def mes_notifications(request):
     """Page "عرض الكل" du panneau 🔔 الإشعارات (lien en bas du dropdown, voir
     dashboard/_header_raccourcis.html) — mêmes données que le dropdown, sans
     plafond d'affichage par groupe (limite=dashboard.notifications.
     LIMITE_FETCH au lieu de LIMITE_PAR_GROUPE). Ne marque RIEN comme lu ici
-    (contrairement aux 5 "pages cibles" elles-mêmes) : cette page n'est
-    qu'une VUE D'ENSEMBLE qui pointe vers les vraies pages cibles — c'est en
+    (contrairement aux "pages cibles" elles-mêmes) : cette page n'est qu'une
+    VUE D'ENSEMBLE qui pointe vers les vraies pages cibles — c'est en
     cliquant un événement (donc en arrivant sur eleve_seances/eleve_cartable/
-    etc.) que la lecture se marque, jamais en survolant cette liste."""
-    from dashboard.notifications import notifications_eleve, notifications_prof, LIMITE_FETCH
+    admin_inscription_eleve_detail/etc.) que la lecture se marque, jamais en
+    survolant cette liste.
+
+    admin/mshrif ajoutés au chantier du 2026-08-24 (voir dashboard.
+    notifications.notifications_direction) — même page, juste une 3e branche."""
+    from dashboard.notifications import notifications_eleve, notifications_prof, notifications_direction, LIMITE_FETCH
 
     if request.user.role == 'eleve':
         from accounts.models import Eleve
         eleve = get_object_or_404(Eleve, user=request.user)
         notif_groupes, notif_total = notifications_eleve(eleve, request.user, limite=LIMITE_FETCH)
         base_template = 'dashboard/base_eleve.html'
-    else:
+    elif request.user.role == 'prof':
         from accounts.models import Prof
         prof = get_object_or_404(Prof, user=request.user)
         notif_groupes, notif_total = notifications_prof(prof, request.user, limite=LIMITE_FETCH)
         base_template = 'dashboard/base_prof.html'
+    else:  # 'admin' ou 'mshrif'
+        notif_groupes, notif_total = notifications_direction(request.user, limite=LIMITE_FETCH)
+        base_template = _base_template_admin_ou_mshrif(request)
 
     return render(request, 'dashboard/mes_notifications.html', {
         'notif_groupes': notif_groupes,
@@ -1815,6 +1822,12 @@ def dashboard_admin(request):
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
+    # Panneau 🔔 الإشعارات étendu au مدير/مشرف (chantier du 2026-08-24) —
+    # voir dashboard.notifications.notifications_direction.__doc__.
+    from dashboard.notifications import notifications_direction
+    notif_groupes, notif_total = notifications_direction(request.user)
+    context['notif_groupes'] = notif_groupes
+    context['notif_total'] = notif_total
     return render(request, 'dashboard/admin.html', context)
 
 
@@ -1861,6 +1874,13 @@ def admin_inscriptions(request):
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
+    # Page cible du panneau 🔔 "طلبات تسجيل جديدة" (chantier du 2026-08-24,
+    # voir dashboard.notifications.notifications_direction) — juste avant le
+    # render, jamais avant (au cas où une future évolution de cette vue
+    # redirigerait plus tôt sans jamais afficher la page, même précaution que
+    # les autres appelants de marquer_visite).
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'demandes_inscription')
     return render(request, 'dashboard/admin_inscriptions.html', context)
 
 
@@ -2482,6 +2502,12 @@ def dashboard_mshrif(request):
         # traitée. Voir suivi_engagement_mensuel pour le remplacement.
     }
     context.update(_contexte_base_mshrif(request))
+    # Panneau 🔔 الإشعارات étendu au مدير/مشرف (chantier du 2026-08-24) —
+    # voir dashboard.notifications.notifications_direction.__doc__.
+    from dashboard.notifications import notifications_direction
+    notif_groupes, notif_total = notifications_direction(request.user)
+    context['notif_groupes'] = notif_groupes
+    context['notif_total'] = notif_total
     return render(request, 'dashboard/dashboard_mshrif.html', context)
 
 
@@ -6959,10 +6985,6 @@ def admin_eleve_ajouter_manuel(request):
         'groupe_id': request.POST.get('groupe_id', ''),
         'abonnement_code': request.POST.get('abonnement_code', ''),
         'continuer_sans_groupe': request.POST.get('continuer_sans_groupe', ''),
-        # Partie C (2026-08-24) : purement informatif, voir InscriptionEleve.
-        # nombre_mois_payes.__doc__ — nombre_mois_payes_depuis_brut() retombe
-        # sur le défaut si absent/invalide, jamais une erreur bloquante ici.
-        'nombre_mois_payes': request.POST.get('nombre_mois_payes', ''),
     }
     resultats = evaluer_champs_actifs(donnees)
     reponses_pour_filtrage = reponses_pour_filtrage_depuis_resultats(resultats)

@@ -11,7 +11,21 @@ et dashboard.notifications.__doc__ : chaque ligne est par construction non
 lue, elle disparaît d'elle-même dès que son type est visité).
 {% endcomment %}
 <div class="page-title">الإشعارات</div>
-<div class="page-subtitle">كل ما يخصك شخصياً — اختبارات، تقييمات، ملفات جديدة</div>
+{% comment %}
+Sous-titre par rôle (chantier du 2026-08-24, ajout مدير/مشرف) — le texte
+"اختبارات، تقييمات، ملفات جديدة" ne concerne que eleve/prof (voir
+dashboard.notifications.notifications_eleve/notifications_prof), جامais
+مدير/مشرف dont le seul événement actuel est "طلبات تسجيل جديدة" (voir
+notifications_direction) — un sous-titre générique évite d'énumérer un
+contenu qui ne s'affichera jamais pour ce rôle.
+{% endcomment %}
+<div class="page-subtitle">
+    {% if request.user.role == 'admin' or request.user.role == 'mshrif' %}
+    كل جديد يستدعي انتباهك
+    {% else %}
+    كل ما يخصك شخصياً — اختبارات، تقييمات، ملفات جديدة
+    {% endif %}
+</div>
 
 {% if notif_groupes %}
 {% for groupe in notif_groupes %}
