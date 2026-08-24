@@ -442,9 +442,14 @@ def wizard_groupe(request):
 
     def _enregistrer_demande_non_satisfaite():
         nb_slots_valeur = next((v for c, v in reponses_pour_filtrage.items() if c.backend == 'nb_slots'), None)
+        # nom/telephone/email : déjà collectés à l'étape Identité (donnees),
+        # bien avant que l'InscriptionEleve elle-même n'existe — voir
+        # DemandeNonSatisfaite.nom.__doc__.
         return DemandeNonSatisfaite.objects.create(
             criteres_json=snapshot_criteres_pour_demande(reponses_pour_filtrage),
             type_offre='groupe', nb_slots=nb_slots_valeur, age=age, sexe=sexe,
+            nom=donnees.get('nom', ''), telephone=donnees.get('telephone', ''),
+            email=donnees.get('email', ''),
         )
 
     if request.method == 'POST':

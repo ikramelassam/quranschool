@@ -1282,6 +1282,7 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
                 criteres_json=snapshot_criteres_pour_demande(reponses_pour_filtrage),
                 type_offre='groupe', nb_slots=nb_slots_valeur,
                 age=_age_depuis_naissance(date_naissance), sexe=sexe, inscription=inscription,
+                nom=nom, telephone=telephone, email=email,
             )
 
     return inscription, []

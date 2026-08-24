@@ -6645,6 +6645,49 @@ def admin_demandes_non_satisfaites(request):
 
     demandes = list(DemandeNonSatisfaite.objects.select_related('inscription').order_by('-date_demande'))
 
+    # Labels lisibles résolus à la LECTURE (Critere/CritereOption restent la
+    # seule source de vérité, jamais dupliqués dans DemandeNonSatisfaite).
+    criteres_par_code = {c.code: c for c in Critere.objects.all()}
+    options_par_cle = {(o.critere_id, o.code): o for o in CritereOption.objects.select_related('critere')}
+
+    def _libelles_criteres(criteres):
+        """criteres : itérable de (code_critere, valeur) — accepte un
+        dict.items() (demande individuelle) ou le tuple trié utilisé comme
+        clé de regroupement ci-dessous, même logique dans les 2 cas."""
+        libelles = []
+        for code_critere, valeur in criteres:
+            critere = criteres_par_code.get(code_critere)
+            if critere is None:
+                continue
+            if critere.backend in ('nb_slots', 'champ_groupe'):
+                libelles.append(f"{critere.label}: {valeur}")
+            elif isinstance(valeur, (list, tuple)):
+                labels = [options_par_cle[(critere.id, c)].label for c in valeur if (critere.id, c) in options_par_cle]
+                if labels:
+                    libelles.append(f"{critere.label}: {', '.join(labels)}")
+            else:
+                option = options_par_cle.get((critere.id, valeur))
+                libelles.append(f"{critere.label}: {option.label if option else valeur}")
+        return libelles
+
+    # Détail ligne par ligne (correction du 2026-08-24) : les mêmes libellés
+    # que "أكثر التركيبات طلباً" ci-dessous, mais par DEMANDE individuelle —
+    # + le contact, pour que le مدير puisse agir directement depuis cette
+    # page. inscription.{nom,telephone,email} priment sur le snapshot
+    # (nom/telephone/email propres à DemandeNonSatisfaite, voir son
+    # docstring) quand la candidature existe : plus susceptibles d'être à
+    # jour si le candidat les a corrigés plus loin dans le wizard.
+    for d in demandes:
+        d.libelles = _libelles_criteres(d.criteres_json.items())
+        if d.inscription:
+            d.nom_contact = d.inscription.nom
+            d.telephone_contact = d.inscription.telephone
+            d.email_contact = d.inscription.email
+        else:
+            d.nom_contact = d.nom
+            d.telephone_contact = d.telephone
+            d.email_contact = d.email
+
     # Regroupe par (criteres_json, nb_slots) — âge/sexe restent des détails
     # individuels affichés par demande, pas un axe de regroupement (sinon
     # 2 demandes identiques par ailleurs mais d'âges différents ne
@@ -6666,29 +6709,10 @@ def admin_demandes_non_satisfaites(request):
         compteur[cle] += 1
         exemple_par_cle.setdefault(cle, d)
 
-    # Labels lisibles résolus à la LECTURE (Critere/CritereOption restent la
-    # seule source de vérité, jamais dupliqués dans DemandeNonSatisfaite).
-    criteres_par_code = {c.code: c for c in Critere.objects.all()}
-    options_par_cle = {(o.critere_id, o.code): o for o in CritereOption.objects.select_related('critere')}
-
     tendances = []
     for cle, nombre in compteur.most_common():
         criteres_dict, nb_slots = cle
-        libelles = []
-        for code_critere, valeur in criteres_dict:
-            critere = criteres_par_code.get(code_critere)
-            if critere is None:
-                continue
-            if critere.backend in ('nb_slots', 'champ_groupe'):
-                libelles.append(f"{critere.label}: {valeur}")
-            elif isinstance(valeur, (list, tuple)):
-                labels = [options_par_cle[(critere.id, c)].label for c in valeur if (critere.id, c) in options_par_cle]
-                if labels:
-                    libelles.append(f"{critere.label}: {', '.join(labels)}")
-            else:
-                option = options_par_cle.get((critere.id, valeur))
-                libelles.append(f"{critere.label}: {option.label if option else valeur}")
-        tendances.append({'libelles': libelles, 'nb_slots': nb_slots, 'nombre': nombre})
+        tendances.append({'libelles': _libelles_criteres(criteres_dict), 'nb_slots': nb_slots, 'nombre': nombre})
 
     context = {
         'demandes': demandes,

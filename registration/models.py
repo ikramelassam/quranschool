@@ -507,12 +507,29 @@ class DemandeNonSatisfaite(models.Model):
     de continuer (voir registration.utils.inscrire_eleve) — None tant que
     la candidature n'est pas allée au bout, ou si le visiteur abandonne en
     cours de route (SET_NULL : la suppression d'une candidature ne doit
-    jamais faire disparaître la trace statistique de la demande elle-même)."""
+    jamais faire disparaître la trace statistique de la demande elle-même).
+
+    nom/telephone/email : snapshot du contact au moment de la demande
+    (correction du 2026-08-24, page "طلبات غير ملبّاة" jugée trop pauvre
+    pour agir — le مدير doit pouvoir recontacter directement le candidat
+    depuis cette page). Renseignés dès la création, même quand `inscription`
+    est encore None (l'étape Identité du wizard précède toujours l'étape
+    Groupe — voir wizard_groupe) : SEULE façon de garder le contact si le
+    candidat abandonne ensuite sans jamais créer d'InscriptionEleve. Restent
+    remplis même après un SET_NULL de `inscription` (même raison que
+    ci-dessus). Jamais resynchronisés depuis inscription après coup — un
+    candidat qui corrige son numéro plus tard dans le wizard ne met pas à
+    jour ce snapshot, l'affichage préfère donc inscription.{nom,telephone,
+    email} quand ce lien existe (voir dashboard.views.admin_demandes_non_
+    satisfaites)."""
     criteres_json = models.JSONField(default=dict)
     type_offre = models.CharField(max_length=20, blank=True, default='')
     nb_slots = models.IntegerField(null=True, blank=True)
     age = models.IntegerField(null=True, blank=True)
     sexe = models.CharField(max_length=10, blank=True, default='')
+    nom = models.CharField(max_length=200, blank=True, default='')
+    telephone = models.CharField(max_length=30, blank=True, default='')
+    email = models.EmailField(blank=True, default='')
     date_demande = models.DateTimeField(auto_now_add=True)
     inscription = models.ForeignKey(
         'inscriptions.InscriptionEleve', on_delete=models.SET_NULL, null=True, blank=True,
