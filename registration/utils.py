@@ -36,9 +36,13 @@ silencieuses) :
 """
 
 import datetime
+import logging
 import re
 
+from django.core.exceptions import FieldError
 from django.db import transaction
+
+logger = logging.getLogger(__name__)
 from django.db.models import Count, Q
 
 
@@ -321,7 +325,24 @@ def groupes_compatibles(reponses, exclure_caches_wizard_public=True):
         if not critere.filtrable or valeur in (None, '', [], set(), ()):
             continue
         if critere.backend == 'champ_groupe':
-            qs = qs.filter(**{critere.champ_modele_groupe: valeur})
+            # Filet de sécurité (audit du 2026-08-23, §1) : champ_modele_groupe
+            # est validé à la création du critère (dashboard.views.
+            # admin_critere_inscription_ajouter) mais une donnée déjà en base
+            # AVANT ce correctif (ou modifiée directement en base) peut encore
+            # pointer vers un nom de champ inexistant sur Groupe — jamais un
+            # 500 pour un candidat réel à cause d'une configuration mal
+            # formée : on ignore ce critère pour CE filtrage (comportement
+            # dégradé, comme un critère non filtrable), et on journalise pour
+            # que le مدير/مشرف puisse le corriger.
+            try:
+                qs = qs.filter(**{critere.champ_modele_groupe: valeur})
+            except FieldError:
+                logger.error(
+                    "Critere id=%s (code=%r) : champ_modele_groupe=%r n'existe pas sur "
+                    "courses.models.Groupe — filtre ignoré pour ce critère.",
+                    critere.pk, critere.code, critere.champ_modele_groupe,
+                )
+                continue
         elif critere.backend == 'nb_slots':
             alias = f'_nb_slots_critere_{critere.pk}'
             qs = qs.annotate(**{alias: Count('creneau__slots', distinct=True)}).filter(**{alias: valeur})
@@ -654,7 +675,42 @@ def abonnements_avec_prix_effectif(abonnements, nb_slots):
     resultat = list(abonnements)
     for abonnement in resultat:
         abonnement.prix_affiche = prix_effectif(abonnement, nb_slots)
+        # Partie C (2026-08-24) : même principe que .prix_affiche —
+        # suggestion affichée sur le <select> abonnement (JS met à jour le
+        # champ "كم شهراً ستدفع الآن؟" au choix, voir admin_eleve_ajouter_
+        # manuel.html), jamais écrite en base telle quelle.
+        abonnement.mois_defaut = mois_payes_par_defaut(abonnement)
     return resultat
+
+
+def mois_payes_par_defaut(type_abonnement):
+    """Valeur PRÉ-REMPLIE (jamais imposée) du champ informatif "كم شهراً
+    ستدفع الآن؟" (Partie C, chantier du 2026-08-24) — dérivée de
+    `type_abonnement.duree_affichee` (texte libre, ex: 'شهر'/'3 أشهر'),
+    jamais un champ structuré séparé à maintenir en double. Un nombre en
+    tête du texte ('3 أشهر') est utilisé tel quel ; l'absence de nombre
+    ('شهر' seul) retombe sur 1 (convention arabe : un nom singulier sans
+    chiffre veut dire "un seul") — jamais une exception ni un blocage si
+    `duree` est vide/mal formée, uniquement une suggestion modifiable par
+    l'utilisateur avant confirmation, PUREMENT indicative (voir
+    InscriptionEleve.nombre_mois_payes.__doc__)."""
+    if type_abonnement is None:
+        return 1
+    match = re.match(r'\s*(\d+)', type_abonnement.duree_affichee or '')
+    return int(match.group(1)) if match else 1
+
+
+def nombre_mois_payes_depuis_brut(valeur_brute, valeur_par_defaut):
+    """int strictement positif depuis une valeur POST libre, ou
+    `valeur_par_defaut` si absente/invalide — jamais une erreur bloquante :
+    ce champ est purement informatif (Partie C), une saisie incohérente ne
+    doit jamais empêcher l'inscription de se finaliser."""
+    texte = (valeur_brute or '').strip() if isinstance(valeur_brute, str) else valeur_brute
+    try:
+        nombre = int(texte)
+    except (ValueError, TypeError):
+        return valeur_par_defaut
+    return nombre if nombre >= 1 else valeur_par_defaut
 
 
 def definir_valeurs_groupe(groupe, critere, options):
@@ -1172,6 +1228,14 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
     if erreurs:
         return None, erreurs
 
+    # Partie C (chantier du 2026-08-24) : "كم شهراً ستدفع الآن؟" — PUREMENT
+    # informatif (voir InscriptionEleve.nombre_mois_payes.__doc__), jamais
+    # bloquant : une valeur absente/invalide retombe silencieusement sur le
+    # défaut dérivé de l'abonnement, jamais une erreur ajoutée à `erreurs`.
+    nombre_mois_payes = nombre_mois_payes_depuis_brut(
+        reponses_brutes.get('nombre_mois_payes'), mois_payes_par_defaut(abonnement)
+    )
+
     # ---- 5. Création (tout ou rien) ----
     with transaction.atomic():
         inscription = InscriptionEleve.objects.create(
@@ -1184,6 +1248,7 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
             job_actuel=valeurs_structurelles['job_actuel'],
             niveau_scolaire=valeurs_structurelles['niveau_scolaire'],
             abonnement=abonnement.code,
+            nombre_mois_payes=nombre_mois_payes,
             groupe_choisi=groupe_choisi,
             cree_par=cree_par,
             accepte_conditions=reponses_brutes.get('accepte_conditions') == 'oui',

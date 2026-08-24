@@ -98,6 +98,21 @@
 <div style="background:white; border-radius:16px; padding:24px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div style="font-weight:700; margin-bottom:16px;">+ إضافة حقل جديد</div>
 
+    {% if not etape.accepte_champs_generiques %}
+    {% comment %}
+    Audit du 2026-08-23 (§2) : cette étape a sa propre شاشة مبنية في الكود
+    (قائمة المجموعات المتوافقة، التسعير الديناميكي، إنشاء طلب التسجيل
+    الفعلي، أو شاشة النجاح) — أي حقل يُضاف هنا لن يظهر أبداً على نموذج
+    التسجيل العلني، رغم أنه كان يُفعَّل ويُتحقق منه بصمت (voir registration.
+    models.EtapeInscription.CODES_SANS_RENDU_GENERIQUE).
+    {% endcomment %}
+    <div style="background:#fff3cd; border-radius:10px; padding:14px 18px; color:#856404; font-size:0.85rem;">
+        ⚠️ هذه المرحلة لها شاشة خاصة مبنية في الكود ولا تعرض أي حقل عام على نموذج التسجيل العلني —
+        لا يمكن إضافة حقل هنا. لإضافة سؤال جديد، استخدم مرحلة "المعلومات الشخصية"، "اختيار البرنامج"،
+        أو أنشئ مرحلة مخصصة جديدة من صفحة "مراحل التسجيل".
+    </div>
+    {% else %}
+
     {% comment %}
     Chantier du 2026-08-23 (Partie 2) : 2 usages bien séparés, choisis
     EXPLICITEMENT avant de remplir quoi que ce soit — plus un seul
@@ -198,6 +213,7 @@
             إضافة ✅
         </button>
     </form>
+    {% endif %}
 </div>
 
 <div class="mt-4">
@@ -214,6 +230,7 @@
         border-color: var(--color-role-admin); background: var(--color-role-admin); color: white;
     }
 </style>
+{% if etape.accepte_champs_generiques %}
 <script>
     function choisirSysteme(systeme) {
         const estA = systeme === 'a';
@@ -233,4 +250,5 @@
     }
     document.addEventListener('DOMContentLoaded', function () { choisirSysteme('a'); toggleBornesNumeriques(); });
 </script>
+{% endif %}
 {% endblock %}

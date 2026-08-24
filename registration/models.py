@@ -185,6 +185,25 @@ class EtapeInscription(models.Model):
 
     CODES_VERROUILLES = {'categorie_age', 'identite', 'abonnement', 'paiement', 'confirmation'}
 
+    # Audit du 2026-08-23 (§2) : _champs_visibles_pour_etape (registration.
+    # views) n'est appelée QUE pour 'identite'/'programme'/toute étape
+    # personnalisée (via wizard_etape_personnalisee) — les 5 étapes ci-dessous
+    # ont chacune leur propre vue dédiée (liste de groupes compatibles,
+    # tarification dynamique, déclenchement réel de inscrire_eleve(), écran
+    # de succès) et n'ont JAMAIS rendu de ChampInscription générique. Avant
+    # ce correctif, rien n'empêchait pourtant d'en attacher un depuis le
+    # dashboard : invisible sur tout le parcours public, mais toujours
+    # VALIDÉ par evaluer_champs_actifs()/inscrire_eleve() (qui parcourt
+    # TOUTES les étapes actives sans restriction) — un champ obligatoire
+    # ainsi mal placé bloquait alors SILENCIEUSEMENT et DÉFINITIVEMENT toute
+    # inscription publique à la toute dernière étape, avec un message
+    # "إلزامي" que le candidat ne pouvait jamais résoudre (reproduit et
+    # confirmé par l'audit). Choix retenu (plutôt que d'étendre le rendu
+    # générique à ces 5 étapes, plus risqué sur des chemins déjà critiques) :
+    # bloquer la création à la source, voir dashboard.views.
+    # admin_champ_inscription_ajouter.
+    CODES_SANS_RENDU_GENERIQUE = {'categorie_age', 'groupe', 'abonnement', 'paiement', 'confirmation'}
+
     def save(self, *args, **kwargs):
         if self.code in self.CODES_VERROUILLES:
             self.est_actif = True
@@ -198,6 +217,15 @@ class EtapeInscription(models.Model):
         """Utilisé côté template (pas de lookup de dict par variable, même
         principe que ConfigurationChampStructurel.est_verrouille)."""
         return self.code in self.CODES_VERROUILLES
+
+    @property
+    def accepte_champs_generiques(self):
+        """False pour les 5 étapes de CODES_SANS_RENDU_GENERIQUE — utilisé
+        côté template (admin_etape_inscription_detail.html) ET côté vue
+        (admin_champ_inscription_ajouter) pour ne jamais permettre la
+        création d'un ChampInscription qui ne serait ensuite affiché nulle
+        part sur le wizard public (voir CODES_SANS_RENDU_GENERIQUE ci-dessus)."""
+        return self.code not in self.CODES_SANS_RENDU_GENERIQUE
 
     class Meta:
         ordering = ['ordre', 'id']

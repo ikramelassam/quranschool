@@ -3241,3 +3241,227 @@ class WizardIdentiteChampsStructurelsTests(TestCase):
         reponse = client.post(reverse('wizard_identite'), self._reponses_valides(niveau_scolaire='الثالثة إعدادي'))
         self.assertRedirects(reponse, reverse('wizard_programme'), fetch_redirect_response=False)
         self.assertEqual(client.session['wizard_inscription']['niveau_scolaire'], 'الثالثة إعدادي')
+
+
+# ============================================================================
+# CORRECTIFS DU 2026-08-24 — audit du chantier "moteur d'inscription
+# configurable" (§1, §2, Partie C du plan de correction).
+# ============================================================================
+
+class ChampModeleGroupeValidationTests(TestCase):
+    """A1 — champ_modele_groupe validé à la création (dashboard.views.
+    admin_critere_inscription_ajouter) + filet de sécurité dans
+    groupes_compatibles() pour une donnée déjà mal configurée en base."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+
+    def test_nom_de_champ_inexistant_sur_groupe_est_refuse_a_la_creation(self):
+        client = Client()
+        client.force_login(self.admin)
+        reponse = client.post(reverse('admin_critere_inscription_ajouter'), {
+            'code': 'audit_test_typo', 'label': 'Test typo', 'type_champ': 'choix_unique',
+            'backend': 'champ_groupe', 'champ_modele_groupe': 'ce_champ_n_existe_pas',
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(Critere.objects.filter(code='audit_test_typo').exists())
+
+    def test_nom_de_champ_reel_est_accepte(self):
+        client = Client()
+        client.force_login(self.admin)
+        reponse = client.post(reverse('admin_critere_inscription_ajouter'), {
+            'code': 'audit_test_valide', 'label': 'Test valide', 'type_champ': 'choix_unique',
+            'backend': 'champ_groupe', 'champ_modele_groupe': 'type_capacite',
+        })
+        critere = Critere.objects.filter(code='audit_test_valide').first()
+        self.assertIsNotNone(critere)
+        self.assertRedirects(reponse, reverse('admin_critere_inscription_detail', args=[critere.id]))
+
+    def test_donnee_deja_mal_configuree_en_base_ne_fait_plus_planter_le_filtrage(self):
+        """Simule une donnée deja existante AVANT ce correctif (créée
+        directement en base, en court-circuitant la validation de la vue) —
+        groupes_compatibles() ne doit plus jamais lever FieldError."""
+        critere_piege = _creer_critere(
+            'audit_test_deja_casse', backend='champ_groupe', champ_modele_groupe='champ_invalide_historique',
+            options=[('seule_option', 'Seule option')],
+        )
+        try:
+            qs = groupes_compatibles({critere_piege: critere_piege.options.first()})
+            self.assertEqual(list(qs), [])  # aucun crash, simplement aucun résultat
+        finally:
+            critere_piege.delete()
+
+
+class ChampGeneriqueEtapesBloqueesTests(TestCase):
+    """A2 — un ChampInscription ne peut plus être attaché à une étape sans
+    rendu générique (categorie_age/groupe/abonnement/paiement/confirmation) :
+    invisible sur le wizard public mais quand même validé par inscrire_eleve()
+    avant ce correctif, bloquant silencieusement toute inscription (voir
+    registration.models.EtapeInscription.CODES_SANS_RENDU_GENERIQUE)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+
+    def test_ajout_refuse_sur_une_etape_sans_rendu_generique(self):
+        etape_paiement = EtapeInscription.objects.get(code='paiement')
+        client = Client()
+        client.force_login(self.admin)
+        client.post(reverse('admin_champ_inscription_ajouter', args=[etape_paiement.id]), {
+            'label': 'Piège paiement', 'obligatoire': 'on', 'type_champ': 'texte',
+        })
+        self.assertFalse(ChampInscription.objects.filter(etape=etape_paiement).exists())
+
+    def test_ajout_toujours_accepte_sur_identite_et_programme(self):
+        etape_identite = EtapeInscription.objects.get(code='identite')
+        client = Client()
+        client.force_login(self.admin)
+        client.post(reverse('admin_champ_inscription_ajouter', args=[etape_identite.id]), {
+            'label': 'Champ identite ok', 'type_champ': 'texte',
+        })
+        self.assertTrue(ChampInscription.objects.filter(etape=etape_identite, label='Champ identite ok').exists())
+
+    def test_accepte_champs_generiques_property(self):
+        self.assertFalse(EtapeInscription.objects.get(code='categorie_age').accepte_champs_generiques)
+        self.assertFalse(EtapeInscription.objects.get(code='groupe').accepte_champs_generiques)
+        self.assertFalse(EtapeInscription.objects.get(code='abonnement').accepte_champs_generiques)
+        self.assertFalse(EtapeInscription.objects.get(code='paiement').accepte_champs_generiques)
+        self.assertFalse(EtapeInscription.objects.get(code='confirmation').accepte_champs_generiques)
+        self.assertTrue(EtapeInscription.objects.get(code='identite').accepte_champs_generiques)
+        self.assertTrue(EtapeInscription.objects.get(code='programme').accepte_champs_generiques)
+
+
+class NombreMoisPayesTests(TestCase):
+    """Partie C (2026-08-24) — champ purement informatif "كم شهراً ستدفع
+    الآن؟" sur l'étape paiement du wizard public : enregistré, visible sur
+    la fiche détail, SANS AUCUN effet sur le prix ni le filtrage."""
+
+    def setUp(self):
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe = Groupe.objects.create(
+            nom='مجموعة اختبار الأشهر المدفوعة', creneau=self.creneau, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(groupe=self.groupe, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
+        GroupeCritereValeur.objects.create(groupe=self.groupe, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
+
+        self.abo_mensuel = TypeAbonnement.objects.create(
+            code='test_mois_payes_mensuel', label='شهري', duree='شهر', prix=80,
+            type_offre='groupe', cible_age='les_deux', ordre=1,
+        )
+        from payments.models import MoyenPaiement
+        self.moyen = MoyenPaiement.objects.create(code='test_mois_payes_cih', label='CIH بنك', coordonnees='RIB', est_actif=True)
+        self.admin = _creer_admin()
+
+    def test_trois_mois_payes_sur_abonnement_mensuel_enregistres_et_visibles_sans_effet_sur_le_prix(self):
+        client = Client()
+        _choisir_categorie_age(client)
+        client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار الأشهر المدفوعة', 'sexe': 'homme', 'email': 'mois.payes@zidni.test',
+            'date_naissance': '1998-01-01',
+            'indicatif_pays': '212', 'telephone': '0611334455', 'telephone_confirmation': '0611334455',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '1',
+        })
+        client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abo_mensuel.code})
+
+        # Le formulaire suggère 1 (abonnement mensuel) par défaut...
+        html_paiement = client.get(reverse('wizard_paiement')).content.decode('utf-8')
+        self.assertIn('value="1"', html_paiement)
+
+        # ...mais l'élève précise 3 mois payés d'un coup.
+        reponse = client.post(reverse('wizard_paiement'), {
+            'moyen_paiement_code': self.moyen.code, 'nombre_mois_payes': '3',
+        })
+        self.assertRedirects(reponse, reverse('wizard_confirmation'), fetch_redirect_response=False)
+
+        inscription = InscriptionEleve.objects.get(email='mois.payes@zidni.test')
+        self.assertEqual(inscription.nombre_mois_payes, 3)
+        # Aucun effet sur le prix : toujours celui de l'abonnement mensuel choisi.
+        self.assertEqual(inscription.prix_effectif_calcule(), self.abo_mensuel.prix)
+
+        client_admin = Client()
+        client_admin.force_login(self.admin)
+        html_detail = client_admin.get(
+            reverse('admin_inscription_eleve_detail', args=[inscription.id])
+        ).content.decode('utf-8')
+        self.assertIn('3', html_detail)
+        self.assertIn('عدد الأشهر المدفوعة الآن', html_detail)
+
+    def test_valeur_absente_ou_invalide_retombe_sur_le_defaut_jamais_bloquant(self):
+        client = Client()
+        _choisir_categorie_age(client)
+        client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار قيمة غير صالحة', 'sexe': 'homme', 'email': 'mois.payes.invalide@zidni.test',
+            'date_naissance': '1998-01-01',
+            'indicatif_pays': '212', 'telephone': '0611998800', 'telephone_confirmation': '0611998800',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '1',
+        })
+        client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abo_mensuel.code})
+        reponse = client.post(reverse('wizard_paiement'), {
+            'moyen_paiement_code': self.moyen.code, 'nombre_mois_payes': 'pas-un-nombre',
+        })
+        self.assertRedirects(reponse, reverse('wizard_confirmation'), fetch_redirect_response=False)
+        inscription = InscriptionEleve.objects.get(email='mois.payes.invalide@zidni.test')
+        self.assertEqual(inscription.nombre_mois_payes, 1)  # défaut dérivé de la durée 'شهر'
+
+    def test_mois_payes_par_defaut(self):
+        from .utils import mois_payes_par_defaut
+        abo_3mois = TypeAbonnement.objects.create(
+            code='test_mois_payes_3mois', label='3 أشهر', duree='3 أشهر', prix=220,
+            type_offre='groupe', cible_age='les_deux', ordre=2,
+        )
+        self.assertEqual(mois_payes_par_defaut(self.abo_mensuel), 1)
+        self.assertEqual(mois_payes_par_defaut(abo_3mois), 3)
+        self.assertEqual(mois_payes_par_defaut(None), 1)
+
+    def test_ajout_manuel_stocke_aussi_nombre_mois_payes(self):
+        client = Client()
+        client.force_login(self.admin)
+        client.post(reverse('admin_eleve_ajouter_manuel'), {
+            'round_form': 'identite',
+            'nom': 'اختبار يدوي أشهر مدفوعة', 'sexe': 'homme', 'email': 'mois.payes.manuel@zidni.test',
+            'date_naissance': '1998-01-01',
+            'indicatif_pays': '212', 'telephone': '0611556600', 'telephone_confirmation': '0611556600',
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '1',
+        })
+        client.post(reverse('admin_eleve_ajouter_manuel'), {
+            'round_form': 'confirmation',
+            'nom': 'اختبار يدوي أشهر مدفوعة', 'sexe': 'homme', 'email': 'mois.payes.manuel@zidni.test',
+            'date_naissance': '1998-01-01',
+            'indicatif_pays': '212', 'telephone': '0611556600', 'telephone_confirmation': '0611556600',
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '1',
+            'groupe_id': str(self.groupe.id),
+            'abonnement_code': self.abo_mensuel.code,
+            'nombre_mois_payes': '5',
+        })
+        inscription = InscriptionEleve.objects.get(email='mois.payes.manuel@zidni.test')
+        self.assertEqual(inscription.nombre_mois_payes, 5)

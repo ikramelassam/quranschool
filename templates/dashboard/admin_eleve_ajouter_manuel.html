@@ -233,14 +233,28 @@
             {% if not abonnements %}
             <div style="color:#888; padding:10px 0;">لا توجد حالياً أنواع اشتراك متاحة لهذه الاختيارات.</div>
             {% endif %}
-            <select name="abonnement_code" class="form-select mt-1" required>
+            <select name="abonnement_code" id="abonnement_code_select" class="form-select mt-1" required
+                    onchange="majMoisPayesParDefaut()">
                 <option value="">— اختر —</option>
                 {% for abonnement in abonnements %}
-                <option value="{{ abonnement.code }}" {% if abonnement.code == abonnement_selectionne %}selected{% endif %}>
+                <option value="{{ abonnement.code }}" data-mois-defaut="{{ abonnement.mois_defaut }}"
+                        {% if abonnement.code == abonnement_selectionne %}selected{% endif %}>
                     {{ abonnement.duree_affichee }} — {{ abonnement.prix_affiche }} د.م.
                 </option>
                 {% endfor %}
             </select>
+        </div>
+
+        {% comment %}
+        Partie C (chantier du 2026-08-24) : purement informatif — AUCUN effet
+        sur le prix/filtrage (voir InscriptionEleve.nombre_mois_payes.__doc__).
+        Pré-rempli/mis à jour selon l'abonnement choisi (JS ci-dessous), reste
+        librement modifiable.
+        {% endcomment %}
+        <div class="mb-3">
+            <label class="form-label" style="font-weight:600;">كم شهراً سيدفع الآن؟</label>
+            <input type="number" name="nombre_mois_payes" id="nombre_mois_payes_input" class="form-control mt-1"
+                   min="1" step="1" value="{{ valeurs_form.nombre_mois_payes|default:'1' }}">
         </div>
 
         <div class="d-flex gap-3 mt-4">
@@ -262,6 +276,19 @@
             <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
         </div>
     </form>
+
+    <script>
+        // Partie C (2026-08-24) : simple suggestion, jamais imposée — l'admin
+        // reste libre de modifier après coup, aucune validation dessus.
+        function majMoisPayesParDefaut() {
+            const select = document.getElementById('abonnement_code_select');
+            const input = document.getElementById('nombre_mois_payes_input');
+            const option = select.options[select.selectedIndex];
+            if (option && option.dataset.moisDefaut) {
+                input.value = option.dataset.moisDefaut;
+            }
+        }
+    </script>
     {% endif %}
 </div>
 </div>

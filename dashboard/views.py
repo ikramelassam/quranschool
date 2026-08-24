@@ -5973,6 +5973,8 @@ def admin_criteres_inscription(request):
 
 @role_required('admin', 'mshrif')
 def admin_critere_inscription_ajouter(request):
+    from django.core.exceptions import FieldDoesNotExist
+    from courses.models import Groupe
     from registration.models import Critere
 
     if request.method == 'POST':
@@ -5984,12 +5986,41 @@ def admin_critere_inscription_ajouter(request):
                 'valeurs_form': request.POST,
             })
 
+        backend = request.POST.get('backend', 'eav')
+        champ_modele_groupe = request.POST.get('champ_modele_groupe', '').strip()
+        # Audit du 2026-08-23 (§1) : champ_modele_groupe était un simple champ
+        # texte libre, jamais vérifié contre les vrais champs de Groupe —
+        # une coquille (ou un nom inventé) créait un critère qui plantait le
+        # wizard public en 500 dès qu'un candidat y répondait (FieldError
+        # levée au moment du filtrage, jamais à la création). Vérifié ICI,
+        # au seul endroit où ce champ est écrit (admin_critere_inscription_
+        # modifier ne le touche jamais après coup, voir sa docstring).
+        if backend == 'champ_groupe':
+            if not champ_modele_groupe:
+                messages.error(request, 'الرجاء تحديد اسم الحقل الحقيقي في نموذج المجموعة (Groupe).')
+                return render(request, 'dashboard/admin_critere_inscription_ajouter.html', {
+                    'base_template': _base_template_admin_ou_mshrif(request),
+                    'valeurs_form': request.POST,
+                })
+            try:
+                Groupe._meta.get_field(champ_modele_groupe)
+            except FieldDoesNotExist:
+                messages.error(
+                    request,
+                    f'الحقل "{champ_modele_groupe}" غير موجود فعلياً في نموذج المجموعة (Groupe) — '
+                    f'تحقق من الاسم (حساس لحالة الأحرف).'
+                )
+                return render(request, 'dashboard/admin_critere_inscription_ajouter.html', {
+                    'base_template': _base_template_admin_ou_mshrif(request),
+                    'valeurs_form': request.POST,
+                })
+
         critere = Critere.objects.create(
             code=code,
             label=request.POST.get('label', '').strip(),
             type_champ=request.POST.get('type_champ', 'choix_unique'),
-            backend=request.POST.get('backend', 'eav'),
-            champ_modele_groupe=request.POST.get('champ_modele_groupe', '').strip(),
+            backend=backend,
+            champ_modele_groupe=champ_modele_groupe,
             filtrable=request.POST.get('filtrable') == 'on',
             bloquant=request.POST.get('bloquant') == 'on',
             ordre=request.POST.get('ordre') or 0,
@@ -6330,6 +6361,21 @@ def admin_champ_inscription_ajouter(request, etape_id):
 
     etape = get_object_or_404(EtapeInscription, id=etape_id)
     if request.method == 'POST':
+        # Audit du 2026-08-23 (§2) : voir registration.models.EtapeInscription.
+        # CODES_SANS_RENDU_GENERIQUE — ces 5 étapes n'affichent JAMAIS un
+        # ChampInscription générique sur le wizard public, quel que soit
+        # ce qu'on y attache ici. Bloqué à la source plutôt que de laisser
+        # créer un champ invisible mais quand même validé (et potentiellement
+        # bloquant si obligatoire) à la confirmation finale.
+        if not etape.accepte_champs_generiques:
+            messages.error(
+                request,
+                f'تعذرت الإضافة: مرحلة "{etape.titre}" لا تعرض أي حقل عام على نموذج التسجيل العلني '
+                f'(لديها شاشتها الخاصة المبنية في الكود). أي حقل يُضاف هنا لن يظهر أبداً للمترشح — '
+                f'استخدم مرحلة "المعلومات الشخصية" أو "اختيار البرنامج" أو أنشئ مرحلة مخصصة جديدة بدلاً من ذلك.'
+            )
+            return redirect('admin_etape_inscription_detail', etape.id)
+
         critere_id = request.POST.get('critere_id') or None
         critere = get_object_or_404(Critere, id=critere_id) if critere_id else None
         type_champ = request.POST.get('type_champ', '') if critere is None else ''
@@ -6889,6 +6935,10 @@ def admin_eleve_ajouter_manuel(request):
         'groupe_id': request.POST.get('groupe_id', ''),
         'abonnement_code': request.POST.get('abonnement_code', ''),
         'continuer_sans_groupe': request.POST.get('continuer_sans_groupe', ''),
+        # Partie C (2026-08-24) : purement informatif, voir InscriptionEleve.
+        # nombre_mois_payes.__doc__ — nombre_mois_payes_depuis_brut() retombe
+        # sur le défaut si absent/invalide, jamais une erreur bloquante ici.
+        'nombre_mois_payes': request.POST.get('nombre_mois_payes', ''),
     }
     resultats = evaluer_champs_actifs(donnees)
     reponses_pour_filtrage = reponses_pour_filtrage_depuis_resultats(resultats)
