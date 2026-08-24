@@ -384,7 +384,15 @@ class Groupe(models.Model):
         TRANCHES_AGE_PRECISES) RÉELLEMENT présentes parmi les élèves actifs de
         CE groupe aujourd'hui — jamais stocké, recalculé à chaque lecture
         (même principe que categorie_collectif ci-dessus). Liste vide si
-        aucun élève actif, ou si tous sont hors 5-18 ans (adultes)."""
+        aucun élève actif, ou si tous sont hors 5-18 ans (adultes).
+
+        NON utilisée pour le badge groupe (voir tranches_age_visees) depuis
+        la correction du 2026-08-24 : une halaka fraîchement créée ou dont
+        les élèves ne tombent pas encore exactement dans sa tranche visée
+        n'affichait alors AUCUN badge, ce qui n'était pas ce qu'attendait
+        Ikram pour cet écran. Gardée telle quelle (toujours testée) pour un
+        usage futur éventuel où le "réellement fréquenté" resterait
+        pertinent — aucune autre vue ne l'appelle aujourd'hui."""
         from .utils import TRANCHES_AGE_PRECISES, tranche_age_precise
 
         codes_presents = set()
@@ -393,6 +401,33 @@ class Groupe(models.Model):
             if resultat is not None:
                 codes_presents.add(resultat[0])
         return [label for code, label, *_r in TRANCHES_AGE_PRECISES if code in codes_presents]
+
+    @property
+    def tranches_age_visees(self):
+        """Labels arabes (dans l'ordre التلقين/البراعم/اليافعون) des tranches
+        d'âge précises VISÉES par la halaka (creneau.age_min/age_max) de ce
+        groupe — correction du 2026-08-24, demande explicite d'Ikram : le
+        badge groupe doit refléter la CONFIGURATION de la halaka, pas les
+        élèves réellement inscrits (voir tranches_age_frequentees ci-dessus
+        pour l'ancien comportement, gardé mais plus affiché) — sinon une
+        halaka tout juste créée pour "5-13 ans" et encore vide n'affichait
+        aucun badge alors qu'elle vise clairement التلقين+البراعم.
+
+        Une tranche apparaît dès que son intervalle [age_min, age_max]
+        chevauche ne serait-ce que partiellement celui du créneau — même
+        principe de recouvrement par intervalle que categorie_collectif
+        ci-dessus (basé sur le créneau, jamais sur les élèves). Liste vide
+        si groupe individuel (type_capacite != 'groupe'), aucun créneau
+        assigné, ou créneau entièrement hors 5-18 ans (halaka adultes)."""
+        if self.type_capacite != 'groupe' or not self.creneau_id:
+            return []
+        from .utils import TRANCHES_AGE_PRECISES
+
+        creneau = self.creneau
+        return [
+            label for code, label, age_min, age_max in TRANCHES_AGE_PRECISES
+            if age_min <= creneau.age_max and creneau.age_min <= age_max
+        ]
 
     class Meta:
         verbose_name = "Groupe"

@@ -134,15 +134,17 @@
                 📅 الجدول:
                 {% if groupe.creneau %}{{ groupe.creneau }}{% else %}غير محدد{% endif %}
             </div>
-            {% if groupe.tranches_age_frequentees %}
+            {% if groupe.tranches_age_visees %}
             {% comment %}
-            Partie B (2026-08-24) : tranches d'âge précises RÉELLEMENT
-            fréquentées aujourd'hui par les élèves actifs de ce groupe (voir
-            Groupe.tranches_age_frequentees.__doc__) — jamais affiché si
-            aucune (groupe vide, ou élèves tous adultes/hors 5-18 ans).
+            Correction du 2026-08-24 : tranches d'âge précises VISÉES par la
+            halaka de ce groupe, d'après creneau.age_min/age_max (voir
+            Groupe.tranches_age_visees.__doc__) — affiché dès la création de
+            la halaka, même vide, PAS basé sur les élèves réellement
+            inscrits. Jamais affiché si le créneau est entièrement hors
+            5-18 ans (halaka adultes) ou groupe individuel.
             {% endcomment %}
             <div style="margin-bottom:6px;">
-                {% for tranche in groupe.tranches_age_frequentees %}
+                {% for tranche in groupe.tranches_age_visees %}
                 <span style="background:#eef5f0; color:var(--color-success); border-radius:20px; padding:2px 10px; font-size:0.75rem; margin-inline-end:4px;">{{ tranche }}</span>
                 {% endfor %}
             </div>

@@ -1923,3 +1923,60 @@ class GroupeTranchesAgeFrequenteesTests(TestCase):
     def test_eleve_adulte_napparait_dans_aucune_tranche(self):
         self._ajouter_eleve(25)
         self.assertEqual(self.groupe.tranches_age_frequentees, [])
+
+
+class GroupeTranchesAgeViseesTests(TestCase):
+    """Correction du 2026-08-24 : le badge groupe doit refléter la
+    configuration de la halaka (creneau.age_min/age_max), pas les élèves
+    réellement inscrits — voir Groupe.tranches_age_visees.__doc__."""
+
+    def test_vide_meme_sans_aucun_eleve(self):
+        creneau = _creer_creneau(age_min=5, age_max=7)
+        groupe = Groupe.objects.create(
+            nom='حلقة تلقين فارغة', creneau=creneau, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        self.assertEqual(groupe.tranches_age_visees, ['التلقين'])
+
+    def test_une_seule_tranche_si_creneau_pile_dedans(self):
+        creneau = _creer_creneau(age_min=8, age_max=13)
+        groupe = Groupe.objects.create(
+            nom='حلقة براعم', creneau=creneau, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        self.assertEqual(groupe.tranches_age_visees, ['البراعم'])
+
+    def test_plusieurs_tranches_si_creneau_les_chevauche_toutes(self):
+        creneau = _creer_creneau(age_min=5, age_max=18)
+        groupe = Groupe.objects.create(
+            nom='حلقة كل الأطفال', creneau=creneau, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        self.assertEqual(groupe.tranches_age_visees, ['التلقين', 'البراعم', 'اليافعون'])
+
+    def test_vide_si_creneau_adultes(self):
+        # age_min=19 (pas 18) : la tranche اليافعون couvre 14-18 INCLUS
+        # (TRANCHES_AGE_PRECISES), un créneau démarrant pile à 18 chevauche
+        # donc encore اليافعون — comportement hérité de tranche_age_precise,
+        # pas une régression de tranches_age_visees.
+        creneau = _creer_creneau(age_min=19, age_max=999)
+        groupe = Groupe.objects.create(
+            nom='حلقة بالغين', creneau=creneau, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        self.assertEqual(groupe.tranches_age_visees, [])
+
+    def test_vide_si_groupe_individuel(self):
+        creneau = _creer_creneau(age_min=5, age_max=7)
+        groupe = Groupe.objects.create(
+            nom='حلقة فردية', creneau=creneau, statut='actif',
+            type_capacite='individuel', capacite_max=1,
+        )
+        self.assertEqual(groupe.tranches_age_visees, [])
+
+    def test_vide_si_aucun_creneau_assigne(self):
+        groupe = Groupe.objects.create(
+            nom='حلقة بدون خانة زمنية', creneau=None, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        self.assertEqual(groupe.tranches_age_visees, [])
