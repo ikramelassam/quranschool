@@ -6,17 +6,36 @@ automatiquement par un script ou une session Claude Code future — chaque
 case cochée doit l'être par vous (ou avec votre accord explicite), au moment
 qui vous convient.
 
-## État actuel (à la fin du chantier)
+## MISE À JOUR — 2026-08-24 : bascule effectuée
+
+`/register/student` pointe désormais vers le nouveau wizard
+(`registration.views.wizard_categorie_age`, voir `core/urls.py`) — décision
+explicite du Directeur, prise EN CONNAISSANCE de l'état ci-dessous (aucune
+autre case de la check-list n'était cochée à ce moment) :
+
+- Au moment de la bascule, l'ancien formulaire recevait encore de VRAIES
+  candidatures (dernière confirmée : 2026-08-21, email réel, statut validé).
+  Le nouveau wizard n'avait encore jamais été traversé par un vrai candidat
+  (uniquement des essais depuis un compte interne).
+- **Aucun** essai à blanc, revue de configuration ni formation du مشرف n'a
+  précédé cette bascule — risque assumé explicitement, pas un oubli.
+- L'ancien formulaire (`inscriptions/views.py`, `inscriptions/urls.py`)
+  reste intact et dormant, pas supprimé — rollback possible en 1 ligne dans
+  `core/urls.py` si un problème apparaît avec le nouveau parcours.
+- **À faire maintenant, en priorité** : la "Période d'observation"
+  ci-dessous (dernière case de la check-list) devient RÉTROACTIVEMENT la
+  seule protection restante — surveiller les prochaines candidatures de près.
+
+## État à la fin du chantier (2026-08-21, avant la bascule ci-dessus)
 
 - L'**ancien formulaire à une page** (`/register/student`, `inscriptions/views.py`
-  `inscription_eleve_*`) est toujours le seul chemin réellement exposé au
+  `inscription_eleve_*`) était alors le seul chemin réellement exposé au
   public. Il n'a été ni modifié ni désactivé à aucun moment de ce chantier.
 - Le **nouveau parcours** (wizard public `/registration/wizard/` en 6 étapes
   + ajout manuel Directeur/مشرف `/dashboard/admin/eleves/ajouter-manuel/`)
   est complet, testé (registration 66/66, dashboard 192/192, inscriptions
   15/15 — voir les commits de ce chantier), mais **le lien public
-  `/registration/wizard/` n'est affiché nulle part** sur le site actuel — il
-  n'est atteignable qu'en connaissant l'URL directement.
+  `/registration/wizard/` n'était alors affiché nulle part** sur le site.
 - Les deux parcours écrivent dans le **même modèle** (`InscriptionEleve`) et
   passent par le **même écran de validation** (`admin_valider_eleve`) — un
   Directeur/مشرف qui consulte "طلبات التسجيل" voit les candidatures des deux
@@ -38,10 +57,10 @@ qui vous convient.
   besoin d'un rappel) le nouvel écran d'ajout manuel et les écrans de
   configuration — ils sont nouveaux, contrairement à "طلبات التسجيل" qui
   reste identique dans son usage quotidien.
-- [ ] **Décision d'activation du lien public** : remplacer le lien existant
-  du site vers `/register/student` par `/registration/wizard/`, OU les
-  laisser coexister un temps (les deux créent des `InscriptionEleve`
-  valides, aucun conflit). C'est vous qui décidez du moment.
+- [x] **Décision d'activation du lien public** — FAIT le 2026-08-24 : `/register/student`
+  pointe désormais directement vers le nouveau wizard (voir la mise à jour
+  en tête de ce fichier). Les autres cases ci-dessus n'étaient PAS cochées
+  au moment de cette décision — accepté explicitement comme risque connu.
 - [ ] **Période d'observation** : une fois le nouveau lien actif, surveiller
   les candidatures entrantes pendant quelques semaines (durée à votre
   appréciation) — en particulier les avertissements de couverture

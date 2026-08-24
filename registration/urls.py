@@ -1,10 +1,14 @@
 from django.urls import path
 from . import views
 
-# Wizard public (Étape 6) — vit sous /registration/wizard/, complètement
-# séparé de /register/student (l'ancien formulaire à une page, inscriptions.
-# urls.py, INCHANGÉ et toujours en service en parallèle tant que ce nouveau
-# parcours n'est pas validé en conditions réelles).
+# Wizard public (Étape 6) — vit sous /registration/wizard/. Bascule du
+# 2026-08-24 (voir registration/MIGRATION_NOTES.md, core/urls.py) :
+# /register/student pointe désormais AUSSI vers wizard_categorie_age
+# (2 URLs, même vue, voir core/urls.py) — /registration/wizard/... reste le
+# chemin canonique interne (redirections/reverse() du parcours), /register/
+# student reste le SEUL lien exposé publiquement (templates/accounts/
+# login.html). L'ancien formulaire à une page (inscriptions.urls.py) n'est
+# plus lié nulle part mais reste en place, dormant, pas supprimé.
 urlpatterns = [
     path('wizard/', views.wizard_intro, name='wizard_intro'),
     path('wizard/categorie-age/', views.wizard_categorie_age, name='wizard_categorie_age'),
