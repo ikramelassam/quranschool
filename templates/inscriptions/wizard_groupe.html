@@ -13,6 +13,11 @@
 .groupe-card.active { border-color: var(--color-role-prof-solid); background: #F3E7D3; box-shadow: 0 2px 8px rgba(44,21,0,0.12); }
 .groupe-nom { font-weight: 700; color: var(--color-text-primary); font-size: 1.05rem; }
 .groupe-detail { color: var(--color-text-muted); font-size: 0.88rem; margin-top: 4px; }
+/* Texte libre de la carte "attente" (PresentationInscription.texte_attente_groupe) —
+   contrairement à .groupe-nom (pensé pour un nom de groupe court sur une ligne),
+   ce texte peut faire plusieurs lignes : poids normal + interligne confortable
+   pour rester lisible comme un paragraphe, pas comme un titre en gras géant. */
+.carte-attente-texte { font-weight: 500; color: var(--color-text-primary); font-size: 0.92rem; line-height: 1.6; white-space: pre-line; }
 {% endblock %}
 {% block wizard_content %}
 <div class="page-title">اختيار المجموعة</div>
@@ -48,7 +53,7 @@
     {% endif %}
 
     <div class="groupe-card" id="carte_attente" style="border-style:dashed;" onclick="choisirAttente(this)">
-        <div class="groupe-nom" style="white-space:pre-line;">{{ texte_attente_groupe }}</div>
+        <div class="carte-attente-texte">{{ texte_attente_groupe }}</div>
     </div>
 
     <input type="hidden" name="groupe_id" id="groupe_id_value">
