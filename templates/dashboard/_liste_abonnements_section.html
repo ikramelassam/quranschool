@@ -1,8 +1,10 @@
-{# Une section (جماعي أو فردي) de la liste des أنواع الاشتراك — factorisée
-   pour éviter de dupliquer le rendu de chaque ligne entre les 2 sections de
-   admin_parametres_abonnements.html (correction 5, 2026-08-22). Attend
-   `types_abonnement` (liste déjà filtrée par type_offre) dans le contexte
-   d'inclusion. #}
+{% comment %}
+Une section (جماعي أو فردي) de la liste des أنواع الاشتراك — factorisée
+pour éviter de dupliquer le rendu de chaque ligne entre les 2 sections de
+admin_parametres_abonnements.html (correction 5, 2026-08-22). Attend
+`types_abonnement` (liste déjà filtrée par type_offre) dans le contexte
+d'inclusion.
+{% endcomment %}
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
     {% for type_abo in types_abonnement %}
     <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
