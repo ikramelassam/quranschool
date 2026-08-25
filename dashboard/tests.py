@@ -2534,6 +2534,22 @@ class NotificationsDirectionTests(TestCase):
         self.client.force_login(self.mshrif)
         self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 1)
 
+    def test_visiter_la_fiche_dune_candidature_marque_aussi_le_type_comme_lu(self):
+        """Correctif du 2026-08-25 : chaque lien de notification pointe vers
+        admin_inscription_eleve_detail (la fiche), PAS vers admin_inscriptions
+        (la liste) — avant ce correctif, cliquer une notification puis lire la
+        fiche ne faisait JAMAIS baisser le badge."""
+        inscription = InscriptionEleve.objects.create(
+            nom='مرشح ثالث', date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+            telephone='0600000004', email='notif_fiche@zidni.test',
+            programme='hifz', riwaya='hafs', outil='whatsapp', abonnement='groupe_1mois',
+            statut='en_attente',
+        )
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 1)
+        self.client.get(reverse('admin_inscription_eleve_detail', args=[inscription.id]))
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 0)
+
     def test_admin_et_mshrif_voient_le_panneau_et_la_page_voir_tout(self):
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse('dashboard_admin')), 'id="notifWrap"')
@@ -4386,3 +4402,138 @@ class AdminDemandesNonSatisfaitesTests(TestCase):
         self.assertIn('اللغة:', html)
         self.assertIn('العربية', html)
         self.assertIn('الفرنسية', html)
+
+
+class AdminDemandeNonSatisfaiteDetailEtSuppressionTests(TestCase):
+    """Chantier du 2026-08-25 (point 4a/4c) : fiche détail cliquable depuis
+    chaque carte de admin_demandes_non_satisfaites, pagination "عرض المزيد"
+    au-delà de 15, et suppression définitive par carte. Point 4b (logique du
+    statut "لم يتم إكمال التسجيل") laissé inchangé — confirmé avec
+    l'utilisateur que le comportement existant (d.inscription is None)
+    correspond déjà exactement à la définition attendue, aucun bug trouvé."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def test_carte_est_cliquable_vers_la_fiche_detail(self):
+        from registration.models import DemandeNonSatisfaite
+
+        demande = DemandeNonSatisfaite.objects.create(
+            criteres_json={'riwaya': 'hafs'}, type_offre='groupe', nb_slots=6, age=10, sexe='homme',
+            nom='مرشح تفاصيل', telephone='0600000010', email='detail_carte@zidni.test',
+        )
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_demandes_non_satisfaites')).content.decode('utf-8')
+        self.assertIn(reverse('admin_demande_non_satisfaite_detail', args=[demande.id]), html)
+
+    def test_fiche_detail_affiche_toutes_les_infos(self):
+        from registration.models import DemandeNonSatisfaite
+
+        demande = DemandeNonSatisfaite.objects.create(
+            criteres_json={'riwaya': 'hafs'}, type_offre='groupe', nb_slots=6, age=10, sexe='homme',
+            nom='مرشح تفاصيل كاملة', telephone='0600000011', email='detail_complet@zidni.test',
+        )
+        client = self._connecte_admin()
+        reponse = client.get(reverse('admin_demande_non_satisfaite_detail', args=[demande.id]))
+        self.assertEqual(reponse.status_code, 200)
+        html = reponse.content.decode('utf-8')
+        self.assertIn('مرشح تفاصيل كاملة', html)
+        self.assertIn('0600000011', html)
+        self.assertIn('detail_complet@zidni.test', html)
+        self.assertIn('لم يتم إكمال التسجيل', html)
+
+    def test_fiche_detail_liee_a_une_inscription_affiche_le_lien(self):
+        from registration.models import DemandeNonSatisfaite
+
+        inscription = _creer_inscription_eleve(email='detail_lie@zidni.test')
+        demande = DemandeNonSatisfaite.objects.create(
+            criteres_json={'riwaya': 'hafs'}, type_offre='groupe', nb_slots=6, age=10, sexe='homme',
+            inscription=inscription,
+        )
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_demande_non_satisfaite_detail', args=[demande.id])).content.decode('utf-8')
+        self.assertIn(reverse('admin_inscription_eleve_detail', args=[inscription.id]), html)
+        self.assertNotIn('لم يتم إكمال التسجيل', html)
+
+    def test_fiche_detail_404_si_id_inexistant(self):
+        client = self._connecte_admin()
+        reponse = client.get(reverse('admin_demande_non_satisfaite_detail', args=[999999]))
+        self.assertEqual(reponse.status_code, 404)
+
+    def test_prof_na_pas_acces_a_la_fiche_detail(self):
+        from registration.models import DemandeNonSatisfaite
+
+        demande = DemandeNonSatisfaite.objects.create(criteres_json={}, type_offre='groupe')
+        client = Client()
+        client.force_login(_creer_prof('prof_detail_dns@zidni.test').user)
+        reponse = client.get(reverse('admin_demande_non_satisfaite_detail', args=[demande.id]))
+        self.assertNotEqual(reponse.status_code, 200)
+
+    def test_suppression_retire_la_demande_et_le_comptage(self):
+        from registration.models import DemandeNonSatisfaite
+
+        demande = DemandeNonSatisfaite.objects.create(criteres_json={'riwaya': 'hafs'}, type_offre='groupe', nb_slots=2)
+        client = self._connecte_admin()
+        self.assertEqual(client.get(reverse('admin_demandes_non_satisfaites')).context['total'], 1)
+
+        reponse = client.post(reverse('admin_demande_non_satisfaite_supprimer', args=[demande.id]))
+        self.assertRedirects(reponse, reverse('admin_demandes_non_satisfaites'))
+        self.assertFalse(DemandeNonSatisfaite.objects.filter(id=demande.id).exists())
+        self.assertEqual(client.get(reverse('admin_demandes_non_satisfaites')).context['total'], 0)
+
+    def test_suppression_refuse_get(self):
+        from registration.models import DemandeNonSatisfaite
+
+        demande = DemandeNonSatisfaite.objects.create(criteres_json={}, type_offre='groupe')
+        client = self._connecte_admin()
+        reponse = client.get(reverse('admin_demande_non_satisfaite_supprimer', args=[demande.id]))
+        self.assertEqual(reponse.status_code, 405)
+        self.assertTrue(DemandeNonSatisfaite.objects.filter(id=demande.id).exists())
+
+    def test_prof_ne_peut_pas_supprimer(self):
+        from registration.models import DemandeNonSatisfaite
+
+        demande = DemandeNonSatisfaite.objects.create(criteres_json={}, type_offre='groupe')
+        client = Client()
+        client.force_login(_creer_prof('prof_suppr_dns@zidni.test').user)
+        reponse = client.post(reverse('admin_demande_non_satisfaite_supprimer', args=[demande.id]))
+        self.assertNotEqual(reponse.status_code, 200)
+        self.assertTrue(DemandeNonSatisfaite.objects.filter(id=demande.id).exists())
+
+    def test_pagination_affiche_15_puis_le_reste_cache(self):
+        from registration.models import DemandeNonSatisfaite
+
+        for i in range(18):
+            DemandeNonSatisfaite.objects.create(
+                criteres_json={}, type_offre='groupe', nom=f'مرشح رقم {i}', email=f'pagination_{i}@zidni.test',
+            )
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_demandes_non_satisfaites')).content.decode('utf-8')
+        self.assertIn('id="demandes_extra"', html)
+        self.assertIn('عرض كل الطلبات (18)', html)
+        # Les 18 sont bien présentes dans la page (15 visibles + 3 dans le
+        # bloc caché), seul l'AFFICHAGE initial est limité côté JS.
+        for i in range(18):
+            self.assertIn(f'pagination_{i}@zidni.test', html)
+
+    def test_pas_de_pagination_sous_15(self):
+        from registration.models import DemandeNonSatisfaite
+
+        DemandeNonSatisfaite.objects.create(criteres_json={}, type_offre='groupe')
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_demandes_non_satisfaites')).content.decode('utf-8')
+        self.assertNotIn('id="demandes_extra"', html)
+
+    def test_mshrif_a_aussi_acces(self):
+        from registration.models import DemandeNonSatisfaite
+
+        demande = DemandeNonSatisfaite.objects.create(criteres_json={}, type_offre='groupe')
+        client = Client()
+        client.force_login(self.mshrif)
+        self.assertEqual(client.get(reverse('admin_demande_non_satisfaite_detail', args=[demande.id])).status_code, 200)

@@ -2326,6 +2326,16 @@ def admin_inscription_eleve_detail(request, inscription_id):
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
+    # 2e "page cible" du panneau 🔔 "طلبات تسجيل جديدة" (voir dashboard.
+    # notifications.notifications_direction) — chaque lien de notification
+    # pointe ICI (la fiche d'une candidature précise), PAS vers admin_
+    # inscriptions (la liste, déjà câblée plus haut). Sans cet appel, cliquer
+    # une notification et lire la fiche ne faisait jamais baisser le badge :
+    # seul un détour par la liste le faisait (bug rapporté le 2026-08-25).
+    # Même précaution que les autres appelants de marquer_visite : juste
+    # avant le render, jamais avant.
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'demandes_inscription')
     return render(request, 'dashboard/admin_inscription_detail.html', context)
 
 
@@ -6749,6 +6759,80 @@ def admin_demandes_non_satisfaites(request):
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_demandes_non_satisfaites.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_demande_non_satisfaite_detail(request, demande_id):
+    """Détail d'UNE DemandeNonSatisfaite (chantier du 2026-08-25, "cartes
+    cliquables" de admin_demandes_non_satisfaites) — même niveau d'info que
+    la carte de la liste, présenté en fiche complète (même esprit que admin_
+    inscription_eleve_detail).
+
+    Résolution des libellés DUPLIQUÉE ici depuis admin_demandes_non_
+    satisfaites (plutôt que factorisée en fonction commune) : cette page ne
+    traite qu'UNE SEULE demande à la fois, aucun risque de N+1 à éviter ici
+    contrairement à la liste — factoriser aurait forcé la liste à recalculer
+    criteres_par_code/options_par_cle À CHAQUE ligne au lieu d'une fois pour
+    toutes les demandes (voir la docstring de admin_demandes_non_satisfaites)."""
+    from registration.models import Critere, CritereOption, DemandeNonSatisfaite
+
+    demande = get_object_or_404(DemandeNonSatisfaite, id=demande_id)
+
+    criteres_par_code = {c.code: c for c in Critere.objects.all()}
+    options_par_cle = {(o.critere_id, o.code): o for o in CritereOption.objects.select_related('critere')}
+    libelles = []
+    for code_critere, valeur in demande.criteres_json.items():
+        critere = criteres_par_code.get(code_critere)
+        if critere is None:
+            continue
+        if critere.backend in ('nb_slots', 'champ_groupe'):
+            libelles.append(f"{critere.label}: {valeur}")
+        elif isinstance(valeur, (list, tuple)):
+            labels = [options_par_cle[(critere.id, c)].label for c in valeur if (critere.id, c) in options_par_cle]
+            if labels:
+                libelles.append(f"{critere.label}: {', '.join(labels)}")
+        else:
+            option = options_par_cle.get((critere.id, valeur))
+            libelles.append(f"{critere.label}: {option.label if option else valeur}")
+
+    # inscription.{nom,telephone,email} priment sur le snapshot quand la
+    # candidature existe — même règle que admin_demandes_non_satisfaites
+    # (voir DemandeNonSatisfaite.nom.__doc__).
+    if demande.inscription:
+        nom_contact = demande.inscription.nom
+        telephone_contact = demande.inscription.telephone
+        email_contact = demande.inscription.email
+    else:
+        nom_contact = demande.nom
+        telephone_contact = demande.telephone
+        email_contact = demande.email
+
+    context = {
+        'demande': demande,
+        'libelles': libelles,
+        'nom_contact': nom_contact,
+        'telephone_contact': telephone_contact,
+        'email_contact': email_contact,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_demande_non_satisfaite_detail.html', context)
+
+
+@role_required('admin', 'mshrif')
+@require_POST
+def admin_demande_non_satisfaite_supprimer(request, demande_id):
+    """Suppression définitive d'une DemandeNonSatisfaite (chantier du
+    2026-08-25) — retire cette demande de la liste ET de tous les
+    comptages (total, tendances). Action destructive, confirmée côté
+    template avant soumission (voir admin_demandes_non_satisfaites.html) —
+    même patron que admin_eleve_cartable_supprimer (POST + csrf + confirm)."""
+    from registration.models import DemandeNonSatisfaite
+
+    demande = get_object_or_404(DemandeNonSatisfaite, id=demande_id)
+    demande.delete()
+    messages.success(request, 'تم حذف الطلب.')
+    return redirect('admin_demandes_non_satisfaites')
 
 
 # ==================== MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 7 ====================

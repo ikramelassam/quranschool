@@ -203,6 +203,8 @@ urlpatterns = [
     path('admin/moyens-paiement/<int:moyen_id>/toggle/', views.admin_moyen_paiement_toggle, name='admin_moyen_paiement_toggle'),
     path('admin/presentation-inscription/', views.admin_presentation_inscription, name='admin_presentation_inscription'),
     path('admin/demandes-non-satisfaites/', views.admin_demandes_non_satisfaites, name='admin_demandes_non_satisfaites'),
+    path('admin/demandes-non-satisfaites/<int:demande_id>/', views.admin_demande_non_satisfaite_detail, name='admin_demande_non_satisfaite_detail'),
+    path('admin/demandes-non-satisfaites/<int:demande_id>/supprimer/', views.admin_demande_non_satisfaite_supprimer, name='admin_demande_non_satisfaite_supprimer'),
 
     # ---- Étape 7 : ajout manuel d'une candidature élève (Directeur/مشرف) ----
     path('admin/eleves/ajouter-manuel/', views.admin_eleve_ajouter_manuel, name='admin_eleve_ajouter_manuel'),

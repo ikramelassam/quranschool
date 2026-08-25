@@ -301,6 +301,32 @@ class InscriptionEleve(models.Model):
             return None
         return prix_effectif(type_abo, self.nb_slots_choisi())
 
+    def prix_effectif_halaka_choisie(self):
+        """Prix RÉELLEMENT applicable à `groupe_choisi` (Chantier du 2026-08-25,
+        réordonnancement de la page détail candidature) — MÊME fonction
+        registration.utils.prix_effectif que prix_effectif_calcule() ci-dessus
+        (jamais un calcul dupliqué), mais avec le nombre de séances/semaine
+        RÉEL de la halaka assignée (groupe_choisi.creneau.slots.count(), seule
+        source de vérité du projet pour ce nombre — voir courses.models.
+        CreneauSlot.__doc__) au lieu de nb_slots_choisi() (ce que le candidat
+        avait choisi AU MOMENT du wizard, avant toute assignation).
+
+        Les deux peuvent diverger : le candidat a pu être placé dans une
+        halaka existante dont le nombre réel de séances diffère de son choix
+        initial — c'est justement ce que cette méthode permet de détecter
+        (comparée à prix_effectif_calcule() côté template).
+
+        None si aucun groupe choisi, ou si ce groupe n'a plus de créneau
+        (SET_NULL) — dans ces deux cas, aucun 2e prix n'est calculable."""
+        from registration.utils import prix_effectif
+
+        if self.groupe_choisi is None or self.groupe_choisi.creneau is None:
+            return None
+        type_abo = self.abonnement_obj()
+        if type_abo is None:
+            return None
+        return prix_effectif(type_abo, self.groupe_choisi.creneau.slots.count())
+
     class Meta:
         verbose_name = "Inscription Élève"
         verbose_name_plural = "Inscriptions Élèves"
