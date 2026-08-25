@@ -10,13 +10,14 @@
     white-space: pre-line;
     line-height: 1.9;
     color: #444;
+    text-align: center;
 }
 {% endblock %}
 {% block wizard_content %}
-<div class="page-title">{{ presentation.titre|default:"أهلاً بك في زدني علماً" }}</div>
+<div class="page-title">{{ presentation.titre }}</div>
 
 <div class="charte-box">
-    {% if presentation.intro %}{{ presentation.intro }}{% else %}أهلاً بك في منصة زدني علماً لتعليم القرآن الكريم عن بعد.{% endif %}
+    {{ presentation.intro }}
 </div>
 
 {% comment %}

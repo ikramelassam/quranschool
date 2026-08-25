@@ -473,17 +473,32 @@ class PresentationInscription(models.Model):
 def get_presentation_inscription():
     """Renvoie l'unique instance de PresentationInscription, en la créant (vide) si
     elle n'existe pas encore — même patron singleton que accounts.models.get_charte().
-    message_aucun_groupe_exact reçoit un texte par défaut raisonnable À LA CRÉATION
-    seulement (jamais réécrit après coup si le مدير le vide volontairement) — même
-    logique que TypeAbonnement.prix ou n'importe quel champ éditable avec une
-    valeur de départ sensée."""
+    titre/intro/message_aucun_groupe_exact reçoivent chacun un texte par défaut
+    raisonnable À LA CRÉATION seulement (jamais réécrit après coup si le مدير le
+    vide volontairement) — même logique que TypeAbonnement.prix ou n'importe quel
+    champ éditable avec une valeur de départ sensée.
+
+    Correction du 2026-08-24 : titre/intro étaient auparavant de simples
+    `|default:"..."` codés en dur dans wizard_intro.html — un visiteur voyait
+    bien un texte de bienvenue, mais le مدير n'avait AUCUN moyen de savoir que ce
+    texte existait ni de le modifier (il n'apparaissait nulle part dans son
+    formulaire, contrairement à message_aucun_groupe_exact). Déplacé ici pour que
+    ce texte de départ soit un VRAI contenu du singleton — visible et modifiable
+    directement dans le champ correspondant du formulaire "صفحة تقديم التسجيل"
+    (voir dashboard.admin_presentation_inscription), au lieu d'un texte fantôme
+    invisible côté مدير. Voir migration 0011 pour le rattrapage des lignes déjà
+    créées (vides) avant cette correction."""
     presentation, cree = PresentationInscription.objects.get_or_create(
         pk=1,
-        defaults={'message_aucun_groupe_exact': (
-            'لم نجد أي حلقة تجمع بالضبط بين كل المعايير التي اخترتها (البرنامج، '
-            'الرواية، عدد الحصص...). يمكنك الانضمام إلى إحدى الحلقات القريبة '
-            'أدناه، أو اختيار الانتظار حتى يتم إنشاء حلقة تناسبك تماماً.'
-        )},
+        defaults={
+            'titre': 'أهلاً بك في زدني علماً',
+            'intro': 'أهلاً بك في منصة زدني علماً لتعليم القرآن الكريم عن بعد.',
+            'message_aucun_groupe_exact': (
+                'لم نجد أي حلقة تجمع بالضبط بين كل المعايير التي اخترتها (البرنامج، '
+                'الرواية، عدد الحصص...). يمكنك الانضمام إلى إحدى الحلقات القريبة '
+                'أدناه، أو اختيار الانتظار حتى يتم إنشاء حلقة تناسبك تماماً.'
+            ),
+        },
     )
     return presentation
 
