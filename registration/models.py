@@ -460,6 +460,15 @@ class PresentationInscription(models.Model):
     # raisonnable est fourni par get_presentation_inscription() si vide,
     # jamais un texte brut codé en dur dans le template.
     message_aucun_groupe_exact = models.TextField(blank=True)
+    # Ajouté le 2026-08-25 : texte de la carte "⏳ لا، أنتظر حتى يتم إنشاء
+    # الحلقة" proposée à côté des groupes proches (même écran que ci-dessus).
+    # Choix du مدير lors de ce chantier : un SEUL champ libre pour toute la
+    # carte (titre + phrase du délai réunis) — plus simple à éditer que 2
+    # champs séparés, quitte à perdre la mise en forme (titre gras/sous-texte
+    # gris) et l'injection automatique du délai (ParametresInscriptions.
+    # delai_contact_heures) que porte encore le message équivalent de
+    # wizard_confirmation.html (resté, lui, inchangé par ce chantier).
+    texte_attente_groupe = models.TextField(blank=True)
     date_modification = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -473,10 +482,11 @@ class PresentationInscription(models.Model):
 def get_presentation_inscription():
     """Renvoie l'unique instance de PresentationInscription, en la créant (vide) si
     elle n'existe pas encore — même patron singleton que accounts.models.get_charte().
-    titre/intro/message_aucun_groupe_exact reçoivent chacun un texte par défaut
-    raisonnable À LA CRÉATION seulement (jamais réécrit après coup si le مدير le
-    vide volontairement) — même logique que TypeAbonnement.prix ou n'importe quel
-    champ éditable avec une valeur de départ sensée.
+    titre/intro/message_aucun_groupe_exact/texte_attente_groupe reçoivent chacun
+    un texte par défaut raisonnable À LA CRÉATION seulement (jamais réécrit
+    après coup si le مدير le vide volontairement) — même logique que
+    TypeAbonnement.prix ou n'importe quel champ éditable avec une valeur de
+    départ sensée.
 
     Correction du 2026-08-24 : titre/intro étaient auparavant de simples
     `|default:"..."` codés en dur dans wizard_intro.html — un visiteur voyait
@@ -497,6 +507,10 @@ def get_presentation_inscription():
                 'لم نجد أي حلقة تجمع بالضبط بين كل المعايير التي اخترتها (البرنامج، '
                 'الرواية، عدد الحصص...). يمكنك الانضمام إلى إحدى الحلقات القريبة '
                 'أدناه، أو اختيار الانتظار حتى يتم إنشاء حلقة تناسبك تماماً.'
+            ),
+            'texte_attente_groupe': (
+                '⏳ لا، أنتظر حتى يتم إنشاء الحلقة\n'
+                'سيتواصل معك فريقنا خلال 24 ساعة فور توفر حلقة تناسب اختياراتك بالضبط.'
             ),
         },
     )

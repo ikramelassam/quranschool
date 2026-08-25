@@ -2479,6 +2479,22 @@ class WizardGroupeAucunMatchExactTests(TestCase):
         self.assertIn('رسالة اعتذار اختبار خاصة', html)
         self.assertIn('مجموعة قريبة اختبار عدم التطابق', html)
 
+    def test_carte_attente_affiche_le_texte_configurable(self):
+        """Chantier du 2026-08-25 : la carte "⏳ لا، أنتظر حتى يتم إنشاء
+        الحلقة" (choix alternatif aux groupes proches) doit afficher le texte
+        configurable (PresentationInscription.texte_attente_groupe), jamais
+        l'ancien texte codé en dur dans le template."""
+        from registration.models import get_presentation_inscription
+
+        presentation = get_presentation_inscription()
+        presentation.texte_attente_groupe = 'نص انتظار اختبار خاص بالكامل'
+        presentation.save()
+
+        client = Client()
+        self._avancer_a_etape_3(client)
+        html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertIn('نص انتظار اختبار خاص بالكامل', html)
+
     def test_continuer_sans_groupe_enregistre_une_demande_non_satisfaite(self):
         from registration.models import DemandeNonSatisfaite
 

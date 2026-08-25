@@ -3104,12 +3104,16 @@ class MoyenPaiementPresentationDelaisTests(TestCase):
             reponse = client.post(reverse('admin_presentation_inscription'), {
                 'titre': 'أهلاً بك', 'intro': 'نص الميثاق', 'bouton_texte': 'متابعة',
                 'message_bienvenue': 'مرحباً بك في زدني علماً',
+                'texte_attente_groupe': 'نص بطاقة الانتظار المعدّل',
             })
             self.assertEqual(reponse.status_code, 302)
 
         from registration.models import get_presentation_inscription
         presentation = get_presentation_inscription()
         self.assertEqual(presentation.titre, 'أهلاً بك')
+        # Chantier du 2026-08-25 : même formulaire, même permissions مدير/مشرف
+        # (voir registration.models.PresentationInscription.texte_attente_groupe).
+        self.assertEqual(presentation.texte_attente_groupe, 'نص بطاقة الانتظار المعدّل')
 
     def test_delais_paiement_et_contact_configurables(self):
         from inscriptions.models import get_parametres_inscriptions

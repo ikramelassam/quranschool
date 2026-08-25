@@ -6696,6 +6696,9 @@ def admin_presentation_inscription(request):
         # message affiché à wizard_groupe quand aucun groupe ne correspond
         # exactement — voir registration.models.DemandeNonSatisfaite.
         presentation.message_aucun_groupe_exact = request.POST.get('message_aucun_groupe_exact', '').strip()
+        # Chantier du 2026-08-25 : texte de la carte "⏳ لا، أنتظر حتى يتم
+        # إنشاء الحلقة" à côté des groupes proches (même écran ci-dessus).
+        presentation.texte_attente_groupe = request.POST.get('texte_attente_groupe', '').strip()
         presentation.save()
         messages.success(request, 'تم تحديث صفحة تقديم التسجيل بنجاح.')
         return redirect('admin_presentation_inscription')

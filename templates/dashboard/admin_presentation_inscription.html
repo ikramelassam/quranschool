@@ -37,6 +37,13 @@
                 تظهر للطالب عند اختيار مجموعة (الخطوة 3) إذا لم توجد أي مجموعة تتوافق تماماً مع كل اختياراته — يُعرض له عندها هذا النص مع قائمة المجموعات القريبة المتاحة.
             </div>
         </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">نص خيار "الانتظار" (بدل الانضمام إلى مجموعة قريبة)</label>
+            <textarea name="texte_attente_groupe" class="form-control mt-1" rows="3">{{ presentation.texte_attente_groupe }}</textarea>
+            <div style="color:#888; font-size:0.78rem; margin-top:4px;">
+                يظهر في نفس الشاشة، كخيار بديل عن الانضمام إلى مجموعة قريبة — إذا كتبت رقم الساعات فاكتبه يدوياً هنا (لا يُضاف تلقائياً كما في رسالة الترحيب أعلاه).
+            </div>
+        </div>
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">

@@ -48,8 +48,7 @@
     {% endif %}
 
     <div class="groupe-card" id="carte_attente" style="border-style:dashed;" onclick="choisirAttente(this)">
-        <div class="groupe-nom">⏳ لا، أنتظر حتى يتم إنشاء الحلقة</div>
-        <div class="groupe-detail">سيتواصل معك فريقنا خلال {{ delai_contact_heures }} ساعة فور توفر حلقة تناسب اختياراتك بالضبط.</div>
+        <div class="groupe-nom" style="white-space:pre-line;">{{ texte_attente_groupe }}</div>
     </div>
 
     <input type="hidden" name="groupe_id" id="groupe_id_value">

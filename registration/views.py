@@ -389,7 +389,6 @@ def wizard_groupe(request):
     combinaison exacte demandée reste une donnée utile pour le مدير/مشرف
     même quand l'élève accepte finalement un groupe proche."""
     from courses.utils import _age_depuis_naissance
-    from inscriptions.models import get_parametres_inscriptions
     from .models import DemandeNonSatisfaite, get_presentation_inscription
     from .utils import (
         etape_est_active, groupes_avec_place_disponible, groupes_compatibles_avec_age,
@@ -427,19 +426,23 @@ def wizard_groupe(request):
     aucun_groupe_exact = not groupes.exists()
     groupes_proches = None
     message_aucun_groupe = None
-    delai_contact_heures = None
+    texte_attente_groupe = None
     if aucun_groupe_exact:
         reponses_bloquantes = {c: v for c, v in reponses_pour_filtrage.items() if c.bloquant}
         groupes_proches = groupes_avec_place_disponible(
             groupes_compatibles_avec_age(reponses_bloquantes, date_naissance, sexe)
         ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
-        message_aucun_groupe = get_presentation_inscription().message_aucun_groupe_exact
-        delai_contact_heures = get_parametres_inscriptions().delai_contact_heures
+        presentation = get_presentation_inscription()
+        message_aucun_groupe = presentation.message_aucun_groupe_exact
+        # Chantier du 2026-08-25 : texte de la carte "⏳ لا، أنتظر حتى يتم
+        # إنشاء الحلقة" — voir registration.models.PresentationInscription.
+        # texte_attente_groupe.
+        texte_attente_groupe = presentation.texte_attente_groupe
 
     contexte_commun = {
         'groupes': groupes, 'groupes_proches': groupes_proches,
         'aucun_groupe_exact': aucun_groupe_exact, 'message_aucun_groupe': message_aucun_groupe,
-        'delai_contact_heures': delai_contact_heures,
+        'texte_attente_groupe': texte_attente_groupe,
         'age': age, 'wizard_etape_num': 3,
     }
 
