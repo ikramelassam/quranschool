@@ -167,6 +167,15 @@ class ChampsInscriptionVisiblesTests(TestCase):
             # manuel, jamais pour le formulaire public), voir
             # test_cree_par_affiche_quand_renseigne ci-dessous.
             'cree_par',
+            # Chantier "champs structurels configurables" (audit du 2026-08-22)
+            # — affiché conditionnellement sur admin_inscription_eleve_detail
+            # (Étape 1, quand rempli). Classification manquante depuis
+            # l'ajout du champ (migration inscriptions.0023) : aucun test de
+            # rendu dans CE fichier, mais déjà vérifié ailleurs (voir
+            # dashboard.tests.AdminInscriptionDetailAuditTests.
+            # test_nb_slots_et_niveau_scolaire_affiches) — jamais un 2e test
+            # de rendu dupliqué ici.
+            'niveau_scolaire',
         }
         champs_connus = champs_verifies_affiches | set(self.CHAMPS_EXCLUS_ELEVE)
         champs_nouveaux = champs_reels - champs_connus
