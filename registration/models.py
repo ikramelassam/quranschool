@@ -452,7 +452,15 @@ class PresentationInscription(models.Model):
     bouton_texte = models.CharField(max_length=100, default='متابعة التسجيل')
     # Affiché après confirmation (Partie 14 du cahier des charges) — le délai de
     # contact (ParametresInscriptions.delai_contact_heures, inscriptions/models.py)
-    # est injecté dans ce texte au rendu, jamais recopié en dur ici.
+    # est affiché séparément par wizard_confirmation.html (pas injecté dans ce
+    # texte). Bug réel trouvé le 2026-08-25 : contrairement à titre/intro/
+    # message_aucun_groupe_exact/texte_attente_groupe, ce champ n'avait JAMAIS
+    # reçu de texte par défaut ni de migration de rattrapage — resté vide
+    # depuis la toute première migration (0001_initial), donc le bloc
+    # correspondant (caché par {% if message_bienvenue %}) ne s'affichait
+    # jamais en production tant qu'un مدير/مشرف n'allait pas le remplir à la
+    # main. Corrigé ici même logique que 0011/0013 : voir migration 0014 pour
+    # le rattrapage de la ligne pk=1 déjà créée vide.
     message_bienvenue = models.TextField(blank=True)
     # Chantier du 2026-08-22 ("liberté totale du nombre de séances") — affiché
     # à wizard_groupe quand AUCUN groupe n'existe pour la combinaison EXACTE
@@ -482,10 +490,10 @@ class PresentationInscription(models.Model):
 def get_presentation_inscription():
     """Renvoie l'unique instance de PresentationInscription, en la créant (vide) si
     elle n'existe pas encore — même patron singleton que accounts.models.get_charte().
-    titre/intro/message_aucun_groupe_exact/texte_attente_groupe reçoivent chacun
-    un texte par défaut raisonnable À LA CRÉATION seulement (jamais réécrit
-    après coup si le مدير le vide volontairement) — même logique que
-    TypeAbonnement.prix ou n'importe quel champ éditable avec une valeur de
+    titre/intro/message_bienvenue/message_aucun_groupe_exact/texte_attente_groupe
+    reçoivent chacun un texte par défaut raisonnable À LA CRÉATION seulement
+    (jamais réécrit après coup si le مدير le vide volontairement) — même logique
+    que TypeAbonnement.prix ou n'importe quel champ éditable avec une valeur de
     départ sensée.
 
     Correction du 2026-08-24 : titre/intro étaient auparavant de simples
@@ -503,6 +511,10 @@ def get_presentation_inscription():
         defaults={
             'titre': 'أهلاً بك في زدني علماً',
             'intro': 'أهلاً بك في منصة زدني علماً لتعليم القرآن الكريم عن بعد.',
+            'message_bienvenue': (
+                'أهلاً بك في عائلة زدني علماً 🌱\n'
+                'يسعدنا انضمامك إلينا، ونتمنى لك رحلة موفقة في حفظ ومراجعة القرآن الكريم.'
+            ),
             'message_aucun_groupe_exact': (
                 'لم نجد أي حلقة تجمع بالضبط بين كل المعايير التي اخترتها (البرنامج، '
                 'الرواية، عدد الحصص...). يمكنك الانضمام إلى إحدى الحلقات القريبة '
