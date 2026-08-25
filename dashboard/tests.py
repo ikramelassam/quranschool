@@ -2730,6 +2730,62 @@ class CritereInscriptionCRUDTests(TestCase):
         client.get(reverse('admin_critere_inscription_supprimer', args=[critere.id]))
         self.assertTrue(CritereInscription.objects.filter(id=critere.id).exists())  # PAS supprimé
 
+    def test_detacher_groupe_permet_ensuite_la_suppression(self):
+        """Chantier du 2026-08-25 : détacher un critère de TOUS ses groupes
+        depuis sa propre fiche (nouveau bouton "فك الارتباط") lève le PROTECT
+        vérifié ci-dessus — la suppression réussit ensuite normalement,
+        aucune donnée candidat perdue (aucune ReponseInscription ici)."""
+        from courses.models import Creneau, Groupe
+        from courses.utils import remplacer_slots_creneau as _slots
+
+        client = self._connecte_admin()
+        critere = CritereInscription.objects.create(code='niveau_test', label='المستوى', filtrable=True)
+        option = CritereOption.objects.create(critere=critere, code='inter', label='متوسط')
+        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        _slots(creneau, [{'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}])
+        groupe1 = Groupe.objects.create(nom='مجموعة أولى', creneau=creneau, statut='actif')
+        groupe2 = Groupe.objects.create(nom='مجموعة ثانية', creneau=creneau, statut='actif')
+        GroupeCritereValeur.objects.create(groupe=groupe1, critere=critere, option=option)
+        GroupeCritereValeur.objects.create(groupe=groupe2, critere=critere, option=option)
+
+        # Suppression refusée tant que les 2 liens existent.
+        client.get(reverse('admin_critere_inscription_supprimer', args=[critere.id]))
+        self.assertTrue(CritereInscription.objects.filter(id=critere.id).exists())
+
+        # La fiche liste bien les 2 groupes configurés.
+        html = client.get(reverse('admin_critere_inscription_detail', args=[critere.id])).content.decode('utf-8')
+        self.assertIn('مجموعة أولى', html)
+        self.assertIn('مجموعة ثانية', html)
+
+        # Détache le 1er groupe uniquement — le 2e lien bloque encore.
+        client.post(reverse('admin_critere_inscription_detacher_groupe', args=[critere.id, groupe1.id]))
+        self.assertFalse(GroupeCritereValeur.objects.filter(groupe=groupe1, critere=critere).exists())
+        self.assertTrue(GroupeCritereValeur.objects.filter(groupe=groupe2, critere=critere).exists())
+        client.get(reverse('admin_critere_inscription_supprimer', args=[critere.id]))
+        self.assertTrue(CritereInscription.objects.filter(id=critere.id).exists())  # encore bloqué
+
+        # Détache le 2e groupe — plus aucun lien, la suppression réussit désormais.
+        client.post(reverse('admin_critere_inscription_detacher_groupe', args=[critere.id, groupe2.id]))
+        self.assertFalse(GroupeCritereValeur.objects.filter(critere=critere).exists())
+        client.get(reverse('admin_critere_inscription_supprimer', args=[critere.id]))
+        self.assertFalse(CritereInscription.objects.filter(id=critere.id).exists())  # supprimé cette fois
+
+    def test_detacher_groupe_refuse_get(self):
+        from courses.models import Creneau, Groupe
+        from courses.utils import remplacer_slots_creneau as _slots
+
+        client = self._connecte_admin()
+        critere = CritereInscription.objects.create(code='niveau_test_get', label='المستوى', filtrable=True)
+        option = CritereOption.objects.create(critere=critere, code='inter', label='متوسط')
+        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        _slots(creneau, [{'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}])
+        groupe = Groupe.objects.create(nom='مجموعة GET', creneau=creneau, statut='actif')
+        GroupeCritereValeur.objects.create(groupe=groupe, critere=critere, option=option)
+
+        reponse = client.get(reverse('admin_critere_inscription_detacher_groupe', args=[critere.id, groupe.id]))
+        self.assertEqual(reponse.status_code, 405)
+        self.assertTrue(GroupeCritereValeur.objects.filter(groupe=groupe, critere=critere).exists())
+
     def test_activer_filtrable_sans_couverture_demande_confirmation(self):
         client = self._connecte_admin()
         from courses.models import Creneau, Groupe

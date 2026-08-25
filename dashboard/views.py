@@ -6071,7 +6071,7 @@ def admin_critere_inscription_ajouter(request):
 
 @role_required('admin', 'mshrif')
 def admin_critere_inscription_detail(request, critere_id):
-    from registration.models import Critere
+    from registration.models import Critere, GroupeCritereValeur
     from registration.utils import couverture_critere
 
     critere = get_object_or_404(Critere, id=critere_id)
@@ -6080,6 +6080,19 @@ def admin_critere_inscription_detail(request, critere_id):
         'options': critere.options.all().order_by('ordre', 'id'),
         'couverture': couverture_critere(critere),
         'nb_champs_utilises': critere.champs.count(),
+        # Chantier du 2026-08-25 : symétrique de couverture['groupes_manquants']
+        # (déjà affiché) — ici les groupes DÉJÀ configurés pour ce critère, avec
+        # une action pour les détacher un par un directement depuis cette page,
+        # sans devoir ouvrir individuellement l'onglet "الخصائص" de chaque
+        # groupe (courses.views.groupe_definir_critere). Uniquement pertinent
+        # pour backend='eav' (seul backend qui stocke des GroupeCritereValeur,
+        # voir GroupeCritereValeur.__doc__) — None sinon, même garde que
+        # couverture_critere().
+        'valeurs_groupes': (
+            GroupeCritereValeur.objects.filter(critere=critere)
+            .select_related('groupe', 'option').order_by('groupe__nom')
+            if critere.backend == 'eav' else None
+        ),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -6154,6 +6167,35 @@ def admin_critere_inscription_supprimer(request, critere_id):
             f'سابقة). يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.'
         )
     return redirect('admin_criteres_inscription')
+
+
+@role_required('admin', 'mshrif')
+@require_POST
+def admin_critere_inscription_detacher_groupe(request, critere_id, groupe_id):
+    """Détache un critère (backend='eav') d'UN groupe précis, depuis la fiche
+    du CRITÈRE (chantier du 2026-08-25 : GroupeCritereValeur.critere est
+    on_delete=PROTECT — un critère assigné à ne serait-ce qu'un seul groupe
+    ne peut jamais être supprimé tant que ce lien existe, voir admin_critere_
+    inscription_supprimer). Réutilise TEL QUEL registration.utils.
+    definir_valeurs_groupe(groupe, critere, []) — EXACTEMENT la même
+    opération que courses.views.groupe_definir_critere quand aucune option
+    n'est cochée, juste accessible depuis l'autre sens (la fiche critère,
+    pratique pour détacher PLUSIEURS groupes d'affilée avant une suppression,
+    sans ouvrir chaque fiche groupe une par une) : jamais une 2e façon
+    d'écrire cette donnée."""
+    from registration.models import Critere
+    from registration.utils import definir_valeurs_groupe
+    from courses.models import Groupe
+
+    critere = get_object_or_404(Critere, id=critere_id)
+    groupe = get_object_or_404(Groupe, id=groupe_id)
+    if critere.backend != 'eav':
+        messages.error(request, 'هذا المعيار مشتق تلقائياً ولا يمكن فك ارتباطه يدوياً.')
+        return redirect('admin_critere_inscription_detail', critere.id)
+
+    definir_valeurs_groupe(groupe, critere, [])
+    messages.success(request, f'تم فك ارتباط "{critere.label}" عن مجموعة "{groupe.nom}".')
+    return redirect('admin_critere_inscription_detail', critere.id)
 
 
 # ---- Options d'un critère ----

@@ -178,6 +178,7 @@ urlpatterns = [
     path('admin/criteres-inscription/<int:critere_id>/modifier/', views.admin_critere_inscription_modifier, name='admin_critere_inscription_modifier'),
     path('admin/criteres-inscription/<int:critere_id>/toggle/', views.admin_critere_inscription_toggle, name='admin_critere_inscription_toggle'),
     path('admin/criteres-inscription/<int:critere_id>/supprimer/', views.admin_critere_inscription_supprimer, name='admin_critere_inscription_supprimer'),
+    path('admin/criteres-inscription/<int:critere_id>/detacher-groupe/<int:groupe_id>/', views.admin_critere_inscription_detacher_groupe, name='admin_critere_inscription_detacher_groupe'),
     path('admin/criteres-inscription/<int:critere_id>/options/ajouter/', views.admin_critere_option_ajouter, name='admin_critere_option_ajouter'),
     path('admin/criteres-inscription/options/<int:option_id>/modifier/', views.admin_critere_option_modifier, name='admin_critere_option_modifier'),
     path('admin/criteres-inscription/options/<int:option_id>/toggle/', views.admin_critere_option_toggle, name='admin_critere_option_toggle'),
