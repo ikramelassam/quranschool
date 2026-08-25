@@ -1779,6 +1779,138 @@ class WizardGroupeTests(TestCase):
         self.assertNotIn('groupe_id', client.session.get('wizard_inscription', {}))
 
 
+class CritereFiltrableEavSousConfigureCoteGroupeTests(TestCase):
+    """Bug rapporté le 2026-08-25, corrigé dans groupes_compatibles() : un
+    groupe qui correspond EXACTEMENT à programme/riwaya/type_offre/
+    nb_seances disparaissait quand même des résultats (aucun_groupe_exact
+    affiché à tort) dès qu'un candidat répondait à UN AUTRE critère
+    filtrable=True (backend='eav') pour lequel AUCUN groupe n'avait de
+    GroupeCritereValeur configurée (cas réel constaté en base : un critère
+    'المستوى' filtrable=True, réponse OPTIONNELLE côté candidat, mais
+    seulement 2 groupes sur 31 taggés à l'époque) — voir groupes_
+    compatibles() : chaque critère filtrable répondu ajoutait un .filter()
+    inconditionnel, exigeant une GroupeCritereValeur EXPLICITE côté groupe.
+
+    Fix : un critère EAV filtrable dont la couverture groupe est TOTALEMENT
+    NULLE (0 GroupeCritereValeur nulle part, tous groupes confondus) est
+    désormais ignoré pour la requête, plutôt que d'exclure tous les
+    groupes — même philosophie de dégradation gracieuse que le FieldError
+    de champ_modele_groupe juste au-dessus dans le code. Une couverture
+    PARTIELLE (ex: riwaya réel à 23/31) reste, elle, appliquée normalement
+    — testé explicitement ci-dessous pour ne jamais régresser sur ce point."""
+
+    def setUp(self):
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        # Reproduit EXACTEMENT la configuration réelle trouvée en base :
+        # critère 'niveau' filtrable=True, réponse optionnelle, attaché à
+        # l'étape 'identite' (comme le 'NIVEAU' réel) — AUCUN groupe ne le
+        # renseigne (0 ici, encore pire que les 2/31 réels, mais c'est
+        # précisément le cas 0 = couverture nulle que le fix cible).
+        etape_identite = EtapeInscription.objects.get(code='identite')
+        self.critere_niveau = Critere.objects.create(
+            code='test_niveau_sous_configure', label='المستوى', type_champ='choix_unique',
+            backend='eav', filtrable=True, bloquant=False, est_actif=True,
+        )
+        CritereOption.objects.create(critere=self.critere_niveau, code='inter', label='متوسط', ordre=0)
+        self.champ_niveau = ChampInscription.objects.create(
+            etape=etape_identite, critere=self.critere_niveau, label='المستوى', obligatoire=False, ordre=99,
+        )
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe = Groupe.objects.create(
+            nom='مجموعة تطابق تام لكن بدون وسم المستوى', creneau=self.creneau, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(
+            groupe=self.groupe, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'),
+        )
+        GroupeCritereValeur.objects.create(
+            groupe=self.groupe, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'),
+        )
+        # AUCUNE GroupeCritereValeur créée pour critere_niveau sur ce groupe
+        # — reproduit fidèlement le manque de configuration observé en base.
+
+    def test_critere_eav_a_couverture_nulle_est_ignore_le_groupe_reste_trouve(self):
+        """Cause confirmée, isolée de la vue : répondre au critère à
+        couverture NULLE ('niveau') ne fait plus disparaître self.groupe —
+        avant le fix, le résultat passait de [self.groupe] à []."""
+        sans_niveau = groupes_compatibles({
+            self.critere_programme: self.critere_programme.options.get(code='hifz'),
+            self.critere_riwaya: self.critere_riwaya.options.get(code='hafs'),
+        })
+        self.assertEqual(list(sans_niveau), [self.groupe])
+
+        avec_niveau = groupes_compatibles({
+            self.critere_programme: self.critere_programme.options.get(code='hifz'),
+            self.critere_riwaya: self.critere_riwaya.options.get(code='hafs'),
+            self.critere_niveau: self.critere_niveau.options.get(code='inter'),
+        })
+        self.assertEqual(list(avec_niveau), [self.groupe])  # fix : le groupe reste trouvé
+
+    def test_couverture_partielle_reste_filtrante_non_regression(self):
+        """Non-régression explicite : contrairement à 'niveau' (couverture
+        NULLE), un critère qui a AU MOINS UNE vraie GroupeCritereValeur
+        quelque part (couverture partielle, ex: riwaya réel à 23/31) doit
+        continuer à exclure normalement un groupe qui ne correspond pas —
+        le fix ne doit JAMAIS relâcher un filtrage délibéré."""
+        # self.critere_riwaya a déjà une couverture partielle réelle par la
+        # migration de seed — ce test ajoute un 2e groupe explicitement
+        # TAGUÉ warsh pour rendre la couverture 100% sans ambiguïté, puis
+        # vérifie qu'un candidat 'hafs' n'obtient toujours QUE self.groupe.
+        creneau_warsh = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='warsh', age_min=6, age_max=60)
+        remplacer_slots_creneau(creneau_warsh, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        groupe_warsh = Groupe.objects.create(
+            nom='مجموعة ورش (تغطية جزئية)', creneau=creneau_warsh, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        GroupeCritereValeur.objects.create(
+            groupe=groupe_warsh, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='warsh'),
+        )
+
+        resultat = groupes_compatibles({self.critere_riwaya: self.critere_riwaya.options.get(code='hafs')})
+        self.assertIn(self.groupe, resultat)
+        self.assertNotIn(groupe_warsh, resultat)  # toujours exclu : riwaya reste un vrai filtre
+
+    def test_wizard_groupe_reconnait_desormais_la_correspondance_exacte(self):
+        """Symptôme réel bout en bout, corrigé : un candidat qui répond (même
+        de façon totalement optionnelle) au critère à couverture nulle
+        obtient désormais la vraie correspondance exacte — plus de message
+        "aucun groupe" trompeur, plus de rétrogradation en "قريبة"."""
+        client = Client()
+        _choisir_categorie_age(client)
+        client.post(reverse('wizard_identite'), {
+            'nom': 'مرشح تطابق كامل', 'sexe': 'homme', 'email': 'bug_niveau@zidni.test',
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0600778899', 'telephone_confirmation': '0600778899',
+            f'champ_{self.champ_niveau.id}': 'inter',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        reponse = client.get(reverse('wizard_groupe'))
+        html = reponse.content.decode('utf-8')
+        self.assertNotIn('لم نجد أي حلقة تجمع بالضبط', html)
+        self.assertIn(self.groupe.nom, html)
+
+
 # ============================================================================
 # Chantier du 2026-08-23 — "exclusion manuelle d'un groupe" : Groupe.
 # cache_du_wizard_public=True exclut un groupe UNIQUEMENT du formulaire

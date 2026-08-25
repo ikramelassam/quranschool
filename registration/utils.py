@@ -317,7 +317,14 @@ def groupes_compatibles(reponses, exclure_caches_wizard_public=True):
     inscrire_eleve() quand cree_par n'est pas None) passent explicitement
     False : ce champ ne doit JAMAIS affecter l'ajout manuel Directeur/مشرف —
     le مدير reste libre de choisir consciemment un groupe qu'il a lui-même
-    masqué du formulaire public."""
+    masqué du formulaire public.
+
+    Critère EAV filtrable mais JAMAIS configuré côté aucun groupe (bug
+    rapporté le 2026-08-25) : ignoré pour cette requête plutôt que d'exclure
+    tous les groupes — voir le commentaire dans la boucle ci-dessous et
+    CritereFiltrableEavSousConfigureCoteGroupeTests. Ne concerne QUE une
+    couverture NULLE (0 GroupeCritereValeur nulle part) ; une couverture
+    partielle reste un filtre appliqué tel quel, jamais assouplie."""
     from courses.models import Groupe
 
     qs = Groupe.actifs.filter(statut='actif')
@@ -347,6 +354,34 @@ def groupes_compatibles(reponses, exclure_caches_wizard_public=True):
             alias = f'_nb_slots_critere_{critere.pk}'
             qs = qs.annotate(**{alias: Count('creneau__slots', distinct=True)}).filter(**{alias: valeur})
         else:  # 'eav' — comportement par défaut de tout critère, y compris futur
+            # Filet de sécurité (bug rapporté le 2026-08-25, voir Critere
+            # FiltrableEavSousConfigureCoteGroupeTests) : un critère
+            # filtrable=True mais dont AUCUN groupe nulle part n'a jamais
+            # reçu de GroupeCritereValeur ne peut structurellement filtrer
+            # utilement quoi que ce soit — cas réel constaté en base ('NIVEAU',
+            # champ optionnel de l'étape identité, seulement 2 groupes/31
+            # tagués). L'appliquer quand même excluait TOUS les groupes dès
+            # qu'un candidat y répondait, même ceux qui correspondaient
+            # parfaitement à tous les autres critères (programme/riwaya/
+            # nb_séances) — un exact match invisible, "aucune حلقة" affiché à
+            # tort. Ignoré ici comme un critère non filtrable pour CETTE
+            # requête (même philosophie de dégradation gracieuse que le
+            # FieldError de champ_modele_groupe juste au-dessus : jamais un
+            # résultat vide trompeur pour un candidat réel à cause d'une
+            # configuration incomplète côté مدير) — PAS étendu à une
+            # couverture PARTIELLE (ex: riwaya à 23/31) : un critère qui a
+            # déjà de VRAIES GroupeCritereValeur quelque part reste appliqué
+            # tel quel, c'est un choix de filtrage délibéré, pas un oubli.
+            from .models import GroupeCritereValeur
+
+            if not GroupeCritereValeur.objects.filter(critere=critere).exists():
+                logger.warning(
+                    "Critere id=%s (code=%r) filtrable=True mais aucune GroupeCritereValeur "
+                    "n'existe pour aucun groupe — filtre ignoré pour cette requête (voir "
+                    "groupes_compatibles.__doc__).",
+                    critere.pk, critere.code,
+                )
+                continue
             options = valeur if isinstance(valeur, (list, tuple, set)) else [valeur]
             qs = qs.filter(valeurs_criteres__critere=critere, valeurs_criteres__option__in=options)
     if exclure_caches_wizard_public:
