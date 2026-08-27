@@ -113,7 +113,7 @@ def generer_presentation_publique(prof):
     déjà dashboard.templatetags.libelles_arabes.LIBELLES pour les mêmes codes
     ailleurs dans le projet — jamais une dépendance de accounts vers dashboard."""
     LIBELLES_LANGUES = {'arabe': 'العربية', 'francais': 'الفرنسية', 'anglais': 'الإنجليزية', 'autre': 'أخرى'}
-    LIBELLES_TYPE_ELEVE = {'enfants': 'أطفال', 'adultes': 'بالغون', 'les_deux': 'الأطفال والبالغين'}
+    LIBELLES_TYPE_ELEVE = {'enfants': 'أطفال', 'adultes': 'بالغون'}
 
     phrases = []
     if prof.niveau_memorisation:
@@ -127,8 +127,13 @@ def generer_presentation_publique(prof):
     if prof.langues:
         libelles = [LIBELLES_LANGUES.get(code, code) for code in prof.langues]
         phrases.append('يتحدث: ' + '، '.join(libelles) + '.')
-    if prof.type_eleve_preference:
-        libelles = [LIBELLES_TYPE_ELEVE.get(code, code) for code in prof.type_eleve_preference]
+    # 'les_deux' (يدرّس الأطفال والبالغين) n'est pas une vraie préférence — ne
+    # rien dire revient à ne privilégier personne, ça n'apporte aucune info
+    # utile au candidat qui lit la présentation. On ne garde que les codes
+    # qui expriment une vraie préférence (enfants seuls, ou adultes seuls).
+    codes_preference_reelle = [c for c in prof.type_eleve_preference if c in LIBELLES_TYPE_ELEVE]
+    if codes_preference_reelle:
+        libelles = [LIBELLES_TYPE_ELEVE[code] for code in codes_preference_reelle]
         phrases.append('يفضل التدريس لـ: ' + '، '.join(libelles) + '.')
     return '\n'.join(phrases)
 
