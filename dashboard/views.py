@@ -4789,12 +4789,34 @@ def admin_parametres_abonnements(request):
     utilisé partout ailleurs pour ce champ (registration.utils.
     abonnements_disponibles, GrillePrixAbonnement.__doc__). Toujours
     ordonnées par `ordre` À L'INTÉRIEUR de chaque section, jamais un tri
-    global qui mélangerait à nouveau les 2 types."""
+    global qui mélangerait à nouveau les 2 types.
+
+    Fonctionnalité 1 (2026-08-27, archivage) : à l'intérieur de CHAQUE
+    section, les abonnements actifs/archivés (TypeAbonnement.est_actif) sont
+    en plus séparés en 2 listes — réutilise TEL QUEL le mécanisme de toggle
+    existant (admin_abonnement_toggle), déjà exactement la sémantique
+    "archivé" qu'il faut ici : est_actif=False est DÉJÀ filtré partout où un
+    nouveau formulaire propose un abonnement (registration.utils.
+    abonnements_disponibles, inscriptions.views ligne 232) alors que
+    l'historique (InscriptionEleve.get_type_abonnement, etc.) ne filtre
+    JAMAIS dessus — aucun conflit trouvé qui aurait justifié un champ
+    distinct. _liste_abonnements_section.html affiche les archivés dans une
+    section repliée par défaut (JS pur, même idiome que
+    _historique_evaluations_eleve.html)."""
     from inscriptions.models import TypeAbonnement
     types_abonnement = TypeAbonnement.objects.all().order_by('ordre')
+
+    def _actifs_et_archives(type_offre):
+        du_type = [t for t in types_abonnement if t.type_offre == type_offre]
+        return [t for t in du_type if t.est_actif], [t for t in du_type if not t.est_actif]
+
+    actifs_groupe, archives_groupe = _actifs_et_archives('groupe')
+    actifs_individuel, archives_individuel = _actifs_et_archives('individuel')
     context = {
-        'types_abonnement_groupe': [t for t in types_abonnement if t.type_offre == 'groupe'],
-        'types_abonnement_individuel': [t for t in types_abonnement if t.type_offre == 'individuel'],
+        'types_abonnement_groupe': actifs_groupe,
+        'archives_abonnement_groupe': archives_groupe,
+        'types_abonnement_individuel': actifs_individuel,
+        'archives_abonnement_individuel': archives_individuel,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -4968,11 +4990,15 @@ def admin_abonnement_modifier(request, abonnement_id):
 
 @role_required('admin', 'mshrif')
 def admin_abonnement_toggle(request, abonnement_id):
+    """Mécanisme INCHANGÉ (Fonctionnalité 1, 2026-08-27) : toggle simple de
+    est_actif, comme avant. Seul le libellé des messages est aligné sur le
+    vocabulaire "أرشفة/إعادة تفعيل" déjà utilisé pour Creneau.est_actif
+    (templates/courses/admin_creneaux.html) — même sémantique exacte."""
     from inscriptions.models import TypeAbonnement
     type_abonnement = get_object_or_404(TypeAbonnement, id=abonnement_id)
     type_abonnement.est_actif = not type_abonnement.est_actif
     type_abonnement.save()
-    messages.info(request, 'تم تفعيل نوع الاشتراك.' if type_abonnement.est_actif else 'تم تعطيل نوع الاشتراك.')
+    messages.info(request, 'تم إعادة تفعيل نوع الاشتراك.' if type_abonnement.est_actif else 'تم أرشفة نوع الاشتراك — لن يظهر في استمارات التسجيل الجديدة.')
     return redirect('admin_parametres_abonnements')
 
 

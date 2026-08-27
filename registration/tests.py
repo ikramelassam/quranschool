@@ -494,6 +494,19 @@ class AbonnementsDisponiblesCibleAgeTests(TestCase):
         self.assertIn(abo, abonnements_disponibles('individuel', 'adulte'))
         self.assertIn(abo, abonnements_disponibles('individuel', 'enfant'))
 
+    def test_abonnement_archive_exclu_des_nouveaux_formulaires(self):
+        """Fonctionnalité 1 (2026-08-27, archivage) : un TypeAbonnement
+        archivé (est_actif=False) ne doit plus être proposable dans un
+        nouveau formulaire d'inscription — abonnements_disponibles() est le
+        point d'entrée partagé par le wizard public ET l'ajout manuel élève
+        (dashboard.views.admin_eleve_ajouter_manuel)."""
+        abo_archive = TypeAbonnement.objects.create(
+            code='test_archive_exclu_formulaire', label='شهر', prix=400,
+            type_offre='individuel', cible_age='les_deux', est_actif=False,
+        )
+        self.assertNotIn(abo_archive, abonnements_disponibles('individuel', 'adulte'))
+        self.assertNotIn(abo_archive, abonnements_disponibles('individuel', 'enfant'))
+
 
 class TypeAbonnementDureeAfficheeTests(TestCase):
     """Correction 5 (2026-08-22, chantier grille de prix) : `duree` est un

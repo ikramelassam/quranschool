@@ -4061,6 +4061,67 @@ class AdminParametresAbonnementsTests(TestCase):
         self.assertIn('لا توجد أنواع اشتراك من هذا النوع بعد', html)
 
 
+class AdminParametresAbonnementsArchivageTests(TestCase):
+    """Fonctionnalité 1 (2026-08-27) : les abonnements archivés
+    (TypeAbonnement.est_actif=False) sont séparés visuellement des actifs,
+    dans une section repliée par défaut — jamais mélangés à la liste active,
+    jamais non plus supprimés/masqués (consultables pour l'historique)."""
+
+    def setUp(self):
+        from inscriptions.models import TypeAbonnement
+
+        self.admin = _creer_admin()
+        self.abo_actif = TypeAbonnement.objects.create(
+            code='test_archivage_actif', label='مشترك نشط', prix=80, type_offre='groupe', est_actif=True,
+        )
+        self.abo_archive = TypeAbonnement.objects.create(
+            code='test_archivage_archive', label='مشترك مؤرشف', prix=80, type_offre='groupe', est_actif=False,
+        )
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def test_archive_apparait_dans_section_dediee_avec_badge(self):
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_parametres_abonnements')).content.decode('utf-8')
+        self.assertIn('مشترك نشط', html)
+        self.assertIn('مشترك مؤرشف', html)
+        self.assertIn('مؤرشف 🗄', html)
+        # La section archives (repliée par JS, display:none par défaut) contient
+        # bien l'abonnement archivé — pas juste un badge affiché ailleurs.
+        self.assertIn('archives_extra_groupe', html)
+        position_archives_extra = html.index('id="archives_extra_groupe"')
+        position_abo_archive = html.index('مشترك مؤرشف')
+        self.assertTrue(position_archives_extra < position_abo_archive)
+
+    def test_actif_naffiche_pas_le_badge_archive(self):
+        client = self._connecte_admin()
+        html = client.get(reverse('admin_parametres_abonnements')).content.decode('utf-8')
+        # Le bloc de la ligne active de l'abonnement actif ne doit pas contenir
+        # le badge "مؤرشف" (mais bien "نشط").
+        bloc_actif = html[html.index('مشترك نشط'):html.index('مشترك نشط') + 800]
+        self.assertIn('نشط ✅', bloc_actif)
+        self.assertNotIn('مؤرشف', bloc_actif)
+
+    def test_toggle_archive_un_abonnement_actif(self):
+        from inscriptions.models import TypeAbonnement
+
+        client = self._connecte_admin()
+        reponse = client.get(reverse('admin_abonnement_toggle', args=[self.abo_actif.id]), follow=True)
+        self.abo_actif.refresh_from_db()
+        self.assertFalse(self.abo_actif.est_actif)
+        self.assertContains(reponse, 'تم أرشفة نوع الاشتراك')
+
+    def test_toggle_reactive_un_abonnement_archive(self):
+        client = self._connecte_admin()
+        reponse = client.get(reverse('admin_abonnement_toggle', args=[self.abo_archive.id]), follow=True)
+        self.abo_archive.refresh_from_db()
+        self.assertTrue(self.abo_archive.est_actif)
+        self.assertContains(reponse, 'تم إعادة تفعيل نوع الاشتراك')
+
+
 # ============================================================================
 # Correction du 2026-08-22 (chantier grille de prix incohérente/incomplète) :
 # admin_abonnement_modifier fusionne désormais les infos générales du

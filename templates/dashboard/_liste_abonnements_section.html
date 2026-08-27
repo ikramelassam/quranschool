@@ -2,11 +2,19 @@
 Une section (جماعي أو فردي) de la liste des أنواع الاشتراك — factorisée
 pour éviter de dupliquer le rendu de chaque ligne entre les 2 sections de
 admin_parametres_abonnements.html (correction 5, 2026-08-22). Attend
-`types_abonnement` (liste déjà filtrée par type_offre) dans le contexte
-d'inclusion.
+`actifs` et `archives` (2 listes déjà filtrées par type_offre ET par
+est_actif dans dashboard.views.admin_parametres_abonnements) et `id_suffix`
+(chaîne unique, ex: '_groupe'/'_individuel', pour éviter les collisions
+d'ids JS entre les 2 inclusions de ce template sur la même page).
+
+Fonctionnalité 1 (2026-08-27, archivage) : les actifs restent affichés
+normalement en premier ; les archivés sont dans une section repliée par
+défaut (JS pur, même idiome que _historique_evaluations_eleve.html), jamais
+mélangés à la liste active — réutilise TEL QUEL le toggle existant
+(admin_abonnement_toggle, est_actif), voir son docstring.
 {% endcomment %}
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
-    {% for type_abo in types_abonnement %}
+    {% for type_abo in actifs %}
     <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
         <div>
             <div style="font-weight:700;">{{ type_abo.label }}{% if type_abo.duree %} — {{ type_abo.get_duree_display }}{% endif %}</div>
@@ -14,22 +22,65 @@ d'inclusion.
         </div>
         <div class="d-flex gap-2 align-items-center">
             {% include 'dashboard/_badge_statut.html' with type='neutre' texte=type_abo.get_cible_age_display %}
-            {% if type_abo.est_actif %}
-                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">نشط ✅</span>
-            {% else %}
-                <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:4px 12px; font-size:0.8rem;">غير نشط ❌</span>
-            {% endif %}
+            <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">نشط ✅</span>
+            <a href="{% url 'admin_abonnement_modifier' type_abo.id %}"
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+               تعديل ✏️
+            </a>
+            <a href="{% url 'admin_abonnement_toggle' type_abo.id %}"
+               onclick="return confirm('هل تريد أرشفة نوع الاشتراك هذا؟ لن يظهر بعدها في استمارات التسجيل الجديدة، لكنه يبقى ظاهرا في السجلات القديمة.');"
+               style="background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+               أرشفة 🗄
+            </a>
+        </div>
+    </div>
+    {% empty %}
+    <div style="text-align:center; padding:40px; color:#aaa;">
+        {% if archives %}لا توجد أنواع اشتراك نشطة من هذا النوع حالياً{% else %}لا توجد أنواع اشتراك من هذا النوع بعد{% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% if archives %}
+<div style="text-align:center; margin-top:10px;">
+    <span id="archives_toggle_texte{{ id_suffix }}" onclick="toggleArchivesAbonnement{{ id_suffix }}()"
+          style="cursor:pointer; color:var(--color-brand-gold-dark); font-size:0.85rem; text-decoration:underline;">
+        عرض المؤرشفة ({{ archives|length }}) 🗄 ↓
+    </span>
+</div>
+<div id="archives_extra{{ id_suffix }}" style="display:none; background:#faf9f7; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.04); overflow:hidden; margin-top:8px;">
+    {% for type_abo in archives %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
+        <div>
+            <div style="font-weight:700; color:#777;">{{ type_abo.label }}{% if type_abo.duree %} — {{ type_abo.get_duree_display }}{% endif %}</div>
+            <div style="color:#aaa; font-size:0.85rem;">{{ type_abo.prix }} درهم — الرمز: {{ type_abo.code }}</div>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            {% include 'dashboard/_badge_statut.html' with type='neutre' texte=type_abo.get_cible_age_display %}
+            <span style="background:#f0f0f0; color:#666; border-radius:20px; padding:4px 12px; font-size:0.8rem;">مؤرشف 🗄</span>
             <a href="{% url 'admin_abonnement_modifier' type_abo.id %}"
                style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
                تعديل ✏️
             </a>
             <a href="{% url 'admin_abonnement_toggle' type_abo.id %}"
                style="background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-               {% if type_abo.est_actif %}تعطيل{% else %}تفعيل{% endif %}
+               إعادة تفعيل ✅
             </a>
         </div>
     </div>
-    {% empty %}
-    <div style="text-align:center; padding:40px; color:#aaa;">لا توجد أنواع اشتراك من هذا النوع بعد</div>
     {% endfor %}
 </div>
+<script>
+    function toggleArchivesAbonnement{{ id_suffix }}() {
+        const extra = document.getElementById('archives_extra{{ id_suffix }}');
+        const texte = document.getElementById('archives_toggle_texte{{ id_suffix }}');
+        if (extra.style.display === 'none') {
+            extra.style.display = 'block';
+            texte.textContent = 'إخفاء المؤرشفة ↑';
+        } else {
+            extra.style.display = 'none';
+            texte.textContent = 'عرض المؤرشفة ({{ archives|length }}) 🗄 ↓';
+        }
+    }
+</script>
+{% endif %}

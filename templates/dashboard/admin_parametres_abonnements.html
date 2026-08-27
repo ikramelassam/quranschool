@@ -13,8 +13,8 @@
 </div>
 
 <div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">👥 اشتراكات جماعية</div>
-{% include 'dashboard/_liste_abonnements_section.html' with types_abonnement=types_abonnement_groupe %}
+{% include 'dashboard/_liste_abonnements_section.html' with actifs=types_abonnement_groupe archives=archives_abonnement_groupe id_suffix='_groupe' %}
 
 <div class="page-title" style="font-size:1.1rem; margin:28px 0 12px;">👤 اشتراكات فردية</div>
-{% include 'dashboard/_liste_abonnements_section.html' with types_abonnement=types_abonnement_individuel %}
+{% include 'dashboard/_liste_abonnements_section.html' with actifs=types_abonnement_individuel archives=archives_abonnement_individuel id_suffix='_individuel' %}
 {% endblock %}
