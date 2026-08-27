@@ -7029,8 +7029,27 @@ def admin_demandes_non_satisfaites(request):
         criteres_dict, nb_slots = cle
         tendances.append({'libelles': _libelles_criteres(criteres_dict), 'nb_slots': nb_slots, 'nombre': nombre})
 
+    # Filtre "حالة التسجيل" (chantier du 2026-08-27) : complet = liée à une
+    # InscriptionEleve (d.inscription_id), incomplet = candidat parti avant
+    # la fin du wizard (même critère que le badge déjà affiché sur chaque
+    # carte, voir _carte_demande_non_satisfaite.html). Ne s'applique QU'À la
+    # liste détaillée "كل الطلبات" — les compteurs du haut ("إجمالي" et
+    # "تحولت إلى تسجيل فعلي") et "أكثر التركيبات طلباً" restent globaux :
+    # ce sont des indicateurs d'ensemble sur toutes les demandes (utiles pour
+    # décider quels groupes ouvrir), pas un résumé de la liste filtrée en
+    # dessous — les recalculer rendrait "تحولت إلى تسجيل فعلي" trivial (0 ou
+    # = au total) dès qu'un filtre est actif.
+    filtre_statut = request.GET.get('statut', '')
+    if filtre_statut == 'complete':
+        demandes_affichees = [d for d in demandes if d.inscription_id]
+    elif filtre_statut == 'incomplete':
+        demandes_affichees = [d for d in demandes if not d.inscription_id]
+    else:
+        demandes_affichees = demandes
+
     context = {
-        'demandes': demandes,
+        'demandes': demandes_affichees,
+        'filtre_statut': filtre_statut,
         'tendances': tendances,
         'total': len(demandes),
         'nb_liees_a_une_inscription': sum(1 for d in demandes if d.inscription_id),

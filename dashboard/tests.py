@@ -4942,6 +4942,42 @@ class AdminDemandesNonSatisfaitesTests(TestCase):
         self.assertIn('العربية', html)
         self.assertIn('الفرنسية', html)
 
+    def test_filtre_statut_ne_garde_que_les_demandes_correspondantes(self):
+        """Chantier du 2026-08-27 : filtre ?statut=complete/incomplete sur la
+        liste détaillée — complet = demande liée à une InscriptionEleve
+        (d.inscription), même critère que le badge déjà affiché sur chaque
+        carte (voir _carte_demande_non_satisfaite.html). Les compteurs du
+        haut (total, nb_liees_a_une_inscription) restent globaux, non
+        affectés par le filtre — vérifié séparément ci-dessous."""
+        from registration.models import DemandeNonSatisfaite
+
+        inscription = _creer_inscription_eleve(email='filtre_complet@zidni.test')
+        complete = DemandeNonSatisfaite.objects.create(
+            criteres_json={'riwaya': 'hafs'}, type_offre='groupe', nb_slots=6, age=10, sexe='homme',
+            nom='مكتمل', inscription=inscription,
+        )
+        incomplete = DemandeNonSatisfaite.objects.create(
+            criteres_json={'riwaya': 'warsh'}, type_offre='groupe', nb_slots=4, age=12, sexe='femme',
+            nom='غير مكتمل',
+        )
+
+        client = self._connecte_admin()
+
+        reponse = client.get(reverse('admin_demandes_non_satisfaites'), {'statut': 'complete'})
+        demandes = list(reponse.context['demandes'])
+        self.assertEqual([d.id for d in demandes], [complete.id])
+        self.assertEqual(reponse.context['total'], 2)  # compteur global, pas filtré
+        self.assertEqual(reponse.context['nb_liees_a_une_inscription'], 1)
+
+        reponse = client.get(reverse('admin_demandes_non_satisfaites'), {'statut': 'incomplete'})
+        demandes = list(reponse.context['demandes'])
+        self.assertEqual([d.id for d in demandes], [incomplete.id])
+        self.assertEqual(reponse.context['total'], 2)  # compteur global, pas filtré
+
+        reponse = client.get(reverse('admin_demandes_non_satisfaites'))
+        demandes = list(reponse.context['demandes'])
+        self.assertEqual({d.id for d in demandes}, {complete.id, incomplete.id})
+
 
 class AdminDemandeNonSatisfaiteDetailEtSuppressionTests(TestCase):
     """Chantier du 2026-08-25 (point 4a/4c) : fiche détail cliquable depuis

@@ -38,11 +38,31 @@
 </div>
 
 <div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">كل الطلبات (بالتفصيل)</div>
+
+<form method="GET" style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label style="color:#888; font-size:0.8rem;">حالة التسجيل</label>
+            <select name="statut" class="form-select">
+                <option value="" {% if not filtre_statut %}selected{% endif %}>الكل</option>
+                <option value="complete" {% if filtre_statut == 'complete' %}selected{% endif %}>التسجيلات المكتملة فقط</option>
+                <option value="incomplete" {% if filtre_statut == 'incomplete' %}selected{% endif %}>التسجيلات غير المكتملة فقط</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">بحث</button>
+            <a href="{% url 'admin_demandes_non_satisfaites' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+        </div>
+    </div>
+</form>
+
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
     {% for d in demandes|slice:":15" %}
     {% include 'dashboard/_carte_demande_non_satisfaite.html' with d=d %}
     {% empty %}
-    <div style="text-align:center; padding:40px; color:#aaa;">لا توجد أي طلبات غير ملبّاة بعد.</div>
+    <div style="text-align:center; padding:40px; color:#aaa;">
+        {% if filtre_statut %}لا توجد طلبات مطابقة لهذه التصفية.{% else %}لا توجد أي طلبات غير ملبّاة بعد.{% endif %}
+    </div>
     {% endfor %}
 
     {% if demandes|length > 15 %}
