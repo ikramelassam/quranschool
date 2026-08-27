@@ -4,6 +4,7 @@ from django.contrib.postgres.indexes import GinIndex
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from accounts.models import Prof, Eleve, Superviseur
 from annonces.models import Annonce
 
@@ -93,14 +94,17 @@ class CreneauActifsManager(models.Manager):
 
 
 class Creneau(models.Model):
+    # gettext_lazy (chantier traduction FR/EN, 2026-08-27) : affiché via
+    # slot.get_jour_display() sur le wizard d'inscription élève (étape
+    # "اختيار المجموعة", templates/inscriptions/wizard_groupe.html).
     JOUR_CHOICES = [
-        ('lun', 'الاثنين'),
-        ('mar', 'الثلاثاء'),
-        ('mer', 'الأربعاء'),
-        ('jeu', 'الخميس'),
-        ('ven', 'الجمعة'),
-        ('sam', 'السبت'),
-        ('dim', 'الأحد'),
+        ('lun', _('الاثنين')),
+        ('mar', _('الثلاثاء')),
+        ('mer', _('الأربعاء')),
+        ('jeu', _('الخميس')),
+        ('ven', _('الجمعة')),
+        ('sam', _('السبت')),
+        ('dim', _('الأحد')),
     ]
     SEXE_CHOICES = [
         ('homme', 'ذكر'),

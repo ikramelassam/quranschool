@@ -1,4 +1,5 @@
 from django import template
+from django.utils.translation import gettext_lazy as _
 
 register = template.Library()
 
@@ -17,9 +18,14 @@ def lien_seance_actif(seance):
 # inscriptions/prof_formulaire.html), reproduits ici à l'identique pour que
 # la fiche admin affiche le même libellé arabe que ce que le candidat a vu.
 LIBELLES = {
+    # 'sexe' seul est marqué traduisible (gettext_lazy) pour l'instant — utilisé
+    # par eleve_profil.html (chantier traduction FR/EN, 2026-08-27). Les autres
+    # catégories ci-dessous restent des chaînes brutes tant que les pages qui
+    # les affichent (fiches admin prof/inscription) n'ont pas leur propre passe
+    # de traduction — les marquer sans traduire leur page n'aurait aucun effet.
     'sexe': {
-        'homme': 'ذكر',
-        'femme': 'أنثى',
+        'homme': _('ذكر'),
+        'femme': _('أنثى'),
     },
     'statut_familial': {
         'celibataire': 'أعزب/عزباء',

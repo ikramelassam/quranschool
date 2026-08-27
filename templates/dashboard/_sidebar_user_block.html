@@ -1,3 +1,4 @@
+{% load i18n %}
 {% comment %}
 Bloc identité + déconnexion, en HAUT de la sidebar (Tâche du 2026-08-12,
 redesign du 2026-08-15 — demande client : bouton pas assez repérable en test
@@ -32,7 +33,9 @@ de le passer explicitement depuis chaque vue.
         <div class="sidebar-user-avatar">{{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}</div>
         <div class="sidebar-user-name">{{ request.user.get_full_name }}</div>
     </div>
-    <a href="{% url 'logout' %}" class="btn-logout-top" onclick="return confirm('هل تريد تسجيل الخروج؟');" aria-label="تسجيل الخروج" title="تسجيل الخروج">
+    {% trans "هل تريد تسجيل الخروج؟" as confirmation_deconnexion %}
+    {% trans "تسجيل الخروج" as libelle_deconnexion %}
+    <a href="{% url 'logout' %}" class="btn-logout-top" onclick="return confirm('{{ confirmation_deconnexion|escapejs }}');" aria-label="{{ libelle_deconnexion }}" title="{{ libelle_deconnexion }}">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>

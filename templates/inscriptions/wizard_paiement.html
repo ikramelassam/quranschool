@@ -1,5 +1,6 @@
 {% extends 'inscriptions/_wizard_base.html' %}
-{% block wizard_title %}الدفع{% endblock %}
+{% load i18n %}
+{% block wizard_title %}{% trans "الدفع" %}{% endblock %}
 {% block wizard_extra_style %}
 .coordonnees-box {
     background: var(--color-bg-cream); border-radius: 10px; padding: 14px 18px; margin-top: 10px;
@@ -15,11 +16,11 @@
 .confirmation-copie { display: none; margin-inline-start: 10px; color: var(--color-success); font-size: 0.85rem; font-weight: 600; }
 {% endblock %}
 {% block wizard_content %}
-<div class="page-title">طريقة الدفع</div>
-<div class="page-subtitle">الخطوة 5 من 6</div>
+<div class="page-title">{% trans "طريقة الدفع" %}</div>
+<div class="page-subtitle">{% trans "الخطوة 5 من 6" %}</div>
 
 <div style="background:#FDF3E0; border-right:3px solid var(--color-brand-gold-dark); border-radius:8px; padding:12px 16px; margin-bottom:20px; font-size:0.9rem; color:#7a4a00;">
-    آخر أجل لأداء الاشتراك: <strong>{{ date_limite|date:"d-m-Y" }}</strong> ({{ delai_paiement_jours }} أيام من تاريخ التسجيل)
+    {% blocktrans with date_limite_affichee=date_limite|date:"d-m-Y" jours=delai_paiement_jours %}آخر أجل لأداء الاشتراك: <strong>{{ date_limite_affichee }}</strong> ({{ jours }} أيام من تاريخ التسجيل){% endblocktrans %}
 </div>
 
 <form method="POST">
@@ -30,16 +31,16 @@
     <div class="coordonnees-box" id="coord_{{ moyen.code }}">
         <div class="coordonnees-texte">{{ moyen.coordonnees }}</div>
         {% if moyen.coordonnees %}
-        <button type="button" class="btn-copier-coordonnees" onclick="copierCoordonnees('{{ moyen.code }}')">📋 نسخ</button>
-        <span class="confirmation-copie" id="confirmation_copie_{{ moyen.code }}">✔ تم النسخ</span>
+        <button type="button" class="btn-copier-coordonnees" onclick="copierCoordonnees('{{ moyen.code }}')">📋 {% trans "نسخ" %}</button>
+        <span class="confirmation-copie" id="confirmation_copie_{{ moyen.code }}">✔ {% trans "تم النسخ" %}</span>
         {% endif %}
     </div>
     {% endfor %}
 
     <input type="hidden" name="moyen_paiement_code" id="moyen_paiement_value">
 
-    <button type="submit" class="btn-submit">تأكيد التسجيل ✅</button>
-    <a href="{% url 'wizard_abonnement' %}" class="btn-back">رجوع</a>
+    <button type="submit" class="btn-submit">{% trans "تأكيد التسجيل ✅" %}</button>
+    <a href="{% url 'wizard_abonnement' %}" class="btn-back">{% trans "رجوع" %}</a>
 </form>
 
 <script>

@@ -1,9 +1,10 @@
+{% load i18n %}
 <div class="sidebar-header">
     <div class="sidebar-logo-badge">
-        <img src="{{ logo_url }}" alt="زدني علماً">
+        <img src="{{ logo_url }}" alt="{% trans 'زدني علماً' %}">
     </div>
     <div class="sidebar-logo-text">
-        <div class="title">منصة زدني علماً</div>
+        <div class="title">{% trans "منصة زدني علماً" %}</div>
         <div class="subtitle">{{ subtitle }}</div>
     </div>
 </div>

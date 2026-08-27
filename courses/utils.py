@@ -1,6 +1,7 @@
 import datetime
 
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 JOUR_INDEX = {'lun': 0, 'mar': 1, 'mer': 2, 'jeu': 3, 'ven': 4, 'sam': 5, 'dim': 6}
 JOUR_INDEX_INVERSE = {valeur: code for code, valeur in JOUR_INDEX.items()}
@@ -829,9 +830,9 @@ def age_correspond_a_categorie(date_naissance, type_age):
 # et plus (adulte) n'appartient à AUCUNE des 3 tranches (retourne None) —
 # jamais une tranche approximative/erronée pour ces cas hors périmètre.
 TRANCHES_AGE_PRECISES = [
-    ('talqin', 'التلقين', 5, 7),
-    ('baraim', 'البراعم', 8, 13),
-    ('yafiun', 'اليافعون', 14, 18),
+    ('talqin', _('التلقين'), 5, 7),
+    ('baraim', _('البراعم'), 8, 13),
+    ('yafiun', _('اليافعون'), 14, 18),
 ]
 
 

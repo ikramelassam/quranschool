@@ -1,0 +1,376 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: fr\n"
+
+msgid "منصة زدني علماً"
+msgstr "Plateforme Zidni Ilman"
+
+msgid "زدني علماً"
+msgstr "Zidni Ilman"
+
+msgid "لتحفيظ القرآن الكريم عن بعد"
+msgstr "Pour la mémorisation du Coran à distance"
+
+msgid "البريد الإلكتروني"
+msgstr "E-mail"
+
+msgid "أدخل بريدك الإلكتروني"
+msgstr "Entrez votre e-mail"
+
+msgid "كلمة المرور"
+msgstr "Mot de passe"
+
+msgid "أدخل كلمة المرور"
+msgstr "Entrez votre mot de passe"
+
+msgid "تسجيل الدخول"
+msgstr "Connexion"
+
+msgid "نسيت كلمة المرور ؟"
+msgstr "Mot de passe oublié ?"
+
+msgid "جديد ؟"
+msgstr "Nouveau ?"
+
+msgid "التسجيل كطالب"
+msgstr "S'inscrire comme élève"
+
+msgid "التسجيل كمعلم"
+msgstr "S'inscrire comme enseignant"
+
+msgid "إظهار/إخفاء كلمة المرور"
+msgstr "Afficher/masquer le mot de passe"
+
+msgid "حسابك مؤرشف حالياً، تواصل مع الإدارة."
+msgstr "Votre compte est actuellement archivé, contactez l'administration."
+
+msgid "البريد الإلكتروني أو كلمة المرور غير صحيحة"
+msgstr "E-mail ou mot de passe incorrect"
+
+msgid "تم إنشاء كلمة مرور جديدة وإشعار الإدارة بها — تواصل معها للحصول عليها، ثم سجّل الدخول من جديد."
+msgstr "Un nouveau mot de passe a été créé et l'administration en a été informée — contactez-la pour l'obtenir, puis reconnectez-vous."
+
+msgid "تم تحديث رقم الهاتف بنجاح."
+msgstr "Le numéro de téléphone a été mis à jour avec succès."
+
+msgid "فتح القائمة"
+msgstr "Ouvrir le menu"
+
+msgid "لوحة الطالب"
+msgstr "Tableau de bord élève"
+
+msgid "لوحة التحكم"
+msgstr "Tableau de bord"
+
+msgid "الرسائل"
+msgstr "Messages"
+
+msgid "الإعلانات"
+msgstr "Annonces"
+
+msgid "اختباراتي"
+msgstr "Mes examens"
+
+msgid "حصصي وتقييماتي"
+msgstr "Mes séances et évaluations"
+
+msgid "تقدمي في الحفظ"
+msgstr "Ma progression en mémorisation"
+
+msgid "حقيبتي"
+msgstr "Mon cartable"
+
+msgid "ملفي الشخصي"
+msgstr "Mon profil"
+
+msgid "ملاحظاتي"
+msgstr "Mes notes"
+
+msgid "مدفوعاتي"
+msgstr "Mes paiements"
+
+msgid "البرنامج العام"
+msgstr "Programme général"
+
+msgid "اللغة"
+msgstr "Langue"
+
+msgid "هل تريد تسجيل الخروج؟"
+msgstr "Voulez-vous vous déconnecter ?"
+
+msgid "تسجيل الخروج"
+msgstr "Déconnexion"
+
+msgid "إغلاق"
+msgstr "Fermer"
+
+msgid "معلوماتك الشخصية، أمان حسابك، ومجموعاتك"
+msgstr "Vos informations personnelles, la sécurité de votre compte et vos groupes"
+
+msgid "معلومات الحساب"
+msgstr "Informations du compte"
+
+msgid "الاسم الكامل"
+msgstr "Nom complet"
+
+msgid "الهاتف"
+msgstr "Téléphone"
+
+msgid "تعديل"
+msgstr "Modifier"
+
+msgid "رقم الهاتف"
+msgstr "Numéro de téléphone"
+
+msgid "حفظ"
+msgstr "Enregistrer"
+
+msgid "إلغاء"
+msgstr "Annuler"
+
+msgid "الجنس"
+msgstr "Sexe"
+
+msgid "الحالة"
+msgstr "Statut"
+
+msgid "الأمان"
+msgstr "Sécurité"
+
+msgid "لتغيير كلمة المرور، تواصل مع الإدارة."
+msgstr "Pour changer votre mot de passe, contactez l'administration."
+
+msgid "مجموعاتي ومعلميّ"
+msgstr "Mes groupes et mes enseignants"
+
+msgid "المعلم:"
+msgstr "Enseignant :"
+
+msgid "لم يتم تعيينك في مجموعة بعد"
+msgstr "Vous n'avez pas encore été assigné(e) à un groupe"
+
+msgid "مجموعاتي السابقة"
+msgstr "Mes groupes précédents"
+
+msgid "بياناتي الشهرية"
+msgstr "Mes bilans mensuels"
+
+msgid "عرض ←"
+msgstr "Voir ←"
+
+msgid "التواصل مع الإدارة"
+msgstr "Contacter l'administration"
+
+msgid "مؤرشف"
+msgstr "Archivé"
+
+msgid "لا توجد إدارة مسجَّلة"
+msgstr "Aucune administration enregistrée"
+
+msgid "الدردشة"
+msgstr "Discussion"
+
+msgid "مراسلة عبر البريد الإلكتروني"
+msgstr "Contacter par e-mail"
+
+msgid "مراسلة عبر واتساب"
+msgstr "Contacter par WhatsApp"
+
+msgid "لا يوجد مجموعات سابقة"
+msgstr "Aucun groupe précédent"
+
+msgid "إخفاء ↑"
+msgstr "Masquer ↑"
+
+msgid "عرض جميع المجموعات السابقة (%(total)s) ↓"
+msgstr "Afficher tous les groupes précédents (%(total)s) ↓"
+
+msgid "اختر الفئة العمرية"
+msgstr "Choisissez la tranche d'âge"
+
+msgid "طفل (أقل من 18 سنة)"
+msgstr "Enfant (moins de 18 ans)"
+
+msgid "بالغ (18 سنة فما فوق)"
+msgstr "Adulte (18 ans et plus)"
+
+msgid "متابعة ←"
+msgstr "Continuer ←"
+
+msgid "رجوع لتسجيل الدخول"
+msgstr "Retour à la connexion"
+
+msgid "تم التسجيل"
+msgstr "Inscription effectuée"
+
+msgid "أهلاً بك في زدني علماً"
+msgstr "Bienvenue sur Zidni Ilman"
+
+msgid "تم تسجيل طلبك بنجاح، %(nom)s"
+msgstr "Votre demande a été enregistrée avec succès, %(nom)s"
+
+msgid "سيتواصل معك فريقنا خلال %(heures)s ساعة."
+msgstr "Notre équipe vous contactera sous %(heures)s heures."
+
+msgid "العودة إلى الصفحة الرئيسية"
+msgstr "Retour à la page d'accueil"
+
+msgid "رقم الهاتف (واتساب) *"
+msgstr "Numéro de téléphone (WhatsApp) *"
+
+msgid "دولة أخرى"
+msgstr "Autre pays"
+
+msgid "رمز الدولة، مثال: 20"
+msgstr "Indicatif du pays, exemple : 20"
+
+msgid "تأكيد رقم الواتساب *"
+msgstr "Confirmation du numéro WhatsApp *"
+
+msgid "أعد كتابة رقم الهاتف"
+msgstr "Retapez le numéro de téléphone"
+
+msgid "رقم التأكيد لا يطابق رقم الهاتف المدخل"
+msgstr "Le numéro de confirmation ne correspond pas au numéro saisi"
+
+msgid "يرجى التأكد جيدا من رقم الواتساب، فهو الوسيلة الأساسية للتواصل معك"
+msgstr "Merci de bien vérifier le numéro WhatsApp, c'est le moyen principal pour vous contacter"
+
+msgid "التحقق عبر واتساب"
+msgstr "Vérifier via WhatsApp"
+
+msgid "يرجى إدخال رقم الهاتف أولا."
+msgstr "Veuillez d'abord saisir le numéro de téléphone."
+
+msgid "لا يطابق رقم الهاتف"
+msgstr "Ne correspond pas au numéro de téléphone"
+
+msgid "متابعة التسجيل"
+msgstr "Continuer l'inscription"
+
+msgid "مثال: 3"
+msgstr "Exemple : 3"
+
+msgid "المعلومات الشخصية"
+msgstr "Informations personnelles"
+
+msgid "الخطوة 1 من 6"
+msgstr "Étape 1 sur 6"
+
+msgid "ذكر"
+msgstr "Homme"
+
+msgid "أنثى"
+msgstr "Femme"
+
+msgid "التالي ←"
+msgstr "Suivant ←"
+
+msgid "رجوع"
+msgstr "Retour"
+
+msgid "الدفع"
+msgstr "Paiement"
+
+msgid "طريقة الدفع"
+msgstr "Moyen de paiement"
+
+msgid "الخطوة 5 من 6"
+msgstr "Étape 5 sur 6"
+
+msgid "نسخ"
+msgstr "Copier"
+
+msgid "تم النسخ"
+msgstr "Copié"
+
+msgid "تأكيد التسجيل ✅"
+msgstr "Confirmer l'inscription ✅"
+
+msgid "اختيار البرنامج"
+msgstr "Choix du programme"
+
+msgid "الخطوة 2 من 6"
+msgstr "Étape 2 sur 6"
+
+msgid "الفئة العمرية:"
+msgstr "Tranche d'âge :"
+
+msgid "الاشتراك"
+msgstr "Abonnement"
+
+msgid "اختيار نوع الاشتراك"
+msgstr "Choix du type d'abonnement"
+
+msgid "الخطوة 4 من 6"
+msgstr "Étape 4 sur 6"
+
+msgid "لا توجد حالياً أنواع اشتراك متاحة لاختياراتك. يرجى التواصل مع الإدارة."
+msgstr "Aucun type d'abonnement n'est actuellement disponible pour vos choix. Veuillez contacter l'administration."
+
+msgid "د.م."
+msgstr "MAD"
+
+msgid "اختيار المجموعة"
+msgstr "Choix du groupe"
+
+msgid "الخطوة 3 من 6 — المجموعات المتوافقة مع اختياراتك"
+msgstr "Étape 3 sur 6 — Groupes compatibles avec vos choix"
+
+msgid "مجموعات قريبة يمكنك الانضمام إليها الآن:"
+msgstr "Groupes proches que vous pouvez rejoindre dès maintenant :"
+
+msgid "غير محدد بعد"
+msgstr "Pas encore déterminé"
+
+msgid "%(occupes)s / %(capacite)s مكان"
+msgstr "%(occupes)s / %(capacite)s place(s)"
+
+msgid "بين %(min)s و%(max)s"
+msgstr "Entre %(min)s et %(max)s"
+
+msgid "%(min)s على الأقل"
+msgstr "%(min)s au minimum"
+
+msgid "بحد أقصى %(max)s"
+msgstr "%(max)s au maximum"
+
+msgid "آخر أجل لأداء الاشتراك: <strong>%(date_limite_affichee)s</strong> (%(jours)s أيام من تاريخ التسجيل)"
+msgstr "Date limite de paiement de l'abonnement : <strong>%(date_limite_affichee)s</strong> (%(jours)s jours à partir de la date d'inscription)"
+
+msgid "الاثنين"
+msgstr "Lundi"
+
+msgid "الثلاثاء"
+msgstr "Mardi"
+
+msgid "الأربعاء"
+msgstr "Mercredi"
+
+msgid "الخميس"
+msgstr "Jeudi"
+
+msgid "الجمعة"
+msgstr "Vendredi"
+
+msgid "السبت"
+msgstr "Samedi"
+
+msgid "الأحد"
+msgstr "Dimanche"
+
+msgid "نشط"
+msgstr "Actif"
+
+msgid "موقوف"
+msgstr "Suspendu"
+
+msgid "التلقين"
+msgstr "Talqîn (initiation)"
+
+msgid "البراعم"
+msgstr "Baraem (les bourgeons)"
+
+msgid "اليافعون"
+msgstr "Yafi'un (adolescents)"

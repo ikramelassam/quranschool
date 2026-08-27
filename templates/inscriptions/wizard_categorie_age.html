@@ -1,8 +1,9 @@
 {% extends 'inscriptions/_wizard_base.html' %}
-{% block wizard_title %}التسجيل كطالب{% endblock %}
+{% load i18n %}
+{% block wizard_title %}{% trans "التسجيل كطالب" %}{% endblock %}
 {% block wizard_content %}
-<div class="page-title">التسجيل كطالب</div>
-<div class="page-subtitle">اختر الفئة العمرية</div>
+<div class="page-title">{% trans "التسجيل كطالب" %}</div>
+<div class="page-subtitle">{% trans "اختر الفئة العمرية" %}</div>
 
 <form method="POST">
     {% csrf_token %}
@@ -10,19 +11,19 @@
         <div class="col-6">
             <div class="select-btn" id="carte_enfant" onclick="selectionnerCategorie('enfant', this)" style="padding:24px 12px;">
                 <div style="font-size:2rem;">👶</div>
-                <div style="font-weight:700; margin-top:6px;">طفل (أقل من 18 سنة)</div>
+                <div style="font-weight:700; margin-top:6px;">{% trans "طفل (أقل من 18 سنة)" %}</div>
             </div>
         </div>
         <div class="col-6">
             <div class="select-btn" id="carte_adulte" onclick="selectionnerCategorie('adulte', this)" style="padding:24px 12px;">
                 <div style="font-size:2rem;">🎓</div>
-                <div style="font-weight:700; margin-top:6px;">بالغ (18 سنة فما فوق)</div>
+                <div style="font-weight:700; margin-top:6px;">{% trans "بالغ (18 سنة فما فوق)" %}</div>
             </div>
         </div>
     </div>
     <input type="hidden" name="type_age" id="type_age_value">
-    <button type="submit" class="btn-submit">متابعة ←</button>
-    <a href="{% url 'login' %}" class="btn-back">رجوع لتسجيل الدخول</a>
+    <button type="submit" class="btn-submit">{% trans "متابعة ←" %}</button>
+    <a href="{% url 'login' %}" class="btn-back">{% trans "رجوع لتسجيل الدخول" %}</a>
 </form>
 
 <script>

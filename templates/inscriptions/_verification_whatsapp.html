@@ -11,8 +11,9 @@ et valide les deux côté serveur (voir inscriptions.views._construire_et_valide
 jamais confiance au JS seul pour la correspondance de la double saisie ni pour
 le format. Usage : {% include 'inscriptions/_verification_whatsapp.html' %}
 {% endcomment %}
+{% load i18n %}
 <div class="mb-3">
-    <label class="form-label">رقم الهاتف (واتساب) *</label>
+    <label class="form-label">{% trans "رقم الهاتف (واتساب) *" %}</label>
     <div class="row g-2">
         <div class="col-4">
             <select name="indicatif_pays" id="wa_indicatif" class="form-select" onchange="wa_toggleAutre(); wa_miseAJourLien();">
@@ -26,38 +27,41 @@ le format. Usage : {% include 'inscriptions/_verification_whatsapp.html' %}
                 <option value="1">🇺🇸 +1</option>
                 <option value="971">🇦🇪 +971</option>
                 <option value="966">🇸🇦 +966</option>
-                <option value="autre">🌍 دولة أخرى</option>
+                <option value="autre">🌍 {% trans "دولة أخرى" %}</option>
             </select>
         </div>
         <div class="col-8">
+            {% trans "رقم الهاتف" as placeholder_tel %}
             <input type="tel" name="telephone" id="wa_telephone" class="form-control"
-                   placeholder="رقم الهاتف" {% if telephone_obligatoire|default:True %}required{% endif %}
+                   placeholder="{{ placeholder_tel }}" {% if telephone_obligatoire|default:True %}required{% endif %}
                    oninput="wa_miseAJourLien(); wa_verifierTelephoneMatch();">
         </div>
     </div>
 
     <div id="wa_indicatif_autre_wrap" style="display:none; margin-top:8px;">
+        {% trans "رمز الدولة، مثال: 20" as placeholder_indicatif %}
         <input type="text" name="indicatif_pays_autre" id="wa_indicatif_autre" class="form-control"
-               placeholder="رمز الدولة، مثال: 20" oninput="wa_miseAJourLien();">
+               placeholder="{{ placeholder_indicatif }}" oninput="wa_miseAJourLien();">
     </div>
 
     <div class="mt-2">
-        <label class="form-label" style="font-size:0.9rem;">تأكيد رقم الواتساب *</label>
+        <label class="form-label" style="font-size:0.9rem;">{% trans "تأكيد رقم الواتساب *" %}</label>
+        {% trans "أعد كتابة رقم الهاتف" as placeholder_confirmation %}
         <input type="tel" name="telephone_confirmation" id="wa_telephone_confirmation" class="form-control"
-               placeholder="أعد كتابة رقم الهاتف" {% if telephone_obligatoire|default:True %}required{% endif %}
+               placeholder="{{ placeholder_confirmation }}" {% if telephone_obligatoire|default:True %}required{% endif %}
                oninput="wa_verifierTelephoneMatch();">
         <div id="wa_erreur_confirmation" style="display:none; color:#B3261E; font-size:0.85rem; margin-top:6px;">
-            ⚠️ رقم التأكيد لا يطابق رقم الهاتف المدخل
+            ⚠️ {% trans "رقم التأكيد لا يطابق رقم الهاتف المدخل" %}
         </div>
     </div>
 
     <div style="background:#FDF3E0; border-right:3px solid var(--color-brand-gold-dark); border-radius:8px; padding:10px 14px; margin-top:10px; font-size:0.85rem; color:#7a4a00;">
-        يرجى التأكد جيدا من رقم الواتساب، فهو الوسيلة الأساسية للتواصل معك
+        {% trans "يرجى التأكد جيدا من رقم الواتساب، فهو الوسيلة الأساسية للتواصل معك" %}
     </div>
 
     <a href="#" id="wa_lien_verification" target="_blank" rel="noopener" onclick="return wa_ouvrirVerification();"
        style="display:inline-block; margin-top:10px; background:white; border:1.5px solid var(--color-brand-gold-dark); color:var(--color-brand-gold-dark); border-radius:8px; padding:7px 16px; font-size:0.85rem; text-decoration:none; font-weight:600;">
-        ✅ التحقق عبر واتساب
+        ✅ {% trans "التحقق عبر واتساب" %}
     </a>
 </div>
 
@@ -91,7 +95,8 @@ le format. Usage : {% include 'inscriptions/_verification_whatsapp.html' %}
     function wa_ouvrirVerification() {
         const complet = wa_numeroComplet();
         if (!complet) {
-            alert('يرجى إدخال رقم الهاتف أولا.');
+            {% trans "يرجى إدخال رقم الهاتف أولا." as message_tel_manquant %}
+            alert('{{ message_tel_manquant|escapejs }}');
             return false;
         }
         window.open('https://wa.me/' + complet, '_blank');
@@ -130,7 +135,8 @@ le format. Usage : {% include 'inscriptions/_verification_whatsapp.html' %}
         const erreur = document.getElementById('wa_erreur_confirmation');
         if (confirmation.length > 0 && principal !== confirmation) {
             erreur.style.display = 'block';
-            champConfirmation.setCustomValidity('لا يطابق رقم الهاتف');
+            {% trans "لا يطابق رقم الهاتف" as message_ne_correspond_pas %}
+            champConfirmation.setCustomValidity('{{ message_ne_correspond_pas|escapejs }}');
         } else {
             erreur.style.display = 'none';
             champConfirmation.setCustomValidity('');

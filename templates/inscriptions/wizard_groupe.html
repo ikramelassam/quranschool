@@ -1,5 +1,6 @@
 {% extends 'inscriptions/_wizard_base.html' %}
-{% block wizard_title %}اختيار المجموعة{% endblock %}
+{% load i18n %}
+{% block wizard_title %}{% trans "اختيار المجموعة" %}{% endblock %}
 {% block wizard_extra_style %}
 .groupe-card {
     border: 2px solid #EADFC8; border-radius: 12px; padding: 18px; margin-bottom: 14px; cursor: pointer;
@@ -20,8 +21,8 @@
 .carte-attente-texte { font-weight: 500; color: var(--color-text-primary); font-size: 0.92rem; line-height: 1.6; white-space: pre-line; }
 {% endblock %}
 {% block wizard_content %}
-<div class="page-title">اختيار المجموعة</div>
-<div class="page-subtitle">الخطوة 3 من 6 — المجموعات المتوافقة مع اختياراتك</div>
+<div class="page-title">{% trans "اختيار المجموعة" %}</div>
+<div class="page-subtitle">{% trans "الخطوة 3 من 6 — المجموعات المتوافقة مع اختياراتك" %}</div>
 
 {% if aucun_groupe_exact %}
 <div style="background:#fff3cd; border-radius:10px; padding:16px 18px; margin-bottom:20px; color:#856404; font-weight:600;">
@@ -32,7 +33,7 @@
     {% csrf_token %}
 
     {% if groupes_proches %}
-    <div class="page-subtitle" style="text-align:right; margin-bottom:10px;">مجموعات قريبة يمكنك الانضمام إليها الآن:</div>
+    <div class="page-subtitle" style="text-align:right; margin-bottom:10px;">{% trans "مجموعات قريبة يمكنك الانضمام إليها الآن:" %}</div>
     {% for groupe in groupes_proches %}
     <div class="groupe-card" onclick="choisirGroupeProche({{ groupe.id }}, this)">
         <div class="groupe-nom">{{ groupe.nom }}</div>
@@ -47,7 +48,7 @@
                 {% if valeur.option %}<span style="background:#f0f0f0; border-radius:12px; padding:2px 10px; margin-left:6px; font-size:0.82rem;">{{ valeur.critere.label }}: {{ valeur.option.label }}</span>{% endif %}
             {% endfor %}
         </div>
-        <div class="groupe-detail">🪑 {{ groupe.eleves.count }} / {{ groupe.capacite_max }} مكان</div>
+        <div class="groupe-detail">🪑 {% blocktrans with occupes=groupe.eleves.count capacite=groupe.capacite_max %}{{ occupes }} / {{ capacite }} مكان{% endblocktrans %}</div>
     </div>
     {% endfor %}
     {% endif %}
@@ -58,8 +59,8 @@
 
     <input type="hidden" name="groupe_id" id="groupe_id_value">
     <input type="hidden" name="continuer_sans_groupe" id="continuer_sans_groupe_value" value="">
-    <button type="submit" class="btn-submit" id="btn_suivant_aucun_match" disabled>التالي ←</button>
-    <a href="{% url 'wizard_programme' %}" class="btn-back">رجوع</a>
+    <button type="submit" class="btn-submit" id="btn_suivant_aucun_match" disabled>{% trans "التالي ←" %}</button>
+    <a href="{% url 'wizard_programme' %}" class="btn-back">{% trans "رجوع" %}</a>
 </form>
 
 <script>
@@ -89,7 +90,7 @@
     <div class="groupe-card" onclick="selectionnerGroupe({{ groupe.id }}, this)">
         <div class="groupe-nom">{{ groupe.nom }}</div>
         <div class="groupe-detail">
-            👨‍🏫 {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}غير محدد بعد{% endif %}
+            👨‍🏫 {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}{% trans "غير محدد بعد" %}{% endif %}
         </div>
         <div class="groupe-detail">
             📅
@@ -102,13 +103,13 @@
                 {% if valeur.option %}<span style="background:#f0f0f0; border-radius:12px; padding:2px 10px; margin-left:6px; font-size:0.82rem;">{{ valeur.critere.label }}: {{ valeur.option.label }}</span>{% endif %}
             {% endfor %}
         </div>
-        <div class="groupe-detail">🪑 {{ groupe.eleves.count }} / {{ groupe.capacite_max }} مكان</div>
+        <div class="groupe-detail">🪑 {% blocktrans with occupes=groupe.eleves.count capacite=groupe.capacite_max %}{{ occupes }} / {{ capacite }} مكان{% endblocktrans %}</div>
     </div>
     {% endfor %}
 
     <input type="hidden" name="groupe_id" id="groupe_id_value">
-    <button type="submit" class="btn-submit">التالي ←</button>
-    <a href="{% url 'wizard_programme' %}" class="btn-back">رجوع</a>
+    <button type="submit" class="btn-submit">{% trans "التالي ←" %}</button>
+    <a href="{% url 'wizard_programme' %}" class="btn-back">{% trans "رجوع" %}</a>
 </form>
 {% endif %}
 

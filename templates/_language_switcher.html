@@ -1,0 +1,18 @@
+{% load i18n %}
+{# Sélecteur de langue réutilisable (chantier traduction FR/EN, 2026-08-27).
+   Inclus tel quel (aucun paramètre requis) dans login.html, base_eleve.html
+   et _wizard_base.html — les 3 zones traduites pour l'instant. Soumet un
+   simple POST vers la vue set_language fournie par Django (voir core/urls.py,
+   path('i18n/', ...)) : elle stocke la langue en session et redirige vers
+   `next`, ici la page courante (request.path). Aucune vue custom à écrire. #}
+<form action="{% url 'set_language' %}" method="post" class="language-switcher">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.path }}">
+    <select name="language" onchange="this.form.submit()" aria-label="{% trans 'اللغة' %}">
+        {% get_current_language as LANGUAGE_CODE_ACTUELLE %}
+        {% get_available_languages as LANGUES_DISPONIBLES %}
+        {% for code, nom in LANGUES_DISPONIBLES %}
+        <option value="{{ code }}" {% if code == LANGUAGE_CODE_ACTUELLE %}selected{% endif %}>{{ nom }}</option>
+        {% endfor %}
+    </select>
+</form>

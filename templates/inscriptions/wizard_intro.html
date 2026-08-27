@@ -1,5 +1,6 @@
 {% extends 'inscriptions/_wizard_base.html' %}
-{% block wizard_title %}{{ presentation.titre|default:"التسجيل كطالب" }}{% endblock %}
+{% load i18n %}
+{% block wizard_title %}{% trans "التسجيل كطالب" as titre_defaut %}{{ presentation.titre|default:titre_defaut }}{% endblock %}
 {% block wizard_extra_style %}
 .charte-box {
     background: var(--color-bg-cream);
@@ -29,8 +30,9 @@ Django exige un nom de vue, jamais un chemin : interpolation directe
 ci-dessous, comme toutes les redirections serveur (redirect()) qui,
 elles, acceptent déjà les 2 formes de façon strictement identique.
 {% endcomment %}
+{% trans "متابعة التسجيل" as bouton_defaut %}
 <a href="{{ url_suivante }}" class="btn-submit" style="display:block; text-align:center; text-decoration:none;">
-    {{ presentation.bouton_texte|default:"متابعة التسجيل" }} ←
+    {{ presentation.bouton_texte|default:bouton_defaut }} ←
 </a>
-<a href="{% url 'wizard_categorie_age' %}" class="btn-back">رجوع</a>
+<a href="{% url 'wizard_categorie_age' %}" class="btn-back">{% trans "رجوع" %}</a>
 {% endblock %}

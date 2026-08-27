@@ -6,6 +6,9 @@ l'étape Identité" (Partie 3A). Extrait de wizard_programme.html (seule
 ET toute future étape personnalisée (Partie 3B) — un seul rendu/une seule
 logique JS, jamais 2 versions maintenues séparément (même principe que
 registration.utils.evaluer_champs_actifs côté serveur).
+{% endcomment %}
+{% load i18n %}
+{% comment %}
 
 Attend une variable `champs` dans le contexte : liste de ChampInscription
 (pas le format {'champ':, 'valeurs_liste':...} du round admin — voir
@@ -28,8 +31,9 @@ propres fonctions, jamais d'imposer l'ordre d'exécution à la page.
     {% endcomment %}
     <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
         <label class="form-label">{{ champ.label }}{% if champ.obligatoire %} *{% endif %}</label>
+        {% trans "مثال: 3" as placeholder_nb_seances %}
         <input type="number" name="champ_{{ champ.id }}" class="form-control mt-1" min="1" step="1"
-               placeholder="مثال: 3" {% if champ.obligatoire %}required{% endif %}>
+               placeholder="{{ placeholder_nb_seances }}" {% if champ.obligatoire %}required{% endif %}>
     </div>
     {% elif not champ.critere and champ.type_champ == 'booleen' %}
     {% comment %}
@@ -76,11 +80,11 @@ propres fonctions, jamais d'imposer l'ordre d'exécution à la page.
         {% if champ.valeur_min is not None or champ.valeur_max is not None %}
         <div style="color:#888; font-size:0.8rem; margin-top:4px;">
             {% if champ.valeur_min is not None and champ.valeur_max is not None %}
-            بين {{ champ.valeur_min }} و{{ champ.valeur_max }}
+            {% blocktrans with min=champ.valeur_min max=champ.valeur_max %}بين {{ min }} و{{ max }}{% endblocktrans %}
             {% elif champ.valeur_min is not None %}
-            {{ champ.valeur_min }} على الأقل
+            {% blocktrans with min=champ.valeur_min %}{{ min }} على الأقل{% endblocktrans %}
             {% else %}
-            بحد أقصى {{ champ.valeur_max }}
+            {% blocktrans with max=champ.valeur_max %}بحد أقصى {{ max }}{% endblocktrans %}
             {% endif %}
         </div>
         {% endif %}
