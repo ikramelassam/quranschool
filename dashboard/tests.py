@@ -4514,6 +4514,60 @@ class AdminAbonnementAjouterWizardTests(TestCase):
         self.assertFalse(TypeAbonnement.objects.filter(code='test_wizard_duree_invalide').exists())
 
 
+class AdminAbonnementAjouterCibleAgeEtOrdreTests(TestCase):
+    """Fonctionnalité 2 (2026-08-27, cohérence formulaire ajout/modification) —
+    bug constaté : la vue admin_abonnement_ajouter lisait déjà cible_age/ordre
+    depuis le POST (donc admin_abonnement_modifier les gérait sans problème),
+    mais le TEMPLATE de création n'avait jamais les champs correspondants —
+    cible_age retombait donc TOUJOURS sur 'les_deux', ordre toujours sur 0,
+    quoi que le مدير fasse à l'écran."""
+
+    def setUp(self):
+        from courses.models import OptionNbSeances
+
+        self.admin = _creer_admin()
+        OptionNbSeances.objects.all().delete()
+        OptionNbSeances.objects.create(valeur=1)
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def test_formulaire_affiche_le_champ_cible_age_et_ordre(self):
+        html = self._connecte_admin().get(reverse('admin_abonnement_ajouter')).content.decode('utf-8')
+        self.assertIn('name="cible_age"', html)
+        self.assertIn('name="ordre"', html)
+        # Mêmes 3 choix que le formulaire de modification.
+        self.assertIn('أطفال فقط', html)
+        self.assertIn('بالغون فقط', html)
+        self.assertIn('الجميع (أطفال وبالغون)', html)
+
+    def test_post_cible_age_enfant_est_respectee(self):
+        from inscriptions.models import TypeAbonnement
+
+        self._connecte_admin().post(reverse('admin_abonnement_ajouter'), {
+            'code': 'test_cible_age_creation', 'type_offre': 'groupe', 'label': 'y',
+            'duree': '1mois', 'prix_1': '70', 'cible_age': 'enfant', 'ordre': '5',
+        })
+        abonnement = TypeAbonnement.objects.get(code='test_cible_age_creation')
+        self.assertEqual(abonnement.cible_age, 'enfant')
+        self.assertEqual(abonnement.ordre, 5)
+
+    def test_post_sans_cible_age_repli_sur_les_deux(self):
+        """Comportement de repli inchangé (cible_age absent du POST) —
+        toujours 'les_deux', jamais un crash."""
+        from inscriptions.models import TypeAbonnement
+
+        self._connecte_admin().post(reverse('admin_abonnement_ajouter'), {
+            'code': 'test_cible_age_repli', 'type_offre': 'groupe', 'label': 'y',
+            'duree': '1mois', 'prix_1': '70',
+        })
+        abonnement = TypeAbonnement.objects.get(code='test_cible_age_repli')
+        self.assertEqual(abonnement.cible_age, 'les_deux')
+        self.assertEqual(abonnement.ordre, 0)
+
+
 # ============================================================================
 # CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 8 : preuve de
 # généricité totale, bout en bout, à travers TOUTE la chaîne (dashboard CRUD

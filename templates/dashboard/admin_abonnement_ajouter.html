@@ -38,8 +38,26 @@
             </select>
         </div>
 
+        {% comment %}
+        Fonctionnalité 2 (2026-08-27, cohérence formulaires ajout/modification) :
+        "الفئة المستهدفة" existait déjà côté vue (request.POST.get('cible_age',
+        'les_deux')) et côté modification, mais n'avait jamais eu de champ ici —
+        elle retombait donc TOUJOURS sur 'les_deux' à la création, obligeant à
+        rouvrir la page de modification juste après pour la corriger. Mêmes
+        choix/libellés qu'admin_abonnement_modifier.html.
+        {% endcomment %}
+        <div class="mb-3 step" id="step-cible-age" style="display:none;">
+            <label style="font-weight:600; color:#333;">5️⃣ الفئة المستهدفة *</label>
+            <select name="cible_age" id="input-cible-age" class="form-select mt-1">
+                <option value="les_deux" {% if valeurs_postees.cible_age == 'les_deux' or not valeurs_postees %}selected{% endif %}>الجميع (أطفال وبالغون)</option>
+                <option value="enfant" {% if valeurs_postees.cible_age == 'enfant' %}selected{% endif %}>أطفال فقط</option>
+                <option value="adulte" {% if valeurs_postees.cible_age == 'adulte' %}selected{% endif %}>بالغون فقط</option>
+            </select>
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">يحدد في أي استمارة تسجيل (أطفال/بالغون) يظهر هذا الاشتراك.</div>
+        </div>
+
         <div class="mb-3 step" id="step-slots" style="display:none;">
-            <label style="font-weight:600; color:#333;">5️⃣ عدد الحصص أسبوعياً والسعر *</label>
+            <label style="font-weight:600; color:#333;">6️⃣ عدد الحصص أسبوعياً والسعر *</label>
             <div style="color:#888; font-size:0.8rem; margin:4px 0 10px;">
                 اختر عدداً واحداً أو أكثر، وحدّد السعر لكل واحد منها — العدد غير المُسعَّر هنا لن يكون متاحاً لهذا الاشتراك.
             </div>
@@ -58,6 +76,18 @@
                        class="form-control" placeholder="السعر" style="max-width:140px;" disabled>
             </div>
             {% endfor %}
+        </div>
+
+        {% comment %}
+        Fonctionnalité 2 (2026-08-27) : "ترتيب الظهور" existait déjà côté vue
+        (request.POST.get('ordre', 0)) et côté modification, mais n'avait
+        jamais eu de champ ici — toujours 0 par défaut à la création (pas un
+        blocage, juste un ordre à corriger ensuite si besoin). Champ optionnel,
+        même valeur par défaut (0) que le comportement précédent silencieux.
+        {% endcomment %}
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
+            <input type="number" name="ordre" class="form-control mt-1" value="{{ valeurs_postees.ordre|default:'0' }}">
         </div>
 
         <div class="d-flex gap-3 mt-4">
@@ -87,6 +117,7 @@
         if (this.value) {
             afficherEtape('step-label');
             afficherEtape('step-duree');
+            afficherEtape('step-cible-age');
             afficherEtape('step-slots');
         }
     });
@@ -99,6 +130,7 @@
         if (typeOffre) {
             afficherEtape('step-label');
             afficherEtape('step-duree');
+            afficherEtape('step-cible-age');
             afficherEtape('step-slots');
         }
     })();
