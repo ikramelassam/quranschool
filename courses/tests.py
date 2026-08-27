@@ -8,7 +8,10 @@ from django.urls import reverse
 from accounts.models import User, Eleve, Prof
 from annonces.models import Annonce
 from inscriptions.models import InscriptionEleve
-from .models import Creneau, CreneauSlot, Groupe, DisponibiliteEleve, DisponibiliteProf, LienMeet, Seance, Presence
+from .models import (
+    Creneau, CreneauSlot, Groupe, DisponibiliteEleve, DisponibiliteProf, LienMeet, Seance, Presence,
+    OptionNbSeances, TarifRemunerationGroupe, TarifRemunerationIndividuel,
+)
 from .utils import (
     raison_incompatibilite_groupe, avertissements_groupe, avertissements_prof_creneau,
     creneaux_se_chevauchent, groupes_en_conflit_pour_lien, lien_meet_est_disponible,
@@ -18,6 +21,7 @@ from .utils import (
     calculer_hizb_precis, calculer_progression_eleve,
     categorie_derivee_du_creneau, backfiller_categorie_depuis_creneau,
     remplacer_slots_creneau, etendre_seances, JOUR_INDEX_INVERSE,
+    calculer_remuneration_prof, couverture_tarifs_remuneration_groupe,
 )
 from registration.models import GroupeCritereValeur
 
@@ -120,6 +124,26 @@ def _image_upload(nom='photo.png', couleur=(200, 30, 30), format='PNG'):
     buffer.seek(0)
     content_type = 'image/png' if format == 'PNG' else f'image/{format.lower()}'
     return SimpleUploadedFile(nom, buffer.read(), content_type=content_type)
+
+
+def _creer_eleve_avec_age(age, email):
+    """Eleve VALIDÉ (avec InscriptionEleve liée, voir Eleve.inscription) dont
+    l'âge est CONNU et contrôlé — nécessaire pour tester courses.utils.
+    _tranche_age_eleve/calculer_remuneration_prof, qui lisent l'âge
+    EXCLUSIVEMENT depuis eleve.inscription.date_naissance (Eleve n'a pas de
+    date_naissance propre) — voir _tranche_age_eleve.__doc__."""
+    aujourdhui = datetime.date.today()
+    date_naissance = aujourdhui.replace(year=aujourdhui.year - age)
+    inscription = InscriptionEleve.objects.create(
+        nom='طالب تجريبي', date_naissance=date_naissance, sexe='homme',
+        telephone='0600000000', email=email,
+        programme='hifz', riwaya='hafs', outil='whatsapp', abonnement='groupe_1mois', statut='valide',
+    )
+    u = User.objects.create_user(
+        username=email, email=email, password=MOT_DE_PASSE,
+        first_name='طالب', last_name='تجريبي', role='eleve', doit_changer_mot_de_passe=False,
+    )
+    return Eleve.objects.create(user=u, sexe='homme', statut='actif', inscription=inscription)
 
 
 class GroupeCategorieCollectifTests(TestCase):
@@ -1980,3 +2004,236 @@ class GroupeTranchesAgeViseesTests(TestCase):
             type_capacite='groupe', capacite_max=10,
         )
         self.assertEqual(groupe.tranches_age_visees, [])
+
+
+# ============================================================================
+# Chantier "salaire prof par nb séances/semaine" du 2026-08-27 (Besoin 3) —
+# calculer_remuneration_prof rewritten to use TarifRemunerationGroupe (axe
+# nb_slots) / TarifRemunerationIndividuel (par séance), en remplacement de
+# l'ancien TarifRemuneration (déprécié, jamais lu ici).
+# ============================================================================
+
+def _mois_courant():
+    """'AAAA-MM' du jour du test — passé explicitement à calculer_remuneration_
+    prof(mois=...) pour que les tests restent déterministes (jamais une
+    dépendance implicite à 'aujourd'hui' au moment de l'exécution)."""
+    from django.utils import timezone
+
+    aujourdhui = timezone.localdate()
+    return f'{aujourdhui.year}-{aujourdhui.month:02d}', aujourdhui
+
+
+class CalculerRemunerationProfGroupeTests(TestCase):
+    """Groupe : montant FIXE par élève actif par mois, selon (tranche_age,
+    nb_slots du groupe) — Besoin 3."""
+
+    def setUp(self):
+        # La migration 0040_seed_nb_seances_et_tarifs_remuneration seed déjà
+        # les 6 combinaisons (tranche_age × 1/2/3) en base de test (comme en
+        # prod) — on repart d'une table VIDE ici pour que chaque test
+        # contrôle EXACTEMENT les tarifs en jeu (y compris le cas "aucun
+        # tarif configuré", impossible à tester sur les données déjà seedées).
+        TarifRemunerationGroupe.objects.all().delete()
+        self.prof = _creer_prof('prof_remun_groupe@zidni.test')
+
+    def test_montant_fixe_par_eleve_actif_selon_nb_slots(self):
+        TarifRemunerationGroupe.objects.create(tranche_age='adulte', nb_slots=2, montant=60)
+        creneau = _creer_creneau(age_min=18, age_max=60, nb_slots=2)
+        groupe = Groupe.objects.create(
+            nom='حلقة بالغين', creneau=creneau, prof=self.prof, statut='actif',
+            type_capacite='groupe', capacite_max=10,
+        )
+        e1 = _creer_eleve_avec_age(25, 'e1_remun_groupe@zidni.test')
+        e2 = _creer_eleve_avec_age(30, 'e2_remun_groupe@zidni.test')
+        groupe.eleves.add(e1, e2)
+
+        resultat = calculer_remuneration_prof(self.prof)
+        self.assertEqual(resultat['total_calcule'], 120)
+        self.assertEqual(resultat['detail'][0]['nb_slots'], 2)
+        self.assertFalse(resultat['detail'][0]['tarif_manquant'])
+        self.assertEqual(resultat['tarifs_manquants'], [])
+
+    def test_barese_different_selon_nb_slots_meme_tranche_age(self):
+        """Le MÊME groupe/tranche d'âge rapporte des montants différents
+        selon le nombre de séances/semaine du créneau — c'est précisément
+        l'axe qui manquait avant ce chantier (TarifRemuneration n'avait
+        qu'une tranche_age, jamais de nb_slots)."""
+        TarifRemunerationGroupe.objects.create(tranche_age='adulte', nb_slots=1, montant=40)
+        TarifRemunerationGroupe.objects.create(tranche_age='adulte', nb_slots=3, montant=100)
+
+        creneau_1 = _creer_creneau(age_min=18, age_max=60, nb_slots=1)
+        groupe_1 = Groupe.objects.create(
+            nom='حلقة حصة واحدة', creneau=creneau_1, prof=self.prof, statut='actif', type_capacite='groupe',
+        )
+        groupe_1.eleves.add(_creer_eleve_avec_age(25, 'e1_bareme@zidni.test'))
+
+        creneau_3 = _creer_creneau(age_min=18, age_max=60, nb_slots=3)
+        groupe_3 = Groupe.objects.create(
+            nom='حلقة ثلاث حصص', creneau=creneau_3, prof=self.prof, statut='actif', type_capacite='groupe',
+        )
+        groupe_3.eleves.add(_creer_eleve_avec_age(26, 'e2_bareme@zidni.test'))
+
+        resultat = calculer_remuneration_prof(self.prof)
+        self.assertEqual(resultat['total_calcule'], 140)  # 40 (1 séance) + 100 (3 séances)
+
+    def test_tarif_manquant_ne_calcule_jamais_a_zero_silencieux(self):
+        """AUCUNE TarifRemunerationGroupe créée pour (adulte, 2) — le montant
+        de CE groupe reste 0 dans le total, mais JAMAIS silencieusement :
+        signalé par tarif_manquant=True sur la ligne ET dans
+        result['tarifs_manquants']."""
+        creneau = _creer_creneau(age_min=18, age_max=60, nb_slots=2)
+        groupe = Groupe.objects.create(
+            nom='حلقة بدون تعرفة', creneau=creneau, prof=self.prof, statut='actif', type_capacite='groupe',
+        )
+        groupe.eleves.add(_creer_eleve_avec_age(25, 'e1_manquant@zidni.test'))
+
+        resultat = calculer_remuneration_prof(self.prof)
+        self.assertEqual(resultat['total_calcule'], 0)
+        self.assertTrue(resultat['detail'][0]['tarif_manquant'])
+        self.assertEqual(len(resultat['tarifs_manquants']), 1)
+        self.assertEqual(resultat['tarifs_manquants'][0]['tranche_age'], 'adulte')
+        self.assertEqual(resultat['tarifs_manquants'][0]['nb_slots'], 2)
+
+    def test_ligne_desactivee_traitee_comme_manquante(self):
+        TarifRemunerationGroupe.objects.create(tranche_age='adulte', nb_slots=2, montant=60, est_actif=False)
+        creneau = _creer_creneau(age_min=18, age_max=60, nb_slots=2)
+        groupe = Groupe.objects.create(
+            nom='حلقة تعرفة معطلة', creneau=creneau, prof=self.prof, statut='actif', type_capacite='groupe',
+        )
+        groupe.eleves.add(_creer_eleve_avec_age(25, 'e1_desactive@zidni.test'))
+
+        resultat = calculer_remuneration_prof(self.prof)
+        self.assertEqual(resultat['total_calcule'], 0)
+        self.assertTrue(resultat['detail'][0]['tarif_manquant'])
+
+    def test_groupe_sans_creneau_traite_comme_manquant(self):
+        groupe = Groupe.objects.create(
+            nom='حلقة بدون خانة زمنية', creneau=None, prof=self.prof, statut='actif', type_capacite='groupe',
+        )
+        groupe.eleves.add(_creer_eleve_avec_age(25, 'e1_sans_creneau@zidni.test'))
+
+        resultat = calculer_remuneration_prof(self.prof)
+        self.assertEqual(resultat['total_calcule'], 0)
+        self.assertTrue(resultat['detail'][0]['tarif_manquant'])
+        self.assertIsNone(resultat['detail'][0]['nb_slots'])
+
+    def test_deux_tranches_dage_une_configuree_une_manquante(self):
+        """Un même groupe mixte enfants+adultes : la tranche configurée est
+        calculée normalement, l'autre est signalée manquante SANS bloquer
+        le calcul de la première (blocage PAR CONTEXTE, décision explicite
+        du client)."""
+        TarifRemunerationGroupe.objects.create(tranche_age='enfant', nb_slots=2, montant=90)
+        creneau = _creer_creneau(age_min=5, age_max=60, nb_slots=2)
+        groupe = Groupe.objects.create(
+            nom='حلقة مختلطة الأعمار', creneau=creneau, prof=self.prof, statut='actif', type_capacite='groupe',
+        )
+        groupe.eleves.add(_creer_eleve_avec_age(10, 'e1_mixte@zidni.test'))
+        groupe.eleves.add(_creer_eleve_avec_age(25, 'e2_mixte@zidni.test'))
+
+        resultat = calculer_remuneration_prof(self.prof)
+        self.assertEqual(resultat['total_calcule'], 90)  # seul l'enfant est facturé
+        self.assertTrue(resultat['detail'][0]['tarif_manquant'])
+        tranches_manquantes = {t['tranche_age'] for t in resultat['tarifs_manquants']}
+        self.assertEqual(tranches_manquantes, {'adulte'})
+
+
+class CalculerRemunerationProfIndividuelTests(TestCase):
+    """Individuel : montant PAR SÉANCE réellement dispensée (Seance.statut=
+    'terminee' ET Presence.statut='present'), jamais un forfait mensuel —
+    Besoin 3. Le comptage lui-même est repris à l'identique de la
+    correction du 2026-08-04 (déjà correct) ; seule la SOURCE du tarif change."""
+
+    def setUp(self):
+        self.prof = _creer_prof('prof_remun_indiv@zidni.test')
+        TarifRemunerationIndividuel.objects.filter(tranche_age='adulte').update(montant=35)
+        if not TarifRemunerationIndividuel.objects.filter(tranche_age='adulte').exists():
+            TarifRemunerationIndividuel.objects.create(tranche_age='adulte', montant=35)
+        self.mois_str, self.aujourdhui = _mois_courant()
+        self.groupe = Groupe.objects.create(
+            nom='حصص فردية', prof=self.prof, statut='actif', type_capacite='individuel', capacite_max=1,
+        )
+        self.eleve = _creer_eleve_avec_age(25, 'eleve_remun_indiv@zidni.test')
+        self.groupe.eleves.add(self.eleve)
+
+    def _creer_seance(self, jour, statut_seance='terminee', statut_presence='present'):
+        jour = min(jour, 28)  # jamais un jour invalide selon le mois du test
+        seance = Seance.objects.create(
+            groupe=self.groupe, date=self.aujourdhui.replace(day=jour), heure=datetime.time(16, 0),
+            type='normal', statut=statut_seance,
+        )
+        if statut_presence is not None:
+            Presence.objects.create(seance=seance, eleve=self.eleve, statut=statut_presence)
+        return seance
+
+    def test_facture_par_seance_reellement_dispensee(self):
+        for jour in (1, 8, 15, 22):
+            self._creer_seance(jour)
+
+        resultat = calculer_remuneration_prof(self.prof, mois=self.mois_str)
+        self.assertEqual(resultat['total_calcule'], 140)  # 4 séances × 35
+        self.assertEqual(resultat['individuel_nb_seances_confirmees'], 4)
+
+    def test_absence_non_facturee(self):
+        self._creer_seance(1, statut_presence='present')
+        self._creer_seance(8, statut_presence='absent')
+
+        resultat = calculer_remuneration_prof(self.prof, mois=self.mois_str)
+        self.assertEqual(resultat['total_calcule'], 35)
+
+    def test_seance_non_terminee_non_facturee(self):
+        self._creer_seance(1, statut_seance='planifiee', statut_presence='present')
+
+        resultat = calculer_remuneration_prof(self.prof, mois=self.mois_str)
+        self.assertEqual(resultat['total_calcule'], 0)
+
+    def test_tarif_manquant_individuel_signale_jamais_silencieux(self):
+        TarifRemunerationIndividuel.objects.filter(tranche_age='adulte').delete()
+        self._creer_seance(1)
+
+        resultat = calculer_remuneration_prof(self.prof, mois=self.mois_str)
+        self.assertEqual(resultat['total_calcule'], 0)
+        self.assertTrue(resultat['detail'][0]['tarif_manquant'])
+        self.assertEqual(resultat['tarifs_manquants'][0]['type_capacite'], 'individuel')
+
+
+class CouvertureTarifsRemunerationGroupeTests(TestCase):
+    """couverture_tarifs_remuneration_groupe() — même esprit que
+    registration.utils.couverture_grille_prix, matière première du bandeau
+    persistant مدير/مشرف (Besoin 3, "notification obligatoire")."""
+
+    def setUp(self):
+        # Même raison que CalculerRemunerationProfGroupeTests.setUp : repartir
+        # d'une table vide plutôt que du seed de migration 0040/0039, pour un
+        # contrôle exact des combinaisons dans chaque test.
+        OptionNbSeances.objects.all().delete()
+        TarifRemunerationGroupe.objects.all().delete()
+
+    def test_total_configures_et_manquantes(self):
+        OptionNbSeances.objects.create(valeur=1)
+        OptionNbSeances.objects.create(valeur=2)
+        TarifRemunerationGroupe.objects.create(tranche_age='adulte', nb_slots=1, montant=40)
+
+        couverture = couverture_tarifs_remuneration_groupe()
+        self.assertEqual(couverture['total'], 4)  # 2 tranches × 2 nb_slots
+        self.assertEqual(couverture['configures'], 1)
+        self.assertIn(('adulte', 2), couverture['combinaisons_manquantes'])
+        self.assertIn(('enfant', 1), couverture['combinaisons_manquantes'])
+        self.assertIn(('enfant', 2), couverture['combinaisons_manquantes'])
+        self.assertNotIn(('adulte', 1), couverture['combinaisons_manquantes'])
+
+    def test_ligne_desactivee_compte_comme_manquante(self):
+        OptionNbSeances.objects.create(valeur=1)
+        TarifRemunerationGroupe.objects.create(tranche_age='adulte', nb_slots=1, montant=40, est_actif=False)
+
+        couverture = couverture_tarifs_remuneration_groupe()
+        self.assertEqual(couverture['configures'], 0)
+        self.assertIn(('adulte', 1), couverture['combinaisons_manquantes'])
+
+    def test_option_nb_seances_desactivee_exclue_du_total(self):
+        option = OptionNbSeances.objects.create(valeur=9)
+        TarifRemunerationGroupe.objects.create(tranche_age='adulte', nb_slots=9, montant=999)
+        self.assertEqual(couverture_tarifs_remuneration_groupe()['total'], 2)  # 2 tranches × 1 nb_slots
+
+        option.est_actif = False
+        option.save()
+        self.assertEqual(couverture_tarifs_remuneration_groupe()['total'], 0)

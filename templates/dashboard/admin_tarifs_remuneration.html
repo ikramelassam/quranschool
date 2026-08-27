@@ -2,24 +2,85 @@
 {% block title %}شبكة تعرفات رواتب المعلمين{% endblock %}
 {% block content %}
 <div class="page-title">شبكة تعرفات رواتب المعلمين</div>
-<div class="page-subtitle">تُستخدم هذه التعرفات لحساب راتب كل معلم تلقائياً حسب نوع الحلقة وعمر كل طالب</div>
+<div class="page-subtitle">تُستخدم هذه التعرفات لحساب راتب كل معلم تلقائياً حسب نوع الحلقة وعمر كل طالب وعدد الحصص الأسبوعية</div>
 
-<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; max-width:700px;">
-    {% for tarif in tarifs %}
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid #f0f0f0;">
+{% if couverture_groupe.combinaisons_manquantes %}
+<div style="background:#fff3cd; border-radius:12px; padding:16px 20px; margin-bottom:20px; color:#856404; font-weight:600; max-width:700px;">
+    ⚠️ {{ couverture_groupe.configures }} من أصل {{ couverture_groupe.total }} تعرفة "جماعي" محددة. الحالات التالية بدون تعرفة —
+    أي معلم/طالب معني بها لن يُحتسب راتبه عن هذه الحلقة تلقائياً حتى تُحدَّد:
+    <div style="margin-top:8px; font-size:0.85rem; font-weight:400;">
+        {% for tranche, nb_slots in couverture_groupe.combinaisons_manquantes %}
+        <span style="display:inline-block; background:white; border-radius:20px; padding:3px 12px; margin:2px;">
+            {% if tranche == 'enfant' %}طفل{% else %}بالغ{% endif %} — {{ nb_slots }} حصص/أسبوع
+        </span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;">
+<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; max-width:480px; flex:1; min-width:340px;">
+    <div style="padding:16px 24px; font-weight:700; border-bottom:1px solid #f0f0f0;">👥 جماعي — مبلغ ثابت لكل طالب نشط شهرياً</div>
+    {% for tranche_key, lignes in tarifs_groupe_par_tranche.items %}
+    <div style="padding:12px 24px 4px; color:#888; font-size:0.8rem; font-weight:600;">{% if tranche_key == 'enfant' %}الأطفال{% else %}البالغون{% endif %}</div>
+    {% for tarif in lignes %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 24px; {% if not tarif.est_actif %}opacity:0.5;{% endif %}">
         <div>
-            <div style="font-weight:700;">{{ tarif.get_type_capacite_display }} — {{ tarif.get_tranche_age_display }}</div>
-            <div style="color:#888; font-size:0.85rem;">{{ tarif.montant }} درهم / طالب نشط / شهر</div>
+            <div style="font-weight:600;">{{ tarif.nb_slots }} حصص/أسبوع</div>
+            <div style="color:#888; font-size:0.82rem;">{{ tarif.montant }} درهم / طالب نشط / شهر {% if not tarif.est_actif %}(معطّلة){% endif %}</div>
         </div>
         {% if request.user.role != 'mshrif' %}
-        <a href="{% url 'admin_tarif_remuneration_modifier' tarif.id %}"
-           style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-           تعديل ✏️
-        </a>
+        <a href="{% url 'admin_tarif_remuneration_groupe_modifier' tarif.id %}"
+           style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">تعديل ✏️</a>
         {% endif %}
     </div>
     {% empty %}
-    <div style="text-align:center; padding:60px; color:#aaa;">لا توجد تعرفات — تحقق من الترحيل (migration)</div>
+    <div style="padding:10px 24px; color:#aaa; font-size:0.85rem;">لا توجد تعرفة بعد</div>
     {% endfor %}
+    {% endfor %}
+
+    {% if request.user.role != 'mshrif' %}
+    <div style="padding:16px 24px; border-top:1px solid #f0f0f0;">
+        <div style="font-weight:600; font-size:0.9rem; margin-bottom:10px;">+ إضافة تعرفة جماعي</div>
+        <form method="POST" action="{% url 'admin_tarif_remuneration_groupe_ajouter' %}" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            {% csrf_token %}
+            <select name="tranche_age" class="form-select" style="max-width:130px;" required>
+                <option value="enfant">طفل</option>
+                <option value="adulte">بالغ</option>
+            </select>
+            <select name="nb_slots" class="form-select" style="max-width:150px;" required>
+                {% for option in options_nb_seances %}<option value="{{ option.valeur }}">{{ option.valeur }} حصص/أسبوع</option>{% endfor %}
+            </select>
+            <input type="number" step="0.01" min="0" name="montant" class="form-control" placeholder="المبلغ" style="max-width:120px;" required>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:7px 16px; font-family:'Tajawal',sans-serif; font-size:0.85rem; cursor:pointer;">إضافة</button>
+        </form>
+        {% if not options_nb_seances %}
+        <div style="color:#aaa; font-size:0.8rem; margin-top:6px;">لا توجد أي حالة "عدد حصص" مفعّلة — <a href="{% url 'admin_options_nb_seances' %}">أضف واحدة أولاً</a>.</div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; max-width:480px; flex:1; min-width:340px;">
+    <div style="padding:16px 24px; font-weight:700; border-bottom:1px solid #f0f0f0;">🧑‍🎓 فردي — مبلغ لكل حصة تُنجَز فعلياً</div>
+    {% for tarif in tarifs_individuel %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
+        <div>
+            <div style="font-weight:700;">{{ tarif.get_tranche_age_display }}</div>
+            <div style="color:#888; font-size:0.85rem;">{{ tarif.montant }} درهم / حصة مُنجزة فعلياً</div>
+        </div>
+        {% if request.user.role != 'mshrif' %}
+        <a href="{% url 'admin_tarif_remuneration_individuel_modifier' tarif.id %}"
+           style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">تعديل ✏️</a>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div style="text-align:center; padding:40px; color:#aaa;">لا توجد تعرفات — تحقق من الترحيل (migration)</div>
+    {% endfor %}
+</div>
+</div>
+
+<div style="margin-top:20px;">
+    <a href="{% url 'admin_options_nb_seances' %}" style="color:#888; font-size:0.85rem;">⚙️ إدارة أعداد الحصص الأسبوعية المتاحة (1، 2، 3...)</a>
 </div>
 {% endblock %}

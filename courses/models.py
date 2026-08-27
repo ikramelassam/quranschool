@@ -495,11 +495,23 @@ class HistoriqueGroupeEleve(models.Model):
 
 
 class TarifRemuneration(models.Model):
-    """Grille tarifaire de rémunération des profs: 1 ligne par combinaison
-    type_capacite × tranche_age (4 lignes fixes, jamais ajoutées/supprimées
-    depuis l'admin — seul le montant est modifiable). Réutilise les mêmes
-    codes que Groupe.type_capacite (pas Creneau.type_seance, un champ au
-    nom proche mais qui désigne autre chose: hifz/tathbit)."""
+    """DÉPRÉCIÉ depuis le chantier "salaire prof par nb séances/semaine" du
+    2026-08-27 — remplacé par TarifRemunerationGroupe (ajoute l'axe nb_slots,
+    manquant ici) et TarifRemunerationIndividuel (tarif par SÉANCE, pas par
+    mois — l'ancien calcul individuel sur ce modèle mélangeait à tort les 2
+    notions, voir calculer_remuneration_prof.__doc__). calculer_remuneration_prof
+    ne lit PLUS ce modèle. Table et 4 lignes historiques CONSERVÉES telles
+    quelles (aucune suppression, aucune migration de données vers les
+    nouveaux modèles — décision explicite du client : jamais de valeur par
+    défaut devinée pour un montant qui affecte un salaire réel, voir
+    TarifRemunerationGroupe.__doc__) — gardées en lecture seule pour
+    l'historique/l'audit, plus jamais modifiables depuis le dashboard
+    (admin_tarifs_remuneration/admin_tarif_remuneration_modifier retirés).
+
+    Grille tarifaire ORIGINALE (avant dépréciation): 1 ligne par combinaison
+    type_capacite × tranche_age (4 lignes fixes). Réutilise les mêmes codes
+    que Groupe.type_capacite (pas Creneau.type_seance, un champ au nom
+    proche mais qui désigne autre chose: hifz/tathbit)."""
     TRANCHE_AGE_CHOICES = [
         ('enfant', 'طفل'),
         ('adulte', 'بالغ'),
@@ -514,8 +526,117 @@ class TarifRemuneration(models.Model):
 
     class Meta:
         unique_together = ('type_capacite', 'tranche_age')
-        verbose_name = "Tarif de rémunération"
-        verbose_name_plural = "Tarifs de rémunération"
+        verbose_name = "Tarif de rémunération (déprécié)"
+        verbose_name_plural = "Tarifs de rémunération (déprécié)"
+
+
+class OptionNbSeances(models.Model):
+    """Catalogue partagé du nombre de séances/semaine proposables — Chantier
+    "cases nb_slots configurables" du 2026-08-27. UNE SEULE source de vérité
+    pour les "cases cliquables" utilisées à la fois par :
+    - inscriptions.GrillePrixAbonnement.nb_slots (tarification élève) —
+      registration.utils.plage_nb_slots_grille_prix() lit désormais CE
+      modèle au lieu d'une plage fixe 1..10 codée en dur ;
+    - TarifRemunerationGroupe.nb_slots ci-dessous (barème salaire prof).
+
+    `valeur` reste un entier simple (PAS de FK depuis GrillePrixAbonnement/
+    TarifRemunerationGroupe vers ce modèle) : ces 2 modèles gardent un champ
+    nb_slots entier ordinaire, revalidé côté serveur contre les valeurs
+    actives de ce catalogue à chaque écriture — même principe que
+    champ_modele_groupe (registration.models.Critere), une chaîne/valeur
+    brute validée dynamiquement plutôt qu'une contrainte FK rigide.
+
+    est_actif=False retire la case de TOUS les écrans de configuration (ni
+    sélectionnable pour un nouvel abonnement, ni pour une nouvelle ligne de
+    barème prof) SANS supprimer les GrillePrixAbonnement/TarifRemunerationGroupe
+    déjà existants pour cette valeur — même convention que Creneau.est_actif/
+    TypeAbonnement.est_actif partout ailleurs dans ce projet (désactivation
+    réversible, jamais une suppression destructive d'une valeur peut-être
+    déjà utilisée)."""
+
+    valeur = models.PositiveSmallIntegerField(unique=True)
+    ordre = models.IntegerField(default=0)
+    est_actif = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.valeur} حصص/أسبوع"
+
+    class Meta:
+        ordering = ['valeur']
+        verbose_name = "Option de nombre de séances/semaine"
+        verbose_name_plural = "Options de nombre de séances/semaine"
+
+
+class TarifRemunerationGroupe(models.Model):
+    """Barème de salaire prof pour un groupe COLLECTIF : montant FIXE par
+    élève actif, PAR MOIS, indépendant du nombre réel de séances données ce
+    mois-là — 1 ligne par combinaison (tranche_age, nb_slots), Chantier du
+    2026-08-27. Remplace, pour le cas 'groupe', l'ancien TarifRemuneration
+    (voir sa docstring de dépréciation) : celui-ci n'avait AUCUN axe nb_slots,
+    un même montant s'appliquait à un groupe de 1 comme de 3 séances/semaine.
+
+    Extensible SANS migration de schéma (ajouter une ligne = juste une
+    nouvelle ligne en base, comme inscriptions.GrillePrixAbonnement) — nb_slots
+    doit correspondre à une OptionNbSeances active, revalidé côté serveur à
+    chaque écriture (dashboard.views.admin_tarif_remuneration_groupe_ajouter),
+    jamais une confiance aveugle dans le POST.
+
+    Blocage PAR CONTEXTE (décision explicite du client, 2026-08-27, PAS un
+    blocage global) : une OptionNbSeances peut exister globalement (ex: "4"
+    créée par le مدير) sans qu'aucune ligne n'existe encore ICI pour une
+    tranche_age donnée — dans ce cas, courses.utils.calculer_remuneration_prof
+    ne calcule JAMAIS silencieusement un montant à 0 pour un groupe concerné :
+    voir couverture_tarifs_remuneration_groupe() et le champ
+    'tarifs_manquants' du résultat de calculer_remuneration_prof, affichés en
+    bandeau PERSISTANT (jamais un badge 🔔 marquable comme lu) tant que la
+    combinaison n'est pas configurée — contrairement à GrillePrixAbonnement,
+    il n'existe ICI aucun 'prix par défaut' de repli : un salaire manquant
+    doit rester visible, jamais masqué par une valeur inventée."""
+
+    tranche_age = models.CharField(max_length=10, choices=TarifRemuneration.TRANCHE_AGE_CHOICES)
+    nb_slots = models.PositiveSmallIntegerField()
+    montant = models.DecimalField(max_digits=8, decimal_places=2)
+    est_actif = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.get_tranche_age_display()} — {self.nb_slots} حصص/أسبوع ({self.montant} د.م.)"
+
+    class Meta:
+        unique_together = ('tranche_age', 'nb_slots')
+        ordering = ['tranche_age', 'nb_slots']
+        verbose_name = "Tarif de rémunération (groupe)"
+        verbose_name_plural = "Tarifs de rémunération (groupe)"
+
+
+class TarifRemunerationIndividuel(models.Model):
+    """Tarif de salaire prof pour une séance INDIVIDUELLE RÉELLEMENT
+    DISPENSÉE (comptée par courses.utils.calculer_remuneration_prof :
+    Seance.statut='terminee' ET Presence.statut='present', EXACTEMENT comme
+    avant ce chantier — seule la SOURCE du montant change ici, jamais le
+    calcul de comptage des séances, déjà correct). Remplace, pour le cas
+    'individuel', l'ancien TarifRemuneration (voir sa docstring de
+    dépréciation) : celui-ci était affiché à tort "par mois" alors que le
+    calcul sous-jacent était déjà "par séance" — bug d'AFFICHAGE seulement
+    (admin_tarifs_remuneration.html), jamais de calcul, corrigé par ce
+    chantier en même temps que l'ajout de ce modèle dédié.
+
+    2 lignes fixes (une par tranche_age), jamais ajoutées/supprimées depuis
+    le dashboard — même convention que l'ancien TarifRemuneration. L'axe
+    tranche_age est VOLONTAIREMENT CONSERVÉ malgré un montant identique
+    (35 د.م.) aux deux lignes au moment du seed (décision explicite du
+    client, 2026-08-27) : il pourra différencier plus tard sans aucun
+    changement de schéma, seulement en modifiant l'une des 2 lignes."""
+
+    tranche_age = models.CharField(max_length=10, choices=TarifRemuneration.TRANCHE_AGE_CHOICES, unique=True)
+    montant = models.DecimalField(max_digits=8, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.get_tranche_age_display()} — {self.montant} د.م. / حصة"
+
+    class Meta:
+        ordering = ['tranche_age']
+        verbose_name = "Tarif de rémunération (individuel)"
+        verbose_name_plural = "Tarifs de rémunération (individuel)"
 
 
 class Seance(models.Model):

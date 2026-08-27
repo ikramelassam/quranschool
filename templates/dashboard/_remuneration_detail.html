@@ -21,6 +21,12 @@ figée sur celle du prof.
                 <span style="font-weight:700;">{{ ligne.groupe.nom }}</span>
                 <span style="color:#888; font-size:0.8rem; background:var(--color-bg-cream); border-radius:20px; padding:3px 12px;">{{ ligne.groupe.get_type_capacite_display }}</span>
             </div>
+            {% if ligne.tarif_manquant %}
+            <div style="background:#fff3cd; color:#856404; border-radius:8px; padding:8px 12px; margin-bottom:8px; font-size:0.8rem; font-weight:600;">
+                ⚠️ لا توجد تعرفة محددة لهذه المجموعة بعد ({{ ligne.nb_slots|default:"عدد حصص غير معروف" }} حصص/أسبوع) —
+                لم يُحتسب أي مبلغ عنها حتى تُضبط التعرفة من طرف الإدارة.
+            </div>
+            {% endif %}
             {% if ligne.nb_enfants %}
             <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f5f0e6;">
                 <span style="color:#888;">{{ ligne.nb_enfants }} طالب (طفل) × {{ ligne.tarif_enfant }} د.م.</span>

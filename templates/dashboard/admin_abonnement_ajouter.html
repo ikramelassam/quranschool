@@ -3,44 +3,63 @@
 {% block content %}
 <div class="page-title">إضافة نوع اشتراك</div>
 
-<div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <form method="POST">
+<div style="background:white; border-radius:16px; padding:32px; max-width:560px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST" id="form-abonnement">
         {% csrf_token %}
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الرمز (بالإنجليزية، بدون مسافات) *</label>
-            <input type="text" name="code" class="form-control mt-1" placeholder="مثال: groupe_6mois" required>
+
+        <div class="mb-3 step" id="step-code">
+            <label style="font-weight:600; color:#333;">1️⃣ الرمز (بالإنجليزية، بدون مسافات) *</label>
+            <input type="text" name="code" id="input-code" class="form-control mt-1"
+                   placeholder="مثال: groupe_adulte_6mois" value="{{ valeurs_postees.code|default:'' }}" required>
         </div>
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الاسم المعروض *</label>
-            <input type="text" name="label" class="form-control mt-1" placeholder="مثال: 6 أشهر" required>
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">
-                نوع الاشتراك (جماعي/فردي) يظهر بشكل منفصل — لا داعي لتكراره هنا (تجنّب مثلاً "جماعي - 6 أشهر").
-            </div>
-        </div>
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">المدة (تُعرض وحدها في استمارة التسجيل وشاشة الإضافة اليدوية)</label>
-            <input type="text" name="duree" class="form-control mt-1" placeholder="مثال: 6 أشهر">
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">
-                نوع الاشتراك (جماعي/فردي) يُختار قبل هذه الخطوة، لا داعي لتكراره هنا. اتركه فارغاً لعرض الاسم المعروض بالكامل.
-            </div>
-        </div>
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">السعر (درهم) *</label>
-            <input type="number" step="0.01" name="prix" class="form-control mt-1" required>
-        </div>
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الفئة المستهدفة *</label>
-            <select name="cible_age" class="form-select mt-1">
-                <option value="les_deux" selected>الجميع (أطفال وبالغون)</option>
-                <option value="enfant">أطفال فقط</option>
-                <option value="adulte">بالغون فقط</option>
+
+        <div class="mb-3 step" id="step-type">
+            <label style="font-weight:600; color:#333;">2️⃣ النوع *</label>
+            <select name="type_offre" id="input-type-offre" class="form-select mt-1" required>
+                <option value="" selected disabled>— اختر —</option>
+                <option value="groupe" {% if valeurs_postees.type_offre == 'groupe' %}selected{% endif %}>جماعي</option>
+                <option value="individuel" {% if valeurs_postees.type_offre == 'individuel' %}selected{% endif %}>فردي</option>
             </select>
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">يحدد في أي استمارة تسجيل (أطفال/بالغون) يظهر هذا الاشتراك.</div>
         </div>
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
-            <input type="number" name="ordre" class="form-control mt-1" value="0">
+
+        <div class="mb-3 step" id="step-label" style="display:none;">
+            <label style="font-weight:600; color:#333;">3️⃣ الاسم المعروض *</label>
+            <input type="text" name="label" id="input-label" class="form-control mt-1"
+                   placeholder="مثال: الاشتراك الجماعي" value="{{ valeurs_postees.label|default:'' }}">
         </div>
+
+        <div class="mb-3 step" id="step-duree" style="display:none;">
+            <label style="font-weight:600; color:#333;">4️⃣ المدة *</label>
+            <select name="duree" id="input-duree" class="form-select mt-1">
+                <option value="" selected disabled>— اختر —</option>
+                {% for code, label in duree_choices %}
+                <option value="{{ code }}" {% if valeurs_postees.duree == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3 step" id="step-slots" style="display:none;">
+            <label style="font-weight:600; color:#333;">5️⃣ عدد الحصص أسبوعياً والسعر *</label>
+            <div style="color:#888; font-size:0.8rem; margin:4px 0 10px;">
+                اختر عدداً واحداً أو أكثر، وحدّد السعر لكل واحد منها — العدد غير المُسعَّر هنا لن يكون متاحاً لهذا الاشتراك.
+            </div>
+            {% if not options_nb_seances %}
+            <div style="background:#fff3cd; color:#856404; border-radius:8px; padding:10px 14px; font-size:0.85rem;">
+                لا توجد أي حالة "عدد حصص" مفعّلة — <a href="{% url 'admin_options_nb_seances' %}">أضف واحدة أولاً</a>.
+            </div>
+            {% endif %}
+            {% for n in options_nb_seances %}
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <label style="display:flex; align-items:center; gap:6px; min-width:130px; cursor:pointer;">
+                    <input type="checkbox" class="case-nb-slots" data-nb-slots="{{ n }}" onchange="toggleCaseNbSlots({{ n }})">
+                    {{ n }} حصص/أسبوع
+                </label>
+                <input type="number" step="0.01" min="0" name="prix_{{ n }}" id="prix-{{ n }}"
+                       class="form-control" placeholder="السعر" style="max-width:140px;" disabled>
+            </div>
+            {% endfor %}
+        </div>
+
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
@@ -50,4 +69,38 @@
         </div>
     </form>
 </div>
+
+<script>
+    function toggleCaseNbSlots(n) {
+        const checkbox = document.querySelector(`.case-nb-slots[data-nb-slots="${n}"]`);
+        const prixInput = document.getElementById(`prix-${n}`);
+        prixInput.disabled = !checkbox.checked;
+        if (!checkbox.checked) prixInput.value = '';
+    }
+
+    function afficherEtape(id) {
+        document.getElementById(id).style.display = 'block';
+    }
+
+    document.getElementById('input-type-offre').addEventListener('change', function () {
+        // Besoin 1.3 : "الاسم المعروض" ne devient visible qu'APRÈS le choix du type.
+        if (this.value) {
+            afficherEtape('step-label');
+            afficherEtape('step-duree');
+            afficherEtape('step-slots');
+        }
+    });
+
+    // Si le formulaire est réaffiché après une erreur serveur (valeurs déjà postées),
+    // révéler directement toutes les étapes déjà répondues — jamais forcer l'admin
+    // à recommencer depuis l'étape 1.
+    (function () {
+        const typeOffre = document.getElementById('input-type-offre').value;
+        if (typeOffre) {
+            afficherEtape('step-label');
+            afficherEtape('step-duree');
+            afficherEtape('step-slots');
+        }
+    })();
+</script>
 {% endblock %}

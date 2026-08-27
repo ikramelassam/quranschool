@@ -24,10 +24,16 @@
 <div class="section-title">شبكة التعرفات المرجعية</div>
 <div class="compact-card mb-2" style="color:#888; font-size:0.82rem;">هذه شبكة عامة ثابتة، غير مرتبطة مباشرة بحسابك الشخصي أعلاه — تُستخدم لحساب مستحقات كل معلم.</div>
 <div class="tarif-ref-grid">
-    {% for tarif in tarifs %}
+    {% for tarif in tarifs_groupe %}
     <div class="tarif-ref-chip">
-        <div class="type">{{ tarif.get_type_capacite_display }} — {{ tarif.get_tranche_age_display }}</div>
-        <div class="montant">{{ tarif.montant }} د.م.</div>
+        <div class="type">جماعي — {{ tarif.get_tranche_age_display }} — {{ tarif.nb_slots }} حصص/أسبوع</div>
+        <div class="montant">{{ tarif.montant }} د.م. / شهر</div>
+    </div>
+    {% endfor %}
+    {% for tarif in tarifs_individuel %}
+    <div class="tarif-ref-chip">
+        <div class="type">فردي — {{ tarif.get_tranche_age_display }}</div>
+        <div class="montant">{{ tarif.montant }} د.م. / حصة</div>
     </div>
     {% endfor %}
 </div>

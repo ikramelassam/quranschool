@@ -1,0 +1,38 @@
+{% extends base_template %}
+{% block title %}أعداد الحصص الأسبوعية{% endblock %}
+{% block content %}
+<div class="page-title">أعداد الحصص الأسبوعية</div>
+<div class="page-subtitle">
+    القائمة المشتركة المستخدمة في أسعار الاشتراكات (للطلاب) وتعرفات الرواتب (للمعلمين) — إضافة عدد جديد هنا لا يجعله
+    قابلاً للاستخدام تلقائياً، بل يظهر كخيار يمكن تسعيره لاحقاً في كل شاشة على حدة.
+</div>
+
+<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; max-width:480px;">
+    {% for option in options %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 24px; border-bottom:1px solid #f0f0f0; {% if not option.est_actif %}opacity:0.5;{% endif %}">
+        <div style="font-weight:600;">{{ option.valeur }} حصص/أسبوع {% if not option.est_actif %}(معطّلة){% endif %}</div>
+        <a href="{% url 'admin_option_nb_seances_toggle' option.id %}"
+           style="background:{% if option.est_actif %}#f0f0f0{% else %}var(--color-success){% endif %}; color:{% if option.est_actif %}#555{% else %}white{% endif %}; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+           {% if option.est_actif %}تعطيل{% else %}تفعيل{% endif %}
+        </a>
+    </div>
+    {% empty %}
+    <div style="text-align:center; padding:40px; color:#aaa;">لا توجد أي حالة بعد</div>
+    {% endfor %}
+
+    <div style="padding:16px 24px;">
+        <form method="POST" action="{% url 'admin_option_nb_seances_ajouter' %}" style="display:flex; gap:10px; align-items:center;">
+            {% csrf_token %}
+            <input type="number" min="1" name="valeur" class="form-control" placeholder="مثال: 4" style="max-width:140px;" required>
+            <button type="submit"
+                style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 18px; font-family:'Tajawal',sans-serif; font-size:0.9rem; cursor:pointer;">
+                + إضافة حالة جديدة
+            </button>
+        </form>
+    </div>
+</div>
+
+<div style="margin-top:16px;">
+    <a href="{% url 'admin_tarifs_remuneration' %}" style="color:#888; text-decoration:none;">← رجوع لتعرفات الرواتب</a>
+</div>
+{% endblock %}

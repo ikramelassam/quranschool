@@ -1102,10 +1102,9 @@ def description_conflit_lien_meet_seance(lien_meet, seance):
     return f'يتعارض مع توقيت مجموعة {noms}.'
 
 
-def calculer_remuneration_prof(prof, mois=None, tarifs=None):
-    """Rémunération mensuelle d'un prof selon la grille TarifRemuneration
-    (type_capacite du groupe × tranche d'âge). Détail par groupe pour que le
-    calcul soit vérifiable. Ne retourne QUE le calcul de base de la grille —
+def calculer_remuneration_prof(prof, mois=None, tarifs_groupe=None, tarifs_individuel=None):
+    """Rémunération mensuelle d'un prof. Détail par groupe pour que le calcul
+    soit vérifiable. Ne retourne QUE le calcul de base de la grille —
     majoration_mensuelle (Prof) n'est ni lue ni additionnée ici: elle ne doit
     jamais atteindre la page du prof, même fondue dans un total, voir
     templates/dashboard/prof_remuneration.html.
@@ -1115,16 +1114,27 @@ def calculer_remuneration_prof(prof, mois=None, tarifs=None):
     chaque affichage de cette fonction, quelle que soit la date à laquelle on
     la consulte, ne montre QUE le mois en cours.
 
-    Correction du 2026-08-04 (Point 6, bug signalé par le client) : pour un
-    groupe type_capacite='individuel', l'ancien calcul multipliait le tarif
-    par le nombre d'élèves ACTIFS actuels du groupe — un montant mensuel FIXE
-    par élève inscrit, peu importe le nombre de séances réellement tenues ce
-    mois-ci. Désormais compté PAR SÉANCE individuelle réellement tenue ce
-    mois (Seance.statut='terminee') ET où l'élève était marqué présent
-    (Presence.statut='present') — une séance individuelle annulée, restée
-    'planifiee', ou où l'unique élève était absent, n'est pas payée. Les
-    groupes (type_capacite='groupe') gardent EXACTEMENT l'ancien calcul
-    (nombre d'élèves actifs × tarif mensuel), volontairement inchangé.
+    Refonte du 2026-08-27 (Chantier "salaire prof par nb séances/semaine") —
+    remplace TarifRemuneration (déprécié, voir son docstring) par 2 sources :
+    - TarifRemunerationGroupe(tranche_age, nb_slots) pour type_capacite='groupe' :
+      montant fixe par élève actif par mois, SELON LE NOMBRE DE SÉANCES/SEMAINE
+      du groupe (groupe.creneau.slots.count(), même source de vérité que
+      registration.utils partout ailleurs) — avant ce chantier, un même tarif
+      s'appliquait à un groupe de 1 comme de 3 séances/semaine.
+    - TarifRemunerationIndividuel(tranche_age) pour type_capacite='individuel' :
+      35 د.م. (valeur seed) PAR SÉANCE réellement tenue — le COMPTAGE des
+      séances (Seance.statut='terminee' ET Presence.statut='present') est
+      repris À L'IDENTIQUE de la correction du 2026-08-04 (Point 6), déjà
+      correct ; seule la SOURCE du montant/د.م. change ici.
+
+    'tarif_manquant' (nouveau, par ligne de detail ET au niveau du résultat via
+    'tarifs_manquants') — blocage PAR CONTEXTE (décision explicite du client) :
+    si AUCUNE ligne active n'existe pour (tranche_age, nb_slots) demandée,
+    JAMAIS un montant inventé à 0 ou une exception : la ligne concernée est
+    marquée 'tarif_manquant': True (montant réellement 0 dans le total, mais
+    signalé CLAIREMENT, jamais silencieusement — voir couverture_tarifs_
+    remuneration_groupe() pour le bandeau مدير/مشرف correspondant, et
+    templates/dashboard/_remuneration_detail.html pour son affichage côté prof).
 
     Champs ajoutés le 2026-08-05 (chantier groupé, Point 2 — refonte de
     راتبي) pour séparer clairement groupes/individuel à l'affichage, SANS
@@ -1157,20 +1167,25 @@ def calculer_remuneration_prof(prof, mois=None, tarifs=None):
     Documenté explicitement dans l'UI (voir mshrif_remuneration.html) pour ne
     jamais laisser croire à une vraie vue historique complète.
 
-    tarifs (optionnel, dict {(type_capacite, tranche_age): montant}, Tâche
-    du 2026-08-06 — audit de performance, point 8) : évite de refaire
-    TarifRemuneration.objects.all() à CHAQUE appel quand cette fonction est
+    tarifs_groupe/tarifs_individuel (optionnels, dicts {(tranche_age, nb_slots):
+    montant} / {tranche_age: montant}, Tâche du 2026-08-06 — audit de
+    performance, point 8, adapté au 2026-08-27 pour les 2 nouvelles grilles) :
+    évite de refaire une requête à CHAQUE appel quand cette fonction est
     rappelée en boucle sur plusieurs profs (mshrif_remuneration) — la grille
     tarifaire est la même pour tout le monde, un seul appelant qui boucle
     peut la charger UNE fois et la transmettre ici. None (défaut) = ancien
     comportement inchangé (requête interne), pour les appelants à un seul
     prof (prof_remuneration, admin_prof_remuneration_detail)."""
-    from .models import TarifRemuneration, Presence, Seance
+    from .models import TarifRemunerationGroupe, TarifRemunerationIndividuel, Presence, Seance
 
-    if tarifs is None:
-        tarifs = {
-            (t.type_capacite, t.tranche_age): t.montant
-            for t in TarifRemuneration.objects.all()
+    if tarifs_groupe is None:
+        tarifs_groupe = {
+            (t.tranche_age, t.nb_slots): t.montant
+            for t in TarifRemunerationGroupe.objects.filter(est_actif=True)
+        }
+    if tarifs_individuel is None:
+        tarifs_individuel = {
+            t.tranche_age: t.montant for t in TarifRemunerationIndividuel.objects.all()
         }
     aujourdhui = timezone.localdate()
     if mois:
@@ -1186,10 +1201,21 @@ def calculer_remuneration_prof(prof, mois=None, tarifs=None):
     individuel_projection = 0
     individuel_nb_seances_confirmees = 0
     individuel_nb_seances_prevues = 0
+    tarifs_manquants = []
 
     for groupe in prof.groupes.all():
-        tarif_enfant = tarifs.get((groupe.type_capacite, 'enfant'), 0)
-        tarif_adulte = tarifs.get((groupe.type_capacite, 'adulte'), 0)
+        nb_slots_groupe = groupe.creneau.slots.count() if groupe.creneau_id else None
+
+        if groupe.type_capacite == 'individuel':
+            tarif_enfant = tarifs_individuel.get('enfant')
+            tarif_adulte = tarifs_individuel.get('adulte')
+        else:
+            # Manquant si aucune OptionNbSeances n'est encore rattachée au
+            # groupe (aucun créneau — nb_slots_groupe=None, impossible à
+            # tarifer) OU si aucune ligne active n'existe pour ce nb_slots
+            # précis — jamais un repli sur un autre nb_slots.
+            tarif_enfant = tarifs_groupe.get(('enfant', nb_slots_groupe)) if nb_slots_groupe else None
+            tarif_adulte = tarifs_groupe.get(('adulte', nb_slots_groupe)) if nb_slots_groupe else None
 
         if groupe.type_capacite == 'individuel':
             a_des_groupes_individuels = True
@@ -1226,12 +1252,12 @@ def calculer_remuneration_prof(prof, mois=None, tarifs=None):
                 elif tranche == 'adulte':
                     nb_adultes_actifs += 1
             individuel_projection += nb_seances_prevues_groupe * (
-                nb_enfants_actifs * tarif_enfant + nb_adultes_actifs * tarif_adulte
+                nb_enfants_actifs * (tarif_enfant or 0) + nb_adultes_actifs * (tarif_adulte or 0)
             )
             individuel_nb_seances_confirmees += presences_mois.count()
             individuel_nb_seances_prevues += nb_seances_prevues_groupe
         else:
-            # Groupes — calcul INCHANGÉ (nombre d'élèves actifs × tarif mensuel).
+            # Groupes — nombre d'élèves actifs × tarif mensuel selon nb_slots.
             nb_enfants = 0
             nb_adultes = 0
             nb_age_inconnu = 0
@@ -1244,8 +1270,24 @@ def calculer_remuneration_prof(prof, mois=None, tarifs=None):
                 else:
                     nb_age_inconnu += 1
 
-        montant_enfants = nb_enfants * tarif_enfant
-        montant_adultes = nb_adultes * tarif_adulte
+        # Manquant = un tarif absent (None) alors que des élèves de cette
+        # tranche sont réellement concernés — jamais un montant à 0 silencieux.
+        tarif_manquant = False
+        if nb_enfants and tarif_enfant is None:
+            tarif_manquant = True
+            tarifs_manquants.append({
+                'groupe': groupe, 'tranche_age': 'enfant', 'nb_slots': nb_slots_groupe,
+                'type_capacite': groupe.type_capacite,
+            })
+        if nb_adultes and tarif_adulte is None:
+            tarif_manquant = True
+            tarifs_manquants.append({
+                'groupe': groupe, 'tranche_age': 'adulte', 'nb_slots': nb_slots_groupe,
+                'type_capacite': groupe.type_capacite,
+            })
+
+        montant_enfants = nb_enfants * (tarif_enfant or 0)
+        montant_adultes = nb_adultes * (tarif_adulte or 0)
         sous_total = montant_enfants + montant_adultes
         total_calcule += sous_total
         if groupe.type_capacite == 'individuel':
@@ -1261,6 +1303,8 @@ def calculer_remuneration_prof(prof, mois=None, tarifs=None):
             'montant_adultes': montant_adultes,
             'sous_total': sous_total,
             'nb_age_inconnu': nb_age_inconnu,
+            'nb_slots': nb_slots_groupe,
+            'tarif_manquant': tarif_manquant,
         })
 
     return {
@@ -1276,6 +1320,32 @@ def calculer_remuneration_prof(prof, mois=None, tarifs=None):
             round(individuel_nb_seances_confirmees / individuel_nb_seances_prevues * 100)
             if individuel_nb_seances_prevues else 0
         ),
+        'tarifs_manquants': tarifs_manquants,
+    }
+
+
+def couverture_tarifs_remuneration_groupe():
+    """{'total', 'configures', 'combinaisons_manquantes'} — combinaisons
+    (tranche_age × OptionNbSeances actives) sans ligne TarifRemunerationGroupe
+    active, même esprit que registration.utils.couverture_grille_prix (Besoin 3,
+    "notification obligatoire"). Recalculée à CHAQUE appel, jamais mise en
+    cache — même philosophie que le reste des fonctions 'couverture_*' du
+    projet. Affichée en bandeau PERSISTANT (jamais un badge 🔔 dismissible,
+    voir TarifRemunerationGroupe.__doc__) sur admin_tarifs_remuneration."""
+    from .models import OptionNbSeances, TarifRemuneration, TarifRemunerationGroupe
+
+    valeurs_nb_slots = list(OptionNbSeances.objects.filter(est_actif=True).values_list('valeur', flat=True))
+    tranches = [code for code, _label in TarifRemuneration.TRANCHE_AGE_CHOICES]
+    combinaisons = [(t, n) for t in tranches for n in valeurs_nb_slots]
+    configurees = set(
+        TarifRemunerationGroupe.objects.filter(est_actif=True, nb_slots__in=valeurs_nb_slots)
+        .values_list('tranche_age', 'nb_slots')
+    )
+    manquantes = [c for c in combinaisons if c not in configurees]
+    return {
+        'total': len(combinaisons),
+        'configures': len(combinaisons) - len(manquantes),
+        'combinaisons_manquantes': manquantes,
     }
 
 
