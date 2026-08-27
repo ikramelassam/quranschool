@@ -1337,3 +1337,69 @@ class OngletsChatTranchesAgeTests(TestCase):
                 resultat = filtrer_conversations_par_categorie_et_recherche([conversation], categorie=code)
                 self.assertEqual(resultat, [conversation])
 
+
+# ============================================================================
+# Chantier "fix accès public aux fichiers du chat (Cloudinary 401)" du 2026-08-27.
+# ============================================================================
+class PieceJointeAccesPublicCloudinaryTests(TestCase):
+    """chat.storage.ChatAttachmentStorage doit forcer access_mode='public' à
+    CHAQUE upload — vérifié en conditions réelles (vrai upload Cloudinary),
+    même patron que les autres tests fichiers de ce module (aucun mock)."""
+
+    def test_storage_selectionne_est_bien_le_storage_dedie_chat(self):
+        """Vérification rapide, sans réseau : tant que Cloudinary est
+        configuré (comme dans cet environnement, voir CLOUDINARY_CLOUD_NAME),
+        le champ Message.fichier doit utiliser ChatAttachmentStorage — jamais
+        le storage global nu (RawMediaCloudinaryStorage sans le fix)."""
+        from django.conf import settings
+
+        from .storage import ChatAttachmentStorage
+
+        storage_utilise = Message._meta.get_field('fichier').storage
+        if getattr(settings, 'CLOUDINARY_CLOUD_NAME', ''):
+            self.assertIsInstance(storage_utilise, ChatAttachmentStorage)
+        else:
+            self.skipTest("CLOUDINARY_CLOUD_NAME non configuré dans cet environnement.")
+
+    def test_nouvel_upload_est_accessible_sans_authentification(self):
+        """Bout en bout : envoie un vrai fichier via le champ Message.fichier
+        (donc via ChatAttachmentStorage._upload, avec access_mode='public'
+        forcé), puis requête RÉELLEMENT l'URL retournée (sans aucune session/
+        signature) pour confirmer un 200 — pas un mock, la preuve observable
+        que le fichier est bien accessible publiquement.
+
+        IMPORTANT — limite CONNUE et documentée (voir le rapport du chantier
+        "fix accès public aux fichiers du chat") : ce test utilise .docx,
+        JAMAIS .pdf/.zip. Cloudinary applique aux fichiers .pdf/.zip une
+        restriction de sécurité DISTINCTE de access_mode ("Allow delivery of
+        PDF and ZIP files"), réglable UNIQUEMENT depuis la Console Cloudinary
+        (aucun paramètre d'upload ni d'appel Admin API ne la contourne —
+        vérifié empiriquement : access_mode='public' et access_control=
+        [{'access_type': 'anonymous'}] passés à l'upload n'ont AUCUN effet
+        sur un .pdf/.zip). Ce fix corrige donc bien l'accès pour tout type de
+        pièce jointe SAUF .pdf/.zip, qui restent 401 tant que ce réglage
+        Console n'est pas activé par un administrateur du compte Cloudinary."""
+        from django.conf import settings
+
+        if not getattr(settings, 'CLOUDINARY_CLOUD_NAME', ''):
+            self.skipTest("CLOUDINARY_CLOUD_NAME non configuré dans cet environnement.")
+
+        import requests
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        groupe = Groupe.objects.create(nom='مجموعة اختبار الوصول العام')
+        conversation = Conversation.objects.get(groupe=groupe)
+        fichier = SimpleUploadedFile(
+            'audit_acces_public.docx', b'contenu factice non-pdf/zip',
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        )
+        message = Message.objects.create(
+            conversation=conversation, type_message='fichier', contenu='',
+            fichier=fichier, nom_fichier_original='audit_acces_public.docx',
+        )
+        try:
+            reponse = requests.get(message.fichier.url, timeout=15)
+            self.assertEqual(reponse.status_code, 200)
+        finally:
+            message.fichier.delete(save=False)
+

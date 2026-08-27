@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from .storage import storage_pieces_jointes_chat
+
 
 class Conversation(models.Model):
     """Salon de discussion d'UN groupe — relation 1:1 stricte avec courses.Groupe
@@ -74,7 +76,13 @@ class Message(models.Model):
 
     type_message = models.CharField(max_length=10, choices=TYPE_CHOICES, default='texte')
     contenu = models.TextField(blank=True)
-    fichier = models.FileField(upload_to='chat_attachments/%Y/%m/', null=True, blank=True)
+    # storage dédié (chat.storage.storage_pieces_jointes_chat) depuis le
+    # Chantier "fix accès public aux fichiers du chat (Cloudinary 401)" du
+    # 2026-08-27 — force access_mode='public' à l'upload, contrairement au
+    # storage global du projet (voir sa docstring pour le détail complet).
+    fichier = models.FileField(
+        upload_to='chat_attachments/%Y/%m/', storage=storage_pieces_jointes_chat, null=True, blank=True,
+    )
     nom_fichier_original = models.CharField(max_length=255, blank=True, default='')
     taille_fichier_octets = models.PositiveIntegerField(null=True, blank=True)
     # Suppression "douce" façon WhatsApp (Tâche du 2026-08-17) : la ligne

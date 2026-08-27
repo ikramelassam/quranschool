@@ -4,6 +4,7 @@ messages non lus, marquage comme lu, purge de rétention. Séparé de views.py
 pour rester testable indépendamment du HTTP, même principe que
 courses.utils / dashboard.recherche dans le reste du projet."""
 import datetime
+import logging
 import os
 
 from django.core.cache import cache
@@ -13,6 +14,8 @@ from courses.utils import TRANCHES_AGE_PRECISES
 
 from .models import Conversation, Message, LectureConversation, get_configuration_chat
 from .permissions import get_conversations_accessibles
+
+logger = logging.getLogger(__name__)
 
 
 def backfiller_conversations_manquantes():
@@ -331,6 +334,62 @@ def purge_opportuniste():
         return
     cache.set(cle_cache, True, 60 * 60)
     purger_messages_expires()
+
+
+# ==================== Migration rétroactive de l'accès public (Cloudinary) ====================
+# Chantier "fix accès public aux fichiers du chat (Cloudinary 401)" du 2026-08-27.
+# chat.storage.ChatAttachmentStorage corrige les NOUVEAUX uploads (access_mode='public'
+# forcé dès l'upload) — cette fonction corrige RÉTROACTIVEMENT les fichiers déjà en base
+# AVANT ce chantier, encore access_mode='authenticated' (défaut Cloudinary depuis avril
+# 2024). Appelée par la commande `python manage.py migrer_acces_public_pieces_jointes_chat`.
+
+def migrer_acces_public_pieces_jointes():
+    """Bascule access_mode='public' pour CHAQUE Message.fichier déjà en base
+    (documents ET vocaux, même champ — voir chat.storage.__doc__), via l'API
+    Admin Cloudinary (cloudinary.api.update, PAS uploader.explicit — c'est
+    l'API dédiée pour modifier une ressource DÉJÀ existante, sans la
+    retélécharger/retraiter). message.fichier.name est EXACTEMENT le
+    public_id Cloudinary (voir MediaCloudinaryStorage._save, qui renvoie
+    response['public_id'] tel quel comme valeur stockée du champ) — jamais
+    reconstruit/deviné depuis l'URL.
+
+    Ne s'arrête JAMAIS sur un échec individuel (fichier déjà supprimé côté
+    Cloudinary, public_id introuvable, erreur réseau...) — chaque échec est
+    logué (logger.error) et compté séparément, pour qu'aucun fichier ne soit
+    silencieusement oublié de l'audit. Retourne {'total', 'succes', 'echecs'}
+    — 'echecs' : liste de (message_id, public_id, erreur_str).
+
+    N'agit QUE si Cloudinary est réellement configuré (CLOUDINARY_CLOUD_NAME) —
+    en dev/tests sans identifiants réels, les fichiers ne sont de toute façon
+    jamais sur Cloudinary (stockage local, voir storage_pieces_jointes_chat),
+    rien à migrer là-bas : retourne {'total': 0, 'succes': 0, 'echecs': []}
+    immédiatement, jamais une tentative d'appel API vouée à l'échec."""
+    from django.conf import settings
+
+    if not getattr(settings, 'CLOUDINARY_CLOUD_NAME', ''):
+        return {'total': 0, 'succes': 0, 'echecs': []}
+
+    import cloudinary.api
+
+    messages = Message.objects.exclude(fichier='').exclude(fichier__isnull=True)
+    total = 0
+    succes = 0
+    echecs = []
+    for message in messages.iterator():
+        public_id = message.fichier.name
+        if not public_id:
+            continue
+        total += 1
+        try:
+            cloudinary.api.update(public_id, resource_type='raw', type='upload', access_mode='public')
+            succes += 1
+        except Exception as e:
+            logger.error(
+                "Échec de la bascule access_mode='public' pour Message id=%s (public_id=%r) : %s",
+                message.id, public_id, e,
+            )
+            echecs.append((message.id, public_id, str(e)))
+    return {'total': total, 'succes': succes, 'echecs': echecs}
 
 
 # ==================== Validation des pièces jointes ====================
