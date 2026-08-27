@@ -494,6 +494,62 @@ class HistoriqueGroupeEleve(models.Model):
         ordering = ['-date_debut']
 
 
+class DemandeChangementHalaka(models.Model):
+    """Fonctionnalité 4 (2026-08-27) : demande d'un élève de changer de
+    halaka (Groupe), à sa propre initiative depuis son profil (dashboard.
+    views.eleve_demande_changement_halaka) — PAS une décision مدير/مشرف comme
+    groupe_transferer_eleve (courses.views), qui reste inchangé et continue
+    de servir pour un transfert décidé côté staff.
+
+    Validée/refusée par UN SEUL des 2 rôles مدير OU مشرف (décision explicite
+    du client : peu importe lequel agit en premier, pas besoin de l'accord
+    des deux) — role_required('admin', 'mshrif') sur les vues de traitement,
+    `traite_par` trace simplement lequel des deux comptes a effectivement
+    tranché, sans jamais bloquer l'autre rôle de le faire à sa place.
+
+    groupe_actuel est snapshotté à la CRÉATION (jamais recalculé depuis
+    eleve.groupes à la lecture) : si l'appartenance de l'élève change entre
+    temps par une autre action (ex: groupe_retirer_eleve), la demande garde
+    la trace de la halaka qu'il voulait réellement quitter au moment de sa
+    demande, plutôt qu'un état recalculé qui pourrait plus rien vouloir dire.
+
+    SET_NULL (jamais CASCADE) sur les 2 FK vers Groupe : la suppression d'un
+    groupe ne doit jamais faire perdre la trace de la demande elle-même,
+    seulement le lien vers un groupe qui n'existe plus — même raisonnement
+    que Groupe.creneau/InscriptionEleve.groupe_choisi ailleurs dans ce
+    projet. Un groupe_demande devenu NULL entre-temps bloque simplement la
+    validation (voir dashboard.views.admin_demande_changement_halaka_valider),
+    jamais un transfert silencieux vers "nulle part"."""
+    STATUT_CHOICES = [
+        ('en_attente', 'قيد الانتظار'),
+        ('validee', 'مقبولة'),
+        ('refusee', 'مرفوضة'),
+    ]
+    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name='demandes_changement_halaka')
+    groupe_actuel = models.ForeignKey(
+        'Groupe', on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+    groupe_demande = models.ForeignKey(
+        'Groupe', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='demandes_changement_halaka_visant_ce_groupe',
+    )
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente')
+    date_demande = models.DateTimeField(auto_now_add=True)
+    date_traitement = models.DateTimeField(null=True, blank=True)
+    traite_par = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+    motif_refus = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.eleve} → {self.groupe_demande} ({self.get_statut_display()})"
+
+    class Meta:
+        verbose_name = "Demande de changement de halaka"
+        verbose_name_plural = "Demandes de changement de halaka"
+        ordering = ['-date_demande']
+
+
 class TarifRemuneration(models.Model):
     """DÉPRÉCIÉ depuis le chantier "salaire prof par nb séances/semaine" du
     2026-08-27 — remplacé par TarifRemunerationGroupe (ajoute l'axe nb_slots,

@@ -86,6 +86,28 @@
     {% endfor %}
 </div>
 
+{% comment %}
+Fonctionnalité 4 (2026-08-27) : bouton "طلب تغيير الحلقة" — remplacé par le
+statut de la demande en cours s'il y en a déjà une (une seule en_attente à
+la fois, voir courses.models.DemandeChangementHalaka.__doc__).
+{% endcomment %}
+<div class="compact-card mb-4" style="display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
+    {% if demande_changement_halaka_en_attente %}
+    <div>
+        <div style="font-weight:700;">🔄 طلب تغيير الحلقة قيد الانتظار</div>
+        <div style="color:#888; font-size:0.85rem; margin-top:4px;">
+            إلى: {{ demande_changement_halaka_en_attente.groupe_demande.nom|default:"—" }} — بانتظار معالجة الإدارة.
+        </div>
+    </div>
+    {% else %}
+    <div style="color:#888; font-size:0.9rem;">هل ترغب في الانضمام إلى حلقة أخرى؟</div>
+    <a href="{% url 'eleve_demande_changement_halaka' %}"
+       style="background:var(--color-role-eleve-solid); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem; font-weight:600;">
+       طلب تغيير الحلقة 🔄
+    </a>
+    {% endif %}
+</div>
+
 {% if groupes_precedents %}
 <div class="section-title">مجموعاتي السابقة</div>
 <div class="compact-card" style="padding:4px 20px;">

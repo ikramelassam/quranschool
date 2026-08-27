@@ -13,6 +13,7 @@ urlpatterns = [
     path('eleve/seances/', views.eleve_seances, name='eleve_seances'),
     path('eleve/seances/<int:presence_id>/', views.eleve_seance_detail, name='eleve_seance_detail'),
     path('eleve/profil/', views.eleve_profil, name='eleve_profil'),
+    path('eleve/demande-changement-halaka/', views.eleve_demande_changement_halaka, name='eleve_demande_changement_halaka'),
     path('eleve/profs/<int:prof_id>/', views.eleve_prof_detail, name='eleve_prof_detail'),
     path('eleve/progression/', views.eleve_progression, name='eleve_progression'),
     path('eleve/cartable/', views.eleve_cartable, name='eleve_cartable'),
@@ -92,6 +93,11 @@ urlpatterns = [
     path('admin/demandes-disponibilite/', views.admin_demandes_disponibilite, name='admin_demandes_disponibilite'),
     path('admin/demandes-disponibilite/<int:demande_id>/approuver/', views.admin_demande_disponibilite_approuver, name='admin_demande_disponibilite_approuver'),
     path('admin/demandes-disponibilite/<int:demande_id>/rejeter/', views.admin_demande_disponibilite_rejeter, name='admin_demande_disponibilite_rejeter'),
+
+    # Fonctionnalité 4 (2026-08-27) — demandes de changement de halaka (élève)
+    path('admin/demandes-changement-halaka/', views.admin_demandes_changement_halaka, name='admin_demandes_changement_halaka'),
+    path('admin/demandes-changement-halaka/<int:demande_id>/valider/', views.admin_demande_changement_halaka_valider, name='admin_demande_changement_halaka_valider'),
+    path('admin/demandes-changement-halaka/<int:demande_id>/refuser/', views.admin_demande_changement_halaka_refuser, name='admin_demande_changement_halaka_refuser'),
     path('admin/seances/', views.admin_seances, name='admin_seances'),
     path('admin/seances/<int:seance_id>/annuler/', views.admin_seance_annuler, name='admin_seance_annuler'),
     path('admin/seances/<int:seance_id>/deplacer/', views.admin_seance_deplacer, name='admin_seance_deplacer'),

@@ -358,6 +358,50 @@ def groupes_compatibles_pour_eleve(eleve):
     ]
 
 
+def groupes_compatibles_sexe_age_pour_changement(eleve):
+    """Liste des groupes actifs dont le créneau correspond au sexe et à
+    l'âge de l'élève UNIQUEMENT — Fonctionnalité 4 (2026-08-27, demande de
+    changement de halaka par l'élève). Décision explicite du client pour ce
+    chantier précis : PAS le même filtre strict que groupes_compatibles_
+    pour_eleve ci-dessus (qui exige AUSSI programme/riwaya/disponibilité
+    horaire/capacité/type d'offre) — "les autres critères (programme,
+    riwaya) restent visibles sans filtre supplémentaire pour l'instant".
+
+    Réutilise les 2 mêmes critères, calculés EXACTEMENT comme dans
+    raison_incompatibilite_groupe ci-dessus (creneau.age_min/age_max,
+    creneau.sexe_cible) — seule différence : capacité/type d'offre/
+    programme/riwaya/disponibilité ne sont PAS vérifiés ici (delta
+    assumé, voir dashboard.views.eleve_demande_changement_halaka qui
+    revalide malgré tout raison_incompatibilite_groupe juste avant le
+    transfert effectif, au moment de la validation مدير/مشرف — jamais une
+    confiance aveugle dans cette liste affichée à l'élève).
+
+    Exclut le(s) groupe(s) où l'élève est DÉJÀ (inutile de "changer" vers sa
+    propre halaka actuelle) — même .exclude(eleves=eleve) que groupes_
+    compatibles_pour_eleve. Retourne une liste vide (jamais une exception)
+    si l'élève n'a aucune inscription liée pour en déduire l'âge (voir
+    Eleve.inscription, nullable — SET_NULL)."""
+    from .models import Groupe
+
+    inscription = eleve.inscription
+    if not inscription:
+        return []
+    age = _age_depuis_naissance(inscription.date_naissance)
+
+    candidats = (
+        Groupe.objects.filter(statut='actif')
+        .exclude(eleves=eleve)
+        .exclude(creneau__isnull=True)
+        .select_related('creneau', 'prof__user')
+        .prefetch_related('creneau__slots')
+    )
+    return [
+        g for g in candidats
+        if g.creneau.age_min <= age <= g.creneau.age_max
+        and (g.creneau.sexe_cible == 'mixte' or g.creneau.sexe_cible == eleve.sexe)
+    ]
+
+
 def groupes_compatibles_pour_inscription(inscription):
     """Équivalent de groupes_compatibles_pour_eleve pour une candidature pas
     encore acceptée (affichage informatif sur la fiche de candidature, avant

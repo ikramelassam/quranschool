@@ -22,6 +22,7 @@ from .utils import (
     categorie_derivee_du_creneau, backfiller_categorie_depuis_creneau,
     remplacer_slots_creneau, etendre_seances, JOUR_INDEX_INVERSE,
     calculer_remuneration_prof, couverture_tarifs_remuneration_groupe,
+    groupes_compatibles_sexe_age_pour_changement,
 )
 from registration.models import GroupeCritereValeur
 
@@ -2237,3 +2238,91 @@ class CouvertureTarifsRemunerationGroupeTests(TestCase):
         option.est_actif = False
         option.save()
         self.assertEqual(couverture_tarifs_remuneration_groupe()['total'], 0)
+
+
+# ============================================================================
+# Fonctionnalité 4 (2026-08-27) : demande de changement de halaka par
+# l'élève — groupes_compatibles_sexe_age_pour_changement, PAS le même filtre
+# strict que groupes_compatibles_pour_eleve (programme/riwaya/disponibilité
+# non filtrés ici, décision explicite du client).
+# ============================================================================
+def _creer_eleve_avec_age_et_sexe(age, sexe, email):
+    """Variante de _creer_eleve_avec_age (ci-dessus) qui contrôle aussi le
+    sexe — nécessaire ici puisque groupes_compatibles_sexe_age_pour_
+    changement filtre sur LES DEUX critères (contrairement à _tranche_age_
+    eleve/calculer_remuneration_prof, qui ne lisaient que l'âge)."""
+    aujourdhui = datetime.date.today()
+    date_naissance = aujourdhui.replace(year=aujourdhui.year - age)
+    inscription = InscriptionEleve.objects.create(
+        nom='طالب تجريبي', date_naissance=date_naissance, sexe=sexe,
+        telephone='0600000000', email=email,
+        programme='hifz', riwaya='hafs', outil='whatsapp', abonnement='groupe_1mois', statut='valide',
+    )
+    u = User.objects.create_user(
+        username=email, email=email, password=MOT_DE_PASSE,
+        first_name='طالب', last_name='تجريبي', role='eleve', doit_changer_mot_de_passe=False,
+    )
+    return Eleve.objects.create(user=u, sexe=sexe, statut='actif', inscription=inscription)
+
+
+class GroupesCompatiblesSexeAgePourChangementTests(TestCase):
+    def test_filtre_par_age_exclut_hors_tranche(self):
+        eleve = _creer_eleve_avec_age_et_sexe(10, 'homme', 'changement_age_1@zidni.test')
+        creneau_adulte = _creer_creneau(sexe_cible='mixte', age_min=18, age_max=60)
+        groupe_adulte = Groupe.objects.create(nom='بالغون', creneau=creneau_adulte)
+        creneau_enfant = _creer_creneau(sexe_cible='mixte', age_min=6, age_max=12)
+        groupe_enfant = Groupe.objects.create(nom='أطفال', creneau=creneau_enfant)
+
+        resultat = groupes_compatibles_sexe_age_pour_changement(eleve)
+        self.assertIn(groupe_enfant, resultat)
+        self.assertNotIn(groupe_adulte, resultat)
+
+    def test_filtre_par_sexe_exclut_lautre_sexe_cible(self):
+        eleve = _creer_eleve_avec_age_et_sexe(20, 'femme', 'changement_sexe_1@zidni.test')
+        creneau_hommes = _creer_creneau(sexe_cible='homme', age_min=18, age_max=60)
+        groupe_hommes = Groupe.objects.create(nom='رجال', creneau=creneau_hommes)
+        creneau_femmes = _creer_creneau(sexe_cible='femme', age_min=18, age_max=60)
+        groupe_femmes = Groupe.objects.create(nom='نساء', creneau=creneau_femmes)
+
+        resultat = groupes_compatibles_sexe_age_pour_changement(eleve)
+        self.assertIn(groupe_femmes, resultat)
+        self.assertNotIn(groupe_hommes, resultat)
+
+    def test_creneau_mixte_toujours_compatible_niveau_sexe(self):
+        eleve = _creer_eleve_avec_age_et_sexe(20, 'femme', 'changement_mixte_1@zidni.test')
+        creneau_mixte = _creer_creneau(sexe_cible='mixte', age_min=18, age_max=60)
+        groupe_mixte = Groupe.objects.create(nom='مختلط', creneau=creneau_mixte)
+        self.assertIn(groupe_mixte, groupes_compatibles_sexe_age_pour_changement(eleve))
+
+    def test_programme_et_riwaya_ne_sont_pas_filtres(self):
+        """Décision explicite du client : PAS le même filtre strict que
+        groupes_compatibles_pour_eleve — un groupe dont le créneau a un
+        programme/riwaya différent de celui de l'élève reste proposé."""
+        eleve = _creer_eleve_avec_age_et_sexe(20, 'homme', 'changement_programme_1@zidni.test')
+        creneau_tathbit_warsh = Creneau.objects.create(
+            sexe_cible='mixte', type_seance='tathbit', riwaya='warsh', age_min=18, age_max=60,
+        )
+        remplacer_slots_creneau(creneau_tathbit_warsh, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        groupe = Groupe.objects.create(nom='تثبيت ورش', creneau=creneau_tathbit_warsh)
+        self.assertIn(groupe, groupes_compatibles_sexe_age_pour_changement(eleve))
+
+    def test_exclut_le_groupe_ou_leleve_est_deja(self):
+        eleve = _creer_eleve_avec_age_et_sexe(20, 'homme', 'changement_deja_membre@zidni.test')
+        creneau = _creer_creneau(sexe_cible='mixte', age_min=18, age_max=60)
+        groupe_actuel = Groupe.objects.create(nom='حلقته الحالية', creneau=creneau)
+        groupe_actuel.eleves.add(eleve)
+        self.assertNotIn(groupe_actuel, groupes_compatibles_sexe_age_pour_changement(eleve))
+
+    def test_exclut_groupe_archive(self):
+        eleve = _creer_eleve_avec_age_et_sexe(20, 'homme', 'changement_archive@zidni.test')
+        creneau = _creer_creneau(sexe_cible='mixte', age_min=18, age_max=60)
+        groupe = Groupe.objects.create(nom='حلقة مؤرشفة', creneau=creneau, statut='archive')
+        self.assertNotIn(groupe, groupes_compatibles_sexe_age_pour_changement(eleve))
+
+    def test_sans_inscription_liee_retourne_liste_vide(self):
+        eleve = _creer_eleve('changement_sans_inscription@zidni.test')  # Eleve.inscription reste None
+        creneau = _creer_creneau(sexe_cible='mixte', age_min=6, age_max=60)
+        Groupe.objects.create(nom='peu importe', creneau=creneau)
+        self.assertEqual(groupes_compatibles_sexe_age_pour_changement(eleve), [])

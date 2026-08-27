@@ -3266,6 +3266,8 @@ def eleve_profil(request):
     from courses.models import BilanMensuel
     from django.contrib.auth import get_user_model
     User = get_user_model()
+    from courses.models import DemandeChangementHalaka
+
     eleve = get_object_or_404(Eleve, user=request.user)
     return render(request, 'dashboard/eleve_profil.html', {
         'eleve': eleve,
@@ -3281,6 +3283,64 @@ def eleve_profil(request):
         # point d'entrée vers bilan_mensuel_detail, qui n'était accessible à
         # aucun rôle élève auparavant (aucun lien nulle part côté élève).
         'bilans_mensuels': BilanMensuel.objects.filter(eleve=eleve).order_by('-mois_reference'),
+        # Fonctionnalité 4 (2026-08-27) : bouton "طلب تغيير الحلقة" désactivé/
+        # remplacé par le statut de la demande en cours s'il y en a déjà une
+        # (voir DemandeChangementHalaka.__doc__ — une seule en_attente à la fois).
+        'demande_changement_halaka_en_attente': DemandeChangementHalaka.objects.filter(
+            eleve=eleve, statut='en_attente',
+        ).select_related('groupe_demande').first(),
+    })
+
+
+@role_required('eleve')
+def eleve_demande_changement_halaka(request):
+    """Fonctionnalité 4 (2026-08-27) : bouton "طلب تغيير الحلقة" côté élève
+    (dashboard/eleve_profil.html) — GET affiche la liste des halakat
+    compatibles (voir courses.utils.groupes_compatibles_sexe_age_pour_
+    changement.__doc__ : sexe/âge SEULEMENT, programme/riwaya restent
+    visibles sans filtre), POST crée la demande.
+
+    Garde-fou "une seule demande en_attente à la fois" (décision explicite
+    du client) vérifiée aux 2 bouts : le GET n'affiche même pas le
+    formulaire s'il en existe déjà une (voir template), le POST la
+    revérifie côté serveur (jamais une confiance aveugle dans un formulaire
+    déjà affiché — même principe que partout ailleurs dans ce projet, ex:
+    groupe_choisi revalidé à la soumission du wizard public)."""
+    from accounts.models import Eleve, get_visibilite_prof
+    from courses.models import DemandeChangementHalaka
+    from courses.utils import groupes_compatibles_sexe_age_pour_changement
+
+    eleve = get_object_or_404(Eleve, user=request.user)
+    demande_en_attente = DemandeChangementHalaka.objects.filter(eleve=eleve, statut='en_attente').first()
+
+    if request.method == 'POST':
+        if demande_en_attente:
+            messages.error(request, 'لديك بالفعل طلب تغيير حلقة قيد الانتظار — يجب معالجته أولاً قبل إرسال طلب جديد.')
+            return redirect('eleve_profil')
+
+        groupes_valides = {g.id: g for g in groupes_compatibles_sexe_age_pour_changement(eleve)}
+        groupe_demande_id = request.POST.get('groupe_demande', '')
+        groupe_demande = groupes_valides.get(int(groupe_demande_id)) if groupe_demande_id.isdigit() else None
+        if not groupe_demande:
+            messages.error(request, 'يجب اختيار حلقة صالحة من القائمة المقترحة.')
+            return redirect('eleve_demande_changement_halaka')
+
+        DemandeChangementHalaka.objects.create(
+            eleve=eleve,
+            groupe_actuel=eleve.groupes.first(),
+            groupe_demande=groupe_demande,
+        )
+        messages.success(request, 'تم إرسال طلبك بنجاح — بانتظار معالجته من طرف الإدارة.')
+        return redirect('eleve_profil')
+
+    return render(request, 'dashboard/eleve_demande_changement_halaka.html', {
+        'eleve': eleve,
+        'demande_en_attente': demande_en_attente,
+        'groupes_disponibles': groupes_compatibles_sexe_age_pour_changement(eleve) if not demande_en_attente else [],
+        # Même réglage que le wizard public (templates/inscriptions/
+        # wizard_groupe.html) pour la nubdha du prof — voir accounts.models.
+        # VisibiliteProf.afficher_presentation_wizard.
+        'visibilite': get_visibilite_prof(),
     })
 
 
@@ -4735,6 +4795,102 @@ def admin_demande_disponibilite_rejeter(request, demande_id):
     demande.save()
     messages.info(request, f'تم رفض طلب تعديل جدول تفرغ {demande.prof.user.get_full_name()}.')
     return redirect('admin_demandes_disponibilite')
+
+
+# ==================== Fonctionnalité 4 (2026-08-27) : demandes de changement de halaka ====================
+# Même patron que admin_demandes_disponibilite ci-dessus, MAIS accessible en
+# ACTION (pas seulement en lecture) aux 2 rôles مدير ET مشرف — décision
+# explicite du client pour ce chantier précis : "un seul des deux rôles
+# suffit, peu importe lequel agit en premier" (contrairement à
+# admin_demande_disponibilite_approuver/rejeter, réservées à role_required
+# ('admin') seul, mshrif n'y étant que spectateur).
+
+@role_required('admin', 'mshrif')
+def admin_demandes_changement_halaka(request):
+    from courses.models import DemandeChangementHalaka
+
+    demandes = DemandeChangementHalaka.objects.filter(statut='en_attente').select_related(
+        'eleve__user', 'groupe_actuel', 'groupe_demande'
+    ).order_by('date_demande')
+    context = {
+        'demandes': demandes,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    # Page cible du groupe de notification 'demandes_changement_halaka' (voir
+    # dashboard.notifications.notifications_direction) — juste avant le
+    # render, jamais avant (même précaution que les autres appelants de
+    # marquer_visite).
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'demandes_changement_halaka')
+    return render(request, 'dashboard/admin_demandes_changement_halaka.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_demande_changement_halaka_valider(request, demande_id):
+    """Transfert automatique (décision explicite du client : "priorité à la
+    simplicité côté مدير", aucune action manuelle supplémentaire ailleurs) —
+    réutilise TEL QUEL _ajouter_eleve_au_groupe/_retirer_eleve_du_groupe
+    (courses.views), les mêmes fonctions déjà utilisées par groupe_
+    transferer_eleve pour un transfert décidé côté staff : la nouvelle ligne
+    Groupe.eleves ET l'historique HistoriqueGroupeEleve restent cohérents
+    avec TOUT le reste du projet, jamais une 2e façon de faire un transfert.
+
+    Revalide raison_incompatibilite_groupe juste avant d'agir (jamais une
+    confiance aveugle dans une liste affichée à l'élève potentiellement
+    périmée entre-temps — ex: la halaka demandée s'est remplie, ou son
+    créneau a changé depuis la demande) : bloque avec un message clair
+    plutôt qu'un transfert incohérent."""
+    from django.utils import timezone
+    from courses.models import DemandeChangementHalaka
+    from courses.utils import raison_incompatibilite_groupe
+    from courses.views import _ajouter_eleve_au_groupe, _retirer_eleve_du_groupe
+
+    demande = get_object_or_404(DemandeChangementHalaka, id=demande_id)
+    if demande.statut != 'en_attente':
+        messages.error(request, 'هذا الطلب لم يعد قيد الانتظار.')
+        return redirect('admin_demandes_changement_halaka')
+
+    if not demande.groupe_demande:
+        messages.error(request, 'تعذّر قبول الطلب: الحلقة المطلوبة لم تعد موجودة.')
+        return redirect('admin_demandes_changement_halaka')
+
+    raison = raison_incompatibilite_groupe(demande.eleve, demande.groupe_demande)
+    if raison:
+        messages.error(request, f'تعذّر قبول الطلب: {raison}')
+        return redirect('admin_demandes_changement_halaka')
+
+    with transaction.atomic():
+        if demande.groupe_actuel and demande.groupe_actuel.eleves.filter(id=demande.eleve_id).exists():
+            _retirer_eleve_du_groupe(demande.eleve, demande.groupe_actuel)
+        _ajouter_eleve_au_groupe(demande.eleve, demande.groupe_demande)
+        demande.statut = 'validee'
+        demande.date_traitement = timezone.now()
+        demande.traite_par = request.user
+        demande.save()
+    messages.success(
+        request,
+        f'تم قبول طلب {demande.eleve.user.get_full_name()} ونقله إلى حلقة {demande.groupe_demande.nom}.'
+    )
+    return redirect('admin_demandes_changement_halaka')
+
+
+@role_required('admin', 'mshrif')
+def admin_demande_changement_halaka_refuser(request, demande_id):
+    from django.utils import timezone
+    from courses.models import DemandeChangementHalaka
+
+    demande = get_object_or_404(DemandeChangementHalaka, id=demande_id)
+    if demande.statut != 'en_attente':
+        messages.error(request, 'هذا الطلب لم يعد قيد الانتظار.')
+        return redirect('admin_demandes_changement_halaka')
+
+    demande.statut = 'refusee'
+    demande.date_traitement = timezone.now()
+    demande.traite_par = request.user
+    demande.save()
+    messages.info(request, f'تم رفض طلب {demande.eleve.user.get_full_name()}.')
+    return redirect('admin_demandes_changement_halaka')
 
 
 # ==================== ADMIN — CALENDRIER ====================

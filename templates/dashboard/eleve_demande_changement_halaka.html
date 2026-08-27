@@ -1,0 +1,96 @@
+{% extends 'dashboard/base_eleve.html' %}
+{% block title %}طلب تغيير الحلقة{% endblock %}
+{% block extra_css %}
+{% comment %}
+Même style de carte cliquable que templates/inscriptions/wizard_groupe.html
+(étape "اختيار المجموعة" du parcours public) — repris ici pour la même
+raison : cliquer n'importe où sur la carte doit sélectionner la halaka
+(pas seulement une petite case), et ses détails (المعلم/الجدول/الأماكن)
+doivent être visibles directement, pas cachés derrière un 2e clic.
+{% endcomment %}
+<style>
+.groupe-card {
+    border: 2px solid #EADFC8; border-radius: 12px; padding: 18px; margin-bottom: 14px; cursor: pointer;
+    background: var(--color-bg-cream);
+    transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.15s ease;
+}
+.groupe-card:hover {
+    border-color: var(--color-role-eleve-solid); background: #F3E7D3;
+    box-shadow: 0 4px 12px rgba(44,21,0,0.10); transform: translateY(-1px);
+}
+.groupe-card.active { border-color: var(--color-role-eleve-solid); background: #F3E7D3; box-shadow: 0 2px 8px rgba(44,21,0,0.12); }
+.groupe-nom { font-weight: 700; color: var(--color-text-primary); font-size: 1.05rem; }
+.groupe-detail { color: var(--color-text-muted); font-size: 0.88rem; margin-top: 4px; }
+.groupe-presentation { color: var(--color-text-muted); font-size: 0.85rem; line-height: 1.55; white-space: pre-line; margin-top: 4px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-title">طلب تغيير الحلقة</div>
+<div class="page-subtitle">اختر الحلقة التي ترغب في الانتقال إليها — القائمة مصفّاة حسب جنسك وعمرك فقط</div>
+
+{% if demande_en_attente %}
+<div class="compact-card">
+    <div style="text-align:center; padding:30px 10px; color:#888;">
+        لديك بالفعل طلب قيد الانتظار (إلى: <strong>{{ demande_en_attente.groupe_demande.nom|default:"—" }}</strong>) —
+        يجب معالجته من طرف الإدارة قبل إرسال طلب جديد.
+    </div>
+    <div style="text-align:center; padding-bottom:10px;">
+        <a href="{% url 'eleve_profil' %}" style="color:var(--color-role-eleve-solid); text-decoration:none; font-weight:600;">← العودة إلى ملفي الشخصي</a>
+    </div>
+</div>
+{% else %}
+<form method="POST">
+    {% csrf_token %}
+
+    {% if groupes_disponibles %}
+    {% for groupe in groupes_disponibles %}
+    <div class="groupe-card" onclick="selectionnerHalaka({{ groupe.id }}, this)">
+        <div class="groupe-nom">📚 {{ groupe.nom }}</div>
+        <div class="groupe-detail">
+            👨‍🏫 {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}غير محدد بعد{% endif %}
+        </div>
+        {% if visibilite.afficher_presentation_wizard and groupe.prof.presentation_publique %}
+        <div class="groupe-presentation">{{ groupe.prof.presentation_publique }}</div>
+        {% endif %}
+        {% if groupe.creneau %}
+        <div class="groupe-detail">
+            📅
+            {% for slot in groupe.creneau.slots.all %}
+                {{ slot.get_jour_display }} {{ slot.heure_debut|time:"H:i" }}–{{ slot.heure_fin|time:"H:i" }}{% if not forloop.last %} + {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="groupe-detail">🪑 {{ groupe.eleves.count }} / {{ groupe.capacite_max }} مكان</div>
+    </div>
+    {% endfor %}
+
+    <input type="hidden" name="groupe_demande" id="groupe_demande_value">
+    <div class="d-flex gap-3 mt-4">
+        <button type="submit" class="btn-submit" id="btn_envoyer_demande" disabled
+            style="background:var(--color-role-eleve-solid); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
+            إرسال الطلب ✅
+        </button>
+        <a href="{% url 'eleve_profil' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+    </div>
+    {% else %}
+    <div class="compact-card">
+        <div style="text-align:center; padding:40px 10px; color:#aaa;">
+            لا توجد حلقات أخرى متوافقة مع جنسك وعمرك حالياً.
+        </div>
+    </div>
+    <div class="mt-3">
+        <a href="{% url 'eleve_profil' %}" style="color:var(--color-role-eleve-solid); text-decoration:none; font-weight:600;">← العودة إلى ملفي الشخصي</a>
+    </div>
+    {% endif %}
+</form>
+
+<script>
+    function selectionnerHalaka(id, element) {
+        document.getElementById('groupe_demande_value').value = id;
+        document.querySelectorAll('.groupe-card').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+        document.getElementById('btn_envoyer_demande').disabled = false;
+    }
+</script>
+{% endif %}
+{% endblock %}

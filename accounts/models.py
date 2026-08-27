@@ -570,7 +570,9 @@ class DerniereVisiteNotification(models.Model):
     (evaluations_prof_recues), 'hakiba' (prof_hakiba), 'demandes_inscription'
     (admin_inscriptions, مدير ET مشرف), 'profs_en_attente_validation'
     (mshrif_inscriptions_profs, مشرف uniquement — Fonctionnalité 3,
-    2026-08-27). Voir dashboard.notifications pour le calcul complet."""
+    2026-08-27), 'demandes_changement_halaka' (admin_demandes_changement_
+    halaka, مدير ET مشرف — Fonctionnalité 4, 2026-08-27). Voir dashboard.
+    notifications pour le calcul complet."""
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='dernieres_visites_notification'
     )

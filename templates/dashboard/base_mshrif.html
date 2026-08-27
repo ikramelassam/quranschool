@@ -193,7 +193,7 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_seances' or request.resolver_match.url_name == 'admin_calendrier' or request.resolver_match.url_name == 'admin_groupes' or request.resolver_match.url_name == 'admin_creneaux' or request.resolver_match.url_name == 'admin_liens_meet' or request.resolver_match.url_name == 'admin_demandes_disponibilite' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_seances' or request.resolver_match.url_name == 'admin_calendrier' or request.resolver_match.url_name == 'admin_groupes' or request.resolver_match.url_name == 'admin_creneaux' or request.resolver_match.url_name == 'admin_liens_meet' or request.resolver_match.url_name == 'admin_demandes_disponibilite' or request.resolver_match.url_name == 'admin_demandes_changement_halaka' %}open{% endif %}>
             <summary>الحصص والجدولة</summary>
             <a href="{% url 'admin_seances' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_seances' %}active{% endif %}">
@@ -218,6 +218,10 @@
             <a href="{% url 'admin_demandes_disponibilite' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_demandes_disponibilite' %}active{% endif %}">
                 <span class="icon">🕐</span> طلبات تعديل الأوقات المتاحة للتدريس
+            </a>
+            <a href="{% url 'admin_demandes_changement_halaka' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_demandes_changement_halaka' %}active{% endif %}">
+                <span class="icon">🔄</span> طلبات تغيير الحلقة
             </a>
         </details>
 
@@ -306,8 +310,12 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'admin_gestion_inscriptions' or request.resolver_match.url_name == 'admin_reglage_lien_seance' or request.resolver_match.url_name == 'admin_hakiba_gestion' or request.resolver_match.url_name == 'mshrif_logo' or request.resolver_match.url_name == 'mshrif_mon_compte' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'admin_gestion_inscriptions' or request.resolver_match.url_name == 'admin_reglage_lien_seance' or request.resolver_match.url_name == 'admin_hakiba_gestion' or request.resolver_match.url_name == 'mshrif_logo' or request.resolver_match.url_name == 'mshrif_mon_compte' or request.resolver_match.url_name == 'admin_telegram_abonnes' %}open{% endif %}>
             <summary>إعدادات المنصة</summary>
+            <a href="{% url 'admin_telegram_abonnes' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_telegram_abonnes' %}active{% endif %}">
+                <span class="icon">🔔</span> اشتراكات إشعارات تيليجرام
+            </a>
             <a href="{% url 'mshrif_charte' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_charte' %}active{% endif %}">
                 <span class="icon">📜</span> ميثاق التدريس

@@ -268,10 +268,22 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
     souvent bien antérieur si le dossier traînait en 'en_attente'). Mène
     vers la LISTE (mshrif_inscriptions_profs), pas vers chaque fiche
     individuelle (décision explicite de ce chantier, contrairement au
-    groupe 1 ci-dessus qui pointe chaque évènement vers sa propre fiche)."""
-    from inscriptions.models import InscriptionEleve, InscriptionProf
+    groupe 1 ci-dessus qui pointe chaque évènement vers sa propre fiche).
 
-    cles = ['demandes_inscription']
+    3. Demande de changement de halaka par un élève (courses.models.
+    DemandeChangementHalaka, statut='en_attente') — Fonctionnalité 4
+    (2026-08-27). Visible par مدير ET مشرف (contrairement au groupe 2 :
+    "un seul des deux rôles suffit pour trancher, peu importe lequel" —
+    décision explicite du client), même `cle` partagée que le groupe 1
+    ('demandes_inscription' NON réutilisée ici, un `cle` dédié
+    'demandes_changement_halaka' — repère de lecture distinct, une visite
+    de admin_inscriptions ne doit jamais marquer celui-ci comme lu). Mène
+    vers la LISTE (admin_demandes_changement_halaka), même décision que le
+    groupe 2 ci-dessus."""
+    from inscriptions.models import InscriptionEleve, InscriptionProf
+    from courses.models import DemandeChangementHalaka
+
+    cles = ['demandes_inscription', 'demandes_changement_halaka']
     if user.role == 'mshrif':
         cles.append('profs_en_attente_validation')
     seuils = _seuils(user, cles)
@@ -307,6 +319,21 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
             for p in profs_en_attente
         ]
 
+    demandes_changement_halaka = list(
+        DemandeChangementHalaka.objects.filter(
+            statut='en_attente', date_demande__gt=seuils['demandes_changement_halaka'],
+        ).select_related('eleve__user').order_by('-date_demande')[:LIMITE_FETCH]
+    )
+    url_liste_changement_halaka = reverse('admin_demandes_changement_halaka')
+    evenements_changement_halaka = [
+        {
+            'texte': f'طلب تغيير حلقة: {d.eleve.user.get_full_name()}',
+            'url': url_liste_changement_halaka,
+            'date': d.date_demande,
+        }
+        for d in demandes_changement_halaka
+    ]
+
     groupes = []
     if evenements_demandes:
         groupes.append({
@@ -317,5 +344,9 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
             'icone': '👨‍🏫', 'label': 'طلبات أساتذة بانتظار تصديقك',
             'evenements': evenements_profs_en_attente[:limite],
         })
+    if evenements_changement_halaka:
+        groupes.append({
+            'icone': '🔄', 'label': 'طلبات تغيير حلقة', 'evenements': evenements_changement_halaka[:limite],
+        })
 
-    return groupes, len(evenements_demandes) + len(evenements_profs_en_attente)
+    return groupes, len(evenements_demandes) + len(evenements_profs_en_attente) + len(evenements_changement_halaka)

@@ -12,9 +12,10 @@ from accounts.models import (
 )
 from courses.models import (
     Groupe, Creneau, Seance, Presence, BilanMensuel, HistoriqueGroupeEleve,
-    DisponibiliteEleve, DisponibiliteProf, DemandeModificationDisponibilite,
+    DisponibiliteEleve, DisponibiliteProf, DemandeModificationDisponibilite, DemandeChangementHalaka,
 )
 from courses.utils import remplacer_slots_creneau
+from courses.views import _ajouter_eleve_au_groupe
 from registration.models import (
     ChampInscription, ConfigurationChampStructurel, Critere as CritereInscription, CritereOption,
     EtapeInscription, GroupeCritereValeur,
@@ -5326,3 +5327,223 @@ class AdminDemandeNonSatisfaiteDetailEtSuppressionTests(TestCase):
         client = Client()
         client.force_login(self.mshrif)
         self.assertEqual(client.get(reverse('admin_demande_non_satisfaite_detail', args=[demande.id])).status_code, 200)
+
+
+# ============================================================================
+# Fonctionnalité 4 (2026-08-27) : demande de changement de halaka (élève)
+# ============================================================================
+def _creer_creneau_dashboard(sexe_cible='mixte', age_min=6, age_max=60):
+    creneau = Creneau.objects.create(sexe_cible=sexe_cible, type_seance='hifz', riwaya='hafs', age_min=age_min, age_max=age_max)
+    remplacer_slots_creneau(creneau, [{'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}])
+    return creneau
+
+
+def _creer_eleve_avec_inscription(email, age=20, sexe='homme'):
+    aujourdhui = datetime.date.today()
+    inscription = InscriptionEleve.objects.create(
+        nom='طالب تجريبي', date_naissance=aujourdhui.replace(year=aujourdhui.year - age), sexe=sexe,
+        telephone='0600000000', email=email,
+        programme='hifz', riwaya='hafs', outil='whatsapp', abonnement='groupe_1mois', statut='valide',
+    )
+    u = User.objects.create_user(
+        username=email, email=email, password='xX!test12345',
+        first_name='طالب', last_name='تجريبي', role='eleve', doit_changer_mot_de_passe=False,
+    )
+    return Eleve.objects.create(user=u, sexe=sexe, statut='actif', inscription=inscription)
+
+
+class EleveDemandeChangementHalakaTests(TestCase):
+    def setUp(self):
+        self.eleve = _creer_eleve_avec_inscription('eleve_demande_halaka@zidni.test', age=20, sexe='homme')
+        self.creneau_actuel = _creer_creneau_dashboard(sexe_cible='mixte', age_min=18, age_max=60)
+        self.groupe_actuel = Groupe.objects.create(nom='حلقته الحالية', creneau=self.creneau_actuel)
+        # _ajouter_eleve_au_groupe (pas .eleves.add() brut) — ouvre aussi la
+        # ligne HistoriqueGroupeEleve correspondante, nécessaire pour que le
+        # transfert testé plus bas puisse la fermer (date_fin) comme en
+        # conditions réelles (voir courses.views._ajouter_eleve_au_groupe).
+        _ajouter_eleve_au_groupe(self.eleve, self.groupe_actuel)
+
+        self.creneau_cible = _creer_creneau_dashboard(sexe_cible='mixte', age_min=18, age_max=60)
+        self.groupe_cible = Groupe.objects.create(nom='الحلقة المطلوبة', creneau=self.creneau_cible)
+
+    def _connecte_eleve(self):
+        client = Client()
+        client.force_login(self.eleve.user)
+        return client
+
+    def test_get_affiche_les_halakat_compatibles(self):
+        html = self._connecte_eleve().get(reverse('eleve_demande_changement_halaka')).content.decode('utf-8')
+        self.assertIn('الحلقة المطلوبة', html)
+        # La halaka ACTUELLE de l'élève n'est jamais proposée comme destination.
+        self.assertNotIn('حلقته الحالية', html)
+
+    def test_post_cree_la_demande(self):
+        client = self._connecte_eleve()
+        client.post(reverse('eleve_demande_changement_halaka'), {'groupe_demande': self.groupe_cible.id})
+        demande = DemandeChangementHalaka.objects.get(eleve=self.eleve)
+        self.assertEqual(demande.statut, 'en_attente')
+        self.assertEqual(demande.groupe_demande, self.groupe_cible)
+        self.assertEqual(demande.groupe_actuel, self.groupe_actuel)
+
+    def test_post_groupe_hors_liste_refuse(self):
+        """Revalidation serveur — un groupe_demande posté qui n'est PAS dans
+        la liste compatible (ex: incompatible d'âge/sexe, ou id inexistant)
+        ne doit jamais créer de demande."""
+        creneau_incompatible = _creer_creneau_dashboard(sexe_cible='femme', age_min=18, age_max=60)
+        groupe_incompatible = Groupe.objects.create(nom='غير متوافقة', creneau=creneau_incompatible)
+        client = self._connecte_eleve()
+        client.post(reverse('eleve_demande_changement_halaka'), {'groupe_demande': groupe_incompatible.id})
+        self.assertFalse(DemandeChangementHalaka.objects.filter(eleve=self.eleve).exists())
+
+    def test_une_seule_demande_en_attente_a_la_fois(self):
+        DemandeChangementHalaka.objects.create(eleve=self.eleve, groupe_actuel=self.groupe_actuel, groupe_demande=self.groupe_cible)
+        autre_creneau = _creer_creneau_dashboard(sexe_cible='mixte', age_min=18, age_max=60)
+        autre_groupe = Groupe.objects.create(nom='حلقة أخرى', creneau=autre_creneau)
+
+        client = self._connecte_eleve()
+        client.post(reverse('eleve_demande_changement_halaka'), {'groupe_demande': autre_groupe.id})
+        self.assertEqual(DemandeChangementHalaka.objects.filter(eleve=self.eleve).count(), 1)
+
+    def test_get_avec_demande_en_attente_naffiche_pas_le_formulaire(self):
+        DemandeChangementHalaka.objects.create(eleve=self.eleve, groupe_actuel=self.groupe_actuel, groupe_demande=self.groupe_cible)
+        html = self._connecte_eleve().get(reverse('eleve_demande_changement_halaka')).content.decode('utf-8')
+        self.assertNotIn('name="groupe_demande"', html)
+
+    def test_profil_affiche_le_bouton_normalement(self):
+        html = self._connecte_eleve().get(reverse('eleve_profil')).content.decode('utf-8')
+        self.assertIn('طلب تغيير الحلقة', html)
+
+    def test_profil_affiche_le_statut_si_demande_en_attente(self):
+        DemandeChangementHalaka.objects.create(eleve=self.eleve, groupe_actuel=self.groupe_actuel, groupe_demande=self.groupe_cible)
+        html = self._connecte_eleve().get(reverse('eleve_profil')).content.decode('utf-8')
+        self.assertIn('طلب تغيير الحلقة قيد الانتظار', html)
+
+
+class AdminDemandesChangementHalakaTests(TestCase):
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+        self.eleve = _creer_eleve_avec_inscription('eleve_admin_demande_halaka@zidni.test', age=20, sexe='homme')
+        self.creneau_actuel = _creer_creneau_dashboard(sexe_cible='mixte', age_min=18, age_max=60)
+        self.groupe_actuel = Groupe.objects.create(nom='حلقته الحالية', creneau=self.creneau_actuel)
+        # _ajouter_eleve_au_groupe (pas .eleves.add() brut) — ouvre aussi la
+        # ligne HistoriqueGroupeEleve correspondante, nécessaire pour que le
+        # transfert testé plus bas puisse la fermer (date_fin) comme en
+        # conditions réelles (voir courses.views._ajouter_eleve_au_groupe).
+        _ajouter_eleve_au_groupe(self.eleve, self.groupe_actuel)
+        self.creneau_cible = _creer_creneau_dashboard(sexe_cible='mixte', age_min=18, age_max=60)
+        self.groupe_cible = Groupe.objects.create(nom='الحلقة المطلوبة', creneau=self.creneau_cible)
+        self.demande = DemandeChangementHalaka.objects.create(
+            eleve=self.eleve, groupe_actuel=self.groupe_actuel, groupe_demande=self.groupe_cible,
+        )
+
+    def _connecte(self, user):
+        client = Client()
+        client.force_login(user)
+        return client
+
+    def test_liste_affiche_la_demande_en_attente(self):
+        html = self._connecte(self.admin).get(reverse('admin_demandes_changement_halaka')).content.decode('utf-8')
+        self.assertIn('حلقته الحالية', html)
+        self.assertIn('الحلقة المطلوبة', html)
+
+    def test_valider_transfere_leleve_automatiquement(self):
+        client = self._connecte(self.admin)
+        client.get(reverse('admin_demande_changement_halaka_valider', args=[self.demande.id]))
+
+        self.demande.refresh_from_db()
+        self.assertEqual(self.demande.statut, 'validee')
+        self.assertEqual(self.demande.traite_par, self.admin)
+        self.assertIsNotNone(self.demande.date_traitement)
+
+        self.assertFalse(self.groupe_actuel.eleves.filter(id=self.eleve.id).exists())
+        self.assertTrue(self.groupe_cible.eleves.filter(id=self.eleve.id).exists())
+
+        # Historique cohérent (même mécanisme que groupe_transferer_eleve).
+        self.assertTrue(
+            HistoriqueGroupeEleve.objects.filter(eleve=self.eleve, groupe=self.groupe_actuel, date_fin__isnull=False).exists()
+        )
+        self.assertTrue(
+            HistoriqueGroupeEleve.objects.filter(eleve=self.eleve, groupe=self.groupe_cible, date_fin__isnull=True).exists()
+        )
+
+    def test_mshrif_peut_aussi_valider(self):
+        """Décision explicite du client : un SEUL des 2 rôles suffit."""
+        client = self._connecte(self.mshrif)
+        client.get(reverse('admin_demande_changement_halaka_valider', args=[self.demande.id]))
+        self.demande.refresh_from_db()
+        self.assertEqual(self.demande.statut, 'validee')
+        self.assertEqual(self.demande.traite_par, self.mshrif)
+
+    def test_refuser_ne_transfere_pas(self):
+        client = self._connecte(self.admin)
+        client.get(reverse('admin_demande_changement_halaka_refuser', args=[self.demande.id]))
+
+        self.demande.refresh_from_db()
+        self.assertEqual(self.demande.statut, 'refusee')
+        self.assertTrue(self.groupe_actuel.eleves.filter(id=self.eleve.id).exists())
+        self.assertFalse(self.groupe_cible.eleves.filter(id=self.eleve.id).exists())
+
+    def test_valider_groupe_devenu_complet_bloque(self):
+        """Revalidation serveur au moment de la validation — même garde que
+        n'importe quel autre transfert (raison_incompatibilite_groupe)."""
+        self.groupe_cible.capacite_max = 1
+        self.groupe_cible.save()
+        autre_eleve = _creer_eleve_avec_inscription('autre_eleve_capacite@zidni.test', age=20, sexe='homme')
+        self.groupe_cible.eleves.add(autre_eleve)
+
+        client = self._connecte(self.admin)
+        client.get(reverse('admin_demande_changement_halaka_valider', args=[self.demande.id]))
+
+        self.demande.refresh_from_db()
+        self.assertEqual(self.demande.statut, 'en_attente')  # pas transformée
+        self.assertFalse(self.groupe_cible.eleves.filter(id=self.eleve.id).exists())
+
+    def test_deja_traitee_refuse_un_2e_traitement(self):
+        self.demande.statut = 'validee'
+        self.demande.save()
+        client = self._connecte(self.admin)
+        reponse = client.get(reverse('admin_demande_changement_halaka_refuser', args=[self.demande.id]), follow=True)
+        self.demande.refresh_from_db()
+        self.assertEqual(self.demande.statut, 'validee')  # inchangée
+        self.assertContains(reponse, 'لم يعد قيد الانتظار')
+
+
+# ---------- Fonctionnalité 4 : notification مدير/مشرف partagée ----------
+class NotificationsChangementHalakaDirectionTests(TestCase):
+    """Même panneau 🔔 que NotificationsDirectionTests/
+    NotificationsProfEnAttenteDirectionTests — 3e événement, visible par les
+    2 rôles cette fois (contrairement au 2e, مشرف seul)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+        self.eleve = _creer_eleve_avec_inscription('eleve_notif_halaka@zidni.test', age=20, sexe='homme')
+        creneau = _creer_creneau_dashboard(sexe_cible='mixte', age_min=18, age_max=60)
+        self.groupe_cible = Groupe.objects.create(nom='حلقة الإشعار', creneau=creneau)
+
+    def test_demande_declenche_le_badge_admin_et_mshrif(self):
+        DemandeChangementHalaka.objects.create(eleve=self.eleve, groupe_demande=self.groupe_cible)
+
+        self.client.force_login(self.admin)
+        reponse_admin = self.client.get(reverse('dashboard_admin'))
+        self.assertEqual(reponse_admin.context['notif_total'], 1)
+        self.assertContains(reponse_admin, 'طلب تغيير حلقة')
+
+        self.client.force_login(self.mshrif)
+        reponse_mshrif = self.client.get(reverse('dashboard_mshrif'))
+        self.assertEqual(reponse_mshrif.context['notif_total'], 1)
+
+    def test_visiter_la_liste_marque_comme_lu(self):
+        DemandeChangementHalaka.objects.create(eleve=self.eleve, groupe_demande=self.groupe_cible)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 1)
+        self.client.get(reverse('admin_demandes_changement_halaka'))
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 0)
+
+    def test_demande_traitee_ne_declenche_plus(self):
+        demande = DemandeChangementHalaka.objects.create(
+            eleve=self.eleve, groupe_demande=self.groupe_cible, statut='validee',
+        )
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 0)
