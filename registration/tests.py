@@ -2006,12 +2006,37 @@ class WizardGroupeDisponibilitesSiAttenteTests(TestCase):
             f'champ_{self.champ_nb_seances.id}': '99',
         })
 
-    def test_grille_affichee_par_defaut_a_cote_de_la_carte_attente(self):
+    def test_grille_presente_mais_cachee_par_defaut_avant_tout_choix(self):
+        """Bug signalé le 2026-08-27 (capture d'écran fournie) : la grille
+        s'affichait EN MÊME TEMPS que la carte "attendre", avant même que
+        l'élève ait cliqué dessus. La grille reste dans le DOM (le toggle
+        étant activé, elle DOIT pouvoir apparaître une fois "attendre"
+        choisi) mais doit être cachée par défaut via style="display:none;"
+        en dur — même patron que #nb_seances_wrapper (inscriptions/
+        _champs_dynamiques.html, voir ChampNumeriqueAvecBornesTests)."""
         client = Client()
         self._avancer_a_etape_3(client)
         html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertIn('id="bloc_disponibilites" style="display:none;"', html)
         self.assertIn('name="dispo"', html)
         self.assertIn('id="carte_attente"', html)
+
+    def test_js_revele_la_grille_uniquement_au_clic_sur_attendre(self):
+        """Vérifie le câblage JS explicitement demandé : la grille n'est
+        révélée QUE par choisirAttente() (clic sur la carte "attendre"),
+        jamais par choisirGroupeProche() (qui doit au contraire la re-cacher
+        si l'élève avait déjà cliqué "attendre" puis change d'avis) — même
+        principe que toggleNbSeances() ailleurs dans le wizard, jamais un
+        display:none statique qu'aucun JS ne lève jamais."""
+        client = Client()
+        self._avancer_a_etape_3(client)
+        html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+
+        fonction_attente = html[html.index('function choisirAttente'):html.index('</script>')]
+        self.assertIn("_toggleBlocDisponibilites(true)", fonction_attente)
+
+        fonction_proche = html[html.index('function choisirGroupeProche'):html.index('function choisirAttente')]
+        self.assertIn("_toggleBlocDisponibilites(false)", fonction_proche)
 
     def test_grille_masquee_si_toggle_desactive_mais_carte_attente_reste(self):
         """Le toggle ne contrôle QUE la grille — jamais la carte "attente"
@@ -2027,6 +2052,7 @@ class WizardGroupeDisponibilitesSiAttenteTests(TestCase):
         self._avancer_a_etape_3(client, email='dispo.desactive@zidni.test')
         html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
         self.assertNotIn('name="dispo"', html)
+        self.assertNotIn('id="bloc_disponibilites"', html)
         self.assertIn('id="carte_attente"', html)
 
     def test_disponibilites_capturees_et_copiees_vers_inscription_eleve(self):

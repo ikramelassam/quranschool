@@ -61,10 +61,20 @@
     </div>
 
     {% if afficher_disponibilites_si_attente %}
-    <div class="page-subtitle" style="text-align:right; margin:16px 0 10px;">
-        أوقات تفرغك الأسبوعية (اختياري) — إن اخترت الانتظار، تساعدنا هذه المعلومة على اقتراح حلقة تناسبك فور توفرها:
+    {% comment %}
+    Caché par défaut (bug signalé le 2026-08-27) : révélé par JS uniquement
+    après un clic explicite sur la carte "attendre" — jamais affiché
+    d'emblée à côté des groupes proches, avant que l'élève n'ait fait ce
+    choix précis. Même patron que #nb_seances_wrapper (inscriptions/
+    _champs_dynamiques.html) : caché via style="display:none;" en dur dans
+    le HTML, révélé/re-caché par _toggleBlocDisponibilites() ci-dessous.
+    {% endcomment %}
+    <div id="bloc_disponibilites" style="display:none;">
+        <div class="page-subtitle" style="text-align:right; margin:16px 0 10px;">
+            أوقات تفرغك الأسبوعية (اختياري) — تساعدنا هذه المعلومة على اقتراح حلقة تناسبك فور توفرها:
+        </div>
+        {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=dispo_selectionnees %}
     </div>
-    {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=dispo_selectionnees %}
     {% endif %}
 
     <input type="hidden" name="groupe_id" id="groupe_id_value">
@@ -78,17 +88,28 @@
         document.querySelectorAll('#form_aucun_match .groupe-card').forEach(el => el.classList.remove('active'));
         document.getElementById('btn_suivant_aucun_match').disabled = false;
     }
+    // Bug du 2026-08-27 : la grille de disponibilités (si activée par
+    // مدير/مشرف, voir #bloc_disponibilites ci-dessus) ne doit apparaître
+    // qu'après un choix EXPLICITE de "attendre" — jamais par défaut, jamais
+    // en même temps qu'un groupe proche est choisi.
+    function _toggleBlocDisponibilites(afficher) {
+        const bloc = document.getElementById('bloc_disponibilites');
+        if (!bloc) return;
+        bloc.style.display = afficher ? '' : 'none';
+    }
     function choisirGroupeProche(id, element) {
         document.getElementById('groupe_id_value').value = id;
         document.getElementById('continuer_sans_groupe_value').value = '';
         _reinitialiserSelectionAucunMatch();
         element.classList.add('active');
+        _toggleBlocDisponibilites(false);
     }
     function choisirAttente(element) {
         document.getElementById('groupe_id_value').value = '';
         document.getElementById('continuer_sans_groupe_value').value = '1';
         _reinitialiserSelectionAucunMatch();
         element.classList.add('active');
+        _toggleBlocDisponibilites(true);
     }
 </script>
 
