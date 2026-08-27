@@ -19,6 +19,22 @@ class TypeAbonnement(models.Model):
         ('adulte', 'بالغون'),
         ('les_deux', 'الجميع'),
     ]
+    # Choix fermé (Besoin 1.4, Chantier "flux multi-étapes" du 2026-08-27) —
+    # remplace la saisie libre historique de `duree` (voir son docstring plus
+    # bas : avant cette migration, un texte arabe libre type "شهر"/"3 أشهر"
+    # y était directement stocké). Le champ RESTE un CharField ordinaire
+    # (Django ne fait respecter `choices` qu'au niveau formulaire/admin, pas
+    # en contrainte DB — même principe que Critere.backend ailleurs) : une
+    # valeur héritée d'avant ce chantier qui ne correspond à aucun code
+    # ci-dessous reste affichée telle quelle par get_duree_display() (jamais
+    # un crash), voir la migration 0042 pour la conversion best-effort des
+    # valeurs déjà en base.
+    DUREE_CHOICES = [
+        ('1mois', 'شهر واحد'),
+        ('3mois', '3 أشهر'),
+        ('6mois', '6 أشهر'),
+        ('1an', 'سنة واحدة'),
+    ]
 
     code = models.SlugField(max_length=30, unique=True)
     # Depuis la correction 4 du 2026-08-22 (page مدير, suite au test local) :
@@ -34,7 +50,7 @@ class TypeAbonnement(models.Model):
     # dérivé de `label`), simplement rarement nécessaire aujourd'hui que
     # `label` est déjà court.
     label = models.CharField(max_length=100)
-    duree = models.CharField(max_length=50, blank=True, default='')
+    duree = models.CharField(max_length=50, blank=True, default='', choices=DUREE_CHOICES)
     prix = models.DecimalField(max_digits=8, decimal_places=2)
     # Utilisé pour comparer un abonnement choisi à l'inscription au type_capacite
     # d'un Groupe (courses.utils.raison_incompatibilite_groupe*).
@@ -54,9 +70,18 @@ class TypeAbonnement(models.Model):
     def duree_affichee(self):
         """Texte à afficher là où le type d'offre est déjà connu par le
         parcours (wizard public étape Abonnement, admin_eleve_ajouter_
-        manuel) — `duree` si le مدير l'a renseignée, sinon `label` en
-        entier (jamais un texte vide)."""
-        return self.duree or self.label
+        manuel) — libellé arabe de `duree` si le مدير l'a renseignée, sinon
+        `label` en entier (jamais un texte vide).
+
+        get_duree_display() plutôt que `duree` brut depuis le Besoin 1.4
+        (choix fermé, 2026-08-27) : `duree` stocke désormais un CODE
+        ('1mois'/'3mois'/...), pas directement le texte arabe à afficher.
+        Toute valeur héritée d'avant ce chantier (texte arabe libre déjà en
+        base, ex: 'شهر') ne correspond à aucun DUREE_CHOICES — get_duree_
+        display() la retourne alors TELLE QUELLE (comportement standard de
+        Django pour une valeur hors choices), donc strictement identique à
+        `self.duree` pour ces anciennes valeurs : aucune régression."""
+        return self.get_duree_display() or self.label
 
     class Meta:
         ordering = ['ordre']
