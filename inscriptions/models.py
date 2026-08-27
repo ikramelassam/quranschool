@@ -417,6 +417,20 @@ class InscriptionProf(models.Model):
     )
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente')
     date_soumission = models.DateTimeField(auto_now_add=True)
+    # Fonctionnalité 3 (2026-08-27, notification مشرف) : horodatage DÉDIÉ du
+    # moment où ce dossier entre dans l'état 'validee_directeur' — PAS
+    # `date_soumission` (auto_now_add à la CRÉATION du dossier, donc souvent
+    # bien ANTÉRIEUR à cette transition quand le مدير valide un dossier
+    # 'en_attente' qui traînait depuis un moment) : dashboard.notifications.
+    # notifications_direction() a besoin d'un vrai proxy de date de cet
+    # évènement précis pour respecter la même garantie anti-fausse-
+    # notification que le reste du module (voir son docstring de tête) —
+    # jamais modifié après coup (comme un auto_now_add), seulement posé UNE
+    # fois par dashboard.views.admin_valider_prof / admin_prof_ajouter_manuel,
+    # au moment exact de la transition. Reste `null` pour les dossiers qui
+    # n'ont jamais transité par cet état (encore 'en_attente'/'rejete', ou
+    # 'valide' directement via un ajout manuel مشرف qui saute cette étape).
+    date_validee_directeur = models.DateTimeField(null=True, blank=True)
     # Chantier du 2026-08-14 — voir InscriptionEleve.motif_refus (même
     # principe exact : texte figé, indépendant de PhraseRefus). Un seul
     # champ ici même si le refus peut survenir à 2 étapes différentes

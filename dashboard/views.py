@@ -2493,9 +2493,16 @@ def admin_valider_prof(request, inscription_id):
     plus l'admin) mais devient visible pour le المشرف, seul habilité à créer le compte final
     (voir mshrif_valider_prof_final, qui reprend exactement la logique de création qui vivait
     ici auparavant)."""
+    from django.utils import timezone
     from inscriptions.models import InscriptionProf
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
     inscription.statut = 'validee_directeur'
+    # Fonctionnalité 3 (2026-08-27) : horodatage DÉDIÉ de cette transition
+    # précise — voir InscriptionProf.date_validee_directeur.__doc__, jamais
+    # `date_soumission` (bien antérieur si ce dossier traînait en
+    # 'en_attente'). Déclenche la notification مشرف, voir dashboard.
+    # notifications.notifications_direction.
+    inscription.date_validee_directeur = timezone.now()
     inscription.save()
     messages.success(
         request,
@@ -2602,6 +2609,12 @@ def mshrif_inscriptions_profs(request):
     inscriptions = InscriptionProf.objects.filter(statut='validee_directeur').order_by('-date_soumission')
     context = {'inscriptions': paginer(request, inscriptions, 10)}
     context.update(_contexte_base_mshrif(request))
+    # Fonctionnalité 3 (2026-08-27) : page cible du groupe de notification
+    # 'profs_en_attente_validation' (voir dashboard.notifications.
+    # notifications_direction) — juste avant le render, jamais avant (même
+    # précaution que les autres appelants de marquer_visite).
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'profs_en_attente_validation')
     return render(request, 'dashboard/mshrif_inscriptions_profs.html', context)
 
 
@@ -7511,6 +7524,7 @@ def admin_prof_ajouter_manuel(request):
     (inscriptions.views.inscription_prof) N'EST PAS concerné par ce
     relâchement — il continue d'exiger tous ces champs comme avant, seul cet
     ajout manuel devient plus permissif."""
+    from django.utils import timezone
     from courses.utils import JOURS_SEMAINE_DISPO, generer_heures_grille
     from inscriptions.models import InscriptionProf
     from inscriptions.views import MESSAGE_EMAIL_DEJA_UTILISE, _construire_et_valider_telephone, _email_deja_utilise
@@ -7584,6 +7598,13 @@ def admin_prof_ajouter_manuel(request):
 
         # Voir docstring ci-dessus pour le détail des différences avec une candidature publique.
         statut_initial = 'valide' if request.user.role == 'mshrif' else 'validee_directeur'
+        # Fonctionnalité 3 (2026-08-27) : ce dossier entre DIRECTEMENT en
+        # 'validee_directeur' à la création (créateur مدير) — voir
+        # InscriptionProf.date_validee_directeur.__doc__, déclenche la
+        # notification مشرف (dashboard.notifications.notifications_direction)
+        # comme le flux classique admin_valider_prof. Reste None pour le cas
+        # مشرف (statut_initial='valide', saute cette étape entièrement).
+        date_validee_directeur = timezone.now() if statut_initial == 'validee_directeur' else None
 
         inscription = InscriptionProf.objects.create(
             nom=nom,
@@ -7610,6 +7631,7 @@ def admin_prof_ajouter_manuel(request):
             audio_enregistrement=request.FILES.get('audio_enregistrement'),
             disponibilites=request.POST.getlist('dispo'),
             statut=statut_initial,
+            date_validee_directeur=date_validee_directeur,
         )
 
         if statut_initial == 'valide':

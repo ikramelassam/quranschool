@@ -2560,6 +2560,97 @@ class NotificationsDirectionTests(TestCase):
         self.assertEqual(self.client.get(reverse('mes_notifications')).status_code, 200)
 
 
+# ---------- Fonctionnalité 3 (2026-08-27) : notification مشرف — prof en attente ----------
+class NotificationsProfEnAttenteDirectionTests(TestCase):
+    """Voir dashboard.notifications.notifications_direction — 2e événement :
+    InscriptionProf passée en 'validee_directeur', réutilisant le même
+    panneau 🔔 que NotificationsDirectionTests, مشرف UNIQUEMENT (jamais مدير,
+    qui déclenche lui-même cette transition)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def _inscription_en_attente(self, nom='مرشح أستاذ'):
+        from inscriptions.models import InscriptionProf
+        return InscriptionProf.objects.create(
+            nom=nom, prenom='تجريبي', telephone='0600000010', email=f'{nom}_prof@zidni.test',
+            statut='en_attente',
+        )
+
+    def _donnees_ajout_manuel(self, email):
+        # Même format que AjoutManuelProfTests._donnees ci-dessus —
+        # indicatif_pays/telephone_confirmation exigés par
+        # inscriptions.views._construire_et_valider_telephone.
+        return {
+            'nom': 'أستاذ', 'prenom': 'تجريبي', 'indicatif_pays': '212',
+            'telephone': '0611002244', 'telephone_confirmation': '0611002244', 'email': email,
+        }
+
+    def test_admin_valider_prof_declenche_le_badge_mshrif_pas_admin(self):
+        inscription = self._inscription_en_attente()
+        self.client.force_login(self.admin)
+        self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
+
+        # مدير lui-même n'est PAS notifié — c'est lui qui a déclenché la transition.
+        reponse_admin = self.client.get(reverse('dashboard_admin'))
+        self.assertEqual(reponse_admin.context['notif_total'], 0)
+
+        self.client.force_login(self.mshrif)
+        reponse_mshrif = self.client.get(reverse('dashboard_mshrif'))
+        self.assertEqual(reponse_mshrif.context['notif_total'], 1)
+        self.assertContains(reponse_mshrif, 'طلب أستاذ بانتظار تصديقك')
+
+    def test_ajout_manuel_admin_declenche_aussi_le_badge_mshrif(self):
+        """Fonctionnalité 3 : les 2 chemins vers 'validee_directeur' (flux
+        classique admin_valider_prof ET ajout manuel admin_prof_ajouter_
+        manuel) déclenchent la même notification."""
+        self.client.force_login(self.admin)
+        self.client.post(reverse('admin_prof_ajouter_manuel'), self._donnees_ajout_manuel('notif_ajout_manuel_prof@zidni.test'))
+        self.client.force_login(self.mshrif)
+        reponse_mshrif = self.client.get(reverse('dashboard_mshrif'))
+        self.assertEqual(reponse_mshrif.context['notif_total'], 1)
+
+    def test_ajout_manuel_mshrif_ne_declenche_pas(self):
+        """Un ajout manuel par le مشرف lui-même saute 'validee_directeur'
+        (statut='valide' directement, compte créé tout de suite) — aucune
+        notification ne doit lui être adressée à lui-même."""
+        self.client.force_login(self.mshrif)
+        self.client.post(reverse('admin_prof_ajouter_manuel'), self._donnees_ajout_manuel('notif_ajout_manuel_mshrif@zidni.test'))
+        reponse_mshrif = self.client.get(reverse('dashboard_mshrif'))
+        self.assertEqual(reponse_mshrif.context['notif_total'], 0)
+
+    def test_lien_notification_pointe_vers_la_liste_mshrif(self):
+        inscription = self._inscription_en_attente()
+        self.client.force_login(self.admin)
+        self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
+
+        self.client.force_login(self.mshrif)
+        reponse = self.client.get(reverse('dashboard_mshrif'))
+        self.assertContains(reponse, reverse('mshrif_inscriptions_profs'))
+
+    def test_visiter_mshrif_inscriptions_profs_marque_comme_lu(self):
+        inscription = self._inscription_en_attente()
+        self.client.force_login(self.admin)
+        self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
+
+        self.client.force_login(self.mshrif)
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 1)
+        self.client.get(reverse('mshrif_inscriptions_profs'))
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 0)
+
+    def test_prof_deja_valide_ne_declenche_pas(self):
+        """Un dossier déjà passé au statut final 'valide' ne concerne plus
+        une candidature EN ATTENTE de تصديق مشرف — jamais une fausse notif."""
+        from inscriptions.models import InscriptionProf
+        InscriptionProf.objects.create(
+            nom='أستاذ مقبول نهائياً', prenom='تجريبي', telephone='0600000013',
+            email='notif_prof_deja_valide@zidni.test', statut='valide',
+        )
+        self.client.force_login(self.mshrif)
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 0)
+
+
 class DepuisRelatifFiltreTests(TestCase):
     """Filtre dashboard.templatetags.libelles_arabes.depuis_relatif — duel
     arabe correct à CHAQUE palier (minute/heure/jour/semaine), pas juste le

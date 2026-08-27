@@ -236,15 +236,17 @@ def notifications_prof(prof, user, limite=LIMITE_PAR_GROUPE):
 def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
     """(groupes, total) pour le panneau 🔔 côté مدير/مشرف (Chantier du
     2026-08-24) — même patron que notifications_eleve/notifications_prof
-    ci-dessus, mais un seul événement pour l'instant : nouvelle demande
-    d'inscription élève (InscriptionEleve.date_soumission, auto_now_add —
-    même garantie anti-fausse-notification que le reste du module, voir
-    docstring en tête de fichier), qu'elle vienne du wizard public
-    (registration.views, cree_par=None) OU de l'ajout manuel Directeur/مشرف
-    (dashboard.views.admin_eleve_ajouter_manuel, cree_par=request.user) —
-    inscrire_eleve() est le point de création UNIQUE pour les deux chemins
-    (voir registration.utils.inscrire_eleve.__doc__), donc AUCUNE distinction
-    de source n'est nécessaire ici : une seule requête couvre les deux.
+    ci-dessus. 2 événements possibles :
+
+    1. Nouvelle demande d'inscription élève (InscriptionEleve.
+    date_soumission, auto_now_add — même garantie anti-fausse-notification
+    que le reste du module, voir docstring en tête de fichier), qu'elle
+    vienne du wizard public (registration.views, cree_par=None) OU de
+    l'ajout manuel Directeur/مشرف (dashboard.views.admin_eleve_ajouter_
+    manuel, cree_par=request.user) — inscrire_eleve() est le point de
+    création UNIQUE pour les deux chemins (voir registration.utils.
+    inscrire_eleve.__doc__), donc AUCUNE distinction de source n'est
+    nécessaire ici : une seule requête couvre les deux.
 
     Un seul `cle` ('demandes_inscription') PARTAGÉ par مدير ET مشرف : les
     deux rôles pointent vers la même page cible (admin_inscriptions, voir
@@ -253,14 +255,26 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
     étant déjà keyée par (user, cle) et pas juste par cle : la visite de
     l'un ne marque jamais "lu" pour l'autre.
 
-    Volontairement PAS les candidatures profs (InscriptionProf) : le chantier
-    demandé porte explicitement sur "nouvelle demande d'inscription (wizard
-    public ou ajout manuel)", qui ne couvre que le parcours élève — étendre
-    aux profs plus tard est un chantier séparé, pas une extension silencieuse
-    ici."""
-    from inscriptions.models import InscriptionEleve
+    2. Candidature prof pré-validée par le مدير, en attente de la
+    validation finale du مشرف (InscriptionProf.statut='validee_directeur')
+    — Fonctionnalité 3 (2026-08-27, chantier annoncé mais volontairement
+    reporté au 2026-08-24, voir l'ancienne version de cette docstring).
+    مشرف UNIQUEMENT (jamais مدير : c'est lui qui déclenche cette transition,
+    rien ne l'attend en retour) — filtré ici sur `user.role`, pas sur un
+    `cle` séparé par rôle (inutile, un seul rôle le voit jamais). Repose sur
+    InscriptionProf.date_validee_directeur, un horodatage DÉDIÉ posé par
+    dashboard.views.admin_valider_prof/admin_prof_ajouter_manuel au moment
+    exact de la transition (voir son docstring : jamais date_soumission,
+    souvent bien antérieur si le dossier traînait en 'en_attente'). Mène
+    vers la LISTE (mshrif_inscriptions_profs), pas vers chaque fiche
+    individuelle (décision explicite de ce chantier, contrairement au
+    groupe 1 ci-dessus qui pointe chaque évènement vers sa propre fiche)."""
+    from inscriptions.models import InscriptionEleve, InscriptionProf
 
-    seuils = _seuils(user, ['demandes_inscription'])
+    cles = ['demandes_inscription']
+    if user.role == 'mshrif':
+        cles.append('profs_en_attente_validation')
+    seuils = _seuils(user, cles)
 
     demandes = list(
         InscriptionEleve.objects.filter(
@@ -276,10 +290,32 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
         for d in demandes
     ]
 
+    evenements_profs_en_attente = []
+    if user.role == 'mshrif':
+        profs_en_attente = list(
+            InscriptionProf.objects.filter(
+                statut='validee_directeur', date_validee_directeur__gt=seuils['profs_en_attente_validation'],
+            ).order_by('-date_validee_directeur')[:LIMITE_FETCH]
+        )
+        url_liste_profs = reverse('mshrif_inscriptions_profs')
+        evenements_profs_en_attente = [
+            {
+                'texte': f'طلب أستاذ بانتظار تصديقك: {p.nom} {p.prenom}',
+                'url': url_liste_profs,
+                'date': p.date_validee_directeur,
+            }
+            for p in profs_en_attente
+        ]
+
     groupes = []
     if evenements_demandes:
         groupes.append({
             'icone': '📝', 'label': 'طلبات تسجيل جديدة', 'evenements': evenements_demandes[:limite],
         })
+    if evenements_profs_en_attente:
+        groupes.append({
+            'icone': '👨‍🏫', 'label': 'طلبات أساتذة بانتظار تصديقك',
+            'evenements': evenements_profs_en_attente[:limite],
+        })
 
-    return groupes, len(evenements_demandes)
+    return groupes, len(evenements_demandes) + len(evenements_profs_en_attente)
