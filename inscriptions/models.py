@@ -372,8 +372,22 @@ class InscriptionProf(models.Model):
     ]
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100)
-    date_naissance = models.DateField()
+    # Chantier du 2026-08-27 (ajout manuel — "tout optionnel sauf le strict
+    # indispensable") : seuls nom/prenom/email/telephone restent obligatoires
+    # à la saisie (voir dashboard.views.admin_prof_ajouter_manuel). Rendu
+    # nullable ici pour permettre un ajout manuel sans date de naissance
+    # connue au premier passage, complétable plus tard — le formulaire PUBLIC
+    # (inscriptions.views.inscription_prof) continue, lui, à toujours l'exiger
+    # côté vue (comportement inchangé), ce champ reste donc rempli pour 100%
+    # des candidatures publiques malgré ce relâchement du schéma.
+    date_naissance = models.DateField(null=True, blank=True)
     telephone = models.CharField(max_length=20, blank=True)
+    # ville/job_actuel/niveau_memorisation/parcours_scolaire/parcours_enseignant/
+    # compte_bancaire/rib/agence_bancaire : déjà de simples CharField/TextField
+    # SANS null=True — un ajout manuel avec ces champs vides les enregistre
+    # comme chaîne vide ('', jamais NULL), aucune migration de schéma requise
+    # pour eux (seul date_naissance, un DateField, avait besoin de null=True
+    # pour accepter une valeur réellement absente).
     ville = models.CharField(max_length=100)
     statut_familial = models.CharField(max_length=50)
     job_actuel = models.CharField(max_length=100)

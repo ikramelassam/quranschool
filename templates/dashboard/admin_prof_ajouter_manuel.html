@@ -52,12 +52,12 @@
                     {% include 'inscriptions/_verification_whatsapp.html' %}
                 </div>
                 <div class="col-6">
-                    <label class="form-label">تاريخ الميلاد *</label>
-                    <input type="date" name="date_naissance" class="form-control" value="{{ valeurs_form.date_naissance|default:'' }}" required>
+                    <label class="form-label">تاريخ الميلاد (اختياري)</label>
+                    <input type="date" name="date_naissance" class="form-control" value="{{ valeurs_form.date_naissance|default:'' }}">
                 </div>
                 <div class="col-6">
-                    <label class="form-label">المدينة *</label>
-                    <input type="text" name="ville" class="form-control" value="{{ valeurs_form.ville|default:'' }}" required>
+                    <label class="form-label">المدينة (اختياري)</label>
+                    <input type="text" name="ville" class="form-control" value="{{ valeurs_form.ville|default:'' }}">
                 </div>
                 <div class="col-6">
                     <label class="form-label">الحالة الاجتماعية</label>
@@ -69,8 +69,8 @@
                     </select>
                 </div>
                 <div class="col-6">
-                    <label class="form-label">الوظيفة الحالية *</label>
-                    <input type="text" name="job_actuel" class="form-control" value="{{ valeurs_form.job_actuel|default:'' }}" required>
+                    <label class="form-label">الوظيفة الحالية (اختياري)</label>
+                    <input type="text" name="job_actuel" class="form-control" value="{{ valeurs_form.job_actuel|default:'' }}">
                 </div>
             </div>
         </div>
@@ -79,9 +79,9 @@
             <div class="section-title">2. المؤهلات</div>
             <div class="row g-3">
                 <div class="col-12">
-                    <label class="form-label">مستوى الحفظ *</label>
+                    <label class="form-label">مستوى الحفظ (اختياري)</label>
                     <input type="text" name="niveau_memorisation" class="form-control"
-                           value="{{ valeurs_form.niveau_memorisation|default:'' }}" placeholder="مثال: حفظ القرآن كاملاً" required>
+                           value="{{ valeurs_form.niveau_memorisation|default:'' }}" placeholder="مثال: حفظ القرآن كاملاً">
                 </div>
                 <div class="col-12">
                     <label class="form-label">الشهادات والإجازات</label>
@@ -132,12 +132,12 @@
             <div class="section-title">6. المسار والخبرة</div>
             <div class="row g-3">
                 <div class="col-12">
-                    <label class="form-label">المسار الدراسي *</label>
-                    <textarea name="parcours_scolaire" class="form-control" rows="3" required>{{ valeurs_form.parcours_scolaire|default:'' }}</textarea>
+                    <label class="form-label">المسار الدراسي (اختياري)</label>
+                    <textarea name="parcours_scolaire" class="form-control" rows="3">{{ valeurs_form.parcours_scolaire|default:'' }}</textarea>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">مسار التدريس *</label>
-                    <textarea name="parcours_enseignant" class="form-control" rows="3" required>{{ valeurs_form.parcours_enseignant|default:'' }}</textarea>
+                    <label class="form-label">مسار التدريس (اختياري)</label>
+                    <textarea name="parcours_enseignant" class="form-control" rows="3">{{ valeurs_form.parcours_enseignant|default:'' }}</textarea>
                 </div>
                 <div class="col-12">
                     <label class="form-label">كيف يتعامل مع الطالب الضعيف؟</label>
@@ -154,16 +154,16 @@
             <div class="section-title">7. المعلومات البنكية والتسجيل الصوتي</div>
             <div class="row g-3">
                 <div class="col-6">
-                    <label class="form-label">رقم الحساب البنكي *</label>
-                    <input type="text" name="compte_bancaire" class="form-control" value="{{ valeurs_form.compte_bancaire|default:'' }}" required>
+                    <label class="form-label">رقم الحساب البنكي (اختياري)</label>
+                    <input type="text" name="compte_bancaire" class="form-control" value="{{ valeurs_form.compte_bancaire|default:'' }}">
                 </div>
                 <div class="col-6">
-                    <label class="form-label">RIB *</label>
-                    <input type="text" name="rib" class="form-control" value="{{ valeurs_form.rib|default:'' }}" required>
+                    <label class="form-label">RIB (اختياري)</label>
+                    <input type="text" name="rib" class="form-control" value="{{ valeurs_form.rib|default:'' }}">
                 </div>
                 <div class="col-6">
-                    <label class="form-label">اسم الوكالة البنكية *</label>
-                    <input type="text" name="agence_bancaire" class="form-control" value="{{ valeurs_form.agence_bancaire|default:'' }}" required>
+                    <label class="form-label">اسم الوكالة البنكية (اختياري)</label>
+                    <input type="text" name="agence_bancaire" class="form-control" value="{{ valeurs_form.agence_bancaire|default:'' }}">
                 </div>
                 <div class="col-12">
                     <label class="form-label">تسجيل صوتي (اختياري)</label>

@@ -3790,6 +3790,81 @@ class AjoutManuelProfTests(TestCase):
         client.post(reverse('admin_prof_ajouter_manuel'), self._donnees('prof_manuel_conflit@zidni.test'))
         self.assertEqual(InscriptionProf.objects.filter(email='prof_manuel_conflit@zidni.test').count(), 1)
 
+    # ========================================================================
+    # Chantier du 2026-08-27 ("tout optionnel sauf le strict indispensable") —
+    # seuls nom/prenom/email/telephone restent obligatoires ici.
+    # ========================================================================
+    def _donnees_minimales(self, email):
+        """Uniquement nom/prenom/email/telephone — AUCUN autre champ, preuve
+        que le formulaire accepte désormais un dossier volontairement
+        incomplet plutôt que de forcer sa saisie intégrale au premier passage."""
+        return {
+            'nom': 'أستاذ', 'prenom': 'ناقص',
+            'indicatif_pays': '212', 'telephone': '0611002244', 'telephone_confirmation': '0611002244',
+            'email': email,
+        }
+
+    def test_creation_reussit_avec_uniquement_les_champs_indispensables(self):
+        client = self._connecte_admin()
+        response = client.post(reverse('admin_prof_ajouter_manuel'), self._donnees_minimales('prof_manuel_minimal@zidni.test'))
+        inscription = InscriptionProf.objects.get(email='prof_manuel_minimal@zidni.test')
+        self.assertEqual(inscription.statut, 'validee_directeur')
+        self.assertIsNone(inscription.date_naissance)
+        self.assertEqual(inscription.ville, '')
+        self.assertEqual(inscription.job_actuel, '')
+        self.assertEqual(inscription.niveau_memorisation, '')
+        self.assertEqual(inscription.parcours_scolaire, '')
+        self.assertEqual(inscription.parcours_enseignant, '')
+        self.assertEqual(inscription.compte_bancaire, '')
+        self.assertEqual(inscription.rib, '')
+        self.assertEqual(inscription.agence_bancaire, '')
+        self.assertRedirects(response, reverse('admin_inscription_prof_detail', args=[inscription.id]))
+
+    def test_mshrif_cree_le_compte_meme_avec_dossier_minimal(self):
+        """Preuve bout en bout : _creer_compte_prof (User+Prof) ne plante
+        jamais sur des champs optionnels vides, y compris la génération de
+        presentation_publique (accounts.services.generer_presentation_publique,
+        déjà conçue pour ignorer les champs vides)."""
+        client = self._connecte_mshrif()
+        client.post(reverse('admin_prof_ajouter_manuel'), self._donnees_minimales('prof_manuel_minimal_mshrif@zidni.test'))
+        prof = Prof.objects.get(user__email='prof_manuel_minimal_mshrif@zidni.test')
+        self.assertEqual(prof.ville, '')
+        self.assertEqual(prof.presentation_publique, '')
+        self.assertTrue(User.objects.filter(email='prof_manuel_minimal_mshrif@zidni.test', role='prof').exists())
+
+    def test_nom_manquant_toujours_refuse(self):
+        client = self._connecte_admin()
+        donnees = self._donnees_minimales('prof_manuel_sans_nom@zidni.test')
+        donnees['nom'] = ''
+        client.post(reverse('admin_prof_ajouter_manuel'), donnees)
+        self.assertFalse(InscriptionProf.objects.filter(email='prof_manuel_sans_nom@zidni.test').exists())
+
+    def test_email_manquant_toujours_refuse(self):
+        client = self._connecte_admin()
+        donnees = self._donnees_minimales('prof_manuel_sans_email@zidni.test')
+        donnees['email'] = ''
+        reponse = client.post(reverse('admin_prof_ajouter_manuel'), donnees)
+        self.assertEqual(reponse.status_code, 200)  # réaffiche le formulaire, ne redirige jamais
+        self.assertFalse(InscriptionProf.objects.filter(nom='أستاذ', prenom='ناقص').exists())
+
+    def test_telephone_manquant_toujours_refuse(self):
+        client = self._connecte_admin()
+        donnees = self._donnees_minimales('prof_manuel_sans_tel@zidni.test')
+        donnees['telephone'] = ''
+        donnees['telephone_confirmation'] = ''
+        client.post(reverse('admin_prof_ajouter_manuel'), donnees)
+        self.assertFalse(InscriptionProf.objects.filter(email='prof_manuel_sans_tel@zidni.test').exists())
+
+    def test_date_naissance_saisie_mais_invalide_refusee(self):
+        """Contrairement à une date LAISSÉE VIDE (acceptée), une date SAISIE
+        mais mal formée reste une vraie erreur — jamais enregistrée comme si
+        de rien n'était."""
+        client = self._connecte_admin()
+        donnees = self._donnees_minimales('prof_manuel_date_invalide@zidni.test')
+        donnees['date_naissance'] = 'pas-une-date'
+        client.post(reverse('admin_prof_ajouter_manuel'), donnees)
+        self.assertFalse(InscriptionProf.objects.filter(email='prof_manuel_date_invalide@zidni.test').exists())
+
 
 class PresentationPubliqueProfTests(TestCase):
     """Chantier du 2026-08-27 — génération automatique + édition manuelle de

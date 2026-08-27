@@ -80,6 +80,11 @@ seule la mise en page change.
         <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%; display:flex; flex-direction:column; justify-content:center; text-align:center;">
             <div style="color:var(--color-role-prof-solid); font-weight:700; margin-bottom:10px;">💰 راتبي الشهري</div>
             <div style="font-size:26px; font-weight:700; color:var(--color-role-prof-solid);">{{ remuneration.total_calcule }} <span style="font-size:0.6em;">د.م.</span></div>
+            {% if remuneration.tarifs_manquants %}
+            <a href="{% url 'prof_remuneration' %}" style="display:inline-block; margin-top:8px; background:#fff3cd; color:#856404; border-radius:20px; padding:4px 12px; font-size:0.8rem; font-weight:600; text-decoration:none;">
+                ⚠️ هذا المبلغ غير مكتمل — تعرفة مفقودة، عرض التفاصيل
+            </a>
+            {% endif %}
             <div style="color:#888; font-size:0.85rem; margin-top:6px;">حساب راتبك الشهري حسب شبكة تعرفات المنصة</div>
             <a href="{% url 'prof_remuneration' %}" style="display:inline-block; margin-top:16px; color:var(--color-role-prof-solid); font-weight:700; text-decoration:none;">عرض التفاصيل ←</a>
         </div>

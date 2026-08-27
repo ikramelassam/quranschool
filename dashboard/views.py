@@ -7436,7 +7436,7 @@ def admin_prof_ajouter_manuel(request):
     2e liste de champs qui pourrait diverger de la candidature publique.
 
     Statut initial selon le rôle du créateur (décision explicite, Chantier du
-    2026-08-27) — c'est la SEULE différence avec une candidature publique :
+    2026-08-27) :
     - مدير : statut créé directement à 'validee_directeur' (saute
       'en_attente' — le مدير l'a lui-même vérifié en l'ajoutant). Apparaît
       dans mshrif_inscriptions_profs comme toute candidature classique, en
@@ -7450,7 +7450,18 @@ def admin_prof_ajouter_manuel(request):
     Contrairement au formulaire public, l'audio (audio_enregistrement) et la
     matrice de disponibilités restent optionnels — un ajout manuel se fait
     souvent avec des infos incomplètes au premier passage, complétables
-    ensuite depuis la fiche prof une fois le compte créé."""
+    ensuite depuis la fiche prof une fois le compte créé.
+
+    Chantier du 2026-08-27 ("tout optionnel sauf le strict indispensable") :
+    seuls nom/prenom/email/telephone restent obligatoires ici — ville, date de
+    naissance, job actuel, niveau de mémorisation, parcours scolaire/
+    enseignant, infos bancaires... sont tous devenus optionnels (voir
+    InscriptionProf.date_naissance, rendue nullable pour l'occasion — les
+    autres champs relâchés étaient déjà de simples CharField/TextField non
+    null, aucune migration nécessaire pour eux). Le formulaire PUBLIC
+    (inscriptions.views.inscription_prof) N'EST PAS concerné par ce
+    relâchement — il continue d'exiger tous ces champs comme avant, seul cet
+    ajout manuel devient plus permissif."""
     from courses.utils import JOURS_SEMAINE_DISPO, generer_heures_grille
     from inscriptions.models import InscriptionProf
     from inscriptions.views import MESSAGE_EMAIL_DEJA_UTILISE, _construire_et_valider_telephone, _email_deja_utilise
@@ -7471,38 +7482,39 @@ def admin_prof_ajouter_manuel(request):
         parcours_scolaire = request.POST.get('parcours_scolaire', '').strip()
         parcours_enseignant = request.POST.get('parcours_enseignant', '').strip()
 
-        try:
-            date_naissance = datetime.date.fromisoformat(request.POST.get('date_naissance', ''))
-        except (ValueError, TypeError):
-            date_naissance = None
+        # Chantier du 2026-08-27 ("tout optionnel sauf le strict
+        # indispensable") : seule une date de naissance LAISSÉE VIDE est
+        # acceptée silencieusement (None, voir InscriptionProf.date_naissance,
+        # rendue nullable) — une date SAISIE mais invalide reste, elle, une
+        # vraie erreur (jamais une valeur corrompue enregistrée à la place
+        # d'un message clair).
+        date_naissance_brute = request.POST.get('date_naissance', '').strip()
+        date_naissance = None
+        date_naissance_invalide = False
+        if date_naissance_brute:
+            try:
+                date_naissance = datetime.date.fromisoformat(date_naissance_brute)
+            except ValueError:
+                date_naissance_invalide = True
 
+        # Seuls nom/prenom/email/telephone (validé plus bas via
+        # _construire_et_valider_telephone, déjà inconditionnellement
+        # obligatoire) restent indispensables — tous les autres champs de ce
+        # formulaire sont désormais optionnels (un ajout manuel se fait
+        # souvent avec un dossier incomplet, complétable ensuite depuis la
+        # fiche prof une fois le compte créé, même logique déjà appliquée à
+        # l'audio/aux disponibilités avant ce chantier, voir docstring de la vue).
         erreurs = []
         if not nom:
             erreurs.append('الاسم إلزامي.')
         if not prenom:
             erreurs.append('اللقب إلزامي.')
-        if date_naissance is None:
-            erreurs.append('يرجى إدخال تاريخ ميلاد صحيح.')
+        if date_naissance_invalide:
+            erreurs.append('تاريخ الميلاد غير صالح.')
         if not email:
             erreurs.append('البريد الإلكتروني إلزامي.')
         elif _email_deja_utilise(email):
             erreurs.append(MESSAGE_EMAIL_DEJA_UTILISE)
-        if not ville:
-            erreurs.append('المدينة إلزامية.')
-        if not job_actuel:
-            erreurs.append('العمل الحالي إلزامي.')
-        if not niveau_memorisation:
-            erreurs.append('مستوى الحفظ إلزامي.')
-        if not parcours_scolaire:
-            erreurs.append('المسار الدراسي إلزامي.')
-        if not parcours_enseignant:
-            erreurs.append('مسار التدريس إلزامي.')
-        if not compte_bancaire:
-            erreurs.append('رقم الحساب البنكي إلزامي.')
-        if not rib:
-            erreurs.append('RIB إلزامي.')
-        if not agence_bancaire:
-            erreurs.append('اسم الوكالة البنكية إلزامي.')
 
         telephone_complet = ''
         if not erreurs:
@@ -7521,7 +7533,7 @@ def admin_prof_ajouter_manuel(request):
                 **_contexte_base_mshrif(request),
             })
 
-        # Seule différence avec une candidature publique — voir docstring ci-dessus.
+        # Voir docstring ci-dessus pour le détail des différences avec une candidature publique.
         statut_initial = 'valide' if request.user.role == 'mshrif' else 'validee_directeur'
 
         inscription = InscriptionProf.objects.create(
