@@ -388,6 +388,7 @@ def wizard_groupe(request):
     avancer. Dans les 2 cas, une DemandeNonSatisfaite est enregistrée : la
     combinaison exacte demandée reste une donnée utile pour le مدير/مشرف
     même quand l'élève accepte finalement un groupe proche."""
+    from accounts.models import get_visibilite_prof
     from courses.utils import _age_depuis_naissance
     from .models import DemandeNonSatisfaite, get_presentation_inscription
     from .utils import (
@@ -427,6 +428,8 @@ def wizard_groupe(request):
     groupes_proches = None
     message_aucun_groupe = None
     texte_attente_groupe = None
+    afficher_disponibilites_si_attente = False
+    jours_dispo, heures_dispo = None, None
     if aucun_groupe_exact:
         reponses_bloquantes = {c: v for c, v in reponses_pour_filtrage.items() if c.bloquant}
         groupes_proches = groupes_avec_place_disponible(
@@ -438,11 +441,31 @@ def wizard_groupe(request):
         # إنشاء الحلقة" — voir registration.models.PresentationInscription.
         # texte_attente_groupe.
         texte_attente_groupe = presentation.texte_attente_groupe
+        # Chantier du 2026-08-27 : matrice de disponibilités optionnelle à
+        # côté de la carte "attente" — voir PresentationInscription.
+        # afficher_disponibilites_si_attente.__doc__. Ne contrôle JAMAIS la
+        # carte "attente" elle-même (toujours affichée ci-dessus), seulement
+        # cette matrice EN PLUS. jours/heures calculés seulement si le
+        # réglage est actif (aucune requête DB, mais pas de travail inutile).
+        afficher_disponibilites_si_attente = presentation.afficher_disponibilites_si_attente
+        if afficher_disponibilites_si_attente:
+            from courses.utils import JOURS_SEMAINE_DISPO, generer_heures_grille
+            jours_dispo, heures_dispo = JOURS_SEMAINE_DISPO, generer_heures_grille()
 
     contexte_commun = {
         'groupes': groupes, 'groupes_proches': groupes_proches,
         'aucun_groupe_exact': aucun_groupe_exact, 'message_aucun_groupe': message_aucun_groupe,
         'texte_attente_groupe': texte_attente_groupe,
+        'afficher_disponibilites_si_attente': afficher_disponibilites_si_attente,
+        'jours': jours_dispo, 'heures': heures_dispo,
+        'dispo_selectionnees': set(request.POST.getlist('dispo')) if request.method == 'POST' else set(),
+        # Chantier du 2026-08-27 (présentation publique du prof) — même
+        # réglage que eleve_prof_detail.html, voir accounts.models.
+        # VisibiliteProf.afficher_presentation_wizard. select_related déjà
+        # en place sur 'prof__user' (groupes_compatibles) : aucune requête
+        # supplémentaire pour lire groupe.prof.presentation_publique, simple
+        # colonne du même JOIN.
+        'visibilite': get_visibilite_prof(),
         'age': age, 'wizard_etape_num': 3,
     }
 
@@ -483,6 +506,12 @@ def wizard_groupe(request):
             wizard_maj(request, {
                 'groupe_id': str(groupe_choisi.id) if groupe_choisi else '',
                 'demande_non_satisfaite_id': str(demande.id),
+                # Chantier du 2026-08-27 — capturée que le réglage soit actif
+                # ou non (si inactif, la grille n'est jamais rendue, donc
+                # 'dispo' n'apparaît simplement jamais dans le POST : liste
+                # vide, aucun cas particulier nécessaire ici). inscrire_eleve()
+                # la copie telle quelle dans InscriptionEleve.disponibilites.
+                'disponibilites': request.POST.getlist('dispo'),
             })
             return redirect(url_etape_suivante('groupe'))
 

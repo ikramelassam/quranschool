@@ -30,7 +30,7 @@
 </style>
 
 <div class="page-title">ظهور بيانات الأستاذ للطالب</div>
-<div class="page-subtitle">آخر تعديل: {{ visibilite.date_modification|date:"d-m-Y H:i" }} — يتحكم فيما يراه الطالب من ملف أستاذه (لا يؤثر على ما يراه المشرف أو المؤطر)</div>
+<div class="page-subtitle">آخر تعديل: {{ visibilite.date_modification|date:"d-m-Y H:i" }} — يتحكم فيما يراه الطالب من ملف أستاذه، وفي بطاقة الحلقة أثناء التسجيل (لا يؤثر على ما يراه المشرف أو المؤطر)</div>
 
 <form method="POST">
     {% csrf_token %}
@@ -108,6 +108,20 @@
             </div>
             <label class="toggle-switch">
                 <input type="checkbox" name="afficher_parcours_educatif" value="1" {% if visibilite.afficher_parcours_educatif %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="vp-card">
+        <div class="vp-card-title">📝 صفحة التسجيل</div>
+        <div class="vp-field">
+            <div>
+                <div class="vp-field-label">نبذة الأستاذ في بطاقة الحلقة</div>
+                <div class="vp-field-hint">يظهر نص "نبذة التقديم" (Prof.presentation_publique) في بطاقات الحلقات أثناء التسجيل — بخلاف بقية هذه الصفحة، لا يؤثر هذا الخيار على فيش الأستاذ التي يراها الطالب بعد التسجيل</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="afficher_presentation_wizard" value="1" {% if visibilite.afficher_presentation_wizard %}checked{% endif %}>
                 <span class="toggle-slider"></span>
             </label>
         </div>

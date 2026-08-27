@@ -18,6 +18,10 @@
    ce texte peut faire plusieurs lignes : poids normal + interligne confortable
    pour rester lisible comme un paragraphe, pas comme un titre en gras géant. */
 .carte-attente-texte { font-weight: 500; color: var(--color-text-primary); font-size: 0.92rem; line-height: 1.6; white-space: pre-line; }
+/* Nubdha du prof (Prof.presentation_publique, Chantier du 2026-08-27) — texte
+   secondaire discret sous le nom du prof, jamais aussi saillant que le nom
+   lui-même ou l'horaire (📅), qui restent l'information prioritaire de la carte. */
+.groupe-presentation { color: var(--color-text-muted); font-size: 0.85rem; line-height: 1.55; white-space: pre-line; margin-top: 4px; }
 {% endblock %}
 {% block wizard_content %}
 <div class="page-title">اختيار المجموعة</div>
@@ -47,7 +51,7 @@
                 {% if valeur.option %}<span style="background:#f0f0f0; border-radius:12px; padding:2px 10px; margin-left:6px; font-size:0.82rem;">{{ valeur.critere.label }}: {{ valeur.option.label }}</span>{% endif %}
             {% endfor %}
         </div>
-        <div class="groupe-detail">🪑 {{ groupe.eleves.count }} / {{ groupe.capacite_max }} مكان</div>
+        <div class="groupe-detail">🪑 {{ groupe.nb_eleves_actuel }} / {{ groupe.capacite_max }} مكان</div>
     </div>
     {% endfor %}
     {% endif %}
@@ -55,6 +59,13 @@
     <div class="groupe-card" id="carte_attente" style="border-style:dashed;" onclick="choisirAttente(this)">
         <div class="carte-attente-texte">{{ texte_attente_groupe }}</div>
     </div>
+
+    {% if afficher_disponibilites_si_attente %}
+    <div class="page-subtitle" style="text-align:right; margin:16px 0 10px;">
+        أوقات تفرغك الأسبوعية (اختياري) — إن اخترت الانتظار، تساعدنا هذه المعلومة على اقتراح حلقة تناسبك فور توفرها:
+    </div>
+    {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=dispo_selectionnees %}
+    {% endif %}
 
     <input type="hidden" name="groupe_id" id="groupe_id_value">
     <input type="hidden" name="continuer_sans_groupe" id="continuer_sans_groupe_value" value="">
@@ -91,6 +102,9 @@
         <div class="groupe-detail">
             👨‍🏫 {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}غير محدد بعد{% endif %}
         </div>
+        {% if visibilite.afficher_presentation_wizard and groupe.prof.presentation_publique %}
+        <div class="groupe-presentation">{{ groupe.prof.presentation_publique }}</div>
+        {% endif %}
         <div class="groupe-detail">
             📅
             {% for slot in groupe.creneau.slots.all %}
@@ -102,7 +116,7 @@
                 {% if valeur.option %}<span style="background:#f0f0f0; border-radius:12px; padding:2px 10px; margin-left:6px; font-size:0.82rem;">{{ valeur.critere.label }}: {{ valeur.option.label }}</span>{% endif %}
             {% endfor %}
         </div>
-        <div class="groupe-detail">🪑 {{ groupe.eleves.count }} / {{ groupe.capacite_max }} مكان</div>
+        <div class="groupe-detail">🪑 {{ groupe.nb_eleves_actuel }} / {{ groupe.capacite_max }} مكان</div>
     </div>
     {% endfor %}
 

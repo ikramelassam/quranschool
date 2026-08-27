@@ -539,34 +539,62 @@ class TypeAbonnementLabelNettoyeTests(TestCase):
 
 class CouvertureGrillePrixTests(TestCase):
     """Base de calcul changée le 2026-08-22 : plage_nb_slots_grille_prix()
-    (fixe, 1..10) au lieu de nb_slots_reels_systeme() (groupes réels) —
-    AUCUN vrai groupe créé dans ces tests, volontairement, preuve que la
-    couverture ne dépend plus d'aucun groupe existant."""
+    (à l'époque une plage fixe 1..10) au lieu de nb_slots_reels_systeme()
+    (groupes réels) — AUCUN vrai groupe créé dans ces tests, volontairement,
+    preuve que la couverture ne dépend plus d'aucun groupe existant.
+
+    Adapté le 2026-08-27 (Chantier "cases nb_slots configurables", Besoin
+    1.5) : plage_nb_slots_grille_prix() lit désormais courses.models.
+    OptionNbSeances (catalogue partagé, plus une plage fixe) — chaque test
+    crée ici SES PROPRES cases (codes test_*, même convention que le reste
+    du fichier) plutôt que de dépendre du seed 1/2/3 de la migration
+    0040_seed_nb_seances_et_tarifs_remuneration, pour rester correct même
+    si ce seed change un jour."""
+
+    def setUp(self):
+        # Repart d'un catalogue VIDE — la migration 0040_seed_nb_seances_et_
+        # tarifs_remuneration seed déjà 1/2/3 en base de test (comme en
+        # prod) : sans ce nettoyage, ces valeurs resteraient actives en plus
+        # de celles seedées explicitement par chaque test ci-dessous, faussant
+        # 'total' (ex: _seed_options(4) donnerait total=4 avec 1/2/3 déjà là,
+        # pas 1 comme un test pourrait le supposer).
+        from courses.models import OptionNbSeances
+
+        OptionNbSeances.objects.all().delete()
+
+    def _seed_options(self, *valeurs):
+        from courses.models import OptionNbSeances
+
+        for v in valeurs:
+            OptionNbSeances.objects.get_or_create(valeur=v)
 
     def test_total_configures_et_manquants(self):
+        self._seed_options(1, 2, 3, 4, 5)
         abonnement = TypeAbonnement.objects.create(
             code='test_couverture_grille', label='اختبار تغطية', prix=100, type_offre='groupe',
         )
-        # Configure seulement nb_slots=5, parmi la plage fixe 1..10.
+        # Configure seulement nb_slots=5, parmi les 5 cases actives.
         GrillePrixAbonnement.objects.create(type_abonnement=abonnement, nb_slots=5, prix=250)
 
         couverture = couverture_grille_prix(abonnement)
-        self.assertEqual(couverture['total'], 10)
+        self.assertEqual(couverture['total'], 5)
         self.assertEqual(couverture['configures'], 1)
         self.assertNotIn(5, couverture['nb_slots_manquants'])
-        for v in range(1, 11):
+        for v in range(1, 6):
             if v != 5:
                 self.assertIn(v, couverture['nb_slots_manquants'])
 
     def test_zero_ligne_configuree(self):
+        self._seed_options(1, 2, 3)
         abonnement = TypeAbonnement.objects.create(
             code='test_couverture_grille_vide', label='اختبار فارغ', prix=100, type_offre='groupe',
         )
         couverture = couverture_grille_prix(abonnement)
         self.assertEqual(couverture['configures'], 0)
-        self.assertEqual(couverture['nb_slots_manquants'], list(range(1, 11)))
+        self.assertEqual(couverture['nb_slots_manquants'], [1, 2, 3])
 
     def test_ligne_desactivee_compte_comme_non_configuree(self):
+        self._seed_options(4)
         abonnement = TypeAbonnement.objects.create(
             code='test_couverture_grille_off', label='اختبار معطل', prix=100, type_offre='groupe',
         )
@@ -574,6 +602,23 @@ class CouvertureGrillePrixTests(TestCase):
         couverture = couverture_grille_prix(abonnement)
         self.assertEqual(couverture['configures'], 0)
         self.assertIn(4, couverture['nb_slots_manquants'])
+
+    def test_case_desactivee_nest_plus_proposee(self):
+        """Nouveau (Besoin 1.5) : une OptionNbSeances désactivée disparaît de
+        la plage proposée, même si une GrillePrixAbonnement existe encore
+        pour elle (jamais supprimée, seulement retirée des nouveaux choix)."""
+        from courses.models import OptionNbSeances
+
+        option = OptionNbSeances.objects.create(valeur=7)
+        abonnement = TypeAbonnement.objects.create(
+            code='test_couv_grille_case_off', label='اختبار حالة معطلة', prix=100, type_offre='groupe',
+        )
+        GrillePrixAbonnement.objects.create(type_abonnement=abonnement, nb_slots=7, prix=400)
+        self.assertEqual(couverture_grille_prix(abonnement)['total'], 1)
+
+        option.est_actif = False
+        option.save()
+        self.assertEqual(couverture_grille_prix(abonnement)['total'], 0)
 
 
 def _config_standard():
@@ -1777,6 +1822,250 @@ class WizardGroupeTests(TestCase):
         self.assertIn('يرجى اختيار مجموعة', reponse.content.decode('utf-8'))
         self.assertEqual(DemandeNonSatisfaite.objects.count(), 0)
         self.assertNotIn('groupe_id', client.session.get('wizard_inscription', {}))
+
+
+class WizardGroupePresentationPubliqueProfTests(TestCase):
+    """Chantier du 2026-08-27 — Prof.presentation_publique affichée dans les
+    cartes halaka du wizard, gated par VisibiliteProf.afficher_presentation_
+    wizard (même réglage que eleve_prof_detail.html, étendu à cette 2e page)."""
+
+    def setUp(self):
+        from accounts.models import Prof
+
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+
+        user_prof = User.objects.create_user(
+            username='prof_wizard_presentation@zidni.test', email='prof_wizard_presentation@zidni.test',
+            password=MOT_DE_PASSE, first_name='محمد', last_name='الفاسي', role='prof',
+        )
+        self.prof = Prof.objects.create(
+            user=user_prof, ville='الرباط', niveau_memorisation='كامل',
+            presentation_publique='نبذة اختبار عن الأستاذ محمد',
+        )
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe = Groupe.objects.create(
+            nom='مجموعة اختبار نبذة الأستاذ', creneau=self.creneau, statut='actif',
+            type_capacite='groupe', capacite_max=10, prof=self.prof,
+        )
+        GroupeCritereValeur.objects.create(
+            groupe=self.groupe, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'),
+        )
+        GroupeCritereValeur.objects.create(
+            groupe=self.groupe, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'),
+        )
+
+    def _avancer_a_etape_3(self, client, email='nubdha.wizard@zidni.test'):
+        _choisir_categorie_age(client)
+        client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار نبذة الأستاذ', 'sexe': 'homme', 'email': email,
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0600998877', 'telephone_confirmation': '0600998877',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '1',
+        })
+
+    def test_presentation_affichee_par_defaut(self):
+        client = Client()
+        self._avancer_a_etape_3(client)
+        html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertIn('نبذة اختبار عن الأستاذ محمد', html)
+
+    def test_presentation_masquee_si_reglage_desactive(self):
+        from accounts.models import get_visibilite_prof
+
+        visibilite = get_visibilite_prof()
+        visibilite.afficher_presentation_wizard = False
+        visibilite.save()
+
+        client = Client()
+        self._avancer_a_etape_3(client)
+        html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertNotIn('نبذة اختبار عن الأستاذ محمد', html)
+
+    def test_champ_vide_naffiche_rien_et_ne_plante_pas(self):
+        self.prof.presentation_publique = ''
+        self.prof.save(update_fields=['presentation_publique'])
+
+        client = Client()
+        self._avancer_a_etape_3(client)
+        reponse = client.get(reverse('wizard_groupe'))
+        self.assertEqual(reponse.status_code, 200)
+
+    def test_nombre_de_requetes_ne_depend_pas_du_nombre_de_cartes_affichees(self):
+        """Audit de performance explicitement demandé (Chantier du 2026-08-27,
+        contrainte Render/Supabase ~150-200ms/aller-retour) : registration.utils.
+        groupes_compatibles() a déjà select_related('creneau', 'prof__user') —
+        presentation_publique est une simple colonne du même JOIN sur Prof, donc
+        afficher 10 cartes au lieu d'une seule ne doit ajouter AUCUNE requête
+        SQL supplémentaire (zéro N+1 introduit par ce chantier)."""
+        from accounts.models import Prof
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        client = Client()
+        self._avancer_a_etape_3(client)
+
+        # Appel de "chauffe" non mesuré : plusieurs caches en mémoire process
+        # (ContentType, permissions Django...) ne se peuplent qu'au tout premier
+        # accès et sont ensuite réutilisés — sans cet appel, la 1re mesure
+        # inclurait ce coût ponctuel et fausserait la comparaison avec la 2e
+        # (qui en bénéficierait déjà), sans aucun rapport avec le nombre de
+        # cartes affichées.
+        client.get(reverse('wizard_groupe'))
+
+        with CaptureQueriesContext(connection) as mesure_1_carte:
+            reponse_1 = client.get(reverse('wizard_groupe'))
+        self.assertEqual(reponse_1.status_code, 200)
+        self.assertIn('نبذة اختبار عن الأستاذ محمد', reponse_1.content.decode('utf-8'))
+
+        # 9 groupes compatibles supplémentaires, chacun avec son propre prof et
+        # sa propre presentation_publique — même combinaison exacte de critères.
+        for i in range(9):
+            u = User.objects.create_user(
+                username=f'prof_perf_wizard_{i}@zidni.test', email=f'prof_perf_wizard_{i}@zidni.test',
+                password=MOT_DE_PASSE, role='prof',
+            )
+            p = Prof.objects.create(
+                user=u, ville='الدار البيضاء', niveau_memorisation='كامل', presentation_publique=f'نبذة رقم {i}',
+            )
+            creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+            remplacer_slots_creneau(creneau, [
+                {'jour': 'mar', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            ])
+            groupe = Groupe.objects.create(
+                nom=f'مجموعة أداء {i}', creneau=creneau, statut='actif',
+                type_capacite='groupe', capacite_max=10, prof=p,
+            )
+            GroupeCritereValeur.objects.create(
+                groupe=groupe, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'),
+            )
+            GroupeCritereValeur.objects.create(
+                groupe=groupe, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'),
+            )
+
+        with CaptureQueriesContext(connection) as mesure_10_cartes:
+            reponse_10 = client.get(reverse('wizard_groupe'))
+        self.assertEqual(reponse_10.status_code, 200)
+        html_10 = reponse_10.content.decode('utf-8')
+        for i in range(9):
+            self.assertIn(f'نبذة رقم {i}', html_10)
+
+        nb_1, nb_10 = len(mesure_1_carte.captured_queries), len(mesure_10_cartes.captured_queries)
+        print(f'[PERF wizard_groupe] {nb_1} requête(s) SQL pour 1 carte, {nb_10} pour 10 cartes.')
+        self.assertEqual(
+            nb_1, nb_10,
+            f"Le nombre de requêtes SQL ne doit pas augmenter avec le nombre de cartes "
+            f"affichées (select_related déjà en place côté groupes_compatibles) — "
+            f"{nb_1} requête(s) pour 1 carte contre {nb_10} pour 10.",
+        )
+
+
+class WizardGroupeDisponibilitesSiAttenteTests(TestCase):
+    """Chantier du 2026-08-27 — PresentationInscription.afficher_
+    disponibilites_si_attente : matrice de disponibilités optionnelle à côté
+    de la carte "attente", jamais à sa place (pas de cul-de-sac)."""
+
+    def setUp(self):
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+        self.critere_type_offre = Critere.objects.get(code='type_offre')
+        self.critere_nb_seances = Critere.objects.get(code='nb_seances_hebdo')
+        self.champ_programme = ChampInscription.objects.get(etape__code='programme', critere=self.critere_programme)
+        self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
+        self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
+        self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+        # Aucun groupe créé : garantit aucun_groupe_exact=True (et même
+        # groupes_proches vide), sans que ce soit l'objet de ces tests.
+
+    def _avancer_a_etape_3(self, client, email='dispo.attente@zidni.test'):
+        _choisir_categorie_age(client)
+        client.post(reverse('wizard_identite'), {
+            'nom': 'اختبار جدول التفرغ', 'sexe': 'homme', 'email': email,
+            'date_naissance': '2000-01-01',
+            'indicatif_pays': '212', 'telephone': '0600334455', 'telephone_confirmation': '0600334455',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '99',
+        })
+
+    def test_grille_affichee_par_defaut_a_cote_de_la_carte_attente(self):
+        client = Client()
+        self._avancer_a_etape_3(client)
+        html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertIn('name="dispo"', html)
+        self.assertIn('id="carte_attente"', html)
+
+    def test_grille_masquee_si_toggle_desactive_mais_carte_attente_reste(self):
+        """Le toggle ne contrôle QUE la grille — jamais la carte "attente"
+        elle-même (sinon un élève sans halaka compatible se retrouverait dans
+        un cul-de-sac)."""
+        from registration.models import get_presentation_inscription
+
+        presentation = get_presentation_inscription()
+        presentation.afficher_disponibilites_si_attente = False
+        presentation.save()
+
+        client = Client()
+        self._avancer_a_etape_3(client, email='dispo.desactive@zidni.test')
+        html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertNotIn('name="dispo"', html)
+        self.assertIn('id="carte_attente"', html)
+
+    def test_disponibilites_capturees_et_copiees_vers_inscription_eleve(self):
+        """Bout en bout : les cases cochées atterrissent dans InscriptionEleve.
+        disponibilites (JSONField déjà existant, non modifié par ce chantier)."""
+        from inscriptions.models import InscriptionEleve, TypeAbonnement
+        from payments.models import MoyenPaiement
+
+        abo = TypeAbonnement.objects.create(
+            code='test_dispo_attente_abo', label='شهري جماعي', prix=80, type_offre='groupe', cible_age='les_deux',
+        )
+        moyen = MoyenPaiement.objects.create(code='test_dispo_attente_cih', label='CIH بنك', coordonnees='RIB', est_actif=True)
+
+        client = Client()
+        self._avancer_a_etape_3(client, email='dispo.capturee@zidni.test')
+        reponse = client.post(reverse('wizard_groupe'), {
+            'continuer_sans_groupe': '1',
+            'dispo': ['lun_16:00', 'mer_17:00'],
+        })
+        self.assertRedirects(reponse, reverse('wizard_abonnement'), fetch_redirect_response=False)
+        self.assertEqual(
+            sorted(client.session['wizard_inscription']['disponibilites']), ['lun_16:00', 'mer_17:00'],
+        )
+
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': abo.code})
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': moyen.code})
+        self.assertRedirects(reponse, reverse('wizard_confirmation'), fetch_redirect_response=False)
+
+        inscription = InscriptionEleve.objects.get(email='dispo.capturee@zidni.test')
+        self.assertEqual(sorted(inscription.disponibilites), ['lun_16:00', 'mer_17:00'])
+
+    def test_aucune_disponibilite_cochee_najoute_rien(self):
+        """Champ optionnel : ne pas cocher ne doit jamais bloquer le choix
+        "attendre" ni laisser une valeur autre qu'une liste vide."""
+        client = Client()
+        self._avancer_a_etape_3(client, email='dispo.rien.coche@zidni.test')
+        reponse = client.post(reverse('wizard_groupe'), {'continuer_sans_groupe': '1'})
+        self.assertRedirects(reponse, reverse('wizard_abonnement'), fetch_redirect_response=False)
+        self.assertEqual(client.session['wizard_inscription']['disponibilites'], [])
 
 
 class CritereFiltrableEavSousConfigureCoteGroupeTests(TestCase):

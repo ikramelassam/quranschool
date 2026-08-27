@@ -160,7 +160,7 @@
             <span class="icon">📝</span> الاختبارات
         </a>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_eleves' or request.resolver_match.url_name == 'admin_profs' or request.resolver_match.url_name == 'admin_inscriptions' or request.resolver_match.url_name == 'admin_eleve_ajouter_manuel' or request.resolver_match.url_name == 'mshrif_inscriptions_profs' or request.resolver_match.url_name == 'mshrif_inscription_prof_detail' or request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_eleves' or request.resolver_match.url_name == 'admin_profs' or request.resolver_match.url_name == 'admin_inscriptions' or request.resolver_match.url_name == 'admin_eleve_ajouter_manuel' or request.resolver_match.url_name == 'admin_prof_ajouter_manuel' or request.resolver_match.url_name == 'mshrif_inscriptions_profs' or request.resolver_match.url_name == 'mshrif_inscription_prof_detail' or request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}open{% endif %}>
             <summary>إدارة المستخدمين</summary>
             <a href="{% url 'admin_eleves' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_eleves' %}active{% endif %}">
@@ -177,6 +177,10 @@
             <a href="{% url 'admin_eleve_ajouter_manuel' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_eleve_ajouter_manuel' %}active{% endif %}">
                 <span class="icon">➕</span> إضافة تلميذ يدوياً
+            </a>
+            <a href="{% url 'admin_prof_ajouter_manuel' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_prof_ajouter_manuel' %}active{% endif %}">
+                <span class="icon">➕</span> إضافة أستاذ يدوياً
             </a>
             <a href="{% url 'mshrif_inscriptions_profs' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_inscriptions_profs' or request.resolver_match.url_name == 'mshrif_inscription_prof_detail' %}active{% endif %}">
@@ -231,10 +235,14 @@
                class="menu-item {% if request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' %}active{% endif %}">
                 <span class="icon">🏷️</span> أنواع الاشتراك
             </a>
+            <a href="{% url 'admin_options_nb_seances' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_options_nb_seances' %}active{% endif %}">
+                <span class="icon">🔢</span> أعداد الحصص الأسبوعية
+            </a>
         </details>
 
         <a href="{% url 'mshrif_remuneration' %}"
-           class="menu-item {% if request.resolver_match.url_name == 'mshrif_remuneration' or request.resolver_match.url_name == 'admin_prof_remuneration_detail' or request.resolver_match.url_name == 'admin_tarifs_remuneration' or request.resolver_match.url_name == 'admin_tarif_remuneration_modifier' %}active{% endif %}">
+           class="menu-item {% if request.resolver_match.url_name == 'mshrif_remuneration' or request.resolver_match.url_name == 'admin_prof_remuneration_detail' or request.resolver_match.url_name == 'admin_tarifs_remuneration' or request.resolver_match.url_name == 'admin_tarif_remuneration_groupe_modifier' or request.resolver_match.url_name == 'admin_tarif_remuneration_individuel_modifier' %}active{% endif %}">
             <span class="icon">💰</span> متابعة رواتب الأساتذة
         </a>
 

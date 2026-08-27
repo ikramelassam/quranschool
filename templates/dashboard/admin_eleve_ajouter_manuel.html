@@ -218,7 +218,7 @@
                 {% for groupe in groupes %}
                 <option value="{{ groupe.id }}" {% if groupe.id|stringformat:"s" == groupe_id_selectionne %}selected{% endif %}>
                     {{ groupe.nom }} — {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}بدون أستاذ بعد{% endif %}
-                    — {{ groupe.eleves.count }}/{{ groupe.capacite_max }}
+                    — {{ groupe.nb_eleves_actuel }}/{{ groupe.capacite_max }}
                 </option>
                 {% endfor %}
             </select>

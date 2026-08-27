@@ -199,6 +199,19 @@ class Prof(models.Model):
     # depuis la plateforme). Même principe que majoration_mensuelle plus haut.
     notes_admin = models.TextField(blank=True, default='')
     date_debut_effectif = models.DateField(null=True, blank=True)
+    # Paragraphe de présentation généré UNE FOIS à la création du compte
+    # (accounts.services.generer_presentation_publique, appelé depuis
+    # dashboard.views._creer_compte_prof — même point pour la validation
+    # classique du مشرف et l'ajout manuel direct, Chantier du 2026-08-27),
+    # à partir des champs déjà remplis à la candidature (parcours_scolaire,
+    # certifications, niveau_memorisation...). JAMAIS régénéré automatiquement
+    # ensuite — même patron que registration.models.PresentationInscription.
+    # texte_attente_groupe : مدير/مشرف peuvent l'affiner à la main via
+    # dashboard.views.admin_prof_presentation_modifier, sans qu'une nouvelle
+    # génération n'écrase leur texte. Affiché dans les cartes halaka du wizard
+    # d'inscription (templates/inscriptions/wizard_groupe.html), gated par
+    # VisibiliteProf.afficher_presentation_wizard ci-dessous.
+    presentation_publique = models.TextField(blank=True, default='')
 
     objects = models.Manager()
     actifs = ProfActifsManager()
@@ -495,6 +508,16 @@ class VisibiliteProf(models.Model):
     # Nouveau champ (Tâche du 2026-08-04), même patron : False par défaut,
     # rien ne change tant que مدير/مشرف n'active pas explicitement.
     afficher_travail_actuel = models.BooleanField(default=False)
+    # Chantier du 2026-08-27 : contrôle l'affichage du paragraphe Prof.
+    # presentation_publique dans les cartes halaka du wizard d'inscription
+    # (templates/inscriptions/wizard_groupe.html) — SEUL réglage de ce
+    # modèle qui ne s'applique pas à eleve_prof_detail.html (voir sa
+    # docstring). True par défaut (contrairement aux champs plus personnels
+    # ci-dessus) : ce paragraphe est pensé comme une information de
+    # présentation généraliste, utile dès la première visite d'un candidat
+    # qui ne connaît pas encore l'école, pas une donnée sensible masquée par
+    # prudence.
+    afficher_presentation_wizard = models.BooleanField(default=True)
     date_modification = models.DateTimeField(auto_now=True)
 
     def __str__(self):

@@ -95,6 +95,44 @@ def profs_pour_filtre(afficher_archives, prof_id_selectionne=''):
     return profs
 
 
+def generer_presentation_publique(prof):
+    """Paragraphe de présentation généré UNE SEULE FOIS, à la création du compte
+    prof (voir dashboard.views._creer_compte_prof — point unique partagé par la
+    validation classique du مشرف et l'ajout manuel direct, Chantier du
+    2026-08-27), à partir des champs déjà remplis à la candidature. Même patron
+    que registration.models.get_presentation_inscription : une valeur de départ
+    raisonnable, jamais réécrite automatiquement ensuite — مدير/مشرف peuvent
+    l'affiner à la main via dashboard.views.admin_prof_presentation_modifier
+    sans qu'un futur appel à cette fonction n'écrase leur texte (cette fonction
+    n'est d'ailleurs appelée qu'à la création, jamais depuis cette vue).
+
+    Composé uniquement des champs RÉELLEMENT remplis par le candidat — jamais
+    une phrase creuse (ex: 'الشهادات:' suivie de rien) si un champ optionnel
+    (certifications) a été laissé vide. Libellés arabes des codes JSONField
+    dupliqués ici volontairement (langues/type_eleve_preference), comme le fait
+    déjà dashboard.templatetags.libelles_arabes.LIBELLES pour les mêmes codes
+    ailleurs dans le projet — jamais une dépendance de accounts vers dashboard."""
+    LIBELLES_LANGUES = {'arabe': 'العربية', 'francais': 'الفرنسية', 'anglais': 'الإنجليزية', 'autre': 'أخرى'}
+    LIBELLES_TYPE_ELEVE = {'enfants': 'أطفال', 'adultes': 'بالغون', 'les_deux': 'الأطفال والبالغين'}
+
+    phrases = []
+    if prof.niveau_memorisation:
+        phrases.append(f'مستوى الحفظ: {prof.niveau_memorisation}.')
+    if prof.parcours_scolaire:
+        phrases.append(f'المسار الدراسي: {prof.parcours_scolaire}')
+    if prof.parcours_enseignant:
+        phrases.append(f'مسار التدريس: {prof.parcours_enseignant}')
+    if prof.certifications:
+        phrases.append(f'من شهاداته وإجازاته: {prof.certifications}')
+    if prof.langues:
+        libelles = [LIBELLES_LANGUES.get(code, code) for code in prof.langues]
+        phrases.append('يتحدث: ' + '، '.join(libelles) + '.')
+    if prof.type_eleve_preference:
+        libelles = [LIBELLES_TYPE_ELEVE.get(code, code) for code in prof.type_eleve_preference]
+        phrases.append('يفضل التدريس لـ: ' + '، '.join(libelles) + '.')
+    return '\n'.join(phrases)
+
+
 def eleves_pour_filtre(afficher_archives, eleve_id_selectionne=''):
     """Équivalent de profs_pour_filtre pour un <select> d'élèves (admin_paiements,
     admin_evaluations)."""

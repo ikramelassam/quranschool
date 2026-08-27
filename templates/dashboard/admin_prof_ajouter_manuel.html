@@ -1,0 +1,212 @@
+{% extends base_template %}
+{% block title %}إضافة أستاذ يدوياً{% endblock %}
+{% block content %}
+<style>
+    #admin-ajouter-prof .check-btn {
+        border: 2px solid #ddd; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+        font-size: 0.9rem; background: white; transition: all 0.2s; display: inline-block; margin: 4px;
+    }
+    #admin-ajouter-prof .check-btn.selected {
+        border-color: var(--color-role-admin-solid); background: var(--color-bg-cream);
+        color: var(--color-role-admin-solid); font-weight: 600;
+    }
+    #admin-ajouter-prof .section-title {
+        color: var(--color-role-admin-solid); font-weight: 700; font-size: 1.05rem;
+        border-bottom: 2px solid var(--color-role-admin-solid); padding-bottom: 8px; margin-bottom: 16px;
+    }
+    #admin-ajouter-prof .form-card { margin-bottom: 24px; }
+    #admin-ajouter-prof button[type="submit"] { transition: filter 0.2s ease; }
+    #admin-ajouter-prof button[type="submit"]:hover { filter: brightness(1.12); }
+</style>
+<div id="admin-ajouter-prof">
+<div class="page-title">إضافة أستاذ يدوياً</div>
+<div class="page-subtitle" style="margin-bottom:20px;">
+    لتسجيل أستاذ تم التواصل معه هاتفياً أو حضورياً — تُنشئ طلب ترشيح بنفس حقول نموذج التسجيل العمومي.
+    {% if request.user.role == 'mshrif' %}
+    بما أنك المشرف، سيُنشأ حساب الأستاذ مباشرة عند الإرسال (لا حاجة لانتظار تصديق إضافي).
+    {% else %}
+    سيظهر الطلب بعد الإرسال ضمن "طلبات الأساتذة" بانتظار التصديق النهائي من المشرف.
+    {% endif %}
+</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:720px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="form-card">
+            <div class="section-title">1. المعلومات الشخصية</div>
+            <div class="row g-3">
+                <div class="col-6">
+                    <label class="form-label">الاسم *</label>
+                    <input type="text" name="nom" class="form-control" value="{{ valeurs_form.nom|default:'' }}" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">اللقب *</label>
+                    <input type="text" name="prenom" class="form-control" value="{{ valeurs_form.prenom|default:'' }}" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">البريد الإلكتروني *</label>
+                    <input type="email" name="email" class="form-control" value="{{ valeurs_form.email|default:'' }}" required>
+                </div>
+                <div class="col-12">
+                    {% include 'inscriptions/_verification_whatsapp.html' %}
+                </div>
+                <div class="col-6">
+                    <label class="form-label">تاريخ الميلاد *</label>
+                    <input type="date" name="date_naissance" class="form-control" value="{{ valeurs_form.date_naissance|default:'' }}" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">المدينة *</label>
+                    <input type="text" name="ville" class="form-control" value="{{ valeurs_form.ville|default:'' }}" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">الحالة الاجتماعية</label>
+                    <select name="statut_familial" class="form-select">
+                        <option value="">اختر</option>
+                        <option value="celibataire" {% if valeurs_form.statut_familial == 'celibataire' %}selected{% endif %}>أعزب/عزباء</option>
+                        <option value="marie" {% if valeurs_form.statut_familial == 'marie' %}selected{% endif %}>متزوج/ة</option>
+                        <option value="divorce" {% if valeurs_form.statut_familial == 'divorce' %}selected{% endif %}>مطلق/ة</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">الوظيفة الحالية *</label>
+                    <input type="text" name="job_actuel" class="form-control" value="{{ valeurs_form.job_actuel|default:'' }}" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="section-title">2. المؤهلات</div>
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">مستوى الحفظ *</label>
+                    <input type="text" name="niveau_memorisation" class="form-control"
+                           value="{{ valeurs_form.niveau_memorisation|default:'' }}" placeholder="مثال: حفظ القرآن كاملاً" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">الشهادات والإجازات</label>
+                    <textarea name="certifications" class="form-control" rows="2">{{ valeurs_form.certifications|default:'' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="section-title">3. تفضيلات التدريس</div>
+            <div class="mb-3">
+                <label class="form-label">نوع الطلاب المفضل</label><br>
+                <div onclick="toggleCheckProf(this, 'type_eleve', 'enfants')" class="check-btn">أطفال</div>
+                <div onclick="toggleCheckProf(this, 'type_eleve', 'adultes')" class="check-btn">بالغون</div>
+                <div onclick="toggleCheckProf(this, 'type_eleve', 'les_deux')" class="check-btn">الاثنان</div>
+                <input type="hidden" name="type_eleve" id="type_eleve_val">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">قيود الجنس</label><br>
+                <div onclick="toggleCheckProf(this, 'contrainte_genre', 'homme')" class="check-btn">ذكور فقط</div>
+                <div onclick="toggleCheckProf(this, 'contrainte_genre', 'femme')" class="check-btn">إناث فقط</div>
+                <div onclick="toggleCheckProf(this, 'contrainte_genre', 'mixte')" class="check-btn">مختلط</div>
+                <input type="hidden" name="contrainte_genre" id="contrainte_genre_val">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">اللغات المتحدث بها</label><br>
+                <div onclick="toggleMultiProf(this, 'langues', 'arabe')" class="check-btn">العربية</div>
+                <div onclick="toggleMultiProf(this, 'langues', 'francais')" class="check-btn">الفرنسية</div>
+                <div onclick="toggleMultiProf(this, 'langues', 'anglais')" class="check-btn">الإنجليزية</div>
+                <div onclick="toggleMultiProf(this, 'langues', 'autre')" class="check-btn">أخرى</div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="section-title">4. الأوقات المتاحة للتدريس (اختياري)</div>
+            <p style="color:#888; font-size:0.85rem; margin-bottom:12px;">يمكن تركها فارغة وإكمالها لاحقاً من فيش الأستاذ.</p>
+            {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=dispo_selectionnees %}
+        </div>
+
+        <div class="form-card">
+            <div class="section-title">5. الأدوات المتقنة</div>
+            <div onclick="toggleMultiProf(this, 'outils', 'whatsapp')" class="check-btn">واتساب</div>
+            <div onclick="toggleMultiProf(this, 'outils', 'meet')" class="check-btn">Google Meet</div>
+            <div onclick="toggleMultiProf(this, 'outils', 'zoom')" class="check-btn">Zoom</div>
+        </div>
+
+        <div class="form-card">
+            <div class="section-title">6. المسار والخبرة</div>
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">المسار الدراسي *</label>
+                    <textarea name="parcours_scolaire" class="form-control" rows="3" required>{{ valeurs_form.parcours_scolaire|default:'' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">مسار التدريس *</label>
+                    <textarea name="parcours_enseignant" class="form-control" rows="3" required>{{ valeurs_form.parcours_enseignant|default:'' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">كيف يتعامل مع الطالب الضعيف؟</label>
+                    <textarea name="gestion_eleve_faible" class="form-control" rows="2">{{ valeurs_form.gestion_eleve_faible|default:'' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">كيف يتعامل مع الطالب الغائب؟</label>
+                    <textarea name="gestion_eleve_absent" class="form-control" rows="2">{{ valeurs_form.gestion_eleve_absent|default:'' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="section-title">7. المعلومات البنكية والتسجيل الصوتي</div>
+            <div class="row g-3">
+                <div class="col-6">
+                    <label class="form-label">رقم الحساب البنكي *</label>
+                    <input type="text" name="compte_bancaire" class="form-control" value="{{ valeurs_form.compte_bancaire|default:'' }}" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">RIB *</label>
+                    <input type="text" name="rib" class="form-control" value="{{ valeurs_form.rib|default:'' }}" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">اسم الوكالة البنكية *</label>
+                    <input type="text" name="agence_bancaire" class="form-control" value="{{ valeurs_form.agence_bancaire|default:'' }}" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">تسجيل صوتي (اختياري)</label>
+                    <input type="file" name="audio_enregistrement" class="form-control" accept="audio/*">
+                </div>
+            </div>
+        </div>
+
+        <button type="submit"
+            style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:12px 28px; font-size:1rem; font-weight:600; cursor:pointer;">
+            {% if request.user.role == 'mshrif' %}إنشاء حساب الأستاذ ✅{% else %}إرسال الطلب ✉️{% endif %}
+        </button>
+    </form>
+</div>
+</div>
+
+<script>
+function toggleCheckProf(el, field, value) {
+    document.querySelectorAll(`[onclick*="toggleCheckProf"][onclick*="'${field}'"]`)
+        .forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById(field + '_val').value = value;
+}
+
+const multiSelectionsProf = {};
+function toggleMultiProf(el, field, value) {
+    if (!multiSelectionsProf[field]) multiSelectionsProf[field] = [];
+    const idx = multiSelectionsProf[field].indexOf(value);
+    if (idx > -1) {
+        multiSelectionsProf[field].splice(idx, 1);
+        el.classList.remove('selected');
+    } else {
+        multiSelectionsProf[field].push(value);
+        el.classList.add('selected');
+    }
+    document.querySelectorAll(`input[name="${field}"]`).forEach(i => i.remove());
+    multiSelectionsProf[field].forEach(v => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = field;
+        input.value = v;
+        document.querySelector('#admin-ajouter-prof form').appendChild(input);
+    });
+}
+</script>
+{% endblock %}

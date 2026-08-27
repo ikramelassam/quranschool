@@ -375,6 +375,79 @@ def _verifier_conflit_email(email):
     }
 
 
+def _creer_compte_prof(inscription):
+    """Crée le compte User+Prof à partir d'une InscriptionProf — logique EXACTEMENT
+    reprise de l'ancien corps de mshrif_valider_prof_final (extraite ici, Chantier
+    d'ajout manuel du 2026-08-27), pour que les 2 points d'entrée qui créent
+    réellement le compte final créent le compte de façon strictement identique,
+    jamais 2 logiques qui pourraient diverger :
+    - mshrif_valider_prof_final : validation finale étape 2/2 d'une candidature
+      déjà pré-validée par le مدير (statut='validee_directeur').
+    - admin_prof_ajouter_manuel : ajout manuel direct PAR le مشرف lui-même
+      (statut créé directement à 'valide' — aucune attente, le مشرف est la
+      dernière autorité du workflow, rien au-dessus de lui à faire attendre).
+
+    Ne fait AUCUNE vérification de statut ni de conflit email — l'appelant reste
+    responsable de ses propres gardes (voir mshrif_valider_prof_final pour le
+    modèle des messages d'erreur associés). Retourne (prof, password_temp)."""
+    from accounts.models import Prof
+    from accounts.services import generer_presentation_publique
+    from courses.utils import matrice_vers_lignes
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    password_temp = generer_mot_de_passe_sequentiel()
+
+    # Tout ou rien — voir le commentaire équivalent dans admin_valider_eleve.
+    with transaction.atomic():
+        # telephone/date_naissance copiés depuis l'inscription (voir audit Tâche 2).
+        # doit_changer_mot_de_passe=False : voir commentaire dans admin_valider_eleve.
+        user = User.objects.create_user(
+            username=inscription.email,
+            email=inscription.email,
+            password=password_temp,
+            first_name=inscription.nom,
+            last_name=inscription.prenom,
+            telephone=inscription.telephone,
+            date_naissance=inscription.date_naissance,
+            role='prof',
+            doit_changer_mot_de_passe=False,
+        )
+        prof = Prof.objects.create(
+            user=user,
+            statut='actif',
+            ville=inscription.ville,
+            job_actuel=inscription.job_actuel,
+            certifications=inscription.certifications,
+            niveau_memorisation=inscription.niveau_memorisation,
+            parcours_scolaire=inscription.parcours_scolaire,
+            parcours_enseignant=inscription.parcours_enseignant,
+            gestion_eleve_faible=inscription.gestion_eleve_faible,
+            gestion_eleve_absent=inscription.gestion_eleve_absent,
+            type_eleve_preference=inscription.type_eleve_preference,
+            contrainte_genre=inscription.contrainte_genre,
+            langues=inscription.langues,
+            outils_maitrises=inscription.outils_maitrises,
+            compte_bancaire=inscription.compte_bancaire,
+            rib=inscription.rib,
+            agence_bancaire=inscription.agence_bancaire,
+            inscription=inscription,
+        )
+        # Chantier du 2026-08-27 — voir accounts.models.Prof.presentation_publique
+        # et accounts.services.generer_presentation_publique : générée une seule
+        # fois ici, à la création du compte, jamais réécrite automatiquement
+        # ensuite si مدير/مشرف la modifient à la main.
+        prof.presentation_publique = generer_presentation_publique(prof)
+        prof.save(update_fields=['presentation_publique'])
+
+        matrice_vers_lignes(prof, inscription.disponibilites)
+
+        inscription.statut = 'valide'
+        inscription.save()
+
+    return prof, password_temp
+
+
 @role_required('prof')
 def dashboard_prof(request):
     from accounts.models import Prof
@@ -1066,7 +1139,7 @@ def prof_profil(request):
 @role_required('prof')
 def prof_remuneration(request):
     from accounts.models import Prof
-    from courses.models import TarifRemuneration
+    from courses.models import TarifRemunerationGroupe, TarifRemunerationIndividuel
     from courses.utils import calculer_remuneration_prof
     from django.utils import timezone
 
@@ -1076,7 +1149,8 @@ def prof_remuneration(request):
     # évaluation ne sont chargées ni passées ici — voir courses.utils.calculer_remuneration_prof.
     return render(request, 'dashboard/prof_remuneration.html', {
         'remuneration': calculer_remuneration_prof(prof),
-        'tarifs': TarifRemuneration.objects.all().order_by('type_capacite', 'tranche_age'),
+        'tarifs_groupe': TarifRemunerationGroupe.objects.filter(est_actif=True).order_by('tranche_age', 'nb_slots'),
+        'tarifs_individuel': TarifRemunerationIndividuel.objects.all().order_by('tranche_age'),
         'aujourdhui': aujourdhui,
     })
 
@@ -1238,8 +1312,9 @@ def admin_visibilite_prof(request):
     """Édition du réglage global de visibilité du profil prof côté élève —
     مدير ET مشرف, mêmes permissions que admin_programme_general (Tâche du
     2026-08-03, étendue le même jour à toutes les sections de la fiche, y
-    compris le contact). Un seul réglage, lu uniquement par
-    eleve_prof_detail.html au moment du rendu."""
+    compris le contact). Lu par eleve_prof_detail.html ET, depuis le
+    Chantier du 2026-08-27 (afficher_presentation_wizard uniquement), par
+    templates/inscriptions/wizard_groupe.html."""
     from accounts.models import get_visibilite_prof
 
     CHAMPS = [
@@ -1247,7 +1322,7 @@ def admin_visibilite_prof(request):
         'afficher_niveau_memorisation', 'afficher_type_eleve_preference',
         'afficher_langues', 'afficher_outils_communication',
         'afficher_parcours_scolaire', 'afficher_parcours_educatif',
-        'afficher_travail_actuel',
+        'afficher_travail_actuel', 'afficher_presentation_wizard',
     ]
 
     visibilite = get_visibilite_prof()
@@ -2582,14 +2657,11 @@ def mshrif_inscription_prof_detail(request, inscription_id):
 
 @role_required('mshrif')
 def mshrif_valider_prof_final(request, inscription_id):
-    """Validation finale — étape 2/2. Reprend EXACTEMENT la logique de création de compte qui
-    vivait auparavant dans admin_valider_prof (même transaction.atomic(), mêmes champs copiés,
-    même envoi d'email) — seule la source (مدير → المشرف) et le statut de départ changent."""
+    """Validation finale — étape 2/2. Délègue la création du compte à _creer_compte_prof
+    (Chantier d'ajout manuel du 2026-08-27, extraite d'ici — voir sa docstring), partagée
+    avec admin_prof_ajouter_manuel quand c'est le مشرف lui-même qui ajoute le prof."""
     from inscriptions.models import InscriptionProf
-    from accounts.models import Prof
-    from django.contrib.auth import get_user_model
 
-    User = get_user_model()
     inscription = get_object_or_404(InscriptionProf, id=inscription_id)
 
     # Garde d'état: le مدير a pu rejeter (ou re-traiter) ce dossier entre le moment où
@@ -2631,49 +2703,7 @@ def mshrif_valider_prof_final(request, inscription_id):
             )
         return redirect('mshrif_inscription_prof_detail', inscription_id=inscription.id)
 
-    password_temp = generer_mot_de_passe_sequentiel()
-
-    # Tout ou rien — voir le commentaire équivalent dans admin_valider_eleve.
-    with transaction.atomic():
-        # telephone/date_naissance copiés depuis l'inscription (voir audit Tâche 2).
-        # doit_changer_mot_de_passe=False : voir commentaire dans admin_valider_eleve.
-        user = User.objects.create_user(
-            username=inscription.email,
-            email=inscription.email,
-            password=password_temp,
-            first_name=inscription.nom,
-            last_name=inscription.prenom,
-            telephone=inscription.telephone,
-            date_naissance=inscription.date_naissance,
-            role='prof',
-            doit_changer_mot_de_passe=False,
-        )
-        prof = Prof.objects.create(
-            user=user,
-            statut='actif',
-            ville=inscription.ville,
-            job_actuel=inscription.job_actuel,
-            certifications=inscription.certifications,
-            niveau_memorisation=inscription.niveau_memorisation,
-            parcours_scolaire=inscription.parcours_scolaire,
-            parcours_enseignant=inscription.parcours_enseignant,
-            gestion_eleve_faible=inscription.gestion_eleve_faible,
-            gestion_eleve_absent=inscription.gestion_eleve_absent,
-            type_eleve_preference=inscription.type_eleve_preference,
-            contrainte_genre=inscription.contrainte_genre,
-            langues=inscription.langues,
-            outils_maitrises=inscription.outils_maitrises,
-            compte_bancaire=inscription.compte_bancaire,
-            rib=inscription.rib,
-            agence_bancaire=inscription.agence_bancaire,
-            inscription=inscription,
-        )
-
-        from courses.utils import matrice_vers_lignes
-        matrice_vers_lignes(prof, inscription.disponibilites)
-
-        inscription.statut = 'valide'
-        inscription.save()
+    prof, password_temp = _creer_compte_prof(inscription)
 
     envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
 
@@ -2767,13 +2797,15 @@ def mshrif_remuneration(request):
     complète).
 
     Intègre aussi, en section repliable (fermée par défaut), la grille de référence
-    des tarifs (courses.models.TarifRemuneration) — auparavant une page séparée
-    (admin_tarifs_remuneration), fusionnée ici pour éviter 2 pages distinctes sur
-    le même sujet. Toujours en lecture seule pour ce rôle : voir
-    admin_tarifs_remuneration/admin_tarif_remuneration_modifier pour l'édition,
-    réservée au مدير sur la page d'origine, restée intacte."""
+    des tarifs (courses.models.TarifRemunerationGroupe/TarifRemunerationIndividuel,
+    Chantier du 2026-08-27 — voir leur docstring de dépréciation de TarifRemuneration)
+    — auparavant une page séparée (admin_tarifs_remuneration), fusionnée ici pour
+    éviter 2 pages distinctes sur le même sujet. Toujours en lecture seule pour ce
+    rôle : voir admin_tarifs_remuneration/admin_tarif_remuneration_groupe_modifier/
+    admin_tarif_remuneration_individuel_modifier pour l'édition, réservée au مدير
+    sur la page d'origine, restée intacte."""
     from accounts.models import Prof
-    from courses.models import TarifRemuneration
+    from courses.models import TarifRemunerationGroupe, TarifRemunerationIndividuel
     from courses.utils import calculer_remuneration_prof
     from django.utils import timezone
 
@@ -2788,10 +2820,15 @@ def mshrif_remuneration(request):
     # Chargée UNE fois et transmise à chaque appel (Tâche du 2026-08-06,
     # audit de performance point 8) : calculer_remuneration_prof la
     # rechargeait sinon à chaque prof (1 requête réseau — coûteuse, voir
-    # rapport — par prof, pour une donnée strictement identique).
-    tarifs_charges = {
-        (t.type_capacite, t.tranche_age): t.montant
-        for t in TarifRemuneration.objects.all()
+    # rapport — par prof, pour une donnée strictement identique). Adapté le
+    # 2026-08-27 aux 2 nouvelles grilles (TarifRemunerationGroupe/Individuel),
+    # même principe exact.
+    tarifs_groupe_charges = {
+        (t.tranche_age, t.nb_slots): t.montant
+        for t in TarifRemunerationGroupe.objects.filter(est_actif=True)
+    }
+    tarifs_individuel_charges = {
+        t.tranche_age: t.montant for t in TarifRemunerationIndividuel.objects.all()
     }
 
     lignes = []
@@ -2803,7 +2840,11 @@ def mshrif_remuneration(request):
     # reste requêté normalement, changement plus structurel laissé de côté
     # (voir rapport).
     for prof in Prof.actifs.select_related('user').prefetch_related('groupes').order_by('user__first_name'):
-        base = calculer_remuneration_prof(prof, mois=mois_filtre or None, tarifs=tarifs_charges)['total_calcule']
+        remuneration = calculer_remuneration_prof(
+            prof, mois=mois_filtre or None,
+            tarifs_groupe=tarifs_groupe_charges, tarifs_individuel=tarifs_individuel_charges,
+        )
+        base = remuneration['total_calcule']
         majoration = prof.majoration_mensuelle or 0
         total_base += base
         total_majoration += majoration
@@ -2813,12 +2854,17 @@ def mshrif_remuneration(request):
             'majoration': prof.majoration_mensuelle,
             'total': base + majoration,
             'archive': False,
+            'tarif_manquant': bool(remuneration['tarifs_manquants']),
         })
 
     # Profs archivés : ajoutés à la suite, UNIQUEMENT s'ils ont encore un
     # montant dû ce mois (voir docstring ci-dessus).
     for prof in Prof.objects.filter(statut='archive').select_related('user').prefetch_related('groupes').order_by('user__first_name'):
-        base = calculer_remuneration_prof(prof, mois=mois_filtre or None, tarifs=tarifs_charges)['total_calcule']
+        remuneration_archive = calculer_remuneration_prof(
+            prof, mois=mois_filtre or None,
+            tarifs_groupe=tarifs_groupe_charges, tarifs_individuel=tarifs_individuel_charges,
+        )
+        base = remuneration_archive['total_calcule']
         majoration = prof.majoration_mensuelle or 0
         total = base + majoration
         if total <= 0:
@@ -2831,7 +2877,10 @@ def mshrif_remuneration(request):
             'majoration': prof.majoration_mensuelle,
             'total': total,
             'archive': True,
+            'tarif_manquant': bool(remuneration_archive['tarifs_manquants']),
         })
+
+    from courses.utils import couverture_tarifs_remuneration_groupe
 
     context = {
         # Paginé pour l'affichage (Tâche 22 Partie F du 2026-07-26) — les totaux
@@ -2841,7 +2890,9 @@ def mshrif_remuneration(request):
         'total_base': total_base,
         'total_majoration': total_majoration,
         'total_general': total_base + total_majoration,
-        'tarifs': TarifRemuneration.objects.all().order_by('type_capacite', 'tranche_age'),
+        'tarifs_groupe': TarifRemunerationGroupe.objects.filter(est_actif=True).order_by('tranche_age', 'nb_slots'),
+        'tarifs_individuel': TarifRemunerationIndividuel.objects.all().order_by('tranche_age'),
+        'couverture_groupe': couverture_tarifs_remuneration_groupe(),
         'mois_reference': mois_reference,
         'mois_filtre': mois_filtre,
         'base_template': _base_template_admin_ou_mshrif(request),
@@ -4752,21 +4803,80 @@ def admin_parametres_abonnements(request):
 
 @role_required('admin', 'mshrif')
 def admin_abonnement_ajouter(request):
-    from inscriptions.models import TypeAbonnement
+    """Flux multi-étapes (Besoin 1, Chantier du 2026-08-27) — رمز → نوع
+    (جماعي/فردي) → اسم معروض (affiché seulement après le choix du type,
+    voir admin_abonnement_ajouter.html) → مدة (choix fermé) → عدد الحصص/
+    الأسعار (cases cliquables du catalogue courses.models.OptionNbSeances).
+
+    UNE SEULE vue/UN SEUL POST (page à étapes gérées en JS, comme
+    templates/inscriptions/prof_formulaire.html — pas de session multi-page
+    comme le wizard PUBLIC de registration/, réservé à un parcours candidat
+    hors ligne) : crée le TypeAbonnement ET sa grille de prix en une seule
+    transaction, fusionnant ce qui nécessitait avant ce chantier de créer
+    PUIS modifier séparément (voir admin_abonnement_modifier).
+
+    Blocage PAR CONTEXTE (décision explicite du client) : seules les cases
+    du catalogue actif reçoivent un prix ICI — une case globalement créée
+    mais non cochée/prix laissé vide pour CET abonnement n'est simplement
+    pas ajoutée à sa grille (comportement identique à admin_abonnement_
+    modifier, qui gère déjà l'ajout a posteriori d'une case oubliée).
+    AU MOINS un prix est requis (sert de `prix` par défaut du TypeAbonnement,
+    champ non-nullable) — le plus petit nb_slots reçu est utilisé, jamais
+    un TypeAbonnement.prix inventé sans base réelle."""
+    from inscriptions.models import GrillePrixAbonnement, TypeAbonnement
+    from registration.utils import plage_nb_slots_grille_prix
+
+    valeurs_nb_slots = plage_nb_slots_grille_prix()
 
     if request.method == 'POST':
-        TypeAbonnement.objects.create(
-            code=request.POST.get('code'),
-            label=request.POST.get('label'),
-            duree=request.POST.get('duree', '').strip(),
-            prix=request.POST.get('prix'),
-            cible_age=request.POST.get('cible_age', 'les_deux'),
-            ordre=request.POST.get('ordre', 0),
-        )
-        messages.success(request, 'تمت إضافة نوع الاشتراك بنجاح.')
-        return redirect('admin_parametres_abonnements')
+        code = (request.POST.get('code') or '').strip()
+        type_offre = request.POST.get('type_offre')
+        label = (request.POST.get('label') or '').strip()
+        duree = request.POST.get('duree', '').strip()
+        cible_age = request.POST.get('cible_age', 'les_deux')
+        ordre = request.POST.get('ordre', 0)
+
+        erreurs = []
+        if not code:
+            erreurs.append('الرمز إلزامي.')
+        elif TypeAbonnement.objects.filter(code=code).exists():
+            erreurs.append(f'الرمز "{code}" مستخدم مسبقاً.')
+        if type_offre not in ('groupe', 'individuel'):
+            erreurs.append('يجب اختيار النوع (جماعي/فردي).')
+        if not label:
+            erreurs.append('الاسم المعروض إلزامي.')
+        if duree not in dict(TypeAbonnement.DUREE_CHOICES):
+            erreurs.append('يجب اختيار مدة صالحة.')
+
+        prix_par_nb_slots = {}
+        for nb_slots in valeurs_nb_slots:
+            valeur_postee = (request.POST.get(f'prix_{nb_slots}') or '').strip()
+            if valeur_postee:
+                try:
+                    prix_par_nb_slots[nb_slots] = float(valeur_postee)
+                except ValueError:
+                    erreurs.append(f'السعر المدخل لعدد الحصص {nb_slots} غير صالح.')
+        if not prix_par_nb_slots:
+            erreurs.append('يجب تحديد سعر واحد على الأقل لعدد حصص معين.')
+
+        if erreurs:
+            for erreur in erreurs:
+                messages.error(request, erreur)
+        else:
+            with transaction.atomic():
+                abonnement = TypeAbonnement.objects.create(
+                    code=code, label=label, duree=duree, type_offre=type_offre, cible_age=cible_age,
+                    prix=prix_par_nb_slots[min(prix_par_nb_slots)], ordre=ordre or 0,
+                )
+                for nb_slots, prix in prix_par_nb_slots.items():
+                    GrillePrixAbonnement.objects.create(type_abonnement=abonnement, nb_slots=nb_slots, prix=prix)
+            messages.success(request, 'تمت إضافة نوع الاشتراك بنجاح.')
+            return redirect('admin_parametres_abonnements')
 
     return render(request, 'dashboard/admin_abonnement_ajouter.html', {
+        'duree_choices': TypeAbonnement.DUREE_CHOICES,
+        'options_nb_seances': valeurs_nb_slots,
+        'valeurs_postees': request.POST if request.method == 'POST' else {},
         'base_template': _base_template_admin_ou_mshrif(request),
     })
 
@@ -4786,10 +4896,11 @@ def admin_abonnement_modifier(request, abonnement_id):
     concurrent, juste le cas par défaut.
 
     La grille elle-même reste décorrélée de nb_slots_reels_systeme() (groupes
-    réels) — registration.utils.plage_nb_slots_grille_prix() (1..10) reste
-    la plage AUTORISÉE côté validation serveur (une ligne hors 1..10 n'est
-    jamais lue ni créée, quoi que le navigateur poste), même principe
-    qu'avant ce chantier : un abonnement Individuel n'a besoin d'AUCUN
+    réels) — registration.utils.plage_nb_slots_grille_prix() (Chantier du
+    2026-08-27 : catalogue courses.models.OptionNbSeances configurable, plus
+    une plage fixe) reste la plage AUTORISÉE côté validation serveur (une
+    ligne hors catalogue n'est jamais lue ni créée, quoi que le navigateur
+    poste), même principe qu'avant ce chantier : un abonnement Individuel n'a besoin d'AUCUN
     groupe réel pour qu'un nombre de séances soit un choix valide (liberté
     totale depuis le chantier 5).
 
@@ -4849,6 +4960,7 @@ def admin_abonnement_modifier(request, abonnement_id):
         'lignes': lignes,
         'nb_slots_disponibles': nb_slots_disponibles,
         'couverture': couverture_grille_prix(type_abonnement),
+        'duree_choices': TypeAbonnement.DUREE_CHOICES,
         'base_template': _base_template_admin_ou_mshrif(request),
         **_contexte_base_mshrif(request),
     })
@@ -4878,9 +4990,16 @@ def admin_abonnement_grille_prix(request, abonnement_id):
 
 
 # ==================== ADMIN — GRILLE TARIFAIRE DE RÉMUNÉRATION DES PROFS ====================
-# Grille fixe à 4 lignes (type_capacite × tranche_age) — contrairement à
-# TypeAbonnement/Critere ci-dessus, pas d'ajout/suppression: seul le montant
-# de chaque ligne existante est modifiable (voir courses.models.TarifRemuneration).
+# Refonte du 2026-08-27 (Chantier "salaire prof par nb séances/semaine") : l'ancienne
+# grille fixe à 4 lignes (courses.models.TarifRemuneration, dépréciée — voir son
+# docstring) est remplacée par 2 grilles distinctes :
+# - TarifRemunerationGroupe (tranche_age × nb_slots) — EXTENSIBLE, comme
+#   inscriptions.GrillePrixAbonnement (ajout/désactivation de lignes, jamais figée à 4).
+# - TarifRemunerationIndividuel (tranche_age) — 2 lignes fixes, comme l'ancienne grille,
+#   seul le montant est modifiable (jamais ajouté/supprimé).
+# nb_slots proposé est TOUJOURS limité aux courses.models.OptionNbSeances actives
+# (catalogue partagé avec la tarification élève, voir son docstring) — jamais une
+# valeur libre.
 
 @role_required('admin', 'mshrif')
 def admin_tarifs_remuneration(request):
@@ -4891,10 +5010,18 @@ def admin_tarifs_remuneration(request):
     if request.user.role == 'mshrif':
         return redirect('mshrif_remuneration')
 
-    from courses.models import TarifRemuneration
-    tarifs = TarifRemuneration.objects.all().order_by('type_capacite', 'tranche_age')
+    from courses.models import OptionNbSeances, TarifRemunerationGroupe, TarifRemunerationIndividuel
+    from courses.utils import couverture_tarifs_remuneration_groupe
+
+    tarifs_groupe = TarifRemunerationGroupe.objects.all().order_by('tranche_age', 'nb_slots')
     context = {
-        'tarifs': tarifs,
+        'tarifs_groupe_par_tranche': {
+            'enfant': [t for t in tarifs_groupe if t.tranche_age == 'enfant'],
+            'adulte': [t for t in tarifs_groupe if t.tranche_age == 'adulte'],
+        },
+        'tarifs_individuel': TarifRemunerationIndividuel.objects.all().order_by('tranche_age'),
+        'couverture_groupe': couverture_tarifs_remuneration_groupe(),
+        'options_nb_seances': OptionNbSeances.objects.filter(est_actif=True),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -4902,9 +5029,57 @@ def admin_tarifs_remuneration(request):
 
 
 @role_required('admin')
-def admin_tarif_remuneration_modifier(request, tarif_id):
-    from courses.models import TarifRemuneration
-    tarif = get_object_or_404(TarifRemuneration, id=tarif_id)
+def admin_tarif_remuneration_groupe_ajouter(request):
+    """Ajoute (ou réactive) une ligne (tranche_age, nb_slots) — POST only,
+    JAMAIS de vue GET dédiée (formulaire directement sur admin_tarifs_remuneration,
+    même patron que admin_critere_option_ajouter). nb_slots revalidé contre le
+    catalogue OptionNbSeances actif — jamais une confiance aveugle dans le POST
+    (voir OptionNbSeances.__doc__)."""
+    from courses.models import OptionNbSeances, TarifRemunerationGroupe
+
+    if request.method == 'POST':
+        tranche_age = request.POST.get('tranche_age')
+        nb_slots_brut = request.POST.get('nb_slots')
+        montant = request.POST.get('montant')
+        valeurs_actives = set(OptionNbSeances.objects.filter(est_actif=True).values_list('valeur', flat=True))
+        try:
+            nb_slots = int(nb_slots_brut)
+        except (TypeError, ValueError):
+            nb_slots = None
+        if tranche_age not in ('enfant', 'adulte') or nb_slots not in valeurs_actives or not montant:
+            messages.error(request, 'بيانات غير صالحة — تحقق من الفئة العمرية وعدد الحصص والمبلغ.')
+        else:
+            TarifRemunerationGroupe.objects.update_or_create(
+                tranche_age=tranche_age, nb_slots=nb_slots,
+                defaults={'montant': montant, 'est_actif': True},
+            )
+            messages.success(request, 'تمت إضافة التعرفة بنجاح.')
+    return redirect('admin_tarifs_remuneration')
+
+
+@role_required('admin')
+def admin_tarif_remuneration_groupe_modifier(request, tarif_id):
+    from courses.models import TarifRemunerationGroupe
+    tarif = get_object_or_404(TarifRemunerationGroupe, id=tarif_id)
+
+    if request.method == 'POST':
+        tarif.montant = request.POST.get('montant')
+        tarif.est_actif = request.POST.get('est_actif') == 'on'
+        tarif.save()
+        messages.success(request, 'تم تعديل التعرفة بنجاح.')
+        return redirect('admin_tarifs_remuneration')
+
+    return render(request, 'dashboard/admin_tarif_remuneration_groupe_modifier.html', {
+        'tarif': tarif,
+        'base_template': _base_template_admin_ou_mshrif(request),
+        **_contexte_base_mshrif(request),
+    })
+
+
+@role_required('admin')
+def admin_tarif_remuneration_individuel_modifier(request, tarif_id):
+    from courses.models import TarifRemunerationIndividuel
+    tarif = get_object_or_404(TarifRemunerationIndividuel, id=tarif_id)
 
     if request.method == 'POST':
         tarif.montant = request.POST.get('montant')
@@ -4912,9 +5087,64 @@ def admin_tarif_remuneration_modifier(request, tarif_id):
         messages.success(request, 'تم تعديل التعرفة بنجاح.')
         return redirect('admin_tarifs_remuneration')
 
-    return render(request, 'dashboard/admin_tarif_remuneration_modifier.html', {
+    return render(request, 'dashboard/admin_tarif_remuneration_individuel_modifier.html', {
         'tarif': tarif,
+        'base_template': _base_template_admin_ou_mshrif(request),
+        **_contexte_base_mshrif(request),
     })
+
+
+# ==================== ADMIN — CATALOGUE "عدد الحصص الأسبوعية" (cases nb_slots) ====================
+# Chantier "cases nb_slots configurables" du 2026-08-27 (Besoin 1.5) — catalogue
+# PARTAGÉ entre la tarification élève (inscriptions.GrillePrixAbonnement, voir
+# registration.utils.plage_nb_slots_grille_prix) et le barème salaire prof
+# (TarifRemunerationGroupe ci-dessus). Seedé à 1/2/3 — le مدير/مشرف peut ajouter
+# de nouvelles cases (ex: "4") ici ; jamais de suppression définitive, seulement
+# un toggle actif/inactif (même convention que Creneau/TypeAbonnement).
+
+@role_required('admin', 'mshrif')
+def admin_options_nb_seances(request):
+    from courses.models import OptionNbSeances
+    context = {
+        'options': OptionNbSeances.objects.all().order_by('valeur'),
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_options_nb_seances.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_option_nb_seances_ajouter(request):
+    from courses.models import OptionNbSeances
+
+    if request.method == 'POST':
+        valeur_brute = (request.POST.get('valeur') or '').strip()
+        try:
+            valeur = int(valeur_brute)
+        except (TypeError, ValueError):
+            valeur = None
+        if not valeur or valeur < 1:
+            messages.error(request, 'عدد الحصص يجب أن يكون رقماً صحيحاً موجباً.')
+        elif OptionNbSeances.objects.filter(valeur=valeur).exists():
+            messages.error(request, f'العدد {valeur} موجود مسبقاً.')
+        else:
+            OptionNbSeances.objects.create(valeur=valeur, ordre=valeur)
+            messages.success(
+                request,
+                f'تمت إضافة الحالة "{valeur} حصص/أسبوع" — لن تصبح قابلة للاستخدام في أي '
+                'اشتراك أو تعرفة راتب قبل تحديد سعر/تعرفة خاصة بها.',
+            )
+    return redirect('admin_options_nb_seances')
+
+
+@role_required('admin', 'mshrif')
+def admin_option_nb_seances_toggle(request, option_id):
+    from courses.models import OptionNbSeances
+    option = get_object_or_404(OptionNbSeances, id=option_id)
+    option.est_actif = not option.est_actif
+    option.save()
+    messages.info(request, 'تم تفعيل الحالة.' if option.est_actif else 'تم تعطيل الحالة.')
+    return redirect('admin_options_nb_seances')
 
 
 # ==================== ADMIN — CRITÈRES D'ÉVALUATION (SUPERVISEUR) ====================
@@ -6699,6 +6929,10 @@ def admin_presentation_inscription(request):
         # Chantier du 2026-08-25 : texte de la carte "⏳ لا، أنتظر حتى يتم
         # إنشاء الحلقة" à côté des groupes proches (même écran ci-dessus).
         presentation.texte_attente_groupe = request.POST.get('texte_attente_groupe', '').strip()
+        # Chantier du 2026-08-27 : matrice de disponibilités optionnelle EN
+        # PLUS de la carte "attente" ci-dessus (jamais à sa place — voir
+        # PresentationInscription.afficher_disponibilites_si_attente.__doc__).
+        presentation.afficher_disponibilites_si_attente = request.POST.get('afficher_disponibilites_si_attente') == '1'
         presentation.save()
         messages.success(request, 'تم تحديث صفحة تقديم التسجيل بنجاح.')
         return redirect('admin_presentation_inscription')
@@ -7186,3 +7420,192 @@ def admin_eleve_ajouter_manuel(request):
         f'تم إنشاء طلب تسجيل "{inscription.nom}" بنجاح. راجع الطلب ثم اضغط "قبول الطلب" لإتمام إنشاء الحساب.',
     )
     return redirect('admin_inscription_eleve_detail', inscription_id=inscription.id)
+
+
+# ==================== Chantier du 2026-08-27 : ajout manuel d'un prof ====================
+
+@role_required('admin', 'mshrif')
+def admin_prof_ajouter_manuel(request):
+    """Ajout manuel d'une candidature InscriptionProf par مدير/مشرف (pour un
+    prof recruté par téléphone/en présentiel, jamais passé par le formulaire
+    public inscriptions.views.inscription_prof) — même besoin que
+    admin_eleve_ajouter_manuel, mais InscriptionProf n'est PAS branché sur le
+    moteur Critere/ChampInscription configurable (schéma fixe, contrairement à
+    InscriptionEleve) : un formulaire dédié, à une seule soumission (pas de
+    rounds), qui reprend les MÊMES champs que inscription_prof — jamais une
+    2e liste de champs qui pourrait diverger de la candidature publique.
+
+    Statut initial selon le rôle du créateur (décision explicite, Chantier du
+    2026-08-27) — c'est la SEULE différence avec une candidature publique :
+    - مدير : statut créé directement à 'validee_directeur' (saute
+      'en_attente' — le مدير l'a lui-même vérifié en l'ajoutant). Apparaît
+      dans mshrif_inscriptions_profs comme toute candidature classique, en
+      attente de validation finale du مشرف — AUCUN compte créé ici.
+    - مشرف : statut créé directement à 'valide'. Le compte User+Prof est créé
+      IMMÉDIATEMENT (_creer_compte_prof, même fonction que
+      mshrif_valider_prof_final) — aucune attente : le مشرف est la DERNIÈRE
+      autorité du workflow à 2 étapes, rien au-dessus de lui à faire
+      attendre.
+
+    Contrairement au formulaire public, l'audio (audio_enregistrement) et la
+    matrice de disponibilités restent optionnels — un ajout manuel se fait
+    souvent avec des infos incomplètes au premier passage, complétables
+    ensuite depuis la fiche prof une fois le compte créé."""
+    from courses.utils import JOURS_SEMAINE_DISPO, generer_heures_grille
+    from inscriptions.models import InscriptionProf
+    from inscriptions.views import MESSAGE_EMAIL_DEJA_UTILISE, _construire_et_valider_telephone, _email_deja_utilise
+
+    contexte_grille = {'jours': JOURS_SEMAINE_DISPO, 'heures': generer_heures_grille()}
+
+    if request.method == 'POST':
+        nom = request.POST.get('nom', '').strip()
+        prenom = request.POST.get('prenom', '').strip()
+        email = request.POST.get('email', '').strip()
+        compte_bancaire = request.POST.get('compte_bancaire', '').strip()
+        rib = request.POST.get('rib', '').strip()
+        agence_bancaire = request.POST.get('agence_bancaire', '').strip()
+        job_actuel = request.POST.get('job_actuel', '').strip()
+        ville = request.POST.get('ville', '').strip()
+        statut_familial = request.POST.get('statut_familial', '').strip()
+        niveau_memorisation = request.POST.get('niveau_memorisation', '').strip()
+        parcours_scolaire = request.POST.get('parcours_scolaire', '').strip()
+        parcours_enseignant = request.POST.get('parcours_enseignant', '').strip()
+
+        try:
+            date_naissance = datetime.date.fromisoformat(request.POST.get('date_naissance', ''))
+        except (ValueError, TypeError):
+            date_naissance = None
+
+        erreurs = []
+        if not nom:
+            erreurs.append('الاسم إلزامي.')
+        if not prenom:
+            erreurs.append('اللقب إلزامي.')
+        if date_naissance is None:
+            erreurs.append('يرجى إدخال تاريخ ميلاد صحيح.')
+        if not email:
+            erreurs.append('البريد الإلكتروني إلزامي.')
+        elif _email_deja_utilise(email):
+            erreurs.append(MESSAGE_EMAIL_DEJA_UTILISE)
+        if not ville:
+            erreurs.append('المدينة إلزامية.')
+        if not job_actuel:
+            erreurs.append('العمل الحالي إلزامي.')
+        if not niveau_memorisation:
+            erreurs.append('مستوى الحفظ إلزامي.')
+        if not parcours_scolaire:
+            erreurs.append('المسار الدراسي إلزامي.')
+        if not parcours_enseignant:
+            erreurs.append('مسار التدريس إلزامي.')
+        if not compte_bancaire:
+            erreurs.append('رقم الحساب البنكي إلزامي.')
+        if not rib:
+            erreurs.append('RIB إلزامي.')
+        if not agence_bancaire:
+            erreurs.append('اسم الوكالة البنكية إلزامي.')
+
+        telephone_complet = ''
+        if not erreurs:
+            telephone_complet, erreur_tel = _construire_et_valider_telephone(request)
+            if erreur_tel:
+                erreurs.append(erreur_tel)
+
+        if erreurs:
+            for erreur in erreurs:
+                messages.error(request, erreur)
+            return render(request, 'dashboard/admin_prof_ajouter_manuel.html', {
+                'valeurs_form': request.POST,
+                'dispo_selectionnees': set(request.POST.getlist('dispo')),
+                **contexte_grille,
+                'base_template': _base_template_admin_ou_mshrif(request),
+                **_contexte_base_mshrif(request),
+            })
+
+        # Seule différence avec une candidature publique — voir docstring ci-dessus.
+        statut_initial = 'valide' if request.user.role == 'mshrif' else 'validee_directeur'
+
+        inscription = InscriptionProf.objects.create(
+            nom=nom,
+            prenom=prenom,
+            date_naissance=date_naissance,
+            telephone=telephone_complet,
+            ville=ville,
+            statut_familial=statut_familial,
+            job_actuel=job_actuel,
+            certifications=request.POST.get('certifications', '').strip(),
+            niveau_memorisation=niveau_memorisation,
+            parcours_scolaire=parcours_scolaire,
+            parcours_enseignant=parcours_enseignant,
+            gestion_eleve_faible=request.POST.get('gestion_eleve_faible', '').strip(),
+            gestion_eleve_absent=request.POST.get('gestion_eleve_absent', '').strip(),
+            email=email,
+            langues=request.POST.getlist('langues'),
+            outils_maitrises=request.POST.getlist('outils'),
+            type_eleve_preference=request.POST.getlist('type_eleve'),
+            contrainte_genre=request.POST.getlist('contrainte_genre'),
+            compte_bancaire=compte_bancaire,
+            rib=rib,
+            agence_bancaire=agence_bancaire,
+            audio_enregistrement=request.FILES.get('audio_enregistrement'),
+            disponibilites=request.POST.getlist('dispo'),
+            statut=statut_initial,
+        )
+
+        if statut_initial == 'valide':
+            prof, password_temp = _creer_compte_prof(inscription)
+            envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
+            request.session['confirmation_creation_compte'] = {
+                'type_compte': 'prof',
+                'nom': f'{inscription.nom} {inscription.prenom}'.strip(),
+                'email': inscription.email,
+                'password': password_temp,
+                'telephone': inscription.telephone,
+                'redirect_url_name': 'mshrif_inscriptions_profs',
+            }
+            return redirect('confirmation_creation_compte')
+
+        messages.success(
+            request,
+            f'تم إنشاء طلب الأستاذ "{inscription.nom} {inscription.prenom}" بنجاح — '
+            f'بانتظار التصديق النهائي من المشرف قبل إنشاء الحساب.',
+        )
+        return redirect('admin_inscription_prof_detail', inscription_id=inscription.id)
+
+    return render(request, 'dashboard/admin_prof_ajouter_manuel.html', {
+        'valeurs_form': {},
+        'dispo_selectionnees': set(),
+        **contexte_grille,
+        'base_template': _base_template_admin_ou_mshrif(request),
+        **_contexte_base_mshrif(request),
+    })
+
+
+# ==================== Chantier du 2026-08-27 : nubdha (présentation publique) du prof ====================
+
+@role_required('admin', 'mshrif')
+def admin_prof_presentation_modifier(request, prof_id):
+    """Modification du paragraphe Prof.presentation_publique (affiché dans les
+    cartes halaka du wizard d'inscription, voir templates/inscriptions/
+    wizard_groupe.html) — généré automatiquement une seule fois à la création
+    du compte (accounts.services.generer_presentation_publique, appelée par
+    _creer_compte_prof), jamais réécrit automatiquement ensuite : مدير ET
+    مشرف peuvent l'affiner ici à tout moment, même patron que
+    admin_prof_infos_complementaires_modifier (mais ouvert aux 2 rôles,
+    décision explicite de ce chantier — contrairement à ce précédent, resté
+    مدير seul)."""
+    from accounts.models import Prof
+
+    prof = get_object_or_404(Prof, id=prof_id)
+
+    if request.method == 'POST':
+        prof.presentation_publique = request.POST.get('presentation_publique', '').strip()
+        prof.save(update_fields=['presentation_publique'])
+        messages.success(request, 'تم تحديث نبذة التقديم بنجاح.')
+        return redirect('admin_prof_detail', prof_id=prof.id)
+
+    context = {
+        'prof': prof,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_prof_presentation_modifier.html', context)

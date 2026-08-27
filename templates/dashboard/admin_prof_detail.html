@@ -234,34 +234,24 @@
         {% endif %}
     </div>
 
+    <!-- نبذة التقديم العامة (Chantier du 2026-08-27) — تظهر في بطاقة الحلقة أثناء التسجيل. -->
+    <div style="border:1.5px solid rgba(139,75,0,0.2); background:white; border-radius:14px; padding:22px 24px; margin-bottom:20px;">
+        <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:10px;">📝 نبذة التقديم العامة</div>
+        <div style="white-space:pre-line; color:var(--color-text-primary);">{{ prof.presentation_publique|default:"— لا توجد نبذة —" }}</div>
+        <a href="{% url 'admin_prof_presentation_modifier' prof.id %}"
+           style="display:inline-block; margin-top:14px; color:var(--color-brand-gold-dark); font-size:0.85rem; font-weight:700; text-decoration:none;">
+           ✏️ تعديل
+        </a>
+    </div>
+
     {% include 'dashboard/_carnet_notes_personnelles.html' with profil_user=prof.user notes_personnelles=notes_personnelles id_suffix='_prof' %}
 
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">💰 المستحقات الشهرية (حسب شبكة التعرفات)</div>
     {% if remuneration.detail %}
-        {% for ligne in remuneration.detail %}
-        <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">
-            <div style="display:flex; justify-content:space-between;">
-                <span style="font-weight:600;">{{ ligne.groupe.nom }} ({{ ligne.groupe.get_type_capacite_display }})</span>
-                <span style="font-weight:700; color:var(--color-role-admin-solid);">{{ ligne.sous_total }} د.م.</span>
-            </div>
-            <div style="color:#888; font-size:0.82rem; margin-top:2px;">
-                {% if ligne.groupe.type_capacite == 'individuel' %}
-                    {% if ligne.nb_enfants %}{{ ligne.nb_enfants }} حصة (طفل) × {{ ligne.tarif_enfant }}{% endif %}
-                    {% if ligne.nb_enfants and ligne.nb_adultes %} + {% endif %}
-                    {% if ligne.nb_adultes %}{{ ligne.nb_adultes }} حصة (بالغ) × {{ ligne.tarif_adulte }}{% endif %}
-                    {% if not ligne.nb_enfants and not ligne.nb_adultes %}لا توجد حصة منجزة هذا الشهر بعد{% endif %}
-                {% else %}
-                    {% if ligne.nb_enfants %}{{ ligne.nb_enfants }} طفل × {{ ligne.tarif_enfant }}{% endif %}
-                    {% if ligne.nb_enfants and ligne.nb_adultes %} + {% endif %}
-                    {% if ligne.nb_adultes %}{{ ligne.nb_adultes }} بالغ × {{ ligne.tarif_adulte }}{% endif %}
-                    {% if not ligne.nb_enfants and not ligne.nb_adultes %}لا يوجد طالب بعمر معروف{% endif %}
-                {% endif %}
-            </div>
-            {% if ligne.nb_age_inconnu %}
-            <div style="color:var(--color-danger); font-size:0.8rem; margin-top:2px;">⚠️ {{ ligne.nb_age_inconnu }} طالب بدون تاريخ ميلاد معروف — مستبعد من الحساب، يُرجى التحقق</div>
-            {% endif %}
-        </div>
-        {% endfor %}
+        {% include 'dashboard/_remuneration_detail.html' with remuneration=remuneration couleur_accent='var(--color-role-admin-solid)' %}
+        {% for ligne in remuneration.detail %}{% if ligne.nb_age_inconnu %}
+        <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">⚠️ {{ ligne.groupe.nom }} : {{ ligne.nb_age_inconnu }} طالب بدون تاريخ ميلاد معروف — مستبعد من الحساب، يُرجى التحقق</div>
+        {% endif %}{% endfor %}
         <div style="display:flex; justify-content:space-between; padding:14px 0 0; margin-top:8px; font-size:1.1rem;">
             <span style="font-weight:700;">مجموع الحساب الأساسي</span>
             <span style="font-weight:700; color:var(--color-role-admin-solid);">{{ remuneration.total_calcule }} د.م.</span>

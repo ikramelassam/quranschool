@@ -477,6 +477,20 @@ class PresentationInscription(models.Model):
     # delai_contact_heures) que porte encore le message équivalent de
     # wizard_confirmation.html (resté, lui, inchangé par ce chantier).
     texte_attente_groupe = models.TextField(blank=True)
+    # Chantier du 2026-08-27 : contrôle l'apparition de la matrice de
+    # disponibilités (templates/courses/_grille_disponibilites.html,
+    # réutilisée telle quelle) à côté de la carte "attente" ci-dessus, quand
+    # aucune halaka ne correspond exactement (wizard_groupe, aucun_groupe_
+    # exact=True). Ne contrôle JAMAIS la carte "attente" elle-même — elle
+    # reste affichée dans tous les cas (sinon un élève sans halaka
+    # compatible se retrouverait dans un cul-de-sac si ce réglage était
+    # désactivé). True par défaut : comportement enrichi immédiat, sans
+    # action du مدير/مشرف nécessaire. Les valeurs cochées sont stockées dans
+    # InscriptionEleve.disponibilites (JSONField déjà existant, jamais
+    # modifié par ce chantier) puis converties en DisponibiliteEleve par le
+    # pipeline existant (courses.utils.matrice_vers_lignes_eleve) à la
+    # validation admin — inchangé.
+    afficher_disponibilites_si_attente = models.BooleanField(default=True)
     date_modification = models.DateTimeField(auto_now=True)
 
     def __str__(self):

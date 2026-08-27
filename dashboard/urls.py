@@ -79,6 +79,7 @@ urlpatterns = [
     path('admin/profs/', views.admin_profs, name='admin_profs'),
     path('admin/profs/<int:prof_id>/', views.admin_prof_detail, name='admin_prof_detail'),
     path('admin/profs/<int:prof_id>/infos-complementaires/', views.admin_prof_infos_complementaires_modifier, name='admin_prof_infos_complementaires_modifier'),
+    path('admin/profs/<int:prof_id>/presentation/', views.admin_prof_presentation_modifier, name='admin_prof_presentation_modifier'),
     path('admin/hakiba/', views.admin_hakiba_gestion, name='admin_hakiba_gestion'),
     path('admin/hakiba/ajouter/', views.admin_hakiba_ajouter, name='admin_hakiba_ajouter'),
     path('admin/hakiba/<int:element_id>/supprimer/', views.admin_hakiba_supprimer, name='admin_hakiba_supprimer'),
@@ -105,7 +106,14 @@ urlpatterns = [
 
     # Admin — grille tarifaire de rémunération des profs
     path('admin/parametres/remuneration/', views.admin_tarifs_remuneration, name='admin_tarifs_remuneration'),
-    path('admin/parametres/remuneration/<int:tarif_id>/modifier/', views.admin_tarif_remuneration_modifier, name='admin_tarif_remuneration_modifier'),
+    path('admin/parametres/remuneration/groupe/ajouter/', views.admin_tarif_remuneration_groupe_ajouter, name='admin_tarif_remuneration_groupe_ajouter'),
+    path('admin/parametres/remuneration/groupe/<int:tarif_id>/modifier/', views.admin_tarif_remuneration_groupe_modifier, name='admin_tarif_remuneration_groupe_modifier'),
+    path('admin/parametres/remuneration/individuel/<int:tarif_id>/modifier/', views.admin_tarif_remuneration_individuel_modifier, name='admin_tarif_remuneration_individuel_modifier'),
+
+    # Admin — catalogue partagé "عدد الحصص الأسبوعية" (Besoin 1.5)
+    path('admin/parametres/options-nb-seances/', views.admin_options_nb_seances, name='admin_options_nb_seances'),
+    path('admin/parametres/options-nb-seances/ajouter/', views.admin_option_nb_seances_ajouter, name='admin_option_nb_seances_ajouter'),
+    path('admin/parametres/options-nb-seances/<int:option_id>/toggle/', views.admin_option_nb_seances_toggle, name='admin_option_nb_seances_toggle'),
 
     # Admin — critères d'évaluation (superviseur)
     path('admin/criteres/', views.admin_criteres, name='admin_criteres'),
@@ -209,4 +217,7 @@ urlpatterns = [
 
     # ---- Étape 7 : ajout manuel d'une candidature élève (Directeur/مشرف) ----
     path('admin/eleves/ajouter-manuel/', views.admin_eleve_ajouter_manuel, name='admin_eleve_ajouter_manuel'),
+
+    # ---- Chantier du 2026-08-27 : ajout manuel d'une candidature prof (مدير/مشرف) ----
+    path('admin/profs/ajouter-manuel/', views.admin_prof_ajouter_manuel, name='admin_prof_ajouter_manuel'),
 ]

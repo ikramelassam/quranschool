@@ -3105,6 +3105,7 @@ class MoyenPaiementPresentationDelaisTests(TestCase):
                 'titre': 'أهلاً بك', 'intro': 'نص الميثاق', 'bouton_texte': 'متابعة',
                 'message_bienvenue': 'مرحباً بك في زدني علماً',
                 'texte_attente_groupe': 'نص بطاقة الانتظار المعدّل',
+                'afficher_disponibilites_si_attente': '1',
             })
             self.assertEqual(reponse.status_code, 302)
 
@@ -3114,6 +3115,26 @@ class MoyenPaiementPresentationDelaisTests(TestCase):
         # Chantier du 2026-08-25 : même formulaire, même permissions مدير/مشرف
         # (voir registration.models.PresentationInscription.texte_attente_groupe).
         self.assertEqual(presentation.texte_attente_groupe, 'نص بطاقة الانتظار المعدّل')
+        # Chantier du 2026-08-27 : coché dans les 2 POST ci-dessus -> reste True.
+        self.assertTrue(presentation.afficher_disponibilites_si_attente)
+
+    def test_toggle_disponibilites_si_attente_se_desactive_quand_decoche(self):
+        """Une case à cocher absente du POST (décochée côté navigateur) doit
+        bien repasser le réglage à False — pas de valeur fantôme conservée."""
+        from registration.models import get_presentation_inscription
+
+        presentation = get_presentation_inscription()
+        presentation.afficher_disponibilites_si_attente = True
+        presentation.save()
+
+        client = self._connecte_admin()
+        client.post(reverse('admin_presentation_inscription'), {
+            'titre': 'أهلاً بك', 'intro': 'نص الميثاق', 'bouton_texte': 'متابعة',
+            'message_bienvenue': 'مرحباً بك', 'texte_attente_groupe': 'انتظر',
+            # 'afficher_disponibilites_si_attente' volontairement absent.
+        })
+        presentation.refresh_from_db()
+        self.assertFalse(presentation.afficher_disponibilites_si_attente)
 
     def test_delais_paiement_et_contact_configurables(self):
         from inscriptions.models import get_parametres_inscriptions
@@ -3497,7 +3518,15 @@ class AjoutManuelEleveTests(TestCase):
         désormais configurer un nombre de séances jamais présent dans un
         vrai groupe, et que admin_eleve_ajouter_manuel le reflète aussitôt
         via la même abonnements_avec_prix_effectif() que le wizard public."""
+        from courses.models import OptionNbSeances
         from inscriptions.models import TypeAbonnement
+
+        # Chantier "cases nb_slots configurables" du 2026-08-27 (Besoin 1.5) :
+        # admin_abonnement_modifier ne lit/n'enregistre plus prix_4/actif_4 que
+        # si "4" existe dans le catalogue OptionNbSeances actif (plage_nb_
+        # slots_grille_prix, plus une plage fixe 1..10) — jamais seedé par
+        # défaut (seed migration = 1/2/3 seulement), donc créé ici explicitement.
+        OptionNbSeances.objects.get_or_create(valeur=4)
 
         abo_individuel = TypeAbonnement.objects.create(
             code='test_ajout_manuel_abo_indiv', label='فردي شهري', prix=400,
@@ -3692,6 +3721,133 @@ class AjoutManuelEleveTests(TestCase):
         self.assertIn('data-obligatoire="1"', html)
 
 
+class AjoutManuelProfTests(TestCase):
+    """Chantier du 2026-08-27 — admin_prof_ajouter_manuel : ajout manuel d'une
+    InscriptionProf par مدير/مشرف, statut initial selon le rôle du créateur
+    (seule différence avec une candidature publique — voir docstring de la vue)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def _connecte_mshrif(self):
+        client = Client()
+        client.force_login(self.mshrif)
+        return client
+
+    def _donnees(self, email):
+        return {
+            'nom': 'أستاذ', 'prenom': 'يدوي', 'date_naissance': '1990-05-05',
+            'indicatif_pays': '212', 'telephone': '0611002233', 'telephone_confirmation': '0611002233',
+            'email': email, 'ville': 'فاس', 'statut_familial': 'celibataire',
+            'job_actuel': 'مهندس', 'niveau_memorisation': 'كامل',
+            'parcours_scolaire': 'باكالوريا علوم', 'parcours_enseignant': '5 سنوات تدريس',
+            'compte_bancaire': '1234567890', 'rib': 'RIB123', 'agence_bancaire': 'الوكالة المركزية',
+        }
+
+    def test_admin_cree_candidature_avec_statut_validee_directeur_sans_creer_de_compte(self):
+        client = self._connecte_admin()
+        response = client.post(reverse('admin_prof_ajouter_manuel'), self._donnees('prof_manuel_admin@zidni.test'))
+        inscription = InscriptionProf.objects.get(email='prof_manuel_admin@zidni.test')
+        self.assertEqual(inscription.statut, 'validee_directeur')
+        self.assertFalse(User.objects.filter(email='prof_manuel_admin@zidni.test').exists())
+        self.assertRedirects(response, reverse('admin_inscription_prof_detail', args=[inscription.id]))
+
+        # Visible pour مشرف comme n'importe quelle candidature classique — même
+        # liste que celle alimentée par admin_valider_prof (workflow public).
+        client_mshrif = self._connecte_mshrif()
+        html = client_mshrif.get(reverse('mshrif_inscriptions_profs')).content.decode('utf-8')
+        self.assertIn('أستاذ يدوي', html)
+
+    def test_mshrif_cree_le_compte_immediatement_sans_attente(self):
+        client = self._connecte_mshrif()
+        client.post(reverse('admin_prof_ajouter_manuel'), self._donnees('prof_manuel_mshrif@zidni.test'))
+        inscription = InscriptionProf.objects.get(email='prof_manuel_mshrif@zidni.test')
+        self.assertEqual(inscription.statut, 'valide')
+
+        prof = Prof.objects.get(user__email='prof_manuel_mshrif@zidni.test')
+        self.assertEqual(prof.ville, 'فاس')
+        self.assertTrue(User.objects.filter(email='prof_manuel_mshrif@zidni.test', role='prof').exists())
+        # Présentation publique générée automatiquement — même point de
+        # création que mshrif_valider_prof_final (_creer_compte_prof, partagée).
+        self.assertIn('كامل', prof.presentation_publique)
+
+    def test_eleve_ne_peut_pas_acceder_a_la_page(self):
+        eleve = _creer_eleve('eleve_ajout_manuel_prof@zidni.test')
+        client = Client()
+        client.force_login(eleve.user)
+        response = client.get(reverse('admin_prof_ajouter_manuel'))
+        self.assertNotEqual(response.status_code, 200)
+
+    def test_email_deja_utilise_est_refuse(self):
+        _creer_inscription_prof(email='prof_manuel_conflit@zidni.test')
+        client = self._connecte_admin()
+        client.post(reverse('admin_prof_ajouter_manuel'), self._donnees('prof_manuel_conflit@zidni.test'))
+        self.assertEqual(InscriptionProf.objects.filter(email='prof_manuel_conflit@zidni.test').count(), 1)
+
+
+class PresentationPubliqueProfTests(TestCase):
+    """Chantier du 2026-08-27 — génération automatique + édition manuelle de
+    Prof.presentation_publique (accounts.services.generer_presentation_publique)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def test_generee_automatiquement_a_la_validation_finale_classique(self):
+        client_admin = Client()
+        client_admin.force_login(self.admin)
+        inscription = _creer_inscription_prof(
+            email='prof_presentation_auto@zidni.test', niveau_memorisation='حفظ كامل مجود',
+        )
+        client_admin.get(reverse('admin_valider_prof', args=[inscription.id]))
+
+        client_mshrif = Client()
+        client_mshrif.force_login(self.mshrif)
+        client_mshrif.get(reverse('mshrif_valider_prof_final', args=[inscription.id]))
+
+        prof = Prof.objects.get(user__email='prof_presentation_auto@zidni.test')
+        self.assertIn('حفظ كامل مجود', prof.presentation_publique)
+
+    def test_modifiable_ensuite_par_admin_et_jamais_ecrasee_automatiquement(self):
+        prof = _creer_prof('prof_presentation_modif@zidni.test')
+        prof.presentation_publique = 'نبذة أصلية مولدة'
+        prof.save(update_fields=['presentation_publique'])
+
+        client = Client()
+        client.force_login(self.admin)
+        response = client.post(
+            reverse('admin_prof_presentation_modifier', args=[prof.id]),
+            {'presentation_publique': 'نبذة معدَّلة يدوياً من طرف المدير'},
+        )
+        self.assertRedirects(response, reverse('admin_prof_detail', args=[prof.id]))
+        prof.refresh_from_db()
+        self.assertEqual(prof.presentation_publique, 'نبذة معدَّلة يدوياً من طرف المدير')
+
+    def test_mshrif_peut_aussi_modifier(self):
+        prof = _creer_prof('prof_presentation_mshrif@zidni.test')
+        client = Client()
+        client.force_login(self.mshrif)
+        response = client.post(
+            reverse('admin_prof_presentation_modifier', args=[prof.id]),
+            {'presentation_publique': 'نبذة معدَّلة من المشرف'},
+        )
+        self.assertRedirects(response, reverse('admin_prof_detail', args=[prof.id]))
+        prof.refresh_from_db()
+        self.assertEqual(prof.presentation_publique, 'نبذة معدَّلة من المشرف')
+
+    def test_reglage_ajoute_sur_la_page_admin_visibilite_prof(self):
+        client = Client()
+        client.force_login(self.admin)
+        html = client.get(reverse('admin_visibilite_prof')).content.decode('utf-8')
+        self.assertIn('afficher_presentation_wizard', html)
+
+
 class GroupeCacheDuWizardPublicCoteAdminTests(TestCase):
     """Chantier du 2026-08-23 ("exclusion manuelle d'un groupe") — côté
     admin_eleve_ajouter_manuel UNIQUEMENT : un groupe cache_du_wizard_
@@ -3843,6 +3999,7 @@ class AdminParametresAbonnementsTests(TestCase):
 # ============================================================================
 class AdminAbonnementModifierTests(TestCase):
     def setUp(self):
+        from courses.models import OptionNbSeances
         from inscriptions.models import TypeAbonnement
 
         self.admin = _creer_admin()
@@ -3851,6 +4008,16 @@ class AdminAbonnementModifierTests(TestCase):
         self.abonnement = TypeAbonnement.objects.create(
             code='test_grille_prix_abo', label='شهري تجريبي', prix=80, type_offre='groupe', cible_age='les_deux',
         )
+        # Chantier "cases nb_slots configurables" du 2026-08-27 (Besoin 1.5) :
+        # plage_nb_slots_grille_prix() lit désormais courses.models.
+        # OptionNbSeances (catalogue configurable) au lieu d'une plage fixe
+        # 1..10 codée en dur — cases 1..10 recréées explicitement ici pour
+        # que les assertions historiques de cette classe (écrites pour
+        # l'ancienne plage fixe) restent valables telles quelles. Repart
+        # d'une table vide (la migration 0040_seed_nb_seances_et_tarifs_
+        # remuneration seed déjà 1/2/3, sinon IntegrityError sur `valeur`).
+        OptionNbSeances.objects.all().delete()
+        OptionNbSeances.objects.bulk_create([OptionNbSeances(valeur=n) for n in range(1, 11)])
         # AUCUN vrai groupe créé ici, volontairement — preuve que la grille
         # (1..10) ne dépend plus d'aucun groupe réellement existant.
         self.nb_slots = 4
@@ -3972,6 +4139,243 @@ class AdminAbonnementModifierTests(TestCase):
         client = self._connecte_admin()
         reponse = client.get(reverse('admin_abonnement_grille_prix', args=[self.abonnement.id]))
         self.assertRedirects(reponse, reverse('admin_abonnement_modifier', args=[self.abonnement.id]))
+
+
+# ============================================================================
+# Chantier "cases nb_slots configurables" du 2026-08-27 (Besoin 1.5) —
+# catalogue partagé courses.models.OptionNbSeances.
+# ============================================================================
+class AdminOptionsNbSeancesTests(TestCase):
+    def setUp(self):
+        from courses.models import OptionNbSeances
+
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+        self.prof = _creer_prof()
+        OptionNbSeances.objects.all().delete()
+        self.option_1 = OptionNbSeances.objects.create(valeur=1)
+
+    def test_role_required_refuse_un_prof(self):
+        client = Client()
+        client.force_login(self.prof.user)
+        reponse = client.get(reverse('admin_options_nb_seances'))
+        self.assertEqual(reponse.status_code, 302)
+
+    def test_mshrif_peut_ajouter_une_case(self):
+        """Besoin 1.5 explicite : "le directeur OU le مشرف" peut ajouter
+        une case — pas réservé au مدير seul, contrairement aux tarifs."""
+        from courses.models import OptionNbSeances
+
+        client = Client()
+        client.force_login(self.mshrif)
+        client.post(reverse('admin_option_nb_seances_ajouter'), {'valeur': '4'})
+        self.assertTrue(OptionNbSeances.objects.filter(valeur=4).exists())
+
+    def test_ajout_valeur_dupliquee_refuse(self):
+        from courses.models import OptionNbSeances
+
+        client = Client()
+        client.force_login(self.admin)
+        client.post(reverse('admin_option_nb_seances_ajouter'), {'valeur': '1'})
+        self.assertEqual(OptionNbSeances.objects.filter(valeur=1).count(), 1)
+
+    def test_ajout_valeur_non_numerique_refuse(self):
+        client = Client()
+        client.force_login(self.admin)
+        reponse = client.post(reverse('admin_option_nb_seances_ajouter'), {'valeur': 'abc'}, follow=True)
+        self.assertContains(reponse, 'رقماً صحيحاً')
+
+    def test_toggle_desactive_puis_reactive(self):
+        client = Client()
+        client.force_login(self.admin)
+        client.get(reverse('admin_option_nb_seances_toggle', args=[self.option_1.id]))
+        self.option_1.refresh_from_db()
+        self.assertFalse(self.option_1.est_actif)
+        client.get(reverse('admin_option_nb_seances_toggle', args=[self.option_1.id]))
+        self.option_1.refresh_from_db()
+        self.assertTrue(self.option_1.est_actif)
+
+    def test_case_desactivee_disparait_de_la_plage_grille_prix(self):
+        """Preuve d'intégration avec registration.utils.plage_nb_slots_grille_prix
+        (source désormais dynamique, voir son docstring) — pas juste un
+        test isolé du modèle."""
+        from registration.utils import plage_nb_slots_grille_prix
+
+        self.assertIn(1, plage_nb_slots_grille_prix())
+        self.option_1.est_actif = False
+        self.option_1.save()
+        self.assertNotIn(1, plage_nb_slots_grille_prix())
+
+
+class AdminTarifsRemunerationRefonteTests(TestCase):
+    """Refonte du 2026-08-27 (Besoin 3) — remplace l'ancienne page 4-lignes
+    (courses.models.TarifRemuneration, dépréciée) par 2 grilles distinctes."""
+
+    def setUp(self):
+        from courses.models import OptionNbSeances, TarifRemunerationGroupe, TarifRemunerationIndividuel
+
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+        self.prof = _creer_prof()
+        OptionNbSeances.objects.all().delete()
+        TarifRemunerationGroupe.objects.all().delete()
+        self.option_2 = OptionNbSeances.objects.create(valeur=2)
+        self.tarif_groupe = TarifRemunerationGroupe.objects.create(tranche_age='adulte', nb_slots=2, montant=60)
+        self.tarif_individuel = TarifRemunerationIndividuel.objects.filter(tranche_age='adulte').first()
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def test_role_required_refuse_un_prof(self):
+        client = Client()
+        client.force_login(self.prof.user)
+        reponse = client.get(reverse('admin_tarifs_remuneration'))
+        self.assertEqual(reponse.status_code, 302)
+
+    def test_mshrif_redirige_vers_mshrif_remuneration(self):
+        client = Client()
+        client.force_login(self.mshrif)
+        reponse = client.get(reverse('admin_tarifs_remuneration'))
+        self.assertRedirects(reponse, reverse('mshrif_remuneration'))
+
+    def test_get_affiche_les_2_grilles(self):
+        html = self._connecte_admin().get(reverse('admin_tarifs_remuneration')).content.decode('utf-8')
+        self.assertIn('2 حصص/أسبوع', html)
+        self.assertIn('60', html)
+        self.assertIn('35', html)  # tarif individuel seedé
+
+    def test_bandeau_combinaisons_manquantes_affiche(self):
+        """Seule (adulte, 2) est configurée — (enfant, 2) doit apparaître
+        dans le bandeau d'alerte persistant."""
+        html = self._connecte_admin().get(reverse('admin_tarifs_remuneration')).content.decode('utf-8')
+        self.assertIn('طفل', html)
+
+    def test_ajouter_tarif_groupe_valide(self):
+        from courses.models import TarifRemunerationGroupe
+
+        self._connecte_admin().post(reverse('admin_tarif_remuneration_groupe_ajouter'), {
+            'tranche_age': 'enfant', 'nb_slots': '2', 'montant': '90',
+        })
+        self.assertTrue(TarifRemunerationGroupe.objects.filter(tranche_age='enfant', nb_slots=2, montant=90).exists())
+
+    def test_ajouter_tarif_groupe_nb_slots_hors_catalogue_refuse(self):
+        """nb_slots=5 n'est PAS dans le catalogue OptionNbSeances actif
+        (seul 2 existe ici) — revalidation serveur, jamais une confiance
+        aveugle dans le POST."""
+        from courses.models import TarifRemunerationGroupe
+
+        self._connecte_admin().post(reverse('admin_tarif_remuneration_groupe_ajouter'), {
+            'tranche_age': 'enfant', 'nb_slots': '5', 'montant': '90',
+        })
+        self.assertFalse(TarifRemunerationGroupe.objects.filter(nb_slots=5).exists())
+
+    def test_modifier_tarif_groupe_montant_et_desactivation(self):
+        client = self._connecte_admin()
+        client.post(reverse('admin_tarif_remuneration_groupe_modifier', args=[self.tarif_groupe.id]), {
+            'montant': '65',
+        })
+        self.tarif_groupe.refresh_from_db()
+        self.assertEqual(self.tarif_groupe.montant, 65)
+        self.assertFalse(self.tarif_groupe.est_actif)  # checkbox non cochée = décochée
+
+    def test_modifier_tarif_individuel(self):
+        client = self._connecte_admin()
+        client.post(reverse('admin_tarif_remuneration_individuel_modifier', args=[self.tarif_individuel.id]), {
+            'montant': '40',
+        })
+        self.tarif_individuel.refresh_from_db()
+        self.assertEqual(self.tarif_individuel.montant, 40)
+
+    def test_seules_admin_role_peut_modifier_pas_mshrif(self):
+        client = Client()
+        client.force_login(self.mshrif)
+        reponse = client.get(reverse('admin_tarif_remuneration_groupe_modifier', args=[self.tarif_groupe.id]))
+        self.assertEqual(reponse.status_code, 302)
+
+
+class AdminAbonnementAjouterWizardTests(TestCase):
+    """Flux multi-étapes (Besoin 1, Chantier du 2026-08-27)."""
+
+    def setUp(self):
+        from courses.models import OptionNbSeances
+
+        self.admin = _creer_admin()
+        self.prof = _creer_prof()
+        OptionNbSeances.objects.all().delete()
+        OptionNbSeances.objects.create(valeur=1)
+        OptionNbSeances.objects.create(valeur=2)
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def test_get_affiche_les_5_etapes_avec_label_masque(self):
+        """Besoin 1.3 : "الاسم المعروض" masqué (display:none) tant que le
+        type n'est pas choisi — vérifiable server-side sur le HTML initial."""
+        html = self._connecte_admin().get(reverse('admin_abonnement_ajouter')).content.decode('utf-8')
+        self.assertIn('name="code"', html)
+        self.assertIn('name="type_offre"', html)
+        self.assertIn('id="step-label" style="display:none;"', html)
+        self.assertIn('name="duree"', html)
+        self.assertIn('1 حصص/أسبوع', html)
+        self.assertIn('2 حصص/أسبوع', html)
+
+    def test_post_cree_abonnement_et_grille_prix_en_une_transaction(self):
+        from inscriptions.models import GrillePrixAbonnement, TypeAbonnement
+
+        self._connecte_admin().post(reverse('admin_abonnement_ajouter'), {
+            'code': 'test_wizard_abo', 'type_offre': 'groupe', 'label': 'اشتراك تجريبي',
+            'duree': '1mois', 'prix_1': '70', 'prix_2': '100',
+        })
+        abonnement = TypeAbonnement.objects.get(code='test_wizard_abo')
+        self.assertEqual(abonnement.label, 'اشتراك تجريبي')
+        self.assertEqual(abonnement.duree, '1mois')
+        self.assertEqual(abonnement.prix, 70)  # plus petit nb_slots reçu
+        self.assertEqual(
+            set(GrillePrixAbonnement.objects.filter(type_abonnement=abonnement).values_list('nb_slots', 'prix')),
+            {(1, 70), (2, 100)},
+        )
+
+    def test_post_code_duplique_refuse(self):
+        from inscriptions.models import TypeAbonnement
+
+        TypeAbonnement.objects.create(code='test_wizard_doublon', label='x', prix=10, type_offre='groupe')
+        reponse = self._connecte_admin().post(reverse('admin_abonnement_ajouter'), {
+            'code': 'test_wizard_doublon', 'type_offre': 'groupe', 'label': 'y',
+            'duree': '1mois', 'prix_1': '70',
+        }, follow=True)
+        self.assertContains(reponse, 'مستخدم مسبقاً')
+        self.assertEqual(TypeAbonnement.objects.filter(code='test_wizard_doublon').count(), 1)
+
+    def test_post_sans_aucun_prix_refuse(self):
+        """Besoin 1.5 : "bloquant" — un abonnement ne peut pas être créé
+        sans AU MOINS un prix pour un nombre de séances."""
+        from inscriptions.models import TypeAbonnement
+
+        self._connecte_admin().post(reverse('admin_abonnement_ajouter'), {
+            'code': 'test_wizard_sans_prix', 'type_offre': 'groupe', 'label': 'y', 'duree': '1mois',
+        })
+        self.assertFalse(TypeAbonnement.objects.filter(code='test_wizard_sans_prix').exists())
+
+    def test_post_type_offre_manquant_refuse(self):
+        from inscriptions.models import TypeAbonnement
+
+        self._connecte_admin().post(reverse('admin_abonnement_ajouter'), {
+            'code': 'test_wizard_sans_type', 'label': 'y', 'duree': '1mois', 'prix_1': '70',
+        })
+        self.assertFalse(TypeAbonnement.objects.filter(code='test_wizard_sans_type').exists())
+
+    def test_post_duree_invalide_refuse(self):
+        from inscriptions.models import TypeAbonnement
+
+        self._connecte_admin().post(reverse('admin_abonnement_ajouter'), {
+            'code': 'test_wizard_duree_invalide', 'type_offre': 'groupe', 'label': 'y',
+            'duree': 'texte_libre_non_autorise', 'prix_1': '70',
+        })
+        self.assertFalse(TypeAbonnement.objects.filter(code='test_wizard_duree_invalide').exists())
 
 
 # ============================================================================

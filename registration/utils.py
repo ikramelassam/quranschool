@@ -448,11 +448,24 @@ def groupes_avec_place_disponible(queryset):
     spécifique. La capacité reste donc revalidée séparément, une 2e fois, à
     la confirmation finale (inscrire_eleve, déjà en place, INCHANGÉ par ce
     correctif) — jamais contournable, y compris par confirme_override
-    (Directeur/مشرف, voir Partie 17)."""
+    (Directeur/مشرف, voir Partie 17).
+
+    nb_eleves_actuel (SANS underscore initial, corrigé au Chantier du
+    2026-08-27, audit de performance) : les 3 templates qui affichent cette
+    liste (wizard_groupe.html x2, admin_eleve_ajouter_manuel.html) appelaient
+    jusqu'ici `groupe.eleves.count` au lieu de lire cette annotation déjà
+    calculée par le SELECT — un COUNT(*) SQL séparé PAR CARTE affichée
+    (N+1 réel, découvert en mesurant le nombre de requêtes de wizard_groupe),
+    alors que la valeur existait déjà, gratuitement, sur chaque ligne du
+    résultat. Un nom de variable commençant par underscore n'est pas lisible
+    depuis un template Django (résolution de variable refusée par design) —
+    c'est la vraie raison pour laquelle les templates ne l'utilisaient pas
+    déjà. Renommé plutôt que dupliqué : ce nom n'était lu nulle part ailleurs
+    (aucun autre fichier ne référence _nb_eleves_actuel)."""
     from django.db.models import Count, F
 
-    return queryset.annotate(_nb_eleves_actuel=Count('eleves', distinct=True)).filter(
-        _nb_eleves_actuel__lt=F('capacite_max')
+    return queryset.annotate(nb_eleves_actuel=Count('eleves', distinct=True)).filter(
+        nb_eleves_actuel__lt=F('capacite_max')
     )
 
 
@@ -576,13 +589,15 @@ def prix_effectif(type_abonnement, nb_slots):
     return type_abonnement.prix
 
 
-NB_SLOTS_GRILLE_PRIX_MAX = 10
-
-
 def plage_nb_slots_grille_prix():
-    """[1..NB_SLOTS_GRILLE_PRIX_MAX] — plage FIXE proposée au مدير pour
-    éditer GrillePrixAbonnement (correction du 2026-08-22, chantier grille
-    de prix incohérente/incomplète).
+    """Nombres de séances/semaine proposables au مدير pour éditer
+    GrillePrixAbonnement — Chantier "cases nb_slots configurables" du
+    2026-08-27 (Besoin 1.5) : lit désormais courses.models.OptionNbSeances
+    (catalogue PARTAGÉ avec le barème salaire prof, voir son docstring) au
+    lieu d'une plage fixe 1..10 codée en dur (ancien comportement, ex-
+    NB_SLOTS_GRILLE_PRIX_MAX, retirée). Seules les valeurs ACTIVES
+    (est_actif=True) sont proposées — même principe que Creneau.actifs/
+    TypeAbonnement.est_actif ailleurs.
 
     Volontairement DÉCORRÉLÉE de nb_slots_reels_systeme() (groupes réels) :
     cette dernière reste valable pour le WIZARD PUBLIC (proposer des
@@ -593,7 +608,9 @@ def plage_nb_slots_grille_prix():
     dans de vrais groupes empêchait le مدير de tarifer un nombre de
     séances encore jamais demandé par un vrai groupe (ex: 4 séances/semaine
     en Individuel) — bug reproduit et confirmé le 2026-08-22."""
-    return list(range(1, NB_SLOTS_GRILLE_PRIX_MAX + 1))
+    from courses.models import OptionNbSeances
+
+    return list(OptionNbSeances.objects.filter(est_actif=True).order_by('valeur').values_list('valeur', flat=True))
 
 
 def couverture_grille_prix(type_abonnement):
@@ -1244,6 +1261,12 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
             cree_par=cree_par,
             accepte_conditions=reponses_brutes.get('accepte_conditions') == 'oui',
             remarques=(reponses_brutes.get('remarques') or '').strip(),
+            # Chantier du 2026-08-27 — matrice optionnelle saisie à
+            # wizard_groupe quand aucune halaka ne correspond exactement
+            # (voir PresentationInscription.afficher_disponibilites_si_
+            # attente). Vide ([]) pour toute autre porte d'entrée (ajout
+            # manuel, ancien formulaire) : comportement inchangé pour elles.
+            disponibilites=reponses_brutes.get('disponibilites') or [],
         )
         ReponseInscription.objects.bulk_create([
             ReponseInscription(
