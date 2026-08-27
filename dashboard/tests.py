@@ -4944,11 +4944,13 @@ class AdminDemandesNonSatisfaitesTests(TestCase):
 
     def test_filtre_statut_ne_garde_que_les_demandes_correspondantes(self):
         """Chantier du 2026-08-27 : filtre ?statut=complete/incomplete sur la
-        liste détaillée — complet = demande liée à une InscriptionEleve
-        (d.inscription), même critère que le badge déjà affiché sur chaque
-        carte (voir _carte_demande_non_satisfaite.html). Les compteurs du
-        haut (total, nb_liees_a_une_inscription) restent globaux, non
-        affectés par le filtre — vérifié séparément ci-dessous."""
+        liste détaillée ET sur "أكثر التركيبات طلباً" (les tendances ne sont
+        qu'un regroupement des mêmes demandes, doivent rester cohérentes avec
+        la liste une fois le filtre actif). Le critère complet/incomplet est
+        celui déjà utilisé pour le badge de chaque carte — d.inscription (voir
+        _carte_demande_non_satisfaite.html). Seuls les compteurs du haut
+        (total, nb_liees_a_une_inscription) restent globaux, non affectés par
+        le filtre — vérifié séparément ci-dessous."""
         from registration.models import DemandeNonSatisfaite
 
         inscription = _creer_inscription_eleve(email='filtre_complet@zidni.test')
@@ -4968,15 +4970,21 @@ class AdminDemandesNonSatisfaitesTests(TestCase):
         self.assertEqual([d.id for d in demandes], [complete.id])
         self.assertEqual(reponse.context['total'], 2)  # compteur global, pas filtré
         self.assertEqual(reponse.context['nb_liees_a_une_inscription'], 1)
+        tendances = reponse.context['tendances']
+        self.assertEqual([t['nb_slots'] for t in tendances], [6])
 
         reponse = client.get(reverse('admin_demandes_non_satisfaites'), {'statut': 'incomplete'})
         demandes = list(reponse.context['demandes'])
         self.assertEqual([d.id for d in demandes], [incomplete.id])
         self.assertEqual(reponse.context['total'], 2)  # compteur global, pas filtré
+        tendances = reponse.context['tendances']
+        self.assertEqual([t['nb_slots'] for t in tendances], [4])
 
         reponse = client.get(reverse('admin_demandes_non_satisfaites'))
         demandes = list(reponse.context['demandes'])
         self.assertEqual({d.id for d in demandes}, {complete.id, incomplete.id})
+        tendances = reponse.context['tendances']
+        self.assertEqual({t['nb_slots'] for t in tendances}, {4, 6})
 
 
 class AdminDemandeNonSatisfaiteDetailEtSuppressionTests(TestCase):

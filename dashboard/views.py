@@ -7013,9 +7013,31 @@ def admin_demandes_non_satisfaites(request):
     # 2026-08-22, TypeError: unhashable type: 'list'). On la convertit en
     # tuple avant hachage, uniquement pour cette clé de regroupement —
     # jamais persisté, criteres_json lui-même reste un dict/liste normal.
+
+    # Filtre "حالة التسجيل" (chantier du 2026-08-27) : complet = liée à une
+    # InscriptionEleve (d.inscription_id), incomplet = candidat parti avant
+    # la fin du wizard (même critère que le badge déjà affiché sur chaque
+    # carte, voir _carte_demande_non_satisfaite.html). S'applique à la fois à
+    # la liste détaillée "كل الطلبات" ET à "أكثر التركيبات طلباً" (les
+    # tendances ne sont qu'un regroupement de ces mêmes demandes — les
+    # calculer sur `demandes_affichees` plutôt que sur `demandes` garde les 2
+    # sections cohérentes entre elles une fois le filtre actif). Seuls les
+    # compteurs du haut ("إجمالي" et "تحولت إلى تسجيل فعلي") restent
+    # globaux : ce sont des indicateurs d'ensemble sur toutes les demandes
+    # (utiles pour décider quels groupes ouvrir), pas un résumé de ce qui est
+    # affiché en dessous — les recalculer rendrait "تحولت إلى تسجيل فعلي"
+    # trivial (0 ou = au total) dès qu'un filtre est actif.
+    filtre_statut = request.GET.get('statut', '')
+    if filtre_statut == 'complete':
+        demandes_affichees = [d for d in demandes if d.inscription_id]
+    elif filtre_statut == 'incomplete':
+        demandes_affichees = [d for d in demandes if not d.inscription_id]
+    else:
+        demandes_affichees = demandes
+
     compteur = Counter()
     exemple_par_cle = {}
-    for d in demandes:
+    for d in demandes_affichees:
         criteres_hashables = tuple(sorted(
             (k, tuple(v) if isinstance(v, list) else v)
             for k, v in d.criteres_json.items()
@@ -7028,24 +7050,6 @@ def admin_demandes_non_satisfaites(request):
     for cle, nombre in compteur.most_common():
         criteres_dict, nb_slots = cle
         tendances.append({'libelles': _libelles_criteres(criteres_dict), 'nb_slots': nb_slots, 'nombre': nombre})
-
-    # Filtre "حالة التسجيل" (chantier du 2026-08-27) : complet = liée à une
-    # InscriptionEleve (d.inscription_id), incomplet = candidat parti avant
-    # la fin du wizard (même critère que le badge déjà affiché sur chaque
-    # carte, voir _carte_demande_non_satisfaite.html). Ne s'applique QU'À la
-    # liste détaillée "كل الطلبات" — les compteurs du haut ("إجمالي" et
-    # "تحولت إلى تسجيل فعلي") et "أكثر التركيبات طلباً" restent globaux :
-    # ce sont des indicateurs d'ensemble sur toutes les demandes (utiles pour
-    # décider quels groupes ouvrir), pas un résumé de la liste filtrée en
-    # dessous — les recalculer rendrait "تحولت إلى تسجيل فعلي" trivial (0 ou
-    # = au total) dès qu'un filtre est actif.
-    filtre_statut = request.GET.get('statut', '')
-    if filtre_statut == 'complete':
-        demandes_affichees = [d for d in demandes if d.inscription_id]
-    elif filtre_statut == 'incomplete':
-        demandes_affichees = [d for d in demandes if not d.inscription_id]
-    else:
-        demandes_affichees = demandes
 
     context = {
         'demandes': demandes_affichees,
