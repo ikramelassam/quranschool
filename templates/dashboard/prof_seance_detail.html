@@ -1,5 +1,6 @@
 {% extends 'dashboard/base_prof.html' %}
-{% block title %}تفاصيل الحصة{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "تفاصيل الحصة" %}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -84,24 +85,24 @@
 <div class="page-title">{{ seance.groupe.nom }}</div>
 <div class="page-subtitle">
     {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }} — {{ seance.get_type_display }}
-    {% if seance.lien_effectif %} · <a href="{% url 'rejoindre_seance' seance.id %}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 رابط الاجتماع</a>{% endif %}
+    {% if seance.lien_effectif %} · <a href="{% url 'rejoindre_seance' seance.id %}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 {% trans "رابط الاجتماع" %}</a>{% endif %}
 </div>
 
 {% if not seance.modifiable_par_prof %}
     {% if seance.statut == 'terminee' %}
     <div style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:14px 18px; margin-bottom:20px; font-weight:600;">
-        ✅ تم تقييم هذه الحصة نهائياً — العرض التالي للاطلاع فقط، لم يعد بالإمكان تعديله.
+        ✅ {% trans "تم تقييم هذه الحصة نهائياً — العرض التالي للاطلاع فقط، لم يعد بالإمكان تعديله." %}
     </div>
     {% elif seance.statut == 'planifiee' and not seance.evaluable_par_prof %}
     <div style="background:#e8f0fe; color:var(--color-role-prof-solid); border-radius:8px; padding:14px 18px; margin-bottom:20px; font-weight:600;">
-        ⏳ لم تنتهِ هذه الحصة بعد — لا يمكن تقييمها قبل انتهائها فعلياً. عاود المحاولة بعد وقت انتهاء الحصة.
+        ⏳ {% trans "لم تنتهِ هذه الحصة بعد — لا يمكن تقييمها قبل انتهائها فعلياً. عاود المحاولة بعد وقت انتهاء الحصة." %}
     </div>
     {% elif seance.statut == 'planifiee' %}
     <div style="background:#e0e0e0; color:#555; border-radius:8px; padding:14px 18px; margin-bottom:20px; font-weight:600;">
         {% if nb_presences_enregistrees > 0 %}
-        ⛔ انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) قبل إتمامها بالكامل — تم تسجيل {{ nb_presences_enregistrees }} من أصل {{ nb_total_eleves }} طالب فقط (معروضون أدناه)، ولن يكون بالإمكان تسجيل الباقي. ستبقى هذه الحصة "غير مكتملة التقييم" نهائياً.
+        ⛔ {% blocktrans with enregistrees=nb_presences_enregistrees total=nb_total_eleves %}انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) قبل إتمامها بالكامل — تم تسجيل {{ enregistrees }} من أصل {{ total }} طالب فقط (معروضون أدناه)، ولن يكون بالإمكان تسجيل الباقي. ستبقى هذه الحصة "غير مكتملة التقييم" نهائياً.{% endblocktrans %}
         {% else %}
-        ⛔ انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يتم تقييمها، ولن يكون ذلك ممكناً بعد الآن. ستبقى هذه الحصة "غير مقيَّمة" نهائياً.
+        ⛔ {% trans 'انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يتم تقييمها، ولن يكون ذلك ممكناً بعد الآن. ستبقى هذه الحصة "غير مقيَّمة" نهائياً.' %}
         {% endif %}
     </div>
     {% endif %}
@@ -114,7 +115,7 @@
             {% if presence %}
             <span class="pill active statut-{{ presence.statut }}">{{ presence.get_statut_display }}</span>
             {% else %}
-            <span style="color:#aaa; font-size:0.85rem;">لم يُسجَّل</span>
+            <span style="color:#aaa; font-size:0.85rem;">{% trans "لم يُسجَّل" %}</span>
             {% endif %}
         </div>
         {% if presence %}
@@ -122,27 +123,27 @@
             <div class="row g-3">
                 <div class="col-md-6">
                     <div class="notation-groupe">
-                        <div class="notation-titre">الحفظ</div>
+                        <div class="notation-titre">{% trans "الحفظ" %}</div>
                         {% if presence.nom_sourate_memorisee %}
                         <div>{{ presence.nom_sourate_memorisee }} ({{ presence.ayah_debut_memorisation }}-{{ presence.ayah_fin_memorisation }})</div>
                         {% else %}
-                        <div style="color:#aaa;">لا يوجد</div>
+                        <div style="color:#aaa;">{% trans "لا يوجد" %}</div>
                         {% endif %}
                         {% if presence.note_memorisation %}
-                        <div style="color:#888; font-size:0.85rem; margin-top:4px;">{{ presence.get_note_memorisation_display }} <span style="color:#bbb;">(تقييم سابق)</span></div>
+                        <div style="color:#888; font-size:0.85rem; margin-top:4px;">{{ presence.get_note_memorisation_display }} <span style="color:#bbb;">({% trans "تقييم سابق" %})</span></div>
                         {% endif %}
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="notation-groupe">
-                        <div class="notation-titre">المراجعة</div>
+                        <div class="notation-titre">{% trans "المراجعة" %}</div>
                         {% if presence.nom_sourate_revisee %}
                         <div>{{ presence.nom_sourate_revisee }} ({{ presence.ayah_debut_revision }}-{{ presence.ayah_fin_revision }})</div>
                         {% else %}
-                        <div style="color:#aaa;">لا يوجد</div>
+                        <div style="color:#aaa;">{% trans "لا يوجد" %}</div>
                         {% endif %}
                         {% if presence.note_revision %}
-                        <div style="color:#888; font-size:0.85rem; margin-top:4px;">{{ presence.get_note_revision_display }} <span style="color:#bbb;">(تقييم سابق)</span></div>
+                        <div style="color:#888; font-size:0.85rem; margin-top:4px;">{{ presence.get_note_revision_display }} <span style="color:#bbb;">({% trans "تقييم سابق" %})</span></div>
                         {% endif %}
                     </div>
                 </div>
@@ -157,25 +158,25 @@
             </div>
             {% endif %}
             {% if presence.remarque %}
-            <div class="remarque-eleve"><label>ملاحظة عن الطالب</label><div>{{ presence.remarque }}</div></div>
+            <div class="remarque-eleve"><label>{% trans "ملاحظة عن الطالب" %}</label><div>{{ presence.remarque }}</div></div>
             {% endif %}
             {% if presence.consigne_memorisation %}
-            <div class="remarque-eleve"><label>📌 المطلوب حفظه</label><div>{{ presence.consigne_memorisation }}</div></div>
+            <div class="remarque-eleve"><label>📌 {% trans "المطلوب حفظه" %}</label><div>{{ presence.consigne_memorisation }}</div></div>
             {% endif %}
             {% if presence.consigne_revision %}
-            <div class="remarque-eleve"><label>📌 المطلوب مراجعته</label><div>{{ presence.consigne_revision }}</div></div>
+            <div class="remarque-eleve"><label>📌 {% trans "المطلوب مراجعته" %}</label><div>{{ presence.consigne_revision }}</div></div>
             {% endif %}
         </div>
         {% endif %}
     </div>
     {% endwith %}
     {% empty %}
-    <div style="text-align:center; color:#aaa; padding:30px;">لا يوجد طلاب في هذه المجموعة</div>
+    <div style="text-align:center; color:#aaa; padding:30px;">{% trans "لا يوجد طلاب في هذه المجموعة" %}</div>
     {% endfor %}
 
     {% if seance.remarque_generale %}
     <div class="remarque-generale-bloc">
-        <label>📝 ملاحظات عامة عن الحصة</label>
+        <label>📝 {% trans "ملاحظات عامة عن الحصة" %}</label>
         <div>{{ seance.remarque_generale }}</div>
     </div>
     {% endif %}
@@ -206,11 +207,14 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <div class="notation-groupe">
-                            <div class="notation-titre">الحفظ</div>
+                            <div class="notation-titre">{% trans "الحفظ" %}</div>
+                            {% trans "— السورة —" as placeholder_sourate %}
+                            {% trans "من" as placeholder_de %}
+                            {% trans "إلى" as placeholder_a %}
                             <div class="row g-2 ayah-pair">
                                 <div class="col-6">
                                     <select name="sourate_memo_{{ eleve.id }}" class="form-select form-select-sm" data-select-cherchable>
-                                        <option value="">— السورة —</option>
+                                        <option value="">{{ placeholder_sourate }}</option>
                                         {% for numero, nom, nb_ayat in sourates %}
                                         <option value="{{ numero }}" {% if presence.sourate_memorisee == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
                                         {% endfor %}
@@ -218,11 +222,11 @@
                                 </div>
                                 <div class="col-3">
                                     <input type="number" min="1" name="ayah_debut_memo_{{ eleve.id }}" class="form-control form-control-sm ayah-debut"
-                                           value="{{ presence.ayah_debut_memorisation|default:'' }}" placeholder="من">
+                                           value="{{ presence.ayah_debut_memorisation|default:'' }}" placeholder="{{ placeholder_de }}">
                                 </div>
                                 <div class="col-3">
                                     <input type="number" min="1" name="ayah_fin_memo_{{ eleve.id }}" class="form-control form-control-sm ayah-fin"
-                                           value="{{ presence.ayah_fin_memorisation|default:'' }}" placeholder="إلى">
+                                           value="{{ presence.ayah_fin_memorisation|default:'' }}" placeholder="{{ placeholder_a }}">
                                 </div>
                             </div>
                             {% comment %}
@@ -236,12 +240,12 @@
                                 <label class="d-flex align-items-center gap-1" style="cursor:pointer;">
                                     <input type="radio" name="resultat_memo_{{ eleve.id }}" value="valide"
                                            {% if presence.resultat_memorisation|default:'valide' == 'valide' %}checked{% endif %}>
-                                    ✅ ينتقل
+                                    ✅ {% trans "ينتقل" %}
                                 </label>
                                 <label class="d-flex align-items-center gap-1" style="cursor:pointer;">
                                     <input type="radio" name="resultat_memo_{{ eleve.id }}" value="a_refaire"
                                            {% if presence.resultat_memorisation == 'a_refaire' %}checked{% endif %}>
-                                    🔁 يعيد
+                                    🔁 {% trans "يعيد" %}
                                 </label>
                             </div>
                         </div>
@@ -249,11 +253,11 @@
 
                     <div class="col-md-6">
                         <div class="notation-groupe">
-                            <div class="notation-titre">المراجعة</div>
+                            <div class="notation-titre">{% trans "المراجعة" %}</div>
                             <div class="row g-2 ayah-pair">
                                 <div class="col-6">
                                     <select name="sourate_rev_{{ eleve.id }}" class="form-select form-select-sm" data-select-cherchable>
-                                        <option value="">— السورة —</option>
+                                        <option value="">{{ placeholder_sourate }}</option>
                                         {% for numero, nom, nb_ayat in sourates %}
                                         <option value="{{ numero }}" {% if presence.sourate_revisee == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
                                         {% endfor %}
@@ -261,23 +265,23 @@
                                 </div>
                                 <div class="col-3">
                                     <input type="number" min="1" name="ayah_debut_rev_{{ eleve.id }}" class="form-control form-control-sm ayah-debut"
-                                           value="{{ presence.ayah_debut_revision|default:'' }}" placeholder="من">
+                                           value="{{ presence.ayah_debut_revision|default:'' }}" placeholder="{{ placeholder_de }}">
                                 </div>
                                 <div class="col-3">
                                     <input type="number" min="1" name="ayah_fin_rev_{{ eleve.id }}" class="form-control form-control-sm ayah-fin"
-                                           value="{{ presence.ayah_fin_revision|default:'' }}" placeholder="إلى">
+                                           value="{{ presence.ayah_fin_revision|default:'' }}" placeholder="{{ placeholder_a }}">
                                 </div>
                             </div>
                             <div class="d-flex gap-3 mt-1" style="font-size:0.82rem;">
                                 <label class="d-flex align-items-center gap-1" style="cursor:pointer;">
                                     <input type="radio" name="resultat_rev_{{ eleve.id }}" value="valide"
                                            {% if presence.resultat_revision|default:'valide' == 'valide' %}checked{% endif %}>
-                                    ✅ ينتقل
+                                    ✅ {% trans "ينتقل" %}
                                 </label>
                                 <label class="d-flex align-items-center gap-1" style="cursor:pointer;">
                                     <input type="radio" name="resultat_rev_{{ eleve.id }}" value="a_refaire"
                                            {% if presence.resultat_revision == 'a_refaire' %}checked{% endif %}>
-                                    🔁 يعيد
+                                    🔁 {% trans "يعيد" %}
                                 </label>
                             </div>
                         </div>
@@ -293,63 +297,68 @@
                     <div class="col-6 col-md-3">
                         <div class="notation-groupe">
                             <div class="notation-titre">{{ nc.critere.nom_ar }}</div>
-                            <label style="color:#888; font-size:0.8rem;">علامة /20</label>
+                            <label style="color:#888; font-size:0.8rem;">{% trans "علامة /20" %}</label>
                             <input type="number" min="1" max="20" name="note_critere_{{ nc.critere.id }}_{{ eleve.id }}" class="form-control form-control-sm note-input"
                                    value="{{ nc.note|default:'' }}">
                         </div>
                     </div>
                     {% empty %}
-                    <div class="col-12" style="color:#aaa; font-size:0.85rem;">لا توجد معايير تقييم مفعّلة حالياً.</div>
+                    <div class="col-12" style="color:#aaa; font-size:0.85rem;">{% trans "لا توجد معايير تقييم مفعّلة حالياً." %}</div>
                     {% endfor %}
                 </div>
 
+                {% trans "مثال: حفظ سورة النساء من آية 1 إلى 10" as placeholder_consigne_memo %}
+                {% trans "مثال: مراجعة سورة البقرة من آية 1 إلى 50" as placeholder_consigne_rev %}
                 <div class="remarque-eleve">
-                    <label>📌 المطلوب حفظه *</label>
+                    <label>📌 {% trans "المطلوب حفظه *" %}</label>
                     <textarea name="consigne_memo_{{ eleve.id }}" class="form-control consigne-input" rows="1" required
-                              placeholder="مثال: حفظ سورة النساء من آية 1 إلى 10">{{ presence.consigne_memorisation|default:'' }}</textarea>
+                              placeholder="{{ placeholder_consigne_memo }}">{{ presence.consigne_memorisation|default:'' }}</textarea>
                 </div>
                 <div class="remarque-eleve">
-                    <label>📌 المطلوب مراجعته *</label>
+                    <label>📌 {% trans "المطلوب مراجعته *" %}</label>
                     <textarea name="consigne_rev_{{ eleve.id }}" class="form-control consigne-input" rows="1" required
-                              placeholder="مثال: مراجعة سورة البقرة من آية 1 إلى 50">{{ presence.consigne_revision|default:'' }}</textarea>
+                              placeholder="{{ placeholder_consigne_rev }}">{{ presence.consigne_revision|default:'' }}</textarea>
                 </div>
             </div>
 
             <div class="remarque-eleve">
-                <label>ملاحظة عن الطالب</label>
+                <label>{% trans "ملاحظة عن الطالب" %}</label>
                 <textarea name="remarque_{{ eleve.id }}" class="form-control" rows="1">{{ presence.remarque|default:'' }}</textarea>
             </div>
         </div>
     </div>
     {% endwith %}
     {% empty %}
-    <div style="text-align:center; color:#aaa; padding:30px;">لا يوجد طلاب في هذه المجموعة</div>
+    <div style="text-align:center; color:#aaa; padding:30px;">{% trans "لا يوجد طلاب في هذه المجموعة" %}</div>
     {% endfor %}
 
     {% if eleves_presences %}
     <div class="remarque-generale-bloc">
-        <label>📝 ملاحظات عامة عن الحصة</label>
-        <div class="hint">ملاحظة واحدة لكامل الحصة (منفصلة عن ملاحظات كل طالب على حدة).</div>
+        <label>📝 {% trans "ملاحظات عامة عن الحصة" %}</label>
+        <div class="hint">{% trans "ملاحظة واحدة لكامل الحصة (منفصلة عن ملاحظات كل طالب على حدة)." %}</div>
         <textarea name="remarque_generale" class="form-control" rows="3">{{ seance.remarque_generale }}</textarea>
     </div>
 
+    {% trans "سيتم تحديث الحضور والتقييمات لهذه الحصة المنتهية. هل أنت متأكد؟" as confirmation_maj_terminee %}
+    {% trans "هل أنت متأكد من حفظ الحضور والتقييمات؟ سيتم اعتبار هذه الحصة منتهية نهائياً." as confirmation_sauvegarde %}
     <button type="submit" class="btn"
             {% if seance.statut == 'terminee' %}
-            onclick="return confirm('سيتم تحديث الحضور والتقييمات لهذه الحصة المنتهية. هل أنت متأكد؟');"
+            onclick="return confirm('{{ confirmation_maj_terminee|escapejs }}');"
             {% else %}
-            onclick="return confirm('هل أنت متأكد من حفظ الحضور والتقييمات؟ سيتم اعتبار هذه الحصة منتهية نهائياً.');"
+            onclick="return confirm('{{ confirmation_sauvegarde|escapejs }}');"
             {% endif %}
             style="background:var(--color-role-prof); color:white; font-weight:600; padding:10px 24px; border-radius:8px;">
-        حفظ الحضور والتقييمات
+        {% trans "حفظ الحضور والتقييمات" %}
     </button>
     {% endif %}
 </form>
 {% endif %}
 
 <div class="mt-3">
-    <a href="{% url 'prof_seances' %}" style="color:var(--color-role-prof-solid); text-decoration:none;">← رجوع إلى سجل الحصص</a>
+    <a href="{% url 'prof_seances' %}" style="color:var(--color-role-prof-solid); text-decoration:none;">{% trans "← رجوع إلى سجل الحصص" %}</a>
 </div>
 
+{% trans "يجب أن تكون آية النهاية أكبر من أو تساوي آية البداية" as msg_erreur_plage_ayat %}
 <script>
 function toggleCarte(eleveId) {
     document.getElementById('carte_' + eleveId).classList.toggle('open');
@@ -393,7 +402,7 @@ function verifierPlageAyat(paire) {
     const fin = paire.querySelector('.ayah-fin');
     if (!debut || !fin) return;
     if (debut.value && fin.value && parseInt(fin.value, 10) < parseInt(debut.value, 10)) {
-        fin.setCustomValidity('يجب أن تكون آية النهاية أكبر من أو تساوي آية البداية');
+        fin.setCustomValidity('{{ msg_erreur_plage_ayat|escapejs }}');
     } else {
         fin.setCustomValidity('');
     }

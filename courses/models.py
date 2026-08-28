@@ -681,17 +681,17 @@ class Seance(models.Model):
 
 class Presence(models.Model):
     STATUT_CHOICES = [
-        ('present', 'حاضر'),
-        ('absent_excuse', 'غائب بعذر'),
-        ('absent', 'غائب بدون عذر'),
+        ('present', _('حاضر')),
+        ('absent_excuse', _('غائب بعذر')),
+        ('absent', _('غائب بدون عذر')),
     ]
     NOTE_CHOICES = [
-        ('mumtaz', 'ممتاز'),
-        ('hasan_jiddan', 'حسن جدا'),
-        ('hasan', 'حسن'),
-        ('mustahsan', 'مستحسن'),
-        ('mutawassit', 'متوسط'),
-        ('doun_mutawassit', 'دون متوسط'),
+        ('mumtaz', _('ممتاز')),
+        ('hasan_jiddan', _('حسن جدا')),
+        ('hasan', _('حسن')),
+        ('mustahsan', _('مستحسن')),
+        ('mutawassit', _('متوسط')),
+        ('doun_mutawassit', _('دون متوسط')),
     ]
     seance = models.ForeignKey(
         Seance,
