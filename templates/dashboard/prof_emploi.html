@@ -1,5 +1,6 @@
 {% extends 'dashboard/base_prof.html' %}
-{% block title %}جدولي{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "جدولي" %}{% endblock %}
 {% block extra_css %}
 <style>
 .emploi-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
@@ -12,8 +13,8 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="page-title">جدولي</div>
-<div class="page-subtitle">مواعيد المجموعات النشطة</div>
+<div class="page-title">{% trans "جدولي" %}</div>
+<div class="page-subtitle">{% trans "مواعيد المجموعات النشطة" %}</div>
 
 {% if groupes %}
 <div style="background:white; border-radius:12px; padding:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow-x:auto;">
@@ -41,6 +42,6 @@
     </table>
 </div>
 {% else %}
-<div style="text-align:center; padding:60px; color:#aaa;">لا توجد مجموعات نشطة</div>
+<div style="text-align:center; padding:60px; color:#aaa;">{% trans "لا توجد مجموعات نشطة" %}</div>
 {% endif %}
 {% endblock %}

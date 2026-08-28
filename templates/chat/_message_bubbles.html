@@ -1,4 +1,4 @@
-{% load chat_extras %}
+{% load chat_extras i18n %}
 {% for message in messages %}
 {% if message.jour_separateur %}
 <div class="chat-day-sep" data-jour="{{ message.jour_separateur|date:'Y-m-d' }}"><span>{{ message.jour_separateur|repere_jour_message }}</span></div>
@@ -18,7 +18,7 @@
         chose) — seule l'heure d'envoi d'origine reste affichée en dessous,
         comme n'importe quel autre message, pour ne pas casser le fil.
         {% endcomment %}
-        <div class="chat-bubble-supprime">🚫 تم حذف هذه الرسالة</div>
+        <div class="chat-bubble-supprime">🚫 {% trans "تم حذف هذه الرسالة" %}</div>
         {% else %}
             {% if message.type_message == 'audio' %}
             <div class="chat-bubble-audio">
@@ -40,7 +40,8 @@
             <a class="chat-bubble-fichier" href="{% url 'chat_fichier' groupe_id message.id %}" target="_blank" rel="noopener">
                 <span class="chat-fichier-icone" aria-hidden="true">📎</span>
                 <span class="chat-fichier-infos">
-                    <span class="chat-fichier-nom">{{ message.nom_fichier_original|default:"ملف مرفق" }}</span>
+                    {% trans "ملف مرفق" as nom_fichier_defaut %}
+                    <span class="chat-fichier-nom">{{ message.nom_fichier_original|default:nom_fichier_defaut }}</span>
                     <span class="chat-fichier-taille">{{ message.taille_fichier_octets|taille_lisible }}</span>
                 </span>
             </a>
@@ -63,7 +64,7 @@
             {% endcomment %}
             {% if message.auteur_id == user.id and not message.est_supprime %}
             <button type="button" class="chat-bubble-supprimer" data-message-id="{{ message.id }}"
-                    title="حذف الرسالة" aria-label="حذف الرسالة">🗑</button>
+                    title="{% trans 'حذف الرسالة' %}" aria-label="{% trans 'حذف الرسالة' %}">🗑</button>
             {% endif %}
         </div>
     </div>

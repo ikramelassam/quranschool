@@ -1,5 +1,6 @@
 import os
 
+from django.utils.translation import gettext_lazy as _
 from courses.utils import cible_annonce_pour_eleve, tranche_age_precise, TRANCHES_AGE_PRECISES
 from .models import Annonce, LectureAnnonce
 
@@ -15,9 +16,9 @@ from .models import Annonce, LectureAnnonce
 # _canal_icone.html), la distinction se fait par nom/description, pas par
 # l'icône.
 CANAUX = [
-    {'code': 'femmes_adultes', 'nom': 'النساء', 'description': 'قناة تبليغ للطالبات البالغات'},
-    {'code': 'hommes_adultes', 'nom': 'الرجال', 'description': 'قناة تبليغ للطلاب البالغين'},
-    {'code': 'mineurs', 'nom': 'الأطفال', 'description': 'قناة تبليغ للطلاب دون 18 سنة'},
+    {'code': 'femmes_adultes', 'nom': _('النساء'), 'description': _('قناة تبليغ للطالبات البالغات')},
+    {'code': 'hommes_adultes', 'nom': _('الرجال'), 'description': _('قناة تبليغ للطلاب البالغين')},
+    {'code': 'mineurs', 'nom': _('الأطفال'), 'description': _('قناة تبليغ للطلاب دون 18 سنة')},
 ]
 CANAUX_PAR_CODE = {c['code']: c for c in CANAUX}
 

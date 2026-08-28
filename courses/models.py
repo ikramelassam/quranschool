@@ -4,6 +4,7 @@ from django.contrib.postgres.indexes import GinIndex
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from accounts.models import Prof, Eleve, Superviseur
 from annonces.models import Annonce
 
@@ -93,14 +94,17 @@ class CreneauActifsManager(models.Manager):
 
 
 class Creneau(models.Model):
+    # gettext_lazy (chantier traduction FR/EN, 2026-08-27) : affiché via
+    # slot.get_jour_display() sur le wizard d'inscription élève (étape
+    # "اختيار المجموعة", templates/inscriptions/wizard_groupe.html).
     JOUR_CHOICES = [
-        ('lun', 'الاثنين'),
-        ('mar', 'الثلاثاء'),
-        ('mer', 'الأربعاء'),
-        ('jeu', 'الخميس'),
-        ('ven', 'الجمعة'),
-        ('sam', 'السبت'),
-        ('dim', 'الأحد'),
+        ('lun', _('الاثنين')),
+        ('mar', _('الثلاثاء')),
+        ('mer', _('الأربعاء')),
+        ('jeu', _('الخميس')),
+        ('ven', _('الجمعة')),
+        ('sam', _('السبت')),
+        ('dim', _('الأحد')),
     ]
     SEXE_CHOICES = [
         ('homme', 'ذكر'),
@@ -235,8 +239,8 @@ class LienMeet(models.Model):
 
 class Groupe(models.Model):
     TYPE_CAPACITE_CHOICES = [
-        ('groupe', 'جماعي'),
-        ('individuel', 'فردي'),
+        ('groupe', _('جماعي')),
+        ('individuel', _('فردي')),
     ]
     # Sous-catégorie d'un groupe COLLECTIF (type_capacite='groupe') pour la
     # navigation par filtres de admin_groupes.html (Chantier du 2026-08-15).
@@ -289,7 +293,7 @@ class Groupe(models.Model):
     capacite_max = models.IntegerField(default=10)
     statut = models.CharField(
         max_length=20,
-        choices=[('actif', 'نشط'), ('archive', 'مؤرشف')],
+        choices=[('actif', _('نشط')), ('archive', _('مؤرشف'))],
         default='actif'
     )
     # Masquage PONCTUEL du wizard public uniquement (chantier du 2026-08-23,
@@ -569,8 +573,8 @@ class TarifRemuneration(models.Model):
     que Groupe.type_capacite (pas Creneau.type_seance, un champ au nom
     proche mais qui désigne autre chose: hifz/tathbit)."""
     TRANCHE_AGE_CHOICES = [
-        ('enfant', 'طفل'),
-        ('adulte', 'بالغ'),
+        ('enfant', _('طفل')),
+        ('adulte', _('بالغ')),
     ]
 
     type_capacite = models.CharField(max_length=10, choices=Groupe.TYPE_CAPACITE_CHOICES)
@@ -697,17 +701,17 @@ class TarifRemunerationIndividuel(models.Model):
 
 class Seance(models.Model):
     TYPE_CHOICES = [
-        ('normal', 'عادية'),
-        ('rattrapage', 'حصة تعويضية'),
-        ('revision', 'مراجعة'),
+        ('normal', _('عادية')),
+        ('rattrapage', _('حصة تعويضية')),
+        ('revision', _('مراجعة')),
     ]
     # Mêmes libellés que dashboard/_seance_statut_badge.html (مخططة/منتهية/ملغاة),
     # affichés partout où get_statut_display() est appelé (ex: message d'erreur
     # d'admin_seance_annuler) — une seule et même formulation dans tout le projet.
     STATUT_CHOICES = [
-        ('planifiee', 'مخططة'),
-        ('terminee', 'منتهية'),
-        ('annulee', 'ملغاة'),
+        ('planifiee', _('مخططة')),
+        ('terminee', _('منتهية')),
+        ('annulee', _('ملغاة')),
     ]
     groupe = models.ForeignKey(
         Groupe,
@@ -854,17 +858,17 @@ class Seance(models.Model):
 
 class Presence(models.Model):
     STATUT_CHOICES = [
-        ('present', 'حاضر'),
-        ('absent_excuse', 'غائب بعذر'),
-        ('absent', 'غائب بدون عذر'),
+        ('present', _('حاضر')),
+        ('absent_excuse', _('غائب بعذر')),
+        ('absent', _('غائب بدون عذر')),
     ]
     NOTE_CHOICES = [
-        ('mumtaz', 'ممتاز'),
-        ('hasan_jiddan', 'حسن جدا'),
-        ('hasan', 'حسن'),
-        ('mustahsan', 'مستحسن'),
-        ('mutawassit', 'متوسط'),
-        ('doun_mutawassit', 'دون متوسط'),
+        ('mumtaz', _('ممتاز')),
+        ('hasan_jiddan', _('حسن جدا')),
+        ('hasan', _('حسن')),
+        ('mustahsan', _('مستحسن')),
+        ('mutawassit', _('متوسط')),
+        ('doun_mutawassit', _('دون متوسط')),
     ]
     seance = models.ForeignKey(
         Seance,

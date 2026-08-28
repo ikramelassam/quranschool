@@ -1,4 +1,4 @@
-{% load charte_tags %}
+{% load charte_tags i18n %}
 <div style="text-align:center; color:var(--color-text-muted); font-size:0.95rem; line-height:2; margin-bottom:24px;">
     {{ charte.intro|linebreaks }}
 </div>
@@ -9,7 +9,7 @@
 
 <h3 style="color:var(--color-text-primary); border-bottom:2px solid var(--color-brand-gold); padding-bottom:8px; margin:32px 0 16px;">{{ charte.titre_bunud }}</h3>
 
-<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">أولاً: {{ charte.section1_titre }}</h3>
+<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">{% trans "أولاً:" %} {{ charte.section1_titre }}</h3>
 <p>{{ charte.section1_intro }}</p>
 <ul style="padding-right:20px; line-height:1.9;">
 {% for item in charte.section1_items|parse_items %}
@@ -17,7 +17,7 @@
 {% endfor %}
 </ul>
 
-<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">ثانياً: {{ charte.section2_titre }}</h3>
+<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">{% trans "ثانياً:" %} {{ charte.section2_titre }}</h3>
 <p>{{ charte.section2_intro }}</p>
 <ul style="padding-right:20px; line-height:1.9;">
 {% for item in charte.section2_items|parse_items %}
@@ -25,7 +25,7 @@
 {% endfor %}
 </ul>
 
-<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">ثالثاً: {{ charte.section3_titre }}</h3>
+<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">{% trans "ثالثاً:" %} {{ charte.section3_titre }}</h3>
 <p>{{ charte.section3_intro }}</p>
 <ul style="padding-right:20px; line-height:1.9;">
 {% for item in charte.section3_items|parse_items %}
@@ -38,7 +38,7 @@
 </div>
 <p>{{ charte.section3_conclusion }}</p>
 
-<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">رابعاً: {{ charte.section4_titre }}</h3>
+<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">{% trans "رابعاً:" %} {{ charte.section4_titre }}</h3>
 <p>{{ charte.section4_intro }}</p>
 <ul style="padding-right:20px; line-height:1.9;">
 {% for item in charte.section4_items|parse_items %}
@@ -46,16 +46,16 @@
 {% endfor %}
 </ul>
 
-<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">خامساً: {{ charte.section5_titre }}</h3>
+<h3 style="color:var(--color-brand-gold-dark); margin:28px 0 10px;">{% trans "خامساً:" %} {{ charte.section5_titre }}</h3>
 <p>{{ charte.section5_intro }}</p>
 <div style="overflow-x:auto; margin:16px 0;">
 <table style="width:100%; border-collapse:collapse; font-size:0.92rem;">
 <thead>
 <tr style="background:var(--color-brand-gold-dark); color:white;">
-<th style="padding:10px 14px; text-align:right;">المخالفة</th>
-<th style="padding:10px 14px; text-align:center;">الإجراء الأول</th>
-<th style="padding:10px 14px; text-align:center;">الإجراء الثاني</th>
-<th style="padding:10px 14px; text-align:center;">الإجراء الثالث</th>
+<th style="padding:10px 14px; text-align:right;">{% trans "المخالفة" %}</th>
+<th style="padding:10px 14px; text-align:center;">{% trans "الإجراء الأول" %}</th>
+<th style="padding:10px 14px; text-align:center;">{% trans "الإجراء الثاني" %}</th>
+<th style="padding:10px 14px; text-align:center;">{% trans "الإجراء الثالث" %}</th>
 </tr>
 </thead>
 <tbody>
@@ -63,11 +63,11 @@
 <tr style="border-bottom:1px solid #eee;">
     <td style="padding:10px 14px;">{{ ligne.violation }}</td>
     {% if ligne.severite == 'immediate' %}
-    <td style="padding:10px 14px; text-align:center;" colspan="3">الإعفاء الفوري</td>
+    <td style="padding:10px 14px; text-align:center;" colspan="3">{% trans "الإعفاء الفوري" %}</td>
     {% else %}
-    <td style="padding:10px 14px; text-align:center;">الإنذار الأول</td>
-    <td style="padding:10px 14px; text-align:center;">الإنذار الثاني</td>
-    <td style="padding:10px 14px; text-align:center;">خصم من الراتب</td>
+    <td style="padding:10px 14px; text-align:center;">{% trans "الإنذار الأول" %}</td>
+    <td style="padding:10px 14px; text-align:center;">{% trans "الإنذار الثاني" %}</td>
+    <td style="padding:10px 14px; text-align:center;">{% trans "خصم من الراتب" %}</td>
     {% endif %}
 </tr>
 {% endfor %}

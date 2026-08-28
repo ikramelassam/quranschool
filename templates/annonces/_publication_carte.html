@@ -1,4 +1,4 @@
-{% load annonces_extras %}
+{% load annonces_extras i18n %}
 {% comment %}
 Une publication d'un canal — utilisé identique par canal_detail.html (مدير/
 مشرف) et eleve_annonces.html (élève), pour que le rendu d'une pièce jointe
@@ -21,7 +21,7 @@ canal_detail.html — affiche le bouton إخفاء/إظهار. Jamais sur la pag
     Identité du membre du staff qui a publié — visible مدير/مشرف SEULEMENT
     (jamais côté élève) : ce n'est pas un abonné, voir Point C5.
     {% endcomment %}
-    <div class="pub-auteur">بواسطة {{ annonce.cree_par.get_full_name }}</div>
+    <div class="pub-auteur">{% blocktrans with nom=annonce.cree_par.get_full_name %}بواسطة {{ nom }}{% endblocktrans %}</div>
     {% endif %}
 
     {% if peut_gerer and annonce.tranche_age %}
@@ -56,23 +56,24 @@ canal_detail.html — affiche le bouton إخفاء/إظهار. Jamais sur la pag
         <a class="pub-document" href="{% url 'annonce_fichier' annonce.id %}" target="_blank" rel="noopener">
             <span class="pub-document-icone" aria-hidden="true">📄</span>
             <span class="pub-document-infos">
-                <span class="pub-document-nom">{{ annonce.nom_fichier_original|default:"مستند" }}</span>
+                {% trans "مستند" as nom_document_defaut %}
+                <span class="pub-document-nom">{{ annonce.nom_fichier_original|default:nom_document_defaut }}</span>
                 <span class="pub-document-taille">{{ annonce.taille_fichier_octets|taille_lisible }}</span>
             </span>
-            <span class="pub-document-ouvrir" aria-hidden="true">فتح ↓</span>
+            <span class="pub-document-ouvrir" aria-hidden="true">{% trans "فتح ↓" %}</span>
         </a>
         {% endif %}
     {% endif %}
 
     {% if peut_gerer %}
     <div class="pub-pied">
-        {% if not annonce.active %}<span class="pub-badge-masque">مخفي عن الطلاب</span>{% endif %}
+        {% if not annonce.active %}<span class="pub-badge-masque">{% trans "مخفي عن الطلاب" %}</span>{% endif %}
         <form method="POST" action="{% url 'annonce_toggle' annonce.id %}">
             {% csrf_token %}
             {% if annonce.active %}
-            <button type="submit" class="pub-btn-toggle pub-btn-masquer">إخفاء</button>
+            <button type="submit" class="pub-btn-toggle pub-btn-masquer">{% trans "إخفاء" %}</button>
             {% else %}
-            <button type="submit" class="pub-btn-toggle pub-btn-afficher">إظهار</button>
+            <button type="submit" class="pub-btn-toggle pub-btn-afficher">{% trans "إظهار" %}</button>
             {% endif %}
         </form>
     </div>

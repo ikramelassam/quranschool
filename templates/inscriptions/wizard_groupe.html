@@ -1,5 +1,6 @@
 {% extends 'inscriptions/_wizard_base.html' %}
-{% block wizard_title %}اختيار المجموعة{% endblock %}
+{% load i18n %}
+{% block wizard_title %}{% trans "اختيار المجموعة" %}{% endblock %}
 {% block wizard_extra_style %}
 .groupe-card {
     border: 2px solid #EADFC8; border-radius: 12px; padding: 18px; margin-bottom: 14px; cursor: pointer;
@@ -24,8 +25,8 @@
 .groupe-presentation { color: var(--color-text-muted); font-size: 0.85rem; line-height: 1.55; white-space: pre-line; margin-top: 4px; }
 {% endblock %}
 {% block wizard_content %}
-<div class="page-title">اختيار المجموعة</div>
-<div class="page-subtitle">الخطوة 3 من 6 — المجموعات المتوافقة مع اختياراتك</div>
+<div class="page-title">{% trans "اختيار المجموعة" %}</div>
+<div class="page-subtitle">{% trans "الخطوة 3 من 6 — المجموعات المتوافقة مع اختياراتك" %}</div>
 
 {% if aucun_groupe_exact %}
 <div style="background:#fff3cd; border-radius:10px; padding:16px 18px; margin-bottom:20px; color:#856404; font-weight:600;">
@@ -36,7 +37,7 @@
     {% csrf_token %}
 
     {% if groupes_proches %}
-    <div class="page-subtitle" style="text-align:right; margin-bottom:10px;">مجموعات قريبة يمكنك الانضمام إليها الآن:</div>
+    <div class="page-subtitle" style="text-align:right; margin-bottom:10px;">{% trans "مجموعات قريبة يمكنك الانضمام إليها الآن:" %}</div>
     {% for groupe in groupes_proches %}
     <div class="groupe-card" onclick="choisirGroupeProche({{ groupe.id }}, this)">
         <div class="groupe-nom">{{ groupe.nom }}</div>
@@ -51,7 +52,7 @@
                 {% if valeur.option %}<span style="background:#f0f0f0; border-radius:12px; padding:2px 10px; margin-left:6px; font-size:0.82rem;">{{ valeur.critere.label }}: {{ valeur.option.label }}</span>{% endif %}
             {% endfor %}
         </div>
-        <div class="groupe-detail">🪑 {{ groupe.nb_eleves_actuel }} / {{ groupe.capacite_max }} مكان</div>
+        <div class="groupe-detail">🪑 {% blocktrans with occupes=groupe.nb_eleves_actuel capacite=groupe.capacite_max %}{{ occupes }} / {{ capacite }} مكان{% endblocktrans %}</div>
     </div>
     {% endfor %}
     {% endif %}
@@ -71,7 +72,7 @@
     {% endcomment %}
     <div id="bloc_disponibilites" style="display:none;">
         <div class="page-subtitle" style="text-align:right; margin:16px 0 10px;">
-            أوقات تفرغك الأسبوعية (اختياري) — تساعدنا هذه المعلومة على اقتراح حلقة تناسبك فور توفرها:
+            {% trans "أوقات تفرغك الأسبوعية (اختياري) — تساعدنا هذه المعلومة على اقتراح حلقة تناسبك فور توفرها:" %}
         </div>
         {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=dispo_selectionnees %}
     </div>
@@ -79,8 +80,8 @@
 
     <input type="hidden" name="groupe_id" id="groupe_id_value">
     <input type="hidden" name="continuer_sans_groupe" id="continuer_sans_groupe_value" value="">
-    <button type="submit" class="btn-submit" id="btn_suivant_aucun_match" disabled>التالي ←</button>
-    <a href="{% url 'wizard_programme' %}" class="btn-back">رجوع</a>
+    <button type="submit" class="btn-submit" id="btn_suivant_aucun_match" disabled>{% trans "التالي ←" %}</button>
+    <a href="{% url 'wizard_programme' %}" class="btn-back">{% trans "رجوع" %}</a>
 </form>
 
 <script>
@@ -121,7 +122,7 @@
     <div class="groupe-card" onclick="selectionnerGroupe({{ groupe.id }}, this)">
         <div class="groupe-nom">{{ groupe.nom }}</div>
         <div class="groupe-detail">
-            👨‍🏫 {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}غير محدد بعد{% endif %}
+            👨‍🏫 {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}{% trans "غير محدد بعد" %}{% endif %}
         </div>
         {% if visibilite.afficher_presentation_wizard and groupe.prof.presentation_publique %}
         <div class="groupe-presentation">{{ groupe.prof.presentation_publique }}</div>
@@ -137,13 +138,13 @@
                 {% if valeur.option %}<span style="background:#f0f0f0; border-radius:12px; padding:2px 10px; margin-left:6px; font-size:0.82rem;">{{ valeur.critere.label }}: {{ valeur.option.label }}</span>{% endif %}
             {% endfor %}
         </div>
-        <div class="groupe-detail">🪑 {{ groupe.nb_eleves_actuel }} / {{ groupe.capacite_max }} مكان</div>
+        <div class="groupe-detail">🪑 {% blocktrans with occupes=groupe.nb_eleves_actuel capacite=groupe.capacite_max %}{{ occupes }} / {{ capacite }} مكان{% endblocktrans %}</div>
     </div>
     {% endfor %}
 
     <input type="hidden" name="groupe_id" id="groupe_id_value">
-    <button type="submit" class="btn-submit">التالي ←</button>
-    <a href="{% url 'wizard_programme' %}" class="btn-back">رجوع</a>
+    <button type="submit" class="btn-submit">{% trans "التالي ←" %}</button>
+    <a href="{% url 'wizard_programme' %}" class="btn-back">{% trans "رجوع" %}</a>
 </form>
 {% endif %}
 

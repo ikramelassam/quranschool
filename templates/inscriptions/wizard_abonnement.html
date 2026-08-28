@@ -1,26 +1,27 @@
 {% extends 'inscriptions/_wizard_base.html' %}
-{% block wizard_title %}الاشتراك{% endblock %}
+{% load i18n %}
+{% block wizard_title %}{% trans "الاشتراك" %}{% endblock %}
 {% block wizard_content %}
-<div class="page-title">اختيار نوع الاشتراك</div>
-<div class="page-subtitle">الخطوة 4 من 6</div>
+<div class="page-title">{% trans "اختيار نوع الاشتراك" %}</div>
+<div class="page-subtitle">{% trans "الخطوة 4 من 6" %}</div>
 
 <form method="POST">
     {% csrf_token %}
 
     {% if not abonnements %}
-    <div style="text-align:center; padding:30px; color:#888;">لا توجد حالياً أنواع اشتراك متاحة لاختياراتك. يرجى التواصل مع الإدارة.</div>
+    <div style="text-align:center; padding:30px; color:#888;">{% trans "لا توجد حالياً أنواع اشتراك متاحة لاختياراتك. يرجى التواصل مع الإدارة." %}</div>
     {% endif %}
 
     {% for abonnement in abonnements %}
     <div class="select-btn mb-2" onclick="selectionnerAbonnement('{{ abonnement.code }}', this)" style="display:flex; justify-content:space-between; text-align:right;">
         <span>{{ abonnement.duree_affichee }}</span>
-        <span style="font-weight:700;">{{ abonnement.prix_affiche }} د.م.</span>
+        <span style="font-weight:700;">{{ abonnement.prix_affiche }} {% trans "د.م." %}</span>
     </div>
     {% endfor %}
 
     <input type="hidden" name="abonnement_code" id="abonnement_code_value">
-    <button type="submit" class="btn-submit">التالي ←</button>
-    <a href="{% url 'wizard_programme' %}" class="btn-back">رجوع</a>
+    <button type="submit" class="btn-submit">{% trans "التالي ←" %}</button>
+    <a href="{% url 'wizard_programme' %}" class="btn-back">{% trans "رجوع" %}</a>
 </form>
 
 <script>

@@ -1,9 +1,9 @@
 {% extends 'dashboard/base_prof.html' %}
-{% load libelles_arabes %}
-{% block title %}تقييمات المؤطر لي{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "تقييمات المؤطر لي" %}{% endblock %}
 {% block content %}
-<div class="page-title">تقييمات المؤطر لي</div>
-<div class="page-subtitle">التقييمات التي كتبها المؤطر (المشرف) على حصصك — الأحدث أولاً، للقراءة فقط</div>
+<div class="page-title">{% trans "تقييمات المؤطر لي" %}</div>
+<div class="page-subtitle">{% trans "التقييمات التي كتبها المؤطر (المشرف) على حصصك — الأحدث أولاً، للقراءة فقط" %}</div>
 
 {% for evaluation in evaluations %}
 <details style="background:white; border-radius:12px; margin-bottom:14px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
@@ -41,13 +41,13 @@
         {% endfor %}
         {% if evaluation.commentaire %}
         <div style="margin-top:16px;">
-            <div style="color:#888; font-size:0.8rem;">ملاحظات وتوجيهات المؤطر</div>
+            <div style="color:#888; font-size:0.8rem;">{% trans "ملاحظات وتوجيهات المؤطر" %}</div>
             <div style="background:#f9f9f9; padding:10px; border-radius:6px; margin-top:4px; white-space:pre-wrap;">{{ evaluation.commentaire }}</div>
         </div>
         {% endif %}
     </div>
 </details>
 {% empty %}
-<div style="text-align:center; color:#aaa; padding:40px; background:white; border-radius:12px;">لا توجد تقييمات من المؤطر بعد</div>
+<div style="text-align:center; color:#aaa; padding:40px; background:white; border-radius:12px;">{% trans "لا توجد تقييمات من المؤطر بعد" %}</div>
 {% endfor %}
 {% endblock %}

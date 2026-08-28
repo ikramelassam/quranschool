@@ -1,24 +1,25 @@
 {% extends 'dashboard/base_eleve.html' %}
-{% block title %}تقدمي في الحفظ{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "تقدمي في الحفظ" %}{% endblock %}
 {% block content %}
-<div class="page-title">تقدمي في الحفظ</div>
-<div class="page-subtitle">متابعة تراكمية لما تم حفظه، مبنية على عدد الآيات</div>
+<div class="page-title">{% trans "تقدمي في الحفظ" %}</div>
+<div class="page-subtitle">{% trans "متابعة تراكمية لما تم حفظه، مبنية على عدد الآيات" %}</div>
 
 <div class="hero-ring-card">
     {% include 'dashboard/_ring_hizb.html' %}
     <div class="stats-row">
-        <div class="stat-mini"><div class="v">{{ progression.total_ayat_memorises }}</div><div class="l">آية محفوظة</div></div>
-        <div class="stat-mini"><div class="v">{{ progression.nb_sourates_distinctes }}</div><div class="l">سورة بدأت</div></div>
+        <div class="stat-mini"><div class="v">{{ progression.total_ayat_memorises }}</div><div class="l">{% trans "آية محفوظة" %}</div></div>
+        <div class="stat-mini"><div class="v">{{ progression.nb_sourates_distinctes }}</div><div class="l">{% trans "سورة بدأت" %}</div></div>
     </div>
 </div>
 
-<div class="section-title">التقدم حسب السورة</div>
+<div class="section-title">{% trans "التقدم حسب السورة" %}</div>
 <div class="compact-card mb-4" style="padding:4px 20px;">
     {% for item in progression.par_sourate %}
     <div style="padding:14px 0; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %}">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
             <span style="font-weight:700;">{{ item.numero }}. {{ item.nom }}</span>
-            <span style="color:#888; font-size:0.82rem;">الآيات {{ item.plages_texte }} من أصل {{ item.total_ayat_sourate }}</span>
+            <span style="color:#888; font-size:0.82rem;">{% blocktrans with plages=item.plages_texte total=item.total_ayat_sourate %}الآيات {{ plages }} من أصل {{ total }}{% endblocktrans %}</span>
         </div>
         <div style="display:flex; align-items:center; gap:12px;">
             <div class="progress-track" style="flex:1;"><div class="progress-fill" style="width:{{ item.pourcentage }}%;"></div></div>
@@ -26,11 +27,11 @@
         </div>
     </div>
     {% empty %}
-    <div style="text-align:center; color:#aaa; padding:30px;">لا يوجد أي حفظ مسجَّل بعد</div>
+    <div style="text-align:center; color:#aaa; padding:30px;">{% trans "لا يوجد أي حفظ مسجَّل بعد" %}</div>
     {% endfor %}
 </div>
 
-<div class="section-title">السجل الزمني</div>
+<div class="section-title">{% trans "السجل الزمني" %}</div>
 <div class="compact-card" style="padding:4px 20px;">
     {% for h in progression.historique|slice:":10" %}
     <div style="padding:14px 0; {% if not forloop.last or progression.historique|length > 10 %}border-bottom:1px solid #f5f0e6;{% endif %}">
@@ -40,7 +41,7 @@
                 <div style="font-weight:600;">
                     {{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})
                     {% if h.resultat_memorisation == 'a_refaire' %}
-                    <span style="background:#fdecea; color:#b71c1c; border-radius:20px; padding:1px 8px; font-size:0.72rem; font-weight:600; margin-inline-start:4px;">🔁 يعاد</span>
+                    <span style="background:#fdecea; color:#b71c1c; border-radius:20px; padding:1px 8px; font-size:0.72rem; font-weight:600; margin-inline-start:4px;">🔁 {% trans "يعاد" %}</span>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -48,26 +49,26 @@
             </div>
             <div style="text-align:left;">
                 {% if h.note_code %}{% include 'dashboard/_medal_badge.html' with code=h.note_code label=h.note_display %}{% endif %}
-                {% if h.sourate %}<div style="color:#888; font-size:0.78rem; margin-top:4px;">+{{ h.nb_ayat }} آية</div>{% endif %}
+                {% if h.sourate %}<div style="color:#888; font-size:0.78rem; margin-top:4px;">{% blocktrans with n=h.nb_ayat %}+{{ n }} آية{% endblocktrans %}</div>{% endif %}
             </div>
         </div>
         {% if h.note_hifz %}
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
-            <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">الحفظ: {{ h.note_hifz }}/20</span>
-            <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">المراجعة: {{ h.note_muraja3a }}/20</span>
-            <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">التلاوة: {{ h.note_tilawa }}/20</span>
-            <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">المواظبة والسلوك: {{ h.note_mouwazaba }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">{% trans "الحفظ:" %} {{ h.note_hifz }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">{% trans "المراجعة:" %} {{ h.note_muraja3a }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">{% trans "التلاوة:" %} {{ h.note_tilawa }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">{% trans "المواظبة والسلوك:" %} {{ h.note_mouwazaba }}/20</span>
         </div>
         {% endif %}
         {% if h.consigne_memorisation %}
-        <div style="font-size:0.8rem; color:#555; margin-top:6px;">📌 المطلوب حفظه: {{ h.consigne_memorisation }}</div>
+        <div style="font-size:0.8rem; color:#555; margin-top:6px;">📌 {% trans "المطلوب حفظه:" %} {{ h.consigne_memorisation }}</div>
         {% endif %}
         {% if h.consigne_revision %}
-        <div style="font-size:0.8rem; color:#555; margin-top:4px;">📌 المطلوب مراجعته: {{ h.consigne_revision }}</div>
+        <div style="font-size:0.8rem; color:#555; margin-top:4px;">📌 {% trans "المطلوب مراجعته:" %} {{ h.consigne_revision }}</div>
         {% endif %}
     </div>
     {% empty %}
-    <div style="text-align:center; color:#aaa; padding:40px;">لا توجد حصص حفظ مسجَّلة بعد</div>
+    <div style="text-align:center; color:#aaa; padding:40px;">{% trans "لا توجد حصص حفظ مسجَّلة بعد" %}</div>
     {% endfor %}
 
     {% if progression.historique|length > 10 %}
@@ -80,7 +81,7 @@
                 <div style="font-weight:600;">
                     {{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})
                     {% if h.resultat_memorisation == 'a_refaire' %}
-                    <span style="background:#fdecea; color:#b71c1c; border-radius:20px; padding:1px 8px; font-size:0.72rem; font-weight:600; margin-inline-start:4px;">🔁 يعاد</span>
+                    <span style="background:#fdecea; color:#b71c1c; border-radius:20px; padding:1px 8px; font-size:0.72rem; font-weight:600; margin-inline-start:4px;">🔁 {% trans "يعاد" %}</span>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -88,29 +89,31 @@
                 </div>
                 <div style="text-align:left;">
                     {% if h.note_code %}{% include 'dashboard/_medal_badge.html' with code=h.note_code label=h.note_display %}{% endif %}
-                    {% if h.sourate %}<div style="color:#888; font-size:0.78rem; margin-top:4px;">+{{ h.nb_ayat }} آية</div>{% endif %}
+                    {% if h.sourate %}<div style="color:#888; font-size:0.78rem; margin-top:4px;">{% blocktrans with n=h.nb_ayat %}+{{ n }} آية{% endblocktrans %}</div>{% endif %}
                 </div>
             </div>
             {% if h.note_hifz %}
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
-                <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">الحفظ: {{ h.note_hifz }}/20</span>
-                <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">المراجعة: {{ h.note_muraja3a }}/20</span>
-                <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">التلاوة: {{ h.note_tilawa }}/20</span>
-                <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">المواظبة والسلوك: {{ h.note_mouwazaba }}/20</span>
+                <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">{% trans "الحفظ:" %} {{ h.note_hifz }}/20</span>
+                <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">{% trans "المراجعة:" %} {{ h.note_muraja3a }}/20</span>
+                <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">{% trans "التلاوة:" %} {{ h.note_tilawa }}/20</span>
+                <span style="background:var(--color-bg-cream); border-radius:8px; padding:2px 10px; font-size:0.78rem;">{% trans "المواظبة والسلوك:" %} {{ h.note_mouwazaba }}/20</span>
             </div>
             {% endif %}
             {% if h.consigne_memorisation %}
-            <div style="font-size:0.8rem; color:#555; margin-top:6px;">📌 المطلوب حفظه: {{ h.consigne_memorisation }}</div>
+            <div style="font-size:0.8rem; color:#555; margin-top:6px;">📌 {% trans "المطلوب حفظه:" %} {{ h.consigne_memorisation }}</div>
             {% endif %}
             {% if h.consigne_revision %}
-            <div style="font-size:0.8rem; color:#555; margin-top:4px;">📌 المطلوب مراجعته: {{ h.consigne_revision }}</div>
+            <div style="font-size:0.8rem; color:#555; margin-top:4px;">📌 {% trans "المطلوب مراجعته:" %} {{ h.consigne_revision }}</div>
             {% endif %}
         </div>
         {% endfor %}
     </div>
+    {% blocktrans with n=progression.historique|length asvar texte_afficher_tout_historique %}عرض جميع الحصص ({{ n }}) ↓{% endblocktrans %}
+    {% trans "إخفاء الباقي ↑" as texte_masquer_historique %}
     <div style="text-align:center; padding:14px 0 4px;">
         <span id="historique_toggle_texte" onclick="toggleHistoriqueComplet()" style="cursor:pointer; color:var(--color-role-eleve-solid); font-size:0.85rem; text-decoration:underline;">
-            عرض جميع الحصص ({{ progression.historique|length }}) ↓
+            {{ texte_afficher_tout_historique }}
         </span>
     </div>
     <script>
@@ -119,10 +122,10 @@
             const texte = document.getElementById('historique_toggle_texte');
             if (extra.style.display === 'none') {
                 extra.style.display = 'block';
-                texte.textContent = 'إخفاء الباقي ↑';
+                texte.textContent = '{{ texte_masquer_historique|escapejs }}';
             } else {
                 extra.style.display = 'none';
-                texte.textContent = 'عرض جميع الحصص ({{ progression.historique|length }}) ↓';
+                texte.textContent = '{{ texte_afficher_tout_historique|escapejs }}';
             }
         }
     </script>

@@ -86,6 +86,12 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    # LocaleMiddleware DOIT venir après SessionMiddleware (lit la langue en
+    # session) et avant CommonMiddleware (qui s'en sert déjà pour certaines
+    # redirections) — ordre documenté par Django. Active {% trans %} côté
+    # requête : détecte la langue via session -> cookie -> Accept-Language du
+    # navigateur -> LANGUAGE_CODE par défaut (voir set_language, core/urls.py).
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -111,6 +117,9 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                # Fournit LANGUAGE_CODE / LANGUAGE_BIDI / LANGUAGES dans tous les
+                # templates (utilisés pour dir="rtl"/"ltr" et le sélecteur de langue).
+                'django.template.context_processors.i18n',
                 'accounts.context_processors.logo_context',
                 'chat.context_processors.chat_badge_context',
                 'annonces.context_processors.annonces_badge_context',
@@ -152,7 +161,21 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+# Chantier traduction FR/EN (2026-08-27) — langue par défaut alignée sur le
+# contenu réel du site (tout est écrit en arabe en dur dans les templates
+# tant qu'aucun {% trans %} ne l'entoure). LANGUAGE_CODE ne fait QUE fournir
+# le repli quand aucune langue n'est choisie (session/cookie) — ça ne traduit
+# rien tout seul, il faut les balises {% trans %}/{% blocktrans %} dans les
+# templates et gettext_lazy() côté Python pour que LANGUAGES ait un effet.
+LANGUAGE_CODE = 'ar'
+
+LANGUAGES = [
+    ('ar', 'العربية'),
+    ('fr', 'Français'),
+    ('en', 'English'),
+]
+
+LOCALE_PATHS = [BASE_DIR / 'locale']
 
 TIME_ZONE = 'Africa/Casablanca'
 

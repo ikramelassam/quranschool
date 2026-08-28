@@ -1,9 +1,9 @@
 {% extends base_template %}
-{% load charte_tags %}
-{% block title %}البرنامج العام{% endblock %}
+{% load charte_tags i18n %}
+{% block title %}{% trans "البرنامج العام" %}{% endblock %}
 {% block content %}
-<div class="page-title">البرنامج العام</div>
-<div class="page-subtitle">آخر تحديث: {{ programme.date_modification|date:"d-m-Y H:i" }}</div>
+<div class="page-title">{% trans "البرنامج العام" %}</div>
+<div class="page-subtitle">{% blocktrans with date_maj=programme.date_modification|date:"d-m-Y H:i" %}آخر تحديث: {{ date_maj }}{% endblocktrans %}</div>
 
 {% if montrer_enfants %}
 <div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px; max-width:800px;">
@@ -15,7 +15,7 @@
         {% endfor %}
     </ul>
     {% if not programme.titre_enfants and not programme.intro_enfants and not programme.items_enfants %}
-    <div style="text-align:center; color:#aaa; padding:20px;">لم يتم نشر البرنامج العام بعد.</div>
+    <div style="text-align:center; color:#aaa; padding:20px;">{% trans "لم يتم نشر البرنامج العام بعد." %}</div>
     {% endif %}
 </div>
 {% endif %}
@@ -30,7 +30,7 @@
         {% endfor %}
     </ul>
     {% if not programme.titre_adultes and not programme.intro_adultes and not programme.items_adultes %}
-    <div style="text-align:center; color:#aaa; padding:20px;">لم يتم نشر البرنامج العام بعد.</div>
+    <div style="text-align:center; color:#aaa; padding:20px;">{% trans "لم يتم نشر البرنامج العام بعد." %}</div>
     {% endif %}
 </div>
 {% endif %}

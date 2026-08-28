@@ -31,7 +31,8 @@ prévu séparément — voir chat.services.conversations_avec_apercu qui calcule
 déjà nb_non_lus, mais seulement pour la page liste de chat elle-même, pas
 par groupe affiché ailleurs).
 {% endcomment %}
+{% load i18n %}
 <a href="{% url 'chat_conversation' groupe_id %}" class="btn-chat-groupe">
     <span aria-hidden="true">💬</span>
-    <span>الدردشة</span>
+    <span>{% trans "الدردشة" %}</span>
 </a>

@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.utils.translation import gettext as _
 
 def login_view(request):
     if request.user.is_authenticated:
@@ -21,13 +22,13 @@ def login_view(request):
             # qui met is_active=False à l'archivage — chantier du 2026-08-03).
             if not user.is_active:
                 return render(request, 'accounts/login.html', {
-                    'error': 'حسابك مؤرشف حالياً، تواصل مع الإدارة.'
+                    'error': _('حسابك مؤرشف حالياً، تواصل مع الإدارة.')
                 })
             login(request, user)
             return redirect_by_role(user)
         else:
             return render(request, 'accounts/login.html', {
-                'error': 'البريد الإلكتروني أو كلمة المرور غير صحيحة'
+                'error': _('البريد الإلكتروني أو كلمة المرور غير صحيحة')
             })
     
     return render(request, 'accounts/login.html')
@@ -192,8 +193,8 @@ def reinitialiser_mon_mot_de_passe(request):
         logout(request)
         messages.success(
             request,
-            'تم إنشاء كلمة مرور جديدة وإشعار الإدارة بها — تواصل معها للحصول عليها، '
-            'ثم سجّل الدخول من جديد.'
+            _('تم إنشاء كلمة مرور جديدة وإشعار الإدارة بها — تواصل معها للحصول عليها، '
+              'ثم سجّل الدخول من جديد.')
         )
         return redirect('login')
     return redirect_by_role(request.user)
@@ -208,7 +209,7 @@ def modifier_telephone(request):
     if request.method == 'POST':
         request.user.telephone = request.POST.get('telephone', '').strip()
         request.user.save(update_fields=['telephone'])
-        messages.success(request, 'تم تحديث رقم الهاتف بنجاح.')
+        messages.success(request, _('تم تحديث رقم الهاتف بنجاح.'))
         next_url = request.POST.get('next')
         if next_url:
             return redirect(next_url)

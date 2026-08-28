@@ -1,6 +1,6 @@
 {% extends 'dashboard/base_eleve.html' %}
-{% load libelles_arabes %}
-{% block title %}لوحة الطالب{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "لوحة الطالب" %}{% endblock %}
 {% block extra_css %}
 <style>
 .dash-top-row { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
@@ -21,8 +21,8 @@ déplacée depuis base_eleve.html.
 {% include 'dashboard/_header_raccourcis.html' with afficher_messages=True afficher_annonces=True afficher_notifications=True url_annonces='eleve_annonces' couleur_role='var(--color-role-eleve-solid)' %}
 <div class="dash-top-row">
     <div>
-        <div class="page-title" style="margin-bottom:2px;">أهلاً، {{ eleve.user.get_full_name }} 👋</div>
-        <div class="page-subtitle" style="margin-bottom:0;">لوحة التحكم الخاصة بك</div>
+        <div class="page-title" style="margin-bottom:2px;">{% blocktrans with nom=eleve.user.get_full_name %}أهلاً، {{ nom }} 👋{% endblocktrans %}</div>
+        <div class="page-subtitle" style="margin-bottom:0;">{% trans "لوحة التحكم الخاصة بك" %}</div>
     </div>
     {% if groupe_principal %}
     <a href="{% url 'eleve_profil' %}" class="group-chip">📚 {{ groupe_principal.nom }}</a>
@@ -32,8 +32,8 @@ déplacée depuis base_eleve.html.
 {% if annonces_recentes %}
 <div style="background:#fff8ec; border:2px solid var(--color-brand-gold); border-radius:14px; padding:18px 22px; margin-bottom:24px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <div style="font-weight:700; color:var(--color-brand-gold-dark); font-size:1.05rem;">📢 إعلانات جديدة</div>
-        <a href="{% url 'eleve_annonces' %}" style="color:var(--color-brand-gold-dark); font-size:0.85rem; text-decoration:none; font-weight:600;">عرض الكل ←</a>
+        <div style="font-weight:700; color:var(--color-brand-gold-dark); font-size:1.05rem;">📢 {% trans "إعلانات جديدة" %}</div>
+        <a href="{% url 'eleve_annonces' %}" style="color:var(--color-brand-gold-dark); font-size:0.85rem; text-decoration:none; font-weight:600;">{% trans "عرض الكل ←" %}</a>
     </div>
     {% for annonce in annonces_recentes %}
     <div style="{% if not forloop.last %}border-bottom:1px solid rgba(139,75,0,0.12); margin-bottom:10px; padding-bottom:10px;{% endif %}">
@@ -47,26 +47,26 @@ déplacée depuis base_eleve.html.
 <div class="hero-ring-card">
     {% include 'dashboard/_ring_hizb.html' %}
     <div class="stats-row">
-        <div class="stat-mini"><div class="v">{{ total_seances }}</div><div class="l">حصة</div></div>
-        <div class="stat-mini"><div class="v">{{ total_present }}</div><div class="l">حضور</div></div>
-        <div class="stat-mini"><div class="v">{{ nb_sourates_distinctes }}</div><div class="l">سور بدأت</div></div>
+        <div class="stat-mini"><div class="v">{{ total_seances }}</div><div class="l">{% trans "حصة" %}</div></div>
+        <div class="stat-mini"><div class="v">{{ total_present }}</div><div class="l">{% trans "حضور" %}</div></div>
+        <div class="stat-mini"><div class="v">{{ nb_sourates_distinctes }}</div><div class="l">{% trans "سور بدأت" %}</div></div>
     </div>
 </div>
 
 {% if derniere_avec_consignes %}
 <div style="background:#fff8ec; border:2px solid var(--color-brand-gold); border-radius:14px; padding:20px 22px; margin-bottom:24px;">
-    <div style="font-weight:700; color:var(--color-brand-gold-dark); font-size:1.05rem; margin-bottom:12px;">📌 المطلوب منك</div>
+    <div style="font-weight:700; color:var(--color-brand-gold-dark); font-size:1.05rem; margin-bottom:12px;">📌 {% trans "المطلوب منك" %}</div>
     {% if derniere_avec_consignes.consigne_memorisation %}
-    <div style="margin-bottom:8px;"><span style="font-weight:600;">الحفظ:</span> {{ derniere_avec_consignes.consigne_memorisation }}</div>
+    <div style="margin-bottom:8px;"><span style="font-weight:600;">{% trans "الحفظ:" %}</span> {{ derniere_avec_consignes.consigne_memorisation }}</div>
     {% endif %}
     {% if derniere_avec_consignes.consigne_revision %}
-    <div><span style="font-weight:600;">المراجعة:</span> {{ derniere_avec_consignes.consigne_revision }}</div>
+    <div><span style="font-weight:600;">{% trans "المراجعة:" %}</span> {{ derniere_avec_consignes.consigne_revision }}</div>
     {% endif %}
-    <div style="color:#9a8557; font-size:0.78rem; margin-top:10px;">حسب حصة {{ derniere_avec_consignes.seance.date|date:"d-m-Y" }} — {{ derniere_avec_consignes.seance.groupe.nom }}</div>
+    <div style="color:#9a8557; font-size:0.78rem; margin-top:10px;">{% blocktrans with date_seance=derniere_avec_consignes.seance.date|date:"d-m-Y" nom_groupe=derniere_avec_consignes.seance.groupe.nom %}حسب حصة {{ date_seance }} — {{ nom_groupe }}{% endblocktrans %}</div>
 </div>
 {% endif %}
 
-<div class="section-title">الحصة القادمة</div>
+<div class="section-title">{% trans "الحصة القادمة" %}</div>
 <div class="compact-card mb-4">
     {% if prochaine_seance %}
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -74,10 +74,10 @@ déplacée depuis base_eleve.html.
             <div style="font-weight:700;">{{ prochaine_seance.date|date:"d-m-Y" }} — {{ prochaine_seance.heure|time:"H:i" }}</div>
             <div style="color:#888; font-size:0.82rem; margin-top:2px;">{{ prochaine_seance.groupe.nom }}</div>
             <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">
-                👥 {{ prochaine_seance.groupe.eleves.all|length }} طلاب{% if prochaine_seance.groupe.eleves.all %}: {{ prochaine_seance.groupe.eleves|noms_eleves }}{% endif %}
+                👥 {% blocktrans with n=prochaine_seance.groupe.eleves.all|length %}{{ n }} طلاب{% endblocktrans %}{% if prochaine_seance.groupe.eleves.all %}: {{ prochaine_seance.groupe.eleves|noms_eleves }}{% endif %}
             </div>
             {% if prochaine_seance.statut == 'annulee' and prochaine_seance.remarque %}
-            <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">السبب: {{ prochaine_seance.remarque }}</div>
+            <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">{% trans "السبب:" %} {{ prochaine_seance.remarque }}</div>
             {% endif %}
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
@@ -85,11 +85,11 @@ déplacée depuis base_eleve.html.
         </div>
     </div>
     {% else %}
-    <div style="text-align:center; color:#aaa; padding:6px 0;">لا توجد حصة مبرمجة حالياً</div>
+    <div style="text-align:center; color:#aaa; padding:6px 0;">{% trans "لا توجد حصة مبرمجة حالياً" %}</div>
     {% endif %}
 </div>
 
-<div class="section-title">آخر التقييمات</div>
+<div class="section-title">{% trans "آخر التقييمات" %}</div>
 {% if dernieres_evaluations %}
 <div class="row g-3 mb-4">
     {% for presence in dernieres_evaluations %}
@@ -98,26 +98,26 @@ déplacée depuis base_eleve.html.
             <div style="color:#888; font-size:0.78rem;">{{ presence.seance.date|date:"d-m-Y" }}</div>
             <div style="font-weight:600; font-size:0.9rem; margin:4px 0 8px;">{{ presence.seance.groupe.nom }}</div>
             {% include 'dashboard/_medal_badge.html' with code=presence.note_memorisation label=presence.get_note_memorisation_display %}
-            <div style="color:var(--color-role-eleve-solid); font-size:0.8rem; margin-top:10px;">عرض التفاصيل ←</div>
+            <div style="color:var(--color-role-eleve-solid); font-size:0.8rem; margin-top:10px;">{% trans "عرض التفاصيل ←" %}</div>
         </a>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<div class="compact-card mb-4" style="text-align:center; color:#aaa;">لا توجد تقييمات بعد</div>
+<div class="compact-card mb-4" style="text-align:center; color:#aaa;">{% trans "لا توجد تقييمات بعد" %}</div>
 {% endif %}
 
-<div class="section-title">آخر ما تم حفظه</div>
+<div class="section-title">{% trans "آخر ما تم حفظه" %}</div>
 <div class="sourate-chip-row">
     {% for s in sourates_recentes %}
     <div class="sourate-chip">
         <div class="nom">{{ s.nom }}</div>
-        <div class="ayat-count">{{ s.ayat_couverts }}/{{ s.total_ayat_sourate }} آية</div>
+        <div class="ayat-count">{% blocktrans with couverts=s.ayat_couverts total=s.total_ayat_sourate %}{{ couverts }}/{{ total }} آية{% endblocktrans %}</div>
         <div class="progress-track"><div class="progress-fill" style="width:{{ s.pourcentage }}%;"></div></div>
         {% include 'dashboard/_medal_badge.html' with code=s.note_code label=s.note_display %}
     </div>
     {% empty %}
-    <div style="color:#aaa; padding:10px 4px;">لا يوجد أي حفظ مسجَّل بعد</div>
+    <div style="color:#aaa; padding:10px 4px;">{% trans "لا يوجد أي حفظ مسجَّل بعد" %}</div>
     {% endfor %}
 </div>
 

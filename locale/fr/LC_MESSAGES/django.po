@@ -1,0 +1,1999 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: fr\n"
+
+msgid "%(couverts)s/%(total)s آية"
+msgstr "%(couverts)s/%(total)s verset(s)"
+
+msgid "%(duree)s دقيقة"
+msgstr "%(duree)s minutes"
+
+msgid "%(min)s على الأقل"
+msgstr "%(min)s au minimum"
+
+msgid "%(n).1f ك.ب"
+msgstr "%(n).1f Ko"
+
+msgid "%(n).1f م.ب"
+msgstr "%(n).1f Mo"
+
+msgid "%(n)d بايت"
+msgstr "%(n)d octets"
+
+msgid "%(n)s حصة"
+msgstr "%(n)s séance(s)"
+
+msgid "%(n)s حصص سابقة لم يتم تقييمها بعد"
+msgstr "%(n)s séances passées pas encore évaluées"
+
+msgid "%(n)s طالب"
+msgstr "%(n)s élève(s)"
+
+msgid "%(n)s طالب (بالغ) × %(tarif)s د.م."
+msgstr "%(n)s élève(s) (adulte) × %(tarif)s MAD"
+
+msgid "%(n)s طالب (طفل) × %(tarif)s د.م."
+msgstr "%(n)s élève(s) (enfant) × %(tarif)s MAD"
+
+msgid "%(n)s طلاب"
+msgstr "%(n)s élèves"
+
+msgid "%(n)s غياب"
+msgstr "%(n)s absence(s)"
+
+msgid "%(n)s غياب هذا الشهر"
+msgstr "%(n)s absence(s) ce mois-ci"
+
+msgid "%(n)s مشارك"
+msgstr "%(n)s participant(s)"
+
+msgid "%(n)s نسخة"
+msgstr "%(n)s copie(s)"
+
+msgid "%(nom_groupe)s — %(duree)s دقيقة"
+msgstr "%(nom_groupe)s — %(duree)s minutes"
+
+msgid "%(nom_groupe)s — %(nb)s سؤال — %(duree)s دقيقة"
+msgstr "%(nom_groupe)s — %(nb)s question(s) — %(duree)s minutes"
+
+msgid "%(occupes)s / %(capacite)s مكان"
+msgstr "%(occupes)s / %(capacite)s place(s)"
+
+msgid "%(points)s / %(max)s نقطة"
+msgstr "%(points)s / %(max)s point(s)"
+
+msgid "%(points)s نقطة"
+msgstr "%(points)s point(s)"
+
+msgid "%(present)s حضور · %(absent)s غياب · %(total)s حصص"
+msgstr "%(present)s présences · %(absent)s absences · %(total)s séances"
+
+msgid "+ %(n)s حصة أخرى قادمة لاحقاً — عرض ↓"
+msgstr "+ %(n)s autre(s) séance(s) à venir — afficher ↓"
+
+msgid "+%(n)s آية"
+msgstr "+%(n)s verset(s)"
+
+msgid "[حساب محذوف]"
+msgstr "[Compte supprimé]"
+
+msgid "آخر أجل لأداء الاشتراك: <strong>%(date_limite_affichee)s</strong> (%(jours)s أيام من تاريخ التسجيل)"
+msgstr "Date limite de paiement de l'abonnement : <strong>%(date_limite_affichee)s</strong> (%(jours)s jours à partir de la date d'inscription)"
+
+msgid "آخر أجل للتسليم"
+msgstr "Date limite de remise"
+
+msgid "آخر التقييمات"
+msgstr "Dernières évaluations"
+
+msgid "آخر الحصص"
+msgstr "Dernières séances"
+
+msgid "آخر تحديث: %(date_maj)s"
+msgstr "Dernière mise à jour : %(date_maj)s"
+
+msgid "آخر ما تم حفظه"
+msgstr "Dernières mémorisations"
+
+msgid "آية محفوظة"
+msgstr "versets mémorisés"
+
+msgid "أخرى"
+msgstr "Autre"
+
+msgid "أدخل المقترحات (مقترحان على الأقل) وحدّد الإجابة الصحيحة"
+msgstr "Saisissez les propositions (au moins deux) et indiquez la bonne réponse"
+
+msgid "أدخل بريدك الإلكتروني"
+msgstr "Entrez votre e-mail"
+
+msgid "أدخل كلمة المرور"
+msgstr "Entrez votre mot de passe"
+
+msgid "أدوات التواصل"
+msgstr "Outils de communication"
+
+msgid "أضف ملاحظة جديدة..."
+msgstr "Ajouter une nouvelle note..."
+
+msgid "أضيفت من طرف الإدارة"
+msgstr "Ajoutés par l'administration"
+
+msgid "أطفال"
+msgstr "Enfants"
+
+msgid "أعد كتابة رقم الهاتف"
+msgstr "Retapez le numéro de téléphone"
+
+msgid "أعضاء المحادثة"
+msgstr "Membres de la conversation"
+
+msgid "أمس"
+msgstr "Hier"
+
+msgid "أنثى"
+msgstr "Femme"
+
+msgid "أهلاً بك في زدني علماً"
+msgstr "Bienvenue sur Zidni Ilman"
+
+msgid "أهلاً، %(nom)s 👋"
+msgstr "Bienvenue, %(nom)s 👋"
+
+msgid "أولاً:"
+msgstr "Premièrement :"
+
+msgid "إجابة الطالب:"
+msgstr "Réponse de l'élève :"
+
+msgid "إجابة صوتية"
+msgstr "Réponse audio"
+
+msgid "إجابة صوتية (تصحيح يدوي)"
+msgstr "Réponse audio (correction manuelle)"
+
+msgid "إجابة فيديو"
+msgstr "Réponse vidéo"
+
+msgid "إجابة فيديو (تصحيح يدوي)"
+msgstr "Réponse vidéo (correction manuelle)"
+
+msgid "إجابة نصية"
+msgstr "Réponse écrite"
+
+msgid "إجابة نصية (تصحيح يدوي)"
+msgstr "Réponse écrite (correction manuelle)"
+
+msgid "إجابتك:"
+msgstr "Votre réponse :"
+
+msgid "إجمالي الحصص: %(n)s"
+msgstr "Total des séances : %(n)s"
+
+msgid "إجمالي الطلاب"
+msgstr "Total des élèves"
+
+msgid "إجمالي المجموعات: %(n)s"
+msgstr "Total des groupes : %(n)s"
+
+msgid "إخفاء"
+msgstr "Masquer"
+
+msgid "إخفاء الباقي ↑"
+msgstr "Masquer le reste ↑"
+
+msgid "إخفاء الحصص القديمة ↑"
+msgstr "Masquer les anciennes séances ↑"
+
+msgid "إخفاء ↑"
+msgstr "Masquer ↑"
+
+msgid "إرسال"
+msgstr "Envoyer"
+
+msgid "إرسال للموافقة"
+msgstr "Envoyer pour approbation"
+
+msgid "إرفاق ملف"
+msgstr "Joindre un fichier"
+
+msgid "إضافة سؤال"
+msgstr "Ajouter une question"
+
+msgid "إضافة سؤال جديد"
+msgstr "Ajouter une nouvelle question"
+
+msgid "إضافة ملاحظة ✚"
+msgstr "Ajouter une note ✚"
+
+msgid "إظهار"
+msgstr "Afficher"
+
+msgid "إظهار/إخفاء كلمة المرور"
+msgstr "Afficher/masquer le mot de passe"
+
+msgid "إعادة التسجيل"
+msgstr "Réenregistrer"
+
+msgid "إعلانات جديدة"
+msgstr "Nouvelles annonces"
+
+msgid "إغلاق"
+msgstr "Fermer"
+
+msgid "إغلاق الاختبار"
+msgstr "Fermer l'examen"
+
+msgid "إلغاء"
+msgstr "Annuler"
+
+msgid "إلغاء المرفق"
+msgstr "Annuler la pièce jointe"
+
+msgid "إلى"
+msgstr "à"
+
+msgid "إلى تاريخ"
+msgstr "Jusqu'au"
+
+msgid "إلى غاية"
+msgstr "jusqu'au"
+
+msgid "إناث فقط"
+msgstr "Filles uniquement"
+
+msgid "إنشاء اختبار"
+msgstr "Créer un examen"
+
+msgid "إنشاء اختبار جديد"
+msgstr "Créer un nouvel examen"
+
+msgid "إنشاء ومتابعة اختبارات حلقاتك"
+msgstr "Créer et suivre les examens de vos groupes"
+
+msgid "إيقاف"
+msgstr "Arrêter"
+
+msgid "اختباراتي"
+msgstr "Mes examens"
+
+msgid "اختر الحلقة"
+msgstr "Choisir le groupe"
+
+msgid "اختر الفئة العمرية"
+msgstr "Choisissez la tranche d'âge"
+
+msgid "اختر مجموعة من القائمة لعرض رسائلها."
+msgstr "Choisissez un groupe dans la liste pour afficher ses messages."
+
+msgid "اختر محادثة"
+msgstr "Choisissez une conversation"
+
+msgid "اختر..."
+msgstr "Choisir..."
+
+msgid "اختيار البرنامج"
+msgstr "Choix du programme"
+
+msgid "اختيار المجموعة"
+msgstr "Choix du groupe"
+
+msgid "اختيار صورة"
+msgstr "Choisir une image"
+
+msgid "اختيار من متعدد"
+msgstr "Choix multiple"
+
+msgid "اختيار نوع الاشتراك"
+msgstr "Choix du type d'abonnement"
+
+msgid "اقتراح جدول جديد"
+msgstr "Proposer un nouvel horaire"
+
+msgid "اكتب إجابتك هنا..."
+msgstr "Écrivez votre réponse ici..."
+
+msgid "اكتب رسالة..."
+msgstr "Écrire un message..."
+
+msgid "الآيات %(plages)s من أصل %(total)s"
+msgstr "Versets %(plages)s sur %(total)s"
+
+msgid "الأحد"
+msgstr "Dimanche"
+
+msgid "الأربعاء"
+msgstr "Mercredi"
+
+msgid "الأسئلة"
+msgstr "Questions"
+
+msgid "الأسبوع القادم"
+msgstr "La semaine prochaine"
+
+msgid "الأسبوع من %(debut)s إلى %(fin)s"
+msgstr "Semaine du %(debut)s au %(fin)s"
+
+msgid "الأستاذ"
+msgstr "L'enseignant"
+
+msgid "الأطفال"
+msgstr "Les enfants"
+
+msgid "الأمان"
+msgstr "Sécurité"
+
+msgid "الأوقات المتاحة للتدريس"
+msgstr "Créneaux disponibles pour enseigner"
+
+msgid "الإجابة الصحيحة"
+msgstr "La bonne réponse"
+
+msgid "الإجابة الصحيحة:"
+msgstr "La bonne réponse :"
+
+msgid "الإجراء الأول"
+msgstr "Première mesure"
+
+msgid "الإجراء الثالث"
+msgstr "Troisième mesure"
+
+msgid "الإجراء الثاني"
+msgstr "Deuxième mesure"
+
+msgid "الإدارة"
+msgstr "Administration"
+
+msgid "الإشعارات"
+msgstr "Notifications"
+
+msgid "الإشعارات — %(n)s إشعارات جديدة"
+msgstr "Notifications — %(n)s nouvelles notifications"
+
+msgid "الإعفاء الفوري"
+msgstr "Renvoi immédiat"
+
+msgid "الإعلانات"
+msgstr "Annonces"
+
+msgid "الإعلانات — %(n)s إعلانات غير مقروءة"
+msgstr "Annonces — %(n)s annonces non lues"
+
+msgid "الإنجليزية"
+msgstr "Anglais"
+
+msgid "الإنذار الأول"
+msgstr "Premier avertissement"
+
+msgid "الإنذار الثاني"
+msgstr "Deuxième avertissement"
+
+msgid "الاثنان"
+msgstr "Les deux"
+
+msgid "الاثنين"
+msgstr "Lundi"
+
+msgid "الاختبارات"
+msgstr "Examens"
+
+msgid "الاختبارات المتاحة لحلقاتك"
+msgstr "Examens disponibles pour vos groupes"
+
+msgid "الاسم الكامل"
+msgstr "Nom complet"
+
+msgid "الاشتراك"
+msgstr "Abonnement"
+
+msgid "الانضمام إلى الاجتماع"
+msgstr "Rejoindre la réunion"
+
+msgid "البحث عن مجموعة"
+msgstr "Rechercher un groupe"
+
+msgid "البحث عن مجموعة..."
+msgstr "Rechercher un groupe..."
+
+msgid "البراعم"
+msgstr "Baraem (les bourgeons)"
+
+msgid "البرنامج العام"
+msgstr "Programme général"
+
+msgid "البرنامج العام لمقرأة زدني علماً — للاطلاع فقط."
+msgstr "Le programme général de l'école Zidni Ilman — à titre informatif uniquement."
+
+msgid "البريد الإلكتروني"
+msgstr "E-mail"
+
+msgid "البريد الإلكتروني أو كلمة المرور غير صحيحة"
+msgstr "E-mail ou mot de passe incorrect"
+
+msgid "البيان الشهري"
+msgstr "Le bilan mensuel"
+
+msgid "البيان الشهري — %(nom)s"
+msgstr "Bilan mensuel — %(nom)s"
+
+msgid "البيانات الشهرية للطلاب"
+msgstr "Bilans mensuels des élèves"
+
+msgid "التالي ←"
+msgstr "Suivant ←"
+
+msgid "التحقق عبر واتساب"
+msgstr "Vérifier via WhatsApp"
+
+msgid "التسجيل الصوتي غير مدعوم على هذا المتصفح"
+msgstr "L'enregistrement audio n'est pas pris en charge par ce navigateur"
+
+msgid "التسجيل كطالب"
+msgstr "S'inscrire comme élève"
+
+msgid "التسجيل كمعلم"
+msgstr "S'inscrire comme enseignant"
+
+msgid "التقدم حسب السورة"
+msgstr "Progression par sourate"
+
+msgid "التقييم"
+msgstr "Évaluation"
+
+msgid "التقييمات التي كتبها المؤطر (المشرف) على حصصك — الأحدث أولاً، للقراءة فقط"
+msgstr "Les évaluations écrites par le superviseur sur vos séances — les plus récentes en premier, lecture seule"
+
+msgid "التلاوة"
+msgstr "Récitation"
+
+msgid "التلاوة:"
+msgstr "Récitation :"
+
+msgid "التلقين"
+msgstr "Talqîn (initiation)"
+
+msgid "التلميذ"
+msgstr "L'élève"
+
+msgid "التواصل"
+msgstr "Contact"
+
+msgid "التواصل مع الإدارة"
+msgstr "Contacter l'administration"
+
+msgid "التوقيت"
+msgstr "Horaire"
+
+msgid "الثلاثاء"
+msgstr "Mardi"
+
+msgid "الجدول"
+msgstr "Horaire"
+
+msgid "الجدول الحالي (الساري فعلياً)"
+msgstr "Horaire actuel (en vigueur)"
+
+msgid "الجدول:"
+msgstr "Horaire :"
+
+msgid "الجمعة"
+msgstr "Vendredi"
+
+msgid "الجنس"
+msgstr "Sexe"
+
+msgid "الحالة"
+msgstr "Statut"
+
+msgid "الحزب %(numero)s: %(fraction)s"
+msgstr "Hizb %(numero)s : %(fraction)s"
+
+msgid "الحصة القادمة"
+msgstr "Prochaine séance"
+
+msgid "الحصص الفردية"
+msgstr "Séances individuelles"
+
+msgid "الحصص القادمة"
+msgstr "Séances à venir"
+
+msgid "الحصص الماضية"
+msgstr "Séances passées"
+
+msgid "الحضور"
+msgstr "Présence"
+
+msgid "الحفظ"
+msgstr "Mémorisation"
+
+msgid "الحفظ:"
+msgstr "Mémorisation :"
+
+msgid "الحلقة"
+msgstr "Le groupe"
+
+msgid "الخطوة 1 من 6"
+msgstr "Étape 1 sur 6"
+
+msgid "الخطوة 1: المعلومات العامة — أضف الأسئلة بعد الحفظ"
+msgstr "Étape 1 : informations générales — ajoutez les questions après l'enregistrement"
+
+msgid "الخطوة 2 من 6"
+msgstr "Étape 2 sur 6"
+
+msgid "الخطوة 3 من 6 — المجموعات المتوافقة مع اختياراتك"
+msgstr "Étape 3 sur 6 — Groupes compatibles avec vos choix"
+
+msgid "الخطوة 4 من 6"
+msgstr "Étape 4 sur 6"
+
+msgid "الخطوة 5 من 6"
+msgstr "Étape 5 sur 6"
+
+msgid "الخميس"
+msgstr "Jeudi"
+
+msgid "الدردشة"
+msgstr "Discussion"
+
+msgid "الدفع"
+msgstr "Paiement"
+
+msgid "الذي جمعته لحد الآن (%(confirmees)s من %(prevues)s حصص)"
+msgstr "Ce que vous avez gagné jusqu'à présent (%(confirmees)s sur %(prevues)s séances)"
+
+msgid "الرابط غير متاح إلا قبل/بعد موعد الحصة بهامش محدد"
+msgstr "Le lien n'est disponible qu'un peu avant/après l'heure de la séance"
+
+msgid "الرجال"
+msgstr "Les hommes"
+
+msgid "الرسائل"
+msgstr "Messages"
+
+msgid "الرسائل — %(n)s رسائل غير مقروءة"
+msgstr "Messages — %(n)s messages non lus"
+
+msgid "السبب:"
+msgstr "Raison :"
+
+msgid "السبت"
+msgstr "Samedi"
+
+msgid "السجل الزمني"
+msgstr "Historique"
+
+msgid "السجل الكامل"
+msgstr "Historique complet"
+
+msgid "السورة"
+msgstr "Sourate"
+
+msgid "الشهادات"
+msgstr "Certifications"
+
+msgid "الشهر"
+msgstr "Mois"
+
+msgid "الشهر التالي ›"
+msgstr "Mois suivant ›"
+
+msgid "الطالب"
+msgstr "L'élève"
+
+msgid "الطلاب"
+msgstr "Les élèves"
+
+msgid "العربية"
+msgstr "Arabe"
+
+msgid "العمل الحالي"
+msgstr "Emploi actuel"
+
+msgid "العنوان (اختياري)"
+msgstr "Titre (facultatif)"
+
+msgid "العودة إلى الصفحة الرئيسية"
+msgstr "Retour à la page d'accueil"
+
+msgid "العودة إلى قائمة المحادثات"
+msgstr "Retour à la liste des conversations"
+
+msgid "الفئة العمرية:"
+msgstr "Tranche d'âge :"
+
+msgid "الفئة المفضلة"
+msgstr "Catégorie préférée"
+
+msgid "الفرنسية"
+msgstr "Français"
+
+msgid "القادمة"
+msgstr "À venir"
+
+msgid "القناة الموجهة إليك"
+msgstr "Le canal qui vous est destiné"
+
+msgid "القواعد والالتزامات التي يجب على كل معلم الاطلاع عليها والموافقة عليها."
+msgstr "Les règles et engagements que chaque enseignant doit consulter et approuver."
+
+msgid "الكل"
+msgstr "Tous"
+
+msgid "اللغات"
+msgstr "Langues"
+
+msgid "اللغة"
+msgstr "Langue"
+
+msgid "المؤطر"
+msgstr "Le superviseur"
+
+msgid "الماضية"
+msgstr "Passées"
+
+msgid "المتاح من"
+msgstr "Disponible à partir de"
+
+msgid "المجموع الفرعي"
+msgstr "Sous-total"
+
+msgid "المجموعات"
+msgstr "Groupes"
+
+msgid "المجموعات الجماعية"
+msgstr "Groupes collectifs"
+
+msgid "المجموعة"
+msgstr "Le groupe"
+
+msgid "المخالفة"
+msgstr "Infraction"
+
+msgid "المدة القصوى"
+msgstr "Durée maximale"
+
+msgid "المدة القصوى (بالدقائق)"
+msgstr "Durée maximale (en minutes)"
+
+msgid "المدير"
+msgstr "Le directeur"
+
+msgid "المدينة"
+msgstr "Ville"
+
+msgid "المراجعة"
+msgstr "Révision"
+
+msgid "المراجعة:"
+msgstr "Révision :"
+
+msgid "المسار التعليمي"
+msgstr "Parcours d'enseignement"
+
+msgid "المسار الدراسي"
+msgstr "Parcours scolaire"
+
+msgid "المشاركون في هذه المحادثة"
+msgstr "Les participants à cette conversation"
+
+msgid "المطلوب حفظه"
+msgstr "À mémoriser"
+
+msgid "المطلوب حفظه *"
+msgstr "À mémoriser *"
+
+msgid "المطلوب حفظه:"
+msgstr "À mémoriser :"
+
+msgid "المطلوب مراجعته"
+msgstr "À réviser"
+
+msgid "المطلوب مراجعته *"
+msgstr "À réviser *"
+
+msgid "المطلوب مراجعته:"
+msgstr "À réviser :"
+
+msgid "المطلوب منك"
+msgstr "Ce qui vous est demandé"
+
+msgid "المطلوب منك للحصة القادمة"
+msgstr "Ce qui vous est demandé pour la prochaine séance"
+
+msgid "المعلم:"
+msgstr "Enseignant :"
+
+msgid "المعلومات الشخصية"
+msgstr "Informations personnelles"
+
+msgid "الملفات التي أضافتها الإدارة إلى ملفك الشخصي"
+msgstr "Les fichiers ajoutés par l'administration à votre profil"
+
+msgid "المواظبة والسلوك"
+msgstr "Assiduité et comportement"
+
+msgid "المواظبة والسلوك:"
+msgstr "Assيduité et comportement :"
+
+msgid "النساء"
+msgstr "Les femmes"
+
+msgid "النسخ (%(n)s)"
+msgstr "Copies (%(n)s)"
+
+msgid "النسخ المُقدَّمة"
+msgstr "Copies soumises"
+
+msgid "النقاط (من %(max)s)"
+msgstr "Points (sur %(max)s)"
+
+msgid "النقاط:"
+msgstr "Points :"
+
+msgid "الهاتف"
+msgstr "Téléphone"
+
+msgid "اليافعون"
+msgstr "Yafi'un (adolescents)"
+
+msgid "اليوم"
+msgstr "Aujourd'hui"
+
+msgid "انتهت المهلة قبل تسجيل حضور كل الطلاب — البيانات المسجَّلة تبقى محفوظة"
+msgstr "Le délai a expiré avant l'enregistrement de la présence de tous les élèves — les données déjà saisies restent conservées"
+
+msgid "انتهت المهلة — تقييم غير مكتمل"
+msgstr "Délai expiré — évaluation incomplète"
+
+msgid "انتهت المهلة — لم تُقيَّم"
+msgstr "Délai expiré — non évaluée"
+
+msgid "انتهت مهلة الاختبار"
+msgstr "Le délai de l'examen est écoulé"
+
+msgid "انتهت مهلة الـ24 ساعة — لن يكون بالإمكان تقييمها"
+msgstr "Le délai de 24 heures est écoulé — elle ne pourra plus être évaluée"
+
+msgid "انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) قبل إتمامها بالكامل — تم تسجيل %(enregistrees)s من أصل %(total)s طالب فقط (معروضون أدناه)، ولن يكون بالإمكان تسجيل الباقي. ستبقى هذه الحصة \"غير مكتملة التقييم\" نهائياً."
+msgstr "Le délai d'évaluation de cette séance (24 heures depuis son début) a expiré avant qu'elle ne soit terminée — %(enregistrees)s élèves sur %(total)s seulement ont été enregistrés (affichés ci-dessous), le reste ne pourra plus l'être. Cette séance restera définitivement \"évaluation incomplète\"."
+
+msgid "انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يتم تقييمها، ولن يكون ذلك ممكناً بعد الآن. ستبقى هذه الحصة \"غير مقيَّمة\" نهائياً."
+msgstr "Le délai d'évaluation de cette séance (24 heures depuis son début) est écoulé — elle n'a pas été évaluée et ne pourra plus l'être. Cette séance restera définitivement \"non évaluée\"."
+
+msgid "بالغ"
+msgstr "Adulte"
+
+msgid "بالغ (18 سنة فما فوق)"
+msgstr "Adulte (18 ans et plus)"
+
+msgid "بالغون"
+msgstr "Adultes"
+
+msgid "بانتظار إكمال التصحيح"
+msgstr "En attente de finaliser la correction"
+
+msgid "بانتظار التصحيح"
+msgstr "En attente de correction"
+
+msgid "بانتظار تصحيح الأستاذ لبعض الأسئلة"
+msgstr "En attente de la correction de l'enseignant pour certaines questions"
+
+msgid "بحث..."
+msgstr "Rechercher..."
+
+msgid "بحد أقصى %(max)s"
+msgstr "%(max)s au maximum"
+
+msgid "بدء الاختبار"
+msgstr "Commencer l'examen"
+
+msgid "بدأت في %(date_debut)s"
+msgstr "Commencée le %(date_debut)s"
+
+msgid "بقلم"
+msgstr "par"
+
+msgid "بقية هذا الأسبوع"
+msgstr "Reste de cette semaine"
+
+msgid "بمجرد أن يبدأ الطالب، تُحسب المدة من لحظة بدايته — لا يمكن تمديدها لاحقاً."
+msgstr "Dès que l'élève commence, la durée est comptée à partir de ce moment — elle ne peut pas être prolongée par la suite."
+
+msgid "بواسطة %(nom)s"
+msgstr "Par %(nom)s"
+
+msgid "بياناتي الشهرية"
+msgstr "Mes bilans mensuels"
+
+msgid "بين %(min)s و%(max)s"
+msgstr "Entre %(min)s et %(max)s"
+
+msgid "تأكيد التسجيل ✅"
+msgstr "Confirmer l'inscription ✅"
+
+msgid "تأكيد الموافقة ✅"
+msgstr "Confirmer l'approbation ✅"
+
+msgid "تأكيد رقم الواتساب *"
+msgstr "Confirmation du numéro WhatsApp *"
+
+msgid "تحديث الطلب المعلّق"
+msgstr "Mettre à jour la demande en attente"
+
+msgid "تحريك للأسفل"
+msgstr "Déplacer vers le bas"
+
+msgid "تحريك للأعلى"
+msgstr "Déplacer vers le haut"
+
+msgid "تحميل الملف ←"
+msgstr "Télécharger le fichier ←"
+
+msgid "تحميل ⬇"
+msgstr "Télécharger ⬇"
+
+msgid "تسجيل الخروج"
+msgstr "Déconnexion"
+
+msgid "تسجيل الدخول"
+msgstr "Connexion"
+
+msgid "تسجيل الفيديو غير مدعوم على هذا المتصفح"
+msgstr "L'enregistrement vidéo n'est pas pris en charge par ce navigateur"
+
+msgid "تسجيل صوتي"
+msgstr "Enregistrement audio"
+
+msgid "تسجيل فيديو"
+msgstr "Enregistrement vidéo"
+
+msgid "تسليم الاختبار"
+msgstr "Soumettre l'examen"
+
+msgid "تسليم تلقائي عند انتهاء الوقت"
+msgstr "Soumission automatique à la fin du temps imparti"
+
+msgid "تصحيح تلقائي"
+msgstr "Correction automatique"
+
+msgid "تصحيح نسخة"
+msgstr "Correction de la copie"
+
+msgid "تصحيح نسخة %(nom)s"
+msgstr "Correction de la copie de %(nom)s"
+
+msgid "تصفية"
+msgstr "Filtrer"
+
+msgid "تصفية القائمة"
+msgstr "Filtrer la liste"
+
+msgid "تصفية المحادثات حسب الفئة"
+msgstr "Filtrer les conversations par catégorie"
+
+msgid "تعديل"
+msgstr "Modifier"
+
+msgid "تعديل الاختبار"
+msgstr "Modifier l'examen"
+
+msgid "تعديل الاقتراح المعلّق"
+msgstr "Modifier la proposition en attente"
+
+msgid "تعديل السؤال"
+msgstr "Modifier la question"
+
+msgid "تعديل المعلومات"
+msgstr "Modifier les informations"
+
+msgid "تعديل سؤال"
+msgstr "Modifier une question"
+
+msgid "تعذّر إرسال الرسالة — تحقّق من اتصالك بالإنترنت وحاول مرة أخرى."
+msgstr "Impossible d'envoyer le message — vérifiez votre connexion internet et réessayez."
+
+msgid "تعذّر الاتصال بالخادم، جارٍ إعادة المحاولة…"
+msgstr "Connexion au serveur impossible, nouvelle tentative…"
+
+msgid "تعذّر تغيير الصورة — حاول مرة أخرى."
+msgstr "Impossible de changer la photo — réessayez."
+
+msgid "تعذّر حذف الرسالة — تحقّق من اتصالك بالإنترنت وحاول مرة أخرى."
+msgstr "Impossible de supprimer le message — vérifiez votre connexion internet et réessayez."
+
+msgid "تعليمات للطالب (اختياري)"
+msgstr "Instructions pour l'élève (facultatif)"
+
+msgid "تغيير صورة المجموعة"
+msgstr "Changer la photo du groupe"
+
+msgid "تفاصيل الحصة"
+msgstr "Détails de la séance"
+
+msgid "تقدمي في الحفظ"
+msgstr "Ma progression en mémorisation"
+
+msgid "تقييم الآن ←"
+msgstr "Évaluer maintenant ←"
+
+msgid "تقييم سابق"
+msgstr "évaluation précédente"
+
+msgid "تقييمات المؤطر لي"
+msgstr "Évaluations du superviseur pour moi"
+
+msgid "تقييماتي"
+msgstr "Mes évaluations"
+
+msgid "تلاوة"
+msgstr "récitation"
+
+msgid "تلقائياً عند انتهاء الوقت"
+msgstr "automatiquement à la fin du temps"
+
+msgid "تلقائياً عند انتهاء الوقت المحدد"
+msgstr "automatiquement à la fin du temps imparti"
+
+msgid "تم إرسال طلب تعديل الأوقات المتاحة للتدريس، بانتظار موافقة الإدارة."
+msgstr "La demande de modification des créneaux disponibles a été envoyée, en attente d'approbation de l'administration."
+
+msgid "تم التحرير ✅"
+msgstr "Rédigé ✅"
+
+msgid "تم التسجيل"
+msgstr "Inscription effectuée"
+
+msgid "تم التسليم"
+msgstr "Soumis"
+
+msgid "تم النسخ"
+msgstr "Copié"
+
+msgid "تم تحديث رقم الهاتف بنجاح."
+msgstr "Le numéro de téléphone a été mis à jour avec succès."
+
+msgid "تم تسجيل طلبك بنجاح، %(nom)s"
+msgstr "Votre demande a été enregistrée avec succès, %(nom)s"
+
+msgid "تم تسليم إجاباتك"
+msgstr "Vos réponses ont été soumises"
+
+msgid "تم تصحيح إجاباتك بالكامل"
+msgstr "Vos réponses ont été entièrement corrigées"
+
+msgid "تم تقييم هذه الحصة نهائياً — العرض التالي للاطلاع فقط، لم يعد بالإمكان تعديله."
+msgstr "Cette séance a été évaluée définitivement — l'affichage suivant est en lecture seule, il n'est plus possible de le modifier."
+
+msgid "تم حذف هذه الرسالة"
+msgstr "Ce message a été supprimé"
+
+msgid "ثالثاً:"
+msgstr "Troisièmement :"
+
+msgid "ثانياً:"
+msgstr "Deuxièmement :"
+
+msgid "جارٍ التسجيل…"
+msgstr "Enregistrement en cours…"
+
+msgid "جارٍ الحفظ..."
+msgstr "Enregistrement en cours..."
+
+msgid "جدولي"
+msgstr "Mon emploi du temps"
+
+msgid "جديد ؟"
+msgstr "Nouveau ?"
+
+msgid "جماعي"
+msgstr "Collectif"
+
+msgid "جميع تقييمات الطلاب التي قمت بتسجيلها — الأحدث أولاً"
+msgstr "Toutes les évaluations d'élèves que vous avez enregistrées — les plus récentes en premier"
+
+msgid "جهات الاتصال"
+msgstr "Contacts"
+
+msgid "حاضر"
+msgstr "Présent"
+
+msgid "حاضر ✅"
+msgstr "Présent ✅"
+
+msgid "حدد الساعات التي تكون فيها متاحاً للتدريس"
+msgstr "Indiquez les heures où vous êtes disponible pour enseigner"
+
+msgid "حدّد الدائرة بجانب المقترح الصحيح."
+msgstr "Cochez le cercle à côté de la bonne proposition."
+
+msgid "حذف"
+msgstr "Supprimer"
+
+msgid "حذف التسجيل"
+msgstr "Supprimer l'enregistrement"
+
+msgid "حذف التسجيل الصوتي الحالي؟"
+msgstr "Supprimer l'enregistrement audio actuel ?"
+
+msgid "حذف الرسالة"
+msgstr "Supprimer le message"
+
+msgid "حذف الفيديو"
+msgstr "Supprimer la vidéo"
+
+msgid "حذف الفيديو الحالي؟"
+msgstr "Supprimer la vidéo actuelle ?"
+
+msgid "حذف هذا السؤال نهائياً؟"
+msgstr "Supprimer définitivement cette question ?"
+
+msgid "حذف هذه الملاحظة نهائياً؟"
+msgstr "Supprimer définitivement cette note ?"
+
+msgid "حرر بياناً شهرياً (حفظ ومراجعة، تسميع، ملاحظات سلوك) لكل طالب في مجموعاتك"
+msgstr "Rédigez un bilan mensuel (mémorisation et révision, récitation, remarques de comportement) pour chaque élève de vos groupes"
+
+msgid "حزب محفوظ"
+msgstr "hizb mémorisé"
+
+msgid "حساب راتبك الشهري حسب شبكة تعرفات المنصة"
+msgstr "Calcul de votre salaire mensuel selon la grille tarifaire de la plateforme"
+
+msgid "حسابك مؤرشف حالياً، تواصل مع الإدارة."
+msgstr "Votre compte est actuellement archivé, contactez l'administration."
+
+msgid "حسب حصة %(date_seance)s — %(nom_groupe)s"
+msgstr "Selon la séance du %(date_seance)s — %(nom_groupe)s"
+
+msgid "حسن"
+msgstr "Bien"
+
+msgid "حسن جدا"
+msgstr "Très bien"
+
+msgid "حصة"
+msgstr "séance"
+
+msgid "حصة تعويضية"
+msgstr "Séance de rattrapage"
+
+msgid "حصصي"
+msgstr "Mes séances"
+
+msgid "حصصي وتقييماتي"
+msgstr "Mes séances et évaluations"
+
+msgid "حصيلة الغياب"
+msgstr "Bilan des absences"
+
+msgid "حصيلة الغياب الشهرية"
+msgstr "Bilan mensuel des absences"
+
+msgid "حضور"
+msgstr "présence"
+
+msgid "حفظ"
+msgstr "Enregistrer"
+
+msgid "حفظ البيان ✅"
+msgstr "Enregistrer le bilan ✅"
+
+msgid "حفظ التسجيل"
+msgstr "Enregistrer l'enregistrement"
+
+msgid "حفظ الحضور والتقييمات"
+msgstr "Enregistrer la présence et les évaluations"
+
+msgid "حفظ السؤال"
+msgstr "Enregistrer la question"
+
+msgid "حفظ الفيديو"
+msgstr "Enregistrer la vidéo"
+
+msgid "حقيبة الأستاذ"
+msgstr "La sacoche de l'enseignant"
+
+msgid "حقيبتي"
+msgstr "Mon cartable"
+
+msgid "خامساً:"
+msgstr "Cinquièmement :"
+
+msgid "خصم من الراتب"
+msgstr "Retenue sur salaire"
+
+msgid "خطأ"
+msgstr "Faux"
+
+msgid "خطأ في الاتصال — أعد المحاولة"
+msgstr "Erreur de connexion — réessayez"
+
+msgid "خطأ في الحفظ — أعد المحاولة"
+msgstr "Erreur d'enregistrement — réessayez"
+
+msgid "د.م."
+msgstr "MAD"
+
+msgid "دولة أخرى"
+msgstr "Autre pays"
+
+msgid "دون متوسط"
+msgstr "En dessous de la moyenne"
+
+msgid "ذكر"
+msgstr "Homme"
+
+msgid "ذكور فقط"
+msgstr "Garçons uniquement"
+
+msgid "رابط الاجتماع"
+msgstr "Lien de la réunion"
+
+msgid "رابعاً:"
+msgstr "Quatrièmement :"
+
+msgid "راتبك المتوقع لهذا الشهر (لو أُنجزت كل الحصص)"
+msgstr "Votre salaire prévu pour ce mois (si toutes les séances sont réalisées)"
+
+msgid "راتبي"
+msgstr "Mon salaire"
+
+msgid "راتبي الشهري"
+msgstr "Mon salaire mensuel"
+
+msgid "رجوع"
+msgstr "Retour"
+
+msgid "رجوع لتسجيل الدخول"
+msgstr "Retour à la connexion"
+
+msgid "رسائل جديدة"
+msgstr "nouveaux messages"
+
+msgid "رسالة صوتية"
+msgstr "Message vocal"
+
+msgid "رقم التأكيد لا يطابق رقم الهاتف المدخل"
+msgstr "Le numéro de confirmation ne correspond pas au numéro saisi"
+
+msgid "رقم الهاتف"
+msgstr "Numéro de téléphone"
+
+msgid "رقم الهاتف (واتساب) *"
+msgstr "Numéro de téléphone (WhatsApp) *"
+
+msgid "رمز الدولة، مثال: 20"
+msgstr "Indicatif du pays, exemple : 20"
+
+msgid "روابط ثابتة"
+msgstr "Liens fixes"
+
+msgid "زدني علماً"
+msgstr "Zidni Ilman"
+
+msgid "سؤال %(num)s / %(total)s — %(points)s نقطة"
+msgstr "Question %(num)s / %(total)s — %(points)s point(s)"
+
+msgid "سؤال %(num)s — %(type_q)s — %(points)s نقطة"
+msgstr "Question %(num)s — %(type_q)s — %(points)s point(s)"
+
+msgid "ستحصل على <strong>%(duree)s دقيقة</strong> بمجرد الضغط على \"بدء الاختبار\".\n        الوقت يستمر في الجريان حتى لو أغلقت الصفحة أو غادرت الموقع — لا يمكن استئنافه لاحقاً بمدة جديدة."
+msgstr "Vous disposerez de <strong>%(duree)s minutes</strong> dès que vous appuyez sur \"Commencer l'examen\".\n        Le temps continue de s'écouler même si vous fermez la page ou quittez le site — il ne peut pas être repris ensuite avec une nouvelle durée."
+
+msgid "ستظهر هنا فور نشر الإدارة لإعلان جديد في هذه القناة."
+msgstr "Elles apparaîtront ici dès que l'administration publiera une nouvelle annonce dans ce canal."
+
+msgid "سجل الحصص"
+msgstr "Registre des séances"
+
+msgid "سجل جميع حصصك"
+msgstr "Historique complet de vos séances"
+
+msgid "سجّل إجابتك الصوتية مباشرة من هاتفك أو حاسوبك."
+msgstr "Enregistrez votre réponse audio directement depuis votre téléphone ou ordinateur."
+
+msgid "سجّل إجابتك الفيديو مباشرة من كاميرا هاتفك أو حاسوبك (الحد الأقصى 40 م.ب)."
+msgstr "Enregistrez votre réponse vidéo directement depuis la caméra de votre téléphone ou ordinateur (maximum 40 Mo)."
+
+msgid "سطر لكل حصة — تم تعبئته تلقائياً من سجل الحصص، عدّله بحرية"
+msgstr "Une ligne par séance — rempli automatiquement à partir du registre des séances, modifiez-le librement"
+
+msgid "سور بدأت"
+msgstr "sourates commencées"
+
+msgid "سورة بدأت"
+msgstr "sourate commencée"
+
+msgid "سيتم تحديث الحضور والتقييمات لهذه الحصة المنتهية. هل أنت متأكد؟"
+msgstr "La présence et les évaluations de cette séance terminée seront mises à jour. Êtes-vous sûr ?"
+
+msgid "سيتواصل معك فريقنا خلال %(heures)s ساعة."
+msgstr "Notre équipe vous contactera sous %(heures)s heures."
+
+msgid "سُلِّمت في %(date_soumission)s"
+msgstr "Soumise le %(date_soumission)s"
+
+msgid "شبكة التعرفات المرجعية"
+msgstr "Grille tarifaire de référence"
+
+msgid "صح"
+msgstr "Vrai"
+
+msgid "صح / خطأ"
+msgstr "Vrai / Faux"
+
+msgid "صفحة %(num)s من %(total)s"
+msgstr "Page %(num)s sur %(total)s"
+
+msgid "ضعيف"
+msgstr "Faible"
+
+msgid "طريقة الدفع"
+msgstr "Moyen de paiement"
+
+msgid "طفل"
+msgstr "Enfant"
+
+msgid "طفل (أقل من 18 سنة)"
+msgstr "Enfant (moins de 18 ans)"
+
+msgid "عادية"
+msgstr "Normale"
+
+msgid "عدد الأسئلة"
+msgstr "Nombre de questions"
+
+msgid "عدد الطلاب"
+msgstr "Nombre d'élèves"
+
+msgid "عدد الطلاب:"
+msgstr "Nombre d'élèves :"
+
+msgid "عدد النقاط"
+msgstr "Nombre de points"
+
+msgid "عرض التفاصيل ←"
+msgstr "Voir les détails ←"
+
+msgid "عرض الكل ←"
+msgstr "Tout afficher ←"
+
+msgid "عرض الميثاق ←"
+msgstr "Voir la charte ←"
+
+msgid "عرض جميع الحصص (%(n)s) ↓"
+msgstr "Afficher toutes les séances (%(n)s) ↓"
+
+msgid "عرض جميع الحصص ←"
+msgstr "Voir toutes les séances ←"
+
+msgid "عرض جميع المجموعات السابقة (%(total)s) ↓"
+msgstr "Afficher tous les groupes précédents (%(total)s) ↓"
+
+msgid "عرض للاطلاع فقط"
+msgstr "Affichage en lecture seule"
+
+msgid "عرض ←"
+msgstr "Voir ←"
+
+msgid "عرض ↓"
+msgstr "Afficher ↓"
+
+msgid "علامة /20"
+msgstr "Note /20"
+
+msgid "عنوان الاختبار"
+msgstr "Titre de l'examen"
+
+msgid "عُدّلت %(date_mod)s"
+msgstr "Modifiée le %(date_mod)s"
+
+msgid "غائب بدون عذر"
+msgstr "Absent sans excuse"
+
+msgid "غائب بعذر"
+msgstr "Absent avec excuse"
+
+msgid "غائب ❌"
+msgstr "Absent ❌"
+
+msgid "غياب غير مبرر"
+msgstr "Absence non justifiée"
+
+msgid "غياب مبرر"
+msgstr "Absence justifiée"
+
+msgid "غير محدد"
+msgstr "Non défini"
+
+msgid "غير محدد بعد"
+msgstr "Pas encore déterminé"
+
+msgid "غير مصنف"
+msgstr "Non classé"
+
+msgid "فتح القائمة"
+msgstr "Ouvrir le menu"
+
+msgid "فتح ←"
+msgstr "Ouvrir ←"
+
+msgid "فتح ↓"
+msgstr "Ouvrir ↓"
+
+msgid "فردي"
+msgstr "Individuel"
+
+msgid "قادمة هذا الأسبوع"
+msgstr "À venir cette semaine"
+
+msgid "قريباً"
+msgstr "Bientôt"
+
+msgid "قناة تبليغ للطالبات البالغات"
+msgstr "Canal d'annonces pour les élèves adultes"
+
+msgid "قناة تبليغ للطلاب البالغين"
+msgstr "Canal d'annonces pour les élèves adultes"
+
+msgid "قناة تبليغ للطلاب دون 18 سنة"
+msgstr "Canal d'annonces pour les élèves de moins de 18 ans"
+
+msgid "قيد الإنجاز"
+msgstr "En cours"
+
+msgid "قيد الحفظ:"
+msgstr "En cours de mémorisation :"
+
+msgid "كل حلقاتي"
+msgstr "Tous mes groupes"
+
+msgid "كل ما تحتاجه لمعرفة قواعد وبرنامج التدريس في المنصة"
+msgstr "Tout ce dont vous avez besoin pour connaître les règles et le programme d'enseignement de la plateforme"
+
+msgid "كلمة المرور"
+msgstr "Mot de passe"
+
+msgid "كن أول من يبدأ المحادثة في هذه المجموعة."
+msgstr "Soyez le premier à lancer la conversation dans ce groupe."
+
+msgid "لا توجد أسئلة بعد."
+msgstr "Aucune question pour l'instant."
+
+msgid "لا توجد إدارة مسجَّلة"
+msgstr "Aucune administration enregistrée"
+
+msgid "لا توجد إشعارات جديدة"
+msgstr "Aucune nouvelle notification"
+
+msgid "لا توجد إعلانات حالياً"
+msgstr "Aucune annonce actuellement"
+
+msgid "لا توجد اختبارات بعد. اضغط \"+ إنشاء اختبار\" للبدء."
+msgstr "Aucun examen pour l'instant. Cliquez sur \"+ Créer un examen\" pour commencer."
+
+msgid "لا توجد اختبارات متاحة حالياً."
+msgstr "Aucun examen disponible actuellement."
+
+msgid "لا توجد تقييمات بعد"
+msgstr "Aucune évaluation pour l'instant"
+
+msgid "لا توجد تقييمات مسجَّلة بعد"
+msgstr "Aucune évaluation enregistrée pour l'instant"
+
+msgid "لا توجد تقييمات مطابقة لهذه التصفية"
+msgstr "Aucune évaluation ne correspond à ce filtre"
+
+msgid "لا توجد تقييمات من المؤطر بعد"
+msgstr "Aucune évaluation du superviseur pour l'instant"
+
+msgid "لا توجد حالياً أنواع اشتراك متاحة لاختياراتك. يرجى التواصل مع الإدارة."
+msgstr "Aucun type d'abonnement n'est actuellement disponible pour vos choix. Veuillez contacter l'administration."
+
+msgid "لا توجد حصة مبرمجة حالياً"
+msgstr "Aucune séance programmée actuellement"
+
+msgid "لا توجد حصص أخرى في هذا الشهر"
+msgstr "Aucune autre séance ce mois-ci"
+
+msgid "لا توجد حصص اليوم"
+msgstr "Aucune séance aujourd'hui"
+
+msgid "لا توجد حصص بعد"
+msgstr "Aucune séance pour l'instant"
+
+msgid "لا توجد حصص حفظ مسجَّلة بعد"
+msgstr "Aucune séance de mémorisation enregistrée pour l'instant"
+
+msgid "لا توجد حصص سابقة"
+msgstr "Aucune séance passée"
+
+msgid "لا توجد حصص سابقة بعد"
+msgstr "Aucune séance passée pour l'instant"
+
+msgid "لا توجد حصص قادمة"
+msgstr "Aucune séance à venir"
+
+msgid "لا توجد رسائل بعد"
+msgstr "Aucun message pour l'instant"
+
+msgid "لا توجد مجموعات بعد"
+msgstr "Aucun groupe pour l'instant"
+
+msgid "لا توجد مجموعات نشطة"
+msgstr "Aucun groupe actif"
+
+msgid "لا توجد محادثات متاحة حالياً."
+msgstr "Aucune conversation disponible actuellement."
+
+msgid "لا توجد محادثات مطابقة."
+msgstr "Aucune conversation ne correspond."
+
+msgid "لا توجد معايير تقييم مفعّلة حالياً."
+msgstr "Aucun critère d'évaluation actif actuellement."
+
+msgid "لا توجد ملاحظة من المعلم لهذه الحصة."
+msgstr "Aucune remarque de l'enseignant pour cette séance."
+
+msgid "لا توجد ملفات في حقيبتك حالياً"
+msgstr "Aucun fichier dans votre cartable actuellement"
+
+msgid "لا توجد نتائج"
+msgstr "Aucun résultat"
+
+msgid "لا توجد وثائق مضافة من الإدارة حاليا"
+msgstr "Aucun document ajouté par l'administration actuellement"
+
+msgid "لا غياب هذا الشهر"
+msgstr "Aucune absence ce mois-ci"
+
+msgid "لا يراها إلا أنت — لا تظهر لأي مدير/مشرف آخر."
+msgstr "Personne d'autre que vous ne les voit — elles n'apparaissent à aucun autre directeur/superviseur."
+
+msgid "لا يطابق رقم الهاتف"
+msgstr "Ne correspond pas au numéro de téléphone"
+
+msgid "لا يمكن تحديد قناتك حالياً — يرجى التواصل مع الإدارة."
+msgstr "Impossible de déterminer votre canal actuellement — veuillez contacter l'administration."
+
+msgid "لا يمكن تعديل الأسئلة: تم تسليم نسخة واحدة على الأقل. هذا يحافظ على سلامة النسخ التي تم تصحيحها بالفعل."
+msgstr "Impossible de modifier les questions : au moins une copie a été soumise. Cela préserve l'intégrité des copies déjà corrigées."
+
+msgid "لا يمكن تعديل الحلقة أو التوقيت: طالب واحد على الأقل بدأ اجتيابه بالفعل. العنوان والتعليمات فقط يمكن تعديلهما."
+msgstr "Impossible de modifier le groupe ou l'horaire : au moins un élève a déjà commencé à le passer. Seuls le titre et les instructions peuvent être modifiés."
+
+msgid "لا يوجد"
+msgstr "Aucun"
+
+msgid "لا يوجد أي حفظ مسجَّل بعد"
+msgstr "Aucune mémorisation enregistrée pour l'instant"
+
+msgid "لا يوجد أي مجموعة بعد"
+msgstr "Aucun groupe pour l'instant"
+
+msgid "لا يوجد أي مجموعة جماعية بعد"
+msgstr "Aucun groupe collectif pour l'instant"
+
+msgid "لا يوجد تصحيح تلقائي لهذا النوع من الأسئلة — ستقوم بتصحيحها يدوياً بعد تسليم الطالب لإجابته."
+msgstr "Il n'y a pas de correction automatique pour ce type de question — vous la corrigerez manuellement une fois que l'élève aura soumis sa réponse."
+
+msgid "لا يوجد طالب نشط بعمر معروف حالياً"
+msgstr "Aucun élève actif avec un âge connu actuellement"
+
+msgid "لا يوجد طلاب في مجموعاتك بعد"
+msgstr "Aucun élève dans vos groupes pour l'instant"
+
+msgid "لا يوجد طلاب في هذه المجموعة"
+msgstr "Aucun élève dans ce groupe"
+
+msgid "لا يوجد طلاب في هذه المجموعة بعد"
+msgstr "Aucun élève dans ce groupe pour l'instant"
+
+msgid "لا يوجد غياب هذا الشهر 🎉"
+msgstr "Aucune absence ce mois-ci 🎉"
+
+msgid "لا يوجد مجموعات سابقة"
+msgstr "Aucun groupe précédent"
+
+msgid "لتحفيظ القرآن الكريم عن بعد"
+msgstr "Pour la mémorisation du Coran à distance"
+
+msgid "لتغيير كلمة المرور، تواصل مع الإدارة."
+msgstr "Pour changer votre mot de passe, contactez l'administration."
+
+msgid "لديك طلب تعديل معلّق منذ %(date_demande)s بانتظار موافقة الإدارة.\n    جدولك الحالي (أدناه) يبقى سارياً حتى تتم الموافقة. يمكنك تعديل اقتراحك وإعادة إرساله في أي وقت."
+msgstr "Vous avez une demande de modification en attente depuis le %(date_demande)s, en attente d'approbation de l'administration.\n    Votre horaire actuel (ci-dessous) reste en vigueur jusqu'à l'approbation. Vous pouvez modifier votre proposition et la renvoyer à tout moment."
+
+msgid "لقد قرأت ووافقت على الميثاق"
+msgstr "J'ai lu et j'accepte la charte"
+
+msgid "لقد وافقت على الميثاق بتاريخ %(date_acceptation)s"
+msgstr "Vous avez accepté la charte le %(date_acceptation)s"
+
+msgid "لم تبدأ بعد"
+msgstr "Pas encore commencée"
+
+msgid "لم تسجَّل أي مراجعة لهذه الحصة."
+msgstr "Aucune révision enregistrée pour cette séance."
+
+msgid "لم تعد مدة اجتياز هذا الاختبار متاحة."
+msgstr "La période pour passer cet examen n'est plus disponible."
+
+msgid "لم تقم الإدارة بإضافة رابط الاجتماع بعد."
+msgstr "L'administration n'a pas encore ajouté le lien de la réunion."
+
+msgid "لم تكتب أي ملاحظة على هذا الملف الشخصي بعد."
+msgstr "Aucune note écrite sur ce profil pour l'instant."
+
+msgid "لم تنتهِ هذه الحصة بعد — لا يمكن تقييمها قبل انتهائها فعلياً. عاود المحاولة بعد وقت انتهاء الحصة."
+msgstr "Cette séance n'est pas encore terminée — elle ne peut pas être évaluée avant sa fin réelle. Réessayez après l'heure de fin de la séance."
+
+msgid "لم تُجب"
+msgstr "Sans réponse"
+
+msgid "لم تُرفق تسجيلاً صوتياً."
+msgstr "Vous n'avez pas joint d'enregistrement audio."
+
+msgid "لم تُرفق فيديو."
+msgstr "Vous n'avez pas joint de vidéo."
+
+msgid "لم يبدأ أي طالب هذا الاختبار بعد."
+msgstr "Aucun élève n'a encore commencé cet examen."
+
+msgid "لم يتم إضافة رابط الاجتماع بعد"
+msgstr "Le lien de la réunion n'a pas encore été ajouté"
+
+msgid "لم يتم تعيين مؤطر بعد"
+msgstr "Aucun superviseur assigné pour l'instant"
+
+msgid "لم يتم تعيينك في مجموعة بعد"
+msgstr "Vous n'avez pas encore été assigné(e) à un groupe"
+
+msgid "لم يتم تقييمها بعد ⚠️"
+msgstr "Pas encore évaluée ⚠️"
+
+msgid "لم يتم نشر البرنامج العام بعد."
+msgstr "Le programme général n'a pas encore été publié."
+
+msgid "لم يحدد المعلم بعد ما يجب تحضيره للحصة القادمة."
+msgstr "L'enseignant n'a pas encore indiqué ce qu'il faut préparer pour la prochaine séance."
+
+msgid "لم يسجَّل المعلم أي حفظ لهذه الحصة."
+msgstr "L'enseignant n'a enregistré aucune mémorisation pour cette séance."
+
+msgid "لم يعد بإمكانك الوصول إلى هذه المحادثة."
+msgstr "Vous n'avez plus accès à cette conversation."
+
+msgid "لم يعد بإمكانك تعديل هذا البيان — مدة التعديل (حتى نهاية الشهر الموالي) انتهت."
+msgstr "Vous ne pouvez plus modifier ce bilan — le délai de modification (jusqu'à la fin du mois suivant) est écoulé."
+
+msgid "لم يُجب"
+msgstr "Sans réponse"
+
+msgid "لم يُحرَّر بعد ⏳"
+msgstr "Pas encore rédigé ⏳"
+
+msgid "لم يُرفق الطالب أي تسجيل صوتي."
+msgstr "L'élève n'a joint aucun enregistrement audio."
+
+msgid "لم يُرفق الطالب أي فيديو."
+msgstr "L'élève n'a joint aucune vidéo."
+
+msgid "لم يُسجَّل"
+msgstr "Non enregistré"
+
+msgid "لن يصبح هذا الجدول سارياً إلا بعد موافقة الإدارة."
+msgstr "Cet horaire ne deviendra effectif qu'après approbation de l'administration."
+
+msgid "لوحة التحكم"
+msgstr "Tableau de bord"
+
+msgid "لوحة التحكم الخاصة بك"
+msgstr "Votre tableau de bord"
+
+msgid "لوحة الطالب"
+msgstr "Tableau de bord élève"
+
+msgid "لوحة المعلم"
+msgstr "Tableau de bord enseignant"
+
+msgid "مؤرشف"
+msgstr "Archivé"
+
+msgid "ما تم حفظه هذا الشهر"
+msgstr "Ce qui a été mémorisé ce mois-ci"
+
+msgid "ما تمت مراجعته هذا الشهر"
+msgstr "Ce qui a été révisé ce mois-ci"
+
+msgid "ما شاء الله، تم حفظ القرآن كاملاً"
+msgstr "Mashallah, le Coran entier a été mémorisé"
+
+msgid "متأخرة — بانتظار التقييم"
+msgstr "En retard — en attente d'évaluation"
+
+msgid "متابعة التسجيل"
+msgstr "Continuer l'inscription"
+
+msgid "متابعة تراكمية لما تم حفظه، مبنية على عدد الآيات"
+msgstr "Suivi cumulatif de la mémorisation, basé sur le nombre de versets"
+
+msgid "متابعة ←"
+msgstr "Continuer ←"
+
+msgid "متاح إلى غاية"
+msgstr "Disponible jusqu'au"
+
+msgid "متاح إلى غاية %(date_limite)s"
+msgstr "Disponible jusqu'au %(date_limite)s"
+
+msgid "متاح ابتداءً من"
+msgstr "Disponible à partir du"
+
+msgid "متاح الآن"
+msgstr "Disponible maintenant"
+
+msgid "متوسط"
+msgstr "Moyen"
+
+msgid "مثال: 3"
+msgstr "Exemple : 3"
+
+msgid "مثال: حفظ سورة النساء من آية 1 إلى 10"
+msgstr "Exemple : mémoriser la sourate An-Nisa des versets 1 à 10"
+
+msgid "مثال: مراجعة سورة البقرة من آية 1 إلى 50"
+msgstr "Exemple : réviser la sourate Al-Baqara des versets 1 à 50"
+
+msgid "مجموع النقاط"
+msgstr "Total des points"
+
+msgid "مجموع تقديري لهذا الشهر"
+msgstr "Total estimé pour ce mois-ci"
+
+msgid "مجموعات قريبة يمكنك الانضمام إليها الآن:"
+msgstr "Groupes proches que vous pouvez rejoindre dès maintenant :"
+
+msgid "مجموعاتي"
+msgstr "Mes groupes"
+
+msgid "مجموعاتي %(n)s"
+msgstr "Mes groupes %(n)s"
+
+msgid "مجموعاتي (%(n)s)"
+msgstr "Mes groupes (%(n)s)"
+
+msgid "مجموعاتي السابقة"
+msgstr "Mes groupes précédents"
+
+msgid "مجموعاتي ومعلميّ"
+msgstr "Mes groupes et mes enseignants"
+
+msgid "مختلط"
+msgstr "Mixte"
+
+msgid "مخططة"
+msgstr "Planifiée"
+
+msgid "مخططة 📅"
+msgstr "Planifiée 📅"
+
+msgid "مخفي عن الطلاب"
+msgstr "Masqué aux élèves"
+
+msgid "مدفوعاتي"
+msgstr "Mes paiements"
+
+msgid "مراجعة"
+msgstr "révision"
+
+msgid "مراسلة عبر البريد الإلكتروني"
+msgstr "Contacter par e-mail"
+
+msgid "مراسلة عبر واتساب"
+msgstr "Contacter par WhatsApp"
+
+msgid "مساحتك الخاصة لتدوين ملاحظاتك — لا يراها أحد غيرك"
+msgstr "Votre espace privé pour noter vos remarques — personne d'autre ne les voit"
+
+msgid "مستحسن"
+msgstr "Recommandable"
+
+msgid "مستند"
+msgstr "Document"
+
+msgid "مستوى الحفظ"
+msgstr "Niveau de mémorisation"
+
+msgid "مسودة"
+msgstr "Brouillon"
+
+msgid "مصحَّحة"
+msgstr "Corrigée"
+
+msgid "معلومات الحساب"
+msgstr "Informations du compte"
+
+msgid "معلوماتك الشخصية، أمان حسابك، ومجموعاتك"
+msgstr "Vos informations personnelles, la sécurité de votre compte et vos groupes"
+
+msgid "مغلق"
+msgstr "Fermé"
+
+msgid "مقترح"
+msgstr "Proposition"
+
+msgid "ملاحظات السلوك والانضباط"
+msgstr "Remarques sur le comportement et la discipline"
+
+msgid "ملاحظات عامة عن الحصة"
+msgstr "Remarques générales sur la séance"
+
+msgid "ملاحظات وتوجيهات المؤطر"
+msgstr "Remarques et conseils du superviseur"
+
+msgid "ملاحظاتي"
+msgstr "Mes notes"
+
+msgid "ملاحظاتي الخاصة"
+msgstr "Mes notes privées"
+
+msgid "ملاحظة (اختياري)"
+msgstr "Remarque (facultatif)"
+
+msgid "ملاحظة المعلم"
+msgstr "Remarque de l'enseignant"
+
+msgid "ملاحظة بتاريخ %(date_note)s"
+msgstr "Note du %(date_note)s"
+
+msgid "ملاحظة عن الطالب"
+msgstr "Remarque sur l'élève"
+
+msgid "ملاحظة واحدة لكامل الحصة (منفصلة عن ملاحظات كل طالب على حدة)."
+msgstr "Une seule remarque pour toute la séance (distincte des remarques de chaque élève)."
+
+msgid "ملغاة"
+msgstr "Annulée"
+
+msgid "ملغاة ❌"
+msgstr "Annulée ❌"
+
+msgid "ملف مرفق"
+msgstr "Fichier joint"
+
+msgid "ملفي الشخصي"
+msgstr "Mon profil"
+
+msgid "ممتاز"
+msgstr "Excellent"
+
+msgid "من"
+msgstr "De"
+
+msgid "من آية — إلى آية"
+msgstr "Du verset — au verset"
+
+msgid "من تاريخ"
+msgstr "À partir du"
+
+msgid "منتهية"
+msgstr "Terminée"
+
+msgid "منتهية ✅"
+msgstr "Terminée ✅"
+
+msgid "منشور"
+msgstr "Publié"
+
+msgid "منصة زدني علماً"
+msgstr "Plateforme Zidni Ilman"
+
+msgid "منعدم"
+msgstr "Nul"
+
+msgid "مواظبة"
+msgstr "assiduité"
+
+msgid "مواعيد المجموعات النشطة"
+msgstr "Horaires des groupes actifs"
+
+msgid "موقوف"
+msgstr "Suspendu"
+
+msgid "موقوف منذ %(n)s يوم"
+msgstr "Suspendu depuis %(n)s jour(s)"
+
+msgid "ميثاق التدريس"
+msgstr "Charte de l'enseignement"
+
+msgid "نسخ"
+msgstr "Copier"
+
+msgid "نسخ %(titre)s"
+msgstr "Copies de %(titre)s"
+
+msgid "نسخ الطلاب"
+msgstr "Copies des élèves"
+
+msgid "نسيت كلمة المرور ؟"
+msgstr "Mot de passe oublié ?"
+
+msgid "نشر الاختبار"
+msgstr "Publier l'examen"
+
+msgid "نشط"
+msgstr "Actif"
+
+msgid "نص"
+msgstr "Texte"
+
+msgid "نص الرسالة"
+msgstr "Texte du message"
+
+msgid "نص السؤال"
+msgstr "Texte de la question"
+
+msgid "نص حر — لا يُعبَّأ تلقائياً"
+msgstr "Texte libre — non rempli automatiquement"
+
+msgid "نوع السؤال"
+msgstr "Type de question"
+
+msgid "هذا الاختبار غير متاح بعد. يبدأ في %(date_debut)s."
+msgstr "Cet examen n'est pas encore disponible. Il commence le %(date_debut)s."
+
+msgid "هذا الحقل مطلوب"
+msgstr "Ce champ est requis"
+
+msgid "هذه شبكة عامة ثابتة، غير مرتبطة مباشرة بحسابك الشخصي أعلاه — تُستخدم لحساب مستحقات كل معلم."
+msgstr "Il s'agit d'une grille générale fixe, non directement liée à votre compte personnel ci-dessus — elle sert à calculer la rémunération de chaque enseignant."
+
+msgid "هل أنت متأكد من إغلاق هذا الاختبار؟ لن يتمكن أي طالب من بدء محاولة جديدة."
+msgstr "Êtes-vous sûr de vouloir fermer cet examen ? Aucun élève ne pourra commencer une nouvelle tentative."
+
+msgid "هل أنت متأكد من تسليم الاختبار؟ لن تتمكن من تعديل إجاباتك بعد التسليم."
+msgstr "Êtes-vous sûr de vouloir soumettre l'examen ? Vous ne pourrez plus modifier vos réponses après la soumission."
+
+msgid "هل أنت متأكد من حفظ الحضور والتقييمات؟ سيتم اعتبار هذه الحصة منتهية نهائياً."
+msgstr "Êtes-vous sûr de vouloir enregistrer la présence et les évaluations ? Cette séance sera considérée comme définitivement terminée."
+
+msgid "هل تريد تسجيل الخروج؟"
+msgstr "Voulez-vous vous déconnecter ?"
+
+msgid "هل تريد حذف هذه الرسالة؟"
+msgstr "Voulez-vous supprimer ce message ?"
+
+msgid "واتساب"
+msgstr "WhatsApp"
+
+msgid "يجب أن تكون آية النهاية أكبر من أو تساوي آية البداية"
+msgstr "Le verset de fin doit être supérieur ou égal au verset de début"
+
+msgid "يرجى إدخال رقم الهاتف أولا."
+msgstr "Veuillez d'abord saisir le numéro de téléphone."
+
+msgid "يرجى الاطلاع على ميثاق التدريس والموافقة عليه"
+msgstr "Veuillez consulter la charte de l'enseignement et l'approuver"
+
+msgid "يرجى التأكد جيدا من رقم الواتساب، فهو الوسيلة الأساسية للتواصل معك"
+msgstr "Merci de bien vérifier le numéro WhatsApp, c'est le moyen principal pour vous contacter"
+
+msgid "يرجى السماح باستخدام الكاميرا"
+msgstr "Veuillez autoriser l'utilisation de la caméra"
+
+msgid "يرجى السماح باستخدام الميكروفون"
+msgstr "Veuillez autoriser l'utilisation du microphone"
+
+msgid "يرجى قراءة الميثاق بالكامل قبل الموافقة عليه"
+msgstr "Veuillez lire la charte en entier avant de l'approuver"
+
+msgid "يعاد"
+msgstr "À refaire"
+
+msgid "يعيد"
+msgstr "À refaire"
+
+msgid "ينتقل"
+msgstr "Validé"
+
+msgid "يُحتسب هذا المبلغ حسب عدد الحصص التي أنجزتها فعليا، ويتحدث تلقائيا كل يوم."
+msgstr "Ce montant est calculé selon le nombre de séances réellement effectuées, et se met à jour automatiquement chaque jour."
+
+msgid "— السورة —"
+msgstr "— Sourate —"
+
+msgid "‹ الشهر السابق"
+msgstr "‹ Mois précédent"
+
+msgid "← رجوع"
+msgstr "← Retour"
+
+msgid "← رجوع إلى الاختبار"
+msgstr "← Retour à l'examen"
+
+msgid "← رجوع إلى حصصي"
+msgstr "← Retour à mes séances"
+
+msgid "← رجوع إلى سجل الحصص"
+msgstr "← Retour au registre des séances"
+
+msgid "← رجوع إلى قائمة النسخ"
+msgstr "← Retour à la liste des copies"
+
+msgid "← رجوع إلى مجموعاتي"
+msgstr "← Retour à mes groupes"
+
+msgid "→ السابق"
+msgstr "→ Précédent"
+
+msgid "✓ تم الحفظ"
+msgstr "✓ Enregistré"
+
+msgid "تم إنشاء كلمة مرور جديدة وإشعار الإدارة بها — تواصل معها للحصول عليها، ثم سجّل الدخول من جديد."
+msgstr "Un nouveau mot de passe a été créé et l'administration en a été informée — contactez-la pour l'obtenir, puis reconnectez-vous."
+
+msgid "أوقات تفرغك الأسبوعية (اختياري) — تساعدنا هذه المعلومة على اقتراح حلقة تناسبك فور توفرها:"
+msgstr "Vos disponibilités hebdomadaires (facultatif) — cette information nous aide à vous proposer un groupe adapté dès qu'il devient disponible :"
+
+msgid "إرسال الطلب ✅"
+msgstr "Envoyer la demande ✅"
+
+msgid "إلى:"
+msgstr "Vers :"
+
+msgid "اختر الحلقة التي ترغب في الانتقال إليها — القائمة مصفّاة حسب جنسك وعمرك فقط"
+msgstr "Choisissez le groupe que vous souhaitez rejoindre — la liste est filtrée selon votre sexe et votre âge uniquement"
+
+msgid "القواعد والالتزامات التي وافقت عليها عند التسجيل — للاطلاع فقط."
+msgstr "Les règles et engagements que vous avez acceptés lors de votre inscription — à titre informatif uniquement."
+
+msgid "بانتظار معالجة الإدارة."
+msgstr "En attente de traitement par l'administration."
+
+msgid "جماعي — %(tranche)s — %(n)s حصص/أسبوع"
+msgstr "Collectif — %(tranche)s — %(n)s séances/semaine"
+
+msgid "د.م. / حصة"
+msgstr "MAD / séance"
+
+msgid "د.م. / شهر"
+msgstr "MAD / mois"
+
+msgid "طلب تغيير الحلقة"
+msgstr "Demande de changement de groupe"
+
+msgid "طلب تغيير الحلقة قيد الانتظار"
+msgstr "Demande de changement de groupe en attente"
+
+msgid "طلب تغيير الحلقة 🔄"
+msgstr "Demander un changement de groupe 🔄"
+
+msgid "عدد حصص غير معروف"
+msgstr "Nombre de séances inconnu"
+
+msgid "فردي — %(tranche)s"
+msgstr "Individuel — %(tranche)s"
+
+msgid "لا توجد تعرفة محددة لهذه المجموعة بعد (%(nb)s حصص/أسبوع) —\n                لم يُحتسب أي مبلغ عنها حتى تُضبط التعرفة من طرف الإدارة."
+msgstr "Aucun tarif défini pour ce groupe pour l'instant (%(nb)s séances/semaine) —\n                aucun montant n'a été calculé pour lui tant que le tarif n'est pas réglé par l'administration."
+
+msgid "لا توجد حلقات أخرى متوافقة مع جنسك وعمرك حالياً."
+msgstr "Aucun autre groupe compatible avec votre sexe et votre âge actuellement."
+
+msgid "لديك بالفعل طلب قيد الانتظار (إلى: <strong>%(nom_groupe)s</strong>) —\n        يجب معالجته من طرف الإدارة قبل إرسال طلب جديد."
+msgstr "Vous avez déjà une demande en attente (vers : <strong>%(nom_groupe)s</strong>) —\n        elle doit être traitée par l'administration avant d'envoyer une nouvelle demande."
+
+msgid "للاطلاع فقط — الموافقة عليه تتم عند التسجيل كمعلم"
+msgstr "À titre informatif uniquement — l'approbation se fait lors de l'inscription comme enseignant"
+
+msgid "هذا المبلغ غير مكتمل — تعرفة مفقودة، عرض التفاصيل"
+msgstr "Ce montant est incomplet — tarif manquant, voir les détails"
+
+msgid "هل ترغب في الانضمام إلى حلقة أخرى؟"
+msgstr "Souhaitez-vous rejoindre un autre groupe ?"
+
+msgid "← العودة إلى ملفي الشخصي"
+msgstr "← Retour à mon profil"

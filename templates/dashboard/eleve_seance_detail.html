@@ -1,37 +1,38 @@
 {% extends 'dashboard/base_eleve.html' %}
 {% load presence_style %}
-{% block title %}تفاصيل الحصة{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "تفاصيل الحصة" %}{% endblock %}
 {% block content %}
 <div class="page-title">{{ presence.seance.groupe.nom }}</div>
 <div class="page-subtitle">
     {{ presence.seance.date|date:"d-m-Y" }} — {{ presence.seance.heure|time:"H:i" }} — {{ presence.seance.get_type_display }}
-    {% if presence.seance.lien_effectif %} · <a href="{% url 'rejoindre_seance' presence.seance.id %}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 رابط الاجتماع</a>{% endif %}
+    {% if presence.seance.lien_effectif %} · <a href="{% url 'rejoindre_seance' presence.seance.id %}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 {% trans "رابط الاجتماع" %}</a>{% endif %}
 </div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0; margin-bottom:16px;">
-        <span style="color:#888;">الحضور</span>
+        <span style="color:#888;">{% trans "الحضور" %}</span>
         <span style="{{ presence.statut|statut_style }} border-radius:20px; padding:4px 14px; font-weight:600; font-size:0.9rem;">
-            {% if presence.statut == 'present' %}حاضر ✅
-            {% elif presence.statut == 'absent_excuse' %}غائب بعذر
-            {% else %}غائب ❌{% endif %}
+            {% if presence.statut == 'present' %}{% trans "حاضر ✅" %}
+            {% elif presence.statut == 'absent_excuse' %}{% trans "غائب بعذر" %}
+            {% else %}{% trans "غائب ❌" %}{% endif %}
         </span>
     </div>
 
     <!-- Mémorisation -->
-    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin-bottom:12px;">الحفظ</div>
+    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin-bottom:12px;">{% trans "الحفظ" %}</div>
     {% if presence.sourate_memorisee %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">السورة</span>
+        <span style="color:#888;">{% trans "السورة" %}</span>
         <span style="font-weight:600;">{{ presence.nom_sourate_memorisee }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">من آية — إلى آية</span>
+        <span style="color:#888;">{% trans "من آية — إلى آية" %}</span>
         <span style="font-weight:600;">{{ presence.ayah_debut_memorisation }} — {{ presence.ayah_fin_memorisation }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">التقييم</span>
+        <span style="color:#888;">{% trans "التقييم" %}</span>
         <span style="font-weight:600;">
             {% if presence.note_memorisation %}
             <span style="{{ presence.note_memorisation|note_style }} border-radius:20px; padding:3px 12px; font-size:0.85rem;">{{ presence.get_note_memorisation_display }}</span>
@@ -39,22 +40,22 @@
         </span>
     </div>
     {% else %}
-    <div style="color:#aaa; padding:8px 0 16px;">لم يسجَّل المعلم أي حفظ لهذه الحصة.</div>
+    <div style="color:#aaa; padding:8px 0 16px;">{% trans "لم يسجَّل المعلم أي حفظ لهذه الحصة." %}</div>
     {% endif %}
 
     <!-- Révision -->
-    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">المراجعة</div>
+    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "المراجعة" %}</div>
     {% if presence.sourate_revisee %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">السورة</span>
+        <span style="color:#888;">{% trans "السورة" %}</span>
         <span style="font-weight:600;">{{ presence.nom_sourate_revisee }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">من آية — إلى آية</span>
+        <span style="color:#888;">{% trans "من آية — إلى آية" %}</span>
         <span style="font-weight:600;">{{ presence.ayah_debut_revision }} — {{ presence.ayah_fin_revision }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">التقييم</span>
+        <span style="color:#888;">{% trans "التقييم" %}</span>
         <span style="font-weight:600;">
             {% if presence.note_revision %}
             <span style="{{ presence.note_revision|note_style }} border-radius:20px; padding:3px 12px; font-size:0.85rem;">{{ presence.get_note_revision_display }}</span>
@@ -62,45 +63,45 @@
         </span>
     </div>
     {% else %}
-    <div style="color:#aaa; padding:8px 0 16px;">لم تسجَّل أي مراجعة لهذه الحصة.</div>
+    <div style="color:#aaa; padding:8px 0 16px;">{% trans "لم تسجَّل أي مراجعة لهذه الحصة." %}</div>
     {% endif %}
 
     {% if presence.note_hifz %}
     <!-- Notation numérique /20 (Tâche 9) -->
-    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">التقييم</div>
+    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "التقييم" %}</div>
     <div class="row g-3">
-        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">الحفظ</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_hifz }}/20</div></div></div>
-        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">المراجعة</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_muraja3a }}/20</div></div></div>
-        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">التلاوة</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_tilawa }}/20</div></div></div>
-        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">المواظبة والسلوك</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_mouwazaba }}/20</div></div></div>
+        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">{% trans "الحفظ" %}</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_hifz }}/20</div></div></div>
+        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">{% trans "المراجعة" %}</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_muraja3a }}/20</div></div></div>
+        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">{% trans "التلاوة" %}</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_tilawa }}/20</div></div></div>
+        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">{% trans "المواظبة والسلوك" %}</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_mouwazaba }}/20</div></div></div>
     </div>
     {% endif %}
 
     <!-- Remarque -->
-    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">ملاحظة المعلم</div>
+    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "ملاحظة المعلم" %}</div>
     {% if presence.remarque %}
     <div style="background:#f0f7ed; padding:14px; border-radius:8px; border-right:3px solid var(--color-role-eleve-solid); white-space:pre-wrap;">{{ presence.remarque }}</div>
     {% else %}
-    <div style="color:#aaa;">لا توجد ملاحظة من المعلم لهذه الحصة.</div>
+    <div style="color:#aaa;">{% trans "لا توجد ملاحظة من المعلم لهذه الحصة." %}</div>
     {% endif %}
 
     <!-- Consignes pour la prochaine séance (Tâche 9) -->
-    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">📌 المطلوب منك للحصة القادمة</div>
+    <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">📌 {% trans "المطلوب منك للحصة القادمة" %}</div>
     {% if presence.consigne_memorisation or presence.consigne_revision %}
         {% if presence.consigne_memorisation %}
-        <div style="margin-bottom:10px;"><div style="color:#888; font-size:0.8rem; margin-bottom:4px;">المطلوب حفظه</div>
+        <div style="margin-bottom:10px;"><div style="color:#888; font-size:0.8rem; margin-bottom:4px;">{% trans "المطلوب حفظه" %}</div>
         <div style="background:#fff8ec; padding:14px; border-radius:8px; border-right:3px solid var(--color-brand-gold-dark); white-space:pre-wrap;">{{ presence.consigne_memorisation }}</div></div>
         {% endif %}
         {% if presence.consigne_revision %}
-        <div><div style="color:#888; font-size:0.8rem; margin-bottom:4px;">المطلوب مراجعته</div>
+        <div><div style="color:#888; font-size:0.8rem; margin-bottom:4px;">{% trans "المطلوب مراجعته" %}</div>
         <div style="background:#fff8ec; padding:14px; border-radius:8px; border-right:3px solid var(--color-brand-gold-dark); white-space:pre-wrap;">{{ presence.consigne_revision }}</div></div>
         {% endif %}
     {% else %}
-    <div style="color:#aaa;">لم يحدد المعلم بعد ما يجب تحضيره للحصة القادمة.</div>
+    <div style="color:#aaa;">{% trans "لم يحدد المعلم بعد ما يجب تحضيره للحصة القادمة." %}</div>
     {% endif %}
 
     <div class="mt-4">
-        <a href="{% url 'eleve_seances' %}" style="color:var(--color-role-eleve-solid); text-decoration:none;">← رجوع إلى حصصي</a>
+        <a href="{% url 'eleve_seances' %}" style="color:var(--color-role-eleve-solid); text-decoration:none;">{% trans "← رجوع إلى حصصي" %}</a>
     </div>
 </div>
 {% endblock %}

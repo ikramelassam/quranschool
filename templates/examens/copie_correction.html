@@ -1,19 +1,20 @@
 {% extends 'dashboard/base_prof.html' %}
-{% block title %}تصحيح نسخة{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "تصحيح نسخة" %}{% endblock %}
 {% block content %}
-<div class="page-title">تصحيح نسخة {{ copie.eleve.user.get_full_name }}</div>
+<div class="page-title">{% blocktrans with nom=copie.eleve.user.get_full_name %}تصحيح نسخة {{ nom }}{% endblocktrans %}</div>
 <div class="page-subtitle">{{ examen.titre }}</div>
 
 <div style="margin:12px 0 20px;">
-    <a href="{% url 'examens_prof_copies' examen.id %}" style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.9rem;">← رجوع إلى قائمة النسخ</a>
+    <a href="{% url 'examens_prof_copies' examen.id %}" style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.9rem;">{% trans "← رجوع إلى قائمة النسخ" %}</a>
 </div>
 
 <div style="background:white; border-radius:12px; padding:16px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
     <div style="color:#888; font-size:0.85rem;">
-        سُلِّمت في {{ copie.date_soumission|date:"d-m-Y H:i" }}{% if copie.soumission_automatique %} — تسليم تلقائي عند انتهاء الوقت{% endif %}
+        {% blocktrans with date_soumission=copie.date_soumission|date:"d-m-Y H:i" %}سُلِّمت في {{ date_soumission }}{% endblocktrans %}{% if copie.soumission_automatique %} — {% trans "تسليم تلقائي عند انتهاء الوقت" %}{% endif %}
     </div>
     <div style="font-weight:700; font-size:1.1rem; color:{% if copie.note_totale is not None %}#2d5a1b{% else %}#b35900{% endif %};">
-        {% if copie.note_totale is not None %}{{ copie.note_totale }} / {{ examen.points_max }}{% else %}بانتظار إكمال التصحيح{% endif %}
+        {% if copie.note_totale is not None %}{{ copie.note_totale }} / {{ examen.points_max }}{% else %}{% trans "بانتظار إكمال التصحيح" %}{% endif %}
     </div>
 </div>
 
@@ -21,20 +22,20 @@
     {% for reponse in reponses %}
     <div style="background:white; border-radius:12px; padding:18px 22px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
-            <div style="color:#aaa; font-size:0.78rem;">{{ reponse.question.get_type_question_display }} — {{ reponse.question.points }} نقطة</div>
+            <div style="color:#aaa; font-size:0.78rem;">{{ reponse.question.get_type_question_display }} — {% blocktrans with points=reponse.question.points %}{{ points }} نقطة{% endblocktrans %}</div>
             {% include 'examens/_statut_badge.html' with statut=reponse.statut_correction %}
         </div>
         <div style="font-weight:600; margin:6px 0 12px;">{{ reponse.question.enonce }}</div>
 
         {% if reponse.question.type_question == 'choix' %}
-            <div style="color:#555; font-size:0.92rem;">إجابة الطالب: {% if reponse.reponse_choix %}{{ reponse.reponse_choix.texte }}{% else %}<em style="color:#aaa;">لم يُجب</em>{% endif %}</div>
-            <div style="color:#888; font-size:0.85rem; margin-top:4px;">الإجابة الصحيحة: {% for c in reponse.question.choix.all %}{% if c.est_correct %}{{ c.texte }}{% endif %}{% endfor %}</div>
-            <div style="margin-top:8px; font-weight:600; color:{% if reponse.points_obtenus %}#2d5a1b{% else %}#b71c1c{% endif %};">النقاط: {{ reponse.points_obtenus|default:0 }} / {{ reponse.question.points }}</div>
+            <div style="color:#555; font-size:0.92rem;">{% trans "إجابة الطالب:" %} {% if reponse.reponse_choix %}{{ reponse.reponse_choix.texte }}{% else %}<em style="color:#aaa;">{% trans "لم يُجب" %}</em>{% endif %}</div>
+            <div style="color:#888; font-size:0.85rem; margin-top:4px;">{% trans "الإجابة الصحيحة:" %} {% for c in reponse.question.choix.all %}{% if c.est_correct %}{{ c.texte }}{% endif %}{% endfor %}</div>
+            <div style="margin-top:8px; font-weight:600; color:{% if reponse.points_obtenus %}#2d5a1b{% else %}#b71c1c{% endif %};">{% trans "النقاط:" %} {{ reponse.points_obtenus|default:0 }} / {{ reponse.question.points }}</div>
 
         {% elif reponse.question.type_question == 'vrai_faux' %}
-            <div style="color:#555; font-size:0.92rem;">إجابة الطالب: {% if reponse.reponse_bool is not None %}{% if reponse.reponse_bool %}صح{% else %}خطأ{% endif %}{% else %}<em style="color:#aaa;">لم يُجب</em>{% endif %}</div>
-            <div style="color:#888; font-size:0.85rem; margin-top:4px;">الإجابة الصحيحة: {% if reponse.question.reponse_correcte_bool %}صح{% else %}خطأ{% endif %}</div>
-            <div style="margin-top:8px; font-weight:600; color:{% if reponse.points_obtenus %}#2d5a1b{% else %}#b71c1c{% endif %};">النقاط: {{ reponse.points_obtenus|default:0 }} / {{ reponse.question.points }}</div>
+            <div style="color:#555; font-size:0.92rem;">{% trans "إجابة الطالب:" %} {% if reponse.reponse_bool is not None %}{% if reponse.reponse_bool %}{% trans "صح" %}{% else %}{% trans "خطأ" %}{% endif %}{% else %}<em style="color:#aaa;">{% trans "لم يُجب" %}</em>{% endif %}</div>
+            <div style="color:#888; font-size:0.85rem; margin-top:4px;">{% trans "الإجابة الصحيحة:" %} {% if reponse.question.reponse_correcte_bool %}{% trans "صح" %}{% else %}{% trans "خطأ" %}{% endif %}</div>
+            <div style="margin-top:8px; font-weight:600; color:{% if reponse.points_obtenus %}#2d5a1b{% else %}#b71c1c{% endif %};">{% trans "النقاط:" %} {{ reponse.points_obtenus|default:0 }} / {{ reponse.question.points }}</div>
 
         {% elif reponse.question.type_question == 'texte' %}
             <div style="background:#f9f7f2; border-radius:8px; padding:12px 14px; color:#444; white-space:pre-wrap;">{{ reponse.reponse_texte|default:"—" }}</div>
@@ -46,7 +47,7 @@
                 <source src="{% url 'examens_reponse_audio' reponse.id %}">
             </audio>
             {% else %}
-            <div style="color:#aaa;">لم يُرفق الطالب أي تسجيل صوتي.</div>
+            <div style="color:#aaa;">{% trans "لم يُرفق الطالب أي تسجيل صوتي." %}</div>
             {% endif %}
             {% include 'examens/_form_correction.html' with reponse=reponse copie=copie %}
 
@@ -56,7 +57,7 @@
                 <source src="{% url 'examens_reponse_video' reponse.id %}">
             </video>
             {% else %}
-            <div style="color:#aaa;">لم يُرفق الطالب أي فيديو.</div>
+            <div style="color:#aaa;">{% trans "لم يُرفق الطالب أي فيديو." %}</div>
             {% endif %}
             {% include 'examens/_form_correction.html' with reponse=reponse copie=copie %}
         {% endif %}

@@ -68,6 +68,12 @@ urlpatterns = [
     # instantanément restaurable (il suffit de repointer cette ligne) en cas
     # de souci avec le nouveau parcours.
     path('register/student', registration_views.wizard_categorie_age, name='inscription_eleve_choix'),
+
+    # Chantier traduction FR/EN (2026-08-27) — fournit la vue set_language de
+    # Django (POST avec un champ 'language'), utilisée par le sélecteur de
+    # langue dans les templates. Change la langue en session, ne fait rien
+    # d'autre : aucune vue custom à écrire.
+    path('i18n/', include('django.conf.urls.i18n')),
 ]
 
 if settings.DEBUG:

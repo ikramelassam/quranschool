@@ -1,8 +1,9 @@
 {% extends 'inscriptions/_wizard_base.html' %}
-{% block wizard_title %}اختيار البرنامج{% endblock %}
+{% load i18n %}
+{% block wizard_title %}{% trans "اختيار البرنامج" %}{% endblock %}
 {% block wizard_content %}
-<div class="page-title">اختيار البرنامج</div>
-<div class="page-subtitle">الخطوة 2 من 6</div>
+<div class="page-title">{% trans "اختيار البرنامج" %}</div>
+<div class="page-subtitle">{% trans "الخطوة 2 من 6" %}</div>
 
 {% if tranche_age_label %}
 {% comment %}
@@ -10,7 +11,7 @@ Partie B (2026-08-24) : simple info, aucun effet sur la suite du parcours —
 voir courses.utils.tranche_age_precise.__doc__.
 {% endcomment %}
 <div style="background:var(--color-bg-cream); border-radius:10px; padding:10px 16px; margin-bottom:16px; font-size:0.85rem; color:#555;">
-    الفئة العمرية: <strong>{{ tranche_age_label }}</strong>
+    {% trans "الفئة العمرية:" %} <strong>{{ tranche_age_label }}</strong>
 </div>
 {% endif %}
 
@@ -24,7 +25,7 @@ voir courses.utils.tranche_age_precise.__doc__.
     {% endcomment %}
     {% include 'inscriptions/_champs_dynamiques.html' %}
 
-    <button type="submit" class="btn-submit">التالي ←</button>
-    <a href="{% url 'wizard_identite' %}" class="btn-back">رجوع</a>
+    <button type="submit" class="btn-submit">{% trans "التالي ←" %}</button>
+    <a href="{% url 'wizard_identite' %}" class="btn-back">{% trans "رجوع" %}</a>
 </form>
 {% endblock %}
