@@ -1,17 +1,24 @@
-{% load static %}
+{% load static i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <link rel="icon" href="{{ logo_url }}" type="{{ logo_mime_type }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}لوحة المشرف{% endblock %}</title>
+    <title>{% block title %}{% trans "لوحة المشرف" %}{% endblock %}</title>
+    {% if LANGUAGE_BIDI %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    {% else %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    {% endif %}
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
     <style>
         * { font-family: 'Tajawal', sans-serif; }
         body { background-color: var(--color-bg-cream); margin: 0; }
+        /* NOTE (chantier traduction FR/EN, 2026-08-28) : même limitation connue
+           que base_admin.html/base_eleve.html/base_prof.html — la sidebar reste
+           positionnée à droite (right:0) même en français/anglais (LTR). */
         .sidebar {
             position: fixed; right: 0; top: 0;
             height: 100vh; width: 240px;
@@ -137,128 +144,129 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-<button type="button" class="sidebar-toggle" onclick="toggleSidebar()" aria-label="فتح القائمة">☰</button>
+<button type="button" class="sidebar-toggle" onclick="toggleSidebar()" aria-label="{% trans 'فتح القائمة' %}">☰</button>
 <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
 <div class="sidebar">
-    {% include 'dashboard/_sidebar_header.html' with subtitle='لوحة المشرف' %}
+    {% trans "لوحة المشرف" as sous_titre_sidebar %}
+    {% include 'dashboard/_sidebar_header.html' with subtitle=sous_titre_sidebar %}
     {% include 'dashboard/_sidebar_user_block.html' %}
     <div class="sidebar-menu">
         <a href="{% url 'dashboard_mshrif' %}"
            class="menu-item {% if request.resolver_match.url_name == 'dashboard_mshrif' %}active{% endif %}">
-            <span class="icon">📊</span> نظرة عامة
+            <span class="icon">📊</span> {% trans "نظرة عامة" %}
         </a>
 
         <a href="{% url 'annonces_gestion' %}"
            class="menu-item {% if request.resolver_match.url_name == 'annonces_gestion' %}active{% endif %}">
-            <span class="icon">📢</span> الإعلانات
+            <span class="icon">📢</span> {% trans "الإعلانات" %}
         </a>
 
         {# لعرض فقط — المشرف له صلاحية قراءة شاملة على الاختبارات دون تعديل (قرار مثبَّت في 2026-08-16) — يرى نفس الصفحات التي يراها المؤطر. #}
         <a href="{% url 'examens_consultation_liste' %}"
            class="menu-item {% if request.resolver_match.url_name == 'examens_consultation_liste' or request.resolver_match.url_name == 'examens_consultation_detail' or request.resolver_match.url_name == 'examens_consultation_copie' %}active{% endif %}">
-            <span class="icon">📝</span> الاختبارات
+            <span class="icon">📝</span> {% trans "الاختبارات" %}
         </a>
 
         <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_eleves' or request.resolver_match.url_name == 'admin_profs' or request.resolver_match.url_name == 'admin_inscriptions' or request.resolver_match.url_name == 'admin_eleve_ajouter_manuel' or request.resolver_match.url_name == 'admin_prof_ajouter_manuel' or request.resolver_match.url_name == 'mshrif_inscriptions_profs' or request.resolver_match.url_name == 'mshrif_inscription_prof_detail' or request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}open{% endif %}>
-            <summary>إدارة المستخدمين</summary>
+            <summary>{% trans "إدارة المستخدمين" %}</summary>
             <a href="{% url 'admin_eleves' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_eleves' %}active{% endif %}">
-                <span class="icon">👤</span> الطلاب
+                <span class="icon">👤</span> {% trans "الطلاب" %}
             </a>
             <a href="{% url 'admin_profs' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_profs' %}active{% endif %}">
-                <span class="icon">🎓</span> المعلمون
+                <span class="icon">🎓</span> {% trans "المعلمون" %}
             </a>
             <a href="{% url 'admin_inscriptions' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_inscriptions' %}active{% endif %}">
-                <span class="icon">📋</span> طلبات التسجيل
+                <span class="icon">📋</span> {% trans "طلبات التسجيل" %}
             </a>
             <a href="{% url 'admin_eleve_ajouter_manuel' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_eleve_ajouter_manuel' %}active{% endif %}">
-                <span class="icon">➕</span> إضافة تلميذ يدوياً
+                <span class="icon">➕</span> {% trans "إضافة تلميذ يدوياً" %}
             </a>
             <a href="{% url 'admin_prof_ajouter_manuel' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_prof_ajouter_manuel' %}active{% endif %}">
-                <span class="icon">➕</span> إضافة أستاذ يدوياً
+                <span class="icon">➕</span> {% trans "إضافة أستاذ يدوياً" %}
             </a>
             <a href="{% url 'mshrif_inscriptions_profs' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_inscriptions_profs' or request.resolver_match.url_name == 'mshrif_inscription_prof_detail' %}active{% endif %}">
-                <span class="icon">👥</span> طلبات الأساتذة
+                <span class="icon">👥</span> {% trans "طلبات الأساتذة" %}
                 {% if nb_demandes_en_attente %}<span class="menu-badge">{{ nb_demandes_en_attente }}</span>{% endif %}
             </a>
             <a href="{% url 'admin_superviseurs' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}active{% endif %}">
-                <span class="icon">🧭</span> إسناد المؤطرين
+                <span class="icon">🧭</span> {% trans "إسناد المؤطرين" %}
             </a>
         </details>
 
         <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_seances' or request.resolver_match.url_name == 'admin_calendrier' or request.resolver_match.url_name == 'admin_groupes' or request.resolver_match.url_name == 'admin_creneaux' or request.resolver_match.url_name == 'admin_liens_meet' or request.resolver_match.url_name == 'admin_demandes_disponibilite' or request.resolver_match.url_name == 'admin_demandes_changement_halaka' %}open{% endif %}>
-            <summary>الحصص والجدولة</summary>
+            <summary>{% trans "الحصص والجدولة" %}</summary>
             <a href="{% url 'admin_seances' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_seances' %}active{% endif %}">
-                <span class="icon">📅</span> استثناءات الحصص
+                <span class="icon">📅</span> {% trans "استثناءات الحصص" %}
             </a>
             <a href="{% url 'admin_calendrier' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_calendrier' %}active{% endif %}">
-                <span class="icon">🗓️</span> التقويم الأسبوعي
+                <span class="icon">🗓️</span> {% trans "التقويم الأسبوعي" %}
             </a>
             <a href="{% url 'admin_groupes' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_groupes' %}active{% endif %}">
-                <span class="icon">👥</span> المجموعات
+                <span class="icon">👥</span> {% trans "المجموعات" %}
             </a>
             <a href="{% url 'admin_creneaux' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_creneaux' %}active{% endif %}">
-                <span class="icon">🕐</span> الحلقات
+                <span class="icon">🕐</span> {% trans "الحلقات" %}
             </a>
             <a href="{% url 'admin_liens_meet' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_liens_meet' %}active{% endif %}">
-                <span class="icon">{% include 'dashboard/_meet_glyph.html' %}</span> روابط Google Meet
+                <span class="icon">{% include 'dashboard/_meet_glyph.html' %}</span> {% trans "روابط Google Meet" %}
             </a>
             <a href="{% url 'admin_demandes_disponibilite' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_demandes_disponibilite' %}active{% endif %}">
-                <span class="icon">🕐</span> طلبات تعديل الأوقات المتاحة للتدريس
+                <span class="icon">🕐</span> {% trans "طلبات تعديل الأوقات المتاحة للتدريس" %}
             </a>
             <a href="{% url 'admin_demandes_changement_halaka' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_demandes_changement_halaka' %}active{% endif %}">
-                <span class="icon">🔄</span> طلبات تغيير الحلقة
+                <span class="icon">🔄</span> {% trans "طلبات تغيير الحلقة" %}
             </a>
         </details>
 
         <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' or request.resolver_match.url_name == 'suivi_paiements_eleves' or request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' %}open{% endif %}>
-            <summary>المدفوعات</summary>
+            <summary>{% trans "المدفوعات" %}</summary>
             <a href="{% url 'admin_paiements' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' %}active{% endif %}">
-                <span class="icon">💰</span> إدارة المدفوعات
+                <span class="icon">💰</span> {% trans "إدارة المدفوعات" %}
             </a>
             <a href="{% url 'suivi_paiements_eleves' %}"
                class="menu-item {% if request.resolver_match.url_name == 'suivi_paiements_eleves' %}active{% endif %}">
-                <span class="icon">📆</span> متابعة مدفوعات الطلاب
+                <span class="icon">📆</span> {% trans "متابعة مدفوعات الطلاب" %}
             </a>
             <a href="{% url 'admin_parametres_abonnements' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' %}active{% endif %}">
-                <span class="icon">🏷️</span> أنواع الاشتراك
+                <span class="icon">🏷️</span> {% trans "أنواع الاشتراك" %}
             </a>
             <a href="{% url 'admin_options_nb_seances' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_options_nb_seances' %}active{% endif %}">
-                <span class="icon">🔢</span> أعداد الحصص الأسبوعية
+                <span class="icon">🔢</span> {% trans "أعداد الحصص الأسبوعية" %}
             </a>
         </details>
 
         <a href="{% url 'mshrif_remuneration' %}"
            class="menu-item {% if request.resolver_match.url_name == 'mshrif_remuneration' or request.resolver_match.url_name == 'admin_prof_remuneration_detail' or request.resolver_match.url_name == 'admin_tarifs_remuneration' or request.resolver_match.url_name == 'admin_tarif_remuneration_groupe_modifier' or request.resolver_match.url_name == 'admin_tarif_remuneration_individuel_modifier' %}active{% endif %}">
-            <span class="icon">💰</span> متابعة رواتب الأساتذة
+            <span class="icon">💰</span> {% trans "متابعة رواتب الأساتذة" %}
         </a>
 
         <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' or request.resolver_match.url_name == 'classement_mensuel_profs' or request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' or request.resolver_match.url_name == 'admin_criteres_eleves' or request.resolver_match.url_name == 'admin_criteres' or request.resolver_match.url_name == 'suivi_engagement_mensuel' %}open{% endif %}>
-            <summary>التقييم والمتابعة</summary>
+            <summary>{% trans "التقييم والمتابعة" %}</summary>
             <a href="{% url 'admin_evaluations' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_evaluations' or request.resolver_match.url_name == 'admin_evaluation_detail' %}active{% endif %}">
-                <span class="icon">📊</span> التقييمات
+                <span class="icon">📊</span> {% trans "التقييمات" %}
             </a>
             <a href="{% url 'classement_mensuel_profs' %}"
                class="menu-item {% if request.resolver_match.url_name == 'classement_mensuel_profs' %}active{% endif %}">
-                <span class="icon">📋</span> تقارير المؤطرين
+                <span class="icon">📋</span> {% trans "تقارير المؤطرين" %}
             </a>
             {% comment %}
             admin_criteres redirige automatiquement vers classement_mensuel_profs
@@ -270,93 +278,94 @@
             cohérent avec l'architecture déjà en place.
             {% endcomment %}
             <a href="{% url 'admin_criteres' %}" class="menu-item">
-                <span class="icon">📝</span> معايير تقييم المعلمين
+                <span class="icon">📝</span> {% trans "معايير تقييم المعلمين" %}
             </a>
             <a href="{% url 'bilans_mensuels' %}"
                class="menu-item {% if request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' %}active{% endif %}">
-                <span class="icon">📝</span> تقييم الطلاب
+                <span class="icon">📝</span> {% trans "تقييم الطلاب" %}
             </a>
             <a href="{% url 'admin_criteres_eleves' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_criteres_eleves' %}active{% endif %}">
-                <span class="icon">📋</span> معايير تقييم الطلاب
+                <span class="icon">📋</span> {% trans "معايير تقييم الطلاب" %}
             </a>
             <a href="{% url 'suivi_engagement_mensuel' %}"
                class="menu-item {% if request.resolver_match.url_name == 'suivi_engagement_mensuel' %}active{% endif %}">
-                <span class="icon">✅</span> متابعة الالتزام الشهري
+                <span class="icon">✅</span> {% trans "متابعة الالتزام الشهري" %}
             </a>
         </details>
 
         <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_criteres_inscription' or request.resolver_match.url_name == 'admin_critere_inscription_ajouter' or request.resolver_match.url_name == 'admin_critere_inscription_detail' or request.resolver_match.url_name == 'admin_critere_inscription_modifier' or request.resolver_match.url_name == 'admin_critere_option_modifier' or request.resolver_match.url_name == 'admin_etapes_inscription' or request.resolver_match.url_name == 'admin_etape_inscription_ajouter' or request.resolver_match.url_name == 'admin_etape_inscription_detail' or request.resolver_match.url_name == 'admin_etape_inscription_modifier' or request.resolver_match.url_name == 'admin_champ_inscription_modifier' or request.resolver_match.url_name == 'admin_moyens_paiement' or request.resolver_match.url_name == 'admin_moyen_paiement_ajouter' or request.resolver_match.url_name == 'admin_moyen_paiement_modifier' or request.resolver_match.url_name == 'admin_presentation_inscription' or request.resolver_match.url_name == 'admin_demandes_non_satisfaites' %}open{% endif %}>
-            <summary>محرك التسجيل</summary>
+            <summary>{% trans "محرك التسجيل" %}</summary>
             <a href="{% url 'admin_criteres_inscription' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_criteres_inscription' or request.resolver_match.url_name == 'admin_critere_inscription_ajouter' or request.resolver_match.url_name == 'admin_critere_inscription_detail' or request.resolver_match.url_name == 'admin_critere_inscription_modifier' or request.resolver_match.url_name == 'admin_critere_option_modifier' %}active{% endif %}">
-                <span class="icon">🧩</span> معايير التسجيل
+                <span class="icon">🧩</span> {% trans "معايير التسجيل" %}
             </a>
             <a href="{% url 'admin_etapes_inscription' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_etapes_inscription' or request.resolver_match.url_name == 'admin_etape_inscription_ajouter' or request.resolver_match.url_name == 'admin_etape_inscription_detail' or request.resolver_match.url_name == 'admin_etape_inscription_modifier' or request.resolver_match.url_name == 'admin_champ_inscription_modifier' %}active{% endif %}">
-                <span class="icon">📶</span> مراحل وحقول النموذج
+                <span class="icon">📶</span> {% trans "مراحل وحقول النموذج" %}
             </a>
             <a href="{% url 'admin_moyens_paiement' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_moyens_paiement' or request.resolver_match.url_name == 'admin_moyen_paiement_ajouter' or request.resolver_match.url_name == 'admin_moyen_paiement_modifier' %}active{% endif %}">
-                <span class="icon">💳</span> طرق الدفع
+                <span class="icon">💳</span> {% trans "طرق الدفع" %}
             </a>
             <a href="{% url 'admin_presentation_inscription' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_presentation_inscription' %}active{% endif %}">
-                <span class="icon">📄</span> صفحة تقديم التسجيل
+                <span class="icon">📄</span> {% trans "صفحة تقديم التسجيل" %}
             </a>
             <a href="{% url 'admin_demandes_non_satisfaites' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_demandes_non_satisfaites' %}active{% endif %}">
-                <span class="icon">📊</span> طلبات غير ملبّاة
+                <span class="icon">📊</span> {% trans "طلبات غير ملبّاة" %}
             </a>
         </details>
 
         <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'admin_gestion_inscriptions' or request.resolver_match.url_name == 'admin_reglage_lien_seance' or request.resolver_match.url_name == 'admin_hakiba_gestion' or request.resolver_match.url_name == 'mshrif_logo' or request.resolver_match.url_name == 'mshrif_mon_compte' or request.resolver_match.url_name == 'admin_telegram_abonnes' %}open{% endif %}>
-            <summary>إعدادات المنصة</summary>
+            <summary>{% trans "إعدادات المنصة" %}</summary>
             <a href="{% url 'admin_telegram_abonnes' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_telegram_abonnes' %}active{% endif %}">
-                <span class="icon">🔔</span> اشتراكات إشعارات تيليجرام
+                <span class="icon">🔔</span> {% trans "اشتراكات إشعارات تيليجرام" %}
             </a>
             <a href="{% url 'mshrif_charte' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_charte' %}active{% endif %}">
-                <span class="icon">📜</span> ميثاق التدريس
+                <span class="icon">📜</span> {% trans "ميثاق التدريس" %}
             </a>
             <a href="{% url 'admin_programme_general' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_programme_general' %}active{% endif %}">
-                <span class="icon">📘</span> البرنامج العام
+                <span class="icon">📘</span> {% trans "البرنامج العام" %}
             </a>
             <a href="{% url 'admin_visibilite_prof' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_visibilite_prof' %}active{% endif %}">
-                <span class="icon">👁️</span> ظهور بيانات الأستاذ للطالب
+                <span class="icon">👁️</span> {% trans "ظهور بيانات الأستاذ للطالب" %}
             </a>
             <a href="{% url 'admin_gestion_inscriptions' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_gestion_inscriptions' %}active{% endif %}">
-                <span class="icon">📝</span> إدارة فتح التسجيل
+                <span class="icon">📝</span> {% trans "إدارة فتح التسجيل" %}
             </a>
             <a href="{% url 'admin_reglage_lien_seance' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_reglage_lien_seance' %}active{% endif %}">
-                <span class="icon">🔗</span> هامش رابط الحصص
+                <span class="icon">🔗</span> {% trans "هامش رابط الحصص" %}
             </a>
             <a href="{% url 'admin_hakiba_gestion' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_hakiba_gestion' %}active{% endif %}">
-                <span class="icon">🎒</span> إدارة حقيبة الأستاذ
+                <span class="icon">🎒</span> {% trans "إدارة حقيبة الأستاذ" %}
             </a>
             <a href="{% url 'admin_eleve_cartable_gestion' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_eleve_cartable_gestion' %}active{% endif %}">
-                <span class="icon">🗂️</span> إدارة حقيبة الطالب
+                <span class="icon">🗂️</span> {% trans "إدارة حقيبة الطالب" %}
             </a>
             <a href="{% url 'mshrif_logo' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_logo' %}active{% endif %}">
-                <span class="icon">🖼️</span> شعار المنصة
+                <span class="icon">🖼️</span> {% trans "شعار المنصة" %}
             </a>
             <a href="{% url 'mes_notes_personnelles' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mes_notes_personnelles' %}active{% endif %}">
-                <span class="icon">📓</span> ملاحظاتي
+                <span class="icon">📓</span> {% trans "ملاحظاتي" %}
             </a>
             <a href="{% url 'mshrif_mon_compte' %}"
                class="menu-item {% if request.resolver_match.url_name == 'mshrif_mon_compte' %}active{% endif %}">
-                <span class="icon">⚙️</span> حسابي
+                <span class="icon">⚙️</span> {% trans "حسابي" %}
             </a>
         </details>
+        <div style="padding: 14px 20px;">{% include '_language_switcher.html' %}</div>
     </div>
 </div>
 <div class="main-content">
