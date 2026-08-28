@@ -151,8 +151,9 @@ def wizard_identite(request):
     from courses.utils import tranche_age_depuis_naissance
     from inscriptions.views import MESSAGE_AGE_NE_CORRESPOND_PAS, _construire_et_valider_telephone
     from .utils import (
-        champs_structurels_actifs, traiter_champs_dynamiques_post,
-        url_etape_suivante, valider_champ_structurel_libre,
+        appliquer_regle_nom_parent, champs_structurels_actifs,
+        traiter_champs_dynamiques_post, url_etape_suivante,
+        valider_champ_structurel_libre,
     )
 
     donnees_session = wizard_donnees(request)
@@ -166,19 +167,13 @@ def wizard_identite(request):
 
     # nom_parent dépend du choix بالغ/طفل déjà fait à l'étape -1 (demande du
     # 2026-08-22) — jamais une mention conditionnelle vague ("إن كان
-    # المسجَّل قاصراً") : le système SAIT déjà si c'est un mineur. Mutation
-    # EN MÉMOIRE seulement (jamais persistée) — n'affecte que ce rendu/cette
-    # validation, pas la configuration réelle du مدير. Si le مدير a
-    # lui-même désactivé ce champ (absent de configs_par_cle), ce choix
-    # reste prioritaire : rien ci-dessous ne le réactive.
-    nom_parent_config = configs_par_cle.get('nom_parent')
-    if nom_parent_config is not None:
-        if type_age_choisi == 'adulte':
-            configs = [c for c in configs if c.champ_cle != 'nom_parent']
-            del configs_par_cle['nom_parent']
-        else:  # 'enfant'
-            nom_parent_config.label = 'اسم ولي الأمر'
-            nom_parent_config.obligatoire = True
+    # المسجَّل قاصراً") : le système SAIT déjà si c'est un mineur. Règle
+    # PARTAGÉE avec inscrire_eleve (registration.utils.
+    # appliquer_regle_nom_parent, correction du 2026-08-28) — avant ce
+    # partage, seule cette vue appliquait la mutation, jamais la
+    # revalidation finale à l'étape paiement, qui pouvait alors exiger
+    # nom_parent pour un adulte selon la configuration brute du مدير.
+    configs = appliquer_regle_nom_parent(configs, configs_par_cle, type_age_choisi)
 
     # job_actuel : même incohérence que nom_parent (label seedé en 0004
     # avec une mention conditionnelle vague, "أو عمل ولي الأمر إن كان

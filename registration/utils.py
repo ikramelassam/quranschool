@@ -107,6 +107,47 @@ def valider_champ_structurel_libre(config, valeur):
     return None
 
 
+def appliquer_regle_nom_parent(configs, configs_par_cle, type_age):
+    """Ajuste nom_parent selon la VRAIE catégorie d'âge `type_age` ('adulte'/
+    'enfant'/None) — logique UNIQUE, appelée à la fois par wizard_identite
+    (Étape 1, affichage) ET inscrire_eleve (revalidation finale, Étape 5/6 —
+    voir sa docstring "REVALIDATION FINALE") : avant ce partage, seule
+    wizard_identite appliquait cette règle en mémoire, jamais persistée ;
+    inscrire_eleve relisait la configuration BRUTE depuis la base et pouvait
+    exiger nom_parent pour un ADULTE dès que le مدير active obligatoire=True
+    dessus (pensé pour les mineurs) — un adulte s'inscrivant pour lui-même
+    se voyait alors bloqué à l'étape paiement par un champ qu'aucune étape
+    ne lui avait jamais montré (bug signalé le 2026-08-28). Corrigé en
+    centralisant la règle ici, appliquée aux 2 mêmes endroits.
+
+    - 'adulte' : nom_parent n'est JAMAIS exigé ni affiché — retiré de
+      `configs`/`configs_par_cle`, quelle que soit la configuration du
+      مدير (même logique que job_actuel : le système SAIT déjà que ce
+      n'est pas un mineur, jamais reposer la question).
+    - 'enfant' : nom_parent devient TOUJOURS obligatoire (et son label
+      neutre "اسم ولي الأمر" remplace le label seedé vague), même si le
+      مدير l'a configuré non-obligatoire — un mineur sans tuteur renseigné
+      ne doit jamais passer.
+    - None (date de naissance pas encore valide/connue) : configuration du
+      مدير laissée telle quelle, rien à trancher pour l'instant.
+
+    Mutation en mémoire uniquement (jamais persistée) — n'affecte que ce
+    rendu/cette validation, pas ConfigurationChampStructurel en base. Si le
+    مدير a lui-même désactivé le champ (absent de configs_par_cle), ce choix
+    reste prioritaire : rien ci-dessous ne le réactive."""
+    nom_parent_config = configs_par_cle.get('nom_parent')
+    if nom_parent_config is None or type_age is None:
+        return configs
+
+    if type_age == 'adulte':
+        configs = [c for c in configs if c.champ_cle != 'nom_parent']
+        del configs_par_cle['nom_parent']
+    else:  # 'enfant'
+        nom_parent_config.label = 'اسم ولي الأمر'
+        nom_parent_config.obligatoire = True
+    return configs
+
+
 # ==================== NAVIGATION DYNAMIQUE (correction 8, 2026-08-22) ====================
 # Avant cette correction, l'enchaînement des pages du wizard public était
 # figé dans le CODE (chaque vue faisait redirect('wizard_X') avec X en dur) —
@@ -1064,6 +1105,19 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
     configs_par_cle = {c.champ_cle: c for c in configs_identite}
     CLES_GENERIQUES = ('nom', 'nom_parent', 'job_actuel', 'niveau_scolaire')
 
+    # Date de naissance revalidée AVANT nom_parent (déplacé plus haut,
+    # 2026-08-28) : la VRAIE catégorie d'âge doit être connue avant de savoir
+    # si nom_parent est exigé — voir appliquer_regle_nom_parent, jamais la
+    # configuration brute du مدير seule (qui ne distingue pas بالغ/طفل).
+    date_naissance = None
+    try:
+        date_naissance = datetime.date.fromisoformat(reponses_brutes.get('date_naissance', ''))
+    except (ValueError, TypeError):
+        erreurs.append('يرجى إدخال تاريخ ميلاد صحيح.')
+
+    type_age = tranche_age_depuis_naissance(date_naissance) if date_naissance is not None else None
+    configs_identite = appliquer_regle_nom_parent(configs_identite, configs_par_cle, type_age)
+
     valeurs_structurelles = {}
     for cle in CLES_GENERIQUES:
         config = configs_par_cle.get(cle)
@@ -1093,14 +1147,7 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
         elif _email_bloque_pour_candidature_eleve(email):
             erreurs.append(MESSAGE_EMAIL_DEJA_UTILISE)
 
-    date_naissance = None
-    try:
-        date_naissance = datetime.date.fromisoformat(reponses_brutes.get('date_naissance', ''))
-    except (ValueError, TypeError):
-        erreurs.append('يرجى إدخال تاريخ ميلاد صحيح.')
-
     if date_naissance is not None:
-        type_age = tranche_age_depuis_naissance(date_naissance)
         parametres = get_parametres_inscriptions()
         categorie_fermee = (
             (type_age == 'adulte' and not parametres.ouverte_eleve_adulte)
@@ -1108,8 +1155,6 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
         )
         if categorie_fermee:
             erreurs.append('التسجيل مغلق حالياً لهذه الفئة العمرية.')
-    else:
-        type_age = None
 
     if erreurs:
         return None, erreurs

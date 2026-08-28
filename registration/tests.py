@@ -3480,6 +3480,103 @@ class WizardConfirmationTests(TestCase):
         reponse = Client().get(reverse('wizard_confirmation'))
         self.assertRedirects(reponse, reverse('wizard_intro'), fetch_redirect_response=False)
 
+    # ------------------------------------------------------------------
+    # BUG signalé le 2026-08-28 : un adulte s'inscrivant pour lui-même était
+    # bloqué à l'étape paiement (5/6) par "nom du tuteur légal", un champ
+    # jamais affiché nulle part dans son parcours (message d'erreur reprenant
+    # même le libellé vague seedé en 0004, "...إن كان المسجَّل قاصراً").
+    #
+    # Cause : dès que le مدير configure nom_parent.obligatoire=True (pensé
+    # pour les mineurs), wizard_identite (étape 1) retire correctement le
+    # champ pour un adulte (voir WizardIdentiteChampsStructurelsTests plus
+    # haut) — mais inscrire_eleve() (revalidation finale à l'étape paiement)
+    # relisait la configuration BRUTE depuis la base, sans connaître cette
+    # exemption : elle exigeait donc quand même nom_parent, pour un champ
+    # que l'élève n'avait jamais pu voir ni remplir. Corrigé en partageant
+    # UNE SEULE règle (registration.utils.appliquer_regle_nom_parent) entre
+    # les 2 endroits — jamais 2 logiques qui pourraient diverger.
+    # ------------------------------------------------------------------
+
+    def test_adulte_avec_nom_parent_configure_obligatoire_pour_mineurs_nest_jamais_bloque(self):
+        ConfigurationChampStructurel.objects.filter(champ_cle='nom_parent').update(obligatoire=True)
+
+        client = Client()
+        _choisir_categorie_age(client, 'adulte')
+        # Le champ ne doit apparaître nulle part dans le parcours d'un
+        # adulte, y compris à l'étape où l'âge/l'identité sont saisis.
+        html_identite = client.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertNotIn('name="nom_parent"', html_identite)
+
+        client.post(reverse('wizard_identite'), {
+            'nom': 'بالغ يسجل نفسه', 'sexe': 'homme', 'email': 'adulte.nom.parent@zidni.test',
+            'date_naissance': '1998-01-01',
+            'indicatif_pays': '212', 'telephone': '0600112233', 'telephone_confirmation': '0600112233',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abo_groupe.code})
+
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+        self.assertRedirects(reponse, reverse('wizard_confirmation'), fetch_redirect_response=False)
+        inscription = InscriptionEleve.objects.get(email='adulte.nom.parent@zidni.test')
+        self.assertEqual(inscription.nom_parent, '')
+
+    def test_nom_parent_visible_des_letape_identite_quand_obligatoire_pour_mineur(self):
+        """Le champ, quand il doit être requis, est déjà découvrable dès
+        l'étape où l'âge/la catégorie de l'inscrit est déterminée (étape 1,
+        identité) — jamais seulement révélé comme erreur bloquante à l'étape
+        paiement (contrainte de placement du bug du 2026-08-28)."""
+        ConfigurationChampStructurel.objects.filter(champ_cle='nom_parent').update(obligatoire=True)
+        client = Client()
+        _choisir_categorie_age(client, 'enfant')
+        html = client.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertIn('name="nom_parent"', html)
+        self.assertIn('اسم ولي الأمر', html)
+
+    def test_mineur_sans_nom_parent_reste_bloque_meme_en_contournant_letape_identite(self):
+        """Défense en profondeur (même patron que
+        test_groupe_id_devenu_incompatible_entre_etape_3_et_confirmation_
+        est_rejete_a_la_confirmation) : nom_parent.obligatoire=False en base
+        (donc, SEULE, cette configuration ne bloquerait rien) — mais la
+        catégorie 'enfant' impose quand même nom_parent, y compris si la
+        session est manipulée pour contourner la validation de l'étape 1 :
+        la revalidation à la confirmation reste indépendante et suffisante
+        à elle seule, un mineur sans tuteur renseigné n'aboutit jamais."""
+        ConfigurationChampStructurel.objects.filter(champ_cle='nom_parent').update(obligatoire=False)
+        client = Client()
+        _choisir_categorie_age(client, 'enfant')
+        client.post(reverse('wizard_identite'), {
+            'nom': 'قاصر بلا ولي', 'nom_parent': 'ولي موجود مؤقتاً', 'sexe': 'homme',
+            'email': 'contournement.mineur@zidni.test', 'date_naissance': '2015-01-01',
+            'indicatif_pays': '212', 'telephone': '0600998877', 'telephone_confirmation': '0600998877',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'groupe',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+        client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abo_groupe.code})
+
+        # Contournement direct de la session : efface nom_parent APRÈS
+        # l'avoir fait valider par wizard_identite.
+        session = client.session
+        donnees = session.get('wizard_inscription', {})
+        donnees['nom_parent'] = ''
+        session['wizard_inscription'] = donnees
+        session.save()
+
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('إلزامي', reponse.content.decode('utf-8'))
+        self.assertFalse(InscriptionEleve.objects.filter(email='contournement.mineur@zidni.test').exists())
+
 
 # ============================================================================
 # BUG signalé le 2026-08-22 : du texte de commentaire technique s'affichait
