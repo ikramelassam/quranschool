@@ -1314,6 +1314,35 @@ class WizardCategorieAgeTests(TestCase):
         # Même écran que l'ancien système (inscriptions/inscription_fermee.html).
         self.assertIn('التسجيل مغلق حالياً لفئة الطلاب البالغون', reponse.content.decode('utf-8'))
 
+    def test_categorie_fermee_suit_la_langue_choisie_en_session(self):
+        """Point 2 du chantier UI/i18n du 2026-08-28 : l'écran de fermeture
+        (titre, texte d'excuse, "التواصل مع الإدارة") suivait auparavant
+        toujours l'arabe, quelle que soit la langue FR/EN choisie via le
+        sélecteur — corrigé (CATEGORIE_LABEL et inscription_fermee.html
+        passés par {% trans %}/{% blocktrans %}/gettext_lazy)."""
+        from inscriptions.models import get_parametres_inscriptions
+
+        parametres = get_parametres_inscriptions()
+        parametres.ouverte_eleve_enfant = False
+        parametres.save()
+
+        client = Client()
+        client.post(reverse('set_language'), {'language': 'fr'})
+        reponse = client.post(reverse('wizard_categorie_age'), {'type_age': 'enfant'})
+        html = reponse.content.decode('utf-8')
+        self.assertIn('Inscription actuellement fermée pour la catégorie', html)
+        self.assertIn('Étudiants enfants', html)
+        self.assertIn("Contacter l'administration", html)
+        self.assertNotIn('التسجيل مغلق حالياً', html)
+
+        client_en = Client()
+        client_en.post(reverse('set_language'), {'language': 'en'})
+        reponse_en = client_en.post(reverse('wizard_categorie_age'), {'type_age': 'enfant'})
+        html_en = reponse_en.content.decode('utf-8')
+        self.assertIn('Registration is currently closed for the', html_en)
+        self.assertIn('Child students', html_en)
+        self.assertNotIn('التسجيل مغلق حالياً', html_en)
+
     def test_wizard_intro_saute_vers_categorie_age_si_pas_encore_choisi(self):
         reponse = Client().get(reverse('wizard_intro'))
         self.assertRedirects(reponse, reverse('wizard_categorie_age'))
@@ -2045,10 +2074,18 @@ class WizardGroupeDisponibilitesSiAttenteTests(TestCase):
         self._avancer_a_etape_3(client)
         html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
 
-        fonction_attente = html[html.index('function choisirAttente'):html.index('</script>')]
+        # html.index('</script>') seul renvoyait la toute PREMIÈRE balise
+        # </script> du document — cassé depuis l'ajout du sélecteur de langue
+        # (templates/_language_switcher.html, inclus dans _wizard_base.html
+        # AVANT le bloc wizard_content) qui a son propre <script> plus tôt
+        # dans la page (chantier UI/i18n du 2026-08-28). Cherche maintenant la
+        # fermeture à partir du début de la fonction elle-même, jamais la
+        # première balise </script> rencontrée dans tout le document.
+        debut_attente = html.index('function choisirAttente')
+        fonction_attente = html[debut_attente:html.index('</script>', debut_attente)]
         self.assertIn("_toggleBlocDisponibilites(true)", fonction_attente)
 
-        fonction_proche = html[html.index('function choisirGroupeProche'):html.index('function choisirAttente')]
+        fonction_proche = html[html.index('function choisirGroupeProche'):debut_attente]
         self.assertIn("_toggleBlocDisponibilites(false)", fonction_proche)
 
     def test_grille_masquee_si_toggle_desactive_mais_carte_attente_reste(self):
@@ -4014,3 +4051,37 @@ class WizardTrancheAgePreciseAffichageTests(TestCase):
         self.assertNotIn('التلقين', html)
         self.assertNotIn('البراعم', html)
         self.assertNotIn('اليافعون', html)
+
+
+class PresentationInscriptionLocaliseeTests(TestCase):
+    """Chantier i18n du 2026-08-28 ("Problème B") — wizard_intro (Étape 0)
+    affiche presentation.titre_localise/intro_localise/bouton_texte_localise
+    selon la langue active en session (sélecteur de langue, voir
+    templates/_language_switcher.html), avec repli automatique sur l'arabe si
+    la traduction FR/EN n'a pas encore été saisie par le مدير/مشرف — voir
+    registration.models.PresentationInscription._localise."""
+
+    def test_wizard_intro_affiche_la_traduction_selon_la_langue_active(self):
+        from registration.models import get_presentation_inscription
+
+        presentation = get_presentation_inscription()
+        presentation.titre = 'أهلاً بك في زدني علماً'
+        presentation.titre_fr = 'Bienvenue chez Zidni Ilman'
+        presentation.titre_en = ''  # volontairement non traduit
+        presentation.save()
+
+        client = Client()
+        _choisir_categorie_age(client)
+
+        client.post(reverse('set_language'), {'language': 'fr', 'next': reverse('wizard_intro')})
+        html = client.get(reverse('wizard_intro')).content.decode('utf-8')
+        self.assertIn('Bienvenue chez Zidni Ilman', html)
+
+        client.post(reverse('set_language'), {'language': 'en', 'next': reverse('wizard_intro')})
+        html = client.get(reverse('wizard_intro')).content.decode('utf-8')
+        # EN vide -> repli sur l'arabe, jamais un texte manquant côté visiteur.
+        self.assertIn('أهلاً بك في زدني علماً', html)
+
+        client.post(reverse('set_language'), {'language': 'ar', 'next': reverse('wizard_intro')})
+        html = client.get(reverse('wizard_intro')).content.decode('utf-8')
+        self.assertIn('أهلاً بك في زدني علماً', html)

@@ -3251,6 +3251,34 @@ class MoyenPaiementPresentationDelaisTests(TestCase):
         presentation.refresh_from_db()
         self.assertFalse(presentation.afficher_disponibilites_si_attente)
 
+    def test_traductions_fr_en_optionnelles_avec_repli_arabe(self):
+        """Chantier i18n du 2026-08-28 ("Problème B") : les 6 champs de
+        PresentationInscription existent désormais aussi en _fr/_en, saisis à la
+        main par le مدير/مشرف (PAS de traduction automatique — voir
+        PresentationInscription._localise) — le champ arabe reste seul
+        obligatoire ; FR/EN restent optionnels et servent de repli sur l'arabe
+        tant qu'ils ne sont pas remplis."""
+        from django.utils import translation
+        from registration.models import get_presentation_inscription
+
+        client = self._connecte_admin()
+        client.post(reverse('admin_presentation_inscription'), {
+            'titre': 'أهلاً بك', 'intro': 'نص الميثاق', 'bouton_texte': 'متابعة',
+            'message_bienvenue': 'مرحباً', 'message_aucun_groupe_exact': 'لا توجد مجموعة',
+            'texte_attente_groupe': 'انتظر',
+            'titre_fr': 'Bienvenue', 'titre_en': '',  # EN volontairement laissé vide
+        })
+        presentation = get_presentation_inscription()
+        self.assertEqual(presentation.titre_fr, 'Bienvenue')
+        self.assertEqual(presentation.titre_en, '')
+        with translation.override('fr'):
+            self.assertEqual(presentation.titre_localise, 'Bienvenue')
+        with translation.override('en'):
+            # EN vide -> repli automatique sur l'arabe, jamais un texte manquant.
+            self.assertEqual(presentation.titre_localise, 'أهلاً بك')
+        with translation.override('ar'):
+            self.assertEqual(presentation.titre_localise, 'أهلاً بك')
+
     def test_delais_paiement_et_contact_configurables(self):
         from inscriptions.models import get_parametres_inscriptions
 

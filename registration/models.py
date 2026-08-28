@@ -61,6 +61,7 @@ séparé le réintroduira consciemment plutôt que de laisser du code génériqu
 non testé en pratique."""
 
 from django.db import models
+from django.utils.translation import get_language
 
 
 class Critere(models.Model):
@@ -448,8 +449,22 @@ class PresentationInscription(models.Model):
     role_required('admin', 'mshrif'))."""
 
     titre = models.CharField(max_length=200, blank=True)
+    # _fr/_en (chantier i18n du 2026-08-28, "Problème B") : saisie manuelle par le
+    # مدير/مشرف, PAS une traduction automatique — décision produit déjà tranchée
+    # pour ce contenu éditable (contrairement à un texte fixe du code, `{% trans %}`
+    # ne peut rien pour lui). Chacun des 6 champs ci-dessous suit le même patron :
+    # une paire _fr/_en optionnelle (blank=True, jamais obligatoire) à côté du champ
+    # arabe existant, lue via la property `<champ>_localise` (voir plus bas) qui
+    # retombe automatiquement sur l'arabe si la traduction n'a pas encore été
+    # saisie — jamais de texte vide affiché à un visiteur FR/EN.
+    titre_fr = models.CharField(max_length=200, blank=True, default='')
+    titre_en = models.CharField(max_length=200, blank=True, default='')
     intro = models.TextField(blank=True)
+    intro_fr = models.TextField(blank=True, default='')
+    intro_en = models.TextField(blank=True, default='')
     bouton_texte = models.CharField(max_length=100, default='متابعة التسجيل')
+    bouton_texte_fr = models.CharField(max_length=100, blank=True, default='')
+    bouton_texte_en = models.CharField(max_length=100, blank=True, default='')
     # Affiché après confirmation (Partie 14 du cahier des charges) — le délai de
     # contact (ParametresInscriptions.delai_contact_heures, inscriptions/models.py)
     # est affiché séparément par wizard_confirmation.html (pas injecté dans ce
@@ -462,12 +477,16 @@ class PresentationInscription(models.Model):
     # main. Corrigé ici même logique que 0011/0013 : voir migration 0014 pour
     # le rattrapage de la ligne pk=1 déjà créée vide.
     message_bienvenue = models.TextField(blank=True)
+    message_bienvenue_fr = models.TextField(blank=True, default='')
+    message_bienvenue_en = models.TextField(blank=True, default='')
     # Chantier du 2026-08-22 ("liberté totale du nombre de séances") — affiché
     # à wizard_groupe quand AUCUN groupe n'existe pour la combinaison EXACTE
     # de critères choisis (voir DemandeNonSatisfaite ci-dessous) : un défaut
     # raisonnable est fourni par get_presentation_inscription() si vide,
     # jamais un texte brut codé en dur dans le template.
     message_aucun_groupe_exact = models.TextField(blank=True)
+    message_aucun_groupe_exact_fr = models.TextField(blank=True, default='')
+    message_aucun_groupe_exact_en = models.TextField(blank=True, default='')
     # Ajouté le 2026-08-25 : texte de la carte "⏳ لا، أنتظر حتى يتم إنشاء
     # الحلقة" proposée à côté des groupes proches (même écran que ci-dessus).
     # Choix du مدير lors de ce chantier : un SEUL champ libre pour toute la
@@ -477,6 +496,8 @@ class PresentationInscription(models.Model):
     # delai_contact_heures) que porte encore le message équivalent de
     # wizard_confirmation.html (resté, lui, inchangé par ce chantier).
     texte_attente_groupe = models.TextField(blank=True)
+    texte_attente_groupe_fr = models.TextField(blank=True, default='')
+    texte_attente_groupe_en = models.TextField(blank=True, default='')
     # Chantier du 2026-08-27 : contrôle l'apparition de la matrice de
     # disponibilités (templates/courses/_grille_disponibilites.html,
     # réutilisée telle quelle) à côté de la carte "attente" ci-dessus, quand
@@ -492,6 +513,52 @@ class PresentationInscription(models.Model):
     # validation admin — inchangé.
     afficher_disponibilites_si_attente = models.BooleanField(default=True)
     date_modification = models.DateTimeField(auto_now=True)
+
+    # Liste des 6 champs qui existent en 3 langues (voir titre_fr/titre_en
+    # ci-dessus) — utilisée uniquement par _localise, jamais dupliquée ailleurs.
+    _CHAMPS_LOCALISABLES = (
+        'titre', 'intro', 'bouton_texte',
+        'message_bienvenue', 'message_aucun_groupe_exact', 'texte_attente_groupe',
+    )
+
+    def _localise(self, champ_base):
+        """Renvoie la valeur de `champ_base` dans la langue active de la session
+        (get_language(), alimentée par le sélecteur de langue — voir
+        templates/_language_switcher.html), avec repli automatique sur l'arabe
+        (`champ_base` lui-même) si la traduction FR/EN correspondante est encore
+        vide. Ne PAS appeler directement depuis un template — chaque champ a sa
+        property dédiée (`titre_localise`, etc.) juste en dessous, plus lisible
+        côté appelant qu'un lookup par nom de variable."""
+        langue = get_language()
+        if langue in ('fr', 'en'):
+            valeur = getattr(self, f'{champ_base}_{langue}', '')
+            if valeur:
+                return valeur
+        return getattr(self, champ_base)
+
+    @property
+    def titre_localise(self):
+        return self._localise('titre')
+
+    @property
+    def intro_localise(self):
+        return self._localise('intro')
+
+    @property
+    def bouton_texte_localise(self):
+        return self._localise('bouton_texte')
+
+    @property
+    def message_bienvenue_localise(self):
+        return self._localise('message_bienvenue')
+
+    @property
+    def message_aucun_groupe_exact_localise(self):
+        return self._localise('message_aucun_groupe_exact')
+
+    @property
+    def texte_attente_groupe_localise(self):
+        return self._localise('texte_attente_groupe')
 
     def __str__(self):
         return "تقديم صفحة التسجيل"

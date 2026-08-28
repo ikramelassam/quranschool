@@ -1,64 +1,148 @@
 {% extends base_template %}
-{% block title %}صفحة تقديم التسجيل{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "صفحة تقديم التسجيل" %}{% endblock %}
 {% block content %}
-<div class="page-title">صفحة تقديم التسجيل (ميثاق)</div>
+<div class="page-title">{% trans "صفحة تقديم التسجيل (ميثاق)" %}</div>
 <div class="page-subtitle" style="margin-bottom:20px;">
-    تظهر هذه الصفحة أول ما يفتح الطالب نموذج التسجيل، قبل أي حقل — آخر تعديل: {{ presentation.date_modification|date:"d-m-Y H:i" }}
+    {% blocktrans with date=presentation.date_modification|date:"d-m-Y H:i" %}تظهر هذه الصفحة أول ما يفتح الطالب نموذج التسجيل، قبل أي حقل — آخر تعديل: {{ date }}{% endblocktrans %}
 </div>
 
-<div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+{% comment %}
+Chaque champ ci-dessous existe en 3 langues (chantier i18n du 2026-08-28,
+"Problème B") : le champ عربي (name="{champ}") reste le seul obligatoire —
+FR/EN (name="{champ}_fr"/"{champ}_en") sont de simples traductions
+optionnelles saisies à la main par le مدير/مشرف, PAS générées automatiquement.
+Si un des deux est laissé vide, PresentationInscription._localise retombe sur
+la version arabe pour le visiteur FR/EN concerné — jamais de texte vide
+affiché. Voir registration.models.PresentationInscription pour le détail.
+{% endcomment %}
+<div style="background:white; border-radius:16px; padding:32px; max-width:820px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
         {% csrf_token %}
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">العنوان</label>
-            <input type="text" name="titre" class="form-control mt-1" value="{{ presentation.titre }}" placeholder="مثال: أهلاً بك في زدني علماً">
+
+        <div class="mb-4">
+            <label style="font-weight:600; color:#333;">{% trans "العنوان" %}</label>
+            <div class="input-group mt-1">
+                <span class="input-group-text" style="min-width:52px;">🇸🇦 AR</span>
+                <input type="text" name="titre" class="form-control" value="{{ presentation.titre }}" placeholder="{% trans 'مثال: أهلاً بك في زدني علماً' %}">
+            </div>
+            <div class="input-group mt-2">
+                <span class="input-group-text" style="min-width:52px;">🇫🇷 FR</span>
+                <input type="text" name="titre_fr" class="form-control" value="{{ presentation.titre_fr }}">
+            </div>
+            <div class="input-group mt-2">
+                <span class="input-group-text" style="min-width:52px;">🇬🇧 EN</span>
+                <input type="text" name="titre_en" class="form-control" value="{{ presentation.titre_en }}">
+            </div>
         </div>
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">نص التقديم (الميثاق)</label>
-            <textarea name="intro" class="form-control mt-1" rows="8">{{ presentation.intro }}</textarea>
+
+        <div class="mb-4">
+            <label style="font-weight:600; color:#333;">{% trans "نص التقديم (الميثاق)" %}</label>
+            <div class="input-group mt-1">
+                <span class="input-group-text" style="min-width:52px;">🇸🇦 AR</span>
+                <textarea name="intro" class="form-control" rows="6">{{ presentation.intro }}</textarea>
+            </div>
+            <div class="input-group mt-2">
+                <span class="input-group-text" style="min-width:52px;">🇫🇷 FR</span>
+                <textarea name="intro_fr" class="form-control" rows="4">{{ presentation.intro_fr }}</textarea>
+            </div>
+            <div class="input-group mt-2">
+                <span class="input-group-text" style="min-width:52px;">🇬🇧 EN</span>
+                <textarea name="intro_en" class="form-control" rows="4">{{ presentation.intro_en }}</textarea>
+            </div>
         </div>
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">نص زر المتابعة</label>
-            <input type="text" name="bouton_texte" class="form-control mt-1" value="{{ presentation.bouton_texte }}">
+
+        <div class="mb-4">
+            <label style="font-weight:600; color:#333;">{% trans "نص زر المتابعة" %}</label>
+            <div class="input-group mt-1">
+                <span class="input-group-text" style="min-width:52px;">🇸🇦 AR</span>
+                <input type="text" name="bouton_texte" class="form-control" value="{{ presentation.bouton_texte }}">
+            </div>
+            <div class="input-group mt-2">
+                <span class="input-group-text" style="min-width:52px;">🇫🇷 FR</span>
+                <input type="text" name="bouton_texte_fr" class="form-control" value="{{ presentation.bouton_texte_fr }}">
+            </div>
+            <div class="input-group mt-2">
+                <span class="input-group-text" style="min-width:52px;">🇬🇧 EN</span>
+                <input type="text" name="bouton_texte_en" class="form-control" value="{{ presentation.bouton_texte_en }}">
+            </div>
         </div>
+
         <hr class="my-4">
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">رسالة الترحيب بعد تأكيد التسجيل</label>
-            <textarea name="message_bienvenue" class="form-control mt-1" rows="5">{{ presentation.message_bienvenue }}</textarea>
+
+        <div class="mb-4">
+            <label style="font-weight:600; color:#333;">{% trans "رسالة الترحيب بعد تأكيد التسجيل" %}</label>
+            <div class="input-group mt-1">
+                <span class="input-group-text" style="min-width:52px;">🇸🇦 AR</span>
+                <textarea name="message_bienvenue" class="form-control" rows="4">{{ presentation.message_bienvenue }}</textarea>
+            </div>
+            <div class="input-group mt-2">
+                <span class="input-group-text" style="min-width:52px;">🇫🇷 FR</span>
+                <textarea name="message_bienvenue_fr" class="form-control" rows="3">{{ presentation.message_bienvenue_fr }}</textarea>
+            </div>
+            <div class="input-group mt-2">
+                <span class="input-group-text" style="min-width:52px;">🇬🇧 EN</span>
+                <textarea name="message_bienvenue_en" class="form-control" rows="3">{{ presentation.message_bienvenue_en }}</textarea>
+            </div>
             <div style="color:#888; font-size:0.78rem; margin-top:4px;">
-                مهلة التواصل مع الطالب (بالساعات) تُضبط من صفحة "إدارة فتح التسجيل" وتُضاف تلقائياً عند عرض هذه الرسالة — لا حاجة لكتابة الرقم هنا يدوياً.
+                {% trans "مهلة التواصل مع الطالب (بالساعات) تُضبط من صفحة \"إدارة فتح التسجيل\" وتُضاف تلقائياً عند عرض هذه الرسالة — لا حاجة لكتابة الرقم هنا يدوياً." %}
             </div>
         </div>
+
         <hr class="my-4">
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">رسالة عند عدم وجود مجموعة مطابقة تماماً</label>
-            <textarea name="message_aucun_groupe_exact" class="form-control mt-1" rows="4">{{ presentation.message_aucun_groupe_exact }}</textarea>
+
+        <div class="mb-4">
+            <label style="font-weight:600; color:#333;">{% trans "رسالة عند عدم وجود مجموعة مطابقة تماماً" %}</label>
+            <div class="input-group mt-1">
+                <span class="input-group-text" style="min-width:52px;">🇸🇦 AR</span>
+                <textarea name="message_aucun_groupe_exact" class="form-control" rows="4">{{ presentation.message_aucun_groupe_exact }}</textarea>
+            </div>
+            <div class="input-group mt-2">
+                <span class="input-group-text" style="min-width:52px;">🇫🇷 FR</span>
+                <textarea name="message_aucun_groupe_exact_fr" class="form-control" rows="3">{{ presentation.message_aucun_groupe_exact_fr }}</textarea>
+            </div>
+            <div class="input-group mt-2">
+                <span class="input-group-text" style="min-width:52px;">🇬🇧 EN</span>
+                <textarea name="message_aucun_groupe_exact_en" class="form-control" rows="3">{{ presentation.message_aucun_groupe_exact_en }}</textarea>
+            </div>
             <div style="color:#888; font-size:0.78rem; margin-top:4px;">
-                تظهر للطالب عند اختيار مجموعة (الخطوة 3) إذا لم توجد أي مجموعة تتوافق تماماً مع كل اختياراته — يُعرض له عندها هذا النص مع قائمة المجموعات القريبة المتاحة.
+                {% trans "تظهر للطالب عند اختيار مجموعة (الخطوة 3) إذا لم توجد أي مجموعة تتوافق تماماً مع كل اختياراته — يُعرض له عندها هذا النص مع قائمة المجموعات القريبة المتاحة." %}
             </div>
         </div>
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">نص خيار "الانتظار" (بدل الانضمام إلى مجموعة قريبة)</label>
-            <textarea name="texte_attente_groupe" class="form-control mt-1" rows="3">{{ presentation.texte_attente_groupe }}</textarea>
+
+        <div class="mb-4">
+            <label style="font-weight:600; color:#333;">{% trans 'نص خيار "الانتظار" (بدل الانضمام إلى مجموعة قريبة)' %}</label>
+            <div class="input-group mt-1">
+                <span class="input-group-text" style="min-width:52px;">🇸🇦 AR</span>
+                <textarea name="texte_attente_groupe" class="form-control" rows="3">{{ presentation.texte_attente_groupe }}</textarea>
+            </div>
+            <div class="input-group mt-2">
+                <span class="input-group-text" style="min-width:52px;">🇫🇷 FR</span>
+                <textarea name="texte_attente_groupe_fr" class="form-control" rows="2">{{ presentation.texte_attente_groupe_fr }}</textarea>
+            </div>
+            <div class="input-group mt-2">
+                <span class="input-group-text" style="min-width:52px;">🇬🇧 EN</span>
+                <textarea name="texte_attente_groupe_en" class="form-control" rows="2">{{ presentation.texte_attente_groupe_en }}</textarea>
+            </div>
             <div style="color:#888; font-size:0.78rem; margin-top:4px;">
-                يظهر في نفس الشاشة، كخيار بديل عن الانضمام إلى مجموعة قريبة — إذا كتبت رقم الساعات فاكتبه يدوياً هنا (لا يُضاف تلقائياً كما في رسالة الترحيب أعلاه).
+                {% trans "يظهر في نفس الشاشة، كخيار بديل عن الانضمام إلى مجموعة قريبة — إذا كتبت رقم الساعات فاكتبه يدوياً هنا (لا يُضاف تلقائياً كما في رسالة الترحيب أعلاه)." %}
             </div>
         </div>
+
         <div class="mb-3 form-check">
             <input type="checkbox" name="afficher_disponibilites_si_attente" value="1" class="form-check-input" id="afficher_disponibilites_si_attente"
                    {% if presentation.afficher_disponibilites_si_attente %}checked{% endif %}>
             <label class="form-check-label" for="afficher_disponibilites_si_attente" style="font-weight:600; color:#333;">
-                عرض جدول أوقات التفرغ الأسبوعي بجانب خيار "الانتظار"
+                {% trans "عرض جدول أوقات التفرغ الأسبوعي بجانب خيار \"الانتظار\"" %}
             </label>
             <div style="color:#888; font-size:0.78rem; margin-top:4px;">
-                إذا فُعّل: يظهر جدول تفرغ اختياري يملؤه الطالب عند اختيار الانتظار، ليساعد على اقتراح حلقة تناسبه لاحقاً.
-                إذا عُطّل: يبقى خيار "الانتظار" ظاهراً دائماً، دون هذا الجدول.
+                {% trans "إذا فُعّل: يظهر جدول تفرغ اختياري يملؤه الطالب عند اختيار الانتظار، ليساعد على اقتراح حلقة تناسبه لاحقاً. إذا عُطّل: يبقى خيار \"الانتظار\" ظاهراً دائماً، دون هذا الجدول." %}
             </div>
         </div>
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                حفظ التعديلات ✅
+                {% trans "حفظ التعديلات ✅" %}
             </button>
         </div>
     </form>

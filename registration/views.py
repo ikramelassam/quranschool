@@ -431,11 +431,14 @@ def wizard_groupe(request):
             groupes_compatibles_avec_age(reponses_bloquantes, date_naissance, sexe)
         ).prefetch_related('valeurs_criteres__critere', 'valeurs_criteres__option')
         presentation = get_presentation_inscription()
-        message_aucun_groupe = presentation.message_aucun_groupe_exact
+        # _localise (chantier i18n du 2026-08-28) : repli automatique sur l'arabe
+        # si le مدير/مشرف n'a pas encore saisi la traduction FR/EN — voir
+        # PresentationInscription._localise.
+        message_aucun_groupe = presentation.message_aucun_groupe_exact_localise
         # Chantier du 2026-08-25 : texte de la carte "⏳ لا، أنتظر حتى يتم
         # إنشاء الحلقة" — voir registration.models.PresentationInscription.
         # texte_attente_groupe.
-        texte_attente_groupe = presentation.texte_attente_groupe
+        texte_attente_groupe = presentation.texte_attente_groupe_localise
         # Chantier du 2026-08-27 : matrice de disponibilités optionnelle à
         # côté de la carte "attente" — voir PresentationInscription.
         # afficher_disponibilites_si_attente.__doc__. Ne contrôle JAMAIS la
@@ -665,7 +668,9 @@ def _wizard_confirmer_inscription(request, donnees, moyens, date_limite, paramet
     # mêmes infos ni ne permet de rejouer la création.
     request.session['wizard_confirmation'] = {
         'nom': inscription.nom,
-        'message_bienvenue': presentation.message_bienvenue,
+        # _localise (chantier i18n du 2026-08-28) : repli automatique sur l'arabe
+        # si le مدير/مشرف n'a pas encore saisi la traduction FR/EN.
+        'message_bienvenue': presentation.message_bienvenue_localise,
         'delai_contact_heures': parametres.delai_contact_heures,
     }
     return redirect(url_etape_suivante('paiement'))

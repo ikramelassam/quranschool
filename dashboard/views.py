@@ -7129,6 +7129,12 @@ def admin_presentation_inscription(request):
         # Chantier du 2026-08-25 : texte de la carte "⏳ لا، أنتظر حتى يتم
         # إنشاء الحلقة" à côté des groupes proches (même écran ci-dessus).
         presentation.texte_attente_groupe = request.POST.get('texte_attente_groupe', '').strip()
+        # Chantier i18n du 2026-08-28 ("Problème B") : traductions FR/EN saisies
+        # à la main par le مدير/مشرف, toutes optionnelles — jamais required ici,
+        # PresentationInscription._localise retombe sur l'arabe si vide.
+        for champ in presentation._CHAMPS_LOCALISABLES:
+            for langue in ('fr', 'en'):
+                setattr(presentation, f'{champ}_{langue}', request.POST.get(f'{champ}_{langue}', '').strip())
         # Chantier du 2026-08-27 : matrice de disponibilités optionnelle EN
         # PLUS de la carte "attente" ci-dessus (jamais à sa place — voir
         # PresentationInscription.afficher_disponibilites_si_attente.__doc__).

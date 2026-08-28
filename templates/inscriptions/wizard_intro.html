@@ -1,6 +1,6 @@
 {% extends 'inscriptions/_wizard_base.html' %}
 {% load i18n %}
-{% block wizard_title %}{% trans "التسجيل كطالب" as titre_defaut %}{{ presentation.titre|default:titre_defaut }}{% endblock %}
+{% block wizard_title %}{% trans "التسجيل كطالب" as titre_defaut %}{{ presentation.titre_localise|default:titre_defaut }}{% endblock %}
 {% block wizard_extra_style %}
 .charte-box {
     background: var(--color-bg-cream);
@@ -15,10 +15,10 @@
 }
 {% endblock %}
 {% block wizard_content %}
-<div class="page-title">{{ presentation.titre }}</div>
+<div class="page-title">{{ presentation.titre_localise }}</div>
 
 <div class="charte-box">
-    {{ presentation.intro }}
+    {{ presentation.intro_localise }}
 </div>
 
 {% comment %}
@@ -32,7 +32,7 @@ elles, acceptent déjà les 2 formes de façon strictement identique.
 {% endcomment %}
 {% trans "متابعة التسجيل" as bouton_defaut %}
 <a href="{{ url_suivante }}" class="btn-submit" style="display:block; text-align:center; text-decoration:none;">
-    {{ presentation.bouton_texte|default:bouton_defaut }} ←
+    {{ presentation.bouton_texte_localise|default:bouton_defaut }} ←
 </a>
 <a href="{% url 'wizard_categorie_age' %}" class="btn-back">{% trans "رجوع" %}</a>
 {% endblock %}
