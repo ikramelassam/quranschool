@@ -322,6 +322,10 @@ class ChampsInscriptionVisiblesTests(TestCase):
             # conditionnellement (statut='rejete' seulement), voir
             # test_motif_refus_affiche_quand_rejete ci-dessous.
             'motif_refus',
+            # Chantier du 2026-08-27 (ميثاق التدريس déplacé vers la
+            # candidature) — voir test_charte_acceptee_affichee_sur_la_fiche
+            # ci-dessous.
+            'charte_acceptee', 'date_acceptation_charte',
         }
         champs_connus = champs_verifies_affiches | set(self.CHAMPS_EXCLUS_PROF)
         champs_nouveaux = champs_reels - champs_connus
@@ -341,6 +345,18 @@ class ChampsInscriptionVisiblesTests(TestCase):
         url = reverse('admin_inscription_prof_detail', args=[inscription.id])
         contenu = self.client.get(url).content.decode('utf-8')
         self.assertIn('MotifRefusProfMarqueurR5j9', contenu)
+
+    def test_charte_acceptee_affichee_sur_la_fiche_candidature(self):
+        """Chantier du 2026-08-27 (ميثاق التدريس déplacé vers la
+        candidature) — la fiche مدير/مشرف doit afficher l'acceptation telle
+        qu'enregistrée à la soumission."""
+        inscription = self._creer_inscription_prof(
+            charte_acceptee=True,
+            date_acceptation_charte='2026-08-27T10:00:00Z',
+        )
+        url = reverse('admin_inscription_prof_detail', args=[inscription.id])
+        contenu = self.client.get(url).content.decode('utf-8')
+        self.assertIn('✅', contenu)
 
 
 @override_settings(STORAGES={
@@ -392,6 +408,10 @@ class InscriptionPubliqueDateNaissanceTests(TestCase):
             'compte_bancaire': '011780000012345', 'rib': '230780000012345012', 'agence_bancaire': 'agence test',
             'email': 'regression.date.prof@zidni.test',
             'audio_enregistrement': SimpleUploadedFile('t.mp3', b'fake', content_type='audio/mpeg'),
+            # Chantier du 2026-08-27 — sans ceci, le POST échoue désormais
+            # (voir InscriptionProfCharteTests plus bas pour la couverture
+            # dédiée de cette règle bloquante).
+            'accepte_charte': 'oui',
         }
         valeurs.update(overrides)
         return valeurs
@@ -447,3 +467,80 @@ class InscriptionPubliqueDateNaissanceTests(TestCase):
         self.assertEqual(reponse.status_code, 302)
         inscription = InscriptionProf.objects.get(email='regression.date.prof.ok@zidni.test')
         self.assertEqual(inscription.date_naissance.isoformat(), '1990-01-01')
+
+
+@override_settings(STORAGES={
+    **settings.STORAGES,
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+})
+class InscriptionProfCharteTests(TestCase):
+    """Chantier du 2026-08-27 — acceptation du ميثاق التدريس déplacée depuis
+    l'espace prof (accusé de lecture non bloquant) vers le formulaire de
+    candidature publique, en dernier champ, avec blocage CÔTÉ SERVEUR (pas
+    seulement HTML5 `required`, contournable par un POST direct comme fait
+    ici) si la case n'est pas cochée."""
+
+    def _donnees_prof(self, **overrides):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        valeurs = {
+            'nom': 'CharteProf', 'prenom': 'Test', 'date_naissance': '1990-01-01',
+            'indicatif_pays': '212', 'telephone': '612345603', 'telephone_confirmation': '612345603',
+            'ville': 'Rabat', 'statut_familial': 'celibataire', 'job_actuel': 'ingenieur',
+            'certifications': 'ijaza', 'niveau_memorisation': 'juz_30',
+            'parcours_scolaire': 'bac', 'parcours_enseignant': '2 ans',
+            'gestion_eleve_faible': 'suivi', 'gestion_eleve_absent': 'contact',
+            'compte_bancaire': '011780000012345', 'rib': '230780000012345012', 'agence_bancaire': 'agence test',
+            'email': 'charte.prof@zidni.test',
+            'audio_enregistrement': SimpleUploadedFile('t.mp3', b'fake', content_type='audio/mpeg'),
+        }
+        valeurs.update(overrides)
+        return valeurs
+
+    def test_inscription_prof_sans_acceptation_charte_est_refusee(self):
+        """Case décochée (donc absente du POST, comportement HTML standard) —
+        la candidature ne doit PAS être créée, et l'utilisateur doit rester
+        sur le formulaire avec un message d'erreur (pas un 500, pas un
+        succès silencieux)."""
+        donnees = self._donnees_prof(email='charte.prof.refus@zidni.test')
+        # Pas de 'accepte_charte' du tout dans le POST — case non cochée.
+        reponse = self.client.post(reverse('inscription_prof'), donnees)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, 'ميثاق')
+        self.assertFalse(InscriptionProf.objects.filter(email='charte.prof.refus@zidni.test').exists())
+
+    def test_inscription_prof_avec_acceptation_charte_est_validee_et_enregistree(self):
+        donnees = self._donnees_prof(accepte_charte='oui', email='charte.prof.accepte@zidni.test')
+        reponse = self.client.post(reverse('inscription_prof'), donnees)
+        self.assertEqual(reponse.status_code, 302)
+        inscription = InscriptionProf.objects.get(email='charte.prof.accepte@zidni.test')
+        self.assertTrue(inscription.charte_acceptee)
+        self.assertIsNotNone(inscription.date_acceptation_charte)
+
+    def test_espace_prof_affiche_la_charte_sans_case_a_cocher(self):
+        """La page prof_charte (espace prof, après validation du compte) ne
+        doit plus proposer d'accepter/refuser — seulement le contenu de la
+        charte, en lecture seule."""
+        from django.utils import timezone
+        from accounts.models import Prof
+
+        user = User.objects.create_user(
+            username='prof_charte_test@zidni.test',
+            email='prof_charte_test@zidni.test',
+            password='xX!test12345',
+            first_name='Prof', last_name='Charte',
+            role='prof',
+        )
+        Prof.objects.create(
+            user=user, ville='Rabat', niveau_memorisation='juz_30',
+            parcours_scolaire='bac', parcours_enseignant='2 ans',
+            compte_bancaire='011780000012345', rib='230780000012345012',
+            agence_bancaire='agence test',
+            charte_acceptee=True, date_acceptation_charte=timezone.now(),
+        )
+        self.client.force_login(user)
+        reponse = self.client.get(reverse('prof_charte'))
+        contenu = reponse.content.decode('utf-8')
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('ميثاق', contenu)
+        self.assertNotIn('type="checkbox"', contenu)
+        self.assertNotIn('<form', contenu)

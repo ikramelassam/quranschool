@@ -438,6 +438,21 @@ class InscriptionProf(models.Model):
     # DEUX étapes (voir docstring de PhraseRefus) — un seul refus possible
     # par dossier, donc un seul motif à stocker.
     motif_refus = models.TextField(blank=True)
+    # Chantier du 2026-08-27 (acceptation du ميثاق التدريس déplacée depuis
+    # l'espace prof vers la candidature) : la case n'est plus cochable après
+    # coup depuis dashboard.views.prof_charte (accusé de lecture non
+    # bloquant) — elle devient le DERNIER champ du formulaire public
+    # inscriptions.views.inscription_prof, et son absence bloque désormais la
+    # soumission côté serveur (voir champs_manquants dans cette vue), pas
+    # seulement côté HTML5 `required`. Horodatée au moment exact de la
+    # soumission (pas auto_now_add : les 2 champs restent None tant que la
+    # candidature n'existe pas encore). Copiée telle quelle vers
+    # accounts.models.Prof.charte_acceptee/date_acceptation_charte à la
+    # création du compte (dashboard.views._creer_compte_prof) — jamais
+    # remplie pour un ajout manuel (dashboard.views.admin_prof_ajouter_manuel)
+    # qui ne passe pas par ce formulaire public.
+    charte_acceptee = models.BooleanField(default=False)
+    date_acceptation_charte = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.nom} {self.prenom}"

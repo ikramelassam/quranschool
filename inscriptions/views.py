@@ -360,6 +360,7 @@ def inscription_confirmation(request):
     return render(request, 'inscriptions/confirmation.html')
 
 def inscription_prof(request):
+    from accounts.models import get_charte
     from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO
 
     # Même garde que inscription_eleve_formulaire — voir son commentaire.
@@ -369,6 +370,12 @@ def inscription_prof(request):
     contexte_grille = {
         'jours': JOURS_SEMAINE_DISPO,
         'heures': generer_heures_grille(),
+        # Chantier du 2026-08-27 : acceptation du ميثاق التدريس déplacée ici,
+        # dernier champ du formulaire — voir accepte_charte plus bas et
+        # accounts.models.Prof.charte_acceptee.__doc__. Nécessaire aussi bien
+        # pour l'affichage initial (GET) que pour chaque ré-affichage du
+        # formulaire suite à une erreur (POST invalide, voir plus bas).
+        'charte': get_charte(),
     }
 
     if request.method == 'POST':
@@ -379,6 +386,12 @@ def inscription_prof(request):
         agence_bancaire = request.POST.get('agence_bancaire', '').strip()
         job_actuel = request.POST.get('job_actuel', '').strip()
         audio_enregistrement = request.FILES.get('audio_enregistrement')
+        # Chantier du 2026-08-27 — voir contexte_grille['charte'] plus haut.
+        # Case à cocher, dernier champ du formulaire : une case décochée
+        # n'envoie AUCUNE valeur dans request.POST (comportement HTML
+        # standard), donc `accepte_charte` vaut False dans ce cas — pas de
+        # valeur par défaut ambiguë à gérer.
+        accepte_charte = request.POST.get('accepte_charte') == 'oui'
 
         # Corrige un 500 en production — voir MESSAGE_DATE_NAISSANCE_INVALIDE
         # (même bug qu'inscription_eleve_formulaire, jamais de garde ici
@@ -424,6 +437,12 @@ def inscription_prof(request):
             champs_manquants.append('التسجيل الصوتي')
         if date_naissance is None:
             champs_manquants.append('تاريخ الميلاد')
+        # Règle bloquante (Chantier du 2026-08-27) : sans cette case cochée,
+        # l'inscription échoue côté serveur — pas seulement côté HTML5
+        # `required`, contournable. Dernier champ vérifié, comme il est le
+        # dernier du formulaire.
+        if not accepte_charte:
+            champs_manquants.append('الموافقة على ميثاق التدريس')
 
         if champs_manquants:
             return render(request, 'inscriptions/prof_formulaire.html', {
@@ -466,6 +485,12 @@ def inscription_prof(request):
             agence_bancaire=agence_bancaire,
             audio_enregistrement=audio_enregistrement,
             disponibilites=disponibilites,
+            # Garanti True à ce stade (bloqué plus haut sinon) — horodaté au
+            # moment réel de la soumission, pas à la création de la ligne
+            # (les deux coïncident ici, mais voir le docstring du champ pour
+            # pourquoi ce n'est pas un simple auto_now_add).
+            charte_acceptee=True,
+            date_acceptation_charte=timezone.now(),
         )
         lien_fiche = request.build_absolute_uri(
             reverse('admin_inscription_prof_detail', args=[inscription.id])

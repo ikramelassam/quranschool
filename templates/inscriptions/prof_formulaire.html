@@ -283,6 +283,25 @@
             </div>
         </div>
 
+        <!-- Section 8 : ميثاق التدريس — Chantier du 2026-08-27, dernier champ
+             du formulaire, juste avant le bouton d'envoi (voir
+             inscriptions.views.inscription_prof pour le blocage côté serveur
+             si la case ci-dessous n'est pas cochée). -->
+        <div class="card">
+            <div class="section-title">8. ميثاق التدريس</div>
+            <p style="color:#888; font-size:0.9rem; margin-bottom:12px;">يرجى قراءة الميثاق بالكامل قبل الموافقة عليه — الموافقة إلزامية لإتمام التسجيل.</p>
+            <details style="background:var(--color-bg-cream); border-radius:10px; padding:14px 18px; margin-bottom:16px;">
+                <summary style="cursor:pointer; font-weight:600; color:var(--color-role-prof-solid);">عرض نص الميثاق كاملاً 📜</summary>
+                <div style="margin-top:16px;">
+                    {% include 'dashboard/_charte_contenu.html' %}
+                </div>
+            </details>
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:600;">
+                <input type="checkbox" name="accepte_charte" value="oui" required style="width:18px; height:18px;">
+                لقد قرأت ووافقت على ميثاق التدريس *
+            </label>
+        </div>
+
         <button type="submit" class="btn-submit">إرسال الطلب ✉️</button>
         <a href="{% url 'login' %}" class="btn-back">رجوع ←</a>
 

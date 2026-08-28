@@ -12,13 +12,6 @@ base_prof.html.
 <div class="page-title">أهلاً، {{ prof.user.get_full_name }} 👋</div>
 <div class="page-subtitle">لوحة التحكم الخاصة بك</div>
 
-{% if not prof.charte_acceptee %}
-<a href="{% url 'prof_charte' %}" style="display:flex; justify-content:space-between; align-items:center; background:#fff8ec; border:1px solid var(--color-brand-gold); border-radius:10px; padding:12px 18px; margin-bottom:20px; text-decoration:none; color:var(--color-brand-gold-dark); flex-wrap:wrap; gap:8px;">
-    <span>📜 يرجى الاطلاع على ميثاق التدريس والموافقة عليه</span>
-    <span style="font-weight:600;">عرض الميثاق ←</span>
-</a>
-{% endif %}
-
 {% comment %}
 Stats — "قادمة هذا الأسبوع" ajouté (chantier groupé du 2026-08-05) à côté
 des 3 déjà en place, même choix que côté مؤطر (4 compteurs plutôt que

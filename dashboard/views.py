@@ -432,6 +432,14 @@ def _creer_compte_prof(inscription):
             rib=inscription.rib,
             agence_bancaire=inscription.agence_bancaire,
             inscription=inscription,
+            # Chantier du 2026-08-27 — copiée telle quelle depuis la
+            # candidature (voir InscriptionProf.charte_acceptee.__doc__) :
+            # False/None pour un ajout manuel (inscription créée sans passer
+            # par le formulaire public inscriptions.views.inscription_prof,
+            # qui seul impose cette case), True/horodatée pour toute
+            # candidature publique validée (bloquée sinon dès la soumission).
+            charte_acceptee=inscription.charte_acceptee,
+            date_acceptation_charte=inscription.date_acceptation_charte,
         )
         # Chantier du 2026-08-27 — voir accounts.models.Prof.presentation_publique
         # et accounts.services.generer_presentation_publique : générée une seule
@@ -1157,24 +1165,16 @@ def prof_remuneration(request):
 
 @role_required('prof')
 def prof_charte(request):
-    """Lecture seule + accusé de lecture du ميثاق التدريس côté prof — pas bloquant,
-    un prof qui n'a pas encore coché garde l'accès normal au reste du site (voir le
-    bandeau discret sur dashboard_prof)."""
-    from accounts.models import Prof, get_charte
-    from django.utils import timezone
-
-    prof = get_object_or_404(Prof, user=request.user)
-
-    if request.method == 'POST':
-        prof.charte_acceptee = True
-        prof.date_acceptation_charte = timezone.now()
-        prof.save()
-        messages.success(request, 'شكراً لك، تم تسجيل موافقتك على الميثاق.')
-        return redirect('prof_charte')
+    """Lecture seule du ميثاق التدريس côté prof — Chantier du 2026-08-27 :
+    l'acceptation se fait désormais au moment de la candidature (dernier champ
+    d'inscriptions.views.inscription_prof, bloquant), plus jamais depuis cet
+    espace. Cette page n'affiche donc plus que le contenu de la charte, sans
+    aucune case à cocher ni option d'accepter/refuser — voir
+    accounts.models.Prof.charte_acceptee.__doc__ pour l'historique."""
+    from accounts.models import get_charte
 
     return render(request, 'dashboard/prof_charte.html', {
         'charte': get_charte(),
-        'prof': prof,
     })
 
 

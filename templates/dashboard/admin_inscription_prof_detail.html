@@ -110,6 +110,23 @@
         <span style="color:#888;">تاريخ التقديم</span>
         <span style="font-weight:600;">{{ inscription.date_soumission|date:"d-m-Y H:i" }}</span>
     </div>
+    {% comment %}
+    Chantier du 2026-08-27 : la case ميثاق التدريس est désormais un champ
+    bloquant du formulaire public (voir InscriptionProf.charte_acceptee.__doc__)
+    — garantie True/horodatée pour toute candidature affichée ici, sauf un
+    ajout manuel (dashboard.views.admin_prof_ajouter_manuel), qui ne passe pas
+    par ce formulaire et laisse donc ce champ à False.
+    {% endcomment %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">قبول الميثاق</span>
+        <span style="font-weight:600;">
+            {% if inscription.charte_acceptee %}
+                ✅ بتاريخ {{ inscription.date_acceptation_charte|date:"d-m-Y H:i" }}
+            {% else %}
+                ❌ لم تُسجَّل (تسجيل يدوي)
+            {% endif %}
+        </span>
+    </div>
 
     {% if inscription.audio_enregistrement %}
     <div style="padding:8px 0; border-bottom:1px solid #f0f0f0;">

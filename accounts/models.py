@@ -189,8 +189,16 @@ class Prof(models.Model):
     # sur sa propre page de rémunération (courses.utils.calculer_remuneration_prof
     # ne la connaît pas du tout).
     majoration_mensuelle = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
-    # Acceptation du ميثاق التدريس (voir CharteEnseignement ci-dessous) — un simple
-    # accusé de lecture, pas un blocage: le prof garde l'accès au site même sans avoir coché.
+    # Acceptation du ميثاق التدريس (voir CharteEnseignement ci-dessous) — Chantier
+    # du 2026-08-27 : DÉSORMAIS renseignée au moment de la CANDIDATURE (voir
+    # inscriptions.models.InscriptionProf.charte_acceptee, copiée telle quelle
+    # ici par dashboard.views._creer_compte_prof à la création du compte),
+    # jamais depuis l'espace prof — cocher la case y était auparavant possible
+    # (dashboard.views.prof_charte) mais SANS bloquer l'inscription; ce n'est
+    # plus le cas: un candidat qui ne coche pas à la candidature ne peut plus
+    # finaliser son inscription du tout, donc ce champ est garanti True pour
+    # tout Prof créé depuis ce chantier. Reste False pour les comptes créés
+    # AVANT (jamais rétroactivement rempli — aucune demande en ce sens).
     charte_acceptee = models.BooleanField(default=False)
     date_acceptation_charte = models.DateTimeField(null=True, blank=True)
     # Infos complémentaires ajoutées par le مدير APRÈS la validation — jamais
