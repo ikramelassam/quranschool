@@ -1,14 +1,15 @@
 {% extends base_template %}
-{% block title %}طرق الدفع{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "طرق الدفع" %}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <div class="page-title">طرق الدفع</div>
-        <div class="page-subtitle">تظهر هذه الخيارات في استمارة تسجيل الطلاب — عند اختيار إحداها، تُعرض معلوماتها للطالب</div>
+        <div class="page-title">{% trans "طرق الدفع" %}</div>
+        <div class="page-subtitle">{% trans "تظهر هذه الخيارات في استمارة تسجيل الطلاب — عند اختيار إحداها، تُعرض معلوماتها للطالب" %}</div>
     </div>
     <a href="{% url 'admin_moyen_paiement_ajouter' %}"
        style="background:var(--color-role-admin); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
-       + إضافة طريقة دفع
+       + {% trans "إضافة طريقة دفع" %}
     </a>
 </div>
 
@@ -21,20 +22,22 @@
         </div>
         <div class="d-flex gap-2 align-items-center">
             {% if moyen.est_actif %}
-                {% include 'dashboard/_badge_statut.html' with type='success' texte='نشط ✅' %}
+                {% trans "نشط ✅" as texte_actif %}
+                {% include 'dashboard/_badge_statut.html' with type='success' texte=texte_actif %}
             {% else %}
-                {% include 'dashboard/_badge_statut.html' with type='danger' texte='غير نشط ❌' %}
+                {% trans "غير نشط ❌" as texte_inactif %}
+                {% include 'dashboard/_badge_statut.html' with type='danger' texte=texte_inactif %}
             {% endif %}
             <a href="{% url 'admin_moyen_paiement_modifier' moyen.id %}"
-               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">تعديل ✏️</a>
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">{% trans "تعديل ✏️" %}</a>
             <a href="{% url 'admin_moyen_paiement_toggle' moyen.id %}"
                style="background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-               {% if moyen.est_actif %}تعطيل{% else %}تفعيل{% endif %}
+               {% if moyen.est_actif %}{% trans "تعطيل" %}{% else %}{% trans "تفعيل" %}{% endif %}
             </a>
         </div>
     </div>
     {% empty %}
-    <div style="text-align:center; padding:60px; color:#aaa;">لا توجد طرق دفع بعد</div>
+    <div style="text-align:center; padding:60px; color:#aaa;">{% trans "لا توجد طرق دفع بعد" %}</div>
     {% endfor %}
 </div>
 {% endblock %}

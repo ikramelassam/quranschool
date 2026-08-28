@@ -1,20 +1,21 @@
 {% extends base_template %}
-{% block title %}أنواع الاشتراك{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "أنواع الاشتراك" %}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <div class="page-title">أنواع الاشتراك والتعرفات</div>
-        <div class="page-subtitle">تظهر هذه الخيارات في استمارة تسجيل الطلاب</div>
+        <div class="page-title">{% trans "أنواع الاشتراك والتعرفات" %}</div>
+        <div class="page-subtitle">{% trans "تظهر هذه الخيارات في استمارة تسجيل الطلاب" %}</div>
     </div>
     <a href="{% url 'admin_abonnement_ajouter' %}"
        style="background:var(--color-role-admin); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
-       + إضافة نوع اشتراك
+       + {% trans "إضافة نوع اشتراك" %}
     </a>
 </div>
 
-<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">👥 اشتراكات جماعية</div>
+<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">👥 {% trans "اشتراكات جماعية" %}</div>
 {% include 'dashboard/_liste_abonnements_section.html' with actifs=types_abonnement_groupe archives=archives_abonnement_groupe id_suffix='_groupe' %}
 
-<div class="page-title" style="font-size:1.1rem; margin:28px 0 12px;">👤 اشتراكات فردية</div>
+<div class="page-title" style="font-size:1.1rem; margin:28px 0 12px;">👤 {% trans "اشتراكات فردية" %}</div>
 {% include 'dashboard/_liste_abonnements_section.html' with actifs=types_abonnement_individuel archives=archives_abonnement_individuel id_suffix='_individuel' %}
 {% endblock %}

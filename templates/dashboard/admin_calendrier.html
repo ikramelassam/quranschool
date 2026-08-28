@@ -1,19 +1,20 @@
 {% extends base_template %}
-{% block title %}التقويم الأسبوعي{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "التقويم الأسبوعي" %}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <div class="page-title">التقويم الأسبوعي</div>
+        <div class="page-title">{% trans "التقويم الأسبوعي" %}</div>
         <div class="page-subtitle">{{ lundi|date:"d-m-Y" }} → {{ dimanche|date:"d-m-Y" }}</div>
     </div>
     <div class="d-flex gap-2">
         <a href="?semaine={{ semaine_precedente }}"
            style="background:white; color:var(--color-role-admin-solid); border:2px solid var(--color-role-admin-solid); border-radius:8px; padding:8px 16px; text-decoration:none;">
-           → الأسبوع السابق
+           → {% trans "الأسبوع السابق" %}
         </a>
         <a href="?semaine={{ semaine_suivante }}"
            style="background:white; color:var(--color-role-admin-solid); border:2px solid var(--color-role-admin-solid); border-radius:8px; padding:8px 16px; text-decoration:none;">
-           الأسبوع التالي ←
+           {% trans "الأسبوع التالي ←" %}
         </a>
     </div>
 </div>
@@ -22,24 +23,24 @@
     <input type="hidden" name="semaine" value="{{ lundi|date:'Y-m-d' }}">
     <div class="row g-3 align-items-end">
         <div class="col-md-4">
-            <label style="color:#888; font-size:0.8rem;">المعلم</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "المعلم" %}</label>
             <select name="prof" class="form-select" data-select-cherchable>
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for p in profs %}
-                <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}{% if p.statut == 'archive' %} (مؤرشف){% endif %}</option>
+                <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}{% if p.statut == 'archive' %} ({% trans "مؤرشف" %}){% endif %}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-4 d-flex gap-2">
-            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
-            <a href="?semaine={{ lundi|date:'Y-m-d' }}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
+            <a href="?semaine={{ lundi|date:'Y-m-d' }}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
         </div>
     </div>
     <div class="row g-3 align-items-end mt-1">
         <div class="col-md-4 d-flex align-items-center">
             <div class="form-check">
                 <input type="checkbox" name="afficher_archives" value="1" class="form-check-input" id="afficher_archives" {% if filtres.afficher_archives %}checked{% endif %}>
-                <label class="form-check-label" for="afficher_archives" style="color:#888; font-size:0.85rem;">إظهار الأساتذة المؤرشفين في قائمة التصفية</label>
+                <label class="form-check-label" for="afficher_archives" style="color:#888; font-size:0.85rem;">{% trans "إظهار الأساتذة المؤرشفين في قائمة التصفية" %}</label>
             </div>
         </div>
     </div>
@@ -56,20 +57,20 @@
                 <div style="font-weight:600;">{{ seance.groupe.nom }}</div>
                 <div style="color:#888; font-size:0.85rem;">
                     {{ seance.heure|time:"H:i" }} —
-                    {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}بدون معلم{% endif %}
+                    {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}{% trans "بدون معلم" %}{% endif %}
                 </div>
             </div>
             {% if seance.statut == 'terminee' %}
-                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem;">منتهية ✅</span>
+                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem;">{% trans "منتهية ✅" %}</span>
             {% elif seance.statut == 'planifiee' %}
-                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">مخططة 📅</span>
+                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">{% trans "مخططة 📅" %}</span>
             {% else %}
-                <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:3px 12px; font-size:0.8rem;">ملغاة ❌</span>
+                <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:3px 12px; font-size:0.8rem;">{% trans "ملغاة ❌" %}</span>
             {% endif %}
         </div>
         {% endfor %}
     {% else %}
-        <div style="color:#ccc; padding:8px 0;">لا توجد حصص</div>
+        <div style="color:#ccc; padding:8px 0;">{% trans "لا توجد حصص" %}</div>
     {% endif %}
 </div>
 {% endfor %}

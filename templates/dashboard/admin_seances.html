@@ -1,64 +1,65 @@
 {% extends base_template %}
-{% block title %}الحصص{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "الحصص" %}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <div class="page-title">استثناءات الحصص</div>
-        <div class="page-subtitle">الحصص تُولَّد تلقائياً من جدول كل مجموعة. هنا يمكنك فقط إلغاء أو تأجيل حصة محددة (غياب المعلم، عطلة...).</div>
+        <div class="page-title">{% trans "استثناءات الحصص" %}</div>
+        <div class="page-subtitle">{% trans "الحصص تُولَّد تلقائياً من جدول كل مجموعة. هنا يمكنك فقط إلغاء أو تأجيل حصة محددة (غياب المعلم، عطلة...)." %}</div>
     </div>
 </div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
         <div class="col-md-4">
-            <label style="color:#888; font-size:0.8rem;">المجموعة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "المجموعة" %}</label>
             <select name="groupe" class="form-select" data-select-cherchable>
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for g in groupes %}
                 <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-4">
-            <label style="color:#888; font-size:0.8rem;">المعلم</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "المعلم" %}</label>
             <select name="prof" class="form-select" data-select-cherchable>
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for p in profs %}
-                <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}{% if p.statut == 'archive' %} (مؤرشف){% endif %}</option>
+                <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}{% if p.statut == 'archive' %} ({% trans "مؤرشف" %}){% endif %}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-4">
-            <label style="color:#888; font-size:0.8rem;">الحالة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الحالة" %}</label>
             <select name="statut" class="form-select">
-                <option value="">الكل</option>
-                <option value="planifiee" {% if filtres.statut == 'planifiee' %}selected{% endif %}>مخططة</option>
-                <option value="terminee" {% if filtres.statut == 'terminee' %}selected{% endif %}>منتهية</option>
-                <option value="annulee" {% if filtres.statut == 'annulee' %}selected{% endif %}>ملغاة</option>
+                <option value="">{% trans "الكل" %}</option>
+                <option value="planifiee" {% if filtres.statut == 'planifiee' %}selected{% endif %}>{% trans "مخططة" %}</option>
+                <option value="terminee" {% if filtres.statut == 'terminee' %}selected{% endif %}>{% trans "منتهية" %}</option>
+                <option value="annulee" {% if filtres.statut == 'annulee' %}selected{% endif %}>{% trans "ملغاة" %}</option>
             </select>
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">تاريخ محدد</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "تاريخ محدد" %}</label>
             <input type="date" name="date" class="form-control" value="{{ filtres.date }}">
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">من تاريخ</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "من تاريخ" %}</label>
             <input type="date" name="date_debut" class="form-control" value="{{ filtres.date_debut }}">
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">إلى تاريخ</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "إلى تاريخ" %}</label>
             <input type="date" name="date_fin" class="form-control" value="{{ filtres.date_fin }}">
         </div>
         <div class="col-md-3 d-flex gap-2">
-            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
-            <a href="{% url 'admin_seances' %}" style="color:#888; text-decoration:none; padding:8px;">مسح التصفية</a>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
+            <a href="{% url 'admin_seances' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "مسح التصفية" %}</a>
         </div>
     </div>
     <div class="row g-3 align-items-end mt-1">
         <div class="col-md-4 d-flex align-items-center">
             <div class="form-check">
                 <input type="checkbox" name="afficher_archives" value="1" class="form-check-input" id="afficher_archives" {% if filtres.afficher_archives %}checked{% endif %}>
-                <label class="form-check-label" for="afficher_archives" style="color:#888; font-size:0.85rem;">إظهار الأساتذة المؤرشفين في قائمة التصفية</label>
+                <label class="form-check-label" for="afficher_archives" style="color:#888; font-size:0.85rem;">{% trans "إظهار الأساتذة المؤرشفين في قائمة التصفية" %}</label>
             </div>
         </div>
     </div>
@@ -77,29 +78,30 @@
         </div>
         <div class="col-md-6 d-flex gap-2 justify-content-end">
             {% if seance.statut == 'terminee' %}
-                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">منتهية ✅</span>
+                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">{% trans "منتهية ✅" %}</span>
             {% elif seance.statut == 'planifiee' %}
-                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:4px 12px; font-size:0.8rem;">مخططة 📅</span>
+                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:4px 12px; font-size:0.8rem;">{% trans "مخططة 📅" %}</span>
                 {% if request.user.role != 'mshrif' %}
                 <a href="{% url 'admin_seance_deplacer' seance.id %}"
                    style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-                   تأجيل
+                   {% trans "تأجيل" %}
                 </a>
+                {% blocktrans asvar confirmer_annulation with nom=seance.groupe.nom date=seance.date|date:"d-m-Y" %}هل أنت متأكد من إلغاء حصة {{ nom }} بتاريخ {{ date }}؟ لا يمكن التراجع عن هذا الإجراء.{% endblocktrans %}
                 <a href="{% url 'admin_seance_annuler' seance.id %}"
-                   onclick="return confirm('هل أنت متأكد من إلغاء حصة {{ seance.groupe.nom|escapejs }} بتاريخ {{ seance.date|date:"d-m-Y" }}؟ لا يمكن التراجع عن هذا الإجراء.');"
+                   onclick="return confirm('{{ confirmer_annulation|escapejs }}');"
                    style="background:#dc3545; color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-                   إلغاء
+                   {% trans "إلغاء" %}
                 </a>
                 {% endif %}
             {% else %}
-                <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:4px 12px; font-size:0.8rem;">ملغاة ❌</span>
+                <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:4px 12px; font-size:0.8rem;">{% trans "ملغاة ❌" %}</span>
             {% endif %}
         </div>
     </div>
 </div>
 {% empty %}
 <div style="text-align:center; padding:60px; color:#aaa;">
-    {% if filtres.groupe or filtres.prof or filtres.date or filtres.date_debut or filtres.date_fin or filtres.statut %}لا توجد حصص مطابقة لهذه التصفية{% else %}لا توجد حصص بعد{% endif %}
+    {% if filtres.groupe or filtres.prof or filtres.date or filtres.date_debut or filtres.date_fin or filtres.statut %}{% trans "لا توجد حصص مطابقة لهذه التصفية" %}{% else %}{% trans "لا توجد حصص بعد" %}{% endif %}
 </div>
 {% endfor %}
 {% include 'dashboard/_pagination.html' with page_obj=seances %}

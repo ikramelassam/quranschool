@@ -1,8 +1,9 @@
 {% extends 'dashboard/base_admin.html' %}
-{% block title %}تأجيل الحصة{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "تأجيل الحصة" %}{% endblock %}
 {% block content %}
-<div class="page-title">تأجيل الحصة</div>
-<div class="page-subtitle">{{ seance.groupe.nom }} — الموعد الحالي: {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}</div>
+<div class="page-title">{% trans "تأجيل الحصة" %}</div>
+<div class="page-subtitle">{% blocktrans with nom=seance.groupe.nom date=seance.date|date:"d-m-Y" heure=seance.heure|time:"H:i" %}{{ nom }} — الموعد الحالي: {{ date }} — {{ heure }}{% endblocktrans %}</div>
 
 {% comment %}
 Tâche du 2026-08-17 (exceptions de séance) : affichée UNIQUEMENT quand le
@@ -15,15 +16,15 @@ perdre au مدير.
 {% if conflit_meet %}
 <div style="background:#fce4e4; border:1px solid var(--color-danger); border-radius:14px; padding:20px 24px; margin-bottom:20px; max-width:560px;">
     <div style="color:var(--color-danger); font-weight:700; font-size:1rem; margin-bottom:6px;">
-        ⚠️ رابط Google Meet الحالي غير متاح في هذا الوقت
+        ⚠️ {% trans "رابط Google Meet الحالي غير متاح في هذا الوقت" %}
     </div>
     <div style="color:#8a3b36; font-size:0.88rem; margin-bottom:10px;">
-        الموعد المقترح: {{ nouvelle_date }} — {{ nouvelle_heure }}
+        {% blocktrans with date=nouvelle_date heure=nouvelle_heure %}الموعد المقترح: {{ date }} — {{ heure }}{% endblocktrans %}
         {% if raison_conflit %}<br>{{ raison_conflit }}{% endif %}
     </div>
 
     {% if liens_meet_disponibles %}
-    <div style="color:#8a3b36; font-size:0.85rem; font-weight:600; margin-bottom:8px;">اختر رابطاً آخر لهذه الحصة فقط:</div>
+    <div style="color:#8a3b36; font-size:0.85rem; font-weight:600; margin-bottom:8px;">{% trans "اختر رابطاً آخر لهذه الحصة فقط:" %}</div>
     <div style="display:flex; flex-direction:column; gap:8px;">
         {% for lien in liens_meet_disponibles %}
         <form method="POST" class="d-flex align-items-center flex-wrap gap-2"
@@ -37,19 +38,25 @@ perdre au مدير.
                 {% include 'dashboard/_meet_glyph.html' %}
                 <span style="font-weight:600; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ lien.libelle|default:lien.url }}</span>
             </span>
-            <span style="color:var(--color-success); font-size:0.75rem; white-space:nowrap;">متاح لهذا الموعد</span>
+            <span style="color:var(--color-success); font-size:0.75rem; white-space:nowrap;">{% trans "متاح لهذا الموعد" %}</span>
             <button type="submit"
                 style="background:var(--color-success); color:white; border:none; border-radius:6px; padding:5px 14px; font-size:0.8rem; font-weight:600; white-space:nowrap; cursor:pointer; flex-shrink:0;">
-                استخدام لهذه الحصة فقط
+                {% trans "استخدام لهذه الحصة فقط" %}
             </button>
         </form>
         {% endfor %}
     </div>
     {% else %}
     <div style="color:#8a3b36; font-size:0.85rem;">
-        لا يوجد أي رابط Google Meet متاح لهذا الموعد. يمكنك
-        <a href="{% url 'admin_liens_meet' %}" target="_blank" style="color:var(--color-danger); text-decoration:underline;">إضافة رابط جديد</a>
-        ثم إعادة تأجيل الحصة، أو اختيار موعد آخر أدناه.
+        {% comment %}
+        blocktrans n'accepte pas d'autres balises de template (ex: {% url %})
+        en son sein — le lien est résolu en variable AVANT, puis injecté via
+        une interpolation normale (même patron que admin_groupes.html).
+        {% endcomment %}
+        {% url 'admin_liens_meet' as url_liens_meet %}
+        {% blocktrans %}لا يوجد أي رابط Google Meet متاح لهذا الموعد. يمكنك
+        <a href="{{ url_liens_meet }}" target="_blank" style="color:var(--color-danger); text-decoration:underline;">إضافة رابط جديد</a>
+        ثم إعادة تأجيل الحصة، أو اختيار موعد آخر أدناه.{% endblocktrans %}
     </div>
     {% endif %}
 </div>
@@ -59,31 +66,31 @@ perdre au مدير.
     <form method="POST">
         {% csrf_token %}
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">التاريخ الجديد *</label>
+            <label style="font-weight:600; color:#333;">{% trans "التاريخ الجديد *" %}</label>
             <input type="date" name="date" class="form-control mt-1"
                    value="{% if nouvelle_date %}{{ nouvelle_date }}{% else %}{{ seance.date|date:'Y-m-d' }}{% endif %}" required>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الوقت الجديد *</label>
+            <label style="font-weight:600; color:#333;">{% trans "الوقت الجديد *" %}</label>
             <input type="time" name="heure" class="form-control mt-1"
                    value="{% if nouvelle_heure %}{{ nouvelle_heure }}{% else %}{{ seance.heure|time:'H:i' }}{% endif %}" required>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">سبب التأجيل (اختياري)</label>
+            <label style="font-weight:600; color:#333;">{% trans "سبب التأجيل (اختياري)" %}</label>
             <textarea name="remarque" class="form-control mt-1" rows="3"
-                      placeholder="مثال: غياب المعلم، عطلة...">{{ remarque_soumise|default:seance.remarque }}</textarea>
+                      placeholder="{% trans 'مثال: غياب المعلم، عطلة...' %}">{{ remarque_soumise|default:seance.remarque }}</textarea>
         </div>
         {% if seance.lien_meet_exceptionnel %}
         <div style="color:#888; font-size:0.8rem; margin-bottom:14px;">
-            ⓘ رابط استثنائي حالي لهذه الحصة: {{ seance.lien_meet_exceptionnel }} — سيُعاد التحقق من توفره إذا غيّرت الموعد.
+            {% blocktrans with lien=seance.lien_meet_exceptionnel %}ⓘ رابط استثنائي حالي لهذه الحصة: {{ lien }} — سيُعاد التحقق من توفره إذا غيّرت الموعد.{% endblocktrans %}
         </div>
         {% endif %}
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-brand-gold); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                تأكيد التأجيل ✅
+                {% trans "تأكيد التأجيل ✅" %}
             </button>
-            <a href="{% url 'admin_seances' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+            <a href="{% url 'admin_seances' %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
 </div>

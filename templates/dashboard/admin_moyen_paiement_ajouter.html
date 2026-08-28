@@ -1,36 +1,37 @@
 {% extends base_template %}
-{% block title %}إضافة طريقة دفع{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "إضافة طريقة دفع" %}{% endblock %}
 {% block content %}
-<div class="page-title">إضافة طريقة دفع</div>
+<div class="page-title">{% trans "إضافة طريقة دفع" %}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
         {% csrf_token %}
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الرمز (بالإنجليزية) *</label>
-            <input type="text" name="code" class="form-control mt-1" placeholder="مثال: cih"
+            <label style="font-weight:600; color:#333;">{% trans "الرمز (بالإنجليزية) *" %}</label>
+            <input type="text" name="code" class="form-control mt-1" placeholder="{% trans 'مثال: cih' %}"
                    value="{{ valeurs_form.code|default:'' }}" required>
-            <div style="color:#888; font-size:0.78rem; margin-top:4px;">لا يمكن تعديله لاحقاً.</div>
+            <div style="color:#888; font-size:0.78rem; margin-top:4px;">{% trans "لا يمكن تعديله لاحقاً." %}</div>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الاسم المعروض *</label>
-            <input type="text" name="label" class="form-control mt-1" placeholder="مثال: CIH بنك"
+            <label style="font-weight:600; color:#333;">{% trans "الاسم المعروض *" %}</label>
+            <input type="text" name="label" class="form-control mt-1" placeholder="{% trans 'مثال: CIH بنك' %}"
                    value="{{ valeurs_form.label|default:'' }}" required>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">المعلومات المعروضة عند الاختيار (RIB، تعليمات...)</label>
+            <label style="font-weight:600; color:#333;">{% trans "المعلومات المعروضة عند الاختيار (RIB، تعليمات...)" %}</label>
             <textarea name="coordonnees" class="form-control mt-1" rows="4">{{ valeurs_form.coordonnees|default:'' }}</textarea>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
+            <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>
             <input type="number" name="ordre" class="form-control mt-1" value="{{ valeurs_form.ordre|default:0 }}">
         </div>
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                إضافة ✅
+                {% trans "إضافة ✅" %}
             </button>
-            <a href="{% url 'admin_moyens_paiement' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+            <a href="{% url 'admin_moyens_paiement' %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
 </div>

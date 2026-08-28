@@ -1,3 +1,4 @@
+{% load i18n %}
 {% comment %}
 Une section (جماعي أو فردي) de la liste des أنواع الاشتراك — factorisée
 pour éviter de dupliquer le rendu de chaque ligne entre les 2 sections de
@@ -18,25 +19,26 @@ mélangés à la liste active — réutilise TEL QUEL le toggle existant
     <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
         <div>
             <div style="font-weight:700;">{{ type_abo.label }}{% if type_abo.duree %} — {{ type_abo.get_duree_display }}{% endif %}</div>
-            <div style="color:#888; font-size:0.85rem;">{{ type_abo.prix }} درهم — الرمز: {{ type_abo.code }}</div>
+            <div style="color:#888; font-size:0.85rem;">{% blocktrans with prix=type_abo.prix code=type_abo.code %}{{ prix }} درهم — الرمز: {{ code }}{% endblocktrans %}</div>
         </div>
         <div class="d-flex gap-2 align-items-center">
             {% include 'dashboard/_badge_statut.html' with type='neutre' texte=type_abo.get_cible_age_display %}
-            <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">نشط ✅</span>
+            <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">{% trans "نشط ✅" %}</span>
             <a href="{% url 'admin_abonnement_modifier' type_abo.id %}"
                style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-               تعديل ✏️
+               {% trans "تعديل ✏️" %}
             </a>
+            {% trans "هل تريد أرشفة نوع الاشتراك هذا؟ لن يظهر بعدها في استمارات التسجيل الجديدة، لكنه يبقى ظاهرا في السجلات القديمة." as confirmer_archivage_abo %}
             <a href="{% url 'admin_abonnement_toggle' type_abo.id %}"
-               onclick="return confirm('هل تريد أرشفة نوع الاشتراك هذا؟ لن يظهر بعدها في استمارات التسجيل الجديدة، لكنه يبقى ظاهرا في السجلات القديمة.');"
+               onclick="return confirm('{{ confirmer_archivage_abo|escapejs }}');"
                style="background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-               أرشفة 🗄
+               {% trans "أرشفة 🗄" %}
             </a>
         </div>
     </div>
     {% empty %}
     <div style="text-align:center; padding:40px; color:#aaa;">
-        {% if archives %}لا توجد أنواع اشتراك نشطة من هذا النوع حالياً{% else %}لا توجد أنواع اشتراك من هذا النوع بعد{% endif %}
+        {% if archives %}{% trans "لا توجد أنواع اشتراك نشطة من هذا النوع حالياً" %}{% else %}{% trans "لا توجد أنواع اشتراك من هذا النوع بعد" %}{% endif %}
     </div>
     {% endfor %}
 </div>
@@ -45,7 +47,7 @@ mélangés à la liste active — réutilise TEL QUEL le toggle existant
 <div style="text-align:center; margin-top:10px;">
     <span id="archives_toggle_texte{{ id_suffix }}" onclick="toggleArchivesAbonnement{{ id_suffix }}()"
           style="cursor:pointer; color:var(--color-brand-gold-dark); font-size:0.85rem; text-decoration:underline;">
-        عرض المؤرشفة ({{ archives|length }}) 🗄 ↓
+        {% blocktrans with n=archives|length %}عرض المؤرشفة ({{ n }}) 🗄 ↓{% endblocktrans %}
     </span>
 </div>
 <div id="archives_extra{{ id_suffix }}" style="display:none; background:#faf9f7; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.04); overflow:hidden; margin-top:8px;">
@@ -53,33 +55,35 @@ mélangés à la liste active — réutilise TEL QUEL le toggle existant
     <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
         <div>
             <div style="font-weight:700; color:#777;">{{ type_abo.label }}{% if type_abo.duree %} — {{ type_abo.get_duree_display }}{% endif %}</div>
-            <div style="color:#aaa; font-size:0.85rem;">{{ type_abo.prix }} درهم — الرمز: {{ type_abo.code }}</div>
+            <div style="color:#aaa; font-size:0.85rem;">{% blocktrans with prix=type_abo.prix code=type_abo.code %}{{ prix }} درهم — الرمز: {{ code }}{% endblocktrans %}</div>
         </div>
         <div class="d-flex gap-2 align-items-center">
             {% include 'dashboard/_badge_statut.html' with type='neutre' texte=type_abo.get_cible_age_display %}
-            <span style="background:#f0f0f0; color:#666; border-radius:20px; padding:4px 12px; font-size:0.8rem;">مؤرشف 🗄</span>
+            <span style="background:#f0f0f0; color:#666; border-radius:20px; padding:4px 12px; font-size:0.8rem;">{% trans "مؤرشف 🗄" %}</span>
             <a href="{% url 'admin_abonnement_modifier' type_abo.id %}"
                style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-               تعديل ✏️
+               {% trans "تعديل ✏️" %}
             </a>
             <a href="{% url 'admin_abonnement_toggle' type_abo.id %}"
                style="background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-               إعادة تفعيل ✅
+               {% trans "إعادة تفعيل ✅" %}
             </a>
         </div>
     </div>
     {% endfor %}
 </div>
+{% trans "إخفاء المؤرشفة ↑" as texte_masquer_archives %}
+{% blocktrans asvar texte_afficher_archives with n=archives|length %}عرض المؤرشفة ({{ n }}) 🗄 ↓{% endblocktrans %}
 <script>
     function toggleArchivesAbonnement{{ id_suffix }}() {
         const extra = document.getElementById('archives_extra{{ id_suffix }}');
         const texte = document.getElementById('archives_toggle_texte{{ id_suffix }}');
         if (extra.style.display === 'none') {
             extra.style.display = 'block';
-            texte.textContent = 'إخفاء المؤرشفة ↑';
+            texte.textContent = '{{ texte_masquer_archives|escapejs }}';
         } else {
             extra.style.display = 'none';
-            texte.textContent = 'عرض المؤرشفة ({{ archives|length }}) 🗄 ↓';
+            texte.textContent = '{{ texte_afficher_archives|escapejs }}';
         }
     }
 </script>

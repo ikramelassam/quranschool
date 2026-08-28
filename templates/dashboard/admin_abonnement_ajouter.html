@@ -1,37 +1,38 @@
 {% extends base_template %}
-{% block title %}إضافة نوع اشتراك{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "إضافة نوع اشتراك" %}{% endblock %}
 {% block content %}
-<div class="page-title">إضافة نوع اشتراك</div>
+<div class="page-title">{% trans "إضافة نوع اشتراك" %}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:560px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST" id="form-abonnement">
         {% csrf_token %}
 
         <div class="mb-3 step" id="step-code">
-            <label style="font-weight:600; color:#333;">1️⃣ الرمز (بالإنجليزية، بدون مسافات) *</label>
+            <label style="font-weight:600; color:#333;">1️⃣ {% trans "الرمز (بالإنجليزية، بدون مسافات) *" %}</label>
             <input type="text" name="code" id="input-code" class="form-control mt-1"
-                   placeholder="مثال: groupe_adulte_6mois" value="{{ valeurs_postees.code|default:'' }}" required>
+                   placeholder="{% trans 'مثال: groupe_adulte_6mois' %}" value="{{ valeurs_postees.code|default:'' }}" required>
         </div>
 
         <div class="mb-3 step" id="step-type">
-            <label style="font-weight:600; color:#333;">2️⃣ النوع *</label>
+            <label style="font-weight:600; color:#333;">2️⃣ {% trans "النوع *" %}</label>
             <select name="type_offre" id="input-type-offre" class="form-select mt-1" required>
-                <option value="" selected disabled>— اختر —</option>
-                <option value="groupe" {% if valeurs_postees.type_offre == 'groupe' %}selected{% endif %}>جماعي</option>
-                <option value="individuel" {% if valeurs_postees.type_offre == 'individuel' %}selected{% endif %}>فردي</option>
+                <option value="" selected disabled>— {% trans "اختر" %} —</option>
+                <option value="groupe" {% if valeurs_postees.type_offre == 'groupe' %}selected{% endif %}>{% trans "جماعي" %}</option>
+                <option value="individuel" {% if valeurs_postees.type_offre == 'individuel' %}selected{% endif %}>{% trans "فردي" %}</option>
             </select>
         </div>
 
         <div class="mb-3 step" id="step-label" style="display:none;">
-            <label style="font-weight:600; color:#333;">3️⃣ الاسم المعروض *</label>
+            <label style="font-weight:600; color:#333;">3️⃣ {% trans "الاسم المعروض *" %}</label>
             <input type="text" name="label" id="input-label" class="form-control mt-1"
-                   placeholder="مثال: الاشتراك الجماعي" value="{{ valeurs_postees.label|default:'' }}">
+                   placeholder="{% trans 'مثال: الاشتراك الجماعي' %}" value="{{ valeurs_postees.label|default:'' }}">
         </div>
 
         <div class="mb-3 step" id="step-duree" style="display:none;">
-            <label style="font-weight:600; color:#333;">4️⃣ المدة *</label>
+            <label style="font-weight:600; color:#333;">4️⃣ {% trans "المدة *" %}</label>
             <select name="duree" id="input-duree" class="form-select mt-1">
-                <option value="" selected disabled>— اختر —</option>
+                <option value="" selected disabled>— {% trans "اختر" %} —</option>
                 {% for code, label in duree_choices %}
                 <option value="{{ code }}" {% if valeurs_postees.duree == code %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
@@ -47,33 +48,38 @@
         choix/libellés qu'admin_abonnement_modifier.html.
         {% endcomment %}
         <div class="mb-3 step" id="step-cible-age" style="display:none;">
-            <label style="font-weight:600; color:#333;">5️⃣ الفئة المستهدفة *</label>
+            <label style="font-weight:600; color:#333;">5️⃣ {% trans "الفئة المستهدفة *" %}</label>
             <select name="cible_age" id="input-cible-age" class="form-select mt-1">
-                <option value="les_deux" {% if valeurs_postees.cible_age == 'les_deux' or not valeurs_postees %}selected{% endif %}>الجميع (أطفال وبالغون)</option>
-                <option value="enfant" {% if valeurs_postees.cible_age == 'enfant' %}selected{% endif %}>أطفال فقط</option>
-                <option value="adulte" {% if valeurs_postees.cible_age == 'adulte' %}selected{% endif %}>بالغون فقط</option>
+                <option value="les_deux" {% if valeurs_postees.cible_age == 'les_deux' or not valeurs_postees %}selected{% endif %}>{% trans "الجميع (أطفال وبالغون)" %}</option>
+                <option value="enfant" {% if valeurs_postees.cible_age == 'enfant' %}selected{% endif %}>{% trans "أطفال فقط" %}</option>
+                <option value="adulte" {% if valeurs_postees.cible_age == 'adulte' %}selected{% endif %}>{% trans "بالغون فقط" %}</option>
             </select>
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">يحدد في أي استمارة تسجيل (أطفال/بالغون) يظهر هذا الاشتراك.</div>
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "يحدد في أي استمارة تسجيل (أطفال/بالغون) يظهر هذا الاشتراك." %}</div>
         </div>
 
         <div class="mb-3 step" id="step-slots" style="display:none;">
-            <label style="font-weight:600; color:#333;">6️⃣ عدد الحصص أسبوعياً والسعر *</label>
+            <label style="font-weight:600; color:#333;">6️⃣ {% trans "عدد الحصص أسبوعياً والسعر *" %}</label>
             <div style="color:#888; font-size:0.8rem; margin:4px 0 10px;">
-                اختر عدداً واحداً أو أكثر، وحدّد السعر لكل واحد منها — العدد غير المُسعَّر هنا لن يكون متاحاً لهذا الاشتراك.
+                {% trans "اختر عدداً واحداً أو أكثر، وحدّد السعر لكل واحد منها — العدد غير المُسعَّر هنا لن يكون متاحاً لهذا الاشتراك." %}
             </div>
             {% if not options_nb_seances %}
             <div style="background:#fff3cd; color:#856404; border-radius:8px; padding:10px 14px; font-size:0.85rem;">
-                لا توجد أي حالة "عدد حصص" مفعّلة — <a href="{% url 'admin_options_nb_seances' %}">أضف واحدة أولاً</a>.
+                {% comment %}
+                blocktrans n'accepte pas d'autres balises de template (ex: {% url %})
+                en son sein — le lien est résolu en variable AVANT.
+                {% endcomment %}
+                {% url 'admin_options_nb_seances' as url_options_nb_seances %}
+                {% blocktrans %}لا توجد أي حالة "عدد حصص" مفعّلة — <a href="{{ url_options_nb_seances }}">أضف واحدة أولاً</a>.{% endblocktrans %}
             </div>
             {% endif %}
             {% for n in options_nb_seances %}
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
                 <label style="display:flex; align-items:center; gap:6px; min-width:130px; cursor:pointer;">
                     <input type="checkbox" class="case-nb-slots" data-nb-slots="{{ n }}" onchange="toggleCaseNbSlots({{ n }})">
-                    {{ n }} حصص/أسبوع
+                    {% blocktrans %}{{ n }} حصص/أسبوع{% endblocktrans %}
                 </label>
                 <input type="number" step="0.01" min="0" name="prix_{{ n }}" id="prix-{{ n }}"
-                       class="form-control" placeholder="السعر" style="max-width:140px;" disabled>
+                       class="form-control" placeholder="{% trans 'السعر' %}" style="max-width:140px;" disabled>
             </div>
             {% endfor %}
         </div>
@@ -86,16 +92,16 @@
         même valeur par défaut (0) que le comportement précédent silencieux.
         {% endcomment %}
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
+            <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>
             <input type="number" name="ordre" class="form-control mt-1" value="{{ valeurs_postees.ordre|default:'0' }}">
         </div>
 
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                إضافة ✅
+                {% trans "إضافة ✅" %}
             </button>
-            <a href="{% url 'admin_parametres_abonnements' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+            <a href="{% url 'admin_parametres_abonnements' %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
 </div>

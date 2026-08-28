@@ -1,57 +1,57 @@
 {% extends base_template %}
-{% load presence_style %}
-{% block title %}التقييمات{% endblock %}
+{% load presence_style i18n %}
+{% block title %}{% trans "التقييمات" %}{% endblock %}
 {% block content %}
-<div class="page-title">التقييمات</div>
-<div class="page-subtitle">نظرة شاملة على تقييمات الطلاب وتقييمات المعلمين</div>
+<div class="page-title">{% trans "التقييمات" %}</div>
+<div class="page-subtitle">{% trans "نظرة شاملة على تقييمات الطلاب وتقييمات المعلمين" %}</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
         <div class="col-md-2">
-            <label style="color:#888; font-size:0.8rem;">المجموعة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "المجموعة" %}</label>
             <select name="groupe" class="form-select" data-select-cherchable>
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for g in groupes %}
                 <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-2">
-            <label style="color:#888; font-size:0.8rem;">المعلم</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "المعلم" %}</label>
             <select name="prof" class="form-select" data-select-cherchable>
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for p in profs %}
-                <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}{% if p.statut == 'archive' %} (مؤرشف){% endif %}</option>
+                <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}{% if p.statut == 'archive' %} ({% trans "مؤرشف" %}){% endif %}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-2">
-            <label style="color:#888; font-size:0.8rem;">الطالب</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الطالب" %}</label>
             <select name="eleve" class="form-select" data-select-cherchable>
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for e in eleves %}
-                <option value="{{ e.id }}" {% if filtres.eleve == e.id|stringformat:"s" %}selected{% endif %}>{{ e.user.get_full_name }}{% if e.statut == 'archive' %} (مؤرشف){% endif %}</option>
+                <option value="{{ e.id }}" {% if filtres.eleve == e.id|stringformat:"s" %}selected{% endif %}>{{ e.user.get_full_name }}{% if e.statut == 'archive' %} ({% trans "مؤرشف" %}){% endif %}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-2">
-            <label style="color:#888; font-size:0.8rem;">من تاريخ</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "من تاريخ" %}</label>
             <input type="date" name="date_debut" class="form-control" value="{{ filtres.date_debut }}">
         </div>
         <div class="col-md-2">
-            <label style="color:#888; font-size:0.8rem;">إلى تاريخ</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "إلى تاريخ" %}</label>
             <input type="date" name="date_fin" class="form-control" value="{{ filtres.date_fin }}">
         </div>
         <div class="col-md-2 d-flex gap-2">
-            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
-            <a href="{% url 'admin_evaluations' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
+            <a href="{% url 'admin_evaluations' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
         </div>
     </div>
     <div class="row g-3 align-items-end mt-1">
         <div class="col-md-4 d-flex align-items-center">
             <div class="form-check">
                 <input type="checkbox" name="afficher_archives" value="1" class="form-check-input" id="afficher_archives" {% if filtres.afficher_archives %}checked{% endif %}>
-                <label class="form-check-label" for="afficher_archives" style="color:#888; font-size:0.85rem;">إظهار المؤرشفين (طلاب وأساتذة) في قائمة التصفية</label>
+                <label class="form-check-label" for="afficher_archives" style="color:#888; font-size:0.85rem;">{% trans "إظهار المؤرشفين (طلاب وأساتذة) في قائمة التصفية" %}</label>
             </div>
         </div>
     </div>
@@ -59,7 +59,7 @@
 
 <div class="row g-4">
     <div class="col-lg-6">
-        <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:12px;">📚 تقييمات الطلاب ({{ nb_presences_total }})</div>
+        <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:12px;">📚 {% blocktrans with n=nb_presences_total %}تقييمات الطلاب ({{ n }}){% endblocktrans %}</div>
         <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
             {% for p in presences %}
             <div style="padding:14px 20px; border-bottom:1px solid #f0f0f0;">
@@ -75,15 +75,15 @@
                     </div>
                     {% if p.note_hifz %}
                     <div style="font-size:0.78rem; color:#555; margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;">
-                        <span style="background:#f0f0f0; border-radius:20px; padding:1px 8px;">حفظ {{ p.note_hifz }}/20</span>
-                        <span style="background:#f0f0f0; border-radius:20px; padding:1px 8px;">مراجعة {{ p.note_muraja3a }}/20</span>
-                        <span style="background:#f0f0f0; border-radius:20px; padding:1px 8px;">تلاوة {{ p.note_tilawa }}/20</span>
-                        <span style="background:#f0f0f0; border-radius:20px; padding:1px 8px;">مواظبة {{ p.note_mouwazaba }}/20</span>
+                        <span style="background:#f0f0f0; border-radius:20px; padding:1px 8px;">{% trans "حفظ" %} {{ p.note_hifz }}/20</span>
+                        <span style="background:#f0f0f0; border-radius:20px; padding:1px 8px;">{% trans "مراجعة" %} {{ p.note_muraja3a }}/20</span>
+                        <span style="background:#f0f0f0; border-radius:20px; padding:1px 8px;">{% trans "تلاوة" %} {{ p.note_tilawa }}/20</span>
+                        <span style="background:#f0f0f0; border-radius:20px; padding:1px 8px;">{% trans "مواظبة" %} {{ p.note_mouwazaba }}/20</span>
                     </div>
                     {% elif p.note_memorisation or p.note_revision %}
                     <div style="font-size:0.8rem; color:#555; margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;">
-                        {% if p.note_memorisation %}<span>الحفظ:</span> <span style="{{ p.note_memorisation|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_memorisation_display }}</span>{% endif %}
-                        {% if p.note_revision %}<span>المراجعة:</span> <span style="{{ p.note_revision|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_revision_display }}</span>{% endif %}
+                        {% if p.note_memorisation %}<span>{% trans "الحفظ:" %}</span> <span style="{{ p.note_memorisation|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_memorisation_display }}</span>{% endif %}
+                        {% if p.note_revision %}<span>{% trans "المراجعة:" %}</span> <span style="{{ p.note_revision|note_style }} border-radius:20px; padding:1px 8px;">{{ p.get_note_revision_display }}</span>{% endif %}
                     </div>
                     {% endif %}
                 </a>
@@ -93,36 +93,36 @@
                 </div>
             </div>
             {% empty %}
-            <div style="text-align:center; padding:40px; color:#aaa;">لا توجد تقييمات طلاب مطابقة</div>
+            <div style="text-align:center; padding:40px; color:#aaa;">{% trans "لا توجد تقييمات طلاب مطابقة" %}</div>
             {% endfor %}
         </div>
         {% if nb_presences_total > limite %}
         <div style="text-align:center; color:#888; font-size:0.85rem; padding:10px;">
-            معروضة أحدث {{ limite }} من أصل {{ nb_presences_total }} — استخدم الفلاتر لتضييق البحث
+            {% blocktrans with limite=limite total=nb_presences_total %}معروضة أحدث {{ limite }} من أصل {{ total }} — استخدم الفلاتر لتضييق البحث{% endblocktrans %}
         </div>
         {% endif %}
     </div>
 
     <div class="col-lg-6">
-        <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:12px;">🧑‍🏫 تقييمات المعلمين ({{ nb_evaluations_profs_total }})</div>
+        <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:12px;">🧑‍🏫 {% blocktrans with n=nb_evaluations_profs_total %}تقييمات المعلمين ({{ n }}){% endblocktrans %}</div>
         <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
             {% for ev in evaluations_profs %}
             <a href="{% url 'admin_evaluation_detail' ev.seance.id %}" style="display:block; padding:14px 20px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:inherit;">
                 <div style="font-weight:700;">
-                    {% if ev.prof %}{{ ev.prof.user.get_full_name }}{% else %}[حساب محذوف]{% endif %}
+                    {% if ev.prof %}{{ ev.prof.user.get_full_name }}{% else %}[{% trans "حساب محذوف" %}]{% endif %}
                 </div>
                 <div style="color:#888; font-size:0.85rem;">
-                    {{ ev.seance.groupe.nom }} — {{ ev.seance.date|date:"d-m-Y" }} — بواسطة {% if ev.superviseur %}{{ ev.superviseur.user.get_full_name }}{% else %}[حساب محذوف]{% endif %}
+                    {{ ev.seance.groupe.nom }} — {{ ev.seance.date|date:"d-m-Y" }} — {% trans "بواسطة" %} {% if ev.superviseur %}{{ ev.superviseur.user.get_full_name }}{% else %}[{% trans "حساب محذوف" %}]{% endif %}
                 </div>
-                <div style="font-size:0.8rem; color:#555; margin-top:4px;">{{ ev.notes.count }} معيار مُقيَّم</div>
+                <div style="font-size:0.8rem; color:#555; margin-top:4px;">{% blocktrans with n=ev.notes.count %}{{ n }} معيار مُقيَّم{% endblocktrans %}</div>
             </a>
             {% empty %}
-            <div style="text-align:center; padding:40px; color:#aaa;">لا توجد تقييمات معلمين مطابقة</div>
+            <div style="text-align:center; padding:40px; color:#aaa;">{% trans "لا توجد تقييمات معلمين مطابقة" %}</div>
             {% endfor %}
         </div>
         {% if nb_evaluations_profs_total > limite %}
         <div style="text-align:center; color:#888; font-size:0.85rem; padding:10px;">
-            معروضة أحدث {{ limite }} من أصل {{ nb_evaluations_profs_total }} — استخدم الفلاتر لتضييق البحث
+            {% blocktrans with limite=limite total=nb_evaluations_profs_total %}معروضة أحدث {{ limite }} من أصل {{ total }} — استخدم الفلاتر لتضييق البحث{% endblocktrans %}
         </div>
         {% endif %}
     </div>

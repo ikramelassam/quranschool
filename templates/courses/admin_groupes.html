@@ -1,22 +1,22 @@
 {% extends base_template %}
-
-{% block title %}المجموعات{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "المجموعات" %}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <div class="page-title">إدارة المجموعات</div>
-        <div class="page-subtitle">إجمالي المجموعات: {{ groupes.paginator.count }}</div>
+        <div class="page-title">{% trans "إدارة المجموعات" %}</div>
+        <div class="page-subtitle">{% blocktrans with total=groupes.paginator.count %}إجمالي المجموعات: {{ total }}{% endblocktrans %}</div>
     </div>
     {% if request.user.role != 'mshrif' %}
     {% if aucun_creneau %}
-    <span style="background:#eee; color:#999; border-radius:8px; padding:10px 20px; font-weight:600;" title="أنشئ حلقة أولاً">
-       + إنشاء مجموعة جديدة
+    <span style="background:#eee; color:#999; border-radius:8px; padding:10px 20px; font-weight:600;" title="{% trans 'أنشئ حلقة أولاً' %}">
+       + {% trans "إنشاء مجموعة جديدة" %}
     </span>
     {% else %}
     <a href="{% url 'admin_groupe_ajouter' %}"
        style="background:var(--color-role-admin); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
-       + إنشاء مجموعة جديدة
+       + {% trans "إنشاء مجموعة جديدة" %}
     </a>
     {% endif %}
     {% endif %}
@@ -24,7 +24,14 @@
 
 {% if aucun_creneau and request.user.role != 'mshrif' %}
 <div style="background:#fff3cd; color:#856404; border-radius:8px; padding:14px 20px; margin-bottom:20px;">
-    ⚠️ لا توجد أي حلقة نشطة بعد. يجب <a href="{% url 'admin_creneau_ajouter' %}" style="color:#856404; font-weight:700;">إنشاء حلقة</a> قبل أن تتمكن من إنشاء مجموعة.
+    {% comment %}
+    blocktrans n'accepte pas d'autres balises de template (ex: {% url %}) en
+    son sein — le lien "إنشاء حلقة" est donc résolu en variable AVANT, puis
+    injecté via une interpolation normale {{ lien }}, comme n'importe quelle
+    variable de contexte.
+    {% endcomment %}
+    {% url 'admin_creneau_ajouter' as url_creneau_ajouter %}
+    {% blocktrans %}⚠️ لا توجد أي حلقة نشطة بعد. يجب <a href="{{ url_creneau_ajouter }}" style="color:#856404; font-weight:700;">إنشاء حلقة</a> قبل أن تتمكن من إنشاء مجموعة.{% endblocktrans %}
 </div>
 {% endif %}
 
@@ -41,17 +48,17 @@
 </style>
 
 <div style="background:white; border-radius:12px; padding:18px 24px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <nav class="pill-nav" aria-label="تصفية حسب نوع المجموعة">
-        <a href="{% querystring type=None categorie=None page=None %}" class="{% if not filtres.type %}active{% endif %}">الكل</a>
-        <a href="{% querystring type='individuel' categorie=None page=None %}" class="{% if filtres.type == 'individuel' %}active{% endif %}">المجموعات الفردية</a>
-        <a href="{% querystring type='groupe' page=None %}" class="{% if filtres.type == 'groupe' %}active{% endif %}">المجموعات الجماعية</a>
+    <nav class="pill-nav" aria-label="{% trans 'تصفية حسب نوع المجموعة' %}">
+        <a href="{% querystring type=None categorie=None page=None %}" class="{% if not filtres.type %}active{% endif %}">{% trans "الكل" %}</a>
+        <a href="{% querystring type='individuel' categorie=None page=None %}" class="{% if filtres.type == 'individuel' %}active{% endif %}">{% trans "المجموعات الفردية" %}</a>
+        <a href="{% querystring type='groupe' page=None %}" class="{% if filtres.type == 'groupe' %}active{% endif %}">{% trans "المجموعات الجماعية" %}</a>
     </nav>
     {% if filtres.type == 'groupe' %}
-    <nav class="pill-nav pill-nav-secondaire mt-2" aria-label="تصفية حسب فئة المجموعة الجماعية">
-        <a href="{% querystring categorie=None tranche=None page=None %}" class="{% if not filtres.categorie %}active{% endif %}">الكل</a>
-        <a href="{% querystring categorie='femmes_adultes' tranche=None page=None %}" class="{% if filtres.categorie == 'femmes_adultes' %}active{% endif %}">النساء</a>
-        <a href="{% querystring categorie='hommes_adultes' tranche=None page=None %}" class="{% if filtres.categorie == 'hommes_adultes' %}active{% endif %}">الرجال</a>
-        <a href="{% querystring categorie='mineurs' tranche=None page=None %}" class="{% if filtres.categorie == 'mineurs' %}active{% endif %}">الأطفال</a>
+    <nav class="pill-nav pill-nav-secondaire mt-2" aria-label="{% trans 'تصفية حسب فئة المجموعة الجماعية' %}">
+        <a href="{% querystring categorie=None tranche=None page=None %}" class="{% if not filtres.categorie %}active{% endif %}">{% trans "الكل" %}</a>
+        <a href="{% querystring categorie='femmes_adultes' tranche=None page=None %}" class="{% if filtres.categorie == 'femmes_adultes' %}active{% endif %}">{% trans "النساء" %}</a>
+        <a href="{% querystring categorie='hommes_adultes' tranche=None page=None %}" class="{% if filtres.categorie == 'hommes_adultes' %}active{% endif %}">{% trans "الرجال" %}</a>
+        <a href="{% querystring categorie='mineurs' tranche=None page=None %}" class="{% if filtres.categorie == 'mineurs' %}active{% endif %}">{% trans "الأطفال" %}</a>
     </nav>
     {% endif %}
     {% if filtres.categorie == 'mineurs' %}
@@ -62,8 +69,8 @@
     même source de vérité que Groupe.tranches_age_visees (badge affiché sur
     chaque carte plus bas). Voir courses.views.groupes_list.
     {% endcomment %}
-    <nav class="pill-nav pill-nav-secondaire mt-2" aria-label="تصفية حسب الفئة العمرية">
-        <a href="{% querystring tranche=None page=None %}" class="{% if not filtres.tranche %}active{% endif %}">الكل</a>
+    <nav class="pill-nav pill-nav-secondaire mt-2" aria-label="{% trans 'تصفية حسب الفئة العمرية' %}">
+        <a href="{% querystring tranche=None page=None %}" class="{% if not filtres.tranche %}active{% endif %}">{% trans "الكل" %}</a>
         {% for code, nom, age_min, age_max in tranches_age %}
         <a href="{% querystring tranche=code page=None %}" class="{% if filtres.tranche == code %}active{% endif %}">{{ nom }}</a>
         {% endfor %}
@@ -74,45 +81,45 @@
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end mb-2">
         <div class="col-md-6">
-            <label style="color:#888; font-size:0.8rem;">بحث باسم المجموعة</label>
-            <input type="text" name="q" class="form-control" value="{{ filtres.q }}" placeholder="اكتب اسم المجموعة...">
+            <label style="color:#888; font-size:0.8rem;">{% trans "بحث باسم المجموعة" %}</label>
+            <input type="text" name="q" class="form-control" value="{{ filtres.q }}" placeholder="{% trans 'اكتب اسم المجموعة...' %}">
         </div>
     </div>
     <div class="row g-3 align-items-end">
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">الحالة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الحالة" %}</label>
             <select name="statut" class="form-select">
-                <option value="">الكل</option>
-                <option value="actif" {% if filtres.statut == 'actif' %}selected{% endif %}>نشطة</option>
-                <option value="archive" {% if filtres.statut == 'archive' %}selected{% endif %}>مؤرشفة</option>
+                <option value="">{% trans "الكل" %}</option>
+                <option value="actif" {% if filtres.statut == 'actif' %}selected{% endif %}>{% trans "نشطة" %}</option>
+                <option value="archive" {% if filtres.statut == 'archive' %}selected{% endif %}>{% trans "مؤرشفة" %}</option>
             </select>
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">المعلم</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "المعلم" %}</label>
             <select name="prof" class="form-select" data-select-cherchable>
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for p in profs %}
                 <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">الحلقة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الحلقة" %}</label>
             <select name="creneau" class="form-select" data-select-cherchable onchange="if(this.value === '__creer__'){ window.location.href = '{% url "admin_creneau_ajouter" %}'; }">
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for c in creneaux %}
                 <option value="{{ c.id }}" {% if filtres.creneau == c.id|stringformat:"s" %}selected{% endif %}>
-                    {% if c.nom %}{{ c.nom }}{% else %}{{ c }} — {{ c.age_min }}-{{ c.age_max }} سنة، {{ c.get_sexe_cible_display }}، {{ c.get_type_seance_display }}، {{ c.get_riwaya_display }}{% endif %}
+                    {% if c.nom %}{{ c.nom }}{% else %}{% blocktrans with creneau=c age_min=c.age_min age_max=c.age_max sexe=c.get_sexe_cible_display type_seance=c.get_type_seance_display riwaya=c.get_riwaya_display %}{{ creneau }} — {{ age_min }}-{{ age_max }} سنة، {{ sexe }}، {{ type_seance }}، {{ riwaya }}{% endblocktrans %}{% endif %}
                 </option>
                 {% endfor %}
                 {% if request.user.role != 'mshrif' %}
-                <option value="__creer__">+ إنشاء حلقة جديدة</option>
+                <option value="__creer__">+ {% trans "إنشاء حلقة جديدة" %}</option>
                 {% endif %}
             </select>
         </div>
         <div class="col-md-3 d-flex gap-2 align-items-end">
-            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
-            <a href="{% url 'admin_groupes' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
+            <a href="{% url 'admin_groupes' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
         </div>
     </div>
 </form>
@@ -136,18 +143,18 @@
             </div>
 
             <div style="color:#888; font-size:0.9rem; margin-bottom:6px;">
-                👨‍🏫 المعلم: 
-                {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}غير محدد{% endif %}
+                👨‍🏫 {% trans "المعلم:" %}
+                {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}{% trans "غير محدد" %}{% endif %}
             </div>
             <div style="color:#888; font-size:0.9rem; margin-bottom:6px;">
-                👥 عدد الطلاب: 
+                👥 {% trans "عدد الطلاب:" %}
                 <span style="background:var(--color-brand-gold); color:white; border-radius:20px; padding:2px 10px; font-size:0.8rem;">
-                    {{ groupe.eleves.count }} طالب
+                    {% blocktrans count compteur=groupe.eleves.count %}{{ compteur }} طالب{% plural %}{{ compteur }} طالب{% endblocktrans %}
                 </span>
             </div>
             <div style="color:#888; font-size:0.9rem; margin-bottom:6px;">
-                📅 الجدول:
-                {% if groupe.creneau %}{{ groupe.creneau }}{% else %}غير محدد{% endif %}
+                📅 {% trans "الجدول:" %}
+                {% if groupe.creneau %}{{ groupe.creneau }}{% else %}{% trans "غير محدد" %}{% endif %}
             </div>
             {% if groupe.tranches_age_visees %}
             {% comment %}
@@ -166,16 +173,18 @@
             {% endif %}
             <div style="margin-bottom:16px;">
                 {% if groupe.lien_reunion %}
-                {% include 'dashboard/_badge_statut.html' with type='success' texte='رابط مضاف ✓' %}
+                {% trans "رابط مضاف ✓" as texte_lien_ok %}
+                {% include 'dashboard/_badge_statut.html' with type='success' texte=texte_lien_ok %}
                 {% else %}
-                {% include 'dashboard/_badge_statut.html' with type='warning' texte='⚠ لا يوجد رابط' %}
+                {% trans "⚠ لا يوجد رابط" as texte_lien_manquant %}
+                {% include 'dashboard/_badge_statut.html' with type='warning' texte=texte_lien_manquant %}
                 {% endif %}
             </div>
 
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
                 <a href="{% url 'admin_groupe_detail' groupe.id %}"
                    style="background:#f0f7ed; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; font-weight:600;">
-                   عرض التفاصيل ←
+                   {% trans "عرض التفاصيل ←" %}
                 </a>
                 {% if groupe.id in chat_groupe_ids %}
                 {% include 'dashboard/_chat_icon.html' with groupe_id=groupe.id %}
@@ -188,9 +197,9 @@
 {% else %}
 <div style="text-align:center; padding:60px; color:#aaa;">
     {% if filtres.statut or filtres.prof or filtres.creneau or filtres.type or filtres.categorie or filtres.tranche or filtres.q %}
-    لا توجد مجموعات مطابقة لهذه التصفية
+    {% trans "لا توجد مجموعات مطابقة لهذه التصفية" %}
     {% else %}
-    لا توجد مجموعات بعد — أنشئ مجموعة جديدة !
+    {% trans "لا توجد مجموعات بعد — أنشئ مجموعة جديدة !" %}
     {% endif %}
 </div>
 {% endif %}

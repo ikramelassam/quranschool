@@ -1,17 +1,17 @@
 {% extends base_template %}
-
-{% block title %}الحلقات{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "الحلقات" %}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <div class="page-title">إدارة الحلقات</div>
-        <div class="page-subtitle">إجمالي الحلقات: {{ creneaux.paginator.count }}</div>
+        <div class="page-title">{% trans "إدارة الحلقات" %}</div>
+        <div class="page-subtitle">{% blocktrans with total=creneaux.paginator.count %}إجمالي الحلقات: {{ total }}{% endblocktrans %}</div>
     </div>
     {% if request.user.role != 'mshrif' %}
     <a href="{% url 'admin_creneau_ajouter' %}"
        style="background:var(--color-role-admin); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
-       + إضافة حلقة جديدة
+       + {% trans "إضافة حلقة جديدة" %}
     </a>
     {% endif %}
 </div>
@@ -19,47 +19,47 @@
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end mb-2">
         <div class="col-md-6">
-            <label style="color:#888; font-size:0.8rem;">بحث باسم الحلقة</label>
-            <input type="text" name="q" class="form-control" value="{{ filtres.q }}" placeholder="اكتب اسم الحلقة...">
+            <label style="color:#888; font-size:0.8rem;">{% trans "بحث باسم الحلقة" %}</label>
+            <input type="text" name="q" class="form-control" value="{{ filtres.q }}" placeholder="{% trans 'اكتب اسم الحلقة...' %}">
         </div>
     </div>
     <div class="row g-3 align-items-end">
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">الفئة المستهدفة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الفئة المستهدفة" %}</label>
             <select name="sexe_cible" class="form-select">
-                <option value="">الكل</option>
-                <option value="homme" {% if filtres.sexe_cible == 'homme' %}selected{% endif %}>ذكر</option>
-                <option value="femme" {% if filtres.sexe_cible == 'femme' %}selected{% endif %}>أنثى</option>
-                <option value="mixte" {% if filtres.sexe_cible == 'mixte' %}selected{% endif %}>مختلط</option>
+                <option value="">{% trans "الكل" %}</option>
+                <option value="homme" {% if filtres.sexe_cible == 'homme' %}selected{% endif %}>{% trans "ذكر" %}</option>
+                <option value="femme" {% if filtres.sexe_cible == 'femme' %}selected{% endif %}>{% trans "أنثى" %}</option>
+                <option value="mixte" {% if filtres.sexe_cible == 'mixte' %}selected{% endif %}>{% trans "مختلط" %}</option>
             </select>
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">الحالة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الحالة" %}</label>
             <select name="actif" class="form-select">
-                <option value="">الكل (النشطة فقط)</option>
-                <option value="1" {% if filtres.actif == '1' %}selected{% endif %}>نشط</option>
-                <option value="0" {% if filtres.actif == '0' %}selected{% endif %}>مؤرشف 🗄</option>
+                <option value="">{% trans "الكل (النشطة فقط)" %}</option>
+                <option value="1" {% if filtres.actif == '1' %}selected{% endif %}>{% trans "نشط" %}</option>
+                <option value="0" {% if filtres.actif == '0' %}selected{% endif %}>{% trans "مؤرشف 🗄" %}</option>
             </select>
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">نوع الحلقة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "نوع الحلقة" %}</label>
             <select name="type_seance" class="form-select">
-                <option value="">الكل</option>
-                <option value="hifz" {% if filtres.type_seance == 'hifz' %}selected{% endif %}>الحفظ والمراجعة</option>
-                <option value="tathbit" {% if filtres.type_seance == 'tathbit' %}selected{% endif %}>التثبيت</option>
+                <option value="">{% trans "الكل" %}</option>
+                <option value="hifz" {% if filtres.type_seance == 'hifz' %}selected{% endif %}>{% trans "الحفظ والمراجعة" %}</option>
+                <option value="tathbit" {% if filtres.type_seance == 'tathbit' %}selected{% endif %}>{% trans "التثبيت" %}</option>
             </select>
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">الرواية</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الرواية" %}</label>
             <select name="riwaya" class="form-select">
-                <option value="">الكل</option>
-                <option value="hafs" {% if filtres.riwaya == 'hafs' %}selected{% endif %}>حفص</option>
-                <option value="warsh" {% if filtres.riwaya == 'warsh' %}selected{% endif %}>ورش</option>
+                <option value="">{% trans "الكل" %}</option>
+                <option value="hafs" {% if filtres.riwaya == 'hafs' %}selected{% endif %}>{% trans "حفص" %}</option>
+                <option value="warsh" {% if filtres.riwaya == 'warsh' %}selected{% endif %}>{% trans "ورش" %}</option>
             </select>
         </div>
         <div class="col-md-3 d-flex gap-2">
-            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
-            <a href="{% url 'admin_creneaux' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
+            <a href="{% url 'admin_creneaux' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
         </div>
     </div>
 </form>
@@ -68,23 +68,23 @@
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
     {% for creneau in creneaux %}
     <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid #f0f0f0;">
-        
+
         <div>
             <div style="font-weight:700; color:#222;">{{ creneau }}</div>
             <div style="color:#888; font-size:0.85rem; margin-top:4px;">
                 {{ creneau.get_sexe_cible_display }} ·
                 {{ creneau.get_type_seance_display }} ·
                 {{ creneau.get_riwaya_display }} ·
-                {{ creneau.age_min }} - {{ creneau.age_max }} سنة
+                {% blocktrans with age_min=creneau.age_min age_max=creneau.age_max %}{{ age_min }} - {{ age_max }} سنة{% endblocktrans %}
             </div>
         </div>
 
         <div class="d-flex gap-2 align-items-center">
             <!-- Statut actif/archivé -->
             {% if creneau.est_actif %}
-                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">نشط ✅</span>
+                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">{% trans "نشط ✅" %}</span>
             {% else %}
-                <span style="background:#f0f0f0; color:#666; border-radius:20px; padding:4px 12px; font-size:0.8rem;">مؤرشف 🗄</span>
+                <span style="background:#f0f0f0; color:#666; border-radius:20px; padding:4px 12px; font-size:0.8rem;">{% trans "مؤرشف 🗄" %}</span>
             {% endif %}
 
             {% comment %}
@@ -93,17 +93,19 @@
             explicite de ce chantier). Réutilise le toggle existant
             (est_actif), voir courses.views.creneau_toggle.
             {% endcomment %}
+            {% trans "هل تريد أرشفة هذه الحلقة؟" as confirmer_archivage %}
+            {% trans "هل تريد إعادة تفعيل هذه الحلقة؟" as confirmer_reactivation %}
             <a href="{% url 'admin_creneau_toggle' creneau.id %}"
-               onclick="return confirm('{% if creneau.est_actif %}هل تريد أرشفة هذه الحلقة؟{% else %}هل تريد إعادة تفعيل هذه الحلقة؟{% endif %}');"
+               onclick="return confirm('{% if creneau.est_actif %}{{ confirmer_archivage|escapejs }}{% else %}{{ confirmer_reactivation|escapejs }}{% endif %}');"
                style="background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-               {% if creneau.est_actif %}أرشفة 🗄{% else %}إعادة تفعيل ✅{% endif %}
+               {% if creneau.est_actif %}{% trans "أرشفة 🗄" %}{% else %}{% trans "إعادة تفعيل ✅" %}{% endif %}
             </a>
 
             {% if request.user.role != 'mshrif' %}
             <!-- Bouton modifier -->
             <a href="{% url 'admin_creneau_modifier' creneau.id %}"
                style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-               تعديل ✏️
+               {% trans "تعديل ✏️" %}
             </a>
 
             {% comment %}
@@ -126,7 +128,7 @@
             {% endcomment %}
             <a href="{% url 'admin_creneau_supprimer_definitivement' creneau.id %}"
                style="background:var(--color-danger); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-               حذف نهائي ⚠️
+               {% trans "حذف نهائي ⚠️" %}
             </a>
             {% endif %}
         </div>
@@ -137,9 +139,9 @@
 {% else %}
 <div style="text-align:center; padding:60px; color:#aaa;">
     {% if filtres.q or filtres.sexe_cible or filtres.actif or filtres.type_seance or filtres.riwaya %}
-    لا توجد حلقات مطابقة لهذه التصفية
+    {% trans "لا توجد حلقات مطابقة لهذه التصفية" %}
     {% else %}
-    لا توجد حلقات بعد — أضف حلقة جديدة !
+    {% trans "لا توجد حلقات بعد — أضف حلقة جديدة !" %}
     {% endif %}
 </div>
 {% endif %}

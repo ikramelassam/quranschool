@@ -1,7 +1,7 @@
 {% extends base_template %}
-{% load libelles_arabes %}
+{% load libelles_arabes i18n %}
 
-{% block title %}تفاصيل المجموعة{% endblock %}
+{% block title %}{% trans "تفاصيل المجموعة" %}{% endblock %}
 
 {% block content %}
 
@@ -11,9 +11,9 @@
         <div>
             <div class="page-title">{{ groupe.nom }}</div>
             <div class="page-subtitle">
-                تفاصيل المجموعة
+                {% trans "تفاصيل المجموعة" %}
                 {% if groupe.statut == 'archive' %}
-                <span style="background:#f0f0f0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; margin-right:8px;">مؤرشفة 🗄</span>
+                <span style="background:#f0f0f0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; margin-right:8px;">{% trans "مؤرشفة 🗄" %}</span>
                 {% endif %}
             </div>
         </div>
@@ -30,23 +30,25 @@
         que ces 2 pages.
         {% endcomment %}
         {% if groupe.statut == 'archive' %}
+        {% blocktrans asvar confirmer_reactivation with nom=groupe.nom %}هل تريد إعادة تفعيل مجموعة '{{ nom }}'؟{% endblocktrans %}
         <a href="{% url 'admin_groupe_reactiver' groupe.id %}"
-           onclick="return confirm('هل تريد إعادة تفعيل مجموعة \'{{ groupe.nom|escapejs }}\'؟');"
+           onclick="return confirm('{{ confirmer_reactivation|escapejs }}');"
            style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
-           إعادة تفعيل ✅
+           {% trans "إعادة تفعيل ✅" %}
         </a>
         {% else %}
+        {% blocktrans asvar confirmer_archivage with nom=groupe.nom %}هل تريد أرشفة مجموعة '{{ nom }}'؟ سيبقى سجلها كاملاً ومحفوظاً، ولن تظهر في القوائم إلا عبر تصفية 'الحالة'.{% endblocktrans %}
         <a href="{% url 'admin_groupe_archiver' groupe.id %}"
-           onclick="return confirm('هل تريد أرشفة مجموعة \'{{ groupe.nom|escapejs }}\'؟ سيبقى سجلها كاملاً ومحفوظاً، ولن تظهر في القوائم إلا عبر تصفية \'الحالة\'.');"
+           onclick="return confirm('{{ confirmer_archivage|escapejs }}');"
            style="background:#f0f0f0; color:#666; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
-           أرشفة 🗄
+           {% trans "أرشفة 🗄" %}
         </a>
         {% endif %}
 
         {% if request.user.role != 'mshrif' %}
         <a href="{% url 'admin_groupe_modifier' groupe.id %}"
            style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
-           تعديل
+           {% trans "تعديل" %}
         </a>
         {% comment %}
         Tâche du 2026-08-08 (nettoyage UX) : ancien bouton "حذف" simple
@@ -62,11 +64,11 @@
 
 {% if not groupe.prof %}
 <div style="background:#fce4e4; color:var(--color-danger); border-radius:10px; padding:14px 18px; margin-bottom:16px; font-weight:600;">
-    ⚠️ هذه المجموعة بدون أستاذ (تمت أرشفة/حذف الأستاذ السابق أو لم يُعيَّن أحد بعد) — يجب تعيين أستاذ لها. لن يتم توليد حصص مستقبلية جديدة طالما هذا لم يُحل.
+    {% trans "⚠️ هذه المجموعة بدون أستاذ (تمت أرشفة/حذف الأستاذ السابق أو لم يُعيَّن أحد بعد) — يجب تعيين أستاذ لها. لن يتم توليد حصص مستقبلية جديدة طالما هذا لم يُحل." %}
 </div>
 {% elif groupe.prof.statut == 'archive' %}
 <div style="background:#f0f0f0; color:#666; border-radius:10px; padding:14px 18px; margin-bottom:16px; font-weight:600;">
-    ⚠️ الأستاذ {{ groupe.prof.user.get_full_name }} مؤرشف — يجب إعادة تعيين أستاذ آخر لهذه المجموعة. لن يتم توليد حصص مستقبلية جديدة طالما هذا لم يُحل.
+    {% blocktrans with nom=groupe.prof.user.get_full_name %}⚠️ الأستاذ {{ nom }} مؤرشف — يجب إعادة تعيين أستاذ آخر لهذه المجموعة. لن يتم توليد حصص مستقبلية جديدة طالما هذا لم يُحل.{% endblocktrans %}
 </div>
 {% endif %}
 
@@ -74,11 +76,11 @@
 
     <div class="col-md-5">
         <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:16px;">معلومات المجموعة</div>
+            <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:16px;">{% trans "معلومات المجموعة" %}</div>
             <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">المعلم</span>
+                <span style="color:#888;">{% trans "المعلم" %}</span>
                 <span style="font-weight:600; display:flex; align-items:center; gap:10px;">
-                    {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}غير محدد{% endif %}
+                    {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}{% trans "غير محدد" %}{% endif %}
                     {% include 'dashboard/_badge_archive_prof.html' with prof=groupe.prof %}
                     {% if groupe.prof %}
                     <span style="display:inline-flex; gap:6px; align-items:center;">
@@ -89,35 +91,35 @@
                 </span>
             </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">الجدول</span>
+                <span style="color:#888;">{% trans "الجدول" %}</span>
                 <span style="font-weight:600;">
-                    {% if groupe.creneau %}{{ groupe.creneau }}{% else %}غير محدد{% endif %}
+                    {% if groupe.creneau %}{{ groupe.creneau }}{% else %}{% trans "غير محدد" %}{% endif %}
                 </span>
             </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">الرواية</span>
+                <span style="color:#888;">{% trans "الرواية" %}</span>
                 <span style="font-weight:600;">
-                    {% if groupe.creneau %}{{ groupe.creneau.get_riwaya_display }}{% else %}غير محدد{% endif %}
+                    {% if groupe.creneau %}{{ groupe.creneau.get_riwaya_display }}{% else %}{% trans "غير محدد" %}{% endif %}
                 </span>
             </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">الفئة</span>
+                <span style="color:#888;">{% trans "الفئة" %}</span>
                 <span style="font-weight:600;">
-                    {% if groupe.get_categorie_display %}{{ groupe.get_categorie_display }}{% else %}غير مصنّفة{% endif %}
+                    {% if groupe.get_categorie_display %}{{ groupe.get_categorie_display }}{% else %}{% trans "غير مصنّفة" %}{% endif %}
                 </span>
             </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">الوصف</span>
+                <span style="color:#888;">{% trans "الوصف" %}</span>
                 <span style="font-weight:600;">
                     {% if groupe.description %}{{ groupe.description }}{% else %}—{% endif %}
                 </span>
             </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">الطاقة الاستيعابية</span>
+                <span style="color:#888;">{% trans "الطاقة الاستيعابية" %}</span>
                 <span style="font-weight:600;">{{ groupe.eleves.count }} / {{ groupe.capacite_max }}</span>
             </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">الحالة</span>
+                <span style="color:#888;">{% trans "الحالة" %}</span>
                 <span style="font-weight:600;">{{ groupe.get_statut_display }}</span>
             </div>
             {% comment %}
@@ -128,7 +130,7 @@
             {% endcomment %}
             {% if groupe.tranches_age_visees %}
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">الفئات العمرية</span>
+                <span style="color:#888;">{% trans "الفئات العمرية" %}</span>
                 <span style="font-weight:600;">
                     {% for tranche in groupe.tranches_age_visees %}
                     <span style="background:#eef5f0; color:var(--color-success); border-radius:20px; padding:2px 10px; font-size:0.78rem; margin-inline-start:4px;">{{ tranche }}</span>
@@ -137,11 +139,12 @@
             </div>
             {% endif %}
             <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0;">
-                <span style="color:#888;">🔗 رابط الحصص</span>
+                <span style="color:#888;">🔗 {% trans "رابط الحصص" %}</span>
                 {% if groupe.lien_reunion %}
-                <a href="{{ groupe.lien_reunion }}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600; text-decoration:none;">فتح الرابط ↗</a>
+                <a href="{{ groupe.lien_reunion }}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600; text-decoration:none;">{% trans "فتح الرابط ↗" %}</a>
                 {% else %}
-                {% include 'dashboard/_badge_statut.html' with type='warning' texte='⚠ لا يوجد رابط' %}
+                {% trans "⚠ لا يوجد رابط" as texte_lien_manquant %}
+                {% include 'dashboard/_badge_statut.html' with type='warning' texte=texte_lien_manquant %}
                 {% endif %}
             </div>
         </div>
@@ -150,13 +153,13 @@
     <div class="col-md-7">
         <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
             <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:16px;">
-                الطلاب ({{ groupe.eleves.count }})
+                {% blocktrans with n=groupe.eleves.count %}الطلاب ({{ n }}){% endblocktrans %}
             </div>
             {% if eleve_en_attente %}
             <div style="background:#fff3cd; border:1px solid #ff9800; border-radius:10px; padding:14px 18px; margin-bottom:16px;">
                 <div style="font-weight:700; color:#7a4a00; margin-bottom:6px;">
-                    ⚠️ تأكيد مطلوب — {{ eleve_en_attente.user.get_full_name }}
-                    {% if action_en_attente == 'transfert' %}(النقل إلى {{ destination_en_attente.nom }}){% endif %}
+                    ⚠️ {% blocktrans with nom=eleve_en_attente.user.get_full_name %}تأكيد مطلوب — {{ nom }}{% endblocktrans %}
+                    {% if action_en_attente == 'transfert' %}{% blocktrans with dest=destination_en_attente.nom %}(النقل إلى {{ dest }}){% endblocktrans %}{% endif %}
                 </div>
                 <ul style="margin-bottom:10px; color:#7a4a00;">
                     {% for a in avertissements_en_attente %}
@@ -169,17 +172,17 @@
                         {% csrf_token %}
                         <input type="hidden" name="eleve_id" value="{{ eleve_en_attente.id }}">
                         <input type="hidden" name="confirme" value="1">
-                        <button type="submit" style="background:#ff9800; color:white; border:none; border-radius:8px; padding:8px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">متأكد، أضف رغم ذلك ✅</button>
+                        <button type="submit" style="background:#ff9800; color:white; border:none; border-radius:8px; padding:8px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "متأكد، أضف رغم ذلك ✅" %}</button>
                     </form>
                     {% else %}
                     <form method="POST" action="{% url 'admin_groupe_transferer_eleve' groupe.id eleve_en_attente.id %}">
                         {% csrf_token %}
                         <input type="hidden" name="destination_id" value="{{ destination_en_attente.id }}">
                         <input type="hidden" name="confirme" value="1">
-                        <button type="submit" style="background:#ff9800; color:white; border:none; border-radius:8px; padding:8px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">متأكد، انقل رغم ذلك ✅</button>
+                        <button type="submit" style="background:#ff9800; color:white; border:none; border-radius:8px; padding:8px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "متأكد، انقل رغم ذلك ✅" %}</button>
                     </form>
                     {% endif %}
-                    <a href="{% url 'admin_groupe_detail' groupe.id %}" style="color:#888; text-decoration:none; padding:8px 12px;">إلغاء</a>
+                    <a href="{% url 'admin_groupe_detail' groupe.id %}" style="color:#888; text-decoration:none; padding:8px 12px;">{% trans "إلغاء" %}</a>
                 </div>
             </div>
             {% endif %}
@@ -200,39 +203,40 @@
                     <form method="POST" action="{% url 'admin_groupe_transferer_eleve' groupe.id eleve.id %}" class="d-flex gap-1">
                         {% csrf_token %}
                         <select name="destination_id" class="form-select form-select-sm" style="font-size:0.8rem;" required data-select-cherchable>
-                            <option value="">نقل إلى...</option>
+                            <option value="">{% trans "نقل إلى..." %}</option>
                             {% for g in autres_groupes_actifs %}
                             <option value="{{ g.id }}">{{ g.nom }}</option>
                             {% endfor %}
                         </select>
-                        <button type="submit" style="background:var(--color-brand-gold); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:0.8rem; cursor:pointer; white-space:nowrap;">نقل</button>
+                        <button type="submit" style="background:var(--color-brand-gold); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:0.8rem; cursor:pointer; white-space:nowrap;">{% trans "نقل" %}</button>
                     </form>
+                    {% blocktrans asvar confirmer_retrait with nom=eleve.user.get_full_name %}هل أنت متأكد من إزالة {{ nom }} من هذه المجموعة؟ سجل حصصه وتقييماته السابقة سيبقى محفوظاً.{% endblocktrans %}
                     <form method="POST" action="{% url 'admin_groupe_retirer_eleve' groupe.id eleve.id %}"
-                          onsubmit="return confirm('هل أنت متأكد من إزالة {{ eleve.user.get_full_name|escapejs }} من هذه المجموعة؟ سجل حصصه وتقييماته السابقة سيبقى محفوظاً.');">
+                          onsubmit="return confirm('{{ confirmer_retrait|escapejs }}');">
                         {% csrf_token %}
-                        <button type="submit" style="background:#f0f0f0; color:#dc3545; border:none; border-radius:6px; padding:4px 10px; font-size:0.8rem; cursor:pointer; white-space:nowrap;">إزالة من المجموعة</button>
+                        <button type="submit" style="background:#f0f0f0; color:#dc3545; border:none; border-radius:6px; padding:4px 10px; font-size:0.8rem; cursor:pointer; white-space:nowrap;">{% trans "إزالة من المجموعة" %}</button>
                     </form>
                     {% endif %}
                 </span>
             </div>
             {% empty %}
-            <div style="text-align:center; color:#aaa; padding:20px;">لا يوجد طلاب بعد</div>
+            <div style="text-align:center; color:#aaa; padding:20px;">{% trans "لا يوجد طلاب بعد" %}</div>
             {% endfor %}
 
             {% if request.user.role != 'mshrif' %}
             <div style="margin-top:16px; padding-top:16px; border-top:2px solid #f0f0f0;">
-                <div style="font-weight:600; margin-bottom:10px;">إضافة طالب</div>
+                <div style="font-weight:600; margin-bottom:10px;">{% trans "إضافة طالب" %}</div>
                 <form method="POST" action="{% url 'admin_groupe_ajouter_eleve' groupe.id %}" class="d-flex gap-2">
                     {% csrf_token %}
                     <select name="eleve_id" class="form-select" data-select-cherchable>
-                        <option value="">اختر طالباً</option>
+                        <option value="">{% trans "اختر طالباً" %}</option>
                         {% for eleve in eleves_disponibles %}
                         <option value="{{ eleve.id }}">{{ eleve.user.get_full_name }}</option>
                         {% endfor %}
                     </select>
                     <button type="submit"
                         style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 16px; font-family:'Tajawal',sans-serif; white-space:nowrap; cursor:pointer;">
-                        إضافة +
+                        {% trans "إضافة +" %}
                     </button>
                 </form>
             </div>
@@ -243,9 +247,9 @@
 </div>
 
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:16px;">
-    <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:4px;">الخصائص</div>
+    <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:4px;">{% trans "الخصائص" %}</div>
     <div style="color:#888; font-size:0.82rem; margin-bottom:16px;">
-        قيم هذه المجموعة لكل معيار تسجيل نشط — تُستخدم لاقتراح هذه المجموعة على الطلاب المتوافقين معها.
+        {% trans "قيم هذه المجموعة لكل معيار تسجيل نشط — تُستخدم لاقتراح هذه المجموعة على الطلاب المتوافقين معها." %}
     </div>
 
     {% for item in criteres_config %}
@@ -273,33 +277,34 @@
                 </div>
             {% else %}
                 <select name="options" class="form-select form-select-sm" style="min-width:160px;">
-                    <option value="">— غير محدد —</option>
+                    <option value="">— {% trans "غير محدد" %} —</option>
                     {% for option in item.options %}
                     <option value="{{ option.code }}" {% if option.id in item.valeurs_actuelles_ids %}selected{% endif %}>{{ option.label }}</option>
                     {% endfor %}
                 </select>
             {% endif %}
-            <button type="submit" style="background:var(--color-brand-gold); color:white; border:none; border-radius:6px; padding:5px 14px; font-size:0.82rem; cursor:pointer;">حفظ</button>
+            <button type="submit" style="background:var(--color-brand-gold); color:white; border:none; border-radius:6px; padding:5px 14px; font-size:0.82rem; cursor:pointer;">{% trans "حفظ" %}</button>
         </form>
         {% elif item.critere.backend == 'champ_groupe' %}
             <span style="color:#666; font-size:0.9rem;">
-                {{ item.valeur_reelle|default:"غير محدد" }}
-                <span style="color:#aaa; font-size:0.78rem;"> (يُدار من نموذج تعديل المجموعة)</span>
+                {% trans "غير محدد" as texte_non_defini %}
+                {{ item.valeur_reelle|default:texte_non_defini }}
+                <span style="color:#aaa; font-size:0.78rem;"> ({% trans "يُدار من نموذج تعديل المجموعة" %})</span>
             </span>
         {% else %}
             <span style="color:#666; font-size:0.9rem;">
-                {% if item.valeur_derivee %}{{ item.valeur_derivee }} حصة/أسبوع{% else %}— (بدون حلقة){% endif %}
-                <span style="color:#aaa; font-size:0.78rem;"> (مشتق تلقائياً من الحصص الأسبوعية)</span>
+                {% if item.valeur_derivee %}{% blocktrans with n=item.valeur_derivee %}{{ n }} حصة/أسبوع{% endblocktrans %}{% else %}— ({% trans "بدون حلقة" %}){% endif %}
+                <span style="color:#aaa; font-size:0.78rem;"> ({% trans "مشتق تلقائياً من الحصص الأسبوعية" %})</span>
             </span>
         {% endif %}
     </div>
     {% empty %}
-    <div style="text-align:center; color:#aaa; padding:20px;">لا توجد معايير نشطة بعد</div>
+    <div style="text-align:center; color:#aaa; padding:20px;">{% trans "لا توجد معايير نشطة بعد" %}</div>
     {% endfor %}
 </div>
 
 <div class="mt-3">
-    <a href="{% url 'admin_groupes' %}" style="color:var(--color-role-admin-solid); text-decoration:none;">← العودة للمجموعات</a>
+    <a href="{% url 'admin_groupes' %}" style="color:var(--color-role-admin-solid); text-decoration:none;">{% trans "← العودة للمجموعات" %}</a>
 </div>
 
 {% if request.user.role == 'admin' %}
@@ -314,22 +319,23 @@ initialement a été retiré, voir courses.views.
 groupe_supprimer_definitivement).
 {% endcomment %}
 <div style="background:#fdf1f0; border:2px solid var(--color-danger); border-radius:12px; padding:24px; margin-top:32px;">
-    <div style="font-weight:700; color:var(--color-danger); margin-bottom:8px;">⚠️ منطقة خطر — حذف نهائي</div>
+    <div style="font-weight:700; color:var(--color-danger); margin-bottom:8px;">⚠️ {% trans "منطقة خطر — حذف نهائي" %}</div>
     <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:16px;">
-        يحذف هذه المجموعة نهائياً <strong>حتى لو كانت مرتبطة بحصص أو حضور أو تقييمات</strong> — كل هذه البيانات
-        ستُحذف معها ولا يمكن استرجاعها، ولن يبقى أي أثر لهذا الحذف. الأرشفة أعلاه هي الخيار الآمن في كل الحالات الأخرى.
+        {% blocktrans %}يحذف هذه المجموعة نهائياً <strong>حتى لو كانت مرتبطة بحصص أو حضور أو تقييمات</strong> — كل هذه البيانات
+        ستُحذف معها ولا يمكن استرجاعها، ولن يبقى أي أثر لهذا الحذف. الأرشفة أعلاه هي الخيار الآمن في كل الحالات الأخرى.{% endblocktrans %}
     </p>
+    {% blocktrans asvar confirmer_suppression_definitive with n=groupe.seances.count %}تأكيد أخير: سيتم حذف {{ n }} حصة وكل ما يرتبط بها نهائياً، بدون أي إمكانية للتراجع. هل أنت متأكدة تماماً؟{% endblocktrans %}
     <form method="POST" action="{% url 'admin_groupe_supprimer_definitivement' groupe.id %}"
-          onsubmit="return confirm('تأكيد أخير: سيتم حذف {{ groupe.seances.count }} حصة وكل ما يرتبط بها نهائياً، بدون أي إمكانية للتراجع. هل أنت متأكدة تماماً؟');"
+          onsubmit="return confirm('{{ confirmer_suppression_definitive|escapejs }}');"
           class="d-flex gap-2 align-items-end flex-wrap">
         {% csrf_token %}
         <div>
-            <label style="color:#8a3b36; font-size:0.8rem; display:block; margin-bottom:4px;">اكتب اسم المجموعة "{{ groupe.nom }}" للتأكيد</label>
+            <label style="color:#8a3b36; font-size:0.8rem; display:block; margin-bottom:4px;">{% blocktrans with nom=groupe.nom %}اكتب اسم المجموعة "{{ nom }}" للتأكيد{% endblocktrans %}</label>
             <input type="text" name="confirmation_nom" class="form-control" placeholder="{{ groupe.nom }}" required style="min-width:260px;">
         </div>
         <button type="submit"
             style="background:var(--color-danger); color:white; border:none; border-radius:8px; padding:10px 20px; font-weight:700; font-family:'Tajawal',sans-serif; cursor:pointer;">
-            حذف نهائي 🗑️⚠️
+            {% trans "حذف نهائي 🗑️⚠️" %}
         </button>
     </form>
 </div>

@@ -1,52 +1,52 @@
 {% extends 'dashboard/base_admin.html' %}
-
-{% block title %}إضافة حلقة{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "إضافة حلقة" %}{% endblock %}
 
 {% block content %}
-<div class="page-title">إضافة حلقة جديدة</div>
+<div class="page-title">{% trans "إضافة حلقة جديدة" %}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
         {% csrf_token %}
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">اسم الحلقة (اختياري)</label>
-            <input type="text" name="nom" class="form-control mt-1" maxlength="100" placeholder="مثال: حلقة الأطفال - الصباح">
-            <div style="color:#888; font-size:0.78rem; margin-top:4px;">إن تُرك فارغاً، تُعرض الحلقة بيومها وتوقيتها كالمعتاد.</div>
+            <label style="font-weight:600; color:#333;">{% trans "اسم الحلقة (اختياري)" %}</label>
+            <input type="text" name="nom" class="form-control mt-1" maxlength="100" placeholder="{% trans 'مثال: حلقة الأطفال - الصباح' %}">
+            <div style="color:#888; font-size:0.78rem; margin-top:4px;">{% trans "إن تُرك فارغاً، تُعرض الحلقة بيومها وتوقيتها كالمعتاد." %}</div>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الجنس المستهدف *</label>
+            <label style="font-weight:600; color:#333;">{% trans "الجنس المستهدف *" %}</label>
             <select name="sexe_cible" class="form-select mt-1" required>
-                <option value="mixte">مختلط</option>
-                <option value="homme">ذكر</option>
-                <option value="femme">أنثى</option>
+                <option value="mixte">{% trans "مختلط" %}</option>
+                <option value="homme">{% trans "ذكر" %}</option>
+                <option value="femme">{% trans "أنثى" %}</option>
             </select>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">نوع الحلقة *</label>
+            <label style="font-weight:600; color:#333;">{% trans "نوع الحلقة *" %}</label>
             <select name="type_seance" class="form-select mt-1" required>
-                <option value="hifz">الحفظ والمراجعة وتعلم أحكام التجويد</option>
-                <option value="tathbit">التثبيت وتعلم أحكام التجويد</option>
+                <option value="hifz">{% trans "الحفظ والمراجعة وتعلم أحكام التجويد" %}</option>
+                <option value="tathbit">{% trans "التثبيت وتعلم أحكام التجويد" %}</option>
             </select>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الرواية *</label>
+            <label style="font-weight:600; color:#333;">{% trans "الرواية *" %}</label>
             <select name="riwaya" class="form-select mt-1" required>
-                <option value="hafs">حفص</option>
-                <option value="warsh">ورش</option>
+                <option value="hafs">{% trans "حفص" %}</option>
+                <option value="warsh">{% trans "ورش" %}</option>
             </select>
         </div>
 
         <div class="row g-3 mb-3">
             <div class="col-6">
-                <label style="font-weight:600; color:#333;">السن الأدنى *</label>
+                <label style="font-weight:600; color:#333;">{% trans "السن الأدنى *" %}</label>
                 <input type="number" name="age_min" class="form-control mt-1" min="1" max="100" required>
             </div>
             <div class="col-6">
-                <label style="font-weight:600; color:#333;">السن الأقصى *</label>
+                <label style="font-weight:600; color:#333;">{% trans "السن الأقصى *" %}</label>
                 <input type="number" name="age_max" class="form-control mt-1" min="1" max="999" required>
             </div>
         </div>
@@ -57,32 +57,34 @@
         الأول/الثاني".
         {% endcomment %}
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الحصص الأسبوعية *</label>
-            <div style="color:#888; font-size:0.78rem; margin:2px 0 10px;">أضف حصة واحدة أو أكثر — لا حد أقصى لعدد الحصص الأسبوعية لهذه الحلقة.</div>
+            <label style="font-weight:600; color:#333;">{% trans "الحصص الأسبوعية *" %}</label>
+            <div style="color:#888; font-size:0.78rem; margin:2px 0 10px;">{% trans "أضف حصة واحدة أو أكثر — لا حد أقصى لعدد الحصص الأسبوعية لهذه الحلقة." %}</div>
             <div id="slots-container"></div>
             <button type="button" onclick="ajouterSlot()"
                 style="background:#f0ebe3; border:2px dashed #ccc; border-radius:8px; padding:8px 16px; margin-top:8px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                + إضافة حصة
+                + {% trans "إضافة حصة" %}
             </button>
         </div>
 
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                حفظ الحلقة ✅
+                {% trans "حفظ الحلقة ✅" %}
             </button>
-            <a href="{% url 'admin_creneaux' %}" 
-               style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+            <a href="{% url 'admin_creneaux' %}"
+               style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+{% trans "الاثنين" as jour_lun %}{% trans "الثلاثاء" as jour_mar %}{% trans "الأربعاء" as jour_mer %}
+{% trans "الخميس" as jour_jeu %}{% trans "الجمعة" as jour_ven %}{% trans "السبت" as jour_sam %}{% trans "الأحد" as jour_dim %}
 <script>
     const JOURS_SLOT = [
-        ['lun', 'الاثنين'], ['mar', 'الثلاثاء'], ['mer', 'الأربعاء'], ['jeu', 'الخميس'],
-        ['ven', 'الجمعة'], ['sam', 'السبت'], ['dim', 'الأحد'],
+        ['lun', '{{ jour_lun|escapejs }}'], ['mar', '{{ jour_mar|escapejs }}'], ['mer', '{{ jour_mer|escapejs }}'], ['jeu', '{{ jour_jeu|escapejs }}'],
+        ['ven', '{{ jour_ven|escapejs }}'], ['sam', '{{ jour_sam|escapejs }}'], ['dim', '{{ jour_dim|escapejs }}'],
     ];
 
     function ajouterSlot(jour, heureDebut, heureFin) {
@@ -91,23 +93,23 @@
         div.className = 'slot-card';
         div.style.cssText = 'background:#f9f9f9; border-radius:10px; padding:16px; margin-bottom:12px; position:relative;';
         div.innerHTML = `
-            <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:12px;">الحصة رقم <span class="slot-numero"></span></div>
-            <button type="button" class="slot-supprimer" title="حذف هذه الحصة"
+            <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:12px;">{% trans "الحصة رقم" %} <span class="slot-numero"></span></div>
+            <button type="button" class="slot-supprimer" title="{% trans 'حذف هذه الحصة' %}"
                 onclick="this.closest('.slot-card').remove(); renumeroterSlots();"
                 style="position:absolute; top:12px; left:12px; background:none; border:none; color:#dc3545; cursor:pointer; font-size:1.1rem; line-height:1;">🗑</button>
             <div class="row g-3">
                 <div class="col-4">
-                    <label style="font-weight:600; color:#333;">اليوم *</label>
+                    <label style="font-weight:600; color:#333;">{% trans "اليوم *" %}</label>
                     <select name="slot_jour" class="form-select mt-1" required>
                         ${JOURS_SLOT.map(([v, l]) => `<option value="${v}" ${v === jour ? 'selected' : ''}>${l}</option>`).join('')}
                     </select>
                 </div>
                 <div class="col-4">
-                    <label style="font-weight:600; color:#333;">من *</label>
+                    <label style="font-weight:600; color:#333;">{% trans "من *" %}</label>
                     <input type="time" name="slot_heure_debut" class="form-control mt-1" value="${heureDebut || ''}" required>
                 </div>
                 <div class="col-4">
-                    <label style="font-weight:600; color:#333;">إلى *</label>
+                    <label style="font-weight:600; color:#333;">{% trans "إلى *" %}</label>
                     <input type="time" name="slot_heure_fin" class="form-control mt-1" value="${heureFin || ''}" required>
                 </div>
             </div>

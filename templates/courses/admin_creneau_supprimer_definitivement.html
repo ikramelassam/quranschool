@@ -1,12 +1,13 @@
 {% extends base_template %}
-{% block title %}حذف نهائي — الحلقة{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "حذف نهائي — الحلقة" %}{% endblock %}
 {% comment %}
 Écran d'action focalisée à une seule tâche — voir
 dashboard/admin_eleve_supprimer_definitivement.html (même principe, et
 la note du 2026-08-14 sur le retrait du {% block recherche_globale %}).
 {% endcomment %}
 {% block content %}
-<div class="page-title">حذف نهائي</div>
+<div class="page-title">{% trans "حذف نهائي" %}</div>
 <div class="page-subtitle">{{ creneau }}</div>
 
 {% comment %}
@@ -19,30 +20,31 @@ devient vide). مدير uniquement. AUCUNE trace conservée après coup
 creneau_supprimer_definitivement.
 {% endcomment %}
 <div style="background:#fdf1f0; border:2px solid var(--color-danger); border-radius:12px; padding:24px; max-width:600px;">
-    <div style="font-weight:700; color:var(--color-danger); margin-bottom:12px;">⚠️ هذا الإجراء نهائي</div>
+    <div style="font-weight:700; color:var(--color-danger); margin-bottom:12px;">⚠️ {% trans "هذا الإجراء نهائي" %}</div>
 
     {% if nb_groupes > 0 or nb_inscriptions > 0 %}
     <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:12px;">
-        {% if nb_groupes > 0 %}{{ nb_groupes }} مجموعة تشير حالياً إلى هذه الحلقة — لن تُحذف، لكنها ستفقد ربطها بهذه الحلقة (بدون حلقة). {% endif %}
-        {% if nb_inscriptions > 0 %}{{ nb_inscriptions }} طلب تسجيل يشير إليها أيضاً وسيفقد هذا الربط.{% endif %}
+        {% if nb_groupes > 0 %}{% blocktrans count compteur=nb_groupes %}{{ compteur }} مجموعة تشير حالياً إلى هذه الحلقة — لن تُحذف، لكنها ستفقد ربطها بهذه الحلقة (بدون حلقة).{% plural %}{{ compteur }} مجموعة تشير حالياً إلى هذه الحلقة — لن تُحذف، لكنها ستفقد ربطها بهذه الحلقة (بدون حلقة).{% endblocktrans %} {% endif %}
+        {% if nb_inscriptions > 0 %}{% blocktrans count compteur=nb_inscriptions %}{{ compteur }} طلب تسجيل يشير إليها أيضاً وسيفقد هذا الربط.{% plural %}{{ compteur }} طلب تسجيل يشير إليها أيضاً وسيفقد هذا الربط.{% endblocktrans %}{% endif %}
     </p>
     {% else %}
-    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:12px;">لا توجد مجموعة ولا طلب تسجيل مرتبط حالياً بهذه الحلقة.</p>
+    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:12px;">{% trans "لا توجد مجموعة ولا طلب تسجيل مرتبط حالياً بهذه الحلقة." %}</p>
     {% endif %}
 
-    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:20px;">لن يبقى أي أثر لهذا الحذف بعد تنفيذه.</p>
+    <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:20px;">{% trans "لن يبقى أي أثر لهذا الحذف بعد تنفيذه." %}</p>
 
-    <form method="POST" onsubmit="return confirm('تأكيد أخير: هل أنت متأكدة تماماً من حذف هذه الحلقة نهائياً، بدون أي إمكانية للتراجع؟');">
+    {% trans "تأكيد أخير: هل أنت متأكدة تماماً من حذف هذه الحلقة نهائياً، بدون أي إمكانية للتراجع؟" as texte_confirmation %}
+    <form method="POST" onsubmit="return confirm('{{ texte_confirmation|escapejs }}');">
         {% csrf_token %}
-        <label style="color:#8a3b36; font-size:0.85rem; display:block; margin-bottom:4px;">اكتب نص الحلقة التالي بالضبط للتأكيد:</label>
+        <label style="color:#8a3b36; font-size:0.85rem; display:block; margin-bottom:4px;">{% trans "اكتب نص الحلقة التالي بالضبط للتأكيد:" %}</label>
         <div style="background:white; border-radius:6px; padding:8px 12px; font-family:'Tajawal',sans-serif; margin-bottom:10px; border:1px solid #e0c4c2;">{{ creneau }}</div>
         <input type="text" name="confirmation_nom" class="form-control mb-3" placeholder="{{ creneau }}" required>
         <div class="d-flex gap-2">
             <button type="submit"
                 style="background:var(--color-danger); color:white; border:none; border-radius:8px; padding:10px 20px; font-weight:700; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                حذف نهائي 🗑️⚠️
+                {% trans "حذف نهائي 🗑️⚠️" %}
             </button>
-            <a href="{% url 'admin_creneaux' %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
+            <a href="{% url 'admin_creneaux' %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "إلغاء" %}</a>
         </div>
     </form>
 </div>

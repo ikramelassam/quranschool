@@ -1,53 +1,53 @@
 {% extends base_template %}
-{% load libelles_arabes %}
-{% block title %}المدفوعات{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "المدفوعات" %}{% endblock %}
 {% block content %}
-<div class="page-title">إدارة المدفوعات</div>
-<div class="page-subtitle">إجمالي المدفوعات: {{ paiements.paginator.count }}</div>
+<div class="page-title">{% trans "إدارة المدفوعات" %}</div>
+<div class="page-subtitle">{% blocktrans with total=paiements.paginator.count %}إجمالي المدفوعات: {{ total }}{% endblocktrans %}</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
         <div class="col-md-2">
-            <label style="color:#888; font-size:0.8rem;">الحالة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الحالة" %}</label>
             <select name="statut" class="form-select">
-                <option value="">الكل</option>
-                <option value="en_attente" {% if filtres.statut == 'en_attente' %}selected{% endif %}>قيد المراجعة</option>
-                <option value="valide" {% if filtres.statut == 'valide' %}selected{% endif %}>مقبول</option>
-                <option value="rejete" {% if filtres.statut == 'rejete' %}selected{% endif %}>مرفوض</option>
+                <option value="">{% trans "الكل" %}</option>
+                <option value="en_attente" {% if filtres.statut == 'en_attente' %}selected{% endif %}>{% trans "قيد المراجعة" %}</option>
+                <option value="valide" {% if filtres.statut == 'valide' %}selected{% endif %}>{% trans "مقبول" %}</option>
+                <option value="rejete" {% if filtres.statut == 'rejete' %}selected{% endif %}>{% trans "مرفوض" %}</option>
             </select>
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">الحلقة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الحلقة" %}</label>
             <select name="groupe" class="form-select" data-select-cherchable>
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for g in groupes %}
                 <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">الطالب</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الطالب" %}</label>
             <select name="eleve" class="form-select" data-select-cherchable>
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for e in eleves %}
-                <option value="{{ e.id }}" {% if filtres.eleve == e.id|stringformat:"s" %}selected{% endif %}>{{ e.user.get_full_name }}{% if e.statut == 'archive' %} (مؤرشف){% endif %}</option>
+                <option value="{{ e.id }}" {% if filtres.eleve == e.id|stringformat:"s" %}selected{% endif %}>{{ e.user.get_full_name }}{% if e.statut == 'archive' %} ({% trans "مؤرشف" %}){% endif %}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-2">
-            <label style="color:#888; font-size:0.8rem;">الشهر</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الشهر" %}</label>
             <input type="month" name="mois" class="form-control" value="{{ filtres.mois }}">
         </div>
         <div class="col-md-2 d-flex gap-2">
-            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
-            <a href="{% url 'admin_paiements' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
+            <a href="{% url 'admin_paiements' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
         </div>
     </div>
     <div class="row g-3 align-items-end mt-1">
         <div class="col-md-4 d-flex align-items-center">
             <div class="form-check">
                 <input type="checkbox" name="afficher_archives" value="1" class="form-check-input" id="afficher_archives" {% if filtres.afficher_archives %}checked{% endif %}>
-                <label class="form-check-label" for="afficher_archives" style="color:#888; font-size:0.85rem;">إظهار الطلاب المؤرشفين في قائمة التصفية</label>
+                <label class="form-check-label" for="afficher_archives" style="color:#888; font-size:0.85rem;">{% trans "إظهار الطلاب المؤرشفين في قائمة التصفية" %}</label>
             </div>
         </div>
     </div>
@@ -64,23 +64,23 @@
                     {% include 'dashboard/_whatsapp_icon.html' with telephone=paiement.eleve.user.telephone %}
                 </span>
             </div>
-            <div style="color:#888; font-size:0.85rem;">{{ paiement.mois_reference|mois_annee_ar }} — {{ paiement.montant }} درهم</div>
+            <div style="color:#888; font-size:0.85rem;">{{ paiement.mois_reference|mois_annee_ar }} — {% blocktrans with montant=paiement.montant %}{{ montant }} درهم{% endblocktrans %}</div>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
             {% if paiement.statut == 'valide' %}
-                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem;">مقبول ✅</span>
+                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem;">{% trans "مقبول ✅" %}</span>
             {% elif paiement.statut == 'rejete' %}
-                <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:3px 12px; font-size:0.8rem;">مرفوض ❌</span>
+                <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:3px 12px; font-size:0.8rem;">{% trans "مرفوض ❌" %}</span>
             {% else %}
-                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">قيد المراجعة ⏳</span>
+                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">{% trans "قيد المراجعة ⏳" %}</span>
             {% endif %}
             <a href="{% url 'admin_paiement_detail' paiement.id %}"
-               style="color:var(--color-role-admin-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
+               style="color:var(--color-role-admin-solid); text-decoration:none; font-size:0.85rem;">{% trans "عرض ←" %}</a>
         </div>
     </div>
     {% empty %}
     <div style="text-align:center; padding:60px; color:#aaa;">
-        {% if filtres.statut or filtres.eleve or filtres.mois or filtres.groupe %}لا توجد مدفوعات مطابقة لهذه التصفية{% else %}لا توجد مدفوعات بعد{% endif %}
+        {% if filtres.statut or filtres.eleve or filtres.mois or filtres.groupe %}{% trans "لا توجد مدفوعات مطابقة لهذه التصفية" %}{% else %}{% trans "لا توجد مدفوعات بعد" %}{% endif %}
     </div>
     {% endfor %}
 </div>

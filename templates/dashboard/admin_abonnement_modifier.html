@@ -1,28 +1,29 @@
 {% extends base_template %}
-{% block title %}تعديل نوع الاشتراك{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "تعديل نوع الاشتراك" %}{% endblock %}
 {% block content %}
-<div class="page-title">تعديل: {{ type_abonnement.get_type_offre_display }} - {{ type_abonnement.label }}</div>
+<div class="page-title">{% blocktrans with type_offre=type_abonnement.get_type_offre_display label=type_abonnement.label %}تعديل: {{ type_offre }} - {{ label }}{% endblocktrans %}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
         {% csrf_token %}
 
-        <div style="font-weight:700; color:var(--color-role-admin); font-size:1.05rem; margin-bottom:16px;">📋 المعلومات العامة</div>
+        <div style="font-weight:700; color:var(--color-role-admin); font-size:1.05rem; margin-bottom:16px;">📋 {% trans "المعلومات العامة" %}</div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الرمز</label>
+            <label style="font-weight:600; color:#333;">{% trans "الرمز" %}</label>
             <input type="text" class="form-control mt-1" value="{{ type_abonnement.code }}" disabled>
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">الرمز غير قابل للتعديل (مستخدم في طلبات تسجيل سابقة).</div>
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "الرمز غير قابل للتعديل (مستخدم في طلبات تسجيل سابقة)." %}</div>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الاسم المعروض *</label>
+            <label style="font-weight:600; color:#333;">{% trans "الاسم المعروض *" %}</label>
             <input type="text" name="label" class="form-control mt-1" value="{{ type_abonnement.label }}" required>
             <div style="color:#888; font-size:0.8rem; margin-top:4px;">
-                نوع الاشتراك (جماعي/فردي) يظهر بشكل منفصل — لا داعي لتكراره هنا (تجنّب مثلاً "جماعي - 6 أشهر").
+                {% trans 'نوع الاشتراك (جماعي/فردي) يظهر بشكل منفصل — لا داعي لتكراره هنا (تجنّب مثلاً "جماعي - 6 أشهر").' %}
             </div>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">المدة *</label>
+            <label style="font-weight:600; color:#333;">{% trans "المدة *" %}</label>
             <select name="duree" class="form-select mt-1" required>
                 <option value="" {% if not type_abonnement.duree %}selected{% endif %}>—</option>
                 {% for code, label in duree_choices %}
@@ -30,68 +31,67 @@
                 {% endfor %}
             </select>
             <div style="color:#888; font-size:0.8rem; margin-top:4px;">
-                نوع الاشتراك (جماعي/فردي) يُختار قبل هذه الخطوة، لا داعي لتكراره هنا.
+                {% trans "نوع الاشتراك (جماعي/فردي) يُختار قبل هذه الخطوة، لا داعي لتكراره هنا." %}
             </div>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الفئة المستهدفة *</label>
+            <label style="font-weight:600; color:#333;">{% trans "الفئة المستهدفة *" %}</label>
             <select name="cible_age" class="form-select mt-1">
-                <option value="les_deux" {% if type_abonnement.cible_age == 'les_deux' %}selected{% endif %}>الجميع (أطفال وبالغون)</option>
-                <option value="enfant" {% if type_abonnement.cible_age == 'enfant' %}selected{% endif %}>أطفال فقط</option>
-                <option value="adulte" {% if type_abonnement.cible_age == 'adulte' %}selected{% endif %}>بالغون فقط</option>
+                <option value="les_deux" {% if type_abonnement.cible_age == 'les_deux' %}selected{% endif %}>{% trans "الجميع (أطفال وبالغون)" %}</option>
+                <option value="enfant" {% if type_abonnement.cible_age == 'enfant' %}selected{% endif %}>{% trans "أطفال فقط" %}</option>
+                <option value="adulte" {% if type_abonnement.cible_age == 'adulte' %}selected{% endif %}>{% trans "بالغون فقط" %}</option>
             </select>
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">يحدد في أي استمارة تسجيل (أطفال/بالغون) يظهر هذا الاشتراك.</div>
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "يحدد في أي استمارة تسجيل (أطفال/بالغون) يظهر هذا الاشتراك." %}</div>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
+            <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>
             <input type="number" name="ordre" class="form-control mt-1" value="{{ type_abonnement.ordre }}">
         </div>
 
         <hr style="margin:28px 0;">
 
-        <div style="font-weight:700; color:var(--color-role-admin); font-size:1.05rem; margin-bottom:16px;">💰 التسعير</div>
+        <div style="font-weight:700; color:var(--color-role-admin); font-size:1.05rem; margin-bottom:16px;">💰 {% trans "التسعير" %}</div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">السعر الافتراضي (درهم) *</label>
+            <label style="font-weight:600; color:#333;">{% trans "السعر الافتراضي (درهم) *" %}</label>
             <input type="number" step="0.01" name="prix" class="form-control mt-1" value="{{ type_abonnement.prix }}" required>
             <div style="color:#888; font-size:0.8rem; margin-top:4px;">
-                يُستخدم لأي عدد حصص أسبوعية لا يوجد له سعر خاص أدناه — الحقل "الرسمي" الوحيد،
-                وما يلي هو تدقيق اختياري لكل حالة، وليس سعراً منافساً له.
+                {% trans "يُستخدم لأي عدد حصص أسبوعية لا يوجد له سعر خاص أدناه — الحقل \"الرسمي\" الوحيد، وما يلي هو تدقيق اختياري لكل حالة، وليس سعراً منافساً له." %}
             </div>
         </div>
 
         {% if couverture.configures == 0 %}
         <div style="background:#fff3cd; border-radius:12px; padding:14px 18px; margin-bottom:20px; color:#856404; font-weight:600;">
-            ⚠️ لم يُحدد أي سعر خاص بعد — السعر الافتراضي ({{ type_abonnement.prix }} درهم) يُستخدم حالياً لجميع أعداد الحصص ({{ couverture.total }}).
+            ⚠️ {% blocktrans with prix=type_abonnement.prix total=couverture.total %}لم يُحدد أي سعر خاص بعد — السعر الافتراضي ({{ prix }} درهم) يُستخدم حالياً لجميع أعداد الحصص ({{ total }}).{% endblocktrans %}
         </div>
         {% elif couverture.configures < couverture.total %}
         <div style="background:#fff3cd; border-radius:12px; padding:14px 18px; margin-bottom:20px; color:#856404; font-weight:600;">
-            ⚠️ {{ couverture.configures }} من أصل {{ couverture.total }} من أعداد الحصص لها سعر خاص. الباقي يستخدم السعر الافتراضي ({{ type_abonnement.prix }} درهم).
+            ⚠️ {% blocktrans with configures=couverture.configures total=couverture.total prix=type_abonnement.prix %}{{ configures }} من أصل {{ total }} من أعداد الحصص لها سعر خاص. الباقي يستخدم السعر الافتراضي ({{ prix }} درهم).{% endblocktrans %}
             <div style="margin-top:8px; font-size:0.85rem; font-weight:400;">
-                أعداد الحصص بدون سعر خاص:
+                {% trans "أعداد الحصص بدون سعر خاص:" %}
                 {% for n in couverture.nb_slots_manquants %}{{ n }}{% if not forloop.last %}، {% endif %}{% endfor %}
             </div>
         </div>
         {% else %}
         <div style="background:#e8f5e9; border-radius:12px; padding:14px 18px; margin-bottom:20px; color:var(--color-success); font-weight:600;">
-            ✅ جميع أعداد الحصص ({{ couverture.total }}) لها سعر خاص محدد.
+            ✅ {% blocktrans with total=couverture.total %}جميع أعداد الحصص ({{ total }}) لها سعر خاص محدد.{% endblocktrans %}
         </div>
         {% endif %}
 
-        <div style="color:#555; font-size:0.9rem; margin-bottom:10px;">أسعار مخصصة حسب عدد الحصص الأسبوعية (اختياري):</div>
+        <div style="color:#555; font-size:0.9rem; margin-bottom:10px;">{% trans "أسعار مخصصة حسب عدد الحصص الأسبوعية (اختياري):" %}</div>
         <div id="grille-lignes">
             {% for ligne in lignes %}
             <div class="mb-2 ligne-prix" style="display:flex; align-items:center; gap:12px; padding-bottom:10px; border-bottom:1px solid #f0f0f0;">
-                <label style="font-weight:600; color:#333; min-width:110px;">{{ ligne.nb_slots }} حصص/أسبوع</label>
+                <label style="font-weight:600; color:#333; min-width:110px;">{% blocktrans with n=ligne.nb_slots %}{{ n }} حصص/أسبوع{% endblocktrans %}</label>
                 <input type="number" step="0.01" min="0" name="prix_{{ ligne.nb_slots }}" class="form-control" value="{{ ligne.prix }}" required>
                 <label style="display:flex; align-items:center; gap:4px; font-size:0.85rem; color:#555; white-space:nowrap;">
                     <input type="checkbox" name="actif_{{ ligne.nb_slots }}" {% if ligne.est_actif %}checked{% endif %}>
-                    نشط
+                    {% trans "نشط" %}
                 </label>
             </div>
             {% empty %}
             <div id="aucune-ligne-placeholder" style="color:#aaa; padding:10px 0;">
-                لا يوجد أي سعر خاص محدد بعد — كل الأعداد تستخدم السعر الافتراضي.
+                {% trans "لا يوجد أي سعر خاص محدد بعد — كل الأعداد تستخدم السعر الافتراضي." %}
             </div>
             {% endfor %}
         </div>
@@ -100,20 +100,22 @@
             <button type="button" id="btn-ouvrir-ajout-ligne" onclick="ouvrirAjoutLigne()"
                 style="background:#f0f0f0; color:#555; border:none; border-radius:8px; padding:8px 16px; font-family:'Tajawal',sans-serif; font-size:0.9rem; cursor:pointer;"
                 {% if not nb_slots_disponibles %}disabled{% endif %}>
-                + إضافة سعر لعدد حصص
+                + {% trans "إضافة سعر لعدد حصص" %}
             </button>
             <div id="form-ajout-ligne" style="display:none; align-items:center; gap:10px; margin-top:12px;">
                 <select id="select-nouveau-nb-slots" class="form-select" style="max-width:160px;">
-                    {% for n in nb_slots_disponibles %}<option value="{{ n }}">{{ n }} حصص/أسبوع</option>{% endfor %}
+                    {% for n in nb_slots_disponibles %}<option value="{{ n }}">{% blocktrans %}{{ n }} حصص/أسبوع{% endblocktrans %}</option>{% endfor %}
                 </select>
-                <input type="number" step="0.01" min="0" id="input-nouveau-prix" class="form-control" placeholder="السعر" style="max-width:160px;">
+                <input type="number" step="0.01" min="0" id="input-nouveau-prix" class="form-control" placeholder="{% trans 'السعر' %}" style="max-width:160px;">
                 <button type="button" onclick="ajouterLigne()"
                     style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:7px 16px; font-family:'Tajawal',sans-serif; font-size:0.85rem; cursor:pointer;">
-                    إضافة
+                    {% trans "إضافة" %}
                 </button>
             </div>
         </div>
 
+        {% trans "حصص/أسبوع" as texte_slots_semaine %}
+        {% trans "نشط" as texte_actif %}
         <script>
             function ouvrirAjoutLigne() {
                 document.getElementById('form-ajout-ligne').style.display = 'flex';
@@ -125,6 +127,8 @@
                 if (!select.value || !prixInput.value) { return; }
                 const nbSlots = select.value;
                 const prix = prixInput.value;
+                const suffixeSlots = '{{ texte_slots_semaine|escapejs }}';
+                const texteActif = '{{ texte_actif|escapejs }}';
 
                 const placeholder = document.getElementById('aucune-ligne-placeholder');
                 if (placeholder) placeholder.remove();
@@ -133,10 +137,10 @@
                 div.className = 'mb-2 ligne-prix';
                 div.style.cssText = 'display:flex; align-items:center; gap:12px; padding-bottom:10px; border-bottom:1px solid #f0f0f0;';
                 div.innerHTML =
-                    '<label style="font-weight:600; color:#333; min-width:110px;">' + nbSlots + ' حصص/أسبوع</label>' +
+                    '<label style="font-weight:600; color:#333; min-width:110px;">' + nbSlots + ' ' + suffixeSlots + '</label>' +
                     '<input type="number" step="0.01" min="0" name="prix_' + nbSlots + '" class="form-control" value="' + prix + '" required>' +
                     '<label style="display:flex; align-items:center; gap:4px; font-size:0.85rem; color:#555; white-space:nowrap;">' +
-                    '<input type="checkbox" name="actif_' + nbSlots + '" checked> نشط</label>';
+                    '<input type="checkbox" name="actif_' + nbSlots + '" checked> ' + texteActif + '</label>';
                 document.getElementById('grille-lignes').appendChild(div);
 
                 select.querySelector('option[value="' + nbSlots + '"]').remove();
@@ -151,9 +155,9 @@
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                حفظ كل التعديلات ✅
+                {% trans "حفظ كل التعديلات ✅" %}
             </button>
-            <a href="{% url 'admin_parametres_abonnements' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+            <a href="{% url 'admin_parametres_abonnements' %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
 </div>

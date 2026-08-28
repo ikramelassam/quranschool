@@ -1,36 +1,36 @@
 {% extends 'dashboard/base_admin.html' %}
-
-{% block title %}إنشاء مجموعة{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "إنشاء مجموعة" %}{% endblock %}
 
 {% block content %}
-<div class="page-title">إنشاء مجموعة جديدة</div>
-<div class="page-subtitle">أدخل معلومات المجموعة</div>
+<div class="page-title">{% trans "إنشاء مجموعة جديدة" %}</div>
+<div class="page-subtitle">{% trans "أدخل معلومات المجموعة" %}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">صورة المجموعة</label>
+            <label style="font-weight:600; color:#333;">{% trans "صورة المجموعة" %}</label>
             <input type="file" name="photo" class="form-control mt-1" accept="image/png,image/jpeg,image/webp,image/gif">
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">اختياري. الصيغ المقبولة: PNG، JPEG، WEBP، GIF — الحجم الأقصى: 5 ميغابايت.</div>
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "اختياري. الصيغ المقبولة: PNG، JPEG، WEBP، GIF — الحجم الأقصى: 5 ميغابايت." %}</div>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">اسم المجموعة *</label>
-            <input type="text" name="nom" class="form-control mt-1" value="{{ groupe.nom|default:'' }}" placeholder="مثال: مجموعة البقرة" required>
+            <label style="font-weight:600; color:#333;">{% trans "اسم المجموعة *" %}</label>
+            <input type="text" name="nom" class="form-control mt-1" value="{{ groupe.nom|default:'' }}" placeholder="{% trans 'مثال: مجموعة البقرة' %}" required>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">وصف المجموعة</label>
+            <label style="font-weight:600; color:#333;">{% trans "وصف المجموعة" %}</label>
             <textarea name="description" class="form-control mt-1" rows="2"
-                    placeholder="مثال: مجموعة للأطفال من 7 إلى 12 سنة">{{ groupe.description|default:'' }}</textarea>
+                    placeholder="{% trans 'مثال: مجموعة للأطفال من 7 إلى 12 سنة' %}">{{ groupe.description|default:'' }}</textarea>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">المعلم</label>
+            <label style="font-weight:600; color:#333;">{% trans "المعلم" %}</label>
             <select name="prof" class="form-select mt-1" data-select-cherchable>
-                <option value="">بدون معلم</option>
+                <option value="">{% trans "بدون معلم" %}</option>
                 {% for prof in profs %}
                 <option value="{{ prof.id }}" {% if groupe.prof == prof %}selected{% endif %}>{{ prof.user.get_full_name }}</option>
                 {% endfor %}
@@ -38,67 +38,73 @@
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الحلقة (الجدول) *</label>
+            <label style="font-weight:600; color:#333;">{% trans "الحلقة (الجدول) *" %}</label>
             <select name="creneau" class="form-select mt-1" required>
-                <option value="">اختر حلقة</option>
+                <option value="">{% trans "اختر حلقة" %}</option>
                 {% for creneau in creneaux %}
                 <option value="{{ creneau.id }}" {% if groupe.creneau == creneau %}selected{% endif %}>
-                    {{ creneau }} — {{ creneau.age_min }}-{{ creneau.age_max }} سنة، {{ creneau.get_sexe_cible_display }}، {{ creneau.get_type_seance_display }}، {{ creneau.get_riwaya_display }}
+                    {% blocktrans with c=creneau age_min=creneau.age_min age_max=creneau.age_max sexe=creneau.get_sexe_cible_display type_seance=creneau.get_type_seance_display riwaya=creneau.get_riwaya_display %}{{ c }} — {{ age_min }}-{{ age_max }} سنة، {{ sexe }}، {{ type_seance }}، {{ riwaya }}{% endblocktrans %}
                 </option>
                 {% endfor %}
             </select>
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">ستُولَّد حصص المجموعة تلقائياً حسب أيام وأوقات هذه الحلقة.</div>
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "ستُولَّد حصص المجموعة تلقائياً حسب أيام وأوقات هذه الحلقة." %}</div>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">نوع المجموعة *</label>
+            <label style="font-weight:600; color:#333;">{% trans "نوع المجموعة *" %}</label>
             <select name="type_capacite" class="form-select mt-1" required>
-                <option value="groupe" {% if groupe.type_capacite == 'groupe' or not groupe %}selected{% endif %}>جماعي</option>
-                <option value="individuel" {% if groupe.type_capacite == 'individuel' %}selected{% endif %}>فردي</option>
+                <option value="groupe" {% if groupe.type_capacite == 'groupe' or not groupe %}selected{% endif %}>{% trans "جماعي" %}</option>
+                <option value="individuel" {% if groupe.type_capacite == 'individuel' %}selected{% endif %}>{% trans "فردي" %}</option>
             </select>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الطاقة الاستيعابية القصوى</label>
+            <label style="font-weight:600; color:#333;">{% trans "الطاقة الاستيعابية القصوى" %}</label>
             <input type="number" name="max_eleves" class="form-control mt-1" value="{{ groupe.capacite_max|default:10 }}" min="1" max="50">
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">فئة المجموعة</label>
+            <label style="font-weight:600; color:#333;">{% trans "فئة المجموعة" %}</label>
             <select name="categorie" class="form-select mt-1">
-                <option value="">-- غير مصنّفة --</option>
+                <option value="">-- {% trans "غير مصنّفة" %} --</option>
                 {% for valeur, libelle in categorie_choices %}
                 <option value="{{ valeur }}" {% if groupe.categorie == valeur %}selected{% endif %}>{{ libelle }}</option>
                 {% endfor %}
             </select>
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">نفس تصنيف قنوات الإعلانات (النساء/الرجال/الأطفال) — تُستخدم لتصفية المجموعات.</div>
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "نفس تصنيف قنوات الإعلانات (النساء/الرجال/الأطفال) — تُستخدم لتصفية المجموعات." %}</div>
         </div>
 
         <div style="background:#f7f3ea; border:1px solid var(--color-brand-gold); border-radius:10px; padding:16px 18px; margin-bottom:16px;">
             <label style="font-weight:700; color:var(--color-brand-gold-dark); display:flex; align-items:center; gap:8px;">
-                {% include 'dashboard/_meet_glyph.html' %} رابط Google Meet
+                {% include 'dashboard/_meet_glyph.html' %} {% trans "رابط Google Meet" %}
             </label>
             <div style="color:#888; font-size:0.82rem; margin:4px 0 10px;">
-                رابط واحد ثابت يُستخدم لجميع حصص هذه المجموعة. تُقترح هنا فقط الروابط
-                <a href="{% url 'admin_liens_meet' %}" target="_blank" style="color:var(--color-brand-gold-dark);">المسجَّلة في إدارة الروابط</a>
-                والمتاحة لتوقيت الحلقة المختارة أعلاه (بدون تعارض مع مجموعة أخرى).
+                {% comment %}
+                blocktrans n'accepte pas d'autres balises de template (ex: {% url %})
+                en son sein — le lien est résolu en variable AVANT, puis injecté via
+                une interpolation normale (même patron que admin_groupes.html).
+                {% endcomment %}
+                {% url 'admin_liens_meet' as url_liens_meet %}
+                {% blocktrans %}رابط واحد ثابت يُستخدم لجميع حصص هذه المجموعة. تُقترح هنا فقط الروابط
+                <a href="{{ url_liens_meet }}" target="_blank" style="color:var(--color-brand-gold-dark);">المسجَّلة في إدارة الروابط</a>
+                والمتاحة لتوقيت الحلقة المختارة أعلاه (بدون تعارض مع مجموعة أخرى).{% endblocktrans %}
             </div>
             <select name="lien_meet" id="id_lien_meet" class="form-select">
-                <option value="">-- بدون رابط --</option>
+                <option value="">-- {% trans "بدون رابط" %} --</option>
                 {% for lien in liens_meet %}
                 <option value="{{ lien.id }}" {% if groupe.lien_meet == lien %}selected{% endif %}>{{ lien }}</option>
                 {% endfor %}
             </select>
             <div id="lien_meet_statut" style="color:#888; font-size:0.8rem; margin-top:6px;"></div>
             <div id="lien_meet_alerte" class="d-none" style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:10px 14px; margin-top:10px; font-size:0.85rem; font-weight:600;">
-                لا يوجد رابط Google Meet متاح لهذا التوقيت. عدّل الحلقة أعلاه، أو
-                <a href="{% url 'admin_liens_meet' %}" target="_blank" style="color:var(--color-danger); text-decoration:underline;">أضف رابط Meet جديد</a>.
+                {% blocktrans %}لا يوجد رابط Google Meet متاح لهذا التوقيت. عدّل الحلقة أعلاه، أو
+                <a href="{{ url_liens_meet }}" target="_blank" style="color:var(--color-danger); text-decoration:underline;">أضف رابط Meet جديد</a>.{% endblocktrans %}
             </div>
         </div>
 
         {% if avertissements_prof %}
         <div style="background:#fff3cd; border:1px solid #ff9800; border-radius:10px; padding:14px 18px; margin-bottom:16px;">
-            <div style="font-weight:700; color:#7a4a00; margin-bottom:6px;">⚠️ تأكيد مطلوب قبل الإنشاء</div>
+            <div style="font-weight:700; color:#7a4a00; margin-bottom:6px;">⚠️ {% trans "تأكيد مطلوب قبل الإنشاء" %}</div>
             <ul style="margin-bottom:0; color:#7a4a00;">
                 {% for a in avertissements_prof %}
                 <li>{{ a }}</li>
@@ -111,16 +117,28 @@
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:{% if avertissements_prof %}#ff9800{% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                {% if avertissements_prof %}متأكد، أنشئ رغم ذلك ✅{% else %}إنشاء المجموعة ✅{% endif %}
+                {% if avertissements_prof %}{% trans "متأكد، أنشئ رغم ذلك ✅" %}{% else %}{% trans "إنشاء المجموعة ✅" %}{% endif %}
             </button>
             <a href="{% url 'admin_groupes' %}"
-               style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+               style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+{% trans "-- بدون رابط --" as texte_sans_lien %}
+{% trans "متاح ✅" as texte_disponible %}
+{% trans "غير متاح ❌" as texte_indisponible %}
+{% trans "اختر حلقة أولاً لمعرفة الروابط المتاحة." as texte_choisir_creneau %}
+{% trans "لا يوجد أي رابط Google Meet مسجَّل بعد." as texte_aucun_lien %}
+{% comment %}
+__N__/__TOTAL__ : jetons remplacés côté JS (Django ne peut pas interpoler des
+valeurs calculées dans le navigateur au moment du rendu serveur) — la phrase
+ENTIÈRE reste traduisible d'un bloc, l'ordre des 2 nombres pouvant différer
+d'une langue à l'autre.
+{% endcomment %}
+{% trans "__N__ رابط متاح من أصل __TOTAL__ لهذا التوقيت." as texte_statut_liens %}
 <script>
 // Tâche du 2026-08-17 : réévaluation dynamique des liens Meet disponibles
 // quand l'admin change la حلقة (créneau) — voir courses.views._liens_meet_contexte
@@ -131,22 +149,30 @@ const selectCreneau = document.querySelector('select[name="creneau"]');
 const selectLienMeet = document.getElementById('id_lien_meet');
 const statutLienMeet = document.getElementById('lien_meet_statut');
 const alerteLienMeet = document.getElementById('lien_meet_alerte');
+// Chantier i18n du 2026-08-28 : ces libellés viennent du template (donc déjà
+// traduits selon la session) plutôt que d'être codés en dur en JS.
+const TEXTE_SANS_LIEN = '{{ texte_sans_lien|escapejs }}';
+const TEXTE_DISPONIBLE = '{{ texte_disponible|escapejs }}';
+const TEXTE_INDISPONIBLE = '{{ texte_indisponible|escapejs }}';
+const TEXTE_CHOISIR_CRENEAU = '{{ texte_choisir_creneau|escapejs }}';
+const TEXTE_AUCUN_LIEN = '{{ texte_aucun_lien|escapejs }}';
+const TEXTE_STATUT_LIENS = '{{ texte_statut_liens|escapejs }}';
 
 function rafraichirLiensMeet() {
     const creneauId = selectCreneau.value;
     const valeurActuelle = selectLienMeet.value;
     const liens = liensMeetParCreneau[creneauId] || [];
 
-    selectLienMeet.innerHTML = '<option value="">-- بدون رابط --</option>';
+    selectLienMeet.innerHTML = '<option value="">' + TEXTE_SANS_LIEN + '</option>';
     let nbDisponibles = 0;
     liens.forEach(function (lien) {
         const option = document.createElement('option');
         option.value = lien.id;
         if (lien.disponible) {
-            option.textContent = lien.label + ' — متاح ✅';
+            option.textContent = lien.label + ' — ' + TEXTE_DISPONIBLE;
             nbDisponibles++;
         } else {
-            option.textContent = lien.label + ' — غير متاح ❌ (' + lien.conflit + ')';
+            option.textContent = lien.label + ' — ' + TEXTE_INDISPONIBLE + ' (' + lien.conflit + ')';
             option.disabled = true;
         }
         selectLienMeet.appendChild(option);
@@ -161,13 +187,13 @@ function rafraichirLiensMeet() {
     alerteLienMeet.classList.toggle('d-none', !aucunLienDisponible);
 
     if (!creneauId) {
-        statutLienMeet.textContent = 'اختر حلقة أولاً لمعرفة الروابط المتاحة.';
+        statutLienMeet.textContent = TEXTE_CHOISIR_CRENEAU;
     } else if (liens.length === 0) {
-        statutLienMeet.textContent = 'لا يوجد أي رابط Google Meet مسجَّل بعد.';
+        statutLienMeet.textContent = TEXTE_AUCUN_LIEN;
     } else if (aucunLienDisponible) {
         statutLienMeet.textContent = '';
     } else {
-        statutLienMeet.textContent = nbDisponibles + ' رابط متاح من أصل ' + liens.length + ' لهذا التوقيت.';
+        statutLienMeet.textContent = TEXTE_STATUT_LIENS.replace('__N__', nbDisponibles).replace('__TOTAL__', liens.length);
     }
 }
 
