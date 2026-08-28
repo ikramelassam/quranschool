@@ -1,11 +1,12 @@
 {% extends 'dashboard/base_prof.html' %}
-{% block title %}نسخ {{ examen.titre }}{% endblock %}
+{% load i18n %}
+{% block title %}{% blocktrans with titre=examen.titre %}نسخ {{ titre }}{% endblocktrans %}{% endblock %}
 {% block content %}
-<div class="page-title">نسخ الطلاب</div>
+<div class="page-title">{% trans "نسخ الطلاب" %}</div>
 <div class="page-subtitle">{{ examen.titre }} — {{ examen.groupe.nom }}</div>
 
 <div style="margin:16px 0;">
-    <a href="{% url 'examens_prof_detail' examen.id %}" style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.9rem;">← رجوع إلى الاختبار</a>
+    <a href="{% url 'examens_prof_detail' examen.id %}" style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.9rem;">{% trans "← رجوع إلى الاختبار" %}</a>
 </div>
 
 {% if copies %}
@@ -15,9 +16,9 @@
         <div>
             <div style="font-weight:600;">{{ copie.eleve.user.get_full_name }}</div>
             <div style="color:#999; font-size:0.82rem;">
-                {% if copie.date_soumission %}سُلِّمت في {{ copie.date_soumission|date:"d-m-Y H:i" }}{% if copie.soumission_automatique %} (تلقائياً عند انتهاء الوقت){% endif %}
-                {% elif copie.date_debut %}بدأت في {{ copie.date_debut|date:"d-m-Y H:i" }}
-                {% else %}لم تبدأ بعد{% endif %}
+                {% if copie.date_soumission %}{% blocktrans with date_soumission=copie.date_soumission|date:"d-m-Y H:i" %}سُلِّمت في {{ date_soumission }}{% endblocktrans %}{% if copie.soumission_automatique %} ({% trans "تلقائياً عند انتهاء الوقت" %}){% endif %}
+                {% elif copie.date_debut %}{% blocktrans with date_debut=copie.date_debut|date:"d-m-Y H:i" %}بدأت في {{ date_debut }}{% endblocktrans %}
+                {% else %}{% trans "لم تبدأ بعد" %}{% endif %}
             </div>
         </div>
         <div style="display:flex; align-items:center; gap:12px;">
@@ -29,7 +30,7 @@
                 {% include 'examens/_statut_badge.html' with statut='a_corriger' %}
                 {% endif %}
                 <a href="{% url 'examens_copie_correction' copie.id %}"
-                   style="color:white; background:var(--color-role-prof); text-decoration:none; font-size:0.85rem; padding:6px 14px; border-radius:8px; font-weight:600;">فتح ←</a>
+                   style="color:white; background:var(--color-role-prof); text-decoration:none; font-size:0.85rem; padding:6px 14px; border-radius:8px; font-weight:600;">{% trans "فتح ←" %}</a>
             {% else %}
                 {% include 'examens/_statut_badge.html' with statut='en_cours' %}
             {% endif %}
@@ -39,7 +40,7 @@
 </div>
 {% else %}
 <div style="background:white; border-radius:12px; padding:40px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">
-    لم يبدأ أي طالب هذا الاختبار بعد.
+    {% trans "لم يبدأ أي طالب هذا الاختبار بعد." %}
 </div>
 {% endif %}
 {% endblock %}
