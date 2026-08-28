@@ -1,33 +1,33 @@
 {% extends 'dashboard/base_prof.html' %}
-{% load libelles_arabes %}
-{% block title %}حقيبة الأستاذ{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "حقيبة الأستاذ" %}{% endblock %}
 {% block content %}
-<div class="page-title">حقيبة الأستاذ</div>
-<div class="page-subtitle">كل ما تحتاجه لمعرفة قواعد وبرنامج التدريس في المنصة</div>
+<div class="page-title">{% trans "حقيبة الأستاذ" %}</div>
+<div class="page-subtitle">{% trans "كل ما تحتاجه لمعرفة قواعد وبرنامج التدريس في المنصة" %}</div>
 
-<div style="color:var(--color-role-prof-solid); font-weight:700; margin-bottom:10px;">روابط ثابتة</div>
+<div style="color:var(--color-role-prof-solid); font-weight:700; margin-bottom:10px;">{% trans "روابط ثابتة" %}</div>
 <div class="row g-3">
     <div class="col-md-6">
         <a href="{% url 'prof_charte' %}" class="compact-card" style="display:block; text-decoration:none; color:inherit;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:700; font-size:1.05rem;">📜 ميثاق التدريس</span>
-                <span style="color:var(--color-role-prof-solid);">عرض ←</span>
+                <span style="font-weight:700; font-size:1.05rem;">📜 {% trans "ميثاق التدريس" %}</span>
+                <span style="color:var(--color-role-prof-solid);">{% trans "عرض ←" %}</span>
             </div>
-            <div style="color:#888; font-size:0.85rem; margin-top:8px;">القواعد والالتزامات التي يجب على كل معلم الاطلاع عليها والموافقة عليها.</div>
+            <div style="color:#888; font-size:0.85rem; margin-top:8px;">{% trans "القواعد والالتزامات التي يجب على كل معلم الاطلاع عليها والموافقة عليها." %}</div>
         </a>
     </div>
     <div class="col-md-6">
         <a href="{% url 'programme_general_detail' %}" class="compact-card" style="display:block; text-decoration:none; color:inherit;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:700; font-size:1.05rem;">📖 البرنامج العام</span>
-                <span style="color:var(--color-role-prof-solid);">عرض ←</span>
+                <span style="font-weight:700; font-size:1.05rem;">📖 {% trans "البرنامج العام" %}</span>
+                <span style="color:var(--color-role-prof-solid);">{% trans "عرض ←" %}</span>
             </div>
-            <div style="color:#888; font-size:0.85rem; margin-top:8px;">البرنامج العام لمقرأة زدني علماً — للاطلاع فقط.</div>
+            <div style="color:#888; font-size:0.85rem; margin-top:8px;">{% blocktrans %}البرنامج العام لمقرأة زدني علماً — للاطلاع فقط.{% endblocktrans %}</div>
         </a>
     </div>
 </div>
 
-<div style="color:var(--color-role-prof-solid); font-weight:700; margin:28px 0 10px;">أضيفت من طرف الإدارة</div>
+<div style="color:var(--color-role-prof-solid); font-weight:700; margin:28px 0 10px;">{% trans "أضيفت من طرف الإدارة" %}</div>
 <div class="compact-card">
     {% for element in elements_hakiba %}
     <div style="padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} display:flex; gap:12px; align-items:flex-start;">
@@ -38,13 +38,13 @@
             <div style="color:#555; font-size:0.9rem; white-space:pre-line; margin-top:4px;">{{ element.contenu_texte }}</div>
             {% endif %}
             {% if element.fichier %}
-            <a href="{{ element.fichier.url }}" target="_blank" rel="noopener" style="display:inline-block; margin-top:6px; color:var(--color-role-prof-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">تحميل الملف ←</a>
+            <a href="{{ element.fichier.url }}" target="_blank" rel="noopener" style="display:inline-block; margin-top:6px; color:var(--color-role-prof-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">{% trans "تحميل الملف ←" %}</a>
             {% endif %}
             <div style="color:#aaa; font-size:0.78rem; margin-top:4px;">{{ element.date_ajout|date:"d-m-Y" }}</div>
         </div>
     </div>
     {% empty %}
-    <div style="color:#aaa; text-align:center; padding:20px 0;">لا توجد وثائق مضافة من الإدارة حاليا</div>
+    <div style="color:#aaa; text-align:center; padding:20px 0;">{% trans "لا توجد وثائق مضافة من الإدارة حاليا" %}</div>
     {% endfor %}
 </div>
 {% endblock %}

@@ -8,6 +8,11 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
+# Alias volontairement PAS "_" : ce fichier utilise déjà "_" comme variable
+# jetable un peu partout (ex: "annee, _, num_mois = mois.partition('-')")
+# — un import "gettext as _" serait silencieusement écrasé dans ces
+# fonctions et casserait tout appel _() placé après ce genre de ligne.
+from django.utils.translation import gettext as gettext_
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from accounts.decorators import role_required
@@ -1026,7 +1031,7 @@ def prof_disponibilites(request):
             demande_en_attente.save()
         else:
             DemandeModificationDisponibilite.objects.create(prof=prof, nouvelle_matrice=nouvelle_matrice)
-        messages.success(request, 'تم إرسال طلب تعديل الأوقات المتاحة للتدريس، بانتظار موافقة الإدارة.')
+        messages.success(request, gettext_('تم إرسال طلب تعديل الأوقات المتاحة للتدريس، بانتظار موافقة الإدارة.'))
         return redirect('prof_disponibilites')
 
     valeurs_form = set(demande_en_attente.nouvelle_matrice) if demande_en_attente else matrice_active

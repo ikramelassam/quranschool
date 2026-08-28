@@ -1,8 +1,8 @@
 {% extends 'dashboard/base_prof.html' %}
-{% load libelles_arabes %}
-{% block title %}ملفي الشخصي{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "ملفي الشخصي" %}{% endblock %}
 {% block content %}
-<div class="page-title">ملفي الشخصي</div>
+<div class="page-title">{% trans "ملفي الشخصي" %}</div>
 
 {% comment %}
 Refonte visuelle du 2026-08-05 — même patron que superviseur_profil.html
@@ -22,23 +22,23 @@ seule la mise en page change.
             <div style="color:#888; font-size:0.85rem; margin-top:2px;">{{ prof.user.email }}{% if prof.user.telephone %} — {{ prof.user.telephone }}{% endif %}</div>
         </div>
     </div>
-    <span style="background:#f3e6cc; color:var(--color-role-prof-solid); border-radius:20px; padding:6px 16px; font-size:0.85rem; font-weight:700;">مجموعاتي {{ prof.groupes.count }}</span>
+    <span style="background:#f3e6cc; color:var(--color-role-prof-solid); border-radius:20px; padding:6px 16px; font-size:0.85rem; font-weight:700;">{% blocktrans with n=prof.groupes.count %}مجموعاتي {{ n }}{% endblocktrans %}</span>
 </div>
 
 <div class="row g-4 mb-4">
     <div class="col-lg-6">
         <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%;">
-            <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">معلومات الحساب</div>
+            <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">{% trans "معلومات الحساب" %}</div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">البريد الإلكتروني</span>
+                <span style="color:#888;">{% trans "البريد الإلكتروني" %}</span>
                 <span style="font-weight:600;">{{ prof.user.email }}</span>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">الهاتف</span>
+                <span style="color:#888;">{% trans "الهاتف" %}</span>
                 {% if not modifier_telephone %}
                 <span style="display:flex; align-items:center; gap:10px;">
                     <span style="font-weight:600;">{{ prof.user.telephone|default:"—" }}</span>
-                    <a href="?modifier_telephone=1" style="color:var(--color-role-prof-solid); font-size:0.82rem; text-decoration:none;">✏️ تعديل</a>
+                    <a href="?modifier_telephone=1" style="color:var(--color-role-prof-solid); font-size:0.82rem; text-decoration:none;">✏️ {% trans "تعديل" %}</a>
                 </span>
                 {% endif %}
             </div>
@@ -46,31 +46,32 @@ seule la mise en page change.
             <form method="POST" action="{% url 'modifier_telephone' %}" style="padding:10px 0;">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{% url 'prof_profil' %}">
-                <input type="tel" name="telephone" class="form-control mb-2" value="{{ prof.user.telephone }}" placeholder="رقم الهاتف">
+                {% trans "رقم الهاتف" as placeholder_telephone_prof %}
+                <input type="tel" name="telephone" class="form-control mb-2" value="{{ prof.user.telephone }}" placeholder="{{ placeholder_telephone_prof }}">
                 <div class="d-flex gap-2">
-                    <button type="submit" style="background:var(--color-role-prof-solid); color:white; border:none; border-radius:8px; padding:6px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">حفظ</button>
-                    <a href="{% url 'prof_profil' %}" style="color:#888; text-decoration:none; padding:6px;">إلغاء</a>
+                    <button type="submit" style="background:var(--color-role-prof-solid); color:white; border:none; border-radius:8px; padding:6px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "حفظ" %}</button>
+                    <a href="{% url 'prof_profil' %}" style="color:#888; text-decoration:none; padding:6px;">{% trans "إلغاء" %}</a>
                 </div>
             </form>
             {% endif %}
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">المدينة</span>
+                <span style="color:#888;">{% trans "المدينة" %}</span>
                 <span style="font-weight:600;">{{ prof.ville }}</span>
             </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">مستوى الحفظ</span>
+                <span style="color:#888;">{% trans "مستوى الحفظ" %}</span>
                 <span style="font-weight:600;">{{ prof.niveau_memorisation }}</span>
             </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">الشهادات</span>
+                <span style="color:#888;">{% trans "الشهادات" %}</span>
                 <span style="font-weight:600;">{{ prof.certifications|default:"—" }}</span>
             </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                <span style="color:#888;">اللغات</span>
+                <span style="color:#888;">{% trans "اللغات" %}</span>
                 <span style="font-weight:600;">{{ prof.langues|libelles_arabes_liste:"langues" }}</span>
             </div>
             <div style="display:flex; justify-content:space-between; padding:8px 0;">
-                <span style="color:#888;">أدوات التواصل</span>
+                <span style="color:#888;">{% trans "أدوات التواصل" %}</span>
                 <span style="font-weight:600;">{{ prof.outils_maitrises|libelles_arabes_liste:"outils_maitrises" }}</span>
             </div>
         </div>
@@ -78,16 +79,16 @@ seule la mise en page change.
 
     <div class="col-lg-6">
         <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%; display:flex; flex-direction:column; justify-content:center; text-align:center;">
-            <div style="color:var(--color-role-prof-solid); font-weight:700; margin-bottom:10px;">💰 راتبي الشهري</div>
-            <div style="font-size:26px; font-weight:700; color:var(--color-role-prof-solid);">{{ remuneration.total_calcule }} <span style="font-size:0.6em;">د.م.</span></div>
-            <div style="color:#888; font-size:0.85rem; margin-top:6px;">حساب راتبك الشهري حسب شبكة تعرفات المنصة</div>
-            <a href="{% url 'prof_remuneration' %}" style="display:inline-block; margin-top:16px; color:var(--color-role-prof-solid); font-weight:700; text-decoration:none;">عرض التفاصيل ←</a>
+            <div style="color:var(--color-role-prof-solid); font-weight:700; margin-bottom:10px;">💰 {% trans "راتبي الشهري" %}</div>
+            <div style="font-size:26px; font-weight:700; color:var(--color-role-prof-solid);">{{ remuneration.total_calcule }} <span style="font-size:0.6em;">{% trans "د.م." %}</span></div>
+            <div style="color:#888; font-size:0.85rem; margin-top:6px;">{% trans "حساب راتبك الشهري حسب شبكة تعرفات المنصة" %}</div>
+            <a href="{% url 'prof_remuneration' %}" style="display:inline-block; margin-top:16px; color:var(--color-role-prof-solid); font-weight:700; text-decoration:none;">{% trans "عرض التفاصيل ←" %}</a>
         </div>
     </div>
 </div>
 
 <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px;">
-    <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">مجموعاتي ({{ prof.groupes.count }})</div>
+    <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">{% blocktrans with n=prof.groupes.count %}مجموعاتي ({{ n }}){% endblocktrans %}</div>
     {% if prof.groupes.all %}
         {% for groupe in prof.groupes.all %}
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0f0;">
@@ -101,16 +102,16 @@ seule la mise en page change.
         </div>
         {% endfor %}
     {% else %}
-        <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
+        <div style="color:#aaa; padding:8px 0;">{% trans "لا يوجد أي مجموعة بعد" %}</div>
     {% endif %}
 </div>
 
 <div class="row g-4">
     <div class="col-lg-6">
         <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%;">
-            <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">جهات الاتصال</div>
+            <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">{% trans "جهات الاتصال" %}</div>
 
-            <div style="color:#888; font-size:0.8rem; margin-bottom:6px;">المؤطر</div>
+            <div style="color:#888; font-size:0.8rem; margin-bottom:6px;">{% trans "المؤطر" %}</div>
             {% if superviseurs %}
                 {% for superviseur in superviseurs %}
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
@@ -122,18 +123,18 @@ seule la mise en page change.
                 </div>
                 {% endfor %}
             {% else %}
-                <div style="color:#aaa; padding:8px 0 12px;">لم يتم تعيين مؤطر بعد</div>
+                <div style="color:#aaa; padding:8px 0 12px;">{% trans "لم يتم تعيين مؤطر بعد" %}</div>
             {% endif %}
 
-            <div style="color:#888; font-size:0.8rem; margin:12px 0 6px;">الإدارة</div>
+            <div style="color:#888; font-size:0.8rem; margin:12px 0 6px;">{% trans "الإدارة" %}</div>
             {% include 'dashboard/_contact_administration.html' with admins=admins %}
         </div>
     </div>
 
     <div class="col-lg-6">
         <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); height:100%;">
-            <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">🔒 الأمان</div>
-            <div style="color:#888; font-size:0.9rem; line-height:1.7;">لتغيير كلمة المرور، تواصل مع الإدارة.</div>
+            <div style="color:var(--color-role-prof-solid); font-weight:700; border-bottom:2px solid var(--color-role-prof-solid); padding-bottom:6px; margin-bottom:12px;">🔒 {% trans "الأمان" %}</div>
+            <div style="color:#888; font-size:0.9rem; line-height:1.7;">{% trans "لتغيير كلمة المرور، تواصل مع الإدارة." %}</div>
         </div>
     </div>
 </div>

@@ -1,6 +1,6 @@
 {% extends 'dashboard/base_prof.html' %}
-{% load libelles_arabes %}
-{% block title %}راتبي{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "راتبي" %}{% endblock %}
 {% block extra_css %}
 <style>
 .tarif-ref-grid { display:flex; flex-wrap:wrap; gap:12px; }
@@ -10,24 +10,24 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="page-title">راتبي</div>
-<div class="page-subtitle">حساب راتبك الشهري حسب شبكة تعرفات المنصة</div>
+<div class="page-title">{% trans "راتبي" %}</div>
+<div class="page-subtitle">{% trans "حساب راتبك الشهري حسب شبكة تعرفات المنصة" %}</div>
 
 <div class="hero-total-card">
     <div class="mois">{{ aujourdhui|mois_annee_ar }}</div>
-    <div class="montant">{{ remuneration.total_calcule }}<span> د.م.</span></div>
-    <div style="color:#888; font-size:0.85rem; margin-top:4px;">مجموع تقديري لهذا الشهر</div>
+    <div class="montant">{{ remuneration.total_calcule }}<span> {% trans "د.م." %}</span></div>
+    <div style="color:#888; font-size:0.85rem; margin-top:4px;">{% trans "مجموع تقديري لهذا الشهر" %}</div>
 </div>
 
 {% include 'dashboard/_remuneration_detail.html' with remuneration=remuneration couleur_accent='var(--color-role-prof-solid)' %}
 
-<div class="section-title">شبكة التعرفات المرجعية</div>
-<div class="compact-card mb-2" style="color:#888; font-size:0.82rem;">هذه شبكة عامة ثابتة، غير مرتبطة مباشرة بحسابك الشخصي أعلاه — تُستخدم لحساب مستحقات كل معلم.</div>
+<div class="section-title">{% trans "شبكة التعرفات المرجعية" %}</div>
+<div class="compact-card mb-2" style="color:#888; font-size:0.82rem;">{% trans "هذه شبكة عامة ثابتة، غير مرتبطة مباشرة بحسابك الشخصي أعلاه — تُستخدم لحساب مستحقات كل معلم." %}</div>
 <div class="tarif-ref-grid">
     {% for tarif in tarifs %}
     <div class="tarif-ref-chip">
         <div class="type">{{ tarif.get_type_capacite_display }} — {{ tarif.get_tranche_age_display }}</div>
-        <div class="montant">{{ tarif.montant }} د.م.</div>
+        <div class="montant">{{ tarif.montant }} {% trans "د.م." %}</div>
     </div>
     {% endfor %}
 </div>

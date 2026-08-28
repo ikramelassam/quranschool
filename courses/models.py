@@ -239,8 +239,8 @@ class LienMeet(models.Model):
 
 class Groupe(models.Model):
     TYPE_CAPACITE_CHOICES = [
-        ('groupe', 'جماعي'),
-        ('individuel', 'فردي'),
+        ('groupe', _('جماعي')),
+        ('individuel', _('فردي')),
     ]
     # Sous-catégorie d'un groupe COLLECTIF (type_capacite='groupe') pour la
     # navigation par filtres de admin_groupes.html (Chantier du 2026-08-15).
@@ -505,8 +505,8 @@ class TarifRemuneration(models.Model):
     codes que Groupe.type_capacite (pas Creneau.type_seance, un champ au
     nom proche mais qui désigne autre chose: hifz/tathbit)."""
     TRANCHE_AGE_CHOICES = [
-        ('enfant', 'طفل'),
-        ('adulte', 'بالغ'),
+        ('enfant', _('طفل')),
+        ('adulte', _('بالغ')),
     ]
 
     type_capacite = models.CharField(max_length=10, choices=Groupe.TYPE_CAPACITE_CHOICES)

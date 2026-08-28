@@ -1,3 +1,4 @@
+{% load i18n %}
 {% comment %}
 Détail راتب d'UN prof — "المجموعات الجماعية" (calcul inchangé, par élève actif
 × tarif mensuel) + "الحصص الفردية" (projection/réel/barre de progression,
@@ -11,7 +12,7 @@ couleur_accent : var CSS du rôle affichant la page (prof/admin/mshrif) —
 paramétrable pour que la couleur suive le rôle courant plutôt que d'être
 figée sur celle du prof.
 {% endcomment %}
-<div class="section-title">المجموعات الجماعية</div>
+<div class="section-title">{% trans "المجموعات الجماعية" %}</div>
 {% if remuneration.detail_groupes %}
 <div class="row g-3 mb-4">
     {% for ligne in remuneration.detail_groupes %}
@@ -23,47 +24,47 @@ figée sur celle du prof.
             </div>
             {% if ligne.nb_enfants %}
             <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f5f0e6;">
-                <span style="color:#888;">{{ ligne.nb_enfants }} طالب (طفل) × {{ ligne.tarif_enfant }} د.م.</span>
-                <span style="font-weight:600;">{{ ligne.montant_enfants }} د.م.</span>
+                <span style="color:#888;">{% blocktrans with n=ligne.nb_enfants tarif=ligne.tarif_enfant %}{{ n }} طالب (طفل) × {{ tarif }} د.م.{% endblocktrans %}</span>
+                <span style="font-weight:600;">{{ ligne.montant_enfants }} {% trans "د.م." %}</span>
             </div>
             {% endif %}
             {% if ligne.nb_adultes %}
             <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f5f0e6;">
-                <span style="color:#888;">{{ ligne.nb_adultes }} طالب (بالغ) × {{ ligne.tarif_adulte }} د.م.</span>
-                <span style="font-weight:600;">{{ ligne.montant_adultes }} د.م.</span>
+                <span style="color:#888;">{% blocktrans with n=ligne.nb_adultes tarif=ligne.tarif_adulte %}{{ n }} طالب (بالغ) × {{ tarif }} د.م.{% endblocktrans %}</span>
+                <span style="font-weight:600;">{{ ligne.montant_adultes }} {% trans "د.م." %}</span>
             </div>
             {% endif %}
             {% if not ligne.nb_enfants and not ligne.nb_adultes %}
-            <div style="color:#aaa; padding:6px 0;">لا يوجد طالب نشط بعمر معروف حالياً</div>
+            <div style="color:#aaa; padding:6px 0;">{% trans "لا يوجد طالب نشط بعمر معروف حالياً" %}</div>
             {% endif %}
             <div style="display:flex; justify-content:space-between; padding-top:10px; margin-top:4px;">
-                <span style="font-weight:700;">المجموع الفرعي</span>
-                <span style="font-weight:700; color:{{ couleur_accent }};">{{ ligne.sous_total }} د.م.</span>
+                <span style="font-weight:700;">{% trans "المجموع الفرعي" %}</span>
+                <span style="font-weight:700; color:{{ couleur_accent }};">{{ ligne.sous_total }} {% trans "د.م." %}</span>
             </div>
         </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<div class="compact-card mb-4" style="text-align:center; color:#aaa;">لا يوجد أي مجموعة جماعية بعد</div>
+<div class="compact-card mb-4" style="text-align:center; color:#aaa;">{% trans "لا يوجد أي مجموعة جماعية بعد" %}</div>
 {% endif %}
 
 {% if remuneration.a_des_groupes_individuels %}
-<div class="section-title">الحصص الفردية</div>
+<div class="section-title">{% trans "الحصص الفردية" %}</div>
 <div class="compact-card mb-4">
     <div class="row g-3 mb-3">
         <div class="col-md-6">
-            <div style="color:#888; font-size:0.85rem;">راتبك المتوقع لهذا الشهر (لو أُنجزت كل الحصص)</div>
-            <div style="font-size:1.5rem; font-weight:700; color:#888;">{{ remuneration.individuel_projection }} د.م.</div>
+            <div style="color:#888; font-size:0.85rem;">{% trans "راتبك المتوقع لهذا الشهر (لو أُنجزت كل الحصص)" %}</div>
+            <div style="font-size:1.5rem; font-weight:700; color:#888;">{{ remuneration.individuel_projection }} {% trans "د.م." %}</div>
         </div>
         <div class="col-md-6">
-            <div style="color:#888; font-size:0.85rem;">الذي جمعته لحد الآن ({{ remuneration.individuel_nb_seances_confirmees }} من {{ remuneration.individuel_nb_seances_prevues }} حصص)</div>
-            <div style="font-size:1.5rem; font-weight:700; color:{{ couleur_accent }};">{{ remuneration.individuel_reel }} د.م.</div>
+            <div style="color:#888; font-size:0.85rem;">{% blocktrans with confirmees=remuneration.individuel_nb_seances_confirmees prevues=remuneration.individuel_nb_seances_prevues %}الذي جمعته لحد الآن ({{ confirmees }} من {{ prevues }} حصص){% endblocktrans %}</div>
+            <div style="font-size:1.5rem; font-weight:700; color:{{ couleur_accent }};">{{ remuneration.individuel_reel }} {% trans "د.م." %}</div>
         </div>
     </div>
     <div style="background:var(--color-bg-cream); border-radius:20px; height:10px; overflow:hidden; margin-bottom:10px;">
         <div style="background:{{ couleur_accent }}; height:100%; width:{{ remuneration.individuel_pourcentage }}%; border-radius:20px;"></div>
     </div>
-    <div style="color:#888; font-size:0.8rem; line-height:1.7;">يُحتسب هذا المبلغ حسب عدد الحصص التي أنجزتها فعليا، ويتحدث تلقائيا كل يوم.</div>
+    <div style="color:#888; font-size:0.8rem; line-height:1.7;">{% trans "يُحتسب هذا المبلغ حسب عدد الحصص التي أنجزتها فعليا، ويتحدث تلقائيا كل يوم." %}</div>
 </div>
 {% endif %}
