@@ -1,5 +1,5 @@
 {% load chat_extras %}
-{% load libelles_arabes %}
+{% load libelles_arabes i18n %}
 {% comment %}
 Raccourcis "الإعلانات"/"الرسائل"/"الإشعارات" — mini-toolbar en tête du contenu principal
 (`.main-content`), visuellement séparée de la sidebar (Chantier UX header du
@@ -87,36 +87,42 @@ pour ce rôle) :
         {% endif %}
         <div class="header-raccourcis">
             {% if afficher_annonces %}
+            {% trans "الإعلانات" as libelle_annonces %}
+            {% if annonces_non_lues_total %}{% blocktrans with n=annonces_non_lues_total asvar aria_annonces %}الإعلانات — {{ n }} إعلانات غير مقروءة{% endblocktrans %}{% else %}{% trans "الإعلانات" as aria_annonces %}{% endif %}
             <a href="{% url url_annonces %}" class="raccourci-btn" style="--raccourci-accent:{{ couleur_role }};"
-               aria-label="الإعلانات{% if annonces_non_lues_total %} — {{ annonces_non_lues_total }} إعلانات غير مقروءة{% endif %}">
+               aria-label="{{ aria_annonces }}">
                 <span class="raccourci-icone-frame">
                     <span class="raccourci-icone" aria-hidden="true">📣</span>
                     {% if annonces_non_lues_total %}<span class="raccourci-badge">{{ annonces_non_lues_total|abrege_badge }}</span>{% endif %}
                 </span>
-                <span class="raccourci-texte">الإعلانات</span>
+                <span class="raccourci-texte">{{ libelle_annonces }}</span>
             </a>
             {% endif %}
             {% if afficher_messages %}
+            {% trans "الرسائل" as libelle_messages %}
+            {% if chat_non_lus_total %}{% blocktrans with n=chat_non_lus_total asvar aria_messages %}الرسائل — {{ n }} رسائل غير مقروءة{% endblocktrans %}{% else %}{% trans "الرسائل" as aria_messages %}{% endif %}
             <a href="{% url 'chat_liste' %}" class="raccourci-btn" style="--raccourci-accent:{{ couleur_role }};"
-               aria-label="الرسائل{% if chat_non_lus_total %} — {{ chat_non_lus_total }} رسائل غير مقروءة{% endif %}">
+               aria-label="{{ aria_messages }}">
                 <span class="raccourci-icone-frame">
                     <span class="raccourci-icone" aria-hidden="true">✉️</span>
                     {% if chat_non_lus_total %}<span class="raccourci-badge">{{ chat_non_lus_total|abrege_badge }}</span>{% endif %}
                 </span>
-                <span class="raccourci-texte">الرسائل</span>
+                <span class="raccourci-texte">{{ libelle_messages }}</span>
             </a>
             {% endif %}
             {% if afficher_notifications %}
+            {% trans "الإشعارات" as libelle_notifications %}
+            {% if notif_total %}{% blocktrans with n=notif_total asvar aria_notifications %}الإشعارات — {{ n }} إشعارات جديدة{% endblocktrans %}{% else %}{% trans "الإشعارات" as aria_notifications %}{% endif %}
             <div class="notif-wrap" id="notifWrap">
                 <button type="button" class="raccourci-btn notif-toggle" id="notifToggle"
                         style="--raccourci-accent:{{ couleur_role }};"
                         aria-haspopup="true" aria-expanded="false" aria-controls="notifDropdown"
-                        aria-label="الإشعارات{% if notif_total %} — {{ notif_total }} إشعارات جديدة{% endif %}">
+                        aria-label="{{ aria_notifications }}">
                     <span class="raccourci-icone-frame">
                         <span class="raccourci-icone" aria-hidden="true">🔔</span>
                         {% if notif_total %}<span class="raccourci-badge">{{ notif_total|abrege_badge }}</span>{% endif %}
                     </span>
-                    <span class="raccourci-texte">الإشعارات</span>
+                    <span class="raccourci-texte">{{ libelle_notifications }}</span>
                 </button>
                 <div class="notif-dropdown" id="notifDropdown" role="menu" hidden>
                     {% if notif_groupes %}
@@ -136,11 +142,11 @@ pour ce rôle) :
                         </div>
                         {% endfor %}
                     </div>
-                    <a href="{% url 'mes_notifications' %}" class="notif-voir-tout">عرض الكل ←</a>
+                    <a href="{% url 'mes_notifications' %}" class="notif-voir-tout">{% trans "عرض الكل ←" %}</a>
                     {% else %}
                     <div class="notif-vide">
                         <span class="notif-vide-icone" aria-hidden="true">🔔</span>
-                        <span>لا توجد إشعارات جديدة</span>
+                        <span>{% trans "لا توجد إشعارات جديدة" %}</span>
                     </div>
                     {% endif %}
                 </div>

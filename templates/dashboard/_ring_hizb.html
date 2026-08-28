@@ -1,3 +1,4 @@
+{% load i18n %}
 <div class="ring-wrap">
     <svg width="168" height="168" viewBox="0 0 168 168">
         <circle cx="84" cy="84" r="72" fill="none" stroke="#f2ead9" stroke-width="14"/>
@@ -13,16 +14,16 @@
     </svg>
     <div class="ring-center">
         <div class="num">{{ nb_hizb_memorises }}<span> / 60</span></div>
-        <div class="label">حزب محفوظ</div>
+        <div class="label">{% trans "حزب محفوظ" %}</div>
     </div>
 </div>
 {% if hizb_en_cours %}
 <div class="next-goal" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center;">
-    <span>📖 قيد الحفظ:</span>
+    <span>📖 {% trans "قيد الحفظ:" %}</span>
     {% for h in hizb_en_cours %}
-    <span style="background:rgba(168,100,20,0.12); color:#A86414; padding:2px 10px; border-radius:12px; font-weight:600;">الحزب {{ h.numero }}: {{ h.fraction }}</span>
+    <span style="background:rgba(168,100,20,0.12); color:#A86414; padding:2px 10px; border-radius:12px; font-weight:600;">{% blocktrans with numero=h.numero fraction=h.fraction %}الحزب {{ numero }}: {{ fraction }}{% endblocktrans %}</span>
     {% endfor %}
 </div>
 {% elif nb_hizb_memorises == 60 %}
-<div class="next-goal" style="background:rgba(45,90,61,0.12); color:var(--color-success);">🎉 ما شاء الله، تم حفظ القرآن كاملاً</div>
+<div class="next-goal" style="background:rgba(45,90,61,0.12); color:var(--color-success);">🎉 {% trans "ما شاء الله، تم حفظ القرآن كاملاً" %}</div>
 {% endif %}

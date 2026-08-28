@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class Conversation(models.Model):
@@ -46,15 +47,15 @@ class Message(models.Model):
     permission (seul chat.permissions fait foi pour l'accès), uniquement à
     afficher le bon libellé de rôle sous le nom (ex: "الأستاذ")."""
     TYPE_CHOICES = [
-        ('texte', 'نص'),
-        ('audio', 'رسالة صوتية'),
-        ('fichier', 'ملف مرفق'),
+        ('texte', _('نص')),
+        ('audio', _('رسالة صوتية')),
+        ('fichier', _('ملف مرفق')),
     ]
     ROLE_LABELS = {
-        'eleve': 'التلميذ',
-        'prof': 'الأستاذ',
-        'superviseur': 'المؤطر',
-        'admin': 'المدير',
+        'eleve': _('التلميذ'),
+        'prof': _('الأستاذ'),
+        'superviseur': _('المؤطر'),
+        'admin': _('المدير'),
     }
 
     conversation = models.ForeignKey(

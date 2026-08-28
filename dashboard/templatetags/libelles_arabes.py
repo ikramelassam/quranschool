@@ -17,12 +17,11 @@ def lien_seance_actif(seance):
 # des formulaires d'inscription (inscriptions/eleve_formulaire.html,
 # inscriptions/prof_formulaire.html), reproduits ici à l'identique pour que
 # la fiche admin affiche le même libellé arabe que ce que le candidat a vu.
+# Toutes marquées traduisibles (gettext_lazy) : utilisées entre autres par
+# eleve_prof_detail.html et prof_profil.html (chantier traduction FR/EN,
+# 2026-08-27/28). 'statut_familial' reste brut (utilisé seulement par des
+# fiches admin non encore traduites).
 LIBELLES = {
-    # 'sexe' seul est marqué traduisible (gettext_lazy) pour l'instant — utilisé
-    # par eleve_profil.html (chantier traduction FR/EN, 2026-08-27). Les autres
-    # catégories ci-dessous restent des chaînes brutes tant que les pages qui
-    # les affichent (fiches admin prof/inscription) n'ont pas leur propre passe
-    # de traduction — les marquer sans traduire leur page n'aurait aucun effet.
     'sexe': {
         'homme': _('ذكر'),
         'femme': _('أنثى'),
@@ -33,25 +32,25 @@ LIBELLES = {
         'divorce': 'مطلق/ة',
     },
     'langues': {
-        'arabe': 'العربية',
-        'francais': 'الفرنسية',
-        'anglais': 'الإنجليزية',
-        'autre': 'أخرى',
+        'arabe': _('العربية'),
+        'francais': _('الفرنسية'),
+        'anglais': _('الإنجليزية'),
+        'autre': _('أخرى'),
     },
     'outils_maitrises': {
-        'whatsapp': 'واتساب',
+        'whatsapp': _('واتساب'),
         'meet': 'Google Meet',
         'zoom': 'Zoom',
     },
     'type_eleve_preference': {
-        'enfants': 'أطفال',
-        'adultes': 'بالغون',
-        'les_deux': 'الاثنان',
+        'enfants': _('أطفال'),
+        'adultes': _('بالغون'),
+        'les_deux': _('الاثنان'),
     },
     'contrainte_genre': {
-        'homme': 'ذكور فقط',
-        'femme': 'إناث فقط',
-        'mixte': 'مختلط',
+        'homme': _('ذكور فقط'),
+        'femme': _('إناث فقط'),
+        'mixte': _('مختلط'),
     },
 }
 

@@ -1,6 +1,6 @@
 {% extends base_template %}
-{% load chat_extras %}
-{% block title %}الرسائل{% endblock %}
+{% load chat_extras i18n %}
+{% block title %}{% trans "الرسائل" %}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -361,7 +361,7 @@
      data-groupe-ouvert="{% if conversation_ouverte %}{{ conversation_ouverte.groupe_id }}{% endif %}">
     <div class="chat-liste-col" id="chatListeCol"
          data-filtre-categorie="{{ filtre_categorie }}" data-filtre-recherche="{{ filtre_recherche }}">
-        <div class="chat-liste-header"><h2>الرسائل</h2></div>
+        <div class="chat-liste-header"><h2>{% trans "الرسائل" %}</h2></div>
         {% comment %}
         Onglets de catégorie + recherche (Chantier catégorisation du
         2026-08-18, PUIS correction du 2026-08-24) — النساء/الرجال filtrent
@@ -375,8 +375,8 @@
         #chatListeContenu plus bas, qui lui EST rafraîchi par le poll).
         {% endcomment %}
         <div class="chat-groupes-header">
-            <div class="chat-groupes-titre">المجموعات</div>
-            <div class="chat-cat-tabs" id="chatCatTabs" role="tablist" aria-label="تصفية المحادثات حسب الفئة">
+            <div class="chat-groupes-titre">{% trans "المجموعات" %}</div>
+            <div class="chat-cat-tabs" id="chatCatTabs" role="tablist" aria-label="{% trans 'تصفية المحادثات حسب الفئة' %}">
                 {% for cat in categories_chat %}
                 <button type="button" class="chat-cat-tab {% if cat.code == filtre_categorie %}active{% endif %}"
                         data-categorie="{{ cat.code }}" role="tab" aria-selected="{% if cat.code == filtre_categorie %}true{% else %}false{% endif %}">
@@ -384,9 +384,11 @@
                 </button>
                 {% endfor %}
             </div>
+            {% trans "البحث عن مجموعة..." as placeholder_recherche_groupe %}
+            {% trans "البحث عن مجموعة" as aria_recherche_groupe %}
             <div class="chat-recherche-groupe">
                 <input type="search" id="chatRechercheGroupe" value="{{ filtre_recherche }}"
-                       placeholder="🔎 البحث عن مجموعة..." aria-label="البحث عن مجموعة">
+                       placeholder="🔎 {{ placeholder_recherche_groupe }}" aria-label="{{ aria_recherche_groupe }}">
             </div>
         </div>
         <div id="chatListeContenu">
@@ -406,6 +408,12 @@
 {% endblock %}
 
 {% block extra_js %}
+{% trans "لم يعد بإمكانك الوصول إلى هذه المحادثة." as msg_acces_revoque %}
+{% trans "هل تريد حذف هذه الرسالة؟" as msg_confirmer_suppr_message %}
+{% trans "تعذّر حذف الرسالة — تحقّق من اتصالك بالإنترنت وحاول مرة أخرى." as msg_echec_suppr_message %}
+{% trans "تعذّر تغيير الصورة — حاول مرة أخرى." as msg_echec_photo %}
+{% trans "تعذّر إرسال الرسالة — تحقّق من اتصالك بالإنترنت وحاول مرة أخرى." as msg_echec_envoi %}
+{% trans "تعذّر الاتصال بالخادم، جارٍ إعادة المحاولة…" as msg_connexion_perdue %}
 <script>
 (function () {
     'use strict';
@@ -583,7 +591,7 @@
         }
         const bandeau = document.createElement('div');
         bandeau.className = 'chat-acces-revoque';
-        bandeau.textContent = 'لم يعد بإمكانك الوصول إلى هذه المحادثة.';
+        bandeau.textContent = '{{ msg_acces_revoque|escapejs }}';
         panel.appendChild(bandeau);
         rafraichirListe();
     }
@@ -757,7 +765,7 @@
                     rafraichirListe();
                 })
                 .catch(function (err) {
-                    erreur.textContent = (err && err.messageServeur) || 'تعذّر تغيير الصورة — حاول مرة أخرى.';
+                    erreur.textContent = (err && err.messageServeur) || '{{ msg_echec_photo|escapejs }}';
                     erreur.hidden = false;
                     btnEnregistrer.disabled = false;
                 });
@@ -778,7 +786,7 @@
         liste.addEventListener('click', function (e) {
             const bouton = e.target.closest('.chat-bubble-supprimer');
             if (!bouton) { return; }
-            if (!confirm('هل تريد حذف هذه الرسالة؟')) { return; }
+            if (!confirm('{{ msg_confirmer_suppr_message|escapejs }}')) { return; }
             const messageId = bouton.dataset.messageId;
             fetch(`/chat/${groupeId}/messages/${messageId}/supprimer/`, {
                 method: 'POST',
@@ -790,7 +798,7 @@
                     if (ligne) { ligne.outerHTML = data.html; }
                 })
                 .catch(function () {
-                    alert('تعذّر حذف الرسالة — تحقّق من اتصالك بالإنترنت وحاول مرة أخرى.');
+                    alert('{{ msg_echec_suppr_message|escapejs }}');
                 });
         });
     }
@@ -984,7 +992,7 @@
                         // plutôt qu'un "حاول مرة أخرى" qui n'explique rien.
                         alert(erreur.messageServeur);
                     } else {
-                        alert('تعذّر إرسال الرسالة — تحقّق من اتصالك بالإنترنت وحاول مرة أخرى.');
+                        alert('{{ msg_echec_envoi|escapejs }}');
                     }
                 })
                 .finally(() => { majEtatEnvoyer(); });
@@ -1035,7 +1043,7 @@
             banniere = document.createElement('div');
             banniere.id = 'chatBanniereConnexion';
             banniere.className = 'chat-banniere-connexion';
-            banniere.textContent = 'تعذّر الاتصال بالخادم، جارٍ إعادة المحاولة…';
+            banniere.textContent = '{{ msg_connexion_perdue|escapejs }}';
             const zoneMessages = panel.querySelector('.chat-messages-zone');
             panel.insertBefore(banniere, zoneMessages || panel.lastElementChild);
         } else if (!visible && banniere) {

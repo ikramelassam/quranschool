@@ -1,4 +1,4 @@
-{% load chat_extras %}
+{% load chat_extras i18n %}
 {% comment %}
 Correctif du 2026-08-16 : la clé de contexte est 'messages_conversation'
 (PAS 'messages', qui écrasait les messages flash Django — voir la docstring
@@ -10,7 +10,7 @@ de chat.views._contexte_messages_initiaux pour le détail du bug corrigé).
      data-premier-id="{% if messages_conversation %}{{ messages_conversation.0.id }}{% endif %}"
      data-a-plus-ancien="{{ a_plus_ancien|yesno:'1,0' }}">
     <div class="chat-panel-header">
-        <button type="button" class="chat-btn-retour" id="chatBtnRetour" aria-label="العودة إلى قائمة المحادثات">
+        <button type="button" class="chat-btn-retour" id="chatBtnRetour" aria-label="{% trans 'العودة إلى قائمة المحادثات' %}">
             {% comment %}
             Point 2 du passage UX du 2026-08-15 : flèche pointant vers la
             DROITE (miroir de la version LTR) — convention RTL pour "retour"
@@ -30,22 +30,22 @@ de chat.views._contexte_messages_initiaux pour le détail du bug corrigé).
         {% endcomment %}
         <div class="chat-panel-avatar {% if peut_modifier_photo %}chat-avatar-modifiable{% endif %}"
              id="chatPanelAvatar" aria-hidden="true"
-             {% if peut_modifier_photo %}role="button" tabindex="0" title="تغيير صورة المجموعة"{% endif %}>
+             {% if peut_modifier_photo %}role="button" tabindex="0" title="{% trans 'تغيير صورة المجموعة' %}"{% endif %}>
             {% include 'chat/_avatar_groupe.html' with groupe=groupe %}
         </div>
         <div class="chat-panel-titre">
             <div class="chat-panel-nom">{{ groupe.nom }}</div>
             <div class="chat-panel-sous-titre">
-                {% if groupe.prof %}{{ groupe.prof.user.get_full_name }} — {% endif %}{{ participants|length }} مشارك
+                {% if groupe.prof %}{{ groupe.prof.user.get_full_name }} — {% endif %}{% blocktrans with n=participants|length %}{{ n }} مشارك{% endblocktrans %}
             </div>
         </div>
-        <button type="button" class="chat-btn-membres" id="chatBtnMembres" aria-label="أعضاء المحادثة" title="أعضاء المحادثة">
+        <button type="button" class="chat-btn-membres" id="chatBtnMembres" aria-label="{% trans 'أعضاء المحادثة' %}" title="{% trans 'أعضاء المحادثة' %}">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
         </button>
     </div>
 
     <div class="chat-panel-membres" id="chatPanelMembres" hidden>
-        <div class="chat-membres-titre">المشاركون في هذه المحادثة</div>
+        <div class="chat-membres-titre">{% trans "المشاركون في هذه المحادثة" %}</div>
         {% for p in participants %}
         <div class="chat-membre-ligne">
             <span class="chat-membre-nom">{{ p.user.get_full_name }}</span>
@@ -77,8 +77,8 @@ de chat.views._contexte_messages_initiaux pour le détail du bug corrigé).
             <div id="chatMessagesVide">
                 {% if not messages_conversation %}
                 <div class="chat-vide-messages">
-                    <p>لا توجد رسائل بعد</p>
-                    <p class="chat-vide-messages-sous">كن أول من يبدأ المحادثة في هذه المجموعة.</p>
+                    <p>{% trans "لا توجد رسائل بعد" %}</p>
+                    <p class="chat-vide-messages-sous">{% trans "كن أول من يبدأ المحادثة في هذه المجموعة." %}</p>
                 </div>
                 {% endif %}
             </div>
@@ -86,7 +86,7 @@ de chat.views._contexte_messages_initiaux pour le détail du bug corrigé).
                 {% include 'chat/_message_bubbles.html' with groupe_id=groupe.id messages=messages_conversation %}
             </div>
         </div>
-        <button type="button" id="chatNouveauxMessages" class="chat-nouveaux-messages" hidden>↓ رسائل جديدة</button>
+        <button type="button" id="chatNouveauxMessages" class="chat-nouveaux-messages" hidden>↓ {% trans "رسائل جديدة" %}</button>
     </div>
 
     <form class="chat-composer" id="chatComposer" data-envoyer-url="{% url 'chat_envoyer' groupe.id %}">
@@ -103,26 +103,28 @@ de chat.views._contexte_messages_initiaux pour le détail du bug corrigé).
         l'interface (rendu emoji dépendant de l'OS/navigateur, pas du thème).
         Comportement/JS totalement inchangé : mêmes id, mêmes handlers.
         {% endcomment %}
-        <button type="button" class="chat-btn-icone" id="chatBtnFichier" title="إرفاق ملف" aria-label="إرفاق ملف">
+        <button type="button" class="chat-btn-icone" id="chatBtnFichier" title="{% trans 'إرفاق ملف' %}" aria-label="{% trans 'إرفاق ملف' %}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
         </button>
-        <button type="button" class="chat-btn-icone" id="chatBtnAudio" title="رسالة صوتية" aria-label="رسالة صوتية">
+        <button type="button" class="chat-btn-icone" id="chatBtnAudio" title="{% trans 'رسالة صوتية' %}" aria-label="{% trans 'رسالة صوتية' %}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
         </button>
-        <textarea id="chatTexteInput" name="contenu" rows="1" placeholder="اكتب رسالة..." aria-label="نص الرسالة"></textarea>
-        <button type="submit" class="chat-btn-envoyer" id="chatBtnEnvoyer" disabled aria-label="إرسال">
+        {% trans "اكتب رسالة..." as placeholder_texte_msg %}
+        {% trans "نص الرسالة" as aria_texte_msg %}
+        <textarea id="chatTexteInput" name="contenu" rows="1" placeholder="{{ placeholder_texte_msg }}" aria-label="{{ aria_texte_msg }}"></textarea>
+        <button type="submit" class="chat-btn-envoyer" id="chatBtnEnvoyer" disabled aria-label="{% trans 'إرسال' %}">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
         </button>
     </form>
     <div class="chat-apercu-fichier" id="chatApercuFichier" hidden>
         <span id="chatApercuTexte"></span>
-        <button type="button" id="chatApercuAnnuler" aria-label="إلغاء المرفق">✕</button>
+        <button type="button" id="chatApercuAnnuler" aria-label="{% trans 'إلغاء المرفق' %}">✕</button>
     </div>
     <div class="chat-enregistrement" id="chatEnregistrement" hidden>
         <span class="chat-enregistrement-point" aria-hidden="true"></span>
-        <span>جارٍ التسجيل… <span id="chatDureeEnregistrement">00:00</span></span>
+        <span>{% trans "جارٍ التسجيل…" %} <span id="chatDureeEnregistrement">00:00</span></span>
         <button type="button" id="chatArreterEnregistrement" class="chat-btn-icone">⏹</button>
-        <button type="button" id="chatAnnulerEnregistrement" class="chat-btn-icone" aria-label="إلغاء">✕</button>
+        <button type="button" id="chatAnnulerEnregistrement" class="chat-btn-icone" aria-label="{% trans 'إلغاء' %}">✕</button>
     </div>
 
     {% if peut_modifier_photo %}
@@ -138,16 +140,16 @@ de chat.views._contexte_messages_initiaux pour le détail du bug corrigé).
     {% endcomment %}
     <div class="chat-photo-overlay" id="chatPhotoOverlay" data-photo-url="{% url 'chat_modifier_photo_groupe' groupe.id %}" hidden>
         <div class="chat-photo-modale">
-            <div class="chat-photo-modale-titre">تغيير صورة المجموعة</div>
-            <div class="chat-photo-apercu" id="chatPhotoApercu" role="button" tabindex="0" title="اختيار صورة">
+            <div class="chat-photo-modale-titre">{% trans "تغيير صورة المجموعة" %}</div>
+            <div class="chat-photo-apercu" id="chatPhotoApercu" role="button" tabindex="0" title="{% trans 'اختيار صورة' %}">
                 {% include 'chat/_avatar_groupe.html' with groupe=groupe %}
             </div>
             <input type="file" id="chatPhotoInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
             <div class="chat-photo-erreur" id="chatPhotoErreur" hidden></div>
             <div class="chat-photo-modale-boutons">
-                <button type="button" class="btn btn-light" id="chatPhotoAnnuler">إلغاء</button>
+                <button type="button" class="btn btn-light" id="chatPhotoAnnuler">{% trans "إلغاء" %}</button>
                 <button type="button" class="btn" id="chatPhotoEnregistrer" disabled
-                        style="background:var(--gradient-cta-gold); color:var(--color-cta-gold-text); font-weight:700;">حفظ</button>
+                        style="background:var(--gradient-cta-gold); color:var(--color-cta-gold-text); font-weight:700;">{% trans "حفظ" %}</button>
             </div>
         </div>
     </div>

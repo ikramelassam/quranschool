@@ -10,6 +10,7 @@ répercute donc immédiatement, sans donnée à corriger nulle part.
 Rôles avec accès au chat : eleve, prof, superviseur (مؤطر), admin (مدير).
 Le مشرف (role='mshrif') n'a JAMAIS accès au chat — aucune fonction ci-dessous
 ne le traite, il tombe systématiquement dans le cas "aucun accès"."""
+from django.utils.translation import gettext as _
 from .models import Conversation
 
 
@@ -122,7 +123,7 @@ def participants_conversation(conversation):
     participants = []
 
     if groupe.prof_id and groupe.prof.statut == 'actif':
-        participants.append({'user': groupe.prof.user, 'role_code': 'prof', 'role_label': 'الأستاذ'})
+        participants.append({'user': groupe.prof.user, 'role_code': 'prof', 'role_label': _('الأستاذ')})
 
     for eleve in groupe.eleves.filter(statut='actif').select_related('user').order_by('user__first_name'):
         # Partie B (2026-08-24) : tranche d'âge précise affichée à côté du nom
@@ -132,16 +133,16 @@ def participants_conversation(conversation):
         from courses.utils import tranche_age_precise
         resultat_tranche = tranche_age_precise(eleve.user.date_naissance)
         participants.append({
-            'user': eleve.user, 'role_code': 'eleve', 'role_label': 'التلميذ',
+            'user': eleve.user, 'role_code': 'eleve', 'role_label': _('التلميذ'),
             'tranche_age_label': resultat_tranche[1] if resultat_tranche else '',
         })
 
     if groupe.prof_id:
         superviseurs = Superviseur.objects.filter(profs_assignes=groupe.prof).select_related('user')
         for superviseur in superviseurs:
-            participants.append({'user': superviseur.user, 'role_code': 'superviseur', 'role_label': 'المؤطر'})
+            participants.append({'user': superviseur.user, 'role_code': 'superviseur', 'role_label': _('المؤطر')})
 
     for admin_user in User.objects.filter(role='admin').order_by('first_name'):
-        participants.append({'user': admin_user, 'role_code': 'admin', 'role_label': 'المدير'})
+        participants.append({'user': admin_user, 'role_code': 'admin', 'role_label': _('المدير')})
 
     return participants

@@ -1,6 +1,6 @@
 {% extends base_template %}
-{% load libelles_arabes %}
-{% block title %}البيان الشهري — {{ eleve.user.get_full_name }}{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% blocktrans with nom=eleve.user.get_full_name %}البيان الشهري — {{ nom }}{% endblocktrans %}{% endblock %}
 {% block content %}
 <div class="page-title" style="display:flex; align-items:center; gap:10px;">
     {{ eleve.user.get_full_name }}
@@ -10,8 +10,8 @@
     </span>
 </div>
 <div class="page-subtitle">
-    البيان الشهري — {{ mois_reference|mois_annee_ar }} — بقلم {% if prof %}{{ prof.user.get_full_name }}{% else %}[حساب محذوف]{% endif %}
-    {% if lecture_seule %} — عرض للاطلاع فقط{% endif %}
+    {% trans "البيان الشهري" %} — {{ mois_reference|mois_annee_ar }} — {% trans "بقلم" %} {% if prof %}{{ prof.user.get_full_name }}{% else %}{% trans "[حساب محذوف]" %}{% endif %}
+    {% if lecture_seule %} — {% trans "عرض للاطلاع فقط" %}{% endif %}
 </div>
 
 {% comment %}
@@ -21,7 +21,7 @@ atteignent cette page (élève/prof/مؤطر/مدير/مشرف), calculé en tem
 {% endcomment %}
 <div class="compact-card" id="carte_absences" style="max-width:800px; margin-bottom:20px; cursor:pointer;" onclick="toggleCarteAbsences()">
     <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-weight:700; color:var(--color-brand-gold-dark);">📊 حصيلة الغياب</div>
+        <div style="font-weight:700; color:var(--color-brand-gold-dark);">📊 {% trans "حصيلة الغياب" %}</div>
         <span id="fleche_absences" style="transition:transform 0.2s; color:#888;">▾</span>
     </div>
     <div style="display:flex; align-items:center; gap:12px; margin-top:10px; flex-wrap:wrap;">
@@ -31,7 +31,7 @@ atteignent cette page (élève/prof/مؤطر/مدير/مشرف), calculé en tem
             {% endfor %}
         </div>
         <span style="font-size:0.88rem; color:#666;">
-            {{ nb_present }} حضور · {{ absences_du_mois|length }} غياب · {{ presences_du_mois|length }} حصص
+            {% blocktrans with present=nb_present absent=absences_du_mois|length total=presences_du_mois|length %}{{ present }} حضور · {{ absent }} غياب · {{ total }} حصص{% endblocktrans %}
         </span>
     </div>
     <div id="detail_absences" style="display:none; margin-top:16px; border-top:1px solid #f0f0f0; padding-top:12px;" onclick="event.stopPropagation();">
@@ -39,11 +39,11 @@ atteignent cette page (élève/prof/مؤطر/مدير/مشرف), calculé en tem
         <div style="display:flex; justify-content:space-between; padding:8px 0; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %}">
             <span>{{ p.seance.date|date:"d-m-Y" }}</span>
             <span style="font-weight:600; color:{% if p.statut == 'absent_excuse' %}#c9a227{% else %}#dc3545{% endif %};">
-                {% if p.statut == 'absent_excuse' %}غياب مبرر{% else %}غياب غير مبرر{% endif %}
+                {% if p.statut == 'absent_excuse' %}{% trans "غياب مبرر" %}{% else %}{% trans "غياب غير مبرر" %}{% endif %}
             </span>
         </div>
         {% empty %}
-        <div style="color:#aaa; text-align:center; padding:12px 0;">لا يوجد غياب هذا الشهر 🎉</div>
+        <div style="color:#aaa; text-align:center; padding:12px 0;">{% trans "لا يوجد غياب هذا الشهر 🎉" %}</div>
         {% endfor %}
     </div>
 </div>
@@ -52,22 +52,22 @@ atteignent cette page (élève/prof/مؤطر/مدير/مشرف), calculé en tem
     <form method="POST">
         {% csrf_token %}
 
-        <label style="font-weight:600; color:#333;">📖 ما تم حفظه هذا الشهر</label>
-        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">سطر لكل حصة — تم تعبئته تلقائياً من سجل الحصص، عدّله بحرية</div>
+        <label style="font-weight:600; color:#333;">📖 {% trans "ما تم حفظه هذا الشهر" %}</label>
+        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">{% trans "سطر لكل حصة — تم تعبئته تلقائياً من سجل الحصص، عدّله بحرية" %}</div>
         <textarea name="memorisation" rows="6" class="form-control mb-3" {% if lecture_seule %}disabled{% endif %}>{{ bilan.memorisation }}</textarea>
 
-        <label style="font-weight:600; color:#333;">🔁 ما تمت مراجعته هذا الشهر</label>
-        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">سطر لكل حصة — تم تعبئته تلقائياً من سجل الحصص، عدّله بحرية</div>
+        <label style="font-weight:600; color:#333;">🔁 {% trans "ما تمت مراجعته هذا الشهر" %}</label>
+        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">{% trans "سطر لكل حصة — تم تعبئته تلقائياً من سجل الحصص، عدّله بحرية" %}</div>
         <textarea name="revision" rows="6" class="form-control mb-3" {% if lecture_seule %}disabled{% endif %}>{{ bilan.revision }}</textarea>
 
-        <label style="font-weight:600; color:#333;">📝 ملاحظات السلوك والانضباط</label>
-        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">نص حر — لا يُعبَّأ تلقائياً</div>
+        <label style="font-weight:600; color:#333;">📝 {% trans "ملاحظات السلوك والانضباط" %}</label>
+        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">{% trans "نص حر — لا يُعبَّأ تلقائياً" %}</div>
         <textarea name="remarques_discipline" rows="4" class="form-control mb-3" {% if lecture_seule %}disabled{% endif %}>{{ bilan.remarques_discipline }}</textarea>
 
         {% if not lecture_seule %}
-        <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">حفظ البيان ✅</button>
+        <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">{% trans "حفظ البيان ✅" %}</button>
         {% elif request.user.role == 'prof' %}
-        <div style="color:#888; font-size:0.85rem;">⏳ لم يعد بإمكانك تعديل هذا البيان — مدة التعديل (حتى نهاية الشهر الموالي) انتهت.</div>
+        <div style="color:#888; font-size:0.85rem;">⏳ {% trans "لم يعد بإمكانك تعديل هذا البيان — مدة التعديل (حتى نهاية الشهر الموالي) انتهت." %}</div>
         {% endif %}
     </form>
 </div>

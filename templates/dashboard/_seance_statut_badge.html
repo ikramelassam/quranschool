@@ -1,20 +1,21 @@
+{% load i18n %}
 {% if seance.statut == 'terminee' %}
-    <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">منتهية ✅</span>
+    <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">{% trans "منتهية ✅" %}</span>
 {% elif seance.statut == 'planifiee' %}
     {% if seance.date < aujourdhui %}
         {% if seance.delai_evaluation_depasse %}
             {% if seance.presences.count > 0 %}
-            <span style="background:#e0e0e0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;" title="انتهت المهلة قبل تسجيل حضور كل الطلاب — البيانات المسجَّلة تبقى محفوظة">⛔ انتهت المهلة — تقييم غير مكتمل</span>
+            <span style="background:#e0e0e0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;" title="{% trans 'انتهت المهلة قبل تسجيل حضور كل الطلاب — البيانات المسجَّلة تبقى محفوظة' %}">⛔ {% trans "انتهت المهلة — تقييم غير مكتمل" %}</span>
             {% else %}
-            <span style="background:#e0e0e0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;" title="انتهت مهلة الـ24 ساعة — لن يكون بالإمكان تقييمها">⛔ انتهت المهلة — لم تُقيَّم</span>
+            <span style="background:#e0e0e0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;" title="{% trans 'انتهت مهلة الـ24 ساعة — لن يكون بالإمكان تقييمها' %}">⛔ {% trans "انتهت المهلة — لم تُقيَّم" %}</span>
             {% endif %}
         {% else %}
-        <span style="background:var(--color-brand-gold-dark); color:white; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">لم يتم تقييمها بعد ⚠️</span>
+        <span style="background:var(--color-brand-gold-dark); color:white; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">{% trans "لم يتم تقييمها بعد ⚠️" %}</span>
         {% endif %}
     {% else %}
-        <span style="background:#F7E8D4; color:var(--color-brand-gold-dark); border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">مخططة 📅</span>
+        <span style="background:#F7E8D4; color:var(--color-brand-gold-dark); border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">{% trans "مخططة 📅" %}</span>
         {% include 'dashboard/_meet_icon.html' with seance=seance %}
     {% endif %}
 {% else %}
-    <span style="background:#FBE4E1; color:var(--color-danger); border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">ملغاة ❌</span>
+    <span style="background:#FBE4E1; color:var(--color-danger); border-radius:20px; padding:3px 12px; font-size:0.8rem; white-space:nowrap;">{% trans "ملغاة ❌" %}</span>
 {% endif %}

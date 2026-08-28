@@ -1,5 +1,5 @@
 {% extends 'dashboard/base_eleve.html' %}
-{% load libelles_arabes %}
+{% load libelles_arabes i18n %}
 {% block title %}{{ prof.user.get_full_name }}{% endblock %}
 {% block content %}
 <div style="background:var(--color-bg-cream); border-radius:20px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06); border:1px solid rgba(139,75,0,0.12);">
@@ -22,7 +22,7 @@
 
     {% if visibilite.afficher_contact %}
     <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(139,75,0,0.1);">
-        <span style="color:var(--color-text-muted); font-size:0.85rem;">التواصل</span>
+        <span style="color:var(--color-text-muted); font-size:0.85rem;">{% trans "التواصل" %}</span>
         <span style="display:flex; align-items:center; gap:10px;">
             <span style="font-weight:600; color:var(--color-text-primary);">{{ prof.user.telephone|default:"—" }}</span>
             <span style="display:inline-flex; gap:6px; align-items:center;">
@@ -35,49 +35,49 @@
 
     {% if visibilite.afficher_travail_actuel and prof.job_actuel %}
     <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(139,75,0,0.1);">
-        <span style="color:var(--color-text-muted); font-size:0.85rem;">العمل الحالي</span>
+        <span style="color:var(--color-text-muted); font-size:0.85rem;">{% trans "العمل الحالي" %}</span>
         <span style="font-weight:600; color:var(--color-text-primary);">{{ prof.job_actuel }}</span>
     </div>
     {% endif %}
 
     {% if visibilite.afficher_niveau_memorisation %}
     <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(139,75,0,0.1);">
-        <span style="color:var(--color-text-muted); font-size:0.85rem;">مستوى الحفظ</span>
+        <span style="color:var(--color-text-muted); font-size:0.85rem;">{% trans "مستوى الحفظ" %}</span>
         <span style="font-weight:600; color:var(--color-text-primary);">{{ prof.niveau_memorisation }}</span>
     </div>
     {% endif %}
 
     {% if visibilite.afficher_type_eleve_preference %}
     <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(139,75,0,0.1);">
-        <span style="color:var(--color-text-muted); font-size:0.85rem;">الفئة المفضلة</span>
+        <span style="color:var(--color-text-muted); font-size:0.85rem;">{% trans "الفئة المفضلة" %}</span>
         <span style="font-weight:600; color:var(--color-text-primary);">{{ prof.type_eleve_preference|libelles_arabes_liste:"type_eleve_preference" }}</span>
     </div>
     {% endif %}
 
     {% if visibilite.afficher_langues %}
     <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(139,75,0,0.1);">
-        <span style="color:var(--color-text-muted); font-size:0.85rem;">اللغات</span>
+        <span style="color:var(--color-text-muted); font-size:0.85rem;">{% trans "اللغات" %}</span>
         <span style="font-weight:600; color:var(--color-text-primary);">{{ prof.langues|libelles_arabes_liste:"langues" }}</span>
     </div>
     {% endif %}
 
     {% if visibilite.afficher_parcours_scolaire %}
     <div style="padding:10px 0; border-bottom:1px solid rgba(139,75,0,0.1);">
-        <div style="color:var(--color-text-muted); font-size:0.85rem; margin-bottom:4px;">المسار الدراسي</div>
+        <div style="color:var(--color-text-muted); font-size:0.85rem; margin-bottom:4px;">{% trans "المسار الدراسي" %}</div>
         <div style="font-weight:600; color:var(--color-text-primary);">{{ prof.parcours_scolaire }}</div>
     </div>
     {% endif %}
 
     {% if visibilite.afficher_parcours_educatif %}
     <div style="padding:10px 0; border-bottom:1px solid rgba(139,75,0,0.1);">
-        <div style="color:var(--color-text-muted); font-size:0.85rem; margin-bottom:4px;">المسار التعليمي</div>
+        <div style="color:var(--color-text-muted); font-size:0.85rem; margin-bottom:4px;">{% trans "المسار التعليمي" %}</div>
         <div style="font-weight:600; color:var(--color-text-primary);">{{ prof.parcours_enseignant }}</div>
     </div>
     {% endif %}
 
     {% if visibilite.afficher_certifications and certifications_liste %}
     <div style="padding:10px 0; border-bottom:1px solid rgba(139,75,0,0.1);">
-        <div style="color:var(--color-text-muted); font-size:0.85rem; margin-bottom:8px;">الشهادات</div>
+        <div style="color:var(--color-text-muted); font-size:0.85rem; margin-bottom:8px;">{% trans "الشهادات" %}</div>
         <div style="display:flex; flex-wrap:wrap; gap:8px;">
             {% for certif in certifications_liste %}
             <span style="background:#F5EFE0; color:var(--color-brand-gold-dark); border-radius:20px; padding:4px 14px; font-size:0.82rem; font-weight:600;">{{ certif }}</span>
@@ -88,7 +88,7 @@
 
     {% if visibilite.afficher_outils_communication and prof.outils_maitrises %}
     <div style="padding:10px 0;">
-        <div style="color:var(--color-text-muted); font-size:0.85rem; margin-bottom:8px;">أدوات التواصل</div>
+        <div style="color:var(--color-text-muted); font-size:0.85rem; margin-bottom:8px;">{% trans "أدوات التواصل" %}</div>
         <div style="display:flex; flex-wrap:wrap; gap:8px;">
             {% for outil in prof.outils_maitrises %}
             <span style="background:rgba(139,96,64,0.15); color:var(--color-text-muted); border-radius:20px; padding:4px 14px; font-size:0.82rem; font-weight:600;">{{ outil|libelle_arabe:"outils_maitrises" }}</span>
@@ -99,7 +99,7 @@
     {% endif %}
 
     <div style="margin-top:24px;">
-        <a href="{% url 'eleve_profil' %}" style="color:var(--color-text-muted); text-decoration:none; font-size:0.85rem;">← رجوع</a>
+        <a href="{% url 'eleve_profil' %}" style="color:var(--color-text-muted); text-decoration:none; font-size:0.85rem;">{% trans "← رجوع" %}</a>
     </div>
 </div>
 {% endblock %}

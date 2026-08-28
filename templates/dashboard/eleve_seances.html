@@ -1,34 +1,34 @@
 {% extends 'dashboard/base_eleve.html' %}
 {% load presence_style %}
-{% load libelles_arabes %}
-{% block title %}حصصي{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "حصصي" %}{% endblock %}
 {% block content %}
-<div class="page-title">حصصي وتقييماتي</div>
-<div class="page-subtitle">سجل جميع حصصك</div>
+<div class="page-title">{% trans "حصصي وتقييماتي" %}</div>
+<div class="page-subtitle">{% trans "سجل جميع حصصك" %}</div>
 
 {# ===== حصيلة الغياب الشهرية (Chantier du 2026-08-15) ===== #}
 <div class="compact-card" style="max-width:500px; margin-bottom:24px;">
-    <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:10px;">📊 حصيلة الغياب الشهرية</div>
+    <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:10px;">📊 {% trans "حصيلة الغياب الشهرية" %}</div>
     <form method="GET" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap; margin-bottom:12px;">
         <div>
-            <label style="color:#888; font-size:0.8rem;">الشهر</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الشهر" %}</label>
             <input type="month" name="mois" class="form-control" value="{{ mois_absences }}">
         </div>
-        <button type="submit" style="background:var(--color-role-eleve-solid); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+        <button type="submit" style="background:var(--color-role-eleve-solid); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
     </form>
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span style="color:#666; font-size:0.9rem;">{{ mois_reference_absences|mois_annee_ar }}:</span>
         {% if nb_absences_mois %}
-        <span style="background:#fdecea; color:#c0392b; border-radius:20px; padding:4px 14px; font-weight:700;">🚫 {{ nb_absences_mois }} غياب</span>
+        <span style="background:#fdecea; color:#c0392b; border-radius:20px; padding:4px 14px; font-weight:700;">🚫 {% blocktrans with n=nb_absences_mois %}{{ n }} غياب{% endblocktrans %}</span>
         {% else %}
-        <span style="background:#e8f5e9; color:#1b5e20; border-radius:20px; padding:4px 14px; font-weight:700;">✅ لا غياب هذا الشهر</span>
+        <span style="background:#e8f5e9; color:#1b5e20; border-radius:20px; padding:4px 14px; font-weight:700;">✅ {% trans "لا غياب هذا الشهر" %}</span>
         {% endif %}
     </div>
 </div>
 
 {# ===== الماضية (أولوية العرض: التقييمات التي يجب مراجعتها) ===== #}
 <div style="margin-bottom:30px;">
-    <div class="section-title" style="font-size:1.05rem; color:var(--color-role-eleve-solid);">📂 الحصص الماضية</div>
+    <div class="section-title" style="font-size:1.05rem; color:var(--color-role-eleve-solid);">📂 {% trans "الحصص الماضية" %}</div>
 
     {% if presences %}
     {% for presence in presences %}
@@ -39,9 +39,9 @@
                 <div style="color:#888; font-size:0.85rem;">{{ presence.seance.date|date:"d-m-Y" }} — {{ presence.seance.heure|time:"H:i" }}</div>
             </div>
             <span style="{{ presence.statut|statut_style }} border-radius:20px; padding:4px 12px; font-size:0.8rem;">
-                {% if presence.statut == 'present' %}حاضر ✅
-                {% elif presence.statut == 'absent_excuse' %}غائب بعذر
-                {% else %}غائب ❌{% endif %}
+                {% if presence.statut == 'present' %}{% trans "حاضر ✅" %}
+                {% elif presence.statut == 'absent_excuse' %}{% trans "غائب بعذر" %}
+                {% else %}{% trans "غائب ❌" %}{% endif %}
             </span>
         </div>
 
@@ -49,7 +49,7 @@
             {% if presence.sourate_memorisee %}
             <div class="col-md-6">
                 <div style="background:var(--color-bg-cream); border-radius:8px; padding:10px;">
-                    <div style="color:#888; font-size:0.8rem;">الحفظ</div>
+                    <div style="color:#888; font-size:0.8rem;">{% trans "الحفظ" %}</div>
                     <div style="font-weight:600; font-size:0.9rem; margin-bottom:6px;">{{ presence.nom_sourate_memorisee }} ({{ presence.ayah_debut_memorisation }}-{{ presence.ayah_fin_memorisation }})</div>
                     {% include 'dashboard/_medal_badge.html' with code=presence.note_memorisation label=presence.get_note_memorisation_display %}
                 </div>
@@ -58,7 +58,7 @@
             {% if presence.sourate_revisee %}
             <div class="col-md-6">
                 <div style="background:var(--color-bg-cream); border-radius:8px; padding:10px;">
-                    <div style="color:#888; font-size:0.8rem;">المراجعة</div>
+                    <div style="color:#888; font-size:0.8rem;">{% trans "المراجعة" %}</div>
                     <div style="font-weight:600; font-size:0.9rem; margin-bottom:6px;">{{ presence.nom_sourate_revisee }} ({{ presence.ayah_debut_revision }}-{{ presence.ayah_fin_revision }})</div>
                     {% include 'dashboard/_medal_badge.html' with code=presence.note_revision label=presence.get_note_revision_display %}
                 </div>
@@ -68,10 +68,10 @@
 
         {% if presence.note_hifz %}
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; font-size:0.8rem;">
-            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">الحفظ: {{ presence.note_hifz }}/20</span>
-            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">المراجعة: {{ presence.note_muraja3a }}/20</span>
-            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">التلاوة: {{ presence.note_tilawa }}/20</span>
-            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">المواظبة والسلوك: {{ presence.note_mouwazaba }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">{% trans "الحفظ:" %} {{ presence.note_hifz }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">{% trans "المراجعة:" %} {{ presence.note_muraja3a }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">{% trans "التلاوة:" %} {{ presence.note_tilawa }}/20</span>
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">{% trans "المواظبة والسلوك:" %} {{ presence.note_mouwazaba }}/20</span>
         </div>
         {% endif %}
 
@@ -82,25 +82,25 @@
         {% endif %}
         {% if presence.consigne_memorisation %}
         <div style="color:#555; font-size:0.85rem; margin-top:10px; background:#fff8ec; padding:10px; border-radius:8px; border-right:3px solid var(--color-brand-gold-dark);">
-            📌 المطلوب حفظه: {{ presence.consigne_memorisation }}
+            📌 {% trans "المطلوب حفظه:" %} {{ presence.consigne_memorisation }}
         </div>
         {% endif %}
         {% if presence.consigne_revision %}
         <div style="color:#555; font-size:0.85rem; margin-top:10px; background:#fff8ec; padding:10px; border-radius:8px; border-right:3px solid var(--color-brand-gold-dark);">
-            📌 المطلوب مراجعته: {{ presence.consigne_revision }}
+            📌 {% trans "المطلوب مراجعته:" %} {{ presence.consigne_revision }}
         </div>
         {% endif %}
     </a>
     {% endfor %}
     {% include 'dashboard/_pagination.html' with page_obj=presences %}
     {% else %}
-    <div class="compact-card" style="text-align:center; color:#aaa;">لا توجد حصص سابقة بعد</div>
+    <div class="compact-card" style="text-align:center; color:#aaa;">{% trans "لا توجد حصص سابقة بعد" %}</div>
     {% endif %}
 </div>
 
 {# ===== القادمة (معلوماتية فقط، أولوية أقل) ===== #}
 <div>
-    <div class="section-title" style="font-size:1.05rem;">🔜 الحصص القادمة</div>
+    <div class="section-title" style="font-size:1.05rem;">🔜 {% trans "الحصص القادمة" %}</div>
     {% if seances_a_venir %}
         <div class="compact-card" style="padding:4px 20px;">
         {% for seance in seances_a_venir %}
@@ -111,10 +111,10 @@
                         {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
                     </div>
                     <div style="color:#aaa; font-size:0.8rem; margin-top:2px;">
-                        👥 {{ seance.groupe.eleves.all|length }} طلاب{% if seance.groupe.eleves.all %}: {{ seance.groupe.eleves|noms_eleves }}{% endif %}
+                        👥 {% blocktrans with n=seance.groupe.eleves.all|length %}{{ n }} طلاب{% endblocktrans %}{% if seance.groupe.eleves.all %}: {{ seance.groupe.eleves|noms_eleves }}{% endif %}
                     </div>
                     {% if seance.statut == 'annulee' and seance.remarque %}
-                    <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">السبب: {{ seance.remarque }}</div>
+                    <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">{% trans "السبب:" %} {{ seance.remarque }}</div>
                     {% endif %}
                 </div>
                 {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
@@ -130,10 +130,10 @@
                         {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }}
                     </div>
                     <div style="color:#aaa; font-size:0.8rem; margin-top:2px;">
-                        👥 {{ seance.groupe.eleves.all|length }} طلاب{% if seance.groupe.eleves.all %}: {{ seance.groupe.eleves|noms_eleves }}{% endif %}
+                        👥 {% blocktrans with n=seance.groupe.eleves.all|length %}{{ n }} طلاب{% endblocktrans %}{% if seance.groupe.eleves.all %}: {{ seance.groupe.eleves|noms_eleves }}{% endif %}
                     </div>
                     {% if seance.statut == 'annulee' and seance.remarque %}
-                    <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">السبب: {{ seance.remarque }}</div>
+                    <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">{% trans "السبب:" %} {{ seance.remarque }}</div>
                     {% endif %}
                 </div>
                 {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
@@ -144,11 +144,12 @@
         </div>
         {% if seances_a_venir_extra %}
         <div style="text-align:center; margin-top:8px;">
-            <span id="toggle_a_venir_texte" onclick="toggleSeancesAVenir()" style="cursor:pointer; color:var(--color-role-eleve-solid); font-size:0.85rem; text-decoration:underline;">+ {{ nb_a_venir|add:"-3" }} حصة أخرى قادمة لاحقاً — عرض ↓</span>
+            {% blocktrans with n=nb_a_venir|add:"-3" asvar texte_plus_a_venir %}+ {{ n }} حصة أخرى قادمة لاحقاً — عرض ↓{% endblocktrans %}
+            <span id="toggle_a_venir_texte" onclick="toggleSeancesAVenir()" style="cursor:pointer; color:var(--color-role-eleve-solid); font-size:0.85rem; text-decoration:underline;">{{ texte_plus_a_venir }}</span>
         </div>
         {% endif %}
     {% else %}
-        <div class="compact-card" style="text-align:center; color:#aaa;">لا توجد حصص قادمة</div>
+        <div class="compact-card" style="text-align:center; color:#aaa;">{% trans "لا توجد حصص قادمة" %}</div>
     {% endif %}
 </div>
 
@@ -158,7 +159,8 @@ function toggleSeancesAVenir() {
     const texte = document.getElementById('toggle_a_venir_texte');
     const ouvert = extra.style.display !== 'none';
     extra.style.display = ouvert ? 'none' : 'block';
-    texte.textContent = ouvert ? '+ {{ nb_a_venir|add:"-3" }} حصة أخرى قادمة لاحقاً — عرض ↓' : 'إخفاء ↑';
+    {% trans "إخفاء ↑" as texte_masquer_seances %}
+    texte.textContent = ouvert ? '{{ texte_plus_a_venir|default:""|escapejs }}' : '{{ texte_masquer_seances|escapejs }}';
 }
 </script>
 {% endblock %}

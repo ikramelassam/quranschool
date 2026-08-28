@@ -1,11 +1,11 @@
-{% load chat_extras %}
+{% load chat_extras i18n %}
 {% if not conversations %}
 <div class="chat-vide">
     <div class="chat-vide-icone" aria-hidden="true">💬</div>
     {% if filtres_actifs %}
-    <p>لا توجد محادثات مطابقة.</p>
+    <p>{% trans "لا توجد محادثات مطابقة." %}</p>
     {% else %}
-    <p>لا توجد محادثات متاحة حالياً.</p>
+    <p>{% trans "لا توجد محادثات متاحة حالياً." %}</p>
     {% endif %}
 </div>
 {% else %}
@@ -28,11 +28,11 @@
         <div class="chat-item-ligne2">
             <span class="chat-item-apercu">
                 {% if conversation.dernier_message %}
-                    {% if conversation.dernier_message.type_message == 'audio' %}🎤 رسالة صوتية
-                    {% elif conversation.dernier_message.type_message == 'fichier' %}📎 ملف مرفق
+                    {% if conversation.dernier_message.type_message == 'audio' %}🎤 {% trans "رسالة صوتية" %}
+                    {% elif conversation.dernier_message.type_message == 'fichier' %}📎 {% trans "ملف مرفق" %}
                     {% else %}{{ conversation.dernier_message.contenu|default:"—"|truncatechars:40 }}{% endif %}
                 {% else %}
-                    لا توجد رسائل بعد
+                    {% trans "لا توجد رسائل بعد" %}
                 {% endif %}
             </span>
             {% if conversation.nb_non_lus %}
