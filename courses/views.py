@@ -12,7 +12,7 @@ from .utils import (
     regenerer_pour_nouveau_creneau, raison_incompatibilite_groupe, avertissements_groupe,
     avertissements_prof_creneau, creneau_peut_etre_supprime, groupe_peut_etre_supprime,
     lien_meet_est_disponible, description_conflit_lien_meet, liens_meet_disponibles,
-    valider_photo_groupe, remplacer_slots_creneau,
+    valider_photo_groupe, remplacer_slots_creneau, TRANCHES_AGE_PRECISES,
 )
 from accounts.models import Prof, Eleve
 
@@ -81,6 +81,17 @@ def groupes_list(request):
     # sous المجموعات الجماعية.
     type_filtre = request.GET.get('type', '')
     categorie_filtre = request.GET.get('categorie', '')
+    # 3e niveau, affiché seulement sous الأطفال (categorie='mineurs') — les 3
+    # tranches d'âge précises التلقين/البراعم/اليافعون (courses.utils.
+    # TRANCHES_AGE_PRECISES), calculées à partir de la halaka elle-même
+    # (Creneau.age_min/age_max de la حلقة assignée au groupe), JAMAIS à partir
+    # de l'âge individuel de chaque élève — même source de vérité que
+    # Groupe.tranches_age_visees déjà utilisée pour le badge de la carte
+    # ci-dessous, décision explicite d'Ikram (ne pas recalculer un 2e système
+    # basé sur les élèves réellement inscrits). Une tranche apparaît dès que
+    # son intervalle chevauche ne serait-ce que partiellement celui de la
+    # حلقة, exactement la même règle de recouvrement.
+    tranche_filtre = request.GET.get('tranche', '')
 
     groupes = Groupe.objects.select_related('prof__user', 'creneau').order_by('id')
     if statut:
@@ -99,6 +110,12 @@ def groupes_list(request):
         groupes = groupes.filter(type_capacite=type_filtre)
     if categorie_filtre:
         groupes = groupes.filter(categorie=categorie_filtre)
+    tranche_info = next((t for t in TRANCHES_AGE_PRECISES if t[0] == tranche_filtre), None)
+    if categorie_filtre == 'mineurs' and tranche_info:
+        _, _, tranche_age_min, tranche_age_max = tranche_info
+        groupes = groupes.filter(
+            creneau__age_max__gte=tranche_age_min, creneau__age_min__lte=tranche_age_max,
+        )
     if q:
         # Même logique que dashboard.recherche._filtrer (Chantier recherche
         # globale du 2026-08-14) : icontains (sous-chaîne, cas courant) OU
@@ -122,12 +139,14 @@ def groupes_list(request):
         'profs': Prof.actifs.select_related('user').order_by('user__first_name'),
         'creneaux': Creneau.objects.order_by('id'),
         'chat_groupe_ids': groupes_chat_accessibles_ids(request.user),
+        'tranches_age': TRANCHES_AGE_PRECISES,
         'filtres': {
             'statut': statut,
             'prof': prof_id,
             'creneau': creneau_id,
             'type': type_filtre,
             'categorie': categorie_filtre,
+            'tranche': tranche_filtre,
             'q': q,
         },
         'base_template': _base_template_admin_ou_mshrif(request),

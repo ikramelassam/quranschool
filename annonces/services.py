@@ -1,6 +1,6 @@
 import os
 
-from courses.utils import cible_annonce_pour_eleve
+from courses.utils import cible_annonce_pour_eleve, tranche_age_precise, TRANCHES_AGE_PRECISES
 from .models import Annonce, LectureAnnonce
 
 # Métadonnées d'affichage des 3 canaux (Chantier "canaux de diffusion" du
@@ -21,12 +21,36 @@ CANAUX = [
 ]
 CANAUX_PAR_CODE = {c['code']: c for c in CANAUX}
 
+# Sous-onglets du canal 'mineurs' (Point 3, chantier catégorisation par âge du
+# 2026-08-28) — même 3 tranches que Annonce.TRANCHE_AGE_CHOICES (les libellés
+# viennent ici de TRANCHES_AGE_PRECISES, seule source de vérité pour ce texte
+# arabe dans tout le projet ; les CODES doivent rester identiques à ceux
+# stockés sur Annonce.tranche_age, voir Annonce.TRANCHE_AGE_CHOICES.__doc__
+# pour pourquoi ils sont dupliqués plutôt que réutilisés tel quel là-bas).
+TRANCHES_ANNONCE = [{'code': code, 'nom': label} for code, label, *_r in TRANCHES_AGE_PRECISES]
+
 
 def canal_pour_code(code):
     """Métadonnées d'affichage (icône/nom/description) du canal `code`, ou
     None si ce n'est pas l'une des 3 valeurs valides — jamais une 4e
     catégorie inventée à la volée."""
     return CANAUX_PAR_CODE.get(code)
+
+
+def tranche_annonce_pour_eleve(eleve):
+    """Code de tranche d'âge précise (talqin/baraim/yafiun) pour un élève
+    mineur, ou None si adulte, âge inconnu, ou âge hors 5-18 ans (même limite
+    que courses.utils.TRANCHES_AGE_PRECISES — un enfant de moins de 5 ans n'a
+    pas de tranche précise, mais reste dans cible_annonce_pour_eleve=
+    'mineurs' et voit donc toujours les publications non ciblées à une
+    tranche, voir annonces_visibles_pour_eleve ci-dessous). Réutilise
+    courses.utils.tranche_age_precise — même source que Groupe.
+    tranches_age_visees et chat.services.ONGLETS_CHAT, jamais une 4e
+    implémentation de ce calcul."""
+    if eleve.inscription is None or eleve.inscription.date_naissance is None:
+        return None
+    resultat = tranche_age_precise(eleve.inscription.date_naissance)
+    return resultat[0] if resultat else None
 
 
 def peut_voir_annonce(user, annonce):
@@ -46,7 +70,15 @@ def peut_voir_annonce(user, annonce):
     eleve = getattr(user, 'eleve', None)
     if eleve is None or eleve.statut != 'actif':
         return False
-    return annonce.active and cible_annonce_pour_eleve(eleve) == annonce.cible
+    if not annonce.active or cible_annonce_pour_eleve(eleve) != annonce.cible:
+        return False
+    # Sous-ciblage tranche (Point 3) : une publication 'mineurs' avec
+    # tranche_age='' vise TOUS les enfants (comportement historique, voir
+    # Annonce.tranche_age.__doc__) ; sinon seulement les élèves de cette
+    # tranche précise.
+    if annonce.tranche_age:
+        return tranche_annonce_pour_eleve(eleve) == annonce.tranche_age
+    return True
 
 
 def canal_pour_eleve(eleve):
@@ -118,11 +150,21 @@ def annonces_visibles_pour_eleve(eleve):
     """QuerySet des annonces actives ciblant CET élève précisément (jamais les
     3 catégories mélangées) — une seule requête indexée sur cible/active,
     aucune boucle Python sur la table Annonce. Vide (Annonce.objects.none())
-    si l'âge de l'élève est inconnu : ne jamais deviner à qui montrer quoi."""
+    si l'âge de l'élève est inconnu : ne jamais deviner à qui montrer quoi.
+
+    Sous-ciblage tranche (Point 3, 2026-08-28) : pour cible='mineurs', ne
+    garde que tranche_age='' (visant TOUS les enfants) OU la tranche précise
+    de CET élève — même règle que peut_voir_annonce ci-dessus, ici en
+    requête plutôt qu'en vérification unitaire."""
     cible = cible_annonce_pour_eleve(eleve)
     if cible is None:
         return Annonce.objects.none()
-    return Annonce.objects.filter(cible=cible, active=True)
+    qs = Annonce.objects.filter(cible=cible, active=True)
+    if cible == 'mineurs':
+        from django.db.models import Q
+        tranche = tranche_annonce_pour_eleve(eleve)
+        qs = qs.filter(Q(tranche_age='') | Q(tranche_age=tranche)) if tranche else qs.filter(tranche_age='')
+    return qs
 
 
 def annonces_non_lues_pour_eleve(eleve, user):
@@ -166,6 +208,25 @@ def effectif_par_cible():
         cible = cible_annonce_pour_eleve(eleve)
         if cible:
             compte[cible] += 1
+    return compte
+
+
+def effectif_par_tranche():
+    """{code_tranche: nb_enfants_actifs_concernes} pour les 3 tranches
+    d'âge précises — même patron que effectif_par_cible (Point 3, chantier du
+    2026-08-28), affiché sur le canal 'mineurs' pour que مدير/مشرف voie
+    combien d'enfants chaque tranche touche avant de publier. Ne compte que
+    les élèves déjà 'mineurs' au sens de cible_annonce_pour_eleve — un adulte
+    ne peut jamais apparaître dans ce compte, même par erreur d'âge limite."""
+    from accounts.models import Eleve
+
+    compte = {code: 0 for code, _ in Annonce.TRANCHE_AGE_CHOICES}
+    for eleve in Eleve.actifs.select_related('inscription'):
+        if cible_annonce_pour_eleve(eleve) != 'mineurs':
+            continue
+        tranche = tranche_annonce_pour_eleve(eleve)
+        if tranche:
+            compte[tranche] += 1
     return compte
 
 

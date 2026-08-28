@@ -40,7 +40,7 @@ def prof_evaluations_recues(request):
 
     prof = get_object_or_404(Prof, user=request.user)
     evaluations = Evaluation.objects.filter(prof=prof).select_related(
-        'seance__groupe'
+        'seance__groupe', 'superviseur__user'
     ).prefetch_related('notes__critere').order_by('-date')
 
     marquer_visite(request.user, 'evaluations_recues')

@@ -77,6 +77,26 @@ class ProfEvaluationsRecuesTests(TestCase):
         response = self.client.get(reverse('evaluations_prof_recues'))
         self.assertNotEqual(response.status_code, 200)
 
+    def test_affiche_le_nom_et_les_coordonnees_du_mouatir_auteur(self):
+        """Point 6 (chantier catégorisation par âge du 2026-08-28) : le prof
+        voit désormais QUI a écrit l'évaluation (nom) et peut le contacter
+        (icônes email/WhatsApp), pas seulement le texte "المؤطر" générique."""
+        self.superviseur.user.telephone = '0612345678'
+        self.superviseur.user.save()
+        self.client.force_login(self.prof.user)
+        response = self.client.get(reverse('evaluations_prof_recues'))
+        self.assertContains(response, self.superviseur.user.get_full_name())
+        self.assertContains(response, f'mailto:{self.superviseur.user.email}')
+
+    def test_evaluation_dont_le_mouatir_a_ete_supprime_ne_plante_pas(self):
+        """Evaluation.superviseur est SET_NULL (voir son docstring) — la page
+        doit rester utilisable même sans auteur retrouvable."""
+        self.evaluation.superviseur = None
+        self.evaluation.save()
+        self.client.force_login(self.prof.user)
+        response = self.client.get(reverse('evaluations_prof_recues'))
+        self.assertEqual(response.status_code, 200)
+
     def test_visiter_la_page_marque_evaluations_recues_comme_lu(self):
         self.client.force_login(self.prof.user)
         self.assertFalse(

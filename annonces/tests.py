@@ -336,6 +336,103 @@ class CanauxTests(TestCase):
         self.assertNotContains(reponse, '0 منشور')
 
 
+class AnnonceTrancheAgeTests(TestCase):
+    """Sous-ciblage تلقين/البراعم/اليافعون à l'intérieur du canal 'mineurs'
+    (Point 3, chantier catégorisation par âge du 2026-08-28) — même 3
+    tranches que courses.utils.TRANCHES_AGE_PRECISES/chat.services.
+    ONGLETS_CHAT, voir annonces.services.tranche_annonce_pour_eleve."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.enfant_talqin = _creer_eleve('talqin_annonce@zidni.test', 'homme', 6)
+        self.enfant_baraim = _creer_eleve('baraim_annonce@zidni.test', 'femme', 10)
+        self.enfant_yafiun = _creer_eleve('yafiun_annonce@zidni.test', 'homme', 16)
+        self.adulte = _creer_eleve('adulte_annonce@zidni.test', 'femme', 25)
+
+    def _client_connecte(self, user):
+        client = Client(SERVER_NAME='localhost')
+        client.force_login(user)
+        return client
+
+    def test_tranche_annonce_pour_eleve_couvre_les_3_tranches(self):
+        from .services import tranche_annonce_pour_eleve
+        self.assertEqual(tranche_annonce_pour_eleve(self.enfant_talqin), 'talqin')
+        self.assertEqual(tranche_annonce_pour_eleve(self.enfant_baraim), 'baraim')
+        self.assertEqual(tranche_annonce_pour_eleve(self.enfant_yafiun), 'yafiun')
+
+    def test_tranche_annonce_pour_eleve_none_pour_un_adulte(self):
+        from .services import tranche_annonce_pour_eleve
+        self.assertIsNone(tranche_annonce_pour_eleve(self.adulte))
+
+    def test_publication_ciblee_baraim_najamais_visible_par_talqin_ou_yafiun(self):
+        Annonce.objects.create(titre='Pour براعم', contenu='...', cible='mineurs', tranche_age='baraim')
+        self.assertEqual(
+            set(annonces_visibles_pour_eleve(self.enfant_baraim).values_list('titre', flat=True)),
+            {'Pour براعم'},
+        )
+        self.assertEqual(annonces_visibles_pour_eleve(self.enfant_talqin).count(), 0)
+        self.assertEqual(annonces_visibles_pour_eleve(self.enfant_yafiun).count(), 0)
+
+    def test_publication_kol_atfal_visible_par_les_3_tranches(self):
+        # tranche_age='' (comportement historique) — voir Annonce.tranche_age.__doc__.
+        Annonce.objects.create(titre='Pour tous les enfants', contenu='...', cible='mineurs')
+        for enfant in (self.enfant_talqin, self.enfant_baraim, self.enfant_yafiun):
+            self.assertEqual(
+                set(annonces_visibles_pour_eleve(enfant).values_list('titre', flat=True)),
+                {'Pour tous les enfants'},
+            )
+
+    def test_publication_ciblee_najamais_visible_par_un_adulte(self):
+        Annonce.objects.create(titre='Pour براعم', contenu='...', cible='mineurs', tranche_age='baraim')
+        self.assertEqual(annonces_visibles_pour_eleve(self.adulte).count(), 0)
+
+    def test_annonce_ajouter_enregistre_la_tranche_pour_mineurs(self):
+        client = self._client_connecte(self.admin)
+        client.post(reverse('annonce_ajouter'), {
+            'titre': 'إعلان للبراعم', 'contenu': 'محتوى', 'cible': 'mineurs', 'tranche_age': 'baraim',
+        })
+        annonce = Annonce.objects.get(titre='إعلان للبراعم')
+        self.assertEqual(annonce.tranche_age, 'baraim')
+
+    def test_annonce_ajouter_ignore_la_tranche_hors_canal_mineurs(self):
+        # tranche_age envoyé par erreur (ou tentative de contournement) avec
+        # cible='femmes_adultes' — n'a aucun sens, doit être ignoré.
+        client = self._client_connecte(self.admin)
+        client.post(reverse('annonce_ajouter'), {
+            'titre': 'إعلان للنساء', 'contenu': 'محتوى', 'cible': 'femmes_adultes', 'tranche_age': 'baraim',
+        })
+        annonce = Annonce.objects.get(titre='إعلان للنساء')
+        self.assertEqual(annonce.tranche_age, '')
+
+    def test_annonce_ajouter_valeur_tranche_invalide_ignoree(self):
+        client = self._client_connecte(self.admin)
+        client.post(reverse('annonce_ajouter'), {
+            'titre': 'قيمة غير صالحة', 'contenu': 'محتوى', 'cible': 'mineurs', 'tranche_age': 'nimporte_quoi',
+        })
+        annonce = Annonce.objects.get(titre='قيمة غير صالحة')
+        self.assertEqual(annonce.tranche_age, '')
+
+    def test_canal_detail_filtre_par_tranche(self):
+        Annonce.objects.create(titre='Pour براعم', contenu='...', cible='mineurs', tranche_age='baraim')
+        Annonce.objects.create(titre='Pour تلقين', contenu='...', cible='mineurs', tranche_age='talqin')
+        Annonce.objects.create(titre='Pour tous', contenu='...', cible='mineurs')
+        client = self._client_connecte(self.admin)
+        reponse = client.get(reverse('annonces_canal_detail', args=['mineurs']), {'tranche': 'baraim'})
+        titres = {a.titre for a in reponse.context['annonces']}
+        self.assertEqual(titres, {'Pour براعم'})
+
+    def test_canal_detail_tranche_absente_pour_les_canaux_adultes(self):
+        client = self._client_connecte(self.admin)
+        reponse = client.get(reverse('annonces_canal_detail', args=['femmes_adultes']))
+        self.assertEqual(reponse.context['tranches'], [])
+
+    def test_canal_detail_mineurs_expose_les_3_tranches(self):
+        client = self._client_connecte(self.admin)
+        reponse = client.get(reverse('annonces_canal_detail', args=['mineurs']))
+        codes = {t['code'] for t in reponse.context['tranches']}
+        self.assertEqual(codes, {'talqin', 'baraim', 'yafiun'})
+
+
 class PiecesJointesAnnoncesTests(TestCase):
     """Médias d'une publication (image/vidéo/audio/document) — Point C9."""
 

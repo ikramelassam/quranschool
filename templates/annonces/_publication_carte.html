@@ -24,6 +24,16 @@ canal_detail.html — affiche le bouton إخفاء/إظهار. Jamais sur la pag
     <div class="pub-auteur">بواسطة {{ annonce.cree_par.get_full_name }}</div>
     {% endif %}
 
+    {% if peut_gerer and annonce.tranche_age %}
+    {% comment %}
+    Sous-tranche visée (Point 3, 2026-08-28) — visible مدير/مشرف SEULEMENT,
+    même logique que pub-auteur ci-dessus : un élève sait déjà qu'il voit
+    cette publication, pas besoin de lui répéter à qui elle était destinée.
+    Rien affiché si tranche_age='' (visait "كل الأطفال").
+    {% endcomment %}
+    <div class="pub-auteur">🎯 {{ annonce.get_tranche_age_display }} فقط</div>
+    {% endif %}
+
     {% if annonce.contenu %}
     <div class="pub-texte">{{ annonce.contenu|linebreaksbr }}</div>
     {% endif %}

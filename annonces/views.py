@@ -8,12 +8,13 @@ from django.utils import timezone
 from accounts.decorators import role_required
 from .models import Annonce
 from .services import (
-    annonces_visibles_pour_eleve, marquer_annonces_lues, effectif_par_cible,
+    annonces_visibles_pour_eleve, marquer_annonces_lues, effectif_par_cible, effectif_par_tranche,
     canal_pour_code, canal_pour_eleve, canaux_avec_apercu, dernieres_publications,
-    peut_voir_annonce, valider_piece_jointe,
+    peut_voir_annonce, valider_piece_jointe, TRANCHES_ANNONCE,
 )
 
 CIBLES_VALIDES = {code for code, _ in Annonce.CIBLE_CHOICES}
+TRANCHES_VALIDES = {code for code, _ in Annonce.TRANCHE_AGE_CHOICES}
 
 # Anti-double-soumission (chantier du 2026-08-16, séparé du fix de
 # duplication des messages) : un même contenu (titre+contenu+cible) publié
@@ -67,15 +68,28 @@ def annonces_canal_detail(request, cible):
     directement dans CE canal (cible déjà fixée, pas de sélecteur à
     re-choisir — Point C7 du chantier canaux). 404 si `cible` n'est pas
     l'une des 3 valeurs réelles (Annonce.CIBLE_CHOICES) : jamais une 4e
-    catégorie inventée via l'URL."""
+    catégorie inventée via l'URL.
+
+    Sous-filtre ?tranche= (Point 3, 2026-08-28) — 3ᵉ niveau réservé au canal
+    'mineurs' (même principe que courses.views.groupes_list ?tranche= sous
+    ?categorie=mineurs) : ignoré silencieusement pour les 2 autres canaux ou
+    une valeur invalide, jamais une erreur pour une URL forgée à la main."""
     canal = canal_pour_code(cible)
     if canal is None:
         raise Http404("قناة غير موجودة.")
 
+    tranche_filtre = request.GET.get('tranche', '') if cible == 'mineurs' else ''
+    annonces = Annonce.objects.filter(cible=cible).select_related('cree_par')
+    if tranche_filtre in TRANCHES_VALIDES:
+        annonces = annonces.filter(tranche_age=tranche_filtre)
+
     context = {
         'canal': canal,
-        'annonces': Annonce.objects.filter(cible=cible).select_related('cree_par'),
+        'annonces': annonces,
         'effectif': effectif_par_cible().get(cible, 0),
+        'tranches': TRANCHES_ANNONCE if cible == 'mineurs' else [],
+        'effectifs_tranches': effectif_par_tranche() if cible == 'mineurs' else {},
+        'tranche_filtre': tranche_filtre,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -90,6 +104,14 @@ def annonce_ajouter(request):
     titre = request.POST.get('titre', '').strip()
     contenu = request.POST.get('contenu', '').strip()
     cible = request.POST.get('cible', '')
+    # Sous-ciblage tranche (Point 3, 2026-08-28) — n'a de sens QUE pour
+    # cible='mineurs' (voir Annonce.tranche_age.__doc__) : silencieusement
+    # ignoré sinon, jamais une erreur si le champ est présent par erreur pour
+    # un autre canal. '' (valeur par défaut du <select>, voir canal_detail.
+    # html) = "كل الأطفال", comportement historique inchangé.
+    tranche_age = request.POST.get('tranche_age', '') if cible == 'mineurs' else ''
+    if tranche_age not in TRANCHES_VALIDES:
+        tranche_age = ''
     fichier = request.FILES.get('fichier')
     # Redirection : reste dans le canal d'où le formulaire a été soumis
     # (Point C7 : "+ Nouvelle publication" publie dans le canal courant,
@@ -118,7 +140,7 @@ def annonce_ajouter(request):
     # on ne recrée pas une 2e Annonce — on se comporte comme si la publication
     # avait réussi (même message, même redirection) sans rien insérer de plus.
     recente = Annonce.objects.filter(
-        cree_par=request.user, titre=titre, contenu=contenu, cible=cible,
+        cree_par=request.user, titre=titre, contenu=contenu, cible=cible, tranche_age=tranche_age,
         date_creation__gte=timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_SECONDES),
     ).exists()
     if recente:
@@ -126,7 +148,7 @@ def annonce_ajouter(request):
         return redirect(destination, *destination_args)
 
     Annonce.objects.create(
-        titre=titre, contenu=contenu, cible=cible, cree_par=request.user,
+        titre=titre, contenu=contenu, cible=cible, tranche_age=tranche_age, cree_par=request.user,
         fichier=fichier or None, type_fichier=type_fichier,
         nom_fichier_original=fichier.name if fichier else '',
         taille_fichier_octets=fichier.size if fichier else None,

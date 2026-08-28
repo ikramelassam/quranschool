@@ -27,6 +27,28 @@ class Annonce(models.Model):
         ('mineurs', 'الأطفال'),
     ]
 
+    # Sous-ciblage optionnel à l'INTÉRIEUR du canal 'mineurs' (Point 3,
+    # chantier catégorisation par âge du 2026-08-28) — les 3 mêmes tranches
+    # d'âge précises que courses.utils.TRANCHES_AGE_PRECISES/chat.services.
+    # ONGLETS_CHAT (التلقين/البراعم/اليافعون), dupliquées ICI plutôt
+    # qu'importées : annonces reste volontairement indépendante de courses au
+    # niveau des modèles (annonces.models est déjà importé PAR courses.models
+    # pour Groupe.CATEGORIE_CHOICES — un import dans l'autre sens créerait un
+    # cycle), même principe que EXTENSIONS_PAR_TYPE déjà dupliqué entre
+    # chat.services et annonces.services pour la même raison.
+    #
+    # blank='' = "كل الأطفال" (comportement HISTORIQUE inchangé : toute
+    # Annonce déjà existante a tranche_age='' et reste visible par tous les
+    # enfants, aucun backfill n'a de sens ici — contrairement à Groupe, une
+    # ancienne publication ne "vise" rétroactivement aucune tranche précise
+    # connue). Un نشر ciblé sur UNE tranche est un choix explicite du مدير/
+    # مشرف au moment de la publication, jamais déduit après coup.
+    TRANCHE_AGE_CHOICES = [
+        ('talqin', 'التلقين'),
+        ('baraim', 'البراعم'),
+        ('yafiun', 'اليافعون'),
+    ]
+
     TYPE_FICHIER_CHOICES = [
         ('image', 'صورة'),
         ('video', 'فيديو'),
@@ -37,6 +59,10 @@ class Annonce(models.Model):
     titre = models.CharField(max_length=200)
     contenu = models.TextField()
     cible = models.CharField(max_length=20, choices=CIBLE_CHOICES)
+    # Voir TRANCHE_AGE_CHOICES ci-dessus — n'a de sens QUE si cible='mineurs',
+    # ignoré partout ailleurs (jamais vérifié/appliqué pour femmes_adultes/
+    # hommes_adultes, voir annonces.services.annonces_visibles_pour_eleve).
+    tranche_age = models.CharField(max_length=10, choices=TRANCHE_AGE_CHOICES, blank=True, default='')
     # Réversible (pas de suppression définitive) — même principe que
     # Creneau.est_actif/Groupe.statut='archive' : une annonce publiée par
     # erreur peut être retirée sans perdre son historique.

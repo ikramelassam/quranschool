@@ -365,6 +365,102 @@ class GroupesListFiltreTests(TestCase):
         self.assertNotEqual(reponse.url, reverse('admin_groupes'))
 
 
+class GroupesListFiltreTrancheAgeTests(TestCase):
+    """Vue admin_groupes (courses.views.groupes_list), 3e niveau de filtre
+    ?tranche= sous ?categorie=mineurs — les 3 tranches d'âge précises
+    التلقين/البراعم/اليافعون (courses.utils.TRANCHES_AGE_PRECISES).
+
+    Calculé à partir de la حلقة (Creneau.age_min/age_max) assignée au groupe,
+    PAS de l'âge individuel de chaque élève inscrit — aucun élève créé dans
+    cette classe de tests, volontairement, pour bien vérifier que ce filtre
+    ne dépend d'aucune inscription réelle."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        creneau_talqin = _creer_creneau(age_min=5, age_max=7)
+        creneau_baraim = _creer_creneau(age_min=8, age_max=13)
+        creneau_yafiun = _creer_creneau(age_min=14, age_max=18)
+        # Chevauche 2 tranches (talqin + baraim) — doit apparaître dans les 2.
+        creneau_chevauchant = _creer_creneau(age_min=6, age_max=9)
+        # Hors 5-18 ans (adultes) — n'appartient à aucune tranche. age_min=19
+        # (pas 18) : اليافعون couvre 14-18 INCLUS (TRANCHES_AGE_PRECISES), un
+        # créneau démarrant pile à 18 chevaucherait donc encore اليافعون —
+        # même comportement hérité que GroupeTranchesAgeViseesTests.
+        # test_vide_si_creneau_adultes, pas une régression introduite ici.
+        creneau_adulte = _creer_creneau(age_min=19, age_max=60)
+
+        self.groupe_talqin = Groupe.objects.create(
+            nom='ZZZ_تلقين_تجريبي', type_capacite='groupe', categorie='mineurs', creneau=creneau_talqin,
+        )
+        self.groupe_baraim = Groupe.objects.create(
+            nom='ZZZ_براعم_تجريبي', type_capacite='groupe', categorie='mineurs', creneau=creneau_baraim,
+        )
+        self.groupe_yafiun = Groupe.objects.create(
+            nom='ZZZ_يافعون_تجريبي', type_capacite='groupe', categorie='mineurs', creneau=creneau_yafiun,
+        )
+        self.groupe_chevauchant = Groupe.objects.create(
+            nom='ZZZ_متداخل_تجريبي', type_capacite='groupe', categorie='mineurs', creneau=creneau_chevauchant,
+        )
+        self.groupe_adulte_mineurs = Groupe.objects.create(
+            nom='ZZZ_بالغين_مصنف_أطفال_تجريبي', type_capacite='groupe', categorie='mineurs', creneau=creneau_adulte,
+        )
+        # categorie != 'mineurs' : ne doit JAMAIS apparaître sous une tranche,
+        # même si son créneau chevauche talqin — le filtre tranche ne
+        # s'applique qu'en combinaison avec categorie='mineurs' (voir
+        # groupes_list).
+        self.groupe_hors_mineurs = Groupe.objects.create(
+            nom='ZZZ_رجال_créneau_talqin_تجريبي', type_capacite='groupe',
+            categorie='hommes_adultes', creneau=_creer_creneau(sexe_cible='homme', age_min=5, age_max=7),
+        )
+
+    def _get(self, **params):
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, self.admin)
+        return client.get(reverse('admin_groupes'), params)
+
+    def _noms_affiches(self, reponse):
+        return {g.nom for g in reponse.context['groupes']}
+
+    def test_filtre_tranche_talqin(self):
+        reponse = self._get(categorie='mineurs', tranche='talqin')
+        noms = self._noms_affiches(reponse)
+        self.assertEqual(noms, {self.groupe_talqin.nom, self.groupe_chevauchant.nom})
+
+    def test_filtre_tranche_baraim(self):
+        reponse = self._get(categorie='mineurs', tranche='baraim')
+        noms = self._noms_affiches(reponse)
+        self.assertEqual(noms, {self.groupe_baraim.nom, self.groupe_chevauchant.nom})
+
+    def test_filtre_tranche_yafiun(self):
+        reponse = self._get(categorie='mineurs', tranche='yafiun')
+        noms = self._noms_affiches(reponse)
+        self.assertEqual(noms, {self.groupe_yafiun.nom})
+
+    def test_groupe_adulte_najamais_dans_une_tranche(self):
+        for code in ('talqin', 'baraim', 'yafiun'):
+            reponse = self._get(categorie='mineurs', tranche=code)
+            self.assertNotIn(self.groupe_adulte_mineurs.nom, self._noms_affiches(reponse))
+
+    def test_filtre_tranche_ignore_sans_categorie_mineurs(self):
+        # ?tranche= seul (sans ?categorie=mineurs) ne doit RIEN filtrer — la
+        # sous-navigation tranche n'est même pas affichée dans ce cas côté
+        # template, mais la vue doit rester sûre même si l'URL est forgée
+        # à la main.
+        reponse = self._get(tranche='talqin')
+        noms = self._noms_affiches(reponse)
+        self.assertIn(self.groupe_hors_mineurs.nom, noms)
+        self.assertIn(self.groupe_yafiun.nom, noms)
+
+    def test_categorie_mineurs_seule_affiche_toutes_les_tranches(self):
+        reponse = self._get(categorie='mineurs')
+        noms = self._noms_affiches(reponse)
+        self.assertTrue({
+            self.groupe_talqin.nom, self.groupe_baraim.nom, self.groupe_yafiun.nom,
+            self.groupe_chevauchant.nom, self.groupe_adulte_mineurs.nom,
+        }.issubset(noms))
+        self.assertNotIn(self.groupe_hors_mineurs.nom, noms)
+
+
 class GroupeCategorieChampTests(TestCase):
     """Groupe.categorie (Tâche du 2026-08-17) — réutilise EXACTEMENT
     Annonce.CIBLE_CHOICES, jamais une 2e liste de catégories recodée à part."""

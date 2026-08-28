@@ -125,6 +125,21 @@
         box-shadow: 0 3px 10px rgba(139,75,0,0.18);
     }
     .pub-vide-cta svg { width: 16px; height: 16px; margin: 0; color: inherit; }
+
+    /* ---- Sous-tranches d'âge du canal 'mineurs' (Point 3, chantier
+       catégorisation par âge du 2026-08-28) : même esprit pill-nav que
+       templates/courses/admin_groupes.html, adapté au style de cette page. ---- */
+    .tranche-nav { display: flex; flex-wrap: wrap; gap: 8px; max-width: 640px; margin-bottom: 22px; }
+    .tranche-nav a {
+        display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 0.82rem;
+        font-weight: 600; text-decoration: none; color: #666; background: #F0EAD9;
+        white-space: nowrap; transition: background 0.15s, color 0.15s;
+    }
+    .tranche-nav a.active { background: var(--color-brand-gold-dark); color: white; }
+    .pub-select-tranche {
+        width: 100%; border-radius: 8px; border: 1px solid rgba(139,75,0,0.2); padding: 9px 12px;
+        font-size: 0.92rem; font-family: 'Tajawal', sans-serif; background: white; margin-bottom: 12px;
+    }
 </style>
 
 <div class="canal-entete">
@@ -138,11 +153,46 @@
     </div>
 </div>
 
+{% if tranches %}
+{% comment %}
+Sous-filtre par tranche d'âge précise (Point 3, chantier catégorisation par
+âge du 2026-08-28) — réservé au canal 'mineurs' (tranches vide pour
+النساء/الرجال, voir annonces.views.annonces_canal_detail). Filtre les
+publications déjà envoyées à UNE tranche précise ; celles envoyées à "كل
+الأطفال" (tranche_age='') restent invisibles derrière ce filtre — normal,
+elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
+{% endcomment %}
+<nav class="tranche-nav" aria-label="تصفية حسب الفئة العمرية">
+    <a href="{% querystring tranche=None %}" class="{% if not tranche_filtre %}active{% endif %}">الكل</a>
+    {% for t in tranches %}
+    <a href="{% querystring tranche=t.code %}" class="{% if tranche_filtre == t.code %}active{% endif %}">
+        {{ t.nom }} ({{ effectifs_tranches|get_item:t.code|default:0 }})
+    </a>
+    {% endfor %}
+</nav>
+{% endif %}
+
 <div class="pub-form" id="pubForm">
     <div class="pub-form-titre">+ منشور جديد</div>
     <form method="POST" action="{% url 'annonce_ajouter' %}" enctype="multipart/form-data" id="pubFormulaire">
         {% csrf_token %}
         <input type="hidden" name="cible" value="{{ canal.code }}">
+        {% if tranches %}
+        {% comment %}
+        Sous-ciblage optionnel (Point 3, 2026-08-28) — réservé au canal
+        'mineurs'. Valeur vide = "كل الأطفال" (comportement historique
+        inchangé, voir Annonce.tranche_age.__doc__), jamais présélectionnée
+        sur le filtre actif (tranche_filtre) : filtrer l'affichage et choisir
+        la cible d'une nouvelle publication sont deux actions distinctes,
+        volontairement non liées.
+        {% endcomment %}
+        <select name="tranche_age" class="pub-select-tranche">
+            <option value="">🌍 كل الأطفال</option>
+            {% for t in tranches %}
+            <option value="{{ t.code }}">{{ t.nom }} فقط</option>
+            {% endfor %}
+        </select>
+        {% endif %}
         <input type="text" name="titre" id="pubTitreInput" class="pub-input" placeholder="عنوان المنشور" required>
         <textarea name="contenu" class="pub-textarea" rows="3" placeholder="نص المنشور..." required></textarea>
 

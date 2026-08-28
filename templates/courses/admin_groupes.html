@@ -48,10 +48,25 @@
     </nav>
     {% if filtres.type == 'groupe' %}
     <nav class="pill-nav pill-nav-secondaire mt-2" aria-label="تصفية حسب فئة المجموعة الجماعية">
-        <a href="{% querystring categorie=None page=None %}" class="{% if not filtres.categorie %}active{% endif %}">الكل</a>
-        <a href="{% querystring categorie='femmes_adultes' page=None %}" class="{% if filtres.categorie == 'femmes_adultes' %}active{% endif %}">النساء</a>
-        <a href="{% querystring categorie='hommes_adultes' page=None %}" class="{% if filtres.categorie == 'hommes_adultes' %}active{% endif %}">الرجال</a>
-        <a href="{% querystring categorie='mineurs' page=None %}" class="{% if filtres.categorie == 'mineurs' %}active{% endif %}">الأطفال</a>
+        <a href="{% querystring categorie=None tranche=None page=None %}" class="{% if not filtres.categorie %}active{% endif %}">الكل</a>
+        <a href="{% querystring categorie='femmes_adultes' tranche=None page=None %}" class="{% if filtres.categorie == 'femmes_adultes' %}active{% endif %}">النساء</a>
+        <a href="{% querystring categorie='hommes_adultes' tranche=None page=None %}" class="{% if filtres.categorie == 'hommes_adultes' %}active{% endif %}">الرجال</a>
+        <a href="{% querystring categorie='mineurs' tranche=None page=None %}" class="{% if filtres.categorie == 'mineurs' %}active{% endif %}">الأطفال</a>
+    </nav>
+    {% endif %}
+    {% if filtres.categorie == 'mineurs' %}
+    {% comment %}
+    3e niveau, affiché seulement sous الأطفال — les 3 tranches d'âge précises
+    التلقين/البراعم/اليافعون, calculées à partir de la حلقة (Creneau.age_min/
+    age_max) assignée au groupe, PAS de l'âge individuel de chaque élève —
+    même source de vérité que Groupe.tranches_age_visees (badge affiché sur
+    chaque carte plus bas). Voir courses.views.groupes_list.
+    {% endcomment %}
+    <nav class="pill-nav pill-nav-secondaire mt-2" aria-label="تصفية حسب الفئة العمرية">
+        <a href="{% querystring tranche=None page=None %}" class="{% if not filtres.tranche %}active{% endif %}">الكل</a>
+        {% for code, nom, age_min, age_max in tranches_age %}
+        <a href="{% querystring tranche=code page=None %}" class="{% if filtres.tranche == code %}active{% endif %}">{{ nom }}</a>
+        {% endfor %}
     </nav>
     {% endif %}
 </div>
@@ -172,7 +187,7 @@
 </div>
 {% else %}
 <div style="text-align:center; padding:60px; color:#aaa;">
-    {% if filtres.statut or filtres.prof or filtres.creneau or filtres.type or filtres.categorie or filtres.q %}
+    {% if filtres.statut or filtres.prof or filtres.creneau or filtres.type or filtres.categorie or filtres.tranche or filtres.q %}
     لا توجد مجموعات مطابقة لهذه التصفية
     {% else %}
     لا توجد مجموعات بعد — أنشئ مجموعة جديدة !
