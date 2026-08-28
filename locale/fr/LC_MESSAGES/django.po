@@ -2547,6 +2547,189 @@ msgstr "Veuillez choisir un type d'abonnement."
 msgid "هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد الدراسة. يرجى استخدام بريد إلكتروني آخر أو التواصل مع المدرسة."
 msgstr "Cette adresse e-mail est déjà utilisée par un autre compte ou une candidature en cours d'examen. Veuillez utiliser une autre adresse e-mail ou contacter l'école."
 
+msgid "أرسل إثبات الدفع الشهري"
+msgstr "Envoyez la preuve de paiement mensuelle"
+
+msgid "إرسال دفعة جديدة"
+msgstr "Envoyer un nouveau paiement"
+
+msgid "اختر نفس الشهر في الحقلين لدفع شهر واحد فقط، أو مدى أطول لدفع عدة أشهر دفعة واحدة."
+msgstr "Choisissez le même mois dans les deux champs pour payer un seul mois, ou une période plus longue pour payer plusieurs mois en une fois."
+
+msgid "المبلغ المدفوع (درهم)"
+msgstr "Montant payé (dirhams)"
+
+msgid "صورة إثبات الدفع"
+msgstr "Photo de la preuve de paiement"
+
+msgid "جاري الإرسال..."
+msgstr "Envoi en cours..."
+
+msgid "سجل المدفوعات"
+msgstr "Historique des paiements"
+
+msgid "%(montant)s درهم — أُرسل في %(date)s"
+msgstr "%(montant)s dirhams — envoyé le %(date)s"
+
+msgid "مقبول ✅"
+msgstr "Accepté ✅"
+
+msgid "مرفوض ❌"
+msgstr "Refusé ❌"
+
+msgid "قيد المراجعة ⏳"
+msgstr "En cours d'examen ⏳"
+
+msgid "لا توجد مدفوعات بعد"
+msgstr "Aucun paiement pour l'instant"
+
+msgid "يناير"
+msgstr "Janvier"
+
+msgid "فبراير"
+msgstr "Février"
+
+msgid "مارس"
+msgstr "Mars"
+
+msgid "أبريل"
+msgstr "Avril"
+
+msgid "ماي"
+msgstr "Mai"
+
+msgid "يونيو"
+msgstr "Juin"
+
+msgid "يوليوز"
+msgstr "Juillet"
+
+msgid "غشت"
+msgstr "Août"
+
+msgid "شتنبر"
+msgstr "Septembre"
+
+msgid "أكتوبر"
+msgstr "Octobre"
+
+msgid "نونبر"
+msgstr "Novembre"
+
+msgid "دجنبر"
+msgstr "Décembre"
+
+msgid "الرابط غير متاح حالياً"
+msgstr "Le lien n'est pas disponible actuellement"
+
+msgid "رابط الاجتماع غير متاح حالياً"
+msgstr "Le lien de réunion n'est pas disponible actuellement"
+
+msgid "لم يتم إضافة رابط اجتماع لهذه المجموعة بعد."
+msgstr "Aucun lien de réunion n'a encore été ajouté pour ce groupe."
+
+msgid "لا يمكن الانضمام إلى هذا الرابط إلا خلال هامش زمني محدد قبل وبعد موعد الحصة."
+msgstr "Il n'est possible de rejoindre ce lien que pendant une marge de temps déterminée avant et après l'heure de la séance."
+
+msgid "موعد الحصة"
+msgstr "Horaire de la séance"
+
+msgid "كل جديد يستدعي انتباهك"
+msgstr "Tout ce qui nécessite votre attention"
+
+msgid "كل ما يخصك شخصياً — اختبارات، تقييمات، ملفات جديدة"
+msgstr "Tout ce qui vous concerne personnellement — examens, évaluations, nouveaux fichiers"
+
+msgid "اختبار جديد: %(titre)s"
+msgstr "Nouvel examen : %(titre)s"
+
+msgid "اختبارات جديدة"
+msgstr "Nouveaux examens"
+
+msgid "تقييم جديد لحصة %(groupe)s"
+msgstr "Nouvelle évaluation pour la séance %(groupe)s"
+
+msgid "ملف جديد في حقيبتك: %(titre)s"
+msgstr "Nouveau fichier dans votre cartable : %(titre)s"
+
+msgid "تقييمات جديدة على حصصك"
+msgstr "Nouvelles évaluations sur vos séances"
+
+msgid "ملفات جديدة في حقيبتك"
+msgstr "Nouveaux fichiers dans votre cartable"
+
+msgid "بدون عنوان"
+msgstr "Sans titre"
+
+msgid "تقييم جديد من المؤطر على حصة %(groupe)s"
+msgstr "Nouvelle évaluation du superviseur pour la séance %(groupe)s"
+
+msgid "ملف جديد في حقيبة الأستاذ: %(titre)s"
+msgstr "Nouveau fichier dans le dossier enseignant : %(titre)s"
+
+msgid "تقييمات جديدة من المؤطر"
+msgstr "Nouvelles évaluations du superviseur"
+
+msgid "ملفات جديدة في حقيبة الأستاذ"
+msgstr "Nouveaux fichiers dans le dossier enseignant"
+
+msgid "طلب تسجيل جديد: %(nom)s"
+msgstr "Nouvelle candidature : %(nom)s"
+
+msgid "طلب أستاذ بانتظار تصديقك: %(nom)s %(prenom)s"
+msgstr "Candidature enseignant en attente de votre validation : %(nom)s %(prenom)s"
+
+msgid "طلب تغيير حلقة: %(nom)s"
+msgstr "Demande de changement de groupe : %(nom)s"
+
+msgid "طلبات تسجيل جديدة"
+msgstr "Nouvelles candidatures"
+
+msgid "طلبات أساتذة بانتظار تصديقك"
+msgstr "Candidatures enseignants en attente de votre validation"
+
+msgid "طلبات تغيير حلقة"
+msgstr "Demandes de changement de groupe"
+
+msgid "الآن"
+msgstr "À l'instant"
+
+msgid "منذ دقيقة"
+msgstr "Il y a 1 minute"
+
+msgid "منذ دقيقتين"
+msgstr "Il y a 2 minutes"
+
+msgid "منذ %(n)s دقائق"
+msgstr "Il y a %(n)s minutes"
+
+msgid "منذ ساعة"
+msgstr "Il y a 1 heure"
+
+msgid "منذ ساعتين"
+msgstr "Il y a 2 heures"
+
+msgid "منذ %(n)s ساعات"
+msgstr "Il y a %(n)s heures"
+
+msgid "منذ يوم"
+msgstr "Il y a 1 jour"
+
+msgid "منذ يومين"
+msgstr "Il y a 2 jours"
+
+msgid "منذ %(n)s أيام"
+msgstr "Il y a %(n)s jours"
+
+msgid "منذ أسبوع"
+msgstr "Il y a 1 semaine"
+
+msgid "منذ أسبوعين"
+msgstr "Il y a 2 semaines"
+
+msgid "منذ %(n)s أسابيع"
+msgstr "Il y a %(n)s semaines"
+
 msgid "التسجيل مغلق حالياً"
 msgstr "Inscription actuellement fermée"
 

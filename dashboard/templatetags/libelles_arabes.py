@@ -1,5 +1,6 @@
 from django import template
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext as gettext_
 
 register = template.Library()
 
@@ -19,17 +20,17 @@ def lien_seance_actif(seance):
 # la fiche admin affiche le même libellé arabe que ce que le candidat a vu.
 # Toutes marquées traduisibles (gettext_lazy) : utilisées entre autres par
 # eleve_prof_detail.html et prof_profil.html (chantier traduction FR/EN,
-# 2026-08-27/28). 'statut_familial' reste brut (utilisé seulement par des
-# fiches admin non encore traduites).
+# 2026-08-27/28), et par les fiches مدير/مشرف (audit du 2026-08-28,
+# 'statut_familial' inclus depuis ce chantier-là).
 LIBELLES = {
     'sexe': {
         'homme': _('ذكر'),
         'femme': _('أنثى'),
     },
     'statut_familial': {
-        'celibataire': 'أعزب/عزباء',
-        'marie': 'متزوج/ة',
-        'divorce': 'مطلق/ة',
+        'celibataire': _('أعزب/عزباء'),
+        'marie': _('متزوج/ة'),
+        'divorce': _('مطلق/ة'),
     },
     'langues': {
         'arabe': _('العربية'),
@@ -89,15 +90,19 @@ def wa_number(telephone):
 # et aucun LocaleMiddleware ne sont configurés (voir core/settings.py), donc ce
 # filtre rendrait les mois en anglais ("January 2026") sans ce mapping explicite.
 MOIS_AR = {
-    1: 'يناير', 2: 'فبراير', 3: 'مارس', 4: 'أبريل', 5: 'ماي', 6: 'يونيو',
-    7: 'يوليوز', 8: 'غشت', 9: 'شتنبر', 10: 'أكتوبر', 11: 'نونبر', 12: 'دجنبر',
+    1: _('يناير'), 2: _('فبراير'), 3: _('مارس'), 4: _('أبريل'), 5: _('ماي'), 6: _('يونيو'),
+    7: _('يوليوز'), 8: _('غشت'), 9: _('شتنبر'), 10: _('أكتوبر'), 11: _('نونبر'), 12: _('دجنبر'),
 }
 
 
 @register.filter
 def mois_annee_ar(date_obj):
-    """Formate une date en 'mois_arabe année' (ex: 'يناير 2026'), convention
-    marocaine. Retombe sur une chaîne vide si date_obj est None."""
+    """Formate une date en 'mois année' (ex: 'يناير 2026' / 'Janvier 2026' /
+    'January 2026' selon la langue active), convention marocaine pour les
+    noms de mois arabes. Retombe sur une chaîne vide si date_obj est None.
+    Noms de mois passés par gettext_lazy (chantier i18n du 2026-08-28) —
+    unique source pour tous les appelants de ce filtre (eleve_paiements.html,
+    eleve_profil.html/bilans_mensuels, dashboard.views...), jamais dupliqués."""
     if not date_obj:
         return ''
     return f'{MOIS_AR.get(date_obj.month, date_obj.month)} {date_obj.year}'
@@ -140,38 +145,45 @@ def depuis_relatif(date_reference):
     delta = timezone.now() - date_reference
     secondes = delta.total_seconds()
     if secondes < 60:
-        return 'الآن'
+        return gettext_('الآن')
 
+    # À partir de 3 (jamais 1 ni 2, gérés à part ci-dessus) : une SEULE forme
+    # plurielle en fr/en (contrairement à l'arabe, sans dual/singulier ici),
+    # donc un simple gettext() suffit — pas besoin de ngettext(), que notre
+    # compilateur .mo maison (build_i18n2.py, entrées simples msgid->msgstr,
+    # jamais msgid_plural) ne sait de toute façon pas résoudre correctement
+    # (vérifié : ngettext() retombait silencieusement sur l'arabe faute
+    # d'entrée plurielle compilée dans le catalogue).
     minutes = int(secondes // 60)
     if minutes < 60:
         if minutes == 1:
-            return 'منذ دقيقة'
+            return gettext_('منذ دقيقة')
         if minutes == 2:
-            return 'منذ دقيقتين'
-        return f'منذ {minutes} دقائق'
+            return gettext_('منذ دقيقتين')
+        return gettext_('منذ %(n)s دقائق') % {'n': minutes}
 
     heures = minutes // 60
     if heures < 24:
         if heures == 1:
-            return 'منذ ساعة'
+            return gettext_('منذ ساعة')
         if heures == 2:
-            return 'منذ ساعتين'
-        return f'منذ {heures} ساعات'
+            return gettext_('منذ ساعتين')
+        return gettext_('منذ %(n)s ساعات') % {'n': heures}
 
     jours = heures // 24
     if jours < 7:
         if jours == 1:
-            return 'منذ يوم'
+            return gettext_('منذ يوم')
         if jours == 2:
-            return 'منذ يومين'
-        return f'منذ {jours} أيام'
+            return gettext_('منذ يومين')
+        return gettext_('منذ %(n)s أيام') % {'n': jours}
 
     semaines = jours // 7
     if semaines == 1:
-        return 'منذ أسبوع'
+        return gettext_('منذ أسبوع')
     if semaines == 2:
-        return 'منذ أسبوعين'
-    return f'منذ {semaines} أسابيع'
+        return gettext_('منذ أسبوعين')
+    return gettext_('منذ %(n)s أسابيع') % {'n': semaines}
 
 
 @register.filter
@@ -184,7 +196,7 @@ def tranche_age_ar(date_naissance):
         return ''
     from courses.utils import tranche_age_depuis_naissance
 
-    return 'بالغ' if tranche_age_depuis_naissance(date_naissance) == 'adulte' else 'طفل'
+    return gettext_('بالغ') if tranche_age_depuis_naissance(date_naissance) == 'adulte' else gettext_('طفل')
 
 
 @register.filter

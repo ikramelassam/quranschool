@@ -2547,6 +2547,189 @@ msgstr "Please choose a subscription type."
 msgid "هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد الدراسة. يرجى استخدام بريد إلكتروني آخر أو التواصل مع المدرسة."
 msgstr "This email address is already used by another account or a candidacy under review. Please use a different email address or contact the school."
 
+msgid "أرسل إثبات الدفع الشهري"
+msgstr "Send monthly payment proof"
+
+msgid "إرسال دفعة جديدة"
+msgstr "Send a new payment"
+
+msgid "اختر نفس الشهر في الحقلين لدفع شهر واحد فقط، أو مدى أطول لدفع عدة أشهر دفعة واحدة."
+msgstr "Choose the same month in both fields to pay a single month, or a longer range to pay several months at once."
+
+msgid "المبلغ المدفوع (درهم)"
+msgstr "Amount paid (dirhams)"
+
+msgid "صورة إثبات الدفع"
+msgstr "Payment proof photo"
+
+msgid "جاري الإرسال..."
+msgstr "Sending..."
+
+msgid "سجل المدفوعات"
+msgstr "Payment history"
+
+msgid "%(montant)s درهم — أُرسل في %(date)s"
+msgstr "%(montant)s dirhams — sent on %(date)s"
+
+msgid "مقبول ✅"
+msgstr "Accepted ✅"
+
+msgid "مرفوض ❌"
+msgstr "Rejected ❌"
+
+msgid "قيد المراجعة ⏳"
+msgstr "Under review ⏳"
+
+msgid "لا توجد مدفوعات بعد"
+msgstr "No payments yet"
+
+msgid "يناير"
+msgstr "January"
+
+msgid "فبراير"
+msgstr "February"
+
+msgid "مارس"
+msgstr "March"
+
+msgid "أبريل"
+msgstr "April"
+
+msgid "ماي"
+msgstr "May"
+
+msgid "يونيو"
+msgstr "June"
+
+msgid "يوليوز"
+msgstr "July"
+
+msgid "غشت"
+msgstr "August"
+
+msgid "شتنبر"
+msgstr "September"
+
+msgid "أكتوبر"
+msgstr "October"
+
+msgid "نونبر"
+msgstr "November"
+
+msgid "دجنبر"
+msgstr "December"
+
+msgid "الرابط غير متاح حالياً"
+msgstr "The link is not currently available"
+
+msgid "رابط الاجتماع غير متاح حالياً"
+msgstr "The meeting link is not currently available"
+
+msgid "لم يتم إضافة رابط اجتماع لهذه المجموعة بعد."
+msgstr "No meeting link has been added for this group yet."
+
+msgid "لا يمكن الانضمام إلى هذا الرابط إلا خلال هامش زمني محدد قبل وبعد موعد الحصة."
+msgstr "This link can only be joined within a set time margin before and after the session time."
+
+msgid "موعد الحصة"
+msgstr "Session time"
+
+msgid "كل جديد يستدعي انتباهك"
+msgstr "Everything that needs your attention"
+
+msgid "كل ما يخصك شخصياً — اختبارات، تقييمات، ملفات جديدة"
+msgstr "Everything that concerns you personally — exams, evaluations, new files"
+
+msgid "اختبار جديد: %(titre)s"
+msgstr "New exam: %(titre)s"
+
+msgid "اختبارات جديدة"
+msgstr "New exams"
+
+msgid "تقييم جديد لحصة %(groupe)s"
+msgstr "New evaluation for the %(groupe)s session"
+
+msgid "ملف جديد في حقيبتك: %(titre)s"
+msgstr "New file in your folder: %(titre)s"
+
+msgid "تقييمات جديدة على حصصك"
+msgstr "New evaluations on your sessions"
+
+msgid "ملفات جديدة في حقيبتك"
+msgstr "New files in your folder"
+
+msgid "بدون عنوان"
+msgstr "Untitled"
+
+msgid "تقييم جديد من المؤطر على حصة %(groupe)s"
+msgstr "New supervisor evaluation for the %(groupe)s session"
+
+msgid "ملف جديد في حقيبة الأستاذ: %(titre)s"
+msgstr "New file in the teacher folder: %(titre)s"
+
+msgid "تقييمات جديدة من المؤطر"
+msgstr "New supervisor evaluations"
+
+msgid "ملفات جديدة في حقيبة الأستاذ"
+msgstr "New files in the teacher folder"
+
+msgid "طلب تسجيل جديد: %(nom)s"
+msgstr "New application: %(nom)s"
+
+msgid "طلب أستاذ بانتظار تصديقك: %(nom)s %(prenom)s"
+msgstr "Teacher application awaiting your approval: %(nom)s %(prenom)s"
+
+msgid "طلب تغيير حلقة: %(nom)s"
+msgstr "Group change request: %(nom)s"
+
+msgid "طلبات تسجيل جديدة"
+msgstr "New applications"
+
+msgid "طلبات أساتذة بانتظار تصديقك"
+msgstr "Teacher applications awaiting your approval"
+
+msgid "طلبات تغيير حلقة"
+msgstr "Group change requests"
+
+msgid "الآن"
+msgstr "Just now"
+
+msgid "منذ دقيقة"
+msgstr "1 minute ago"
+
+msgid "منذ دقيقتين"
+msgstr "2 minutes ago"
+
+msgid "منذ %(n)s دقائق"
+msgstr "%(n)s minutes ago"
+
+msgid "منذ ساعة"
+msgstr "1 hour ago"
+
+msgid "منذ ساعتين"
+msgstr "2 hours ago"
+
+msgid "منذ %(n)s ساعات"
+msgstr "%(n)s hours ago"
+
+msgid "منذ يوم"
+msgstr "1 day ago"
+
+msgid "منذ يومين"
+msgstr "2 days ago"
+
+msgid "منذ %(n)s أيام"
+msgstr "%(n)s days ago"
+
+msgid "منذ أسبوع"
+msgstr "1 week ago"
+
+msgid "منذ أسبوعين"
+msgstr "2 weeks ago"
+
+msgid "منذ %(n)s أسابيع"
+msgstr "%(n)s weeks ago"
+
 msgid "التسجيل مغلق حالياً"
 msgstr "Registration currently closed"
 

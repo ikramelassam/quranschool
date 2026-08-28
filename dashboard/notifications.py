@@ -38,6 +38,7 @@ redéclenche donc jamais le badge, seule une VRAIE création le fait.
 """
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 # Fetch généreux (une seule requête, pas de 2e requête .count() séparée) —
 # largement suffisant pour distinguer "0 / 1-9 / 9+" une fois passé dans
@@ -139,7 +140,7 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
         ).order_by('-date_publication')[:LIMITE_FETCH]
     )
     evenements_examens = [
-        {'texte': f'اختبار جديد: {e.titre}', 'url': reverse('examens_eleve_liste'), 'date': e.date_publication}
+        {'texte': _('اختبار جديد: %(titre)s') % {'titre': e.titre}, 'url': reverse('examens_eleve_liste'), 'date': e.date_publication}
         for e in examens
     ]
 
@@ -162,7 +163,7 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
     )
     evenements_notes = [
         {
-            'texte': f'تقييم جديد لحصة {p.seance.groupe.nom}',
+            'texte': _('تقييم جديد لحصة %(groupe)s') % {'groupe': p.seance.groupe.nom},
             'url': reverse('eleve_seances'),
             'date': _datetime_seance(p.seance),
         }
@@ -175,17 +176,17 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
         .order_by('-date_ajout')[:LIMITE_FETCH]
     )
     evenements_cartable = [
-        {'texte': f'ملف جديد في حقيبتك: {d.titre or "بدون عنوان"}', 'url': reverse('eleve_cartable'), 'date': d.date_ajout}
+        {'texte': _('ملف جديد في حقيبتك: %(titre)s') % {'titre': d.titre or _('بدون عنوان')}, 'url': reverse('eleve_cartable'), 'date': d.date_ajout}
         for d in docs
     ]
 
     groupes = []
     if evenements_examens:
-        groupes.append({'icone': '📝', 'label': 'اختبارات جديدة', 'evenements': evenements_examens[:limite]})
+        groupes.append({'icone': '📝', 'label': _('اختبارات جديدة'), 'evenements': evenements_examens[:limite]})
     if evenements_notes:
-        groupes.append({'icone': '📋', 'label': 'تقييمات جديدة على حصصك', 'evenements': evenements_notes[:limite]})
+        groupes.append({'icone': '📋', 'label': _('تقييمات جديدة على حصصك'), 'evenements': evenements_notes[:limite]})
     if evenements_cartable:
-        groupes.append({'icone': '🎒', 'label': 'ملفات جديدة في حقيبتك', 'evenements': evenements_cartable[:limite]})
+        groupes.append({'icone': '🎒', 'label': _('ملفات جديدة في حقيبتك'), 'evenements': evenements_cartable[:limite]})
 
     total = len(evenements_examens) + len(evenements_notes) + len(evenements_cartable)
     return groupes, total
@@ -206,7 +207,7 @@ def notifications_prof(prof, user, limite=LIMITE_PAR_GROUPE):
     )
     evenements_evaluations = [
         {
-            'texte': f'تقييم جديد من المؤطر على حصة {e.seance.groupe.nom}',
+            'texte': _('تقييم جديد من المؤطر على حصة %(groupe)s') % {'groupe': e.seance.groupe.nom},
             'url': reverse('evaluations_prof_recues'),
             'date': e.date,
         }
@@ -219,15 +220,15 @@ def notifications_prof(prof, user, limite=LIMITE_PAR_GROUPE):
         .distinct().order_by('-date_ajout')[:LIMITE_FETCH]
     )
     evenements_hakiba = [
-        {'texte': f'ملف جديد في حقيبة الأستاذ: {el.titre or "بدون عنوان"}', 'url': reverse('prof_hakiba'), 'date': el.date_ajout}
+        {'texte': _('ملف جديد في حقيبة الأستاذ: %(titre)s') % {'titre': el.titre or _('بدون عنوان')}, 'url': reverse('prof_hakiba'), 'date': el.date_ajout}
         for el in elements
     ]
 
     groupes = []
     if evenements_evaluations:
-        groupes.append({'icone': '🧭', 'label': 'تقييمات جديدة من المؤطر', 'evenements': evenements_evaluations[:limite]})
+        groupes.append({'icone': '🧭', 'label': _('تقييمات جديدة من المؤطر'), 'evenements': evenements_evaluations[:limite]})
     if evenements_hakiba:
-        groupes.append({'icone': '📁', 'label': 'ملفات جديدة في حقيبة الأستاذ', 'evenements': evenements_hakiba[:limite]})
+        groupes.append({'icone': '📁', 'label': _('ملفات جديدة في حقيبة الأستاذ'), 'evenements': evenements_hakiba[:limite]})
 
     total = len(evenements_evaluations) + len(evenements_hakiba)
     return groupes, total
@@ -295,7 +296,7 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
     )
     evenements_demandes = [
         {
-            'texte': f'طلب تسجيل جديد: {d.nom}',
+            'texte': _('طلب تسجيل جديد: %(nom)s') % {'nom': d.nom},
             'url': reverse('admin_inscription_eleve_detail', args=[d.id]),
             'date': d.date_soumission,
         }
@@ -312,7 +313,7 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
         url_liste_profs = reverse('mshrif_inscriptions_profs')
         evenements_profs_en_attente = [
             {
-                'texte': f'طلب أستاذ بانتظار تصديقك: {p.nom} {p.prenom}',
+                'texte': _('طلب أستاذ بانتظار تصديقك: %(nom)s %(prenom)s') % {'nom': p.nom, 'prenom': p.prenom},
                 'url': url_liste_profs,
                 'date': p.date_validee_directeur,
             }
@@ -327,7 +328,7 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
     url_liste_changement_halaka = reverse('admin_demandes_changement_halaka')
     evenements_changement_halaka = [
         {
-            'texte': f'طلب تغيير حلقة: {d.eleve.user.get_full_name()}',
+            'texte': _('طلب تغيير حلقة: %(nom)s') % {'nom': d.eleve.user.get_full_name()},
             'url': url_liste_changement_halaka,
             'date': d.date_demande,
         }
@@ -337,16 +338,16 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
     groupes = []
     if evenements_demandes:
         groupes.append({
-            'icone': '📝', 'label': 'طلبات تسجيل جديدة', 'evenements': evenements_demandes[:limite],
+            'icone': '📝', 'label': _('طلبات تسجيل جديدة'), 'evenements': evenements_demandes[:limite],
         })
     if evenements_profs_en_attente:
         groupes.append({
-            'icone': '👨‍🏫', 'label': 'طلبات أساتذة بانتظار تصديقك',
+            'icone': '👨‍🏫', 'label': _('طلبات أساتذة بانتظار تصديقك'),
             'evenements': evenements_profs_en_attente[:limite],
         })
     if evenements_changement_halaka:
         groupes.append({
-            'icone': '🔄', 'label': 'طلبات تغيير حلقة', 'evenements': evenements_changement_halaka[:limite],
+            'icone': '🔄', 'label': _('طلبات تغيير حلقة'), 'evenements': evenements_changement_halaka[:limite],
         })
 
     return groupes, len(evenements_demandes) + len(evenements_profs_en_attente) + len(evenements_changement_halaka)

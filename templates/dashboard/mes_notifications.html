@@ -1,6 +1,6 @@
 {% extends base_template %}
-{% load libelles_arabes %}
-{% block title %}الإشعارات{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "الإشعارات" %}{% endblock %}
 {% block content %}
 {% comment %}
 "عرض الكل" du panneau 🔔 الإشعارات (Chantier notifications du 2026-08-19) —
@@ -10,7 +10,7 @@ individuelle marquée "lu/non-lu" — voir dashboard.views.mes_notifications
 et dashboard.notifications.__doc__ : chaque ligne est par construction non
 lue, elle disparaît d'elle-même dès que son type est visité).
 {% endcomment %}
-<div class="page-title">الإشعارات</div>
+<div class="page-title">{% trans "الإشعارات" %}</div>
 {% comment %}
 Sous-titre par rôle (chantier du 2026-08-24, ajout مدير/مشرف) — le texte
 "اختبارات، تقييمات، ملفات جديدة" ne concerne que eleve/prof (voir
@@ -21,9 +21,9 @@ contenu qui ne s'affichera jamais pour ce rôle.
 {% endcomment %}
 <div class="page-subtitle">
     {% if request.user.role == 'admin' or request.user.role == 'mshrif' %}
-    كل جديد يستدعي انتباهك
+    {% trans "كل جديد يستدعي انتباهك" %}
     {% else %}
-    كل ما يخصك شخصياً — اختبارات، تقييمات، ملفات جديدة
+    {% trans "كل ما يخصك شخصياً — اختبارات، تقييمات، ملفات جديدة" %}
     {% endif %}
 </div>
 
@@ -45,7 +45,7 @@ contenu qui ne s'affichera jamais pour ce rôle.
 {% else %}
 <div class="compact-card" style="text-align:center; color:#aaa; padding:40px;">
     <div style="font-size:1.8rem; opacity:0.5; margin-bottom:8px;">🔔</div>
-    لا توجد إشعارات جديدة
+    {% trans "لا توجد إشعارات جديدة" %}
 </div>
 {% endif %}
 {% endblock %}
