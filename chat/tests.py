@@ -628,6 +628,37 @@ class EnvoiMessagesTests(TestCase):
         message.fichier.delete(save=False)
 
 
+class ReessaiAudioEnErreurJsRenduTests(TestCase):
+    """Chantier du 2026-08-27 — bug remonté côté prof ("vocal inaudible
+    jusqu'à reconnexion"), confirmé par le client : un simple rafraîchissement
+    de la page corrige le problème (pas besoin de se déconnecter). Cause la
+    plus probable : le tout premier <audio preload="metadata"> inséré par AJAX
+    (envoi ou poll()) peut lancer sa requête avant que le fichier ne soit
+    réellement disponible côté stockage, et un <audio> en erreur ne réessaie
+    jamais tout seul — voir templates/chat/chat.html, reessayerAudioEnErreur().
+
+    Comportement RÉEL au runtime (retry après délai) non testable sans
+    exécution JS réelle (aucun framework/harness JS dans ce projet, voir
+    CLAUDE.md "pas de framework JS") — ce test suit donc le même patron que
+    ComposerJsRenduTests ci-dessus : vérifie que le script atteint bien le
+    navigateur (régression possible si un {% block extra_js %} venait à
+    manquer pour un rôle), pas son exécution."""
+
+    def test_prof_recoit_le_js_de_reessai_audio(self):
+        client = Client()
+        prof = _creer_prof()
+        _connecter(client, prof.user)
+        groupe = Groupe.objects.create(nom='مجموعة اختبار إعادة محاولة الصوت')
+        groupe.prof = prof
+        groupe.save()
+
+        response = client.get(f'/chat/{groupe.id}/')
+        self.assertEqual(response.status_code, 200)
+        contenu = response.content.decode('utf-8')
+        self.assertIn('function reessayerAudioEnErreur', contenu)
+        self.assertIn("addEventListener('error'", contenu)
+
+
 class NotificationsNonLusTests(TestCase):
     def setUp(self):
         self.eleve = _creer_eleve()

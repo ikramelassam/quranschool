@@ -525,6 +525,30 @@
                 audioEl.removeEventListener('durationchange', onDurationChange);
             }
         });
+        reessayerAudioEnErreur(audioEl);
+    }
+
+    // Chantier du 2026-08-27 — bug remonté ("vocal inaudible jusqu'à
+    // reconnexion") : confirmé par le client, un simple rafraîchissement de
+    // la page (pas besoin de se déconnecter) corrige le problème. Cause la
+    // plus probable : un <audio preload="metadata"> FRAÎCHEMENT inséré
+    // (juste après l'envoi, ou via poll() côté destinataire) lance sa 1ère
+    // requête immédiatement — si le fichier n'est pas encore réellement
+    // disponible côté stockage à cet instant précis (latence Cloudinary
+    // après upload), cette requête échoue, et un <audio> qui a déjà essuyé
+    // une erreur ne réessaie JAMAIS tout seul (contrairement à un
+    // rechargement complet de la page, qui crée un NOUVEL élément et relance
+    // donc une requête fraîche — qui réussit, le fichier ayant eu le temps
+    // de devenir disponible entre-temps). Un seul réessai après un court
+    // délai reproduit cet effet sans exiger de rechargement. dataset.
+    // reessaiAudio évite toute boucle si le fichier est réellement absent
+    // (échec définitif, ex: message supprimé) — un seul réessai, jamais plus.
+    function reessayerAudioEnErreur(audioEl) {
+        audioEl.addEventListener('error', function onError() {
+            if (audioEl.dataset.reessaiAudio) { return; }
+            audioEl.dataset.reessaiAudio = '1';
+            setTimeout(function () { audioEl.load(); }, 1500);
+        });
     }
     function corrigerDureesAudio(container) {
         if (!container) { return; }
