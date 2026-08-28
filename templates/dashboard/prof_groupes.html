@@ -1,9 +1,9 @@
 {% extends 'dashboard/base_prof.html' %}
-{% load libelles_arabes %}
-{% block title %}مجموعاتي{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "مجموعاتي" %}{% endblock %}
 {% block content %}
-<div class="page-title">مجموعاتي</div>
-<div class="page-subtitle">إجمالي المجموعات: {{ groupes|length }}</div>
+<div class="page-title">{% trans "مجموعاتي" %}</div>
+<div class="page-subtitle">{% blocktrans with n=groupes|length %}إجمالي المجموعات: {{ n }}{% endblocktrans %}</div>
 
 {% if groupes %}
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
@@ -15,9 +15,9 @@
                 <div style="font-weight:700; font-size:1.1rem; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ groupe.nom }}</div>
             </div>
             <div style="color:#888; font-size:0.9rem; margin-bottom:6px;">
-                👥 عدد الطلاب:
+                👥 {% trans "عدد الطلاب:" %}
                 <span style="background:var(--color-role-prof); color:white; border-radius:20px; padding:2px 10px; font-size:0.8rem;">
-                    {{ groupe.eleves.count }} طالب
+                    {% blocktrans with n=groupe.eleves.count %}{{ n }} طالب{% endblocktrans %}
                 </span>
             </div>
             {% if groupe.eleves.all %}
@@ -26,12 +26,12 @@
             </div>
             {% endif %}
             <div style="color:#888; font-size:0.9rem; margin-bottom:16px;">
-                📅 الجدول: {% if groupe.creneau %}{{ groupe.creneau }}{% else %}غير محدد{% endif %}
+                📅 {% trans "الجدول:" %} {% if groupe.creneau %}{{ groupe.creneau }}{% else %}{% trans "غير محدد" %}{% endif %}
             </div>
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
                 <a href="{% url 'prof_groupe_detail' groupe.id %}"
                    style="background:#f0f4f8; color:var(--color-role-prof-solid); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; font-weight:600;">
-                   عرض التفاصيل ←
+                   {% trans "عرض التفاصيل ←" %}
                 </a>
                 {% if groupe.id in chat_groupe_ids %}
                 {% include 'dashboard/_chat_icon.html' with groupe_id=groupe.id %}
@@ -42,6 +42,6 @@
     {% endfor %}
 </div>
 {% else %}
-<div style="text-align:center; padding:60px; color:#aaa;">لا توجد مجموعات بعد</div>
+<div style="text-align:center; padding:60px; color:#aaa;">{% trans "لا توجد مجموعات بعد" %}</div>
 {% endif %}
 {% endblock %}

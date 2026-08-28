@@ -19,6 +19,7 @@ chantier). Point d'extension pour une recherche serveur si une liste
 grossit un jour bien au-delà (SEUIL_BASCULE_SERVEUR ci-dessous, non
 câblé — B3 : "pas à implémenter maintenant").
 {% endcomment %}
+{% load i18n %}
 <style>
     .sc-original {
         position: absolute; opacity: 0; height: 1px; width: 1px;
@@ -29,7 +30,8 @@ câblé — B3 : "pas à implémenter maintenant").
         display: flex; align-items: center; justify-content: space-between; gap: 8px;
         width: 100%; background: white; border: 1px solid #dee2e6; border-radius: 8px;
         padding: 8px 14px; font-family: 'Tajawal', sans-serif; font-size: 0.92rem;
-        color: var(--color-text-primary, #2C1500); cursor: pointer; text-align: right;
+        color: var(--color-text-primary, #2C1500); cursor: pointer;
+        text-align: {% if LANGUAGE_BIDI %}right{% else %}left{% endif %};
     }
     .sc-control:focus, .sc-control.sc-open { outline: none; border-color: var(--color-brand-gold-dark, #8B4B00); }
     .sc-control-text.sc-placeholder { color: #888; }
@@ -56,8 +58,18 @@ câblé — B3 : "pas à implémenter maintenant").
     .sc-option.sc-selected { font-weight: 700; }
     .sc-vide { padding: 14px; text-align: center; color: #888; font-size: 0.85rem; }
 </style>
+{% trans "هذا الحقل مطلوب" as sc_texte_champ_requis %}
+{% trans "بحث..." as sc_texte_recherche_placeholder %}
+{% trans "تصفية القائمة" as sc_texte_recherche_aria %}
+{% trans "اختر..." as sc_texte_choisir %}
+{% trans "لا توجد نتائج" as sc_texte_aucun_resultat %}
 <script>
 (function () {
+    var SC_TEXTE_CHAMP_REQUIS = '{{ sc_texte_champ_requis|escapejs }}';
+    var SC_TEXTE_RECHERCHE_PLACEHOLDER = '{{ sc_texte_recherche_placeholder|escapejs }}';
+    var SC_TEXTE_RECHERCHE_ARIA = '{{ sc_texte_recherche_aria|escapejs }}';
+    var SC_TEXTE_CHOISIR = '{{ sc_texte_choisir|escapejs }}';
+    var SC_TEXTE_AUCUN_RESULTAT = '{{ sc_texte_aucun_resultat|escapejs }}';
     var SEUIL_BASCULE_SERVEUR = 200; // au-delà : envisager une recherche serveur (non implémenté ici, B3)
 
     function texteOption(option) {
@@ -97,7 +109,7 @@ câblé — B3 : "pas à implémenter maintenant").
 
         var erreurMsg = document.createElement('div');
         erreurMsg.className = 'sc-erreur-msg';
-        erreurMsg.textContent = 'هذا الحقل مطلوب';
+        erreurMsg.textContent = SC_TEXTE_CHAMP_REQUIS;
 
         var panel = document.createElement('div');
         panel.className = 'sc-panel';
@@ -106,8 +118,8 @@ câblé — B3 : "pas à implémenter maintenant").
         var filtre = document.createElement('input');
         filtre.type = 'text';
         filtre.className = 'sc-filtre';
-        filtre.placeholder = 'بحث...';
-        filtre.setAttribute('aria-label', 'تصفية القائمة');
+        filtre.placeholder = SC_TEXTE_RECHERCHE_PLACEHOLDER;
+        filtre.setAttribute('aria-label', SC_TEXTE_RECHERCHE_ARIA);
         panel.appendChild(filtre);
 
         var liste = document.createElement('div');
@@ -129,7 +141,7 @@ câblé — B3 : "pas à implémenter maintenant").
             var opt = options.find(function (o) { return o.value === select.value; });
             if (!opt || opt.value === '') {
                 var placeholder = options.length ? options[0] : null;
-                controlText.textContent = (placeholder && placeholder.value === '') ? placeholder.texte : 'اختر...';
+                controlText.textContent = (placeholder && placeholder.value === '') ? placeholder.texte : SC_TEXTE_CHOISIR;
                 controlText.classList.add('sc-placeholder');
             } else {
                 controlText.textContent = opt.texte;
@@ -157,7 +169,7 @@ câblé — B3 : "pas à implémenter maintenant").
             if (filtrees.length === 0) {
                 var vide = document.createElement('div');
                 vide.className = 'sc-vide';
-                vide.textContent = 'لا توجد نتائج';
+                vide.textContent = SC_TEXTE_AUCUN_RESULTAT;
                 liste.appendChild(vide);
                 return;
             }

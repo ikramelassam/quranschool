@@ -293,7 +293,7 @@ class Groupe(models.Model):
     capacite_max = models.IntegerField(default=10)
     statut = models.CharField(
         max_length=20,
-        choices=[('actif', 'نشط'), ('archive', 'مؤرشف')],
+        choices=[('actif', _('نشط')), ('archive', _('مؤرشف'))],
         default='actif'
     )
     # Masquage PONCTUEL du wizard public uniquement (chantier du 2026-08-23,
@@ -524,17 +524,17 @@ class TarifRemuneration(models.Model):
 
 class Seance(models.Model):
     TYPE_CHOICES = [
-        ('normal', 'عادية'),
-        ('rattrapage', 'حصة تعويضية'),
-        ('revision', 'مراجعة'),
+        ('normal', _('عادية')),
+        ('rattrapage', _('حصة تعويضية')),
+        ('revision', _('مراجعة')),
     ]
     # Mêmes libellés que dashboard/_seance_statut_badge.html (مخططة/منتهية/ملغاة),
     # affichés partout où get_statut_display() est appelé (ex: message d'erreur
     # d'admin_seance_annuler) — une seule et même formulation dans tout le projet.
     STATUT_CHOICES = [
-        ('planifiee', 'مخططة'),
-        ('terminee', 'منتهية'),
-        ('annulee', 'ملغاة'),
+        ('planifiee', _('مخططة')),
+        ('terminee', _('منتهية')),
+        ('annulee', _('ملغاة')),
     ]
     groupe = models.ForeignKey(
         Groupe,
