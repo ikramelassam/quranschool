@@ -1,6 +1,6 @@
 {% extends 'dashboard/base_eleve.html' %}
-{% load annonces_extras %}
-{% block title %}الإعلانات{% endblock %}
+{% load annonces_extras i18n %}
+{% block title %}{% trans "الإعلانات" %}{% endblock %}
 {% block content %}
 <style>
     /* Même rendu de publication que canal_detail.html (voir
@@ -56,12 +56,12 @@
     .pub-vide-sous { font-size: 0.86rem; color: var(--color-text-muted); }
 </style>
 
-<div class="page-title">الإعلانات</div>
-<div class="page-subtitle">القناة الموجهة إليك</div>
+<div class="page-title">{% trans "الإعلانات" %}</div>
+<div class="page-subtitle">{% trans "القناة الموجهة إليك" %}</div>
 
 {% if age_inconnu %}
 <div style="background:#fff3cd; color:#856404; border-radius:8px; padding:14px 20px; margin-bottom:20px; max-width:640px;">
-    ⚠️ لا يمكن تحديد قناتك حالياً — يرجى التواصل مع الإدارة.
+    ⚠️ {% trans "لا يمكن تحديد قناتك حالياً — يرجى التواصل مع الإدارة." %}
 </div>
 {% else %}
     {% if canal %}
@@ -80,8 +80,8 @@
         {% empty %}
         <div class="pub-vide">
             {% include 'annonces/_canal_icone.html' %}
-            <div class="pub-vide-titre">لا توجد إعلانات حالياً</div>
-            <div class="pub-vide-sous">ستظهر هنا فور نشر الإدارة لإعلان جديد في هذه القناة.</div>
+            <div class="pub-vide-titre">{% trans "لا توجد إعلانات حالياً" %}</div>
+            <div class="pub-vide-sous">{% trans "ستظهر هنا فور نشر الإدارة لإعلان جديد في هذه القناة." %}</div>
         </div>
         {% endfor %}
     </div>

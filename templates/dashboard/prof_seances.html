@@ -1,25 +1,25 @@
 {% extends 'dashboard/base_prof.html' %}
-{% load libelles_arabes %}
-{% block title %}سجل الحصص{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "سجل الحصص" %}{% endblock %}
 {% block content %}
-<div class="page-title">سجل الحصص</div>
-<div class="page-subtitle">إجمالي الحصص: {{ total_seances }}</div>
+<div class="page-title">{% trans "سجل الحصص" %}</div>
+<div class="page-subtitle">{% blocktrans with n=total_seances %}إجمالي الحصص: {{ n }}{% endblocktrans %}</div>
 
 {% if groupes|length > 1 %}
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
         <div class="col-md-4">
-            <label style="color:#888; font-size:0.8rem;">الحلقة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الحلقة" %}</label>
             <select name="groupe" class="form-select" data-select-cherchable>
-                <option value="">كل حلقاتي</option>
+                <option value="">{% trans "كل حلقاتي" %}</option>
                 {% for g in groupes %}
                 <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-4 d-flex gap-2">
-            <button type="submit" style="background:var(--color-role-prof); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
-            <a href="{% url 'prof_seances' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+            <button type="submit" style="background:var(--color-role-prof); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
+            <a href="{% url 'prof_seances' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
         </div>
     </div>
 </form>
@@ -28,15 +28,15 @@
 {% if nb_retard > 0 %}
 <a href="#retard" style="text-decoration:none; display:block; margin-bottom:24px;">
     <div style="background:#fff3e0; border:1px solid #ff9800; border-right:5px solid #ff9800; border-radius:10px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; color:#7a4a00;">
-        <span style="font-weight:700;">⚠️ {{ nb_retard }} حصص سابقة لم يتم تقييمها بعد</span>
-        <span style="font-size:0.85rem; white-space:nowrap;">عرض ↓</span>
+        <span style="font-weight:700;">⚠️ {% blocktrans with n=nb_retard %}{{ n }} حصص سابقة لم يتم تقييمها بعد{% endblocktrans %}</span>
+        <span style="font-size:0.85rem; white-space:nowrap;">{% trans "عرض ↓" %}</span>
     </div>
 </a>
 {% endif %}
 
 {# ===== اليوم ===== #}
 <div style="margin-bottom:30px;">
-    <div style="font-weight:700; color:var(--color-role-prof-solid); font-size:1.1rem; margin-bottom:12px;">📌 اليوم</div>
+    <div style="font-weight:700; color:var(--color-role-prof-solid); font-size:1.1rem; margin-bottom:12px;">📌 {% trans "اليوم" %}</div>
     {% if seances_aujourdhui %}
         <div style="display:flex; flex-direction:column; gap:10px;">
         {% for seance in seances_aujourdhui %}
@@ -50,23 +50,23 @@
                 <div style="display:flex; gap:10px; align-items:center;">
                     {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
                     <a href="{% url 'prof_seance_detail' seance.id %}"
-                       style="color:white; background:var(--color-role-prof); text-decoration:none; font-size:0.85rem; padding:6px 14px; border-radius:8px; font-weight:600;">فتح ←</a>
+                       style="color:white; background:var(--color-role-prof); text-decoration:none; font-size:0.85rem; padding:6px 14px; border-radius:8px; font-weight:600;">{% trans "فتح ←" %}</a>
                 </div>
             </div>
         {% endfor %}
         </div>
     {% else %}
-        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص اليوم</div>
+        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">{% trans "لا توجد حصص اليوم" %}</div>
     {% endif %}
 </div>
 
 {# ===== الماضية ===== #}
 <div id="section-passees" style="margin-bottom:30px;">
-    <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">📂 الماضية</div>
+    <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">📂 {% trans "الماضية" %}</div>
 
     {% if seances_retard %}
     <div id="retard" style="margin-bottom:22px;">
-        <div style="font-weight:600; color:#ff9800; font-size:0.95rem; margin-bottom:8px;">متأخرة — بانتظار التقييم</div>
+        <div style="font-weight:600; color:#ff9800; font-size:0.95rem; margin-bottom:8px;">{% trans "متأخرة — بانتظار التقييم" %}</div>
         <div style="display:flex; flex-direction:column; gap:8px;">
         {% for seance in seances_retard %}
             <div style="background:#fff8ec; border-radius:12px; padding:14px 20px; border-right:4px solid #ff9800; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -79,7 +79,7 @@
                 <div style="display:flex; gap:8px; align-items:center;">
                     {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
                     <a href="{% url 'prof_seance_detail' seance.id %}"
-                       style="color:white; background:#ff9800; text-decoration:none; font-size:0.85rem; padding:6px 14px; border-radius:8px; font-weight:600;">تقييم الآن ←</a>
+                       style="color:white; background:#ff9800; text-decoration:none; font-size:0.85rem; padding:6px 14px; border-radius:8px; font-weight:600;">{% trans "تقييم الآن ←" %}</a>
                 </div>
             </div>
         {% endfor %}
@@ -98,20 +98,20 @@
             <div style="display:flex; gap:8px; align-items:center;">
                 {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
                 <a href="{% url 'prof_seance_detail' seance.id %}"
-                   style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                   style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.85rem;">{% trans "عرض ←" %}</a>
             </div>
         </div>
         {% endfor %}
     </div>
     {% include 'dashboard/_pagination.html' with page_obj=seances_passees_traitees %}
     {% elif not seances_retard %}
-        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص سابقة</div>
+        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">{% trans "لا توجد حصص سابقة" %}</div>
     {% endif %}
 </div>
 
 {# ===== القادمة ===== #}
 <div>
-    <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">🔜 القادمة</div>
+    <div style="font-weight:700; color:#555; font-size:1.1rem; margin-bottom:12px;">🔜 {% trans "القادمة" %}</div>
     {% if seances_a_venir %}
         <div style="background:white; border-radius:12px; padding:8px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
         {% for seance in seances_a_venir %}
@@ -122,13 +122,13 @@
                         {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }} — {{ seance.get_type_display }}
                     </div>
                     <div style="color:#aaa; font-size:0.8rem; margin-top:2px;">
-                        👥 {{ seance.groupe.eleves.all|length }} طلاب{% if seance.groupe.eleves.all %}: {{ seance.groupe.eleves|noms_eleves }}{% endif %}
+                        👥 {% blocktrans with n=seance.groupe.eleves.all|length %}{{ n }} طلاب{% endblocktrans %}{% if seance.groupe.eleves.all %}: {{ seance.groupe.eleves|noms_eleves }}{% endif %}
                     </div>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                     {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
                     <a href="{% url 'prof_seance_detail' seance.id %}"
-                       style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                       style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.85rem;">{% trans "عرض ←" %}</a>
                 </div>
             </div>
         {% endfor %}
@@ -142,13 +142,13 @@
                         {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }} — {{ seance.get_type_display }}
                     </div>
                     <div style="color:#aaa; font-size:0.8rem; margin-top:2px;">
-                        👥 {{ seance.groupe.eleves.all|length }} طلاب{% if seance.groupe.eleves.all %}: {{ seance.groupe.eleves|noms_eleves }}{% endif %}
+                        👥 {% blocktrans with n=seance.groupe.eleves.all|length %}{{ n }} طلاب{% endblocktrans %}{% if seance.groupe.eleves.all %}: {{ seance.groupe.eleves|noms_eleves }}{% endif %}
                     </div>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                     {% include 'dashboard/_seance_statut_badge.html' with seance=seance aujourdhui=aujourdhui %}
                     <a href="{% url 'prof_seance_detail' seance.id %}"
-                       style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                       style="color:var(--color-role-prof-solid); text-decoration:none; font-size:0.85rem;">{% trans "عرض ←" %}</a>
                 </div>
             </div>
         {% endfor %}
@@ -157,11 +157,12 @@
         </div>
         {% if seances_a_venir_extra %}
         <div style="text-align:center; margin-top:8px;">
-            <span id="toggle_a_venir_texte" onclick="toggleSeancesAVenir()" style="cursor:pointer; color:var(--color-role-prof-solid); font-size:0.85rem; text-decoration:underline;">+ {{ nb_a_venir|add:"-10" }} حصة أخرى قادمة لاحقاً — عرض ↓</span>
+            {% blocktrans with n=nb_a_venir|add:"-10" asvar texte_plus_a_venir_prof %}+ {{ n }} حصة أخرى قادمة لاحقاً — عرض ↓{% endblocktrans %}
+            <span id="toggle_a_venir_texte" onclick="toggleSeancesAVenir()" style="cursor:pointer; color:var(--color-role-prof-solid); font-size:0.85rem; text-decoration:underline;">{{ texte_plus_a_venir_prof }}</span>
         </div>
         {% endif %}
     {% else %}
-        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">لا توجد حصص قادمة</div>
+        <div style="background:white; border-radius:12px; padding:20px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04);">{% trans "لا توجد حصص قادمة" %}</div>
     {% endif %}
 </div>
 
@@ -171,7 +172,8 @@ function toggleSeancesAVenir() {
     const texte = document.getElementById('toggle_a_venir_texte');
     const ouvert = extra.style.display !== 'none';
     extra.style.display = ouvert ? 'none' : 'block';
-    texte.textContent = ouvert ? '+ {{ nb_a_venir|add:"-10" }} حصة أخرى قادمة لاحقاً — عرض ↓' : 'إخفاء ↑';
+    {% trans "إخفاء ↑" as texte_masquer_prof %}
+    texte.textContent = ouvert ? '{{ texte_plus_a_venir_prof|default:""|escapejs }}' : '{{ texte_masquer_prof|escapejs }}';
 }
 </script>
 {% endblock %}

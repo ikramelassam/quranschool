@@ -1,5 +1,6 @@
 {% extends 'dashboard/base_eleve.html' %}
-{% block title %}حقيبتي{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "حقيبتي" %}{% endblock %}
 {% block content %}
 {% comment %}
 Cartable élève (Tâche du 2026-08-18) — équivalent, côté élève, de
@@ -7,8 +8,8 @@ prof_hakiba.html : مدير/مشرف déposent des fichiers ici (accounts.
 DocumentEleve), l'élève les consulte en lecture seule, aucune gestion
 possible d'ici.
 {% endcomment %}
-<div class="page-title">حقيبتي</div>
-<div class="page-subtitle">الملفات التي أضافتها الإدارة إلى ملفك الشخصي</div>
+<div class="page-title">{% trans "حقيبتي" %}</div>
+<div class="page-subtitle">{% trans "الملفات التي أضافتها الإدارة إلى ملفك الشخصي" %}</div>
 
 <div class="compact-card">
     {% for doc in documents %}
@@ -17,10 +18,10 @@ possible d'ici.
             <div style="font-weight:600;">{{ doc.titre|default:doc.fichier.name }}</div>
             <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">{{ doc.date_ajout|date:"d-m-Y" }}</div>
         </div>
-        <a href="{{ doc.fichier.url }}" target="_blank" rel="noopener" style="flex-shrink:0; color:var(--color-role-eleve-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">تحميل ⬇</a>
+        <a href="{{ doc.fichier.url }}" target="_blank" rel="noopener" style="flex-shrink:0; color:var(--color-role-eleve-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">{% trans "تحميل ⬇" %}</a>
     </div>
     {% empty %}
-    <div style="color:#aaa; text-align:center; padding:30px 0;">لا توجد ملفات في حقيبتك حالياً</div>
+    <div style="color:#aaa; text-align:center; padding:30px 0;">{% trans "لا توجد ملفات في حقيبتك حالياً" %}</div>
     {% endfor %}
 </div>
 {% endblock %}

@@ -1,5 +1,6 @@
 from django import template
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 register = template.Library()
 
@@ -38,9 +39,9 @@ def repere_jour_message(jour):
     aujourdhui = timezone.localdate()
     difference = (aujourdhui - jour).days
     if difference == 0:
-        return 'اليوم'
+        return _('اليوم')
     if difference == 1:
-        return 'أمس'
+        return _('أمس')
     return jour.strftime('%Y-%m-%d')
 
 
@@ -60,7 +61,7 @@ def nom_categorie_chat(code_categorie):
     une chaîne vide qui laisserait un badge illisible."""
     from annonces.services import canal_pour_code
     canal = canal_pour_code(code_categorie)
-    return canal['nom'] if canal else 'غير مصنف'
+    return canal['nom'] if canal else _('غير مصنف')
 
 
 @register.filter
@@ -70,7 +71,7 @@ def taille_lisible(taille_octets):
         return ''
     taille_octets = float(taille_octets)
     if taille_octets < 1024:
-        return f'{int(taille_octets)} بايت'
+        return _('%(n)d بايت') % {'n': int(taille_octets)}
     if taille_octets < 1024 * 1024:
-        return f'{taille_octets / 1024:.1f} ك.ب'
-    return f'{taille_octets / (1024 * 1024):.1f} م.ب'
+        return _('%(n).1f ك.ب') % {'n': taille_octets / 1024}
+    return _('%(n).1f م.ب') % {'n': taille_octets / (1024 * 1024)}

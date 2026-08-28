@@ -1,4 +1,5 @@
 {% extends 'inscriptions/_wizard_base.html' %}
+{% load i18n %}
 {% comment %}
 Chantier du 2026-08-23 (Partie 3B, "étapes repositionnables/insérables
 n'importe où") — page GÉNÉRIQUE unique pour TOUTE étape personnalisée créée
@@ -16,7 +17,7 @@ n'a pas de position fixe qui y corresponde — jamais un point trompeur.
 
     {% include 'inscriptions/_champs_dynamiques.html' %}
 
-    <button type="submit" class="btn-submit">التالي ←</button>
-    <a href="{{ url_precedente }}" class="btn-back">رجوع</a>
+    <button type="submit" class="btn-submit">{% trans "التالي ←" %}</button>
+    <a href="{{ url_precedente }}" class="btn-back">{% trans "رجوع" %}</a>
 </form>
 {% endblock %}

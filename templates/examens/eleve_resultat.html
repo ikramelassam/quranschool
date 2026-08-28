@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_eleve.html' %}
+{% load i18n %}
 {% block title %}{{ examen.titre }}{% endblock %}
 {% block content %}
 <div class="page-title">{{ examen.titre }}</div>
@@ -8,14 +9,14 @@
     <div style="text-align:center; margin-bottom:20px;">
         {% if copie.note_totale is not None %}
             <div style="font-size:2.4rem; font-weight:700; color:var(--color-role-eleve-solid);">{{ copie.note_totale }} / {{ examen.points_max }}</div>
-            <div style="color:#888; margin-top:4px;">✅ تم تصحيح إجاباتك بالكامل</div>
+            <div style="color:#888; margin-top:4px;">✅ {% trans "تم تصحيح إجاباتك بالكامل" %}</div>
         {% else %}
-            <div style="font-size:1.3rem; font-weight:700; color:#b35900;">📩 تم تسليم إجاباتك</div>
-            <div style="color:#888; margin-top:4px;">بانتظار تصحيح الأستاذ لبعض الأسئلة</div>
+            <div style="font-size:1.3rem; font-weight:700; color:#b35900;">📩 {% trans "تم تسليم إجاباتك" %}</div>
+            <div style="color:#888; margin-top:4px;">{% trans "بانتظار تصحيح الأستاذ لبعض الأسئلة" %}</div>
         {% endif %}
     </div>
     <div style="color:#aaa; font-size:0.85rem; text-align:center;">
-        سُلِّمت في {{ copie.date_soumission|date:"d-m-Y H:i" }}{% if copie.soumission_automatique %} (تلقائياً عند انتهاء الوقت المحدد){% endif %}
+        {% blocktrans with date_soumission=copie.date_soumission|date:"d-m-Y H:i" %}سُلِّمت في {{ date_soumission }}{% endblocktrans %}{% if copie.soumission_automatique %} ({% trans "تلقائياً عند انتهاء الوقت المحدد" %}){% endif %}
     </div>
 </div>
 
@@ -29,28 +30,28 @@
         <div style="font-weight:600; margin:6px 0 8px;">{{ reponse.question.enonce }}</div>
 
         {% if reponse.question.type_question == 'choix' %}
-            <div style="color:#555;">إجابتك: {% if reponse.reponse_choix %}{{ reponse.reponse_choix.texte }}{% else %}<em style="color:#aaa;">لم تُجب</em>{% endif %}</div>
+            <div style="color:#555;">{% trans "إجابتك:" %} {% if reponse.reponse_choix %}{{ reponse.reponse_choix.texte }}{% else %}<em style="color:#aaa;">{% trans "لم تُجب" %}</em>{% endif %}</div>
         {% elif reponse.question.type_question == 'vrai_faux' %}
-            <div style="color:#555;">إجابتك: {% if reponse.reponse_bool is not None %}{% if reponse.reponse_bool %}صح{% else %}خطأ{% endif %}{% else %}<em style="color:#aaa;">لم تُجب</em>{% endif %}</div>
+            <div style="color:#555;">{% trans "إجابتك:" %} {% if reponse.reponse_bool is not None %}{% if reponse.reponse_bool %}{% trans "صح" %}{% else %}{% trans "خطأ" %}{% endif %}{% else %}<em style="color:#aaa;">{% trans "لم تُجب" %}</em>{% endif %}</div>
         {% elif reponse.question.type_question == 'texte' %}
             <div style="background:#f9f7f2; border-radius:8px; padding:10px 12px; color:#555; white-space:pre-wrap;">{{ reponse.reponse_texte|default:"—" }}</div>
         {% elif reponse.question.type_question == 'audio' %}
             {% if reponse.reponse_audio %}
             <audio controls style="width:100%; max-width:360px;"><source src="{% url 'examens_reponse_audio' reponse.id %}"></audio>
             {% else %}
-            <div style="color:#aaa;">لم تُرفق تسجيلاً صوتياً.</div>
+            <div style="color:#aaa;">{% trans "لم تُرفق تسجيلاً صوتياً." %}</div>
             {% endif %}
         {% elif reponse.question.type_question == 'video' %}
             {% if reponse.reponse_video %}
             <video controls style="width:100%; max-width:360px; border-radius:8px;"><source src="{% url 'examens_reponse_video' reponse.id %}"></video>
             {% else %}
-            <div style="color:#aaa;">لم تُرفق فيديو.</div>
+            <div style="color:#aaa;">{% trans "لم تُرفق فيديو." %}</div>
             {% endif %}
         {% endif %}
 
         {% if reponse.statut_correction != 'a_corriger' %}
         <div style="margin-top:10px; font-weight:600; color:{% if reponse.points_obtenus %}#2d5a1b{% else %}#b71c1c{% endif %};">
-            {{ reponse.points_obtenus|default:0 }} / {{ reponse.question.points }} نقطة
+            {% blocktrans with points=reponse.points_obtenus|default:0 max=reponse.question.points %}{{ points }} / {{ max }} نقطة{% endblocktrans %}
         </div>
         {% if reponse.commentaire_prof %}
         <div style="color:#888; font-size:0.85rem; margin-top:4px;">💬 {{ reponse.commentaire_prof }}</div>

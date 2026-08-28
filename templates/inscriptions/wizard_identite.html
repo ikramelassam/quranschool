@@ -1,8 +1,9 @@
 {% extends 'inscriptions/_wizard_base.html' %}
-{% block wizard_title %}المعلومات الشخصية{% endblock %}
+{% load i18n %}
+{% block wizard_title %}{% trans "المعلومات الشخصية" %}{% endblock %}
 {% block wizard_content %}
-<div class="page-title">المعلومات الشخصية</div>
-<div class="page-subtitle">الخطوة 1 من 6</div>
+<div class="page-title">{% trans "المعلومات الشخصية" %}</div>
+<div class="page-subtitle">{% trans "الخطوة 1 من 6" %}</div>
 
 <form method="POST">
     {% csrf_token %}
@@ -13,10 +14,10 @@
             <label class="form-label">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
             <div class="row g-2">
                 <div class="col-6">
-                    <div class="select-btn {% if config.valeur_actuelle == 'homme' %}active{% endif %}" onclick="selectionnerSexe('homme', this)">ذكر</div>
+                    <div class="select-btn select-btn-sexe {% if config.valeur_actuelle == 'homme' %}active{% endif %}" onclick="selectionnerSexe('homme', this)">{% trans "ذكر" %}</div>
                 </div>
                 <div class="col-6">
-                    <div class="select-btn {% if config.valeur_actuelle == 'femme' %}active{% endif %}" onclick="selectionnerSexe('femme', this)">أنثى</div>
+                    <div class="select-btn select-btn-sexe {% if config.valeur_actuelle == 'femme' %}active{% endif %}" onclick="selectionnerSexe('femme', this)">{% trans "أنثى" %}</div>
                 </div>
             </div>
             <input type="hidden" name="sexe" id="sexe_value" value="{{ config.valeur_actuelle|default:'' }}">
@@ -56,16 +57,17 @@
     {% endcomment %}
     {% include 'inscriptions/_champs_dynamiques.html' %}
 
-    <button type="submit" class="btn-submit">التالي ←</button>
-    <a href="{% url 'wizard_intro' %}" class="btn-back">رجوع</a>
+    <button type="submit" class="btn-submit">{% trans "التالي ←" %}</button>
+    <a href="{% url 'wizard_intro' %}" class="btn-back">{% trans "رجوع" %}</a>
 </form>
 
 <script>
     function selectionnerSexe(valeur, element) {
         document.getElementById('sexe_value').value = valeur;
-        document.querySelectorAll('.select-btn').forEach(el => {
-            if (el.textContent.trim() === 'ذكر' || el.textContent.trim() === 'أنثى') el.classList.remove('active');
-        });
+        // Comparait auparavant le texte affiché ('ذكر'/'أنثى') — cassé dès que
+        // ce texte se traduit (chantier FR/EN, 2026-08-27). La classe
+        // .select-btn-sexe identifie les 2 boutons indépendamment de la langue.
+        document.querySelectorAll('.select-btn-sexe').forEach(el => el.classList.remove('active'));
         element.classList.add('active');
     }
 </script>

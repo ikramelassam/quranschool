@@ -5,6 +5,7 @@ du compte role=admin, pas de nouveau champ dédié — Tâche 23, Partie 5 du
 section "جهات الاتصال" depuis la Tâche 20, qui inclut déjà son مؤطر et le مدير).
 Usage : {% include 'dashboard/_contact_administration.html' with admins=admins %}
 {% endcomment %}
+{% load i18n %}
 {% if admins %}
     {% for admin in admins %}
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
@@ -21,5 +22,5 @@ Usage : {% include 'dashboard/_contact_administration.html' with admins=admins %
     </div>
     {% endfor %}
 {% else %}
-    <div style="color:#aaa; padding:8px 0;">لا توجد إدارة مسجَّلة</div>
+    <div style="color:#aaa; padding:8px 0;">{% trans "لا توجد إدارة مسجَّلة" %}</div>
 {% endif %}

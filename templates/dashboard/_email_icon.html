@@ -1,6 +1,7 @@
+{% load i18n %}
 {% if email %}
 <a href="mailto:{{ email }}" target="_blank" rel="noopener"
-   title="مراسلة عبر البريد الإلكتروني" class="contact-icon-link contact-icon-mail">
+   title="{% trans 'مراسلة عبر البريد الإلكتروني' %}" class="contact-icon-link contact-icon-mail">
     <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="12" fill="#8B4B00"/>
         <rect x="5.5" y="8" width="13" height="9" rx="1.3" fill="none" stroke="#FFFFFF" stroke-width="1.4"/>

@@ -1,19 +1,20 @@
+{% load i18n %}
 {# Formulaire de correction manuelle (texte/audio) — inclus depuis copie_correction.html pour CHAQUE réponse concernée. Chaque formulaire poste indépendamment vers la même vue (reponse_id identifie la cible), pas de soumission groupée : le prof peut corriger question par question sans perdre les corrections déjà enregistrées. #}
 <form method="POST" style="margin-top:12px; background:#f9f7f2; border-radius:8px; padding:14px 16px;">
     {% csrf_token %}
     <input type="hidden" name="reponse_id" value="{{ reponse.id }}">
     <div class="row g-2 align-items-end">
         <div class="col-auto">
-            <label style="color:#888; font-size:0.78rem; display:block;">النقاط (من {{ reponse.question.points }})</label>
+            <label style="color:#888; font-size:0.78rem; display:block;">{% blocktrans with max=reponse.question.points %}النقاط (من {{ max }}){% endblocktrans %}</label>
             <input type="number" name="points_obtenus" min="0" max="{{ reponse.question.points }}" step="0.5"
                    value="{{ reponse.points_obtenus|default_if_none:'' }}" class="form-control" style="width:100px;" required>
         </div>
         <div class="col">
-            <label style="color:#888; font-size:0.78rem; display:block;">ملاحظة (اختياري)</label>
+            <label style="color:#888; font-size:0.78rem; display:block;">{% trans "ملاحظة (اختياري)" %}</label>
             <input type="text" name="commentaire" value="{{ reponse.commentaire_prof }}" class="form-control">
         </div>
         <div class="col-auto">
-            <button type="submit" style="background:var(--color-role-prof); color:white; border:none; border-radius:8px; padding:9px 18px; font-weight:600;">حفظ</button>
+            <button type="submit" style="background:var(--color-role-prof); color:white; border:none; border-radius:8px; padding:9px 18px; font-weight:600;">{% trans "حفظ" %}</button>
         </div>
     </div>
 </form>

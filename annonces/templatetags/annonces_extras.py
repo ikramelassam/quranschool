@@ -1,4 +1,5 @@
 from django import template
+from django.utils.translation import gettext as _
 
 register = template.Library()
 
@@ -12,10 +13,10 @@ def taille_lisible(taille_octets):
         return ''
     taille_octets = float(taille_octets)
     if taille_octets < 1024:
-        return f'{int(taille_octets)} بايت'
+        return _('%(n)d بايت') % {'n': int(taille_octets)}
     if taille_octets < 1024 * 1024:
-        return f'{taille_octets / 1024:.1f} ك.ب'
-    return f'{taille_octets / (1024 * 1024):.1f} م.ب'
+        return _('%(n).1f ك.ب') % {'n': taille_octets / 1024}
+    return _('%(n).1f م.ب') % {'n': taille_octets / (1024 * 1024)}
 
 
 @register.filter

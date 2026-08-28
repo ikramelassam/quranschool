@@ -3,6 +3,7 @@ import datetime
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from accounts.models import Superviseur, Prof
 from courses.models import Seance
 
@@ -81,11 +82,11 @@ class Evaluation(models.Model):
 
 class NoteEvaluation(models.Model):
     NOTE_CHOICES = [
-        (0, 'منعدم'),
-        (1, 'ضعيف'),
-        (2, 'متوسط'),
-        (3, 'حسن'),
-        (4, 'حسن جدا'),
+        (0, _('منعدم')),
+        (1, _('ضعيف')),
+        (2, _('متوسط')),
+        (3, _('حسن')),
+        (4, _('حسن جدا')),
     ]
     evaluation = models.ForeignKey(
         Evaluation,

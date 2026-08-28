@@ -2,6 +2,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class User(AbstractUser):
@@ -93,10 +94,13 @@ class EleveActifsManager(models.Manager):
 
 
 class Eleve(models.Model):
+    # gettext_lazy (pas gettext) : ces choices sont évaluées au chargement du
+    # module, avant qu'une requête/langue ne soit connue — gettext_lazy retarde
+    # la traduction réelle jusqu'au rendu (voir eleve_profil.html, get_statut_display).
     STATUT_CHOICES = [
-        ('actif', 'نشط'),
-        ('suspendu', 'موقوف'),
-        ('archive', 'مؤرشف'),
+        ('actif', _('نشط')),
+        ('suspendu', _('موقوف')),
+        ('archive', _('مؤرشف')),
     ]
     user = models.OneToOneField(
         User,

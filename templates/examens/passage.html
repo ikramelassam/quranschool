@@ -1,5 +1,5 @@
 {% extends 'dashboard/base_eleve.html' %}
-{% load examens_extras %}
+{% load examens_extras i18n %}
 {% block title %}{{ examen.titre }}{% endblock %}
 {% block extra_css %}
 <style>
@@ -31,7 +31,7 @@
     {% for question in questions %}
     <div class="carte-question" style="background:white; border-radius:12px; padding:18px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:14px;">
         <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px;">
-            <div style="color:#aaa; font-size:0.78rem;">سؤال {{ forloop.counter }} / {{ questions|length }} — {{ question.points }} نقطة</div>
+            <div style="color:#aaa; font-size:0.78rem;">{% blocktrans with num=forloop.counter total=questions|length points=question.points %}سؤال {{ num }} / {{ total }} — {{ points }} نقطة{% endblocktrans %}</div>
             <span class="statut-enregistrement" id="statut-{{ question.id }}" style="font-size:0.78rem; color:#aaa;"></span>
         </div>
         <div style="font-weight:600; margin:6px 0 14px; font-size:1.02rem;">{{ question.enonce }}</div>
@@ -43,7 +43,7 @@
                 <input type="radio" name="choix_{{ question.id }}" value="{{ c.id }}" style="width:20px; height:20px;"
                        onchange="autosaveChoix({{ question.id }}, {{ c.id }})"
                        {% if r.reponse_choix_id == c.id %}checked{% endif %}>
-                <span>{{ c.texte }}</span>
+                <span>{{ c.texte }}</span>{# c.texte = choix libre saisi par le prof, contenu métier — pas traduit #}
             </label>
             {% endfor %}
             {% endwith %}
@@ -53,18 +53,19 @@
             <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #eee; border-radius:8px; margin-bottom:8px; cursor:pointer;">
                 <input type="radio" name="vf_{{ question.id }}" value="true" style="width:20px; height:20px;"
                        onchange="autosaveVraiFaux({{ question.id }}, true)" {% if r.reponse_bool == True %}checked{% endif %}>
-                <span>صح</span>
+                <span>{% trans "صح" %}</span>
             </label>
             <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #eee; border-radius:8px; cursor:pointer;">
                 <input type="radio" name="vf_{{ question.id }}" value="false" style="width:20px; height:20px;"
                        onchange="autosaveVraiFaux({{ question.id }}, false)" {% if r.reponse_bool == False %}checked{% endif %}>
-                <span>خطأ</span>
+                <span>{% trans "خطأ" %}</span>
             </label>
             {% endwith %}
 
         {% elif question.type_question == 'texte' %}
             {% with r=reponses|get_item:question.id %}
-            <textarea class="form-control" rows="3" placeholder="اكتب إجابتك هنا..."
+            {% trans "اكتب إجابتك هنا..." as placeholder_reponse_texte %}
+            <textarea class="form-control" rows="3" placeholder="{{ placeholder_reponse_texte }}"
                       onblur="autosaveTexte({{ question.id }}, this.value)">{{ r.reponse_texte }}</textarea>
             {% endwith %}
 
@@ -76,7 +77,7 @@
                     <source src="{% url 'examens_reponse_audio' r.id %}">
                 </audio>
                 <button type="button" onclick="supprimerAudio({{ question.id }})"
-                        style="background:#fce4e4; color:#b71c1c; border:none; border-radius:8px; padding:8px 16px; font-size:0.85rem;">🗑 حذف التسجيل</button>
+                        style="background:#fce4e4; color:#b71c1c; border:none; border-radius:8px; padding:8px 16px; font-size:0.85rem;">🗑 {% trans "حذف التسجيل" %}</button>
                 {% else %}
                 {% comment %}
                 Widget d'enregistrement direct (Bug du 2026-08-16, 2e passage) — le
@@ -92,7 +93,7 @@
                 <div id="audio-boutons-{{ question.id }}" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                     <button type="button" onclick="demarrerEnregistrementAudio({{ question.id }})"
                             style="background:#2d5a1b; color:white; border:none; border-radius:20px; padding:9px 20px; font-size:0.9rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                        🎤 تسجيل صوتي
+                        🎤 {% trans "تسجيل صوتي" %}
                     </button>
                 </div>
 
@@ -100,12 +101,12 @@
                      style="display:flex; align-items:center; gap:10px; background:#fce9e7; color:#b71c1c; border-radius:10px; padding:10px 16px; font-size:0.86rem; font-weight:600; margin-top:8px;">
                     <span class="examen-point-rec" aria-hidden="true"
                           style="width:9px; height:9px; border-radius:50%; background:#b71c1c; flex-shrink:0;"></span>
-                    <span>جارٍ التسجيل… <span id="audio-duree-{{ question.id }}">00:00</span></span>
+                    <span>{% trans "جارٍ التسجيل…" %} <span id="audio-duree-{{ question.id }}">00:00</span></span>
                     <span style="margin-inline-start:auto; display:flex; gap:8px;">
                         <button type="button" onclick="arreterEnregistrementAudio({{ question.id }})"
-                                style="border:none; background:white; color:#b71c1c; border-radius:16px; padding:5px 14px; font-size:0.8rem; cursor:pointer;">⏹ إيقاف</button>
+                                style="border:none; background:white; color:#b71c1c; border-radius:16px; padding:5px 14px; font-size:0.8rem; cursor:pointer;">⏹ {% trans "إيقاف" %}</button>
                         <button type="button" onclick="annulerEnregistrementAudio({{ question.id }})"
-                                style="border:none; background:transparent; color:#b71c1c; border-radius:16px; padding:5px 10px; font-size:0.8rem; cursor:pointer;">✕ إلغاء</button>
+                                style="border:none; background:transparent; color:#b71c1c; border-radius:16px; padding:5px 10px; font-size:0.8rem; cursor:pointer;">✕ {% trans "إلغاء" %}</button>
                     </span>
                 </div>
 
@@ -114,13 +115,13 @@
                     <audio controls id="audio-apercu-player-{{ question.id }}" style="width:100%; margin-bottom:10px;"></audio>
                     <div style="display:flex; gap:10px;">
                         <button type="button" onclick="confirmerEnregistrementAudio({{ question.id }})"
-                                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">✓ حفظ التسجيل</button>
+                                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">✓ {% trans "حفظ التسجيل" %}</button>
                         <button type="button" onclick="reenregistrerAudio({{ question.id }})"
-                                style="background:#f0f0f0; color:#555; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; cursor:pointer;">↺ إعادة التسجيل</button>
+                                style="background:#f0f0f0; color:#555; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; cursor:pointer;">↺ {% trans "إعادة التسجيل" %}</button>
                     </div>
                 </div>
 
-                <div style="color:#aaa; font-size:0.78rem; margin-top:6px;">سجّل إجابتك الصوتية مباشرة من هاتفك أو حاسوبك.</div>
+                <div style="color:#aaa; font-size:0.78rem; margin-top:6px;">{% trans "سجّل إجابتك الصوتية مباشرة من هاتفك أو حاسوبك." %}</div>
                 {% endif %}
             </div>
             {% endwith %}
@@ -139,13 +140,13 @@
                 </video>
                 <div>
                     <button type="button" onclick="supprimerVideo({{ question.id }})"
-                            style="background:#fce4e4; color:#b71c1c; border:none; border-radius:8px; padding:8px 16px; font-size:0.85rem;">🗑 حذف الفيديو</button>
+                            style="background:#fce4e4; color:#b71c1c; border:none; border-radius:8px; padding:8px 16px; font-size:0.85rem;">🗑 {% trans "حذف الفيديو" %}</button>
                 </div>
                 {% else %}
                 <div id="video-boutons-{{ question.id }}" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                     <button type="button" onclick="demarrerEnregistrementVideo({{ question.id }})"
                             style="background:#2d5a1b; color:white; border:none; border-radius:20px; padding:9px 20px; font-size:0.9rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                        📹 تسجيل فيديو
+                        📹 {% trans "تسجيل فيديو" %}
                     </button>
                 </div>
 
@@ -155,12 +156,12 @@
                     <div style="display:flex; align-items:center; gap:10px; background:#fce9e7; color:#b71c1c; border-radius:10px; padding:10px 16px; font-size:0.86rem; font-weight:600; margin-top:8px;">
                         <span class="examen-point-rec" aria-hidden="true"
                               style="width:9px; height:9px; border-radius:50%; background:#b71c1c; flex-shrink:0;"></span>
-                        <span>جارٍ التسجيل… <span id="video-duree-{{ question.id }}">00:00</span></span>
+                        <span>{% trans "جارٍ التسجيل…" %} <span id="video-duree-{{ question.id }}">00:00</span></span>
                         <span style="margin-inline-start:auto; display:flex; gap:8px;">
                             <button type="button" onclick="arreterEnregistrementVideo({{ question.id }})"
-                                    style="border:none; background:white; color:#b71c1c; border-radius:16px; padding:5px 14px; font-size:0.8rem; cursor:pointer;">⏹ إيقاف</button>
+                                    style="border:none; background:white; color:#b71c1c; border-radius:16px; padding:5px 14px; font-size:0.8rem; cursor:pointer;">⏹ {% trans "إيقاف" %}</button>
                             <button type="button" onclick="annulerEnregistrementVideo({{ question.id }})"
-                                    style="border:none; background:transparent; color:#b71c1c; border-radius:16px; padding:5px 10px; font-size:0.8rem; cursor:pointer;">✕ إلغاء</button>
+                                    style="border:none; background:transparent; color:#b71c1c; border-radius:16px; padding:5px 10px; font-size:0.8rem; cursor:pointer;">✕ {% trans "إلغاء" %}</button>
                         </span>
                     </div>
                 </div>
@@ -170,13 +171,13 @@
                     <video controls id="video-apercu-player-{{ question.id }}" style="width:100%; max-width:420px; border-radius:8px; margin-bottom:10px;"></video>
                     <div style="display:flex; gap:10px;">
                         <button type="button" onclick="confirmerEnregistrementVideo({{ question.id }})"
-                                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">✓ حفظ الفيديو</button>
+                                style="background:#2d5a1b; color:white; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer;">✓ {% trans "حفظ الفيديو" %}</button>
                         <button type="button" onclick="reenregistrerVideo({{ question.id }})"
-                                style="background:#f0f0f0; color:#555; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; cursor:pointer;">↺ إعادة التسجيل</button>
+                                style="background:#f0f0f0; color:#555; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; cursor:pointer;">↺ {% trans "إعادة التسجيل" %}</button>
                     </div>
                 </div>
 
-                <div style="color:#aaa; font-size:0.78rem; margin-top:6px;">سجّل إجابتك الفيديو مباشرة من كاميرا هاتفك أو حاسوبك (الحد الأقصى 40 م.ب).</div>
+                <div style="color:#aaa; font-size:0.78rem; margin-top:6px;">{% trans "سجّل إجابتك الفيديو مباشرة من كاميرا هاتفك أو حاسوبك (الحد الأقصى 40 م.ب)." %}</div>
                 {% endif %}
             </div>
             {% endwith %}
@@ -184,16 +185,28 @@
     </div>
     {% endfor %}
 
+    {% trans "هل أنت متأكد من تسليم الاختبار؟ لن تتمكن من تعديل إجاباتك بعد التسليم." as confirmation_soumission %}
     <form method="POST" action="{% url 'examens_soumettre' copie.id %}"
-          onsubmit="return confirm('هل أنت متأكد من تسليم الاختبار؟ لن تتمكن من تعديل إجاباتك بعد التسليم.');"
+          onsubmit="return confirm('{{ confirmation_soumission|escapejs }}');"
           style="margin:24px 0 60px;">
         {% csrf_token %}
         <button type="submit" style="width:100%; background:#2d5a1b; color:white; border:none; border-radius:12px; padding:16px; font-weight:700; font-size:1.05rem;">
-            ✅ تسليم الاختبار
+            ✅ {% trans "تسليم الاختبار" %}
         </button>
     </form>
 </div>
 
+{% trans "جارٍ الحفظ..." as msg_en_cours_sauvegarde %}
+{% trans "انتهت مهلة الاختبار" as msg_temps_ecoule %}
+{% trans "خطأ في الحفظ — أعد المحاولة" as msg_erreur_sauvegarde %}
+{% trans "✓ تم الحفظ" as msg_sauvegarde_ok %}
+{% trans "خطأ في الاتصال — أعد المحاولة" as msg_erreur_connexion %}
+{% trans "حذف التسجيل الصوتي الحالي؟" as confirmation_suppr_audio %}
+{% trans "حذف الفيديو الحالي؟" as confirmation_suppr_video %}
+{% trans "التسجيل الصوتي غير مدعوم على هذا المتصفح" as msg_audio_non_supporte %}
+{% trans "يرجى السماح باستخدام الميكروفون" as msg_permission_micro %}
+{% trans "تسجيل الفيديو غير مدعوم على هذا المتصفح" as msg_video_non_supporte %}
+{% trans "يرجى السماح باستخدام الكاميرا" as msg_permission_camera %}
 <script>
 const COPIE_ID = {{ copie.id }};
 const CSRF_TOKEN = document.getElementById('jeton-csrf').dataset.token;
@@ -237,7 +250,7 @@ function afficherStatut(questionId, texte, couleur) {
 // d'erreur avant que l'élève ait pu le lire. Symptôme exact signalé : le
 // fichier audio semble ne "jamais s'enregistrer").
 async function envoyerAutosave(questionId, corps) {
-    afficherStatut(questionId, 'جارٍ الحفظ...', '#aaa');
+    afficherStatut(questionId, '{{ msg_en_cours_sauvegarde|escapejs }}', '#aaa');
     try {
         const reponse = await fetch(`/examens/copie/${COPIE_ID}/questions/${questionId}/autosave/`, {
             method: 'POST',
@@ -245,7 +258,7 @@ async function envoyerAutosave(questionId, corps) {
             body: corps,
         });
         if (reponse.status === 409) {
-            afficherStatut(questionId, 'انتهت مهلة الاختبار', '#b71c1c');
+            afficherStatut(questionId, '{{ msg_temps_ecoule|escapejs }}', '#b71c1c');
             window.location.reload();
             return false;
         }
@@ -253,7 +266,7 @@ async function envoyerAutosave(questionId, corps) {
             // Message précis du serveur (ex: صيغة/حجم الملف مرفوضة — voir
             // examens.services.valider_fichier_audio) plutôt qu'un texte
             // générique qui n'explique rien à l'élève.
-            let messageErreur = 'خطأ في الحفظ — أعد المحاولة';
+            let messageErreur = '{{ msg_erreur_sauvegarde|escapejs }}';
             try {
                 const donnees = await reponse.json();
                 if (donnees && donnees.erreur) { messageErreur = donnees.erreur; }
@@ -261,10 +274,10 @@ async function envoyerAutosave(questionId, corps) {
             afficherStatut(questionId, messageErreur, '#b71c1c');
             return false;
         }
-        afficherStatut(questionId, '✓ تم الحفظ', '#2d5a1b');
+        afficherStatut(questionId, '{{ msg_sauvegarde_ok|escapejs }}', '#2d5a1b');
         return true;
     } catch (e) {
-        afficherStatut(questionId, 'خطأ في الاتصال — أعد المحاولة', '#b71c1c');
+        afficherStatut(questionId, '{{ msg_erreur_connexion|escapejs }}', '#b71c1c');
         return false;
     }
 }
@@ -288,7 +301,7 @@ function autosaveVraiFaux(questionId, valeur) {
 }
 
 function supprimerAudio(questionId) {
-    if (!confirm('حذف التسجيل الصوتي الحالي؟')) return;
+    if (!confirm('{{ confirmation_suppr_audio|escapejs }}')) return;
     const corps = new FormData();
     corps.append('supprimer', '1');
     envoyerAutosave(questionId, corps).then(function (succes) {
@@ -316,7 +329,7 @@ function demarrerEnregistrementAudio(questionId) {
         // Navigateur trop ancien pour l'enregistrement en direct — plus de
         // repli sur un sélecteur de fichier depuis le 2026-08-18 (option
         // retirée) : on informe simplement l'élève.
-        afficherStatut(questionId, 'التسجيل الصوتي غير مدعوم على هذا المتصفح', '#b71c1c');
+        afficherStatut(questionId, '{{ msg_audio_non_supporte|escapejs }}', '#b71c1c');
         return;
     }
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
@@ -355,7 +368,7 @@ function demarrerEnregistrementAudio(questionId) {
     }).catch(function () {
         // Permission micro refusée/indisponible — plus de repli sur un
         // sélecteur de fichier depuis le 2026-08-18 (option retirée).
-        afficherStatut(questionId, 'يرجى السماح باستخدام الميكروفون', '#b71c1c');
+        afficherStatut(questionId, '{{ msg_permission_micro|escapejs }}', '#b71c1c');
     });
 }
 
@@ -405,7 +418,7 @@ const fichiersEnAttenteVideoExamens = {};
 const streamsVideoExamens = {};
 
 function supprimerVideo(questionId) {
-    if (!confirm('حذف الفيديو الحالي؟')) return;
+    if (!confirm('{{ confirmation_suppr_video|escapejs }}')) return;
     const corps = new FormData();
     corps.append('supprimer', '1');
     envoyerAutosave(questionId, corps).then(function (succes) {
@@ -418,7 +431,7 @@ function demarrerEnregistrementVideo(questionId) {
         // Navigateur trop ancien pour l'enregistrement en direct — plus de
         // repli sur un sélecteur de fichier depuis le 2026-08-18 (option
         // retirée) : on informe simplement l'élève.
-        afficherStatut(questionId, 'تسجيل الفيديو غير مدعوم على هذا المتصفح', '#b71c1c');
+        afficherStatut(questionId, '{{ msg_video_non_supporte|escapejs }}', '#b71c1c');
         return;
     }
     navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(function (stream) {
@@ -462,7 +475,7 @@ function demarrerEnregistrementVideo(questionId) {
     }).catch(function () {
         // Permission caméra refusée/indisponible — plus de repli sur un
         // sélecteur de fichier depuis le 2026-08-18 (option retirée).
-        afficherStatut(questionId, 'يرجى السماح باستخدام الكاميرا', '#b71c1c');
+        afficherStatut(questionId, '{{ msg_permission_camera|escapejs }}', '#b71c1c');
     });
 }
 
