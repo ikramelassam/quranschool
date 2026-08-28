@@ -1,0 +1,65 @@
+{% extends base_template %}
+{% block title %}اشتراكات إشعارات تيليجرام{% endblock %}
+{% block content %}
+<div class="page-title">اشتراكات إشعارات تيليجرام</div>
+<div class="page-subtitle">
+    كل من يرسل /start إلى بوت الإشعارات يظهر هنا بانتظار الموافقة —
+    لن يستقبل أي إشعار (طلبات تسجيل، مدفوعات، نسيان كلمة المرور...) قبل أن يوافق عليه مدير أو مشرف.
+</div>
+
+<h5 style="margin:24px 0 12px;">بانتظار الموافقة {% if en_attente %}<span class="badge" style="background:#dc3545;">{{ en_attente|length }}</span>{% endif %}</h5>
+{% for abonne in en_attente %}
+<div style="background:white; border-radius:12px; padding:18px 24px; margin-bottom:14px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
+    <div>
+        <div style="font-weight:700;">{{ abonne.nom|default:"(بدون اسم)" }}</div>
+        <div style="color:#888; font-size:0.85rem;">
+            {% if abonne.telegram_username %}@{{ abonne.telegram_username }} — {% endif %}
+            chat_id: {{ abonne.chat_id }} — طلب في {{ abonne.date_abonnement|date:"d-m-Y H:i" }}
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'admin_telegram_abonne_valider' abonne.id %}"
+           style="background:var(--color-success); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.85rem;">
+           قبول ✅
+        </a>
+        <a href="{% url 'admin_telegram_abonne_rejeter' abonne.id %}"
+           style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.85rem;">
+           رفض ❌
+        </a>
+    </div>
+</div>
+{% empty %}
+<div style="text-align:center; padding:32px; color:#aaa; background:white; border-radius:12px; margin-bottom:8px;">لا توجد طلبات اشتراك بانتظار الموافقة</div>
+{% endfor %}
+
+<h5 style="margin:32px 0 12px;">المشتركون النشطون</h5>
+{% for abonne in actifs %}
+<div style="background:white; border-radius:12px; padding:14px 24px; margin-bottom:10px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
+    <div>
+        <div style="font-weight:600;">{{ abonne.nom|default:"(بدون اسم)" }}
+            {% if abonne.telegram_username %}<span style="color:#888; font-weight:400;">@{{ abonne.telegram_username }}</span>{% endif %}
+        </div>
+        <div style="color:#888; font-size:0.8rem;">
+            chat_id: {{ abonne.chat_id }} — مفعّل منذ {{ abonne.date_abonnement|date:"d-m-Y" }}
+            {% if abonne.valide_par %} — بموافقة {{ abonne.valide_par.get_full_name }}{% endif %}
+        </div>
+    </div>
+    <a href="{% url 'admin_telegram_abonne_desactiver' abonne.id %}"
+       style="background:#6c757d; color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.8rem;">
+       إلغاء التفعيل
+    </a>
+</div>
+{% empty %}
+<div style="text-align:center; padding:24px; color:#aaa; background:white; border-radius:12px; margin-bottom:8px;">لا يوجد مشترك نشط حالياً</div>
+{% endfor %}
+
+{% if inactifs %}
+<h5 style="margin:32px 0 12px;">غير نشطين (سجل قديم)</h5>
+{% for abonne in inactifs %}
+<div style="background:#f8f8f8; border-radius:12px; padding:12px 24px; margin-bottom:8px; color:#888; font-size:0.85rem; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+    <span>{{ abonne.nom|default:"(بدون اسم)" }} — chat_id: {{ abonne.chat_id }}</span>
+    <span>{% if abonne.date_desabonnement %}أُلغي في {{ abonne.date_desabonnement|date:"d-m-Y" }}{% endif %}</span>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

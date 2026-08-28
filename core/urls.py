@@ -35,6 +35,7 @@ urlpatterns = [
     path('annonces/', include('annonces.urls')),
     path('examens/', include('examens.urls')),
     path('registration/', include('registration.urls')),
+    path('telegram/', include('telegram_bot.urls')),
 
     # Tâche du 2026-08-07 — URLs publiques d'inscription renommées en anglais,
     # propres et mémorisables (demande explicite du client). Montées ici, à la

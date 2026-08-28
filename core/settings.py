@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     'annonces',
     'examens',
     'registration',
+    'telegram_bot',
 ]
 
 MIDDLEWARE = [
@@ -210,12 +211,30 @@ EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@zidni-ilman.local')
 
 
-# Notification Telegram au مدير (nouvelle candidature élève/prof) — voir
-# core.utils.envoyer_notification_telegram. Le token ne doit JAMAIS être
-# codé en dur ni loggé : uniquement lu depuis l'environnement (.env local,
-# variables d'environnement Render en production).
+# Notification Telegram au مدير/مشرف (nouvelle candidature élève/prof, paiement
+# soumis, mot de passe oublié) — voir core.utils.envoyer_notification_telegram.
+# Le token ne doit JAMAIS être codé en dur ni loggé : uniquement lu depuis
+# l'environnement (.env local, variables d'environnement Render en production).
 TELEGRAM_BOT_TOKEN = env('TELEGRAM_BOT_TOKEN', default='')
+# TELEGRAM_CHAT_ID : ancien système à chat_id unique codé en dur, REMPLACÉ par
+# telegram_bot.AbonneTelegram — n'importe quel مدير/مشرف autorisé s'abonne
+# lui-même via /start, validé manuellement depuis le dashboard (voir
+# dashboard.views.admin_telegram_abonnes). Cette variable n'est plus lue QUE
+# par la migration de données telegram_bot 0002 (seed du chat_id déjà
+# configuré comme 1er abonné actif, pour ne pas perdre les notifications
+# existantes pendant la transition) — elle peut être retirée de l'environnement
+# une fois cette migration appliquée en production, mais on la laisse ici pour
+# ne rien casser tant que ce n'est pas fait.
 TELEGRAM_CHAT_ID = env('TELEGRAM_CHAT_ID', default='')
+# TELEGRAM_WEBHOOK_SECRET : secret arbitraire (ex: généré via `python -c
+# "import secrets; print(secrets.token_urlsafe(32))"`) fourni à Telegram via
+# `setWebhook` (voir telegram_bot.management.commands.set_telegram_webhook).
+# Telegram le renvoie ensuite sur CHAQUE update, dans le header
+# X-Telegram-Bot-Api-Secret-Token — c'est la SEULE protection du webhook
+# (telegram_bot.views.webhook est forcément @csrf_exempt, Telegram n'envoyant
+# aucun cookie/token CSRF Django). Sans ce secret configuré, le webhook
+# rejette systématiquement toute requête (voir _secret_valide).
+TELEGRAM_WEBHOOK_SECRET = env('TELEGRAM_WEBHOOK_SECRET', default='')
 
 
 # Plage horaire de l'école (utilisée pour générer la grille de disponibilités des profs)

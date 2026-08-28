@@ -7848,3 +7848,73 @@ def admin_prof_presentation_modifier(request, prof_id):
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_prof_presentation_modifier.html', context)
+
+
+# ==================== Abonnés Telegram (notifications مدير/مشرف) ====================
+# Chantier : remplace l'ancien chat_id unique codé en dur (settings.TELEGRAM_CHAT_ID)
+# par un vrai système d'abonnement (telegram_bot.AbonneTelegram) — n'importe
+# quel مدير/مشرف envoie /start au bot puis est validé ici. Les 2 rôles peuvent
+# valider/rejeter/désactiver un abonné.
+
+@role_required('admin', 'mshrif')
+def admin_telegram_abonnes(request):
+    from telegram_bot.models import AbonneTelegram
+
+    context = {
+        'en_attente': AbonneTelegram.objects.filter(en_attente_validation=True),
+        'actifs': AbonneTelegram.objects.filter(est_actif=True),
+        'inactifs': AbonneTelegram.objects.filter(est_actif=False, en_attente_validation=False),
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_telegram_abonnes.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_telegram_abonne_valider(request, abonne_id):
+    from telegram_bot.models import AbonneTelegram
+    from core.utils import envoyer_message_telegram_direct
+
+    abonne = get_object_or_404(AbonneTelegram, id=abonne_id, en_attente_validation=True)
+    abonne.est_actif = True
+    abonne.en_attente_validation = False
+    abonne.valide_par = request.user
+    abonne.date_desabonnement = None
+    abonne.save(update_fields=['est_actif', 'en_attente_validation', 'valide_par', 'date_desabonnement'])
+    # Best-effort : informe l'abonné qu'il commence à recevoir les notifications
+    # — jamais bloquant, même principe que tout envoi Telegram du projet.
+    envoyer_message_telegram_direct(
+        abonne.chat_id,
+        '✅ تمت الموافقة على اشتراكك. ستبدأ في استقبال إشعارات منصة زدني علماً الآن.'
+    )
+    messages.success(request, f'تم قبول اشتراك {abonne} — سيبدأ في استقبال الإشعارات.')
+    return redirect('admin_telegram_abonnes')
+
+
+@role_required('admin', 'mshrif')
+def admin_telegram_abonne_rejeter(request, abonne_id):
+    from telegram_bot.models import AbonneTelegram
+
+    abonne = get_object_or_404(AbonneTelegram, id=abonne_id, en_attente_validation=True)
+    abonne.est_actif = False
+    abonne.en_attente_validation = False
+    abonne.save(update_fields=['est_actif', 'en_attente_validation'])
+    messages.info(request, f'تم رفض اشتراك {abonne}.')
+    return redirect('admin_telegram_abonnes')
+
+
+@role_required('admin', 'mshrif')
+def admin_telegram_abonne_desactiver(request, abonne_id):
+    """Révocation manuelle d'un abonné déjà actif (menace, départ, erreur de
+    validation...) — un /start ultérieur de sa part repassera de toute façon
+    en file d'attente (voir telegram_bot.models.AbonneTelegram), donc aucune
+    réactivation possible sans nouvelle validation ici."""
+    from django.utils import timezone
+    from telegram_bot.models import AbonneTelegram
+
+    abonne = get_object_or_404(AbonneTelegram, id=abonne_id, est_actif=True)
+    abonne.est_actif = False
+    abonne.date_desabonnement = timezone.now()
+    abonne.save(update_fields=['est_actif', 'date_desabonnement'])
+    messages.info(request, f'تم إلغاء تفعيل اشتراك {abonne}.')
+    return redirect('admin_telegram_abonnes')

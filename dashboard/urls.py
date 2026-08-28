@@ -226,4 +226,10 @@ urlpatterns = [
 
     # ---- Chantier du 2026-08-27 : ajout manuel d'une candidature prof (مدير/مشرف) ----
     path('admin/profs/ajouter-manuel/', views.admin_prof_ajouter_manuel, name='admin_prof_ajouter_manuel'),
+
+    # ---- Abonnés Telegram (notifications مدير/مشرف) ----
+    path('admin/telegram/abonnes/', views.admin_telegram_abonnes, name='admin_telegram_abonnes'),
+    path('admin/telegram/abonnes/<int:abonne_id>/valider/', views.admin_telegram_abonne_valider, name='admin_telegram_abonne_valider'),
+    path('admin/telegram/abonnes/<int:abonne_id>/rejeter/', views.admin_telegram_abonne_rejeter, name='admin_telegram_abonne_rejeter'),
+    path('admin/telegram/abonnes/<int:abonne_id>/desactiver/', views.admin_telegram_abonne_desactiver, name='admin_telegram_abonne_desactiver'),
 ]
