@@ -1,22 +1,23 @@
+{% load i18n %}
 {# Pastille de statut réutilisée pour Examen.statut, le statut d'affichage élève (à_venir/disponible/en_cours/soumise/corrigee/ferme) et Reponse.statut_correction (auto/a_corriger/corrigee) — un seul endroit pour que le même code garde toujours la même couleur/libellé partout. #}
 {% if statut == 'brouillon' %}
-    <span style="background:#f0f0f0; color:#777; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">✏️ مسودة</span>
+    <span style="background:#f0f0f0; color:#777; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">✏️ {% trans "مسودة" %}</span>
 {% elif statut == 'publie' or statut == 'disponible' %}
-    <span style="background:#e8f5e9; color:#2d5a1b; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">🟢 {% if statut == 'disponible' %}متاح الآن{% else %}منشور{% endif %}</span>
+    <span style="background:#e8f5e9; color:#2d5a1b; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">🟢 {% if statut == 'disponible' %}{% trans "متاح الآن" %}{% else %}{% trans "منشور" %}{% endif %}</span>
 {% elif statut == 'a_venir' %}
-    <span style="background:#fff3cd; color:#8a6d00; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">⏳ قريباً</span>
+    <span style="background:#fff3cd; color:#8a6d00; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">⏳ {% trans "قريباً" %}</span>
 {% elif statut == 'en_cours' %}
-    <span style="background:#e3f2fd; color:#1565c0; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">🕐 قيد الإنجاز</span>
+    <span style="background:#e3f2fd; color:#1565c0; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">🕐 {% trans "قيد الإنجاز" %}</span>
 {% elif statut == 'soumise' %}
-    <span style="background:#ede7f6; color:#4527a0; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">📩 تم التسليم</span>
+    <span style="background:#ede7f6; color:#4527a0; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">📩 {% trans "تم التسليم" %}</span>
 {% elif statut == 'corrigee' %}
-    <span style="background:#e8f5e9; color:#1b5e20; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">✅ مصحَّحة</span>
+    <span style="background:#e8f5e9; color:#1b5e20; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">✅ {% trans "مصحَّحة" %}</span>
 {% elif statut == 'a_corriger' %}
-    <span style="background:#fff3cd; color:#8a6d00; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">⏳ بانتظار التصحيح</span>
+    <span style="background:#fff3cd; color:#8a6d00; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">⏳ {% trans "بانتظار التصحيح" %}</span>
 {% elif statut == 'auto' %}
-    <span style="background:#e3f2fd; color:#1565c0; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">⚙️ تصحيح تلقائي</span>
+    <span style="background:#e3f2fd; color:#1565c0; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">⚙️ {% trans "تصحيح تلقائي" %}</span>
 {% elif statut == 'ferme' %}
-    <span style="background:#fce4e4; color:#b71c1c; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">🔒 مغلق</span>
+    <span style="background:#fce4e4; color:#b71c1c; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">🔒 {% trans "مغلق" %}</span>
 {% else %}
     <span style="background:#f0f0f0; color:#777; font-size:0.78rem; font-weight:600; padding:4px 12px; border-radius:20px; white-space:nowrap;">{{ statut }}</span>
 {% endif %}

@@ -4,6 +4,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Sum
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 
 class Examen(models.Model):
@@ -115,14 +116,14 @@ class Question(models.Model):
     (§2 du cahier des charges — 'ordre' fait foi, pas de mélange à
     l'affichage ni en base)."""
     TYPE_CHOICES = [
-        ('choix', 'اختيار من متعدد'),
-        ('vrai_faux', 'صح / خطأ'),
-        ('texte', 'إجابة نصية'),
-        ('audio', 'إجابة صوتية'),
+        ('choix', _('اختيار من متعدد')),
+        ('vrai_faux', _('صح / خطأ')),
+        ('texte', _('إجابة نصية')),
+        ('audio', _('إجابة صوتية')),
         # Tâche du 2026-08-18 : même patron que 'audio' (upload élève,
         # stockage via le storage par défaut du projet, correction manuelle
         # uniquement) — voir Reponse.reponse_video ci-dessous.
-        ('video', 'إجابة فيديو'),
+        ('video', _('إجابة فيديو')),
     ]
     examen = models.ForeignKey(Examen, on_delete=models.CASCADE, related_name='questions')
     type_question = models.CharField(max_length=10, choices=TYPE_CHOICES)
