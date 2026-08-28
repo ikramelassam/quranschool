@@ -2,7 +2,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language
 
 
 class User(AbstractUser):
@@ -326,6 +326,59 @@ class CharteEnseignement(models.Model):
 
     date_modification = models.DateTimeField(auto_now=True)
 
+    # Chantier i18n du 2026-08-28 (trouvaille de la session parallèle pendant
+    # son propre chantier — même profil que registration.models.
+    # PresentationInscription : contenu rédigé par le مشرف/مدير, `{% trans %}`
+    # ne peut rien pour lui). Décision produit identique (voir
+    # PresentationInscription.__doc__) : saisie manuelle par langue, PAS de
+    # traduction automatique.
+    #
+    # PresentationInscription (6 champs) a reçu une paire de colonnes _fr/_en
+    # PAR CHAMP — ici, 27 champs texte (voir _CHAMPS_LOCALISABLES) auraient
+    # demandé 54 colonnes supplémentaires, un formulaire d'admin illisible et
+    # une migration disproportionnée pour le même besoin. Un seul JSONField
+    # {"fr": {"section1_titre": "...", ...}, "en": {...}} scale au nombre de
+    # champs sans ajouter de colonne à chaque nouvelle section de la charte —
+    # même idiome que Prof.langues/type_eleve_preference (JSONField déjà
+    # utilisé ailleurs dans ce projet pour des données structurées variables),
+    # simplement appliqué ici à des chaînes de traduction plutôt qu'à des
+    # listes de codes. Le formulaire (mshrif_charte.html) garde les MÊMES noms
+    # d'input "{champ}_fr"/"{champ}_en" que PresentationInscription — seule la
+    # colonne de stockage change, pas l'UX ni la convention de nommage.
+    traductions = models.JSONField(default=dict, blank=True)
+
+    # Les 27 champs texte de la charte (hors sanctions, gérées à part sur
+    # CharteSanctionLigne) — seule liste de référence, jamais dupliquée
+    # ailleurs (dashboard.views.mshrif_charte et _charte_contenu.html/
+    # mshrif_charte.html s'appuient tous les deux dessus indirectement via
+    # localise()).
+    _CHAMPS_LOCALISABLES = (
+        'intro', 'verset_ouverture', 'titre_bunud',
+        'section1_titre', 'section1_intro', 'section1_items',
+        'section2_titre', 'section2_intro', 'section2_items',
+        'section3_titre', 'section3_intro', 'section3_items',
+        'verset_rahma_texte', 'verset_rahma_reference', 'section3_conclusion',
+        'section4_titre', 'section4_intro', 'section4_items',
+        'section5_titre', 'section5_intro', 'section5_note',
+        'section6_titre', 'section6_intro', 'section6_items',
+        'section7_titre', 'section7_intro', 'section7_items',
+    )
+
+    def _localise(self, champ):
+        """Renvoie la valeur de `champ` dans la langue active de la session,
+        avec repli automatique sur l'arabe (le champ lui-même) si la
+        traduction FR/EN correspondante n'a pas encore été saisie — jamais de
+        texte manquant à l'affichage. Appelé depuis les templates via le
+        filtre {{ charte|localise:"champ" }} (voir accounts.templatetags.
+        charte_tags.localise), pas directement — Django ne permet pas
+        d'appeler une méthode avec un argument depuis un template."""
+        langue = get_language()
+        if langue in ('fr', 'en'):
+            valeur = (self.traductions.get(langue) or {}).get(champ, '')
+            if valeur:
+                return valeur
+        return getattr(self, champ)
+
     def __str__(self):
         return "ميثاق التدريس"
 
@@ -346,10 +399,29 @@ class CharteSanctionLigne(models.Model):
     charte = models.ForeignKey(CharteEnseignement, on_delete=models.CASCADE, related_name='sanctions')
     ordre = models.PositiveIntegerField(default=0)
     violation = models.CharField(max_length=300)
+    # _fr/_en (chantier i18n du 2026-08-28) : ici colonnes explicites (comme
+    # PresentationInscription), pas de JSONField comme CharteEnseignement
+    # ci-dessus — un seul champ à traduire par ligne, pas 27, donc pas la même
+    # disproportion. Toute la table est de toute façon rechargée à chaque
+    # sauvegarde (voir dashboard.views.mshrif_charte), les traductions
+    # suivent le même sort.
+    violation_fr = models.CharField(max_length=300, blank=True, default='')
+    violation_en = models.CharField(max_length=300, blank=True, default='')
     severite = models.CharField(max_length=20, choices=SEVERITE_CHOICES, default='progressive')
 
     class Meta:
         ordering = ['ordre', 'id']
+
+    def _localise(self, champ):
+        """Même mécanisme que CharteEnseignement._localise (repli arabe si
+        FR/EN vide) — colonnes explicites ici plutôt que JSONField, voir
+        violation_fr/violation_en ci-dessus."""
+        langue = get_language()
+        if langue in ('fr', 'en'):
+            valeur = getattr(self, f'{champ}_{langue}', '')
+            if valeur:
+                return valeur
+        return getattr(self, champ)
 
     def __str__(self):
         return self.violation

@@ -2961,7 +2961,7 @@ def mshrif_charte(request):
     (templates/dashboard/_charte_contenu.html) à l'affichage. Les lignes du tableau de
     sanctions sont rechargées entièrement à chaque sauvegarde (plus simple et sans
     risque d'incohérence qu'un diff ligne par ligne, vu leur faible nombre)."""
-    from accounts.models import get_charte, CharteSanctionLigne
+    from accounts.models import CharteEnseignement, get_charte, CharteSanctionLigne
 
     charte = get_charte()
     peut_modifier = request.user.role in ('admin', 'mshrif')
@@ -3001,15 +3001,32 @@ def mshrif_charte(request):
         charte.section7_titre = request.POST.get('section7_titre', '')
         charte.section7_intro = request.POST.get('section7_intro', '')
         charte.section7_items = request.POST.get('section7_items', '')
+
+        # Chantier i18n du 2026-08-28 : traductions FR/EN saisies à la main
+        # (mêmes noms d'input "{champ}_fr"/"{champ}_en" que
+        # PresentationInscription), stockées en JSON — voir
+        # CharteEnseignement.traductions/_localise pour le pourquoi du
+        # JSONField plutôt que des colonnes par champ ici.
+        traductions = {'fr': {}, 'en': {}}
+        for champ in CharteEnseignement._CHAMPS_LOCALISABLES:
+            for langue in ('fr', 'en'):
+                traductions[langue][champ] = request.POST.get(f'{champ}_{langue}', '').strip()
+        charte.traductions = traductions
         charte.save()
 
         violations = request.POST.getlist('sanction_violation')
+        violations_fr = request.POST.getlist('sanction_violation_fr')
+        violations_en = request.POST.getlist('sanction_violation_en')
         severites = request.POST.getlist('sanction_severite')
         charte.sanctions.all().delete()
-        for ordre, (violation, severite) in enumerate(zip(violations, severites)):
+        for ordre, (violation, violation_fr, violation_en, severite) in enumerate(
+            zip(violations, violations_fr, violations_en, severites)
+        ):
             if violation.strip():
                 CharteSanctionLigne.objects.create(
-                    charte=charte, ordre=ordre, violation=violation.strip(), severite=severite,
+                    charte=charte, ordre=ordre, violation=violation.strip(),
+                    violation_fr=violation_fr.strip(), violation_en=violation_en.strip(),
+                    severite=severite,
                 )
 
         messages.success(request, 'تم تحديث ميثاق التدريس بنجاح.')

@@ -5598,3 +5598,71 @@ class NotificationsChangementHalakaDirectionTests(TestCase):
         )
         self.client.force_login(self.admin)
         self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 0)
+
+
+class CharteEnseignementLocaliseeTests(TestCase):
+    """Chantier i18n du 2026-08-28 — même patron que PresentationInscription
+    (registration/tests.py), mais CharteEnseignement stocke ses traductions
+    dans un JSONField (traductions) plutôt que des colonnes _fr/_en par champ
+    (27 champs, voir accounts.models.CharteEnseignement.__doc__ juste avant
+    _CHAMPS_LOCALISABLES pour le pourquoi)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def _connecte_admin(self):
+        client = Client()
+        client.force_login(self.admin)
+        return client
+
+    def _poster_charte_minimale(self, client, **supplement):
+        from accounts.models import CharteEnseignement
+
+        donnees = {champ: f'نص {champ}' for champ in CharteEnseignement._CHAMPS_LOCALISABLES}
+        donnees.update(supplement)
+        return client.post(reverse('mshrif_charte'), donnees)
+
+    def test_traductions_fr_en_sauvegardees_avec_repli_arabe(self):
+        from django.utils import translation
+        from accounts.models import get_charte
+
+        client = self._connecte_admin()
+        self._poster_charte_minimale(
+            client,
+            section1_titre_fr='Titre section 1', section1_titre_en='',  # EN volontairement vide
+        )
+        charte = get_charte()
+        self.assertEqual(charte.traductions['fr']['section1_titre'], 'Titre section 1')
+        self.assertEqual(charte.traductions['en']['section1_titre'], '')
+        with translation.override('fr'):
+            self.assertEqual(charte._localise('section1_titre'), 'Titre section 1')
+        with translation.override('en'):
+            # EN vide -> repli automatique sur l'arabe.
+            self.assertEqual(charte._localise('section1_titre'), 'نص section1_titre')
+        with translation.override('ar'):
+            self.assertEqual(charte._localise('section1_titre'), 'نص section1_titre')
+
+    def test_page_mshrif_charte_affiche_la_traduction_selon_la_langue(self):
+        client = self._connecte_admin()
+        self._poster_charte_minimale(client, intro_fr='Introduction en français')
+        client.post(reverse('set_language'), {'language': 'fr', 'next': reverse('mshrif_charte')})
+        html = client.get(reverse('mshrif_charte')).content.decode('utf-8')
+        self.assertIn('Introduction en français', html)
+
+    def test_ligne_sanction_fr_en_avec_repli_arabe(self):
+        from django.utils import translation
+        from accounts.models import get_charte
+
+        client = self._connecte_admin()
+        self._poster_charte_minimale(
+            client,
+            sanction_violation=['التأخر عن الحصة'], sanction_violation_fr=['Retard au cours'],
+            sanction_violation_en=[''], sanction_severite=['progressive'],
+        )
+        ligne = get_charte().sanctions.get()
+        self.assertEqual(ligne.violation_fr, 'Retard au cours')
+        with translation.override('fr'):
+            self.assertEqual(ligne._localise('violation'), 'Retard au cours')
+        with translation.override('en'):
+            self.assertEqual(ligne._localise('violation'), 'التأخر عن الحصة')

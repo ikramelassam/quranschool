@@ -1,5 +1,6 @@
 {% extends base_template %}
-{% block title %}ميثاق التدريس{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "ميثاق التدريس" %}{% endblock %}
 {% block extra_css %}
 <style>
 .charte-field-label { color:#888; font-size:0.8rem; margin-bottom:4px; display:block; }
@@ -19,136 +20,218 @@
 .sanction-row select { margin-bottom:0; flex:1; }
 .btn-remove-row { background:#fce4e4; color:#dc3545; border:none; border-radius:6px; width:32px; height:32px; cursor:pointer; font-size:0.9rem; flex-shrink:0; }
 .btn-add-row { background:#f0f0f0; color:#555; border:none; border-radius:8px; padding:8px 16px; font-size:0.85rem; cursor:pointer; margin-top:6px; }
+/* Chantier i18n du 2026-08-28 : chaque champ traduisible a désormais 3
+   variantes (AR obligatoire + FR/EN optionnelles) — un badge de drapeau
+   avant chaque input/textarea plutôt que 3 cartes séparées, pour garder le
+   formulaire lisible malgré le nombre de champs (27, voir
+   accounts.models.CharteEnseignement._CHAMPS_LOCALISABLES). */
+.charte-lang-row { display:flex; align-items:flex-start; gap:8px; margin-bottom:14px; }
+.charte-lang-row .charte-lang-badge { flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center; }
+.charte-lang-row input[type=text], .charte-lang-row textarea { margin-bottom:0; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="page-title">ميثاق التدريس</div>
+<div class="page-title">{% trans "ميثاق التدريس" %}</div>
 <div class="page-subtitle">
-    آخر تعديل: {{ charte.date_modification|date:"d-m-Y H:i" }}
-    {% if lecture_stricte %} — عرض للاطلاع فقط، التعديل من صلاحية الإدارة أو المشرف فقط{% else %} — عدّل النصوص مباشرة. التصميم لن يتغيّر.{% endif %}
+    {% blocktrans with date=charte.date_modification|date:"d-m-Y H:i" %}آخر تعديل: {{ date }}{% endblocktrans %}
+    {% if lecture_stricte %} — {% trans "عرض للاطلاع فقط، التعديل من صلاحية الإدارة أو المشرف فقط" %}{% else %} — {% trans "عدّل النصوص مباشرة. التصميم لن يتغيّر." %}{% endif %}
 </div>
 
-<div class="section-title" style="margin-bottom:10px;">👁 المعاينة الحالية</div>
+<div class="section-title" style="margin-bottom:10px;">👁 {% trans "المعاينة الحالية" %}</div>
 <div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:28px; max-width:900px;">
     {% include 'dashboard/_charte_contenu.html' %}
 </div>
 
 {% if not lecture_stricte %}
-<div class="section-title" style="margin-bottom:10px;">✏️ تعديل النصوص</div>
+<div class="section-title" style="margin-bottom:10px;">✏️ {% trans "تعديل النصوص" %}</div>
+{% comment %}
+Chaque champ ci-dessous garde son input عربي (name="{champ}", seul
+obligatoire) suivi de 2 lignes FR/EN optionnelles (name="{champ}_fr"/
+"{champ}_en") — mêmes noms que registration/PresentationInscription,
+lues côté serveur par CharteEnseignement._CHAMPS_LOCALISABLES (voir
+dashboard.views.mshrif_charte). Repli automatique sur l'arabe si FR/EN
+pas encore saisi (CharteEnseignement._localise).
+{% endcomment %}
 <form method="POST">
     {% csrf_token %}
 
     <div class="charte-card">
-        <div class="charte-card-header">المقدّمة</div>
-        <label class="charte-field-label">نص المقدّمة</label>
-        <div class="charte-field-hint">فقرة أو أكثر — افصل بين الفقرات بسطر فارغ</div>
-        <textarea name="intro" rows="6">{{ charte.intro }}</textarea>
+        <div class="charte-card-header">{% trans "المقدّمة" %}</div>
+        <label class="charte-field-label">{% trans "نص المقدّمة" %}</label>
+        <div class="charte-field-hint">{% trans "فقرة أو أكثر — افصل بين الفقرات بسطر فارغ" %}</div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="intro" rows="6">{{ charte.intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="intro_fr" rows="4">{{ charte.traductions.fr.intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="intro_en" rows="4">{{ charte.traductions.en.intro }}</textarea></div>
         <div class="charte-verse-box">
-            <label class="charte-field-label">الآية الافتتاحية</label>
-            <input type="text" name="verset_ouverture" value="{{ charte.verset_ouverture }}">
+            <label class="charte-field-label">{% trans "الآية الافتتاحية" %}</label>
+            <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><input type="text" name="verset_ouverture" value="{{ charte.verset_ouverture }}"></div>
+            <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><input type="text" name="verset_ouverture_fr" value="{{ charte.traductions.fr.verset_ouverture }}"></div>
+            <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><input type="text" name="verset_ouverture_en" value="{{ charte.traductions.en.verset_ouverture }}"></div>
         </div>
-        <label class="charte-field-label">عنوان القسم الرئيسي</label>
-        <input type="text" name="titre_bunud" value="{{ charte.titre_bunud }}">
+        <label class="charte-field-label">{% trans "عنوان القسم الرئيسي" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><input type="text" name="titre_bunud" value="{{ charte.titre_bunud }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><input type="text" name="titre_bunud_fr" value="{{ charte.traductions.fr.titre_bunud }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><input type="text" name="titre_bunud_en" value="{{ charte.traductions.en.titre_bunud }}"></div>
     </div>
 
     <div class="charte-card">
-        <div class="charte-card-header">القسم 1 <span class="charte-section-badge">أولاً</span></div>
-        <label class="charte-field-label">عنوان القسم</label>
-        <input type="text" name="section1_titre" value="{{ charte.section1_titre }}">
-        <label class="charte-field-label">مقدّمة القسم</label>
-        <textarea name="section1_intro" rows="2">{{ charte.section1_intro }}</textarea>
-        <label class="charte-field-label">النقاط (سطر واحد لكل نقطة)</label>
-        <div class="charte-field-hint">مثال: تصحيح اللحن الجلي والخفي: الحرص على متابعة تلاوة الطلاب...</div>
-        <textarea name="section1_items" rows="6">{{ charte.section1_items }}</textarea>
+        <div class="charte-card-header">{% trans "القسم 1" %} <span class="charte-section-badge">{% trans "أولاً" %}</span></div>
+        <label class="charte-field-label">{% trans "عنوان القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><input type="text" name="section1_titre" value="{{ charte.section1_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><input type="text" name="section1_titre_fr" value="{{ charte.traductions.fr.section1_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><input type="text" name="section1_titre_en" value="{{ charte.traductions.en.section1_titre }}"></div>
+        <label class="charte-field-label">{% trans "مقدّمة القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section1_intro" rows="2">{{ charte.section1_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section1_intro_fr" rows="2">{{ charte.traductions.fr.section1_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section1_intro_en" rows="2">{{ charte.traductions.en.section1_intro }}</textarea></div>
+        <label class="charte-field-label">{% trans "النقاط (سطر واحد لكل نقطة)" %}</label>
+        <div class="charte-field-hint">{% trans "مثال: تصحيح اللحن الجلي والخفي: الحرص على متابعة تلاوة الطلاب..." %}</div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section1_items" rows="6">{{ charte.section1_items }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section1_items_fr" rows="6">{{ charte.traductions.fr.section1_items }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section1_items_en" rows="6">{{ charte.traductions.en.section1_items }}</textarea></div>
     </div>
 
     <div class="charte-card">
-        <div class="charte-card-header">القسم 2 <span class="charte-section-badge">ثانياً</span></div>
-        <label class="charte-field-label">عنوان القسم</label>
-        <input type="text" name="section2_titre" value="{{ charte.section2_titre }}">
-        <label class="charte-field-label">مقدّمة القسم</label>
-        <textarea name="section2_intro" rows="2">{{ charte.section2_intro }}</textarea>
-        <label class="charte-field-label">النقاط</label>
-        <textarea name="section2_items" rows="5">{{ charte.section2_items }}</textarea>
+        <div class="charte-card-header">{% trans "القسم 2" %} <span class="charte-section-badge">{% trans "ثانياً" %}</span></div>
+        <label class="charte-field-label">{% trans "عنوان القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><input type="text" name="section2_titre" value="{{ charte.section2_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><input type="text" name="section2_titre_fr" value="{{ charte.traductions.fr.section2_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><input type="text" name="section2_titre_en" value="{{ charte.traductions.en.section2_titre }}"></div>
+        <label class="charte-field-label">{% trans "مقدّمة القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section2_intro" rows="2">{{ charte.section2_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section2_intro_fr" rows="2">{{ charte.traductions.fr.section2_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section2_intro_en" rows="2">{{ charte.traductions.en.section2_intro }}</textarea></div>
+        <label class="charte-field-label">{% trans "النقاط" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section2_items" rows="5">{{ charte.section2_items }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section2_items_fr" rows="5">{{ charte.traductions.fr.section2_items }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section2_items_en" rows="5">{{ charte.traductions.en.section2_items }}</textarea></div>
     </div>
 
     <div class="charte-card">
-        <div class="charte-card-header">القسم 3 <span class="charte-section-badge">ثالثاً</span></div>
-        <label class="charte-field-label">عنوان القسم</label>
-        <input type="text" name="section3_titre" value="{{ charte.section3_titre }}">
-        <label class="charte-field-label">مقدّمة القسم</label>
-        <textarea name="section3_intro" rows="2">{{ charte.section3_intro }}</textarea>
-        <label class="charte-field-label">النقاط</label>
-        <textarea name="section3_items" rows="6">{{ charte.section3_items }}</textarea>
+        <div class="charte-card-header">{% trans "القسم 3" %} <span class="charte-section-badge">{% trans "ثالثاً" %}</span></div>
+        <label class="charte-field-label">{% trans "عنوان القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><input type="text" name="section3_titre" value="{{ charte.section3_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><input type="text" name="section3_titre_fr" value="{{ charte.traductions.fr.section3_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><input type="text" name="section3_titre_en" value="{{ charte.traductions.en.section3_titre }}"></div>
+        <label class="charte-field-label">{% trans "مقدّمة القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section3_intro" rows="2">{{ charte.section3_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section3_intro_fr" rows="2">{{ charte.traductions.fr.section3_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section3_intro_en" rows="2">{{ charte.traductions.en.section3_intro }}</textarea></div>
+        <label class="charte-field-label">{% trans "النقاط" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section3_items" rows="6">{{ charte.section3_items }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section3_items_fr" rows="6">{{ charte.traductions.fr.section3_items }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section3_items_en" rows="6">{{ charte.traductions.en.section3_items }}</textarea></div>
         <div class="charte-verse-box">
-            <label class="charte-field-label">نص الآية</label>
-            <input type="text" name="verset_rahma_texte" value="{{ charte.verset_rahma_texte }}">
-            <label class="charte-field-label">مرجع الآية</label>
-            <input type="text" name="verset_rahma_reference" value="{{ charte.verset_rahma_reference }}">
+            <label class="charte-field-label">{% trans "نص الآية" %}</label>
+            <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><input type="text" name="verset_rahma_texte" value="{{ charte.verset_rahma_texte }}"></div>
+            <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><input type="text" name="verset_rahma_texte_fr" value="{{ charte.traductions.fr.verset_rahma_texte }}"></div>
+            <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><input type="text" name="verset_rahma_texte_en" value="{{ charte.traductions.en.verset_rahma_texte }}"></div>
+            <label class="charte-field-label">{% trans "مرجع الآية" %}</label>
+            <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><input type="text" name="verset_rahma_reference" value="{{ charte.verset_rahma_reference }}"></div>
+            <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><input type="text" name="verset_rahma_reference_fr" value="{{ charte.traductions.fr.verset_rahma_reference }}"></div>
+            <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><input type="text" name="verset_rahma_reference_en" value="{{ charte.traductions.en.verset_rahma_reference }}"></div>
         </div>
-        <label class="charte-field-label">خاتمة القسم (بعد الآية)</label>
-        <textarea name="section3_conclusion" rows="2">{{ charte.section3_conclusion }}</textarea>
+        <label class="charte-field-label">{% trans "خاتمة القسم (بعد الآية)" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section3_conclusion" rows="2">{{ charte.section3_conclusion }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section3_conclusion_fr" rows="2">{{ charte.traductions.fr.section3_conclusion }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section3_conclusion_en" rows="2">{{ charte.traductions.en.section3_conclusion }}</textarea></div>
     </div>
 
     <div class="charte-card">
-        <div class="charte-card-header">القسم 4 <span class="charte-section-badge">رابعاً</span></div>
-        <label class="charte-field-label">عنوان القسم</label>
-        <input type="text" name="section4_titre" value="{{ charte.section4_titre }}">
-        <label class="charte-field-label">مقدّمة القسم</label>
-        <textarea name="section4_intro" rows="2">{{ charte.section4_intro }}</textarea>
-        <label class="charte-field-label">النقاط</label>
-        <textarea name="section4_items" rows="5">{{ charte.section4_items }}</textarea>
+        <div class="charte-card-header">{% trans "القسم 4" %} <span class="charte-section-badge">{% trans "رابعاً" %}</span></div>
+        <label class="charte-field-label">{% trans "عنوان القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><input type="text" name="section4_titre" value="{{ charte.section4_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><input type="text" name="section4_titre_fr" value="{{ charte.traductions.fr.section4_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><input type="text" name="section4_titre_en" value="{{ charte.traductions.en.section4_titre }}"></div>
+        <label class="charte-field-label">{% trans "مقدّمة القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section4_intro" rows="2">{{ charte.section4_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section4_intro_fr" rows="2">{{ charte.traductions.fr.section4_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section4_intro_en" rows="2">{{ charte.traductions.en.section4_intro }}</textarea></div>
+        <label class="charte-field-label">{% trans "النقاط" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section4_items" rows="5">{{ charte.section4_items }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section4_items_fr" rows="5">{{ charte.traductions.fr.section4_items }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section4_items_en" rows="5">{{ charte.traductions.en.section4_items }}</textarea></div>
     </div>
 
     <div class="charte-card">
-        <div class="charte-card-header">القسم 5 <span class="charte-section-badge">خامساً</span></div>
-        <label class="charte-field-label">عنوان القسم</label>
-        <input type="text" name="section5_titre" value="{{ charte.section5_titre }}">
-        <label class="charte-field-label">مقدّمة القسم</label>
-        <textarea name="section5_intro" rows="2">{{ charte.section5_intro }}</textarea>
+        <div class="charte-card-header">{% trans "القسم 5" %} <span class="charte-section-badge">{% trans "خامساً" %}</span></div>
+        <label class="charte-field-label">{% trans "عنوان القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><input type="text" name="section5_titre" value="{{ charte.section5_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><input type="text" name="section5_titre_fr" value="{{ charte.traductions.fr.section5_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><input type="text" name="section5_titre_en" value="{{ charte.traductions.en.section5_titre }}"></div>
+        <label class="charte-field-label">{% trans "مقدّمة القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section5_intro" rows="2">{{ charte.section5_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section5_intro_fr" rows="2">{{ charte.traductions.fr.section5_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section5_intro_en" rows="2">{{ charte.traductions.en.section5_intro }}</textarea></div>
 
-        <label class="charte-field-label">جدول المخالفات والإجراءات</label>
-        <div class="charte-field-hint">لكل مخالفة: النص + نوع الإجراء (تصاعدي = إنذار أول ← إنذار ثاني ← خصم من الراتب، أو إعفاء فوري)</div>
+        <label class="charte-field-label">{% trans "جدول المخالفات والإجراءات" %}</label>
+        <div class="charte-field-hint">{% trans "لكل مخالفة: النص + نوع الإجراء (تصاعدي = إنذار أول ← إنذار ثاني ← خصم من الراتب، أو إعفاء فوري)" %}</div>
+        <div class="charte-field-hint">{% trans "النص العربي إلزامي — الفرنسية والإنجليزية اختياريتان، يُعرض النص العربي تلقائياً إذا تُركتا فارغتين." %}</div>
 
         <div id="sanction-rows">
         {% for ligne in charte.sanctions.all %}
-            <div class="sanction-row">
-                <input type="text" name="sanction_violation" value="{{ ligne.violation }}">
-                <select name="sanction_severite">
-                    <option value="progressive" {% if ligne.severite == 'progressive' %}selected{% endif %}>تصاعدي (إنذار ← إنذار ← خصم)</option>
-                    <option value="immediate" {% if ligne.severite == 'immediate' %}selected{% endif %}>الإعفاء الفوري</option>
-                </select>
-                <button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">🗑</button>
+            <div class="sanction-row" style="flex-direction:column; align-items:stretch;">
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <span class="charte-lang-badge" style="width:auto;">🇸🇦</span>
+                    <input type="text" name="sanction_violation" value="{{ ligne.violation }}" placeholder="{% trans 'المخالفة (عربي)' %}">
+                    <select name="sanction_severite">
+                        <option value="progressive" {% if ligne.severite == 'progressive' %}selected{% endif %}>{% trans "تصاعدي (إنذار ← إنذار ← خصم)" %}</option>
+                        <option value="immediate" {% if ligne.severite == 'immediate' %}selected{% endif %}>{% trans "الإعفاء الفوري" %}</option>
+                    </select>
+                    <button type="button" class="btn-remove-row" onclick="this.closest('.sanction-row').remove()">🗑</button>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+                    <span class="charte-lang-badge" style="width:auto;">🇫🇷</span>
+                    <input type="text" name="sanction_violation_fr" value="{{ ligne.violation_fr }}" placeholder="{% trans 'المخالفة (فرنسي، اختياري)' %}">
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+                    <span class="charte-lang-badge" style="width:auto;">🇬🇧</span>
+                    <input type="text" name="sanction_violation_en" value="{{ ligne.violation_en }}" placeholder="{% trans 'المخالفة (إنجليزي، اختياري)' %}">
+                </div>
             </div>
         {% endfor %}
         </div>
-        <button type="button" class="btn-add-row" onclick="ajouterLigneSanction()">+ إضافة مخالفة</button>
+        <button type="button" class="btn-add-row" onclick="ajouterLigneSanction()">+ {% trans "إضافة مخالفة" %}</button>
 
-        <label class="charte-field-label" style="margin-top:16px;">ملاحظة أسفل الجدول</label>
-        <textarea name="section5_note" rows="2">{{ charte.section5_note }}</textarea>
+        <label class="charte-field-label" style="margin-top:16px;">{% trans "ملاحظة أسفل الجدول" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section5_note" rows="2">{{ charte.section5_note }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section5_note_fr" rows="2">{{ charte.traductions.fr.section5_note }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section5_note_en" rows="2">{{ charte.traductions.en.section5_note }}</textarea></div>
     </div>
 
     <div class="charte-card">
-        <div class="charte-card-header">القسم 6</div>
-        <label class="charte-field-label">عنوان القسم</label>
-        <input type="text" name="section6_titre" value="{{ charte.section6_titre }}">
-        <label class="charte-field-label">مقدّمة القسم</label>
-        <textarea name="section6_intro" rows="2">{{ charte.section6_intro }}</textarea>
-        <label class="charte-field-label">النقاط</label>
-        <textarea name="section6_items" rows="5">{{ charte.section6_items }}</textarea>
+        <div class="charte-card-header">{% trans "القسم 6" %}</div>
+        <label class="charte-field-label">{% trans "عنوان القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><input type="text" name="section6_titre" value="{{ charte.section6_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><input type="text" name="section6_titre_fr" value="{{ charte.traductions.fr.section6_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><input type="text" name="section6_titre_en" value="{{ charte.traductions.en.section6_titre }}"></div>
+        <label class="charte-field-label">{% trans "مقدّمة القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section6_intro" rows="2">{{ charte.section6_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section6_intro_fr" rows="2">{{ charte.traductions.fr.section6_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section6_intro_en" rows="2">{{ charte.traductions.en.section6_intro }}</textarea></div>
+        <label class="charte-field-label">{% trans "النقاط" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section6_items" rows="5">{{ charte.section6_items }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section6_items_fr" rows="5">{{ charte.traductions.fr.section6_items }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section6_items_en" rows="5">{{ charte.traductions.en.section6_items }}</textarea></div>
     </div>
 
     <div class="charte-card">
-        <div class="charte-card-header">القسم 7</div>
-        <label class="charte-field-label">عنوان القسم</label>
-        <input type="text" name="section7_titre" value="{{ charte.section7_titre }}">
-        <label class="charte-field-label">مقدّمة القسم</label>
-        <textarea name="section7_intro" rows="2">{{ charte.section7_intro }}</textarea>
-        <label class="charte-field-label">النقاط</label>
-        <textarea name="section7_items" rows="7">{{ charte.section7_items }}</textarea>
+        <div class="charte-card-header">{% trans "القسم 7" %}</div>
+        <label class="charte-field-label">{% trans "عنوان القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><input type="text" name="section7_titre" value="{{ charte.section7_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><input type="text" name="section7_titre_fr" value="{{ charte.traductions.fr.section7_titre }}"></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><input type="text" name="section7_titre_en" value="{{ charte.traductions.en.section7_titre }}"></div>
+        <label class="charte-field-label">{% trans "مقدّمة القسم" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section7_intro" rows="2">{{ charte.section7_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section7_intro_fr" rows="2">{{ charte.traductions.fr.section7_intro }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section7_intro_en" rows="2">{{ charte.traductions.en.section7_intro }}</textarea></div>
+        <label class="charte-field-label">{% trans "النقاط" %}</label>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇸🇦 AR</span><textarea name="section7_items" rows="7">{{ charte.section7_items }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇫🇷 FR</span><textarea name="section7_items_fr" rows="7">{{ charte.traductions.fr.section7_items }}</textarea></div>
+        <div class="charte-lang-row"><span class="charte-lang-badge">🇬🇧 EN</span><textarea name="section7_items_en" rows="7">{{ charte.traductions.en.section7_items }}</textarea></div>
     </div>
 
-    <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:12px 32px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">حفظ التعديلات ✅</button>
+    <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:12px 32px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">{% trans "حفظ التعديلات ✅" %}</button>
 </form>
 
 <script>
@@ -156,13 +239,26 @@ function ajouterLigneSanction() {
     const container = document.getElementById('sanction-rows');
     const row = document.createElement('div');
     row.className = 'sanction-row';
+    row.style.flexDirection = 'column';
+    row.style.alignItems = 'stretch';
     row.innerHTML = `
-        <input type="text" name="sanction_violation" value="">
-        <select name="sanction_severite">
-            <option value="progressive" selected>تصاعدي (إنذار ← إنذار ← خصم)</option>
-            <option value="immediate">الإعفاء الفوري</option>
-        </select>
-        <button type="button" class="btn-remove-row" onclick="this.parentElement.remove()">🗑</button>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <span class="charte-lang-badge" style="width:auto;">🇸🇦</span>
+            <input type="text" name="sanction_violation" value="">
+            <select name="sanction_severite">
+                <option value="progressive" selected>{% trans "تصاعدي (إنذار ← إنذار ← خصم)" %}</option>
+                <option value="immediate">{% trans "الإعفاء الفوري" %}</option>
+            </select>
+            <button type="button" class="btn-remove-row" onclick="this.closest('.sanction-row').remove()">🗑</button>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+            <span class="charte-lang-badge" style="width:auto;">🇫🇷</span>
+            <input type="text" name="sanction_violation_fr" value="">
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+            <span class="charte-lang-badge" style="width:auto;">🇬🇧</span>
+            <input type="text" name="sanction_violation_en" value="">
+        </div>
     `;
     container.appendChild(row);
 }
