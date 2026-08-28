@@ -3191,6 +3191,29 @@ class MoyenPaiementPresentationDelaisTests(TestCase):
         moyen.refresh_from_db()
         self.assertFalse(moyen.est_actif)
 
+    def test_moyen_autre_modifiable_a_parite_stricte_comme_cih_barid(self):
+        """Chantier du 2026-08-27 ("طريقة أخرى" pour les élèves sans compte
+        bancaire) — MÊME structure que CIH/Barid Bank ci-dessus : aucune vue
+        ni logique dédiée, une ligne MoyenPaiement de plus, éditable par
+        مدير ET مشرف à travers le MÊME formulaire (voir
+        dashboard.views.admin_moyen_paiement_modifier, qui ne connaît aucun
+        code particulier)."""
+        from payments.models import MoyenPaiement
+
+        moyen = MoyenPaiement.objects.create(code='autre_parite_test', label='طريقة أخرى', coordonnees='نص أولي')
+        for client in (self._connecte_admin(), self._connecte_mshrif()):
+            reponse = client.post(reverse('admin_moyen_paiement_modifier', args=[moyen.id]), {
+                'label': 'طريقة أخرى', 'coordonnees': 'يرجى التواصل مع الإدارة', 'ordre': 999,
+            })
+            self.assertEqual(reponse.status_code, 302)
+            moyen.refresh_from_db()
+            self.assertEqual(moyen.coordonnees, 'يرجى التواصل مع الإدارة')
+
+        client = self._connecte_admin()
+        client.get(reverse('admin_moyen_paiement_toggle', args=[moyen.id]))
+        moyen.refresh_from_db()
+        self.assertFalse(moyen.est_actif)
+
     def test_presentation_inscription_editable_par_les_deux_roles(self):
         for client in (self._connecte_admin(), self._connecte_mshrif()):
             reponse = client.post(reverse('admin_presentation_inscription'), {

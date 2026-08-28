@@ -3200,6 +3200,28 @@ class WizardAbonnementPaiementTests(TestCase):
         date_limite_attendue = timezone.localdate() + datetime.timedelta(days=7)
         self.assertIn(date_limite_attendue.strftime('%d-%m-%Y'), html)
 
+    def test_paiement_affiche_moyen_autre_avec_ses_coordonnees(self):
+        """Chantier du 2026-08-27 ("طريقة أخرى" pour les élèves sans compte
+        bancaire) — MÊME structure que CIH/Barid Bank (voir MoyenPaiement,
+        aucun cas spécial dans le code) : une nouvelle ligne MoyenPaiement
+        suffit, son label ET son texte configuré doivent apparaître sur cette
+        étape, exactement comme n'importe quel autre moyen actif."""
+        from payments.models import MoyenPaiement
+        MoyenPaiement.objects.create(
+            code='test_wizard_autre', label='طريقة أخرى',
+            coordonnees='يرجى التواصل مع الإدارة لتحديد طريقة دفع مناسبة.', est_actif=True,
+        )
+        client = Client()
+        self._avancer_a_etape_4(client, type_offre='groupe')
+        client.post(reverse('wizard_abonnement'), {'abonnement_code': self.abo_groupe.code})
+        reponse = client.get(reverse('wizard_paiement'))
+        html = reponse.content.decode('utf-8')
+        self.assertIn('طريقة أخرى', html)
+        self.assertIn('يرجى التواصل مع الإدارة لتحديد طريقة دفع مناسبة.', html)
+        # Toujours là aussi — les deux coexistent dans la même liste, aucun
+        # comportement mutuellement exclusif.
+        self.assertIn('CIH بنك', html)
+
     def test_acces_paiement_sans_abonnement_redirige(self):
         client = Client()
         self._avancer_a_etape_4(client, type_offre='groupe')
@@ -3315,6 +3337,26 @@ class WizardConfirmationTests(TestCase):
         inscription = InscriptionEleve.objects.get(email='individuel.wizard@zidni.test')
         self.assertIsNone(inscription.groupe_choisi)
         self.assertEqual(inscription.abonnement, self.abo_individuel.code)
+
+    def test_selection_moyen_autre_par_lelleve_finalise_linscription(self):
+        """Chantier du 2026-08-27 — un élève qui choisit "طريقة أخرى" doit
+        pouvoir finaliser son inscription exactement comme avec CIH/Barid
+        Bank : AUCUNE différence de comportement technique (voir
+        _wizard_confirmer_inscription, qui ne connaît que `moyens.filter(
+        code=...)`, jamais un code particulier codé en dur)."""
+        from payments.models import MoyenPaiement
+        moyen_autre = MoyenPaiement.objects.create(
+            code='test_confirm_autre', label='طريقة أخرى',
+            coordonnees='التواصل مع الإدارة', est_actif=True,
+        )
+        client = Client()
+        self._avancer_jusquau_paiement(client, 'autre.wizard@zidni.test', type_offre='groupe')
+
+        reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': moyen_autre.code})
+        self.assertRedirects(reponse, reverse('wizard_confirmation'), fetch_redirect_response=False)
+
+        inscription = InscriptionEleve.objects.get(email='autre.wizard@zidni.test')
+        self.assertEqual(inscription.groupe_choisi, self.groupe)
 
     def test_moyen_paiement_invalide_refuse_sans_rien_creer(self):
         client = Client()
