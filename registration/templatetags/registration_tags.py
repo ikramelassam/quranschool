@@ -25,6 +25,32 @@ from django import template
 register = template.Library()
 
 
+@register.filter
+def traduire_dynamique(valeur):
+    """Chantier UI/i18n du 2026-08-28 (Problème A) — traduit dynamiquement une
+    chaîne lue depuis la base (label de ConfigurationChampStructurel/
+    ChampInscription/CritereOption/EtapeInscription, configurable par le
+    مدير/مشرف) via le MÊME catalogue i18n Django que le reste du site.
+
+    Pourquoi un filtre et pas {% trans %} directement : {% trans %} exige que
+    le msgid soit connu au moment de l'extraction (makemessages / notre
+    script maison), jamais une variable dont la valeur n'est connue qu'au
+    rendu. Délègue à registration.utils.traduire_libelle_dynamique (gettext()
+    à la volée sur la valeur) — même fonction utilisée directement en Python
+    par les messages de validation qui embarquent un label (voir sa
+    docstring), jamais 2 implémentations du même calcul. Si la chaîne
+    correspond à un msgid déjà dans le catalogue (le petit vocabulaire SEEDÉ
+    par le système), elle ressort traduite ; sinon (un libellé personnalisé
+    tapé par le مدير, hors de ce vocabulaire connu) elle ressort TELLE
+    QUELLE, jamais cassée — comportement standard de gettext() sur un msgid
+    absent, exactement la frontière voulue entre ce Problème A (vocabulaire
+    système à traduire) et le Problème B (contenu libre du مدير, qui a son
+    propre mécanisme dédié avec champs par langue)."""
+    from registration.utils import traduire_libelle_dynamique
+
+    return traduire_libelle_dynamique(valeur)
+
+
 @register.simple_tag
 def reponse_ou_ancien_champ(inscription, valeur_ancien_champ, code_critere):
     """valeur_ancien_champ : le résultat déjà calculé de get_programme_display()/

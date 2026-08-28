@@ -1,16 +1,21 @@
-{% load static %}
+{% load static i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <link rel="icon" href="{{ logo_url }}" type="{{ logo_mime_type }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>التسجيل كمعلم</title>
+    <title>{% trans "التسجيل كمعلم" %}</title>
+    {% if LANGUAGE_BIDI %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    {% else %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    {% endif %}
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
     <style>
         * { font-family: 'Tajawal', sans-serif; }
+        .language-switcher { position: absolute; top: 18px; {% if LANGUAGE_BIDI %}left{% else %}right{% endif %}: 18px; z-index: 20; }
         body { background-color: var(--color-bg-cream); }
         .form-container {
             max-width: 700px;
@@ -103,13 +108,14 @@
     </style>
 </head>
 <body>
+    {% include '_language_switcher.html' %}
 <div class="form-container">
 
     <div class="logo-container">
-        <img src="{{ logo_url }}" alt="زدني علماً">
+        <img src="{{ logo_url }}" alt="{% trans 'زدني علماً' %}">
     </div>
-    <div class="page-title">التسجيل كمعلم</div>
-    <div class="page-subtitle">يرجى ملء جميع الخانات بدقة</div>
+    <div class="page-title">{% trans "التسجيل كمعلم" %}</div>
+    <div class="page-subtitle">{% trans "يرجى ملء جميع الخانات بدقة" %}</div>
 
     {% if erreur_email %}
     <div style="background:#f8d7da; border-radius:8px; padding:14px 18px; margin-bottom:20px; color:#721c24;">
@@ -132,139 +138,141 @@
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
 
-        <!-- Section 1 : Infos personnelles -->
+        {% comment %}Section 1 : Infos personnelles{% endcomment %}
         <div class="card">
-            <div class="section-title">1. المعلومات الشخصية</div>
+            <div class="section-title">1. {% trans "المعلومات الشخصية" %}</div>
             <div class="row g-3">
                 <div class="col-6">
-                    <label class="form-label">الاسم *</label>
+                    <label class="form-label">{% trans "الاسم" %} *</label>
                     <input type="text" name="nom" class="form-control" required>
                 </div>
                 <div class="col-6">
-                    <label class="form-label">اللقب *</label>
+                    <label class="form-label">{% trans "اللقب" %} *</label>
                     <input type="text" name="prenom" class="form-control" required>
                 </div>
                 <div class="col-6">
-                    <label class="form-label">البريد الإلكتروني *</label>
+                    <label class="form-label">{% trans "البريد الإلكتروني" %} *</label>
                     <input type="email" name="email" class="form-control" value="{{ old_email|default:'' }}" required>
                 </div>
                 <div class="col-12">
                     {% include 'inscriptions/_verification_whatsapp.html' %}
                 </div>
                 <div class="col-6">
-                    <label class="form-label">تاريخ الميلاد *</label>
+                    <label class="form-label">{% trans "تاريخ الميلاد" %} *</label>
                     <input type="date" name="date_naissance" class="form-control" required>
                 </div>
                 <div class="col-6">
-                    <label class="form-label">المدينة *</label>
+                    <label class="form-label">{% trans "المدينة" %} *</label>
                     <input type="text" name="ville" class="form-control" required>
                 </div>
                 <div class="col-6">
-                    <label class="form-label">الحالة الاجتماعية *</label>
+                    <label class="form-label">{% trans "الحالة الاجتماعية" %} *</label>
                     <select name="statut_familial" class="form-select" required>
-                        <option value="">اختر</option>
-                        <option value="celibataire">أعزب/عزباء</option>
-                        <option value="marie">متزوج/ة</option>
-                        <option value="divorce">مطلق/ة</option>
+                        <option value="">{% trans "اختر" %}</option>
+                        <option value="celibataire">{% trans "أعزب/عزباء" %}</option>
+                        <option value="marie">{% trans "متزوج/ة" %}</option>
+                        <option value="divorce">{% trans "مطلق/ة" %}</option>
                     </select>
                 </div>
                 <div class="col-6">
-                    <label class="form-label">الوظيفة الحالية *</label>
+                    <label class="form-label">{% trans "الوظيفة الحالية" %} *</label>
                     <input type="text" name="job_actuel" class="form-control" required>
                 </div>
             </div>
         </div>
 
-        <!-- Section 2 : Qualifications -->
+        {% comment %}Section 2 : Qualifications{% endcomment %}
         <div class="card">
-            <div class="section-title">2. المؤهلات</div>
+            <div class="section-title">2. {% trans "المؤهلات" %}</div>
             <div class="row g-3">
                 <div class="col-12">
-                    <label class="form-label">مستوى الحفظ *</label>
+                    {% trans "مثال: حفظ القرآن كاملاً" as placeholder_niveau_memorisation %}
+                    <label class="form-label">{% trans "مستوى الحفظ" %} *</label>
                     <input type="text" name="niveau_memorisation" class="form-control"
-                           placeholder="مثال: حفظ القرآن كاملاً" required>
+                           placeholder="{{ placeholder_niveau_memorisation }}" required>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">الشهادات والإجازات</label>
+                    {% trans "اذكر شهاداتك وإجازاتك" as placeholder_certifications %}
+                    <label class="form-label">{% trans "الشهادات والإجازات" %}</label>
                     <textarea name="certifications" class="form-control" rows="2"
-                              placeholder="اذكر شهاداتك وإجازاتك"></textarea>
+                              placeholder="{{ placeholder_certifications }}"></textarea>
                 </div>
             </div>
         </div>
 
-        <!-- Section 3 : Préférences -->
+        {% comment %}Section 3 : Préférences{% endcomment %}
         <div class="card">
-            <div class="section-title">3. تفضيلات التدريس</div>
+            <div class="section-title">3. {% trans "تفضيلات التدريس" %}</div>
 
             <div class="mb-3">
-                <label class="form-label">نوع الطلاب المفضل *</label><br>
-                <div onclick="toggleCheck(this, 'type_eleve', 'enfants')" class="check-btn">أطفال</div>
-                <div onclick="toggleCheck(this, 'type_eleve', 'adultes')" class="check-btn">بالغون</div>
-                <div onclick="toggleCheck(this, 'type_eleve', 'les_deux')" class="check-btn">الاثنان</div>
+                <label class="form-label">{% trans "نوع الطلاب المفضل" %} *</label><br>
+                <div onclick="toggleCheck(this, 'type_eleve', 'enfants')" class="check-btn">{% trans "أطفال" %}</div>
+                <div onclick="toggleCheck(this, 'type_eleve', 'adultes')" class="check-btn">{% trans "بالغون" %}</div>
+                <div onclick="toggleCheck(this, 'type_eleve', 'les_deux')" class="check-btn">{% trans "الاثنان" %}</div>
                 <input type="hidden" name="type_eleve" id="type_eleve_val">
             </div>
 
             <div class="mb-3">
-                <label class="form-label">قيود الجنس *</label><br>
-                <div onclick="toggleCheck(this, 'contrainte_genre', 'homme')" class="check-btn">ذكور فقط</div>
-                <div onclick="toggleCheck(this, 'contrainte_genre', 'femme')" class="check-btn">إناث فقط</div>
-                <div onclick="toggleCheck(this, 'contrainte_genre', 'mixte')" class="check-btn">مختلط</div>
+                <label class="form-label">{% trans "قيود الجنس" %} *</label><br>
+                <div onclick="toggleCheck(this, 'contrainte_genre', 'homme')" class="check-btn">{% trans "ذكور فقط" %}</div>
+                <div onclick="toggleCheck(this, 'contrainte_genre', 'femme')" class="check-btn">{% trans "إناث فقط" %}</div>
+                <div onclick="toggleCheck(this, 'contrainte_genre', 'mixte')" class="check-btn">{% trans "مختلط" %}</div>
                 <input type="hidden" name="contrainte_genre" id="contrainte_genre_val">
             </div>
 
             <div class="mb-3">
-                <label class="form-label">اللغات المتحدث بها *</label><br>
-                <div onclick="toggleMulti(this, 'langues', 'arabe')" class="check-btn">العربية</div>
-                <div onclick="toggleMulti(this, 'langues', 'francais')" class="check-btn">الفرنسية</div>
-                <div onclick="toggleMulti(this, 'langues', 'anglais')" class="check-btn">الإنجليزية</div>
-                <div onclick="toggleMulti(this, 'langues', 'autre')" class="check-btn">أخرى</div>
+                <label class="form-label">{% trans "اللغات المتحدث بها" %} *</label><br>
+                <div onclick="toggleMulti(this, 'langues', 'arabe')" class="check-btn">{% trans "العربية" %}</div>
+                <div onclick="toggleMulti(this, 'langues', 'francais')" class="check-btn">{% trans "الفرنسية" %}</div>
+                <div onclick="toggleMulti(this, 'langues', 'anglais')" class="check-btn">{% trans "الإنجليزية" %}</div>
+                <div onclick="toggleMulti(this, 'langues', 'autre')" class="check-btn">{% trans "أخرى" %}</div>
             </div>
         </div>
 
-        <!-- Section 4 : Disponibilités -->
+        {% comment %}Section 4 : Disponibilités{% endcomment %}
         <div class="card">
-            <div class="section-title">4. الأوقات المتاحة للتدريس</div>
-            <p style="color:#888; font-size:0.85rem; margin-bottom:12px;">اختر كل الساعات التي تكون فيها متاحاً للتدريس (يمكن اختيار أكثر من ساعتين).</p>
+            <div class="section-title">4. {% trans "الأوقات المتاحة للتدريس" %}</div>
+            <p style="color:#888; font-size:0.85rem; margin-bottom:12px;">{% trans "اختر كل الساعات التي تكون فيها متاحاً للتدريس (يمكن اختيار أكثر من ساعتين)." %}</p>
             {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form %}
         </div>
 
-        <!-- Section 5 : Outils -->
+        {% comment %}Section 5 : Outils{% endcomment %}
         <div class="card">
-            <div class="section-title">5. الأدوات المتقنة</div>
-            <div onclick="toggleMulti(this, 'outils', 'whatsapp')" class="check-btn">واتساب</div>
+            <div class="section-title">5. {% trans "الأدوات المتقنة" %}</div>
+            <div onclick="toggleMulti(this, 'outils', 'whatsapp')" class="check-btn">{% trans "واتساب" %}</div>
             <div onclick="toggleMulti(this, 'outils', 'meet')" class="check-btn">Google Meet</div>
             <div onclick="toggleMulti(this, 'outils', 'zoom')" class="check-btn">Zoom</div>
         </div>
 
-        <!-- Section 6 : Parcours -->
+        {% comment %}Section 6 : Parcours{% endcomment %}
         <div class="card">
-            <div class="section-title">6. المسار والخبرة</div>
+            <div class="section-title">6. {% trans "المسار والخبرة" %}</div>
             <div class="row g-3">
                 <div class="col-12">
-                    <label class="form-label">المسار الدراسي *</label>
+                    <label class="form-label">{% trans "المسار الدراسي" %} *</label>
                     <textarea name="parcours_scolaire" class="form-control" rows="3" required></textarea>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">مسار التدريس *</label>
+                    <label class="form-label">{% trans "مسار التدريس" %} *</label>
                     <textarea name="parcours_enseignant" class="form-control" rows="3" required></textarea>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">كيف تتعامل مع الطالب الضعيف؟ *</label>
+                    <label class="form-label">{% trans "كيف تتعامل مع الطالب الضعيف؟" %} *</label>
                     <textarea name="gestion_eleve_faible" class="form-control" rows="2" required></textarea>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">كيف تتعامل مع الطالب الغائب؟ *</label>
+                    <label class="form-label">{% trans "كيف تتعامل مع الطالب الغائب؟" %} *</label>
                     <textarea name="gestion_eleve_absent" class="form-control" rows="2" required></textarea>
                 </div>
             </div>
         </div>
 
-        <!-- Section 7 : Bancaire + Audio -->
+        {% comment %}Section 7 : Bancaire + Audio{% endcomment %}
         <div class="card">
-            <div class="section-title">7. المعلومات البنكية والتسجيل الصوتي</div>
+            <div class="section-title">7. {% trans "المعلومات البنكية والتسجيل الصوتي" %}</div>
             <div class="row g-3">
                 <div class="col-6">
-                    <label class="form-label">رقم الحساب البنكي *</label>
+                    <label class="form-label">{% trans "رقم الحساب البنكي" %} *</label>
                     <input type="text" name="compte_bancaire" class="form-control" required>
                 </div>
                 <div class="col-6">
@@ -272,38 +280,40 @@
                     <input type="text" name="rib" class="form-control" required>
                 </div>
                 <div class="col-6">
-                    <label class="form-label">اسم الوكالة البنكية *</label>
+                    <label class="form-label">{% trans "اسم الوكالة البنكية" %} *</label>
                     <input type="text" name="agence_bancaire" class="form-control" required>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">تسجيل صوتي *</label>
+                    <label class="form-label">{% trans "تسجيل صوتي" %} *</label>
                     <input type="file" name="audio_enregistrement" class="form-control"
                            accept="audio/*" required>
                 </div>
             </div>
         </div>
 
-        <!-- Section 8 : ميثاق التدريس — Chantier du 2026-08-27, dernier champ
-             du formulaire, juste avant le bouton d'envoi (voir
-             inscriptions.views.inscription_prof pour le blocage côté serveur
-             si la case ci-dessous n'est pas cochée). -->
+        {% comment %}
+        Section 8 : ميثاق التدريس — Chantier du 2026-08-27, dernier champ du
+        formulaire, juste avant le bouton d'envoi (voir inscriptions.views.
+        inscription_prof pour le blocage côté serveur si la case ci-dessous
+        n'est pas cochée).
+        {% endcomment %}
         <div class="card">
-            <div class="section-title">8. ميثاق التدريس</div>
-            <p style="color:#888; font-size:0.9rem; margin-bottom:12px;">يرجى قراءة الميثاق بالكامل قبل الموافقة عليه — الموافقة إلزامية لإتمام التسجيل.</p>
+            <div class="section-title">8. {% trans "ميثاق التدريس" %}</div>
+            <p style="color:#888; font-size:0.9rem; margin-bottom:12px;">{% trans "يرجى قراءة الميثاق بالكامل قبل الموافقة عليه — الموافقة إلزامية لإتمام التسجيل." %}</p>
             <details style="background:var(--color-bg-cream); border-radius:10px; padding:14px 18px; margin-bottom:16px;">
-                <summary style="cursor:pointer; font-weight:600; color:var(--color-role-prof-solid);">عرض نص الميثاق كاملاً 📜</summary>
+                <summary style="cursor:pointer; font-weight:600; color:var(--color-role-prof-solid);">{% trans "عرض نص الميثاق كاملاً 📜" %}</summary>
                 <div style="margin-top:16px;">
                     {% include 'dashboard/_charte_contenu.html' %}
                 </div>
             </details>
             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:600;">
                 <input type="checkbox" name="accepte_charte" value="oui" required style="width:18px; height:18px;">
-                لقد قرأت ووافقت على ميثاق التدريس *
+                {% trans "لقد قرأت ووافقت على ميثاق التدريس" %} *
             </label>
         </div>
 
-        <button type="submit" class="btn-submit">إرسال الطلب ✉️</button>
-        <a href="{% url 'login' %}" class="btn-back">رجوع ←</a>
+        <button type="submit" class="btn-submit">{% trans "إرسال الطلب ✉️" %}</button>
+        <a href="{% url 'login' %}" class="btn-back">{% trans "← رجوع" %}</a>
 
     </form>
 </div>
@@ -343,11 +353,12 @@ function toggleMulti(el, field, value) {
 // Anti-double-soumission : désactive le bouton dès le premier submit pour
 // empêcher un 2e clic d'envoyer la même candidature deux fois pendant que la
 // requête part (voir aussi la garde serveur dans inscriptions.views.inscription_prof).
+{% trans "جارٍ الإرسال..." as texte_envoi_en_cours %}
 document.querySelector('form').addEventListener('submit', function (e) {
     const btn = document.querySelector('.btn-submit');
     if (btn.disabled) { e.preventDefault(); return; }
     btn.disabled = true;
-    btn.textContent = 'جارٍ الإرسال...';
+    btn.textContent = '{{ texte_envoi_en_cours|escapejs }}';
 });
 </script>
 </body>

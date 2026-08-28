@@ -86,6 +86,37 @@ class TemplatesSansFuiteDeCommentairesTests(unittest.TestCase):
             'à convertir en {% comment %}...{% endcomment %} : ' + ', '.join(fautifs)
         )
 
+    def test_le_commentaire_casse_du_selecteur_de_langue_a_disparu(self):
+        """Régression du bug signalé le 2026-08-28 : le commentaire {# #}
+        multi-lignes de templates/_language_switcher.html (chantier i18n du
+        2026-08-27) fuitait littéralement à l'écran sur toute page l'incluant
+        — login.html, base_eleve.html, base_prof.html, _wizard_base.html.
+        Vérifie le RENDU (ce que voit l'utilisateur), pas seulement le
+        source, sur les 3 pages hôtes citées dans le bug + le partial
+        lui-même — en plus du scan générique ci-dessus qui couvre tous les
+        templates du projet, pas seulement ceux-là."""
+        from django.contrib.sessions.middleware import SessionMiddleware
+        from django.contrib.auth.models import AnonymousUser
+        from django.template.loader import get_template
+        from django.test import RequestFactory
+
+        fragment_casse = 'Sélecteur de langue réutilisable'
+        rf = RequestFactory()
+        req = rf.get('/accounts/login/')
+        SessionMiddleware(lambda r: None).process_request(req)
+        req.session.save()
+        req.user = AnonymousUser()
+        contexte = {
+            'request': req, 'LANGUAGE_CODE': 'ar', 'LANGUAGE_BIDI': True,
+            'logo_url': '', 'logo_mime_type': '',
+        }
+
+        html_login = get_template('accounts/login.html').render(contexte, request=req)
+        self.assertNotIn(fragment_casse, html_login)
+
+        html_switcher_seul = get_template('_language_switcher.html').render(contexte, request=req)
+        self.assertNotIn(fragment_casse, html_switcher_seul)
+
 
 # Régression du 2026-08-24 — bug signalé "CSRF token from POST incorrect" :
 # aucun bug de code trouvé (parcours complet du wizard public revérifié avec

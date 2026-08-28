@@ -236,7 +236,7 @@
         {% endif %}
     </div>
 
-    <!-- نبذة التقديم العامة (Chantier du 2026-08-27) — تظهر في بطاقة الحلقة أثناء التسجيل. -->
+    {% comment %}نبذة التقديم العامة (Chantier du 2026-08-27) — تظهر في بطاقة الحلقة أثناء التسجيل.{% endcomment %}
     <div style="border:1.5px solid rgba(139,75,0,0.2); background:white; border-radius:14px; padding:22px 24px; margin-bottom:20px;">
         <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:10px;">📝 نبذة التقديم العامة</div>
         <div style="white-space:pre-line; color:var(--color-text-primary);">{{ prof.presentation_publique|default:"— لا توجد نبذة —" }}</div>

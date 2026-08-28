@@ -2422,3 +2422,46 @@ class GroupesCompatiblesSexeAgePourChangementTests(TestCase):
         creneau = _creer_creneau(sexe_cible='mixte', age_min=6, age_max=60)
         Groupe.objects.create(nom='peu importe', creneau=creneau)
         self.assertEqual(groupes_compatibles_sexe_age_pour_changement(eleve), [])
+
+
+# ============================================================================
+# Point 4 du chantier UI/i18n du 2026-08-28 — les 114 noms de sourates
+# (courses.quran_data.SOURATES/SOURATES_NOMS) restaient toujours en arabe
+# quelle que soit la langue active, car ils venaient d'une liste Python fixe
+# jamais passée par gettext (contrairement au reste de l'interface). Corrigé
+# en enveloppant chaque nom dans gettext_lazy — Presence.nom_sourate_
+# memorisee/nom_sourate_revisee et calculer_progression_eleve()['par_sourate']
+# en héritent automatiquement, une seule source de vérité (voir quran_data.py).
+# ============================================================================
+class NomsSouratesTraductionTests(TestCase):
+    def test_nom_sourate_suit_la_langue_active(self):
+        from django.utils import translation
+        from courses.quran_data import SOURATES_NOMS
+
+        with translation.override('ar'):
+            self.assertEqual(str(SOURATES_NOMS[107]), 'الماعون')
+        with translation.override('fr'):
+            self.assertEqual(str(SOURATES_NOMS[107]), 'Al-Ma\'un')
+        with translation.override('en'):
+            self.assertEqual(str(SOURATES_NOMS[107]), 'Al-Ma\'un')
+
+    def test_nom_sourate_dans_les_proprietes_presence(self):
+        """Presence.nom_sourate_memorisee/nom_sourate_revisee (utilisées par
+        eleve_progression.html, admin_eleve_detail.html, etc.) réutilisent
+        SOURATES_NOMS — vérifie qu'elles suivent la langue elles aussi,
+        sans dupliquer une 2e liste de noms."""
+        from django.utils import translation
+
+        eleve = _creer_eleve('sourate_traduction@zidni.test')
+        creneau = _creer_creneau(sexe_cible='mixte', age_min=6, age_max=60)
+        groupe = Groupe.objects.create(nom='حلقة اختبار السور', creneau=creneau)
+        groupe.eleves.add(eleve)
+        seance = Seance.objects.create(groupe=groupe, date=datetime.date(2026, 8, 28), heure='16:00', type='normal')
+        presence = Presence.objects.create(
+            seance=seance, eleve=eleve, statut='present',
+            sourate_memorisee=114, ayah_debut_memorisation=1, ayah_fin_memorisation=6,
+        )
+        with translation.override('en'):
+            self.assertEqual(str(presence.nom_sourate_memorisee), 'An-Nas')
+        with translation.override('ar'):
+            self.assertEqual(str(presence.nom_sourate_memorisee), 'الناس')

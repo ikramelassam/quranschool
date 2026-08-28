@@ -1,5 +1,5 @@
 {% extends 'inscriptions/_wizard_base.html' %}
-{% load i18n %}
+{% load i18n registration_tags %}
 {% comment %}
 Chantier du 2026-08-23 (Partie 3B, "étapes repositionnables/insérables
 n'importe où") — page GÉNÉRIQUE unique pour TOUTE étape personnalisée créée
@@ -8,9 +8,9 @@ Aucun `wizard_etape_num` : la barre de progression à 6 points reste
 dimensionnée pour les 7 pages réelles historiques, une étape personnalisée
 n'a pas de position fixe qui y corresponde — jamais un point trompeur.
 {% endcomment %}
-{% block wizard_title %}{{ etape.titre }}{% endblock %}
+{% block wizard_title %}{{ etape.titre|traduire_dynamique }}{% endblock %}
 {% block wizard_content %}
-<div class="page-title">{{ etape.titre }}</div>
+<div class="page-title">{{ etape.titre|traduire_dynamique }}</div>
 
 <form method="POST">
     {% csrf_token %}

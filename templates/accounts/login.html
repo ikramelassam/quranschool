@@ -15,8 +15,7 @@
     <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
     <style>
         * { font-family: 'Tajawal', sans-serif; }
-        .language-switcher { position: absolute; top: 18px; {% if LANGUAGE_BIDI %}left{% else %}right{% endif %}: 18px; }
-        .language-switcher select { border-radius: 8px; border: 1px solid #ddd; padding: 6px 10px; font-family: 'Tajawal', sans-serif; font-size: 0.85rem; background: white; }
+        .language-switcher { position: absolute; top: 18px; {% if LANGUAGE_BIDI %}left{% else %}right{% endif %}: 18px; z-index: 20; }
         body {
             background-color: var(--color-bg-cream);
             min-height: 100vh;

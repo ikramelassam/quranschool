@@ -1517,6 +1517,50 @@ class WizardIdentiteTests(TestCase):
         self.assertEqual(reponse.status_code, 200)
         self.assertIn('المعلومات الشخصية', reponse.content.decode('utf-8'))
 
+    def test_labels_des_champs_structurels_suivent_la_langue_de_session(self):
+        """Problème A du chantier "compléter FR/EN" du 2026-08-28 : les labels
+        de ConfigurationChampStructurel (الاسم الكامل/اسم ولي الأمر/الجنس/
+        البريد الإلكتروني/تاريخ الميلاد/العمل الحالي/المستوى الدراسي) venaient
+        de la base, jamais de {% trans %} — donc jamais traduits même une
+        fois le sélecteur de langue posé. Corrigé via le filtre traduire_
+        dynamique (registration.templatetags.registration_tags), qui appelle
+        gettext() sur la valeur au rendu — vérifie ici que ça se voit
+        vraiment sur la VRAIE page publique, dans les 2 langues."""
+        client = Client()
+        client.post(reverse('set_language'), {'language': 'fr'})
+        _choisir_categorie_age(client)
+        html_fr = client.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertIn('Nom complet', html_fr)
+        self.assertIn('Sexe', html_fr)
+        self.assertIn('E-mail', html_fr)
+        self.assertIn('Date de naissance', html_fr)
+        self.assertIn('Emploi actuel', html_fr)
+        self.assertIn('Niveau scolaire', html_fr)
+        self.assertNotIn('الاسم الكامل', html_fr)
+        self.assertNotIn('المستوى الدراسي', html_fr)
+
+        client_en = Client()
+        client_en.post(reverse('set_language'), {'language': 'en'})
+        _choisir_categorie_age(client_en)
+        html_en = client_en.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertIn('Full name', html_en)
+        self.assertIn('Gender', html_en)
+        self.assertIn('Email', html_en)
+        self.assertIn('Date of birth', html_en)
+        self.assertIn('Current job', html_en)
+        self.assertIn('School level', html_en)
+        self.assertNotIn('الاسم الكامل', html_en)
+        self.assertNotIn('المستوى الدراسي', html_en)
+
+        # Toujours en arabe par défaut (aucune session langue posée) — le
+        # comportement historique ne doit pas changer pour un visiteur qui
+        # n'a jamais touché au sélecteur.
+        client_ar = Client()
+        _choisir_categorie_age(client_ar)
+        html_ar = client_ar.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertIn('الاسم الكامل', html_ar)
+        self.assertIn('المستوى الدراسي', html_ar)
+
     def test_post_valide_enregistre_en_session_et_avance(self):
         client = Client()
         _choisir_categorie_age(client)

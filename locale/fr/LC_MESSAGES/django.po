@@ -478,7 +478,7 @@ msgid "الجدول:"
 msgstr "Horaire :"
 
 msgid "الجمعة"
-msgstr "Vendredi"
+msgstr "Al-Jumu'ah"
 
 msgid "الجنس"
 msgstr "Sexe"
@@ -718,7 +718,7 @@ msgid "المواظبة والسلوك:"
 msgstr "Assيduité et comportement :"
 
 msgid "النساء"
-msgstr "Les femmes"
+msgstr "An-Nisa"
 
 msgid "النسخ (%(n)s)"
 msgstr "Copies (%(n)s)"
@@ -1997,3 +1997,570 @@ msgstr "Souhaitez-vous rejoindre un autre groupe ?"
 
 msgid "← العودة إلى ملفي الشخصي"
 msgstr "← Retour à mon profil"
+
+msgid "الفاتحة"
+msgstr "Al-Fatihah"
+
+msgid "البقرة"
+msgstr "Al-Baqarah"
+
+msgid "آل عمران"
+msgstr "Ali 'Imran"
+
+msgid "المائدة"
+msgstr "Al-Ma'idah"
+
+msgid "الأنعام"
+msgstr "Al-An'am"
+
+msgid "الأعراف"
+msgstr "Al-A'raf"
+
+msgid "الأنفال"
+msgstr "Al-Anfal"
+
+msgid "التوبة"
+msgstr "At-Tawbah"
+
+msgid "يونس"
+msgstr "Yunus"
+
+msgid "هود"
+msgstr "Hud"
+
+msgid "يوسف"
+msgstr "Yusuf"
+
+msgid "الرعد"
+msgstr "Ar-Ra'd"
+
+msgid "إبراهيم"
+msgstr "Ibrahim"
+
+msgid "الحجر"
+msgstr "Al-Hijr"
+
+msgid "النحل"
+msgstr "An-Nahl"
+
+msgid "الإسراء"
+msgstr "Al-Isra"
+
+msgid "الكهف"
+msgstr "Al-Kahf"
+
+msgid "مريم"
+msgstr "Maryam"
+
+msgid "طه"
+msgstr "Ta-Ha"
+
+msgid "الأنبياء"
+msgstr "Al-Anbiya"
+
+msgid "الحج"
+msgstr "Al-Hajj"
+
+msgid "المؤمنون"
+msgstr "Al-Mu'minun"
+
+msgid "النور"
+msgstr "An-Nur"
+
+msgid "الفرقان"
+msgstr "Al-Furqan"
+
+msgid "الشعراء"
+msgstr "Ash-Shu'ara"
+
+msgid "النمل"
+msgstr "An-Naml"
+
+msgid "القصص"
+msgstr "Al-Qasas"
+
+msgid "العنكبوت"
+msgstr "Al-Ankabut"
+
+msgid "الروم"
+msgstr "Ar-Rum"
+
+msgid "لقمان"
+msgstr "Luqman"
+
+msgid "السجدة"
+msgstr "As-Sajdah"
+
+msgid "الأحزاب"
+msgstr "Al-Ahzab"
+
+msgid "سبأ"
+msgstr "Saba"
+
+msgid "فاطر"
+msgstr "Fatir"
+
+msgid "يس"
+msgstr "Ya-Sin"
+
+msgid "الصافات"
+msgstr "As-Saffat"
+
+msgid "ص"
+msgstr "Sad"
+
+msgid "الزمر"
+msgstr "Az-Zumar"
+
+msgid "غافر"
+msgstr "Ghafir"
+
+msgid "فصلت"
+msgstr "Fussilat"
+
+msgid "الشورى"
+msgstr "Ash-Shura"
+
+msgid "الزخرف"
+msgstr "Az-Zukhruf"
+
+msgid "الدخان"
+msgstr "Ad-Dukhan"
+
+msgid "الجاثية"
+msgstr "Al-Jathiyah"
+
+msgid "الأحقاف"
+msgstr "Al-Ahqaf"
+
+msgid "محمد"
+msgstr "Muhammad"
+
+msgid "الفتح"
+msgstr "Al-Fath"
+
+msgid "الحجرات"
+msgstr "Al-Hujurat"
+
+msgid "ق"
+msgstr "Qaf"
+
+msgid "الذاريات"
+msgstr "Adh-Dhariyat"
+
+msgid "الطور"
+msgstr "At-Tur"
+
+msgid "النجم"
+msgstr "An-Najm"
+
+msgid "القمر"
+msgstr "Al-Qamar"
+
+msgid "الرحمن"
+msgstr "Ar-Rahman"
+
+msgid "الواقعة"
+msgstr "Al-Waqi'ah"
+
+msgid "الحديد"
+msgstr "Al-Hadid"
+
+msgid "المجادلة"
+msgstr "Al-Mujadilah"
+
+msgid "الحشر"
+msgstr "Al-Hashr"
+
+msgid "الممتحنة"
+msgstr "Al-Mumtahanah"
+
+msgid "الصف"
+msgstr "As-Saff"
+
+msgid "المنافقون"
+msgstr "Al-Munafiqun"
+
+msgid "التغابن"
+msgstr "At-Taghabun"
+
+msgid "الطلاق"
+msgstr "At-Talaq"
+
+msgid "التحريم"
+msgstr "At-Tahrim"
+
+msgid "الملك"
+msgstr "Al-Mulk"
+
+msgid "القلم"
+msgstr "Al-Qalam"
+
+msgid "الحاقة"
+msgstr "Al-Haqqah"
+
+msgid "المعارج"
+msgstr "Al-Ma'arij"
+
+msgid "نوح"
+msgstr "Nuh"
+
+msgid "الجن"
+msgstr "Al-Jinn"
+
+msgid "المزمل"
+msgstr "Al-Muzzammil"
+
+msgid "المدثر"
+msgstr "Al-Muddaththir"
+
+msgid "القيامة"
+msgstr "Al-Qiyamah"
+
+msgid "الإنسان"
+msgstr "Al-Insan"
+
+msgid "المرسلات"
+msgstr "Al-Mursalat"
+
+msgid "النبأ"
+msgstr "An-Naba"
+
+msgid "النازعات"
+msgstr "An-Nazi'at"
+
+msgid "عبس"
+msgstr "Abasa"
+
+msgid "التكوير"
+msgstr "At-Takwir"
+
+msgid "الانفطار"
+msgstr "Al-Infitar"
+
+msgid "المطففين"
+msgstr "Al-Mutaffifin"
+
+msgid "الانشقاق"
+msgstr "Al-Inshiqaq"
+
+msgid "البروج"
+msgstr "Al-Buruj"
+
+msgid "الطارق"
+msgstr "At-Tariq"
+
+msgid "الأعلى"
+msgstr "Al-A'la"
+
+msgid "الغاشية"
+msgstr "Al-Ghashiyah"
+
+msgid "الفجر"
+msgstr "Al-Fajr"
+
+msgid "البلد"
+msgstr "Al-Balad"
+
+msgid "الشمس"
+msgstr "Ash-Shams"
+
+msgid "الليل"
+msgstr "Al-Layl"
+
+msgid "الضحى"
+msgstr "Ad-Duha"
+
+msgid "الشرح"
+msgstr "Ash-Sharh"
+
+msgid "التين"
+msgstr "At-Tin"
+
+msgid "العلق"
+msgstr "Al-Alaq"
+
+msgid "القدر"
+msgstr "Al-Qadr"
+
+msgid "البينة"
+msgstr "Al-Bayyinah"
+
+msgid "الزلزلة"
+msgstr "Az-Zalzalah"
+
+msgid "العاديات"
+msgstr "Al-Adiyat"
+
+msgid "القارعة"
+msgstr "Al-Qari'ah"
+
+msgid "التكاثر"
+msgstr "At-Takathur"
+
+msgid "العصر"
+msgstr "Al-Asr"
+
+msgid "الهمزة"
+msgstr "Al-Humazah"
+
+msgid "الفيل"
+msgstr "Al-Fil"
+
+msgid "قريش"
+msgstr "Quraysh"
+
+msgid "الماعون"
+msgstr "Al-Ma'un"
+
+msgid "الكوثر"
+msgstr "Al-Kawthar"
+
+msgid "الكافرون"
+msgstr "Al-Kafirun"
+
+msgid "النصر"
+msgstr "An-Nasr"
+
+msgid "المسد"
+msgstr "Al-Masad"
+
+msgid "الإخلاص"
+msgstr "Al-Ikhlas"
+
+msgid "الفلق"
+msgstr "Al-Falaq"
+
+msgid "الناس"
+msgstr "An-Nas"
+
+msgid "اسم ولي الأمر (إن كان المسجَّل قاصراً)"
+msgstr "Nom du tuteur (si la personne inscrite est mineure)"
+
+msgid "تاريخ الميلاد"
+msgstr "Date de naissance"
+
+msgid "العمل الحالي (أو عمل ولي الأمر إن كان المسجَّل قاصراً)"
+msgstr "Emploi actuel (ou emploi du tuteur si la personne inscrite est mineure)"
+
+msgid "المستوى الدراسي"
+msgstr "Niveau scolaire"
+
+msgid "اختيار الفئة العمرية"
+msgstr "Choix de la catégorie d'âge"
+
+msgid "اختيار الاشتراك"
+msgstr "Choix de l'abonnement"
+
+msgid "التأكيد"
+msgstr "Confirmation"
+
+msgid "البرنامج"
+msgstr "Programme"
+
+msgid "الرواية"
+msgstr "Riwaya (lecture coranique)"
+
+msgid "نوع الحصة"
+msgstr "Type de séance"
+
+msgid "عدد الحصص الأسبوعية"
+msgstr "Nombre de séances hebdomadaires"
+
+msgid "الحفظ والمراجعة وتعلم أحكام التجويد"
+msgstr "Mémorisation, révision et apprentissage des règles de tajwid"
+
+msgid "التثبيت وتعلم أحكام التجويد"
+msgstr "Consolidation et apprentissage des règles de tajwid"
+
+msgid "حفص"
+msgstr "Hafs"
+
+msgid "ورش"
+msgstr "Warsh"
+
+msgid "RIB"
+msgstr "RIB"
+
+msgid "أعزب/عزباء"
+msgstr "Célibataire"
+
+msgid "متزوج/ة"
+msgstr "Marié(e)"
+
+msgid "مطلق/ة"
+msgstr "Divorcé(e)"
+
+msgid "إرسال الطلب ✉️"
+msgstr "Envoyer la demande ✉️"
+
+msgid "اختر"
+msgstr "Choisir"
+
+msgid "اختر كل الساعات التي تكون فيها متاحاً للتدريس (يمكن اختيار أكثر من ساعتين)."
+msgstr "Sélectionnez toutes les heures où vous êtes disponible pour enseigner (vous pouvez choisir plus de deux heures)."
+
+msgid "اذكر شهاداتك وإجازاتك"
+msgstr "Indiquez vos certifications et licences"
+
+msgid "اسم الوكالة البنكية"
+msgstr "Nom de l'agence bancaire"
+
+msgid "الأدوات المتقنة"
+msgstr "Outils maîtrisés"
+
+msgid "الاسم"
+msgstr "Nom"
+
+msgid "التسجيل الصوتي"
+msgstr "Enregistrement audio"
+
+msgid "الحالة الاجتماعية"
+msgstr "Situation familiale"
+
+msgid "الشهادات والإجازات"
+msgstr "Certifications et licences"
+
+msgid "اللغات المتحدث بها"
+msgstr "Langues parlées"
+
+msgid "اللقب"
+msgstr "Nom de famille"
+
+msgid "المؤهلات"
+msgstr "Qualifications"
+
+msgid "المسار والخبرة"
+msgstr "Parcours et expérience"
+
+msgid "المعلومات البنكية والتسجيل الصوتي"
+msgstr "Informations bancaires et enregistrement audio"
+
+msgid "الموافقة على ميثاق التدريس"
+msgstr "L'acceptation de la charte d'enseignement"
+
+msgid "الوظيفة الحالية"
+msgstr "Emploi actuel"
+
+msgid "تفضيلات التدريس"
+msgstr "Préférences d'enseignement"
+
+msgid "جارٍ الإرسال..."
+msgstr "Envoi en cours..."
+
+msgid "رقم الحساب البنكي"
+msgstr "Numéro de compte bancaire"
+
+msgid "عرض نص الميثاق كاملاً 📜"
+msgstr "Afficher le texte complet de la charte 📜"
+
+msgid "قيود الجنس"
+msgstr "Restriction de genre"
+
+msgid "كيف تتعامل مع الطالب الضعيف؟"
+msgstr "Comment gérez-vous un élève en difficulté ?"
+
+msgid "كيف تتعامل مع الطالب الغائب؟"
+msgstr "Comment gérez-vous un élève absent ?"
+
+msgid "لقد قرأت ووافقت على ميثاق التدريس"
+msgstr "J'ai lu et j'accepte la charte d'enseignement"
+
+msgid "مثال: حفظ القرآن كاملاً"
+msgstr "Exemple : mémorisation complète du Coran"
+
+msgid "مسار التدريس"
+msgstr "Parcours d'enseignement"
+
+msgid "نوع الطلاب المفضل"
+msgstr "Type d'élèves préféré"
+
+msgid "يرجى قراءة الميثاق بالكامل قبل الموافقة عليه — الموافقة إلزامية لإتمام التسجيل."
+msgstr "Veuillez lire la charte en entier avant de l'accepter — l'acceptation est obligatoire pour finaliser l'inscription."
+
+msgid "يرجى ملء جميع الخانات بدقة"
+msgstr "Veuillez remplir tous les champs avec précision"
+
+msgid "\"%(label)s\" إلزامي."
+msgstr "\"%(label)s\" est obligatoire."
+
+msgid "\"%(label)s\" غير صالح."
+msgstr "\"%(label)s\" est invalide."
+
+msgid "\"%(label)s\" يجب ألا يتجاوز %(max)s."
+msgstr "\"%(label)s\" ne doit pas dépasser %(max)s."
+
+msgid "\"%(label)s\" يجب أن يكون %(min)s على الأقل."
+msgstr "\"%(label)s\" doit être au moins %(min)s."
+
+msgid "\"%(label)s\" يجب أن يكون رقماً صحيحاً."
+msgstr "\"%(label)s\" doit être un nombre entier."
+
+msgid "\"%(label)s\" يجب أن يكون على الأقل 1."
+msgstr "\"%(label)s\" doit être au moins 1."
+
+msgid "خيار غير صالح ضمن \"%(label)s\"."
+msgstr "Option invalide dans \"%(label)s\"."
+
+msgid "التسجيل مغلق حالياً لهذه الفئة العمرية."
+msgstr "L'inscription est actuellement fermée pour cette catégorie d'âge."
+
+msgid "الحقول التالية إلزامية ولم يتم تعبئتها: "
+msgstr "Les champs suivants sont obligatoires et n'ont pas été remplis : "
+
+msgid "المجموعة المختارة لم تعد متاحة أو لا تتوافق مع اختياراتك."
+msgstr "Le groupe choisi n'est plus disponible ou ne correspond plus à vos choix."
+
+msgid "المجموعة المختارة لم تعد نشطة."
+msgstr "Le groupe choisi n'est plus actif."
+
+msgid "المجموعة المختارة مكتملة العدد."
+msgstr "Le groupe choisi est complet."
+
+msgid "رقم الهاتف غير صحيح — يرجى التحقق من رمز الدولة والرقم المدخل."
+msgstr "Numéro de téléphone invalide — veuillez vérifier l'indicatif et le numéro saisi."
+
+msgid "رقم الهاتف وتأكيده غير متطابقين."
+msgstr "Le numéro de téléphone et sa confirmation ne correspondent pas."
+
+msgid "نوع الاشتراك المختار لا يتوافق مع الفئة العمرية."
+msgstr "Le type d'abonnement choisi ne correspond pas à la catégorie d'âge."
+
+msgid "نوع الاشتراك المختار لا يتوافق مع نوع الحصة (جماعي/فردي)."
+msgstr "Le type d'abonnement choisi ne correspond pas au type de séance (collectif/individuel)."
+
+msgid "يبدو أنك بالغ (18 سنة فما فوق) — يرجى استخدام نموذج التسجيل الخاص بالبالغين."
+msgstr "Il semble que vous soyez majeur (18 ans ou plus) — veuillez utiliser le formulaire d'inscription pour adultes."
+
+msgid "يبدو أنك طفل (أقل من 18 سنة) — يرجى استخدام نموذج التسجيل الخاص بالأطفال."
+msgstr "Il semble que vous soyez mineur (moins de 18 ans) — veuillez utiliser le formulaire d'inscription pour enfants."
+
+msgid "يرجى إدخال تاريخ ميلاد صحيح."
+msgstr "Veuillez saisir une date de naissance valide."
+
+msgid "يرجى اختيار مجموعة."
+msgstr "Veuillez choisir un groupe."
+
+msgid "يرجى اختيار نوع الاشتراك."
+msgstr "Veuillez choisir un type d'abonnement."
+
+msgid "هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد الدراسة. يرجى استخدام بريد إلكتروني آخر أو التواصل مع المدرسة."
+msgstr "Cette adresse e-mail est déjà utilisée par un autre compte ou une candidature en cours d'examen. Veuillez utiliser une autre adresse e-mail ou contacter l'école."
+
+msgid "التسجيل مغلق حالياً"
+msgstr "Inscription actuellement fermée"
+
+msgid "التسجيل مغلق حالياً لفئة %(categorie_label)s"
+msgstr "Inscription actuellement fermée pour la catégorie %(categorie_label)s"
+
+msgid "الطلاب البالغون"
+msgstr "Étudiants adultes"
+
+msgid "الطلاب الأطفال"
+msgstr "Étudiants enfants"
+
+msgid "الأساتذة"
+msgstr "Enseignants"
+
+msgid "نعتذر، التسجيل في هذه الفئة متوقف مؤقتاً حالياً. يمكنكم التواصل مع الإدارة\n            للاستفسار أو معرفة موعد إعادة الفتح."
+msgstr "Nous nous excusons, l'inscription pour cette catégorie est temporairement suspendue. Vous pouvez contacter l'administration\n            pour vous renseigner ou connaître la date de réouverture."

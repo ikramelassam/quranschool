@@ -1,18 +1,118 @@
 {% load i18n %}
-{# Sélecteur de langue réutilisable (chantier traduction FR/EN, 2026-08-27).
-   Inclus tel quel (aucun paramètre requis) dans login.html, base_eleve.html
-   et _wizard_base.html — les 3 zones traduites pour l'instant. Soumet un
-   simple POST vers la vue set_language fournie par Django (voir core/urls.py,
-   path('i18n/', ...)) : elle stocke la langue en session et redirige vers
-   `next`, ici la page courante (request.path). Aucune vue custom à écrire. #}
-<form action="{% url 'set_language' %}" method="post" class="language-switcher">
-    {% csrf_token %}
-    <input type="hidden" name="next" value="{{ request.path }}">
-    <select name="language" onchange="this.form.submit()" aria-label="{% trans 'اللغة' %}">
-        {% get_current_language as LANGUAGE_CODE_ACTUELLE %}
-        {% get_available_languages as LANGUES_DISPONIBLES %}
-        {% for code, nom in LANGUES_DISPONIBLES %}
-        <option value="{{ code }}" {% if code == LANGUAGE_CODE_ACTUELLE %}selected{% endif %}>{{ nom }}</option>
-        {% endfor %}
-    </select>
-</form>
+{% comment %}
+Sélecteur de langue réutilisable (chantier traduction FR/EN, 2026-08-27 ;
+refonte UI en pilule+menu déroulant custom, 2026-08-28). Inclus tel quel
+(aucun paramètre requis) dans login.html, base_eleve.html, base_prof.html
+et _wizard_base.html. Chaque option est un mini-formulaire POST séparé vers
+la vue set_language fournie par Django (voir core/urls.py,
+path('i18n/', ...)) : elle stocke la langue en session et redirige vers
+next, ici la page courante (request.path). Aucune vue custom à écrire —
+seuls l'apparence et le balisage ont changé, jamais ce mécanisme.
+
+La classe .language-switcher (sur le div englobant, PAS sur les <form>
+maintenant qu'il y en a plusieurs) reste le point d'accroche utilisé par
+les pages hôtes pour le positionnement (ex: position: absolute + left/right
+selon LANGUAGE_BIDI dans login.html/_wizard_base.html) — ne pas la
+renommer sans mettre à jour ces pages. Volontairement AUCUNE règle CSS
+ci-dessous ne cible .language-switcher elle-même (ni position, ni
+display) : ce style est ici dans le <body>, donc plus tardif dans le
+document que le <style> des pages hôtes dans leur <head> — à spécificité
+égale (un seul sélecteur de classe), une règle définie ici l'emporterait
+sur position:absolute des pages hôtes. Le positionnement relatif du menu
+déroulant est donc porté par .ls-wrap (propre à ce composant), jamais par
+.language-switcher.
+
+ATTENTION : garder ce commentaire en bloc (comment/endcomment), jamais en
+version accolade-dièse sur plusieurs lignes — cette dernière syntaxe ne
+supporte pas le multi-ligne en Django : elle casse silencieusement et
+s'affiche en texte brut aux utilisateurs (bug corrigé le 2026-08-28). Sur
+une seule ligne les deux syntaxes sont sûres ; dès que ça dépasse une
+ligne, seule la version en bloc l'est.
+{% endcomment %}
+<style>
+    .ls-wrap { position: relative; display: inline-block; }
+    .ls-bouton {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: var(--color-bg-cream, #FFF8EF);
+        border: 1px solid #EADFC8; border-radius: 999px;
+        padding: 6px 14px; margin: 0;
+        font-family: 'Tajawal', sans-serif; font-size: 0.82rem; font-weight: 600;
+        color: var(--color-text-muted, #8B6040);
+        cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease;
+    }
+    .ls-bouton:hover, .ls-bouton.ls-ouvert {
+        border-color: var(--color-brand-gold-dark, #8B4B00);
+        color: var(--color-brand-gold-dark, #8B4B00);
+    }
+    .ls-icone { font-size: 0.95rem; line-height: 1; }
+    .ls-fleche { font-size: 0.6rem; opacity: 0.6; transition: transform 0.15s ease; }
+    .ls-bouton.ls-ouvert .ls-fleche { transform: rotate(180deg); }
+    .ls-menu {
+        position: absolute; top: calc(100% + 6px); inset-inline-start: 0; z-index: 500;
+        background: white; border: 1px solid #EADFC8; border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(44,21,0,0.14);
+        min-width: 140px; padding: 6px; display: flex; flex-direction: column; gap: 2px;
+    }
+    .ls-menu[hidden] { display: none; }
+    .ls-item-form { margin: 0; }
+    .ls-item {
+        display: block; width: 100%; text-align: start;
+        background: none; border: none; border-radius: 8px;
+        padding: 8px 12px; margin: 0;
+        font-family: 'Tajawal', sans-serif; font-size: 0.85rem;
+        color: var(--color-text-primary, #2C1500); cursor: pointer;
+    }
+    .ls-item:hover { background: var(--color-bg-cream, #FFF8EF); }
+    .ls-item.ls-actif { font-weight: 700; color: var(--color-brand-gold-dark, #8B4B00); }
+</style>
+{% get_current_language as LANGUAGE_CODE_ACTUELLE %}
+{% get_available_languages as LANGUES_DISPONIBLES %}
+{% trans "اللغة" as ls_texte_langue %}
+<div class="language-switcher">
+    <div class="ls-wrap">
+        <button type="button" class="ls-bouton" id="lsBouton" aria-haspopup="true" aria-expanded="false" aria-label="{{ ls_texte_langue }}">
+            <span class="ls-icone" aria-hidden="true">🌐</span>
+            <span class="ls-code">{{ LANGUAGE_CODE_ACTUELLE|upper }}</span>
+            <span class="ls-fleche" aria-hidden="true">▾</span>
+        </button>
+        <div class="ls-menu" id="lsMenu" hidden role="menu">
+            {% for code, nom in LANGUES_DISPONIBLES %}
+            <form action="{% url 'set_language' %}" method="post" class="ls-item-form">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <input type="hidden" name="language" value="{{ code }}">
+                <button type="submit" class="ls-item {% if code == LANGUAGE_CODE_ACTUELLE %}ls-actif{% endif %}" role="menuitem">{{ nom }}</button>
+            </form>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var bouton = document.getElementById('lsBouton');
+    var menu = document.getElementById('lsMenu');
+    if (!bouton || !menu) return;
+
+    function ouvrir() {
+        menu.hidden = false;
+        bouton.classList.add('ls-ouvert');
+        bouton.setAttribute('aria-expanded', 'true');
+    }
+    function fermer() {
+        menu.hidden = true;
+        bouton.classList.remove('ls-ouvert');
+        bouton.setAttribute('aria-expanded', 'false');
+    }
+
+    bouton.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (menu.hidden) ouvrir(); else fermer();
+    });
+    document.addEventListener('click', function (e) {
+        if (!menu.hidden && !menu.contains(e.target) && e.target !== bouton) fermer();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !menu.hidden) { fermer(); bouton.focus(); }
+    });
+})();
+</script>

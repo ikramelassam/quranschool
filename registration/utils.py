@@ -41,6 +41,8 @@ import re
 
 from django.core.exceptions import FieldError
 from django.db import transaction
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext as gettext_
 
 logger = logging.getLogger(__name__)
 from django.db.models import Count, Q
@@ -80,6 +82,27 @@ def champs_structurels_actifs(code_etape):
     )
 
 
+def traduire_libelle_dynamique(valeur):
+    """Traduit dynamiquement un libellé SEEDÉ stocké en base (label de
+    ConfigurationChampStructurel/ChampInscription/CritereOption/
+    EtapeInscription.titre) via le même catalogue i18n Django que le reste
+    du site — {% trans %} ne peut pas s'appliquer directement à une valeur
+    connue seulement en DB au moment du rendu (Problème A du chantier
+    "compléter FR/EN", 2026-08-28). Utilisée à la fois par le filtre
+    template registration.templatetags.registration_tags.traduire_dynamique
+    (rendu des templates) ET directement en Python ici (messages de
+    validation qui embarquent un label dans leur texte, ex: valider_champ_
+    structurel_libre ci-dessous) — une seule implémentation, jamais 2.
+
+    Ne traduit que les libellés du petit vocabulaire SEEDÉ par le système,
+    déjà ajoutés au catalogue FR/EN ; un libellé personnalisé tapé par le
+    مدير (hors de ce vocabulaire) ressort tel quel, jamais cassé — comportement
+    standard de gettext() sur un msgid absent du catalogue."""
+    if not valeur:
+        return valeur
+    return gettext_(str(valeur))
+
+
 def valider_champ_structurel_libre(config, valeur):
     """Validation GÉNÉRIQUE (obligatoire + regex optionnelle) pour un champ
     structurel NON verrouillé et sans widget spécial (nom/nom_parent/
@@ -93,12 +116,13 @@ def valider_champ_structurel_libre(config, valeur):
     jamais être rejeté par une regex qui ne concerne que sa FORME quand il
     est rempli."""
     valeur = (valeur or '').strip()
+    label_traduit = traduire_libelle_dynamique(config.label)
     if config.obligatoire and not valeur:
-        return f'"{config.label}" إلزامي.'
+        return gettext_('"%(label)s" إلزامي.') % {'label': label_traduit}
     if valeur and config.regex_validation:
         try:
             if not re.fullmatch(config.regex_validation, valeur):
-                return config.message_erreur_regex or f'"{config.label}" غير صالح.'
+                return config.message_erreur_regex or gettext_('"%(label)s" غير صالح.') % {'label': label_traduit}
         except re.error:
             # Regex mal formée par le مدير — jamais un 500 pour l'élève,
             # signalé nulle part d'autre qu'ici : mieux vaut laisser passer
@@ -822,14 +846,19 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
             texte = str(valeur_brute).strip() if valeur_brute not in (None, '') else ''
             if not texte:
                 return [], None
+            label_traduit = traduire_libelle_dynamique(champ.label)
             try:
                 nombre = int(texte)
             except (ValueError, TypeError):
-                return [], f'"{champ.label}" يجب أن يكون رقماً صحيحاً.'
+                return [], gettext_('"%(label)s" يجب أن يكون رقماً صحيحاً.') % {'label': label_traduit}
             if champ.valeur_min is not None and nombre < champ.valeur_min:
-                return [], f'"{champ.label}" يجب أن يكون {champ.valeur_min} على الأقل.'
+                return [], gettext_('"%(label)s" يجب أن يكون %(min)s على الأقل.') % {
+                    'label': label_traduit, 'min': champ.valeur_min,
+                }
             if champ.valeur_max is not None and nombre > champ.valeur_max:
-                return [], f'"{champ.label}" يجب ألا يتجاوز {champ.valeur_max}.'
+                return [], gettext_('"%(label)s" يجب ألا يتجاوز %(max)s.') % {
+                    'label': label_traduit, 'max': champ.valeur_max,
+                }
             return [(None, str(nombre))], None
         texte = valeur_brute.strip() if isinstance(valeur_brute, str) else valeur_brute
         return ([(None, texte)] if texte not in (None, '') else []), None
@@ -847,12 +876,13 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
         texte = str(valeur_brute).strip() if valeur_brute not in (None, '') else ''
         if not texte:
             return [], None
+        label_traduit = traduire_libelle_dynamique(champ.label)
         try:
             nombre = int(texte)
         except (ValueError, TypeError):
-            return [], f'"{champ.label}" يجب أن يكون رقماً صحيحاً.'
+            return [], gettext_('"%(label)s" يجب أن يكون رقماً صحيحاً.') % {'label': label_traduit}
         if nombre < 1:
-            return [], f'"{champ.label}" يجب أن يكون على الأقل 1.'
+            return [], gettext_('"%(label)s" يجب أن يكون على الأقل 1.') % {'label': label_traduit}
         return [(None, str(nombre))], None
 
     if critere.type_champ == 'choix_multiple':
@@ -861,7 +891,7 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
             return [], None
         options = list(critere.options.filter(est_actif=True, code__in=codes))
         if len(options) != len(set(codes)):
-            return [], f'خيار غير صالح ضمن "{champ.label}".'
+            return [], gettext_('خيار غير صالح ضمن "%(label)s".') % {'label': traduire_libelle_dynamique(champ.label)}
         return [(o, '') for o in options], None
 
     if critere.type_champ == 'choix_unique':
@@ -870,7 +900,7 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
             return [], None
         option = critere.options.filter(est_actif=True, code=code).first()
         if option is None:
-            return [], f'خيار غير صالح ضمن "{champ.label}".'
+            return [], gettext_('خيار غير صالح ضمن "%(label)s".') % {'label': traduire_libelle_dynamique(champ.label)}
         return [(option, '')], None
 
     # texte/email/telephone/nombre/date/booleen rattaché à un critère (rare mais
@@ -1113,7 +1143,7 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
     try:
         date_naissance = datetime.date.fromisoformat(reponses_brutes.get('date_naissance', ''))
     except (ValueError, TypeError):
-        erreurs.append('يرجى إدخال تاريخ ميلاد صحيح.')
+        erreurs.append(_('يرجى إدخال تاريخ ميلاد صحيح.'))
 
     type_age = tranche_age_depuis_naissance(date_naissance) if date_naissance is not None else None
     configs_identite = appliquer_regle_nom_parent(configs_identite, configs_par_cle, type_age)
@@ -1154,7 +1184,7 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
             or (type_age == 'enfant' and not parametres.ouverte_eleve_enfant)
         )
         if categorie_fermee:
-            erreurs.append('التسجيل مغلق حالياً لهذه الفئة العمرية.')
+            erreurs.append(_('التسجيل مغلق حالياً لهذه الفئة العمرية.'))
 
     if erreurs:
         return None, erreurs
@@ -1220,7 +1250,7 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
             if (demande_id or continuer_sans_groupe) and date_naissance is not None and not candidats_exacts.exists():
                 groupe_choisi = None
             else:
-                erreurs.append('يرجى اختيار مجموعة.')
+                erreurs.append(_('يرجى اختيار مجموعة.'))
         elif date_naissance is None:
             pass  # déjà signalé plus haut
         else:
@@ -1262,11 +1292,11 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
                 groupe_choisi = candidats_permissifs.filter(id=groupe_id).first()
 
             if groupe_choisi is None:
-                erreurs.append('المجموعة المختارة لم تعد متاحة أو لا تتوافق مع اختياراتك.')
+                erreurs.append(_('المجموعة المختارة لم تعد متاحة أو لا تتوافق مع اختياراتك.'))
             elif groupe_choisi.statut != 'actif':
-                erreurs.append('المجموعة المختارة لم تعد نشطة.')
+                erreurs.append(_('المجموعة المختارة لم تعد نشطة.'))
             elif groupe_choisi.eleves.count() >= groupe_choisi.capacite_max:
-                erreurs.append('المجموعة المختارة مكتملة العدد.')
+                erreurs.append(_('المجموعة المختارة مكتملة العدد.'))
     else:
         # Individuel (ou critère absent/mal configuré) : un groupe_id posté n'est
         # JAMAIS utilisé — sécurité serveur (Partie 3/26), pas juste un masquage
@@ -1280,12 +1310,12 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
     abonnement_code = reponses_brutes.get('abonnement_code', '')
     abonnement = TypeAbonnement.objects.filter(code=abonnement_code, est_actif=True).first()
     if abonnement is None:
-        erreurs.append('يرجى اختيار نوع الاشتراك.')
+        erreurs.append(_('يرجى اختيار نوع الاشتراك.'))
     else:
         if type_offre_valeur and abonnement.type_offre != type_offre_valeur:
-            erreurs.append('نوع الاشتراك المختار لا يتوافق مع نوع الحصة (جماعي/فردي).')
+            erreurs.append(_('نوع الاشتراك المختار لا يتوافق مع نوع الحصة (جماعي/فردي).'))
         if type_age and abonnement.cible_age not in (type_age, 'les_deux'):
-            erreurs.append('نوع الاشتراك المختار لا يتوافق مع الفئة العمرية.')
+            erreurs.append(_('نوع الاشتراك المختار لا يتوافق مع الفئة العمرية.'))
 
     if erreurs:
         return None, erreurs

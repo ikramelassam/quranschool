@@ -1,5 +1,5 @@
 {% extends 'inscriptions/_wizard_base.html' %}
-{% load i18n %}
+{% load i18n registration_tags %}
 {% block wizard_title %}{% trans "المعلومات الشخصية" %}{% endblock %}
 {% block wizard_content %}
 <div class="page-title">{% trans "المعلومات الشخصية" %}</div>
@@ -11,7 +11,7 @@
     {% for config in configs %}
         {% if config.champ_cle == 'sexe' %}
         <div class="mb-3">
-            <label class="form-label">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
+            <label class="form-label">{{ config.label|traduire_dynamique }}{% if config.obligatoire %} *{% endif %}</label>
             <div class="row g-2">
                 <div class="col-6">
                     <div class="select-btn select-btn-sexe {% if config.valeur_actuelle == 'homme' %}active{% endif %}" onclick="selectionnerSexe('homme', this)">{% trans "ذكر" %}</div>
@@ -24,19 +24,19 @@
         </div>
         {% elif config.champ_cle == 'email' %}
         <div class="mb-3">
-            <label class="form-label">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
+            <label class="form-label">{{ config.label|traduire_dynamique }}{% if config.obligatoire %} *{% endif %}</label>
             <input type="email" name="email" class="form-control mt-1" value="{{ config.valeur_actuelle|default:'' }}" {% if config.obligatoire %}required{% endif %}>
         </div>
         {% elif config.champ_cle == 'telephone' %}
         {% include 'inscriptions/_verification_whatsapp.html' with telephone_obligatoire=config.obligatoire %}
         {% elif config.champ_cle == 'date_naissance' %}
         <div class="mb-3">
-            <label class="form-label">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
+            <label class="form-label">{{ config.label|traduire_dynamique }}{% if config.obligatoire %} *{% endif %}</label>
             <input type="date" name="date_naissance" class="form-control mt-1" value="{{ config.valeur_actuelle|default:'' }}" {% if config.obligatoire %}required{% endif %}>
         </div>
         {% else %}
         <div class="mb-3">
-            <label class="form-label">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
+            <label class="form-label">{{ config.label|traduire_dynamique }}{% if config.obligatoire %} *{% endif %}</label>
             {% if config.type_champ == 'texte_multiligne' %}
             <textarea name="{{ config.champ_cle }}" class="form-control mt-1" placeholder="{{ config.placeholder }}" {% if config.obligatoire %}required{% endif %}>{{ config.valeur_actuelle|default:'' }}</textarea>
             {% else %}

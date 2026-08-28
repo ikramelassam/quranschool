@@ -5,6 +5,13 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+# gettext IMMÉDIAT (pas lazy) sous un alias distinct — nécessaire partout où
+# le résultat est concaténé/joint via + ou str.join() (ex: la liste de champs
+# manquants ci-dessous) : un objet lazy_gettext n'est PAS une vraie instance
+# str, str.join() lève TypeError dessus. gettext_lazy (as _) reste correct
+# pour tout le reste (constantes de module simplement assignées/retournées).
+from django.utils.translation import gettext as gettext_
 from .models import InscriptionEleve, InscriptionProf, TypeAbonnement, get_parametres_inscriptions
 from core.utils import envoyer_notification_telegram
 from courses.utils import AGE_SEUIL_ADULTE, tranche_age_depuis_naissance
@@ -20,9 +27,9 @@ import json
 FENETRE_ANTI_DOUBLON_SECONDES = 5
 
 CATEGORIE_LABEL = {
-    'adulte': 'الطلاب البالغون',
-    'enfant': 'الطلاب الأطفال',
-    'prof': 'الأساتذة',
+    'adulte': _('الطلاب البالغون'),
+    'enfant': _('الطلاب الأطفال'),
+    'prof': _('الأساتذة'),
 }
 
 
@@ -37,17 +44,17 @@ def _reponse_categorie_fermee(request, categorie):
         'admins': User.objects.filter(role='admin'),
     })
 
-MESSAGE_EMAIL_DEJA_UTILISE = (
+MESSAGE_EMAIL_DEJA_UTILISE = _(
     'هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد '
     'الدراسة. يرجى استخدام بريد إلكتروني آخر أو التواصل مع المدرسة.'
 )
 
 MESSAGE_AGE_NE_CORRESPOND_PAS = {
-    'adulte': 'يبدو أنك بالغ (18 سنة فما فوق) — يرجى استخدام نموذج التسجيل الخاص بالبالغين.',
-    'enfant': 'يبدو أنك طفل (أقل من 18 سنة) — يرجى استخدام نموذج التسجيل الخاص بالأطفال.',
+    'adulte': _('يبدو أنك بالغ (18 سنة فما فوق) — يرجى استخدام نموذج التسجيل الخاص بالبالغين.'),
+    'enfant': _('يبدو أنك طفل (أقل من 18 سنة) — يرجى استخدام نموذج التسجيل الخاص بالأطفال.'),
 }
 
-MESSAGE_DATE_NAISSANCE_INVALIDE = 'يرجى إدخال تاريخ ميلاد صحيح.'
+MESSAGE_DATE_NAISSANCE_INVALIDE = _('يرجى إدخال تاريخ ميلاد صحيح.')
 # Corrige un 500 en production (Chantier du 2026-08-15) : date_naissance était
 # lu deux fois — une fois parsé/validé (date_naissance ci-dessous, utilisé
 # uniquement pour la vérification d'âge côté élève) puis, à la création de
@@ -83,8 +90,8 @@ INDICATIFS_LONGUEUR_LOCALE = {
 }
 LONGUEUR_LOCALE_GENERIQUE = (6, 12)
 
-MESSAGE_TELEPHONE_MISMATCH = 'رقم الهاتف وتأكيده غير متطابقين.'
-MESSAGE_TELEPHONE_INVALIDE = 'رقم الهاتف غير صحيح — يرجى التحقق من رمز الدولة والرقم المدخل.'
+MESSAGE_TELEPHONE_MISMATCH = _('رقم الهاتف وتأكيده غير متطابقين.')
+MESSAGE_TELEPHONE_INVALIDE = _('رقم الهاتف غير صحيح — يرجى التحقق من رمز الدولة والرقم المدخل.')
 
 
 def _chiffres_significatifs(valeur, indicatif=''):
@@ -426,27 +433,27 @@ def inscription_prof(request):
         # champ obligatoire en apparence, et l'audio qui doit devenir obligatoire).
         champs_manquants = []
         if not compte_bancaire:
-            champs_manquants.append('رقم الحساب البنكي')
+            champs_manquants.append(gettext_('رقم الحساب البنكي'))
         if not rib:
-            champs_manquants.append('RIB')
+            champs_manquants.append(gettext_('RIB'))
         if not agence_bancaire:
-            champs_manquants.append('اسم الوكالة البنكية')
+            champs_manquants.append(gettext_('اسم الوكالة البنكية'))
         if not job_actuel:
-            champs_manquants.append('العمل الحالي')
+            champs_manquants.append(gettext_('العمل الحالي'))
         if not audio_enregistrement:
-            champs_manquants.append('التسجيل الصوتي')
+            champs_manquants.append(gettext_('التسجيل الصوتي'))
         if date_naissance is None:
-            champs_manquants.append('تاريخ الميلاد')
+            champs_manquants.append(gettext_('تاريخ الميلاد'))
         # Règle bloquante (Chantier du 2026-08-27) : sans cette case cochée,
         # l'inscription échoue côté serveur — pas seulement côté HTML5
         # `required`, contournable. Dernier champ vérifié, comme il est le
         # dernier du formulaire.
         if not accepte_charte:
-            champs_manquants.append('الموافقة على ميثاق التدريس')
+            champs_manquants.append(gettext_('الموافقة على ميثاق التدريس'))
 
         if champs_manquants:
             return render(request, 'inscriptions/prof_formulaire.html', {
-                'erreur_champs': 'الحقول التالية إلزامية ولم يتم تعبئتها: ' + '، '.join(champs_manquants),
+                'erreur_champs': gettext_('الحقول التالية إلزامية ولم يتم تعبئتها: ') + '، '.join(champs_manquants),
                 'old_email': email,
                 'valeurs_form': set(disponibilites),
                 **contexte_grille,
