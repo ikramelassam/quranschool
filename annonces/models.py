@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class Annonce(models.Model):
@@ -22,9 +23,9 @@ class Annonce(models.Model):
     (voir annonces.services.CANAUX pour le nom/icône/description d'affichage
     de chaque valeur). Une "publication" dans un canal = une Annonce."""
     CIBLE_CHOICES = [
-        ('femmes_adultes', 'الطالبات البالغات'),
-        ('hommes_adultes', 'الطلاب البالغون'),
-        ('mineurs', 'الأطفال'),
+        ('femmes_adultes', _('الطالبات البالغات')),
+        ('hommes_adultes', _('الطلاب البالغون')),
+        ('mineurs', _('الأطفال')),
     ]
 
     # Sous-ciblage optionnel à l'INTÉRIEUR du canal 'mineurs' (Point 3,
@@ -44,16 +45,16 @@ class Annonce(models.Model):
     # connue). Un نشر ciblé sur UNE tranche est un choix explicite du مدير/
     # مشرف au moment de la publication, jamais déduit après coup.
     TRANCHE_AGE_CHOICES = [
-        ('talqin', 'التلقين'),
-        ('baraim', 'البراعم'),
-        ('yafiun', 'اليافعون'),
+        ('talqin', _('التلقين')),
+        ('baraim', _('البراعم')),
+        ('yafiun', _('اليافعون')),
     ]
 
     TYPE_FICHIER_CHOICES = [
-        ('image', 'صورة'),
-        ('video', 'فيديو'),
-        ('audio', 'ملف صوتي'),
-        ('document', 'مستند'),
+        ('image', _('صورة')),
+        ('video', _('فيديو')),
+        ('audio', _('ملف صوتي')),
+        ('document', _('مستند')),
     ]
 
     titre = models.CharField(max_length=200)

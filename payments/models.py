@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext_lazy as _
 from accounts.models import Eleve
 
 User = get_user_model()
@@ -30,9 +31,9 @@ class MoyenPaiement(models.Model):
 
 class Paiement(models.Model):
     STATUT_CHOICES = [
-        ('en_attente', 'قيد المراجعة'),
-        ('valide', 'مقبول'),
-        ('rejete', 'مرفوض'),
+        ('en_attente', _('قيد المراجعة')),
+        ('valide', _('مقبول')),
+        ('rejete', _('مرفوض')),
     ]
     eleve = models.ForeignKey(
         Eleve,

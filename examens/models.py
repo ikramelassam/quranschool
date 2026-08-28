@@ -29,9 +29,9 @@ class Examen(models.Model):
       charges. titre/instructions ne sont volontairement PAS concernés (non
       listés au §5), modifiables à tout moment."""
     STATUT_CHOICES = [
-        ('brouillon', 'مسودة'),
-        ('publie', 'منشور'),
-        ('ferme', 'مغلق'),
+        ('brouillon', _('مسودة')),
+        ('publie', _('منشور')),
+        ('ferme', _('مغلق')),
     ]
 
     groupe = models.ForeignKey(
@@ -170,8 +170,8 @@ class Copie(models.Model):
     mécanisme de reprise : décision confirmée du 2026-08-16, aucune
     tentative multiple en V1."""
     STATUT_CHOICES = [
-        ('en_cours', 'قيد الإنجاز'),
-        ('soumise', 'مُقدَّمة'),
+        ('en_cours', _('قيد الإنجاز')),
+        ('soumise', _('مُقدَّمة')),
     ]
     examen = models.ForeignKey(Examen, on_delete=models.CASCADE, related_name='copies')
     eleve = models.ForeignKey('accounts.Eleve', on_delete=models.CASCADE, related_name='copies_examens')
@@ -258,9 +258,9 @@ class Reponse(models.Model):
     soumission finale — décision validée du 2026-08-16 : pas de table de
     brouillon séparée, ce modèle suffit."""
     STATUT_CORRECTION_CHOICES = [
-        ('auto', 'مصححة تلقائياً'),
-        ('a_corriger', 'بانتظار التصحيح'),
-        ('corrigee', 'مصححة'),
+        ('auto', _('مصححة تلقائياً')),
+        ('a_corriger', _('بانتظار التصحيح')),
+        ('corrigee', _('مصححة')),
     ]
     copie = models.ForeignKey(Copie, on_delete=models.CASCADE, related_name='reponses')
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='reponses')

@@ -12,7 +12,7 @@ from django.db import transaction
 # jetable un peu partout (ex: "annee, _, num_mois = mois.partition('-')")
 # — un import "gettext as _" serait silencieusement écrasé dans ces
 # fonctions et casserait tout appel _() placé après ce genre de ligne.
-from django.utils.translation import gettext as gettext_
+from django.utils.translation import gettext as gettext_, gettext_lazy as gettext_lazy_
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from accounts.decorators import role_required
@@ -24,7 +24,16 @@ from accounts.services import (
 from core.utils import paginer
 from inscriptions.models import InscriptionEleve
 
-JOURS_SEMAINE_AR = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد']
+# Chantier i18n du 2026-08-28 : gettext_lazy (pas gettext_ eager ci-dessus) —
+# cette liste est construite UNE SEULE FOIS à l'import du module, un gettext_
+# eager figerait la langue active à ce moment-là pour toujours. gettext_lazy_
+# renvoie un proxy résolu à l'AFFICHAGE (langue de la requête en cours), même
+# mécanisme que Creneau.JOUR_CHOICES (courses.models) dont les 7 libellés
+# sont d'ailleurs identiques (même msgid, une seule traduction à fournir).
+JOURS_SEMAINE_AR = [
+    gettext_lazy_('الاثنين'), gettext_lazy_('الثلاثاء'), gettext_lazy_('الأربعاء'), gettext_lazy_('الخميس'),
+    gettext_lazy_('الجمعة'), gettext_lazy_('السبت'), gettext_lazy_('الأحد'),
+]
 
 logger = logging.getLogger(__name__)
 

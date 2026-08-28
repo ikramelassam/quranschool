@@ -7,11 +7,11 @@ from django.utils.translation import gettext_lazy as _, get_language
 
 class User(AbstractUser):
     ROLE_CHOICES = [
-        ('eleve', 'طالب'),
-        ('prof', 'معلم'),
-        ('superviseur', 'مؤطر'),
-        ('admin', 'الإدارة'),
-        ('mshrif', 'المشرف'),
+        ('eleve', _('طالب')),
+        ('prof', _('معلم')),
+        ('superviseur', _('مؤطر')),
+        ('admin', _('الإدارة')),
+        ('mshrif', _('المشرف')),
     ]
     telephone = models.CharField(max_length=20, blank=True)
     date_naissance = models.DateField(null=True, blank=True)
@@ -147,8 +147,8 @@ class ProfActifsManager(models.Manager):
 
 class Prof(models.Model):
     STATUT_CHOICES = [
-        ('actif', 'نشط'),
-        ('archive', 'مؤرشف'),
+        ('actif', _('نشط')),
+        ('archive', _('مؤرشف')),
     ]
     user = models.OneToOneField(
         User,
@@ -393,8 +393,8 @@ class CharteSanctionLigne(models.Model):
     ajouter/retirer des lignes — un simple champ texte multi-lignes ne permet pas
     d'associer un ordre stable + une sévérité à chaque ligne de façon fiable."""
     SEVERITE_CHOICES = [
-        ('immediate', 'الإعفاء الفوري'),
-        ('progressive', 'إنذار أول ← إنذار ثاني ← خصم من الراتب'),
+        ('immediate', _('الإعفاء الفوري')),
+        ('progressive', _('إنذار أول ← إنذار ثاني ← خصم من الراتب')),
     ]
     charte = models.ForeignKey(CharteEnseignement, on_delete=models.CASCADE, related_name='sanctions')
     ordre = models.PositiveIntegerField(default=0)

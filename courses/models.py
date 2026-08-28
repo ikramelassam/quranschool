@@ -60,9 +60,9 @@ class DemandeModificationDisponibilite(models.Model):
     """Proposition de nouvelle matrice de disponibilités par un prof, en attente
     d'approbation admin. Tant que non approuvée, DisponibiliteProf reste inchangé."""
     STATUT_CHOICES = [
-        ('en_attente', 'قيد الانتظار'),
-        ('approuvee', 'موافَق عليها'),
-        ('rejetee', 'مرفوضة'),
+        ('en_attente', _('قيد الانتظار')),
+        ('approuvee', _('موافَق عليها')),
+        ('rejetee', _('مرفوضة')),
     ]
     prof = models.ForeignKey(
         Prof,
@@ -107,20 +107,20 @@ class Creneau(models.Model):
         ('dim', _('الأحد')),
     ]
     SEXE_CHOICES = [
-        ('homme', 'ذكر'),
-        ('femme', 'أنثى'),
-        ('mixte', 'مختلط'),
+        ('homme', _('ذكر')),
+        ('femme', _('أنثى')),
+        ('mixte', _('مختلط')),
     ]
     # Mêmes codes que InscriptionEleve.PROGRAMME_CHOICES — un élève ayant choisi
     # "hifz"/"tathbit" à l'inscription est mis en correspondance avec ce même champ.
     TYPE_SEANCE_CHOICES = [
-        ('hifz', 'الحفظ والمراجعة وتعلم أحكام التجويد'),
-        ('tathbit', 'التثبيت وتعلم أحكام التجويد'),
+        ('hifz', _('الحفظ والمراجعة وتعلم أحكام التجويد')),
+        ('tathbit', _('التثبيت وتعلم أحكام التجويد')),
     ]
     # Mêmes codes que InscriptionEleve.RIWAYA_CHOICES.
     RIWAYA_CHOICES = [
-        ('warsh', 'ورش'),
-        ('hafs', 'حفص'),
+        ('warsh', _('ورش')),
+        ('hafs', _('حفص')),
     ]
 
     # Nom personnalisé optionnel (Tâche du 2026-08-18) — vide par défaut,
@@ -251,9 +251,9 @@ class Groupe(models.Model):
     # 2e champ redondant risquerait de se désynchroniser si le créneau du
     # groupe change.
     CATEGORIE_COLLECTIF_CHOICES = [
-        ('hommes', 'الرجال'),
-        ('femmes', 'النساء'),
-        ('enfants', 'الأطفال'),
+        ('hommes', _('الرجال')),
+        ('femmes', _('النساء')),
+        ('enfants', _('الأطفال')),
     ]
     # Catégorie de classification du groupe, choisie EXPLICITEMENT par le مدير
     # (Tâche du 2026-08-17 "photo + catégorie de groupe") — réutilise TEL QUEL
@@ -525,9 +525,9 @@ class DemandeChangementHalaka(models.Model):
     validation (voir dashboard.views.admin_demande_changement_halaka_valider),
     jamais un transfert silencieux vers "nulle part"."""
     STATUT_CHOICES = [
-        ('en_attente', 'قيد الانتظار'),
-        ('validee', 'مقبولة'),
-        ('refusee', 'مرفوضة'),
+        ('en_attente', _('قيد الانتظار')),
+        ('validee', _('مقبولة')),
+        ('refusee', _('مرفوضة')),
     ]
     eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name='demandes_changement_halaka')
     groupe_actuel = models.ForeignKey(
@@ -919,8 +919,8 @@ class Presence(models.Model):
     # la révision) : resultat_revision reste donc purement indicatif pour le
     # suivi du prof, sans effet sur aucun calcul existant.
     RESULTAT_CHOICES = [
-        ('valide', 'ينتقل'),
-        ('a_refaire', 'يعيد'),
+        ('valide', _('ينتقل')),
+        ('a_refaire', _('يعيد')),
     ]
     resultat_memorisation = models.CharField(
         max_length=10, choices=RESULTAT_CHOICES, default='valide', blank=True

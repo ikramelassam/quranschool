@@ -1,23 +1,24 @@
 from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class TypeAbonnement(models.Model):
     """Option de tarif/abonnement proposée à l'inscription, modifiable par l'admin
     (remplace l'ancienne liste codée en dur dans InscriptionEleve.ABONNEMENT_CHOICES)."""
     TYPE_OFFRE_CHOICES = [
-        ('groupe', 'جماعي'),
-        ('individuel', 'فردي'),
+        ('groupe', _('جماعي')),
+        ('individuel', _('فردي')),
     ]
     # Mêmes codes que courses.utils.tranche_age_depuis_naissance / le paramètre
     # type_age du formulaire d'inscription élève — mêmes valeurs que
     # Creneau.SEXE_CHOICES pour le principe (une cible + une valeur "les deux"),
     # voir Tâche 16 du 2026-07-26.
     CIBLE_AGE_CHOICES = [
-        ('enfant', 'أطفال'),
-        ('adulte', 'بالغون'),
-        ('les_deux', 'الجميع'),
+        ('enfant', _('أطفال')),
+        ('adulte', _('بالغون')),
+        ('les_deux', _('الجميع')),
     ]
     # Choix fermé (Besoin 1.4, Chantier "flux multi-étapes" du 2026-08-27) —
     # remplace la saisie libre historique de `duree` (voir son docstring plus
@@ -30,10 +31,10 @@ class TypeAbonnement(models.Model):
     # un crash), voir la migration 0042 pour la conversion best-effort des
     # valeurs déjà en base.
     DUREE_CHOICES = [
-        ('1mois', 'شهر واحد'),
-        ('3mois', '3 أشهر'),
-        ('6mois', '6 أشهر'),
-        ('1an', 'سنة واحدة'),
+        ('1mois', _('شهر واحد')),
+        ('3mois', _('3 أشهر')),
+        ('6mois', _('6 أشهر')),
+        ('1an', _('سنة واحدة')),
     ]
 
     code = models.SlugField(max_length=30, unique=True)
@@ -129,22 +130,22 @@ class GrillePrixAbonnement(models.Model):
 
 class InscriptionEleve(models.Model):
     STATUT_CHOICES = [
-        ('en_attente', 'قيد الانتظار'),
-        ('valide', 'مقبول'),
-        ('rejete', 'مرفوض'),
+        ('en_attente', _('قيد الانتظار')),
+        ('valide', _('مقبول')),
+        ('rejete', _('مرفوض')),
     ]
     PROGRAMME_CHOICES = [
-        ('hifz', 'الحفظ والمراجعة وتعلم أحكام التجويد'),
-        ('tathbit', 'التثبيت وتعلم أحكام التجويد'),
+        ('hifz', _('الحفظ والمراجعة وتعلم أحكام التجويد')),
+        ('tathbit', _('التثبيت وتعلم أحكام التجويد')),
     ]
     RIWAYA_CHOICES = [
-        ('warsh', 'ورش'),
-        ('hafs', 'حفص'),
+        ('warsh', _('ورش')),
+        ('hafs', _('حفص')),
     ]
     OUTIL_CHOICES = [
-        ('whatsapp', 'واتساب'),
+        ('whatsapp', _('واتساب')),
         ('meet', 'Google Meet'),
-        ('les_deux', 'كلاهما'),
+        ('les_deux', _('كلاهما')),
     ]
     # Infos personnelles
     nom = models.CharField(max_length=100)
@@ -365,10 +366,10 @@ class InscriptionEleve(models.Model):
 
 class InscriptionProf(models.Model):
     STATUT_CHOICES = [
-        ('en_attente', 'قيد الانتظار'),
-        ('validee_directeur', 'مقبول من المدير — بانتظار تصديق المشرف'),
-        ('valide', 'مقبول نهائياً'),
-        ('rejete', 'مرفوض'),
+        ('en_attente', _('قيد الانتظار')),
+        ('validee_directeur', _('مقبول من المدير — بانتظار تصديق المشرف')),
+        ('valide', _('مقبول نهائياً')),
+        ('rejete', _('مرفوض')),
     ]
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100)
@@ -539,9 +540,9 @@ class PhraseRefus(models.Model):
     FK — supprimer une phrase ici n'affecte donc jamais l'historique des
     refus déjà passés."""
     CONTEXTE_CHOICES = [
-        ('refus_eleve', 'رفض طلب طالب (المدير)'),
-        ('refus_prof_etape1', 'رفض طلب أستاذ - المرحلة الأولى (المدير)'),
-        ('refus_prof_etape2', 'رفض طلب أستاذ - المرحلة الثانية (المشرف)'),
+        ('refus_eleve', _('رفض طلب طالب (المدير)')),
+        ('refus_prof_etape1', _('رفض طلب أستاذ - المرحلة الأولى (المدير)')),
+        ('refus_prof_etape2', _('رفض طلب أستاذ - المرحلة الثانية (المشرف)')),
     ]
     contexte = models.CharField(max_length=30, choices=CONTEXTE_CHOICES)
     texte = models.TextField()
