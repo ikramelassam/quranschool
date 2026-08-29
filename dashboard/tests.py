@@ -5675,3 +5675,44 @@ class CharteEnseignementLocaliseeTests(TestCase):
             self.assertEqual(ligne._localise('violation'), 'Retard au cours')
         with translation.override('en'):
             self.assertEqual(ligne._localise('violation'), 'التأخر عن الحصة')
+
+
+class RenduReelFrEnTemplatesAdminTests(TestCase):
+    """Chantier i18n du 2026-08-29 (audit مدير/مشرف, fin de chantier) —
+    contrairement aux tests {% trans %}/gettext_lazy déjà présents ailleurs
+    (qui vérifient que le TAG est bien posé), celui-ci vérifie le rendu RÉEL
+    d'une page après bascule de langue via /i18n/setlang/ : un texte {% trans %}
+    peut être syntaxiquement correct mais rester affiché en arabe si
+    locale/*.po/.mo n'a jamais été recompilé avec ce msgid — c'est exactement
+    ce qui s'est produit une bonne partie de ce chantier (plusieurs centaines
+    de nouvelles chaînes ajoutées aux templates sans mise à jour du catalogue,
+    découvert et corrigé en toute fin de session). Ce test couvre 2 pages
+    représentatives de lots distincts (créneaux/courses et élèves/dashboard)
+    pour détecter une régression similaire à l'avenir."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+
+    def test_admin_eleves_traduit_reellement_en_fr_et_en(self):
+        client = Client()
+        client.force_login(self.admin)
+        client.post(reverse('set_language'), {'language': 'fr', 'next': reverse('admin_eleves')})
+        html_fr = client.get(reverse('admin_eleves')).content.decode('utf-8')
+        self.assertIn('Gestion des élèves', html_fr)
+        self.assertNotIn('إدارة الطلاب', html_fr)
+
+        client.post(reverse('set_language'), {'language': 'en', 'next': reverse('admin_eleves')})
+        html_en = client.get(reverse('admin_eleves')).content.decode('utf-8')
+        self.assertIn('Student management', html_en)
+        self.assertNotIn('إدارة الطلاب', html_en)
+
+    def test_admin_creneaux_traduit_reellement_en_fr_et_en(self):
+        client = Client()
+        client.force_login(self.admin)
+        client.post(reverse('set_language'), {'language': 'fr', 'next': reverse('admin_creneaux')})
+        html_fr = client.get(reverse('admin_creneaux')).content.decode('utf-8')
+        self.assertIn('Gestion des halqas', html_fr)
+
+        client.post(reverse('set_language'), {'language': 'en', 'next': reverse('admin_creneaux')})
+        html_en = client.get(reverse('admin_creneaux')).content.decode('utf-8')
+        self.assertIn('Halaka management', html_en)
