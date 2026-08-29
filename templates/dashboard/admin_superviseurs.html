@@ -1,18 +1,19 @@
 {% extends base_template %}
-{% block title %}المؤطرون{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "المؤطرون" %}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <div class="page-title">المؤطرون</div>
+        <div class="page-title">{% trans "المؤطرون" %}</div>
         <div class="page-subtitle">
-            الإجمالي: {{ superviseurs.paginator.count }} — كل مؤطر لا يرى ولا يمكنه تقييم إلا المعلمين المُسندين إليه
-            {% if request.user.role == 'mshrif' %} — عرض للاطلاع فقط{% endif %}
+            {% blocktrans with total=superviseurs.paginator.count %}الإجمالي: {{ total }} — كل مؤطر لا يرى ولا يمكنه تقييم إلا المعلمين المُسندين إليه{% endblocktrans %}
+            {% if request.user.role == 'mshrif' %} — {% trans "عرض للاطلاع فقط" %}{% endif %}
         </div>
     </div>
     {% if request.user.role != 'mshrif' %}
     <a href="{% url 'admin_superviseur_ajouter' %}"
        style="background:var(--color-brand-gold-dark); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
-       + إضافة مؤطر
+       + {% trans "إضافة مؤطر" %}
     </a>
     {% endif %}
 </div>
@@ -27,12 +28,12 @@ chantier de modèle, pas juste un filtre de template.
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
         <div class="col-md-8">
-            <label style="color:#888; font-size:0.8rem;">بحث بالاسم أو البريد الإلكتروني</label>
-            <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="اكتب اسم المؤطر أو بريده الإلكتروني...">
+            <label style="color:#888; font-size:0.8rem;">{% trans "بحث بالاسم أو البريد الإلكتروني" %}</label>
+            <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="{% trans 'اكتب اسم المؤطر أو بريده الإلكتروني...' %}">
         </div>
         <div class="col-md-4 d-flex gap-2">
-            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-brand-gold-dark){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">بحث</button>
-            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-brand-gold-dark){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "بحث" %}</button>
+            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
         </div>
     </div>
 </form>
@@ -47,29 +48,29 @@ chantier de modèle, pas juste un filtre de template.
             <div style="min-width:0;">
                 <div style="font-weight:700;">{{ s.user.get_full_name }}</div>
                 <div style="color:#888; font-size:0.85rem;">{{ s.user.email }}</div>
-                <div style="color:#888; font-size:0.85rem;">{{ s.nb_profs_assignes }} معلم مُسند — {{ s.nb_groupes_total }} مجموعة</div>
+                <div style="color:#888; font-size:0.85rem;">{% blocktrans with n_profs=s.nb_profs_assignes n_groupes=s.nb_groupes_total %}{{ n_profs }} معلم مُسند — {{ n_groupes }} مجموعة{% endblocktrans %}</div>
             </div>
         </a>
         <div class="d-flex gap-2" style="flex-shrink:0;">
             <a href="{% url 'admin_superviseur_assignations' s.id %}"
                style="background:var(--color-brand-gold-dark); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-               {% if request.user.role == 'mshrif' %}عرض الإسناد 👁{% else %}إدارة الإسناد ✏️{% endif %}
+               {% if request.user.role == 'mshrif' %}{% trans "عرض الإسناد 👁" %}{% else %}{% trans "إدارة الإسناد ✏️" %}{% endif %}
             </a>
             {% if request.user.role != 'mshrif' %}
             <a href="{% url 'admin_utilisateur_modifier_email' s.user.id %}?next={% url 'admin_superviseurs' %}"
                style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-               ✉️ البريد الإلكتروني
+               ✉️ {% trans "البريد الإلكتروني" %}
             </a>
             {% endif %}
             <a href="{% url 'admin_utilisateur_reinitialiser_mot_de_passe' s.user.id %}?next={% url 'admin_superviseurs' %}"
                style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-               🔑 كلمة المرور
+               🔑 {% trans "كلمة المرور" %}
             </a>
         </div>
     </div>
     {% empty %}
     <div style="text-align:center; padding:60px; color:#aaa;">
-        {% if q %}لا توجد نتائج مطابقة لهذا البحث{% else %}لا يوجد مؤطرون بعد{% endif %}
+        {% if q %}{% trans "لا توجد نتائج مطابقة لهذا البحث" %}{% else %}{% trans "لا يوجد مؤطرون بعد" %}{% endif %}
     </div>
     {% endfor %}
 </div>

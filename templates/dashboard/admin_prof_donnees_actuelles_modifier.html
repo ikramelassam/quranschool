@@ -1,73 +1,74 @@
 {% extends base_template %}
-{% block title %}تعديل البيانات الحالية — {{ prof.user.get_full_name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% blocktrans with nom=prof.user.get_full_name %}تعديل البيانات الحالية — {{ nom }}{% endblocktrans %}{% endblock %}
 {% block content %}
-<div class="page-title">✏️ تعديل البيانات الحالية</div>
-<div class="page-subtitle">{{ prof.user.get_full_name }} — هذه هي البيانات التي تظهر للطلاب والمؤطرين. الاستمارة الأصلية للترشح تبقى محفوظة كما هي ولا تتأثر بهذا التعديل.</div>
+<div class="page-title">✏️ {% trans "تعديل البيانات الحالية" %}</div>
+<div class="page-subtitle">{{ prof.user.get_full_name }} — {% trans "هذه هي البيانات التي تظهر للطلاب والمؤطرين. الاستمارة الأصلية للترشح تبقى محفوظة كما هي ولا تتأثر بهذا التعديل." %}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
         {% csrf_token %}
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">المدينة</label>
+            <label style="font-weight:600; color:#333;">{% trans "المدينة" %}</label>
             <input type="text" name="ville" class="form-control mt-1" value="{{ prof.ville }}">
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">العمل الحالي</label>
+            <label style="font-weight:600; color:#333;">{% trans "العمل الحالي" %}</label>
             <input type="text" name="job_actuel" class="form-control mt-1" value="{{ prof.job_actuel }}">
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">مستوى الحفظ</label>
+            <label style="font-weight:600; color:#333;">{% trans "مستوى الحفظ" %}</label>
             <input type="text" name="niveau_memorisation" class="form-control mt-1" value="{{ prof.niveau_memorisation }}">
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الشهادات</label>
+            <label style="font-weight:600; color:#333;">{% trans "الشهادات" %}</label>
             <textarea name="certifications" class="form-control mt-1" rows="2">{{ prof.certifications }}</textarea>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">اللغات</label>
+            <label style="font-weight:600; color:#333;">{% trans "اللغات" %}</label>
             <div class="d-flex gap-3 flex-wrap mt-1">
-                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="langues" value="arabe" {% if 'arabe' in prof.langues %}checked{% endif %}> العربية</label>
-                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="langues" value="francais" {% if 'francais' in prof.langues %}checked{% endif %}> الفرنسية</label>
-                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="langues" value="anglais" {% if 'anglais' in prof.langues %}checked{% endif %}> الإنجليزية</label>
-                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="langues" value="autre" {% if 'autre' in prof.langues %}checked{% endif %}> أخرى</label>
+                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="langues" value="arabe" {% if 'arabe' in prof.langues %}checked{% endif %}> {% trans "العربية" %}</label>
+                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="langues" value="francais" {% if 'francais' in prof.langues %}checked{% endif %}> {% trans "الفرنسية" %}</label>
+                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="langues" value="anglais" {% if 'anglais' in prof.langues %}checked{% endif %}> {% trans "الإنجليزية" %}</label>
+                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="langues" value="autre" {% if 'autre' in prof.langues %}checked{% endif %}> {% trans "أخرى" %}</label>
             </div>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">أدوات التواصل</label>
+            <label style="font-weight:600; color:#333;">{% trans "أدوات التواصل" %}</label>
             <div class="d-flex gap-3 flex-wrap mt-1">
-                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="outils_maitrises" value="whatsapp" {% if 'whatsapp' in prof.outils_maitrises %}checked{% endif %}> واتساب</label>
+                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="outils_maitrises" value="whatsapp" {% if 'whatsapp' in prof.outils_maitrises %}checked{% endif %}> {% trans "واتساب" %}</label>
                 <label class="d-flex align-items-center gap-1"><input type="checkbox" name="outils_maitrises" value="meet" {% if 'meet' in prof.outils_maitrises %}checked{% endif %}> Google Meet</label>
                 <label class="d-flex align-items-center gap-1"><input type="checkbox" name="outils_maitrises" value="zoom" {% if 'zoom' in prof.outils_maitrises %}checked{% endif %}> Zoom</label>
             </div>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الفئة المفضلة</label>
+            <label style="font-weight:600; color:#333;">{% trans "الفئة المفضلة" %}</label>
             <div class="d-flex gap-3 flex-wrap mt-1">
-                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="type_eleve_preference" value="enfants" {% if 'enfants' in prof.type_eleve_preference %}checked{% endif %}> أطفال</label>
-                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="type_eleve_preference" value="adultes" {% if 'adultes' in prof.type_eleve_preference %}checked{% endif %}> بالغون</label>
-                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="type_eleve_preference" value="les_deux" {% if 'les_deux' in prof.type_eleve_preference %}checked{% endif %}> الاثنان</label>
+                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="type_eleve_preference" value="enfants" {% if 'enfants' in prof.type_eleve_preference %}checked{% endif %}> {% trans "أطفال" %}</label>
+                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="type_eleve_preference" value="adultes" {% if 'adultes' in prof.type_eleve_preference %}checked{% endif %}> {% trans "بالغون" %}</label>
+                <label class="d-flex align-items-center gap-1"><input type="checkbox" name="type_eleve_preference" value="les_deux" {% if 'les_deux' in prof.type_eleve_preference %}checked{% endif %}> {% trans "الاثنان" %}</label>
             </div>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">المسار الدراسي</label>
+            <label style="font-weight:600; color:#333;">{% trans "المسار الدراسي" %}</label>
             <textarea name="parcours_scolaire" class="form-control mt-1" rows="3">{{ prof.parcours_scolaire }}</textarea>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">المسار التعليمي</label>
+            <label style="font-weight:600; color:#333;">{% trans "المسار التعليمي" %}</label>
             <textarea name="parcours_enseignant" class="form-control mt-1" rows="3">{{ prof.parcours_enseignant }}</textarea>
         </div>
 
         <div class="d-flex gap-3 align-items-center mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                حفظ التعديلات ✅
+                {% trans "حفظ التعديلات ✅" %}
             </button>
-            <a href="{% url 'admin_prof_detail' prof.id %}" style="color:#888; text-decoration:none;">إلغاء</a>
+            <a href="{% url 'admin_prof_detail' prof.id %}" style="color:#888; text-decoration:none;">{% trans "إلغاء" %}</a>
         </div>
     </form>
 </div>

@@ -1,5 +1,5 @@
 {% extends base_template %}
-{% load libelles_arabes %}
+{% load libelles_arabes i18n %}
 {% block title %}{{ prof.user.get_full_name }}{% endblock %}
 {% block content %}
 <div class="page-title">{{ prof.user.get_full_name }}</div>
@@ -8,22 +8,24 @@
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الحالة</span>
+        <span style="color:#888;">{% trans "الحالة" %}</span>
         <span style="font-weight:600; display:flex; align-items:center; gap:10px;">
             {{ prof.get_statut_display }}
             {% include 'dashboard/_badge_archive_prof.html' with prof=prof %}
         </span>
     </div>
     {% if request.user.role == 'admin' %}
+    {% blocktrans asvar confirmer_archivage_prof with nom=prof.user.get_full_name %}هل أنت متأكد من أرشفة الأستاذ {{ nom }}؟ سيبقى سجله كاملاً وقابلاً للاسترجاع، ولن يتمكن من تسجيل الدخول بعد الآن.{% endblocktrans %}
+    {% blocktrans asvar confirmer_reactivation_prof with nom=prof.user.get_full_name %}هل أنت متأكد من إعادة تفعيل الأستاذ {{ nom }}؟{% endblocktrans %}
     <div style="display:flex; gap:8px; padding:12px 0 16px; border-bottom:1px solid #f0f0f0; margin-bottom:16px; flex-wrap:wrap;">
         {% if prof.statut == 'actif' %}
         <a href="{% url 'admin_prof_archiver' prof.id %}"
-           onclick="return confirm('هل أنت متأكد من أرشفة الأستاذ {{ prof.user.get_full_name|escapejs }}؟ سيبقى سجله كاملاً وقابلاً للاسترجاع، ولن يتمكن من تسجيل الدخول بعد الآن.');"
-           style="background:#f0f0f0; color:#666; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗄 أرشفة</a>
+           onclick="return confirm('{{ confirmer_archivage_prof|escapejs }}');"
+           style="background:#f0f0f0; color:#666; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗄 {% trans "أرشفة" %}</a>
         {% elif prof.statut == 'archive' %}
         <a href="{% url 'admin_prof_reactiver' prof.id %}"
-           onclick="return confirm('هل أنت متأكد من إعادة تفعيل الأستاذ {{ prof.user.get_full_name|escapejs }}؟');"
-           style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">▶ إعادة تفعيل</a>
+           onclick="return confirm('{{ confirmer_reactivation_prof|escapejs }}');"
+           style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">▶ {% trans "إعادة تفعيل" %}</a>
         {% endif %}
     </div>
     {% endif %}
@@ -35,18 +37,18 @@
     {% endcomment %}
     <div style="padding:8px 0 16px;">
         <a href="{% url 'prof_supprimer_definitivement' prof.id %}"
-           style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗑️ حذف نهائي</a>
+           style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗑️ {% trans "حذف نهائي" %}</a>
     </div>
     {% endif %}
 
     {% if prof.statut == 'archive' %}
     <div style="background:#f0f0f0; color:#666; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.85rem;">
-        ⚠️ هذا الأستاذ مؤرشف. إذا كان لا يزال مسنداً إلى مجموعات نشطة، يجب تعيين أستاذ آخر لكل مجموعة من صفحة تلك المجموعة.
+        ⚠️ {% trans "هذا الأستاذ مؤرشف. إذا كان لا يزال مسنداً إلى مجموعات نشطة، يجب تعيين أستاذ آخر لكل مجموعة من صفحة تلك المجموعة." %}
     </div>
     {% endif %}
 
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0 16px; border-bottom:1px solid #f0f0f0; margin-bottom:16px;">
-        <span style="color:#888;">تواصل سريع</span>
+        <span style="color:#888;">{% trans "تواصل سريع" %}</span>
         <span style="display:inline-flex; gap:6px; align-items:center;">
             {% include 'dashboard/_email_icon.html' with email=prof.user.email %}
             {% include 'dashboard/_whatsapp_icon.html' with telephone=prof.user.telephone %}
@@ -63,12 +65,12 @@
     jamais depuis dashboard.views.prof_charte, en lecture seule pour le prof.
     {% endcomment %}
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0 16px; border-bottom:1px solid #f0f0f0; margin-bottom:16px;">
-        <span style="color:#888;">قبول الميثاق</span>
+        <span style="color:#888;">{% trans "قبول الميثاق" %}</span>
         <span style="font-weight:600;">
             {% if prof.charte_acceptee %}
-                ✅ بتاريخ {{ prof.date_acceptation_charte|date:"d-m-Y" }}
+                ✅ {% blocktrans with date=prof.date_acceptation_charte|date:"d-m-Y" %}بتاريخ {{ date }}{% endblocktrans %}
             {% else %}
-                ❌ لم يقبل بعد
+                ❌ {% trans "لم يقبل بعد" %}
             {% endif %}
         </span>
     </div>
@@ -78,54 +80,54 @@
          change ensuite sur les données actuelles ci-dessous. -->
     <div style="border:1.5px solid #e5e0d6; background:#FAF8F4; border-radius:14px; padding:22px 24px; margin-bottom:20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-            <span style="font-weight:700; color:#555;">📋 البيانات الأصلية (كما قدمها الأستاذ)</span>
-            <span style="background:#e9e6e0; color:#6b6459; border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">🔒 غير قابل للتعديل</span>
+            <span style="font-weight:700; color:#555;">📋 {% trans "البيانات الأصلية (كما قدمها الأستاذ)" %}</span>
+            <span style="background:#e9e6e0; color:#6b6459; border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">🔒 {% trans "غير قابل للتعديل" %}</span>
         </div>
 
         {% if inscription %}
-        <div style="color:#888; font-size:0.8rem; font-weight:700; margin-bottom:6px;">معلومات عامة</div>
+        <div style="color:#888; font-size:0.8rem; font-weight:700; margin-bottom:6px;">{% trans "معلومات عامة" %}</div>
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
-            <span style="color:#888;">المدينة</span>
+            <span style="color:#888;">{% trans "المدينة" %}</span>
             <span style="font-weight:600;">{{ inscription.ville }}</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
-            <span style="color:#888;">مستوى الحفظ</span>
+            <span style="color:#888;">{% trans "مستوى الحفظ" %}</span>
             <span style="font-weight:600;">{{ inscription.niveau_memorisation }}</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding:8px 0;">
-            <span style="color:#888;">الشهادات</span>
+            <span style="color:#888;">{% trans "الشهادات" %}</span>
             <span style="font-weight:600;">{{ inscription.certifications|default:"—" }}</span>
         </div>
 
-        <div style="color:#888; font-size:0.8rem; font-weight:700; margin:18px 0 6px;">التفضيلات</div>
+        <div style="color:#888; font-size:0.8rem; font-weight:700; margin:18px 0 6px;">{% trans "التفضيلات" %}</div>
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
-            <span style="color:#888;">اللغات</span>
+            <span style="color:#888;">{% trans "اللغات" %}</span>
             <span style="font-weight:600;">{{ inscription.langues|libelles_arabes_liste:"langues" }}</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
-            <span style="color:#888;">أدوات التواصل</span>
+            <span style="color:#888;">{% trans "أدوات التواصل" %}</span>
             <span style="font-weight:600;">{{ inscription.outils_maitrises|libelles_arabes_liste:"outils_maitrises" }}</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
-            <span style="color:#888;">الفئة المفضلة</span>
+            <span style="color:#888;">{% trans "الفئة المفضلة" %}</span>
             <span style="font-weight:600;">{{ inscription.type_eleve_preference|libelles_arabes_liste:"type_eleve_preference" }}</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding:8px 0;">
-            <span style="color:#888;">قيود الجنس</span>
+            <span style="color:#888;">{% trans "قيود الجنس" %}</span>
             <span style="font-weight:600;">{{ inscription.contrainte_genre|libelles_arabes_liste:"contrainte_genre" }}</span>
         </div>
 
-        <div style="color:#888; font-size:0.8rem; font-weight:700; margin:18px 0 6px;">المسار</div>
+        <div style="color:#888; font-size:0.8rem; font-weight:700; margin:18px 0 6px;">{% trans "المسار" %}</div>
         <div style="padding:8px 0; border-bottom:1px solid #eee;">
-            <div style="color:#888; margin-bottom:4px;">المسار الدراسي</div>
+            <div style="color:#888; margin-bottom:4px;">{% trans "المسار الدراسي" %}</div>
             <div style="font-weight:600;">{{ inscription.parcours_scolaire }}</div>
         </div>
         <div style="padding:8px 0;">
-            <div style="color:#888; margin-bottom:4px;">المسار التعليمي</div>
+            <div style="color:#888; margin-bottom:4px;">{% trans "المسار التعليمي" %}</div>
             <div style="font-weight:600;">{{ inscription.parcours_enseignant }}</div>
         </div>
         {% else %}
-        <div style="color:#aaa; padding:8px 0;">لا توجد استمارة ترشح أصلية محفوظة لهذا المعلم.</div>
+        <div style="color:#aaa; padding:8px 0;">{% trans "لا توجد استمارة ترشح أصلية محفوظة لهذا المعلم." %}</div>
         {% endif %}
     </div>
 
@@ -134,68 +136,68 @@
          toucher au bloc ci-dessus. -->
     <div style="border:1.5px solid var(--color-brand-gold); background:var(--color-bg-cream); border-radius:14px; padding:22px 24px; margin-bottom:20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-            <span style="font-weight:700; color:var(--color-brand-gold-dark);">✏️ البيانات الحالية</span>
+            <span style="font-weight:700; color:var(--color-brand-gold-dark);">✏️ {% trans "البيانات الحالية" %}</span>
             {% if request.user.role != 'mshrif' %}
-            <span style="background:rgba(139,75,0,0.12); color:var(--color-brand-gold-dark); border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">✏️ قابل للتعديل</span>
+            <span style="background:rgba(139,75,0,0.12); color:var(--color-brand-gold-dark); border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">✏️ {% trans "قابل للتعديل" %}</span>
             {% else %}
-            <span style="background:#e9e6e0; color:#6b6459; border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">🔒 عرض فقط</span>
+            <span style="background:#e9e6e0; color:#6b6459; border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">🔒 {% trans "عرض فقط" %}</span>
             {% endif %}
         </div>
 
-        <div style="color:#8B6040; font-size:0.8rem; font-weight:700; margin-bottom:6px;">معلومات عامة</div>
+        <div style="color:#8B6040; font-size:0.8rem; font-weight:700; margin-bottom:6px;">{% trans "معلومات عامة" %}</div>
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
-            <span style="color:#888;">المدينة</span>
+            <span style="color:#888;">{% trans "المدينة" %}</span>
             <span style="font-weight:600;">{{ prof.ville }}</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
-            <span style="color:#888;">العمل الحالي</span>
+            <span style="color:#888;">{% trans "العمل الحالي" %}</span>
             <span style="font-weight:600;">{{ prof.job_actuel|default:"—" }}</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
-            <span style="color:#888;">مستوى الحفظ</span>
+            <span style="color:#888;">{% trans "مستوى الحفظ" %}</span>
             <span style="font-weight:600;">{{ prof.niveau_memorisation }}</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding:8px 0;">
-            <span style="color:#888;">الشهادات</span>
+            <span style="color:#888;">{% trans "الشهادات" %}</span>
             <span style="font-weight:600;">{{ prof.certifications|default:"—" }}</span>
         </div>
 
-        <div style="color:#8B6040; font-size:0.8rem; font-weight:700; margin:18px 0 6px;">التفضيلات</div>
+        <div style="color:#8B6040; font-size:0.8rem; font-weight:700; margin:18px 0 6px;">{% trans "التفضيلات" %}</div>
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
-            <span style="color:#888;">اللغات</span>
+            <span style="color:#888;">{% trans "اللغات" %}</span>
             <span style="font-weight:600;">{{ prof.langues|libelles_arabes_liste:"langues" }}</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
-            <span style="color:#888;">أدوات التواصل</span>
+            <span style="color:#888;">{% trans "أدوات التواصل" %}</span>
             <span style="font-weight:600;">{{ prof.outils_maitrises|libelles_arabes_liste:"outils_maitrises" }}</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
-            <span style="color:#888;">الفئة المفضلة</span>
+            <span style="color:#888;">{% trans "الفئة المفضلة" %}</span>
             <span style="font-weight:600;">{{ prof.type_eleve_preference|libelles_arabes_liste:"type_eleve_preference" }}</span>
         </div>
         <div style="display:flex; justify-content:space-between; padding:8px 0;">
-            <span style="color:#888;">قيود الجنس</span>
+            <span style="color:#888;">{% trans "قيود الجنس" %}</span>
             <span style="font-weight:600;">{{ prof.contrainte_genre|libelles_arabes_liste:"contrainte_genre" }}</span>
         </div>
 
-        <div style="color:#8B6040; font-size:0.8rem; font-weight:700; margin:18px 0 6px;">المسار</div>
+        <div style="color:#8B6040; font-size:0.8rem; font-weight:700; margin:18px 0 6px;">{% trans "المسار" %}</div>
         <div style="padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
-            <div style="color:#888; margin-bottom:4px;">المسار الدراسي</div>
+            <div style="color:#888; margin-bottom:4px;">{% trans "المسار الدراسي" %}</div>
             <div style="font-weight:600;">{{ prof.parcours_scolaire }}</div>
         </div>
         <div style="padding:8px 0; {% if prof.gestion_eleve_faible or prof.gestion_eleve_absent %}border-bottom:1px solid rgba(139,75,0,0.15);{% endif %}">
-            <div style="color:#888; margin-bottom:4px;">المسار التعليمي</div>
+            <div style="color:#888; margin-bottom:4px;">{% trans "المسار التعليمي" %}</div>
             <div style="font-weight:600;">{{ prof.parcours_enseignant }}</div>
         </div>
         {% if prof.gestion_eleve_faible %}
         <div style="padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
-            <div style="color:#888; margin-bottom:4px;">التعامل مع الطالب الضعيف</div>
+            <div style="color:#888; margin-bottom:4px;">{% trans "التعامل مع الطالب الضعيف" %}</div>
             <div style="font-weight:600;">{{ prof.gestion_eleve_faible }}</div>
         </div>
         {% endif %}
         {% if prof.gestion_eleve_absent %}
         <div style="padding:8px 0;">
-            <div style="color:#888; margin-bottom:4px;">التعامل مع الطالب الغائب</div>
+            <div style="color:#888; margin-bottom:4px;">{% trans "التعامل مع الطالب الغائب" %}</div>
             <div style="font-weight:600;">{{ prof.gestion_eleve_absent }}</div>
         </div>
         {% endif %}
@@ -203,7 +205,7 @@
         {% if request.user.role != 'mshrif' %}
         <a href="{% url 'admin_prof_donnees_actuelles_modifier' prof.id %}"
            style="display:inline-block; margin-top:14px; color:var(--color-brand-gold-dark); font-size:0.85rem; font-weight:700; text-decoration:none;">
-           ✏️ تعديل
+           ✏️ {% trans "تعديل" %}
         </a>
         {% endif %}
     </div>
@@ -211,81 +213,82 @@
     <!-- Bloc éditable: infos ajoutées par le مدير, indépendantes de la candidature. -->
     <div style="border:1.5px solid var(--color-brand-gold); background:var(--color-bg-cream); border-radius:14px; padding:22px 24px; margin-bottom:20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-            <span style="font-weight:700; color:var(--color-brand-gold-dark);">➕ معلومات إضافية من الإدارة</span>
+            <span style="font-weight:700; color:var(--color-brand-gold-dark);">➕ {% trans "معلومات إضافية من الإدارة" %}</span>
             {% if request.user.role != 'mshrif' %}
-            <span style="background:rgba(139,75,0,0.12); color:var(--color-brand-gold-dark); border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">✏️ قابل للتعديل</span>
+            <span style="background:rgba(139,75,0,0.12); color:var(--color-brand-gold-dark); border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">✏️ {% trans "قابل للتعديل" %}</span>
             {% else %}
-            <span style="background:#e9e6e0; color:#6b6459; border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">🔒 عرض فقط</span>
+            <span style="background:#e9e6e0; color:#6b6459; border-radius:20px; padding:4px 12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">🔒 {% trans "عرض فقط" %}</span>
             {% endif %}
         </div>
 
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(139,75,0,0.15);">
-            <span style="color:#888;">تاريخ بداية العمل الفعلي</span>
+            <span style="color:#888;">{% trans "تاريخ بداية العمل الفعلي" %}</span>
             <span style="font-weight:600;">{{ prof.date_debut_effectif|date:"d-m-Y"|default:"—" }}</span>
         </div>
         <div style="padding:10px 0 4px;">
-            <div style="color:#888; margin-bottom:4px;">ملاحظات إدارية</div>
+            <div style="color:#888; margin-bottom:4px;">{% trans "ملاحظات إدارية" %}</div>
             <div style="font-weight:600; white-space:pre-line;">{{ prof.notes_admin|default:"—" }}</div>
         </div>
 
         {% if request.user.role != 'mshrif' %}
         <a href="{% url 'admin_prof_infos_complementaires_modifier' prof.id %}"
            style="display:inline-block; margin-top:14px; color:var(--color-brand-gold-dark); font-size:0.85rem; font-weight:700; text-decoration:none;">
-           ✏️ تعديل
+           ✏️ {% trans "تعديل" %}
         </a>
         {% endif %}
     </div>
 
     {% comment %}نبذة التقديم العامة (Chantier du 2026-08-27) — تظهر في بطاقة الحلقة أثناء التسجيل.{% endcomment %}
     <div style="border:1.5px solid rgba(139,75,0,0.2); background:white; border-radius:14px; padding:22px 24px; margin-bottom:20px;">
-        <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:10px;">📝 نبذة التقديم العامة</div>
-        <div style="white-space:pre-line; color:var(--color-text-primary);">{{ prof.presentation_publique|default:"— لا توجد نبذة —" }}</div>
+        <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:10px;">📝 {% trans "نبذة التقديم العامة" %}</div>
+        {% trans "— لا توجد نبذة —" as texte_pas_de_nubdha %}
+        <div style="white-space:pre-line; color:var(--color-text-primary);">{{ prof.presentation_publique|default:texte_pas_de_nubdha }}</div>
         <a href="{% url 'admin_prof_presentation_modifier' prof.id %}"
            style="display:inline-block; margin-top:14px; color:var(--color-brand-gold-dark); font-size:0.85rem; font-weight:700; text-decoration:none;">
-           ✏️ تعديل
+           ✏️ {% trans "تعديل" %}
         </a>
     </div>
 
     {% include 'dashboard/_carnet_notes_personnelles.html' with profil_user=prof.user notes_personnelles=notes_personnelles id_suffix='_prof' %}
 
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">💰 المستحقات الشهرية (حسب شبكة التعرفات)</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">💰 {% trans "المستحقات الشهرية (حسب شبكة التعرفات)" %}</div>
     {% if remuneration.detail %}
         {% include 'dashboard/_remuneration_detail.html' with remuneration=remuneration couleur_accent='var(--color-role-admin-solid)' %}
         {% for ligne in remuneration.detail %}{% if ligne.nb_age_inconnu %}
-        <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">⚠️ {{ ligne.groupe.nom }} : {{ ligne.nb_age_inconnu }} طالب بدون تاريخ ميلاد معروف — مستبعد من الحساب، يُرجى التحقق</div>
+        <div style="color:var(--color-danger); font-size:0.8rem; margin-top:4px;">⚠️ {% blocktrans with nom=ligne.groupe.nom n=ligne.nb_age_inconnu %}{{ nom }} : {{ n }} طالب بدون تاريخ ميلاد معروف — مستبعد من الحساب، يُرجى التحقق{% endblocktrans %}</div>
         {% endif %}{% endfor %}
         <div style="display:flex; justify-content:space-between; padding:14px 0 0; margin-top:8px; font-size:1.1rem;">
-            <span style="font-weight:700;">مجموع الحساب الأساسي</span>
-            <span style="font-weight:700; color:var(--color-role-admin-solid);">{{ remuneration.total_calcule }} د.م.</span>
+            <span style="font-weight:700;">{% trans "مجموع الحساب الأساسي" %}</span>
+            <span style="font-weight:700; color:var(--color-role-admin-solid);">{{ remuneration.total_calcule }} {% trans "د.م." %}</span>
         </div>
     {% else %}
-        <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
+        <div style="color:#aaa; padding:8px 0;">{% trans "لا يوجد أي مجموعة بعد" %}</div>
     {% endif %}
 
     <div style="margin-top:16px; background:var(--color-bg-cream); border-radius:10px; padding:14px 16px;">
         {% if request.user.role == 'mshrif' or prof.statut == 'archive' %}
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:600; color:#333;">➕ منحة شهرية إضافية (لا تظهر للمعلم)</span>
-            <span style="font-weight:700; color:var(--color-role-mshrif-solid);">{{ prof.majoration_mensuelle|default_if_none:"—" }}{% if prof.majoration_mensuelle %} د.م.{% endif %}</span>
+            <span style="font-weight:600; color:#333;">➕ {% trans "منحة شهرية إضافية (لا تظهر للمعلم)" %}</span>
+            <span style="font-weight:700; color:var(--color-role-mshrif-solid);">{{ prof.majoration_mensuelle|default_if_none:"—" }}{% if prof.majoration_mensuelle %} {% trans "د.م." %}{% endif %}</span>
         </div>
         <div style="color:#888; font-size:0.78rem; margin-top:6px;">
-            {% if prof.statut == 'archive' %}الأستاذ مؤرشف — لا يمكن تعديل هذا الحقل حالياً.{% else %}للاطلاع فقط — تعدّلها الإدارة من هذه الصفحة.{% endif %}
+            {% if prof.statut == 'archive' %}{% trans "الأستاذ مؤرشف — لا يمكن تعديل هذا الحقل حالياً." %}{% else %}{% trans "للاطلاع فقط — تعدّلها الإدارة من هذه الصفحة." %}{% endif %}
         </div>
         {% else %}
         <form method="POST" action="{% url 'admin_prof_majoration_modifier' prof.id %}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
             {% csrf_token %}
-            <label style="font-weight:600; color:#333; white-space:nowrap;">➕ منحة شهرية إضافية (لا تظهر للمعلم)</label>
+            <label style="font-weight:600; color:#333; white-space:nowrap;">➕ {% trans "منحة شهرية إضافية (لا تظهر للمعلم)" %}</label>
             <input type="number" step="0.01" name="majoration_mensuelle" value="{{ prof.majoration_mensuelle|default_if_none:'' }}"
                    class="form-control" style="max-width:150px;" placeholder="0.00">
-            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 16px; font-size:0.85rem; cursor:pointer;">حفظ</button>
+            <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 16px; font-size:0.85rem; cursor:pointer;">{% trans "حفظ" %}</button>
         </form>
-        <div style="color:#888; font-size:0.78rem; margin-top:6px;">تُضاف يدوياً عند التحويل الفعلي، خارج المنصة — لا تدخل في أي حساب يراه المعلم.</div>
+        <div style="color:#888; font-size:0.78rem; margin-top:6px;">{% trans "تُضاف يدوياً عند التحويل الفعلي، خارج المنصة — لا تدخل في أي حساب يراه المعلم." %}</div>
         {% endif %}
     </div>
 
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">معلومات بنكية</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "معلومات بنكية" %}</div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الحساب البنكي</span>
+        <span style="color:#888;">{% trans "الحساب البنكي" %}</span>
         <span style="font-weight:600;">{{ prof.compte_bancaire }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
@@ -293,11 +296,11 @@
         <span style="font-weight:600;">{{ prof.rib }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">اسم الوكالة البنكية</span>
+        <span style="color:#888;">{% trans "اسم الوكالة البنكية" %}</span>
         <span style="font-weight:600;">{{ prof.agence_bancaire }}</span>
     </div>
 
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">المجموعات</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "المجموعات" %}</div>
     {% with total_groupes=prof.groupes.count %}
     {% if total_groupes %}
         {% for groupe in prof.groupes.all|slice:":10" %}
@@ -327,71 +330,74 @@
         </div>
         <div style="padding:8px 0;">
             <span id="groupes_prof_toggle_texte" onclick="toggleGroupesProf()" style="cursor:pointer; color:var(--color-role-admin-solid); font-size:0.82rem; text-decoration:underline;">
-                عرض جميع المجموعات ({{ total_groupes }}) ↓
+                {% blocktrans with n=total_groupes %}عرض جميع المجموعات ({{ n }}) ↓{% endblocktrans %}
             </span>
         </div>
+        {% trans "إخفاء ↑" as texte_masquer_groupes %}
+        {% blocktrans asvar texte_afficher_groupes with n=total_groupes %}عرض جميع المجموعات ({{ n }}) ↓{% endblocktrans %}
         <script>
             function toggleGroupesProf() {
                 const extra = document.getElementById('groupes_prof_extra');
                 const texte = document.getElementById('groupes_prof_toggle_texte');
                 if (extra.style.display === 'none') {
                     extra.style.display = 'block';
-                    texte.textContent = 'إخفاء ↑';
+                    texte.textContent = '{{ texte_masquer_groupes|escapejs }}';
                 } else {
                     extra.style.display = 'none';
-                    texte.textContent = 'عرض جميع المجموعات ({{ total_groupes }}) ↓';
+                    texte.textContent = '{{ texte_afficher_groupes|escapejs }}';
                 }
             }
         </script>
         {% endif %}
     {% else %}
-        <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة بعد</div>
+        <div style="color:#aaa; padding:8px 0;">{% trans "لا يوجد أي مجموعة بعد" %}</div>
     {% endif %}
     {% endwith %}
 
     {% if inscription %}
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">معلومات إضافية من استمارة التسجيل</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "معلومات إضافية من استمارة التسجيل" %}</div>
+    {% trans "غير محدد" as texte_non_defini_inscription %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">تاريخ الميلاد</span>
-        <span style="font-weight:600;">{{ inscription.date_naissance|default_if_none:"غير محدد" }}</span>
+        <span style="color:#888;">{% trans "تاريخ الميلاد" %}</span>
+        <span style="font-weight:600;">{{ inscription.date_naissance|default_if_none:texte_non_defini_inscription }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الحالة العائلية</span>
+        <span style="color:#888;">{% trans "الحالة العائلية" %}</span>
         <span style="font-weight:600;">{{ inscription.statut_familial|libelle_arabe:"statut_familial" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">العمل الحالي</span>
+        <span style="color:#888;">{% trans "العمل الحالي" %}</span>
         <span style="font-weight:600;">{{ inscription.job_actuel }}</span>
     </div>
     {% if inscription.audio_enregistrement %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">تسجيل صوتي</span>
-        <a href="{{ inscription.audio_enregistrement.url }}" target="_blank" style="font-weight:600; color:var(--color-role-admin-solid);">🎧 استماع</a>
+        <span style="color:#888;">{% trans "تسجيل صوتي" %}</span>
+        <a href="{{ inscription.audio_enregistrement.url }}" target="_blank" style="font-weight:600; color:var(--color-role-admin-solid);">🎧 {% trans "استماع" %}</a>
     </div>
     {% endif %}
     <div style="display:flex; justify-content:space-between; padding:8px 0;">
-        <span style="color:#888;">تاريخ التقديم</span>
+        <span style="color:#888;">{% trans "تاريخ التقديم" %}</span>
         <span style="font-weight:600;">{{ inscription.date_soumission|date:"d-m-Y H:i" }}</span>
     </div>
     {% else %}
-    <div style="color:#aaa; padding:12px 0;">لا توجد استمارة تسجيل مرتبطة بهذا المعلم.</div>
+    <div style="color:#aaa; padding:12px 0;">{% trans "لا توجد استمارة تسجيل مرتبطة بهذا المعلم." %}</div>
     {% endif %}
 
     <div class="mt-4 d-flex gap-3 align-items-center">
-        <a href="{% url 'admin_profs' %}" style="color:#888; text-decoration:none;">← رجوع</a>
+        <a href="{% url 'admin_profs' %}" style="color:#888; text-decoration:none;">{% trans "← رجوع" %}</a>
         {% if request.user.role != 'mshrif' %}
         <a href="{% url 'admin_utilisateur_modifier_email' prof.user.id %}?next={% url 'admin_prof_detail' prof.id %}"
            style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-           ✉️ تغيير البريد الإلكتروني
+           ✉️ {% trans "تغيير البريد الإلكتروني" %}
         </a>
         {% endif %}
         <a href="{% url 'admin_utilisateur_reinitialiser_mot_de_passe' prof.user.id %}?next={% url 'admin_prof_detail' prof.id %}"
            style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-           🔑 إعادة تعيين كلمة المرور
+           🔑 {% trans "إعادة تعيين كلمة المرور" %}
         </a>
         <a href="{% url 'admin_prof_disponibilites' prof.id %}"
            style="background:var(--color-role-admin); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-           {% if request.user.role == 'mshrif' %}🕐 عرض الأوقات المتاحة للتدريس{% else %}🕐 الأوقات المتاحة للتدريس{% endif %}
+           {% if request.user.role == 'mshrif' %}🕐 {% trans "عرض الأوقات المتاحة للتدريس" %}{% else %}🕐 {% trans "الأوقات المتاحة للتدريس" %}{% endif %}
         </a>
     </div>
 </div>

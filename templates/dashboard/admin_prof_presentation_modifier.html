@@ -1,28 +1,34 @@
 {% extends base_template %}
-{% block title %}نبذة التقديم — {{ prof.user.get_full_name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% blocktrans with nom=prof.user.get_full_name %}نبذة التقديم — {{ nom }}{% endblocktrans %}{% endblock %}
 {% block content %}
-<div class="page-title">📝 نبذة التقديم العامة</div>
-<div class="page-subtitle">{{ prof.user.get_full_name }} — تظهر هذه النبذة للمرشحين في بطاقة الحلقة أثناء التسجيل</div>
+<div class="page-title">📝 {% trans "نبذة التقديم العامة" %}</div>
+<div class="page-subtitle">{{ prof.user.get_full_name }} — {% trans "تظهر هذه النبذة للمرشحين في بطاقة الحلقة أثناء التسجيل" %}</div>
 
+{% comment %}
+prof.presentation_publique reste un champ arabe UNIQUEMENT (pas de version
+FR/EN) — même profil que evaluations.models.Critere.nom_ar, HORS PÉRIMÈTRE
+de ce chantier (signalé dans le rapport final, pas corrigé ici).
+{% endcomment %}
 <div style="background:var(--color-bg-cream); border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
         {% csrf_token %}
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">نص النبذة</label>
+            <label style="font-weight:600; color:#333;">{% trans "نص النبذة" %}</label>
             <textarea name="presentation_publique" class="form-control mt-1" rows="8">{{ prof.presentation_publique }}</textarea>
             <div style="color:#888; font-size:0.78rem; margin-top:4px;">
-                تم توليد هذا النص تلقائياً عند قبول الأستاذ نهائياً — يمكنك تعديله بحرية، لن يُعاد توليده تلقائياً بعد ذلك.
-                يظهر فقط إذا كان "عرض نبذة الأستاذ في صفحة التسجيل" مُفعّلاً من صفحة "ظهور بيانات الأستاذ للطالب".
+                {% trans "تم توليد هذا النص تلقائياً عند قبول الأستاذ نهائياً — يمكنك تعديله بحرية، لن يُعاد توليده تلقائياً بعد ذلك." %}
+                {% trans 'يظهر فقط إذا كان "عرض نبذة الأستاذ في صفحة التسجيل" مُفعّلاً من صفحة "ظهور بيانات الأستاذ للطالب".' %}
             </div>
         </div>
 
         <div class="d-flex gap-3 align-items-center mt-4">
             <button type="submit"
                 style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                حفظ ✅
+                {% trans "حفظ ✅" %}
             </button>
-            <a href="{% url 'admin_prof_detail' prof.id %}" style="color:#888; text-decoration:none;">إلغاء</a>
+            <a href="{% url 'admin_prof_detail' prof.id %}" style="color:#888; text-decoration:none;">{% trans "إلغاء" %}</a>
         </div>
     </form>
 </div>

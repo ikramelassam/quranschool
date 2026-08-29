@@ -1,29 +1,30 @@
 {% extends base_template %}
-{% block title %}معلومات إضافية — {{ prof.user.get_full_name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% blocktrans with nom=prof.user.get_full_name %}معلومات إضافية — {{ nom }}{% endblocktrans %}{% endblock %}
 {% block content %}
-<div class="page-title">✏️ معلومات إضافية من الإدارة</div>
-<div class="page-subtitle">{{ prof.user.get_full_name }} — هذه المعلومات لا علاقة لها باستمارة الترشح الأصلية</div>
+<div class="page-title">✏️ {% trans "معلومات إضافية من الإدارة" %}</div>
+<div class="page-subtitle">{{ prof.user.get_full_name }} — {% trans "هذه المعلومات لا علاقة لها باستمارة الترشح الأصلية" %}</div>
 
 <div style="background:var(--color-bg-cream); border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
         {% csrf_token %}
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">تاريخ بداية العمل الفعلي</label>
+            <label style="font-weight:600; color:#333;">{% trans "تاريخ بداية العمل الفعلي" %}</label>
             <input type="date" name="date_debut_effectif" class="form-control mt-1" value="{{ prof.date_debut_effectif|date:'Y-m-d' }}">
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">ملاحظات إدارية</label>
-            <textarea name="notes_admin" class="form-control mt-1" rows="5" placeholder="ملاحظات داخلية حول هذا المعلم — أداء، مهارات ملاحظة، أي معلومة إضافية...">{{ prof.notes_admin }}</textarea>
+            <label style="font-weight:600; color:#333;">{% trans "ملاحظات إدارية" %}</label>
+            <textarea name="notes_admin" class="form-control mt-1" rows="5" placeholder="{% trans 'ملاحظات داخلية حول هذا المعلم — أداء، مهارات ملاحظة، أي معلومة إضافية...' %}">{{ prof.notes_admin }}</textarea>
         </div>
 
         <div class="d-flex gap-3 align-items-center mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                حفظ ✅
+                {% trans "حفظ ✅" %}
             </button>
-            <a href="{% url 'admin_prof_detail' prof.id %}" style="color:#888; text-decoration:none;">إلغاء</a>
+            <a href="{% url 'admin_prof_detail' prof.id %}" style="color:#888; text-decoration:none;">{% trans "إلغاء" %}</a>
         </div>
     </form>
 </div>

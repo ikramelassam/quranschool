@@ -1,12 +1,13 @@
 {% extends base_template %}
-{% block title %}حذف نهائي — المؤطر{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "حذف نهائي — المؤطر" %}{% endblock %}
 {% comment %}
 Écran d'action focalisée à une seule tâche — voir
 admin_eleve_supprimer_definitivement.html (et sa note du 2026-08-14 sur
 le retrait du {% block recherche_globale %}).
 {% endcomment %}
 {% block content %}
-<div class="page-title">حذف نهائي</div>
+<div class="page-title">{% trans "حذف نهائي" %}</div>
 <div class="page-subtitle">{{ superviseur.user.get_full_name }} — {{ superviseur.user.email }}</div>
 
 {% comment %}
@@ -17,29 +18,30 @@ proprement (profs_assignes, évaluations rédigées, séances suivies).
 {% endcomment %}
 
 <div style="background:#fdf1f0; border:2px solid var(--color-danger); border-radius:12px; padding:24px; max-width:600px;">
-    <div style="font-weight:700; color:var(--color-danger); margin-bottom:12px;">⚠️ هذا الإجراء نهائي</div>
+    <div style="font-weight:700; color:var(--color-danger); margin-bottom:12px;">⚠️ {% trans "هذا الإجراء نهائي" %}</div>
 
     <p style="color:#8a3b36; font-size:0.9rem; margin-bottom:12px;">
-        لا شيء يُحذف فعلياً هنا — فقط الحساب نفسه. كل ما يلي سيبقى محفوظاً، فقط الرابط بهذا المؤطر يُزال:
+        {% trans "لا شيء يُحذف فعلياً هنا — فقط الحساب نفسه. كل ما يلي سيبقى محفوظاً، فقط الرابط بهذا المؤطر يُزال:" %}
     </p>
     <ul style="color:#8a3b36; font-size:0.9rem; margin-bottom:20px;">
-        <li>{{ nb_profs_assignes }} أستاذ مُسند إليه حالياً — سيصبحون بدون مؤطر مسؤول (قابلين لإعادة الإسناد لاحقاً)</li>
-        <li>{{ nb_evaluations }} تقييم كتبه على أساتذة — يبقى محفوظاً على ملف كل أستاذ، فقط اسم المؤطر كمُحرِّر يختفي</li>
+        <li>{% blocktrans count compteur=nb_profs_assignes %}{{ compteur }} أستاذ مُسند إليه حالياً — سيصبحون بدون مؤطر مسؤول (قابلين لإعادة الإسناد لاحقاً){% plural %}{{ compteur }} أستاذ مُسند إليه حالياً — سيصبحون بدون مؤطر مسؤول (قابلين لإعادة الإسناد لاحقاً){% endblocktrans %}</li>
+        <li>{% blocktrans count compteur=nb_evaluations %}{{ compteur }} تقييم كتبه على أساتذة — يبقى محفوظاً على ملف كل أستاذ، فقط اسم المؤطر كمُحرِّر يختفي{% plural %}{{ compteur }} تقييم كتبه على أساتذة — يبقى محفوظاً على ملف كل أستاذ، فقط اسم المؤطر كمُحرِّر يختفي{% endblocktrans %}</li>
     </ul>
 
-    <p style="color:#8a3b36; font-size:0.85rem; margin-bottom:20px;">لن يبقى أي أثر لهذا الحذف بعد تنفيذه.</p>
+    <p style="color:#8a3b36; font-size:0.85rem; margin-bottom:20px;">{% trans "لن يبقى أي أثر لهذا الحذف بعد تنفيذه." %}</p>
 
-    <form method="POST" onsubmit="return confirm('تأكيد أخير: هل أنت متأكدة تماماً من حذف حساب هذا المؤطر نهائياً، بدون أي إمكانية للتراجع؟');">
+    {% trans "تأكيد أخير: هل أنت متأكدة تماماً من حذف حساب هذا المؤطر نهائياً، بدون أي إمكانية للتراجع؟" as texte_confirmation %}
+    <form method="POST" onsubmit="return confirm('{{ texte_confirmation|escapejs }}');">
         {% csrf_token %}
-        <label style="color:#8a3b36; font-size:0.85rem; display:block; margin-bottom:4px;">اكتب البريد الإلكتروني التالي بالضبط للتأكيد:</label>
+        <label style="color:#8a3b36; font-size:0.85rem; display:block; margin-bottom:4px;">{% trans "اكتب البريد الإلكتروني التالي بالضبط للتأكيد:" %}</label>
         <div style="background:white; border-radius:6px; padding:8px 12px; font-family:'Tajawal',sans-serif; margin-bottom:10px; border:1px solid #e0c4c2;">{{ superviseur.user.email }}</div>
         <input type="text" name="confirmation_nom" class="form-control mb-3" placeholder="{{ superviseur.user.email }}" required>
         <div class="d-flex gap-2">
             <button type="submit"
                 style="background:var(--color-danger); color:white; border:none; border-radius:8px; padding:10px 20px; font-weight:700; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                حذف نهائي 🗑️⚠️
+                {% trans "حذف نهائي 🗑️⚠️" %}
             </button>
-            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
+            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "إلغاء" %}</a>
         </div>
     </form>
 </div>

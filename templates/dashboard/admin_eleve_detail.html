@@ -1,6 +1,7 @@
 {% extends base_template %}
 {% load libelles_arabes %}
 {% load registration_tags %}
+{% load i18n %}
 {% block title %}{{ eleve.user.get_full_name }}{% endblock %}
 {% block content %}
 <div class="page-title">{{ eleve.user.get_full_name }}</div>
@@ -8,13 +9,13 @@
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin-bottom:12px;">الحساب</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin-bottom:12px;">{% trans "الحساب" %}</div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الجنس</span>
+        <span style="color:#888;">{% trans "الجنس" %}</span>
         <span style="font-weight:600;">{{ eleve.sexe|libelle_arabe:"sexe" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الحالة</span>
+        <span style="color:#888;">{% trans "الحالة" %}</span>
         <span style="font-weight:600; display:flex; align-items:center; gap:10px;">
             {{ eleve.get_statut_display }}
             {% include 'dashboard/_badge_suspension_eleve.html' with eleve=eleve %}
@@ -25,25 +26,28 @@
         </span>
     </div>
     {% if request.user.role == 'admin' %}
+    {% blocktrans asvar confirmer_arret with nom=eleve.user.get_full_name %}هل أنت متأكد من إيقاف الطالب {{ nom }}؟{% endblocktrans %}
+    {% blocktrans asvar confirmer_archivage with nom=eleve.user.get_full_name %}هل أنت متأكد من أرشفة الطالب {{ nom }}؟ سيبقى سجله كاملاً وقابلاً للاسترجاع.{% endblocktrans %}
+    {% blocktrans asvar confirmer_reactivation with nom=eleve.user.get_full_name %}هل أنت متأكد من إعادة تفعيل الطالب {{ nom }}؟{% endblocktrans %}
     <div style="display:flex; gap:8px; padding:12px 0; flex-wrap:wrap;">
         {% if eleve.statut == 'actif' %}
         <a href="{% url 'admin_eleve_suspendre' eleve.id %}"
-           onclick="return confirm('هل أنت متأكد من إيقاف الطالب {{ eleve.user.get_full_name|escapejs }}؟');"
-           style="background:#fce4e4; color:#dc3545; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">⏸ إيقاف</a>
+           onclick="return confirm('{{ confirmer_arret|escapejs }}');"
+           style="background:#fce4e4; color:#dc3545; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">⏸ {% trans "إيقاف" %}</a>
         <a href="{% url 'admin_eleve_archiver' eleve.id %}"
-           onclick="return confirm('هل أنت متأكد من أرشفة الطالب {{ eleve.user.get_full_name|escapejs }}؟ سيبقى سجله كاملاً وقابلاً للاسترجاع.');"
-           style="background:#f0f0f0; color:#666; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗄 أرشفة</a>
+           onclick="return confirm('{{ confirmer_archivage|escapejs }}');"
+           style="background:#f0f0f0; color:#666; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗄 {% trans "أرشفة" %}</a>
         {% elif eleve.statut == 'suspendu' %}
         <a href="{% url 'admin_eleve_reactiver' eleve.id %}"
-           onclick="return confirm('هل أنت متأكد من إعادة تفعيل الطالب {{ eleve.user.get_full_name|escapejs }}؟');"
-           style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">▶ إعادة تفعيل</a>
+           onclick="return confirm('{{ confirmer_reactivation|escapejs }}');"
+           style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">▶ {% trans "إعادة تفعيل" %}</a>
         <a href="{% url 'admin_eleve_archiver' eleve.id %}"
-           onclick="return confirm('هل أنت متأكد من أرشفة الطالب {{ eleve.user.get_full_name|escapejs }}؟ سيبقى سجله كاملاً وقابلاً للاسترجاع.');"
-           style="background:#f0f0f0; color:#666; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗄 أرشفة</a>
+           onclick="return confirm('{{ confirmer_archivage|escapejs }}');"
+           style="background:#f0f0f0; color:#666; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗄 {% trans "أرشفة" %}</a>
         {% elif eleve.statut == 'archive' %}
         <a href="{% url 'admin_eleve_reactiver' eleve.id %}"
-           onclick="return confirm('هل أنت متأكد من إعادة تفعيل الطالب {{ eleve.user.get_full_name|escapejs }}؟');"
-           style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">▶ إعادة تفعيل</a>
+           onclick="return confirm('{{ confirmer_reactivation|escapejs }}');"
+           style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">▶ {% trans "إعادة تفعيل" %}</a>
         {% endif %}
     </div>
     {% endif %}
@@ -58,19 +62,19 @@
     {% endcomment %}
     <div style="padding:8px 0;">
         <a href="{% url 'eleve_supprimer_definitivement' eleve.id %}"
-           style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗑️ حذف نهائي</a>
+           style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗑️ {% trans "حذف نهائي" %}</a>
     </div>
     {% endif %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الهاتف</span>
+        <span style="color:#888;">{% trans "الهاتف" %}</span>
         <span style="font-weight:600;">{{ eleve.user.telephone|default:"—" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">تاريخ الميلاد</span>
+        <span style="color:#888;">{% trans "تاريخ الميلاد" %}</span>
         <span style="font-weight:600;">{{ eleve.user.date_naissance|default:"—" }}</span>
     </div>
 
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">المجموعة الحالية</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "المجموعة الحالية" %}</div>
     {% if eleve.groupes.all %}
         {% for groupe in eleve.groupes.all %}
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0f0;">
@@ -84,14 +88,14 @@
         </div>
         {% endfor %}
     {% else %}
-        <div style="color:#aaa; padding:8px 0;">لا يوجد أي مجموعة حالياً</div>
+        <div style="color:#aaa; padding:8px 0;">{% trans "لا يوجد أي مجموعة حالياً" %}</div>
     {% endif %}
 
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">المجموعات السابقة</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "المجموعات السابقة" %}</div>
     {% include 'dashboard/_groupes_precedents_eleve.html' with groupes_precedents=groupes_precedents couleur='var(--color-role-admin-solid)' %}
 
     {% if request.user.role != 'mshrif' %}
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">مجموعات مقترحة</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "مجموعات مقترحة" %}</div>
     {% if groupes_suggeres %}
         {% for groupe in groupes_suggeres %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
@@ -102,21 +106,21 @@
             <form method="POST" action="{% url 'admin_groupe_ajouter_eleve' groupe.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="eleve_id" value="{{ eleve.id }}">
-                <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:0.85rem;">إضافة ✅</button>
+                <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:0.85rem;">{% trans "إضافة ✅" %}</button>
             </form>
         </div>
         {% endfor %}
     {% else %}
-        <div style="color:#aaa; padding:8px 0;">لا توجد مجموعة متوافقة حالياً مع معايير هذا الطالب (العمر، الجنس، البرنامج، الجدول الزمني، الأماكن المتاحة).</div>
+        <div style="color:#aaa; padding:8px 0;">{% trans "لا توجد مجموعة متوافقة حالياً مع معايير هذا الطالب (العمر، الجنس، البرنامج، الجدول الزمني، الأماكن المتاحة)." %}</div>
     {% endif %}
     {% endif %}
 
     {% if inscription %}
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">معلومات استمارة التسجيل</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "معلومات استمارة التسجيل" %}</div>
 
     {% if inscription.nom_parent %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">ولي الأمر</span>
+        <span style="color:#888;">{% trans "ولي الأمر" %}</span>
         <span style="font-weight:600;">{{ inscription.nom_parent }}</span>
     </div>
     {% endif %}
@@ -137,90 +141,90 @@
         Libellé déduit de nom_parent (Tâche du 2026-08-05) : présent =>
         inscription enfant => c'est le travail du tuteur, pas de l'élève.
         {% endcomment %}
-        <span style="color:#888;">{% if inscription.nom_parent %}عمل ولي الأمر{% else %}العمل الحالي{% endif %}</span>
+        <span style="color:#888;">{% if inscription.nom_parent %}{% trans "عمل ولي الأمر" %}{% else %}{% trans "العمل الحالي" %}{% endif %}</span>
         <span style="font-weight:600;">{{ inscription.job_actuel }}</span>
     </div>
     {% endif %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">تاريخ الميلاد (عند التسجيل)</span>
+        <span style="color:#888;">{% trans "تاريخ الميلاد (عند التسجيل)" %}</span>
         <span style="font-weight:600;">{{ inscription.date_naissance }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الهاتف (عند التسجيل)</span>
+        <span style="color:#888;">{% trans "الهاتف (عند التسجيل)" %}</span>
         <span style="font-weight:600;">{{ inscription.telephone }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الحلقة المطلوبة</span>
-        <span style="font-weight:600;">{% if inscription.creneau_souhaite %}{{ inscription.creneau_souhaite }}{% else %}غير محدد{% endif %}</span>
+        <span style="color:#888;">{% trans "الحلقة المطلوبة" %}</span>
+        <span style="font-weight:600;">{% if inscription.creneau_souhaite %}{{ inscription.creneau_souhaite }}{% else %}{% trans "غير محدد" %}{% endif %}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">البرنامج</span>
+        <span style="color:#888;">{% trans "البرنامج" %}</span>
         <span style="font-weight:600;">{% reponse_ou_ancien_champ inscription inscription.get_programme_display 'programme' %}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الرواية</span>
+        <span style="color:#888;">{% trans "الرواية" %}</span>
         <span style="font-weight:600;">{% reponse_ou_ancien_champ inscription inscription.get_riwaya_display 'riwaya' %}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">وسيلة الحضور</span>
+        <span style="color:#888;">{% trans "وسيلة الحضور" %}</span>
         <span style="font-weight:600;">{{ inscription.get_outil_display }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الاشتراك</span>
+        <span style="color:#888;">{% trans "الاشتراك" %}</span>
         <span style="font-weight:600;">{{ inscription.abonnement_label }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">قبول الشروط</span>
-        <span style="font-weight:600;">{% if inscription.accepte_conditions %}✅ نعم{% else %}❌ لا{% endif %}</span>
+        <span style="color:#888;">{% trans "قبول الشروط" %}</span>
+        <span style="font-weight:600;">{% if inscription.accepte_conditions %}✅ {% trans "نعم" %}{% else %}❌ {% trans "لا" %}{% endif %}</span>
     </div>
     {% if inscription.remarques %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">ملاحظات</span>
+        <span style="color:#888;">{% trans "ملاحظات" %}</span>
         <span style="font-weight:600;">{{ inscription.remarques }}</span>
     </div>
     {% endif %}
     {% if inscription.disponibilites_libres %}
     <div style="background:#fff3cd; border-radius:8px; padding:12px 16px; margin:8px 0; color:#856404;">
-        <div style="font-weight:700; margin-bottom:4px;">⚠️ لم يجد حلقة مناسبة عند التسجيل — أوقاته المتاحة:</div>
+        <div style="font-weight:700; margin-bottom:4px;">⚠️ {% trans "لم يجد حلقة مناسبة عند التسجيل — أوقاته المتاحة:" %}</div>
         <div>{{ inscription.disponibilites_libres }}</div>
     </div>
     {% endif %}
     <div style="display:flex; justify-content:space-between; padding:8px 0;">
-        <span style="color:#888;">تاريخ التقديم</span>
+        <span style="color:#888;">{% trans "تاريخ التقديم" %}</span>
         <span style="font-weight:600;">{{ inscription.date_soumission|date:"d-m-Y H:i" }}</span>
     </div>
     {% else %}
-    <div style="color:#aaa; padding:12px 0;">لا توجد استمارة تسجيل مرتبطة بهذا الطالب.</div>
+    <div style="color:#aaa; padding:12px 0;">{% trans "لا توجد استمارة تسجيل مرتبطة بهذا الطالب." %}</div>
     {% endif %}
 
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">جدول التفرغ</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "جدول التفرغ" %}</div>
     {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form lecture_seule=True %}
 
     <div class="mt-4 d-flex gap-3 align-items-center">
-        <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none;">← رجوع</a>
+        <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none;">{% trans "← رجوع" %}</a>
         {% with premier_groupe=eleve.groupes.first %}
         <a href="{% if premier_groupe %}{% url 'bilans_mensuels_detail_seance' premier_groupe.id eleve.id %}{% else %}{% url 'bilans_mensuels' %}{% endif %}"
            style="background:var(--color-role-admin); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-           📝 البيانات الشهرية
+           📝 {% trans "البيانات الشهرية" %}
         </a>
         {% endwith %}
         <a href="{% url 'admin_evaluations' %}?eleve={{ eleve.id }}"
            style="background:var(--color-role-admin); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-           📊 التقييمات
+           📊 {% trans "التقييمات" %}
         </a>
         {% if request.user.role != 'mshrif' %}
         <a href="{% url 'admin_utilisateur_modifier_email' eleve.user.id %}?next={% url 'admin_eleve_detail' eleve.id %}"
            style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-           ✉️ تغيير البريد الإلكتروني
+           ✉️ {% trans "تغيير البريد الإلكتروني" %}
         </a>
         <a href="{% url 'admin_eleve_disponibilites' eleve.id %}"
            style="background:var(--color-role-admin); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-           🕐 جدول التفرغ
+           🕐 {% trans "جدول التفرغ" %}
         </a>
         {% endif %}
         <a href="{% url 'admin_utilisateur_reinitialiser_mot_de_passe' eleve.user.id %}?next={% url 'admin_eleve_detail' eleve.id %}"
            style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 18px; text-decoration:none; font-size:0.9rem;">
-           🔑 إعادة تعيين كلمة المرور
+           🔑 {% trans "إعادة تعيين كلمة المرور" %}
         </a>
     </div>
 </div>
@@ -228,42 +232,42 @@
 <div style="max-width:700px; margin-top:24px;">
     {% include 'dashboard/_carnet_notes_personnelles.html' with profil_user=eleve.user notes_personnelles=notes_personnelles id_suffix='_eleve' %}
 
-    <div class="page-title" style="font-size:1.2rem;">التقدم في الحفظ</div>
+    <div class="page-title" style="font-size:1.2rem;">{% trans "التقدم في الحفظ" %}</div>
 
     <div class="row g-3 mb-3">
         <div class="col-md-6">
             <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-align:center;">
                 <div style="font-size:1.8rem; font-weight:700; color:var(--color-role-admin-solid);">{{ progression.total_ayat_memorises }}</div>
-                <div style="color:#888; font-size:0.85rem;">آية محفوظة (تراكمياً)</div>
+                <div style="color:#888; font-size:0.85rem;">{% trans "آية محفوظة (تراكمياً)" %}</div>
             </div>
         </div>
         <div class="col-md-6">
             <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-align:center;">
                 <div style="font-size:1.8rem; font-weight:700; color:var(--color-role-admin-solid);">{{ progression.nb_sourates_distinctes }}</div>
-                <div style="color:#888; font-size:0.85rem;">سورة تم البدء فيها</div>
+                <div style="color:#888; font-size:0.85rem;">{% trans "سورة تم البدء فيها" %}</div>
             </div>
         </div>
     </div>
 
     <div style="background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px;">
-        <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:8px;">حسب السورة</div>
+        <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:8px;">{% trans "حسب السورة" %}</div>
         {% for item in progression.par_sourate %}
         <div style="padding:10px 0; border-bottom:1px solid #f0f0f0;">
             <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
                 <span style="font-weight:600;">{{ item.numero }}. {{ item.nom }}</span>
-                <span style="color:#888; font-size:0.85rem;">الآيات {{ item.plages_texte }} من أصل {{ item.total_ayat_sourate }}</span>
+                <span style="color:#888; font-size:0.85rem;">{% blocktrans with plages=item.plages_texte total=item.total_ayat_sourate %}الآيات {{ plages }} من أصل {{ total }}{% endblocktrans %}</span>
             </div>
             <div style="background:var(--color-bg-cream); border-radius:20px; height:8px; overflow:hidden;">
                 <div style="background:var(--color-success); height:100%; width:{{ item.pourcentage }}%;"></div>
             </div>
         </div>
         {% empty %}
-        <div style="text-align:center; color:#aaa; padding:20px;">لا يوجد أي حفظ مسجَّل بعد</div>
+        <div style="text-align:center; color:#aaa; padding:20px;">{% trans "لا يوجد أي حفظ مسجَّل بعد" %}</div>
         {% endfor %}
     </div>
 
     <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
-        <div style="font-weight:700; color:var(--color-role-admin-solid); padding:16px 24px 0;">السجل الزمني</div>
+        <div style="font-weight:700; color:var(--color-role-admin-solid); padding:16px 24px 0;">{% trans "السجل الزمني" %}</div>
         {% include 'dashboard/_historique_evaluations_eleve.html' with historique=progression.historique %}
     </div>
 </div>

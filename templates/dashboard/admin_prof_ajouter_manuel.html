@@ -1,5 +1,6 @@
 {% extends base_template %}
-{% block title %}إضافة أستاذ يدوياً{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "إضافة أستاذ يدوياً" %}{% endblock %}
 {% block content %}
 <style>
     #admin-ajouter-prof .check-btn {
@@ -19,13 +20,13 @@
     #admin-ajouter-prof button[type="submit"]:hover { filter: brightness(1.12); }
 </style>
 <div id="admin-ajouter-prof">
-<div class="page-title">إضافة أستاذ يدوياً</div>
+<div class="page-title">{% trans "إضافة أستاذ يدوياً" %}</div>
 <div class="page-subtitle" style="margin-bottom:20px;">
-    لتسجيل أستاذ تم التواصل معه هاتفياً أو حضورياً — تُنشئ طلب ترشيح بنفس حقول نموذج التسجيل العمومي.
+    {% trans "لتسجيل أستاذ تم التواصل معه هاتفياً أو حضورياً — تُنشئ طلب ترشيح بنفس حقول نموذج التسجيل العمومي." %}
     {% if request.user.role == 'mshrif' %}
-    بما أنك المشرف، سيُنشأ حساب الأستاذ مباشرة عند الإرسال (لا حاجة لانتظار تصديق إضافي).
+    {% trans "بما أنك المشرف، سيُنشأ حساب الأستاذ مباشرة عند الإرسال (لا حاجة لانتظار تصديق إضافي)." %}
     {% else %}
-    سيظهر الطلب بعد الإرسال ضمن "طلبات الأساتذة" بانتظار التصديق النهائي من المشرف.
+    {% trans 'سيظهر الطلب بعد الإرسال ضمن "طلبات الأساتذة" بانتظار التصديق النهائي من المشرف.' %}
     {% endif %}
 </div>
 
@@ -34,139 +35,139 @@
         {% csrf_token %}
 
         <div class="form-card">
-            <div class="section-title">1. المعلومات الشخصية</div>
+            <div class="section-title">1. {% trans "المعلومات الشخصية" %}</div>
             <div class="row g-3">
                 <div class="col-6">
-                    <label class="form-label">الاسم *</label>
+                    <label class="form-label">{% trans "الاسم *" %}</label>
                     <input type="text" name="nom" class="form-control" value="{{ valeurs_form.nom|default:'' }}" required>
                 </div>
                 <div class="col-6">
-                    <label class="form-label">اللقب *</label>
+                    <label class="form-label">{% trans "اللقب *" %}</label>
                     <input type="text" name="prenom" class="form-control" value="{{ valeurs_form.prenom|default:'' }}" required>
                 </div>
                 <div class="col-6">
-                    <label class="form-label">البريد الإلكتروني *</label>
+                    <label class="form-label">{% trans "البريد الإلكتروني *" %}</label>
                     <input type="email" name="email" class="form-control" value="{{ valeurs_form.email|default:'' }}" required>
                 </div>
                 <div class="col-12">
                     {% include 'inscriptions/_verification_whatsapp.html' %}
                 </div>
                 <div class="col-6">
-                    <label class="form-label">تاريخ الميلاد (اختياري)</label>
+                    <label class="form-label">{% trans "تاريخ الميلاد (اختياري)" %}</label>
                     <input type="date" name="date_naissance" class="form-control" value="{{ valeurs_form.date_naissance|default:'' }}">
                 </div>
                 <div class="col-6">
-                    <label class="form-label">المدينة (اختياري)</label>
+                    <label class="form-label">{% trans "المدينة (اختياري)" %}</label>
                     <input type="text" name="ville" class="form-control" value="{{ valeurs_form.ville|default:'' }}">
                 </div>
                 <div class="col-6">
-                    <label class="form-label">الحالة الاجتماعية</label>
+                    <label class="form-label">{% trans "الحالة الاجتماعية" %}</label>
                     <select name="statut_familial" class="form-select">
-                        <option value="">اختر</option>
-                        <option value="celibataire" {% if valeurs_form.statut_familial == 'celibataire' %}selected{% endif %}>أعزب/عزباء</option>
-                        <option value="marie" {% if valeurs_form.statut_familial == 'marie' %}selected{% endif %}>متزوج/ة</option>
-                        <option value="divorce" {% if valeurs_form.statut_familial == 'divorce' %}selected{% endif %}>مطلق/ة</option>
+                        <option value="">{% trans "اختر" %}</option>
+                        <option value="celibataire" {% if valeurs_form.statut_familial == 'celibataire' %}selected{% endif %}>{% trans "أعزب/عزباء" %}</option>
+                        <option value="marie" {% if valeurs_form.statut_familial == 'marie' %}selected{% endif %}>{% trans "متزوج/ة" %}</option>
+                        <option value="divorce" {% if valeurs_form.statut_familial == 'divorce' %}selected{% endif %}>{% trans "مطلق/ة" %}</option>
                     </select>
                 </div>
                 <div class="col-6">
-                    <label class="form-label">الوظيفة الحالية (اختياري)</label>
+                    <label class="form-label">{% trans "الوظيفة الحالية (اختياري)" %}</label>
                     <input type="text" name="job_actuel" class="form-control" value="{{ valeurs_form.job_actuel|default:'' }}">
                 </div>
             </div>
         </div>
 
         <div class="form-card">
-            <div class="section-title">2. المؤهلات</div>
+            <div class="section-title">2. {% trans "المؤهلات" %}</div>
             <div class="row g-3">
                 <div class="col-12">
-                    <label class="form-label">مستوى الحفظ (اختياري)</label>
+                    <label class="form-label">{% trans "مستوى الحفظ (اختياري)" %}</label>
                     <input type="text" name="niveau_memorisation" class="form-control"
-                           value="{{ valeurs_form.niveau_memorisation|default:'' }}" placeholder="مثال: حفظ القرآن كاملاً">
+                           value="{{ valeurs_form.niveau_memorisation|default:'' }}" placeholder="{% trans 'مثال: حفظ القرآن كاملاً' %}">
                 </div>
                 <div class="col-12">
-                    <label class="form-label">الشهادات والإجازات</label>
+                    <label class="form-label">{% trans "الشهادات والإجازات" %}</label>
                     <textarea name="certifications" class="form-control" rows="2">{{ valeurs_form.certifications|default:'' }}</textarea>
                 </div>
             </div>
         </div>
 
         <div class="form-card">
-            <div class="section-title">3. تفضيلات التدريس</div>
+            <div class="section-title">3. {% trans "تفضيلات التدريس" %}</div>
             <div class="mb-3">
-                <label class="form-label">نوع الطلاب المفضل</label><br>
-                <div onclick="toggleCheckProf(this, 'type_eleve', 'enfants')" class="check-btn">أطفال</div>
-                <div onclick="toggleCheckProf(this, 'type_eleve', 'adultes')" class="check-btn">بالغون</div>
-                <div onclick="toggleCheckProf(this, 'type_eleve', 'les_deux')" class="check-btn">الاثنان</div>
+                <label class="form-label">{% trans "نوع الطلاب المفضل" %}</label><br>
+                <div onclick="toggleCheckProf(this, 'type_eleve', 'enfants')" class="check-btn">{% trans "أطفال" %}</div>
+                <div onclick="toggleCheckProf(this, 'type_eleve', 'adultes')" class="check-btn">{% trans "بالغون" %}</div>
+                <div onclick="toggleCheckProf(this, 'type_eleve', 'les_deux')" class="check-btn">{% trans "الاثنان" %}</div>
                 <input type="hidden" name="type_eleve" id="type_eleve_val">
             </div>
             <div class="mb-3">
-                <label class="form-label">قيود الجنس</label><br>
-                <div onclick="toggleCheckProf(this, 'contrainte_genre', 'homme')" class="check-btn">ذكور فقط</div>
-                <div onclick="toggleCheckProf(this, 'contrainte_genre', 'femme')" class="check-btn">إناث فقط</div>
-                <div onclick="toggleCheckProf(this, 'contrainte_genre', 'mixte')" class="check-btn">مختلط</div>
+                <label class="form-label">{% trans "قيود الجنس" %}</label><br>
+                <div onclick="toggleCheckProf(this, 'contrainte_genre', 'homme')" class="check-btn">{% trans "ذكور فقط" %}</div>
+                <div onclick="toggleCheckProf(this, 'contrainte_genre', 'femme')" class="check-btn">{% trans "إناث فقط" %}</div>
+                <div onclick="toggleCheckProf(this, 'contrainte_genre', 'mixte')" class="check-btn">{% trans "مختلط" %}</div>
                 <input type="hidden" name="contrainte_genre" id="contrainte_genre_val">
             </div>
             <div class="mb-3">
-                <label class="form-label">اللغات المتحدث بها</label><br>
-                <div onclick="toggleMultiProf(this, 'langues', 'arabe')" class="check-btn">العربية</div>
-                <div onclick="toggleMultiProf(this, 'langues', 'francais')" class="check-btn">الفرنسية</div>
-                <div onclick="toggleMultiProf(this, 'langues', 'anglais')" class="check-btn">الإنجليزية</div>
-                <div onclick="toggleMultiProf(this, 'langues', 'autre')" class="check-btn">أخرى</div>
+                <label class="form-label">{% trans "اللغات المتحدث بها" %}</label><br>
+                <div onclick="toggleMultiProf(this, 'langues', 'arabe')" class="check-btn">{% trans "العربية" %}</div>
+                <div onclick="toggleMultiProf(this, 'langues', 'francais')" class="check-btn">{% trans "الفرنسية" %}</div>
+                <div onclick="toggleMultiProf(this, 'langues', 'anglais')" class="check-btn">{% trans "الإنجليزية" %}</div>
+                <div onclick="toggleMultiProf(this, 'langues', 'autre')" class="check-btn">{% trans "أخرى" %}</div>
             </div>
         </div>
 
         <div class="form-card">
-            <div class="section-title">4. الأوقات المتاحة للتدريس (اختياري)</div>
-            <p style="color:#888; font-size:0.85rem; margin-bottom:12px;">يمكن تركها فارغة وإكمالها لاحقاً من فيش الأستاذ.</p>
+            <div class="section-title">4. {% trans "الأوقات المتاحة للتدريس (اختياري)" %}</div>
+            <p style="color:#888; font-size:0.85rem; margin-bottom:12px;">{% trans "يمكن تركها فارغة وإكمالها لاحقاً من فيش الأستاذ." %}</p>
             {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=dispo_selectionnees %}
         </div>
 
         <div class="form-card">
-            <div class="section-title">5. الأدوات المتقنة</div>
-            <div onclick="toggleMultiProf(this, 'outils', 'whatsapp')" class="check-btn">واتساب</div>
+            <div class="section-title">5. {% trans "الأدوات المتقنة" %}</div>
+            <div onclick="toggleMultiProf(this, 'outils', 'whatsapp')" class="check-btn">{% trans "واتساب" %}</div>
             <div onclick="toggleMultiProf(this, 'outils', 'meet')" class="check-btn">Google Meet</div>
             <div onclick="toggleMultiProf(this, 'outils', 'zoom')" class="check-btn">Zoom</div>
         </div>
 
         <div class="form-card">
-            <div class="section-title">6. المسار والخبرة</div>
+            <div class="section-title">6. {% trans "المسار والخبرة" %}</div>
             <div class="row g-3">
                 <div class="col-12">
-                    <label class="form-label">المسار الدراسي (اختياري)</label>
+                    <label class="form-label">{% trans "المسار الدراسي (اختياري)" %}</label>
                     <textarea name="parcours_scolaire" class="form-control" rows="3">{{ valeurs_form.parcours_scolaire|default:'' }}</textarea>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">مسار التدريس (اختياري)</label>
+                    <label class="form-label">{% trans "مسار التدريس (اختياري)" %}</label>
                     <textarea name="parcours_enseignant" class="form-control" rows="3">{{ valeurs_form.parcours_enseignant|default:'' }}</textarea>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">كيف يتعامل مع الطالب الضعيف؟</label>
+                    <label class="form-label">{% trans "كيف يتعامل مع الطالب الضعيف؟" %}</label>
                     <textarea name="gestion_eleve_faible" class="form-control" rows="2">{{ valeurs_form.gestion_eleve_faible|default:'' }}</textarea>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">كيف يتعامل مع الطالب الغائب؟</label>
+                    <label class="form-label">{% trans "كيف يتعامل مع الطالب الغائب؟" %}</label>
                     <textarea name="gestion_eleve_absent" class="form-control" rows="2">{{ valeurs_form.gestion_eleve_absent|default:'' }}</textarea>
                 </div>
             </div>
         </div>
 
         <div class="form-card">
-            <div class="section-title">7. المعلومات البنكية والتسجيل الصوتي</div>
+            <div class="section-title">7. {% trans "المعلومات البنكية والتسجيل الصوتي" %}</div>
             <div class="row g-3">
                 <div class="col-6">
-                    <label class="form-label">رقم الحساب البنكي (اختياري)</label>
+                    <label class="form-label">{% trans "رقم الحساب البنكي (اختياري)" %}</label>
                     <input type="text" name="compte_bancaire" class="form-control" value="{{ valeurs_form.compte_bancaire|default:'' }}">
                 </div>
                 <div class="col-6">
-                    <label class="form-label">RIB (اختياري)</label>
+                    <label class="form-label">{% trans "RIB (اختياري)" %}</label>
                     <input type="text" name="rib" class="form-control" value="{{ valeurs_form.rib|default:'' }}">
                 </div>
                 <div class="col-6">
-                    <label class="form-label">اسم الوكالة البنكية (اختياري)</label>
+                    <label class="form-label">{% trans "اسم الوكالة البنكية (اختياري)" %}</label>
                     <input type="text" name="agence_bancaire" class="form-control" value="{{ valeurs_form.agence_bancaire|default:'' }}">
                 </div>
                 <div class="col-12">
-                    <label class="form-label">تسجيل صوتي (اختياري)</label>
+                    <label class="form-label">{% trans "تسجيل صوتي (اختياري)" %}</label>
                     <input type="file" name="audio_enregistrement" class="form-control" accept="audio/*">
                 </div>
             </div>
@@ -174,7 +175,7 @@
 
         <button type="submit"
             style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:12px 28px; font-size:1rem; font-weight:600; cursor:pointer;">
-            {% if request.user.role == 'mshrif' %}إنشاء حساب الأستاذ ✅{% else %}إرسال الطلب ✉️{% endif %}
+            {% if request.user.role == 'mshrif' %}{% trans "إنشاء حساب الأستاذ ✅" %}{% else %}{% trans "إرسال الطلب ✉️" %}{% endif %}
         </button>
     </form>
 </div>

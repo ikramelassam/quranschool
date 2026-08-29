@@ -1,5 +1,6 @@
 {% extends base_template %}
-{% block title %}إضافة تلميذ يدوياً{% endblock %}
+{% load i18n registration_tags %}
+{% block title %}{% trans "إضافة تلميذ يدوياً" %}{% endblock %}
 {% block content %}
 <style>
     /* Cohérence visuelle avec le wizard public (chantier du 2026-08-22) :
@@ -22,10 +23,9 @@
     }
 </style>
 <div id="admin-ajouter-eleve">
-<div class="page-title">إضافة تلميذ يدوياً</div>
+<div class="page-title">{% trans "إضافة تلميذ يدوياً" %}</div>
 <div class="page-subtitle" style="margin-bottom:20px;">
-    لتسجيل طالب تم التواصل معه هاتفياً أو حضورياً — يستخدم بالضبط نفس محرك التسجيل العمومي (نفس الحقول، نفس الشروط)،
-    ثم يُنشئ طلب تسجيل تراجعه/تقبله كأي طلب آخر من "طلبات التسجيل".
+    {% trans 'لتسجيل طالب تم التواصل معه هاتفياً أو حضورياً — يستخدم بالضبط نفس محرك التسجيل العمومي (نفس الحقول، نفس الشروط)، ثم يُنشئ طلب تسجيل تراجعه/تقبله كأي طلب آخر من "طلبات التسجيل".' %}
 </div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:720px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
@@ -35,31 +35,39 @@
         {% csrf_token %}
         <input type="hidden" name="round_form" value="identite">
 
+        {% comment %}
+        config.label/c.champ.label/option.label : labels configurables par le
+        مدير/مشرف (ConfigurationChampStructurel/ChampInscription/CritereOption)
+        — même filtre |traduire_dynamique que le wizard public (templates/
+        inscriptions/wizard_identite.html, _champs_dynamiques.html), page qui
+        "utilise بالضبط نفس محرك التسجيل العمومي" que celle-ci (voir sous-titre
+        ci-dessus) : même mécanisme, jamais une 2e implémentation.
+        {% endcomment %}
         {% for config in configs_structurels %}
             {% if config.champ_cle == 'sexe' %}
             <div class="mb-3">
-                <label class="form-label" style="font-weight:600;">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
+                <label class="form-label" style="font-weight:600;">{{ config.label|traduire_dynamique }}{% if config.obligatoire %} *{% endif %}</label>
                 <select name="sexe" class="form-select mt-1" {% if config.obligatoire %}required{% endif %}>
-                    <option value="">— اختر —</option>
-                    <option value="homme" {% if config.valeur_actuelle == 'homme' %}selected{% endif %}>ذكر</option>
-                    <option value="femme" {% if config.valeur_actuelle == 'femme' %}selected{% endif %}>أنثى</option>
+                    <option value="">— {% trans "اختر" %} —</option>
+                    <option value="homme" {% if config.valeur_actuelle == 'homme' %}selected{% endif %}>{% trans "ذكر" %}</option>
+                    <option value="femme" {% if config.valeur_actuelle == 'femme' %}selected{% endif %}>{% trans "أنثى" %}</option>
                 </select>
             </div>
             {% elif config.champ_cle == 'email' %}
             <div class="mb-3">
-                <label class="form-label" style="font-weight:600;">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
+                <label class="form-label" style="font-weight:600;">{{ config.label|traduire_dynamique }}{% if config.obligatoire %} *{% endif %}</label>
                 <input type="email" name="email" class="form-control mt-1" value="{{ config.valeur_actuelle|default:'' }}" {% if config.obligatoire %}required{% endif %}>
             </div>
             {% elif config.champ_cle == 'telephone' %}
             {% include 'inscriptions/_verification_whatsapp.html' with telephone_obligatoire=config.obligatoire %}
             {% elif config.champ_cle == 'date_naissance' %}
             <div class="mb-3">
-                <label class="form-label" style="font-weight:600;">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
+                <label class="form-label" style="font-weight:600;">{{ config.label|traduire_dynamique }}{% if config.obligatoire %} *{% endif %}</label>
                 <input type="date" name="date_naissance" class="form-control mt-1" value="{{ config.valeur_actuelle|default:'' }}" {% if config.obligatoire %}required{% endif %}>
             </div>
             {% else %}
             <div class="mb-3">
-                <label class="form-label" style="font-weight:600;">{{ config.label }}{% if config.obligatoire %} *{% endif %}</label>
+                <label class="form-label" style="font-weight:600;">{{ config.label|traduire_dynamique }}{% if config.obligatoire %} *{% endif %}</label>
                 {% if config.type_champ == 'texte_multiligne' %}
                 <textarea name="{{ config.champ_cle }}" class="form-control mt-1" placeholder="{{ config.placeholder }}" {% if config.obligatoire %}required{% endif %}>{{ config.valeur_actuelle|default:'' }}</textarea>
                 {% else %}
@@ -83,14 +91,14 @@
             Django rendait ce commentaire littéralement à l'écran tel quel.
             {% endcomment %}
             <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
-                <label class="form-label" style="font-weight:600;">{{ c.champ.label }}{% if c.champ.obligatoire %} *{% endif %}</label>
+                <label class="form-label" style="font-weight:600;">{{ c.champ.label|traduire_dynamique }}{% if c.champ.obligatoire %} *{% endif %}</label>
                 <input type="number" name="champ_{{ c.champ.id }}" class="form-control mt-1" min="1" step="1"
-                       placeholder="مثال: 3" value="{{ c.valeur }}" {% if c.champ.obligatoire %}required{% endif %}>
-                <div style="color:#888; font-size:0.8rem; margin-top:4px;">أي عدد، دون قيود.</div>
+                       placeholder="{% trans 'مثال: 3' %}" value="{{ c.valeur }}" {% if c.champ.obligatoire %}required{% endif %}>
+                <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "أي عدد، دون قيود." %}</div>
             </div>
             {% else %}
             <div class="mb-3">
-                <label class="form-label" style="font-weight:600;">{{ c.champ.label }}{% if c.champ.obligatoire %} *{% endif %}</label>
+                <label class="form-label" style="font-weight:600;">{{ c.champ.label|traduire_dynamique }}{% if c.champ.obligatoire %} *{% endif %}</label>
 
                 {% if c.champ.critere.type_champ == 'choix_multiple' %}
                     <select name="champ_{{ c.champ.id }}" class="form-select mt-1" multiple
@@ -98,7 +106,7 @@
                             data-obligatoire="{% if c.champ.obligatoire %}1{% else %}0{% endif %}" onchange="toggleNbSeancesManuel()">
                         {% for option in c.champ.critere.options.all %}
                         {% if option.est_actif %}
-                        <option value="{{ option.code }}" {% if option.code in c.valeurs_liste %}selected{% endif %}>{{ option.label }}</option>
+                        <option value="{{ option.code }}" {% if option.code in c.valeurs_liste %}selected{% endif %}>{{ option.label|traduire_dynamique }}</option>
                         {% endif %}
                         {% endfor %}
                     </select>
@@ -107,10 +115,10 @@
                             data-critere-id="{{ c.champ.critere.id }}" data-backend="{{ c.champ.critere.backend }}"
                             data-obligatoire="{% if c.champ.obligatoire %}1{% else %}0{% endif %}" onchange="toggleNbSeancesManuel()"
                             {% if c.champ.obligatoire %}required{% endif %}>
-                        <option value="">— اختر —</option>
+                        <option value="">— {% trans "اختر" %} —</option>
                         {% for option in c.champ.critere.options.all %}
                         {% if option.est_actif %}
-                        <option value="{{ option.code }}" {% if option.code == c.valeur %}selected{% endif %}>{{ option.label }}</option>
+                        <option value="{{ option.code }}" {% if option.code == c.valeur %}selected{% endif %}>{{ option.label|traduire_dynamique }}</option>
                         {% endif %}
                         {% endfor %}
                     </select>
@@ -125,9 +133,9 @@
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                متابعة ←
+                {% trans "متابعة ←" %}
             </button>
-            <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
+            <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "إلغاء" %}</a>
         </div>
     </form>
 
@@ -170,13 +178,13 @@
     {# ==================== ROUND 2 : GROUPE + ABONNEMENT + CONFIRMATION ==================== #}
     {% if avertissement %}
     <div style="background:#FFF3CD; border-right:3px solid #E0A800; border-radius:8px; padding:14px 18px; margin-bottom:20px; color:#664D03;">
-        ⚠️ المجموعة المختارة لا تتوافق تماماً مع أحد المعايير غير الإلزامية. يمكنك تأكيد التسجيل رغم ذلك (بصفتك مدير/مشرف)، أو اختيار مجموعة أخرى أدناه.
+        ⚠️ {% trans "المجموعة المختارة لا تتوافق تماماً مع أحد المعايير غير الإلزامية. يمكنك تأكيد التسجيل رغم ذلك (بصفتك مدير/مشرف)، أو اختيار مجموعة أخرى أدناه." %}
     </div>
     {% endif %}
 
     <div style="background:var(--color-bg-cream, #f7f2ea); border-radius:10px; padding:14px 18px; margin-bottom:20px; font-size:0.9rem;">
         <strong>{{ valeurs_form.nom }}</strong> — {{ valeurs_form.email }}
-        {% if age %}— العمر: {{ age }} سنة{% endif %}
+        {% if age %}— {% blocktrans with age=age %}العمر: {{ age }} سنة{% endblocktrans %}{% endif %}
     </div>
 
     <form method="POST">
@@ -206,18 +214,17 @@
 
         {% if type_offre_valeur == 'groupe' %}
         <div class="mb-3">
-            <label class="form-label" style="font-weight:600;">اختيار المجموعة *</label>
+            <label class="form-label" style="font-weight:600;">{% trans "اختيار المجموعة *" %}</label>
             {% if not groupes %}
             <div style="background:#fff3cd; color:#856404; border-radius:8px; padding:10px 14px; margin-bottom:8px;">
-                لا توجد حالياً أي مجموعة تتوافق تماماً مع الاختيارات المدخلة. يمكنك المتابعة دون تحديد مجموعة الآن
-                (سيُسجَّل هذا الطلب لتتبع الحاجة إلى مجموعات جديدة).
+                {% trans "لا توجد حالياً أي مجموعة تتوافق تماماً مع الاختيارات المدخلة. يمكنك المتابعة دون تحديد مجموعة الآن (سيُسجَّل هذا الطلب لتتبع الحاجة إلى مجموعات جديدة)." %}
             </div>
             {% endif %}
             <select name="groupe_id" id="groupe_id_select" class="form-select mt-1" {% if groupes %}required{% endif %}>
-                <option value="">— اختر مجموعة —</option>
+                <option value="">— {% trans "اختر مجموعة" %} —</option>
                 {% for groupe in groupes %}
                 <option value="{{ groupe.id }}" {% if groupe.id|stringformat:"s" == groupe_id_selectionne %}selected{% endif %}>
-                    {{ groupe.nom }} — {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}بدون أستاذ بعد{% endif %}
+                    {{ groupe.nom }} — {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}{% trans "بدون أستاذ بعد" %}{% endif %}
                     — {{ groupe.nb_eleves_actuel }}/{{ groupe.capacite_max }}
                 </option>
                 {% endfor %}
@@ -229,16 +236,16 @@
         {% endif %}
 
         <div class="mb-3">
-            <label class="form-label" style="font-weight:600;">نوع الاشتراك *</label>
+            <label class="form-label" style="font-weight:600;">{% trans "نوع الاشتراك *" %}</label>
             {% if not abonnements %}
-            <div style="color:#888; padding:10px 0;">لا توجد حالياً أنواع اشتراك متاحة لهذه الاختيارات.</div>
+            <div style="color:#888; padding:10px 0;">{% trans "لا توجد حالياً أنواع اشتراك متاحة لهذه الاختيارات." %}</div>
             {% endif %}
             <select name="abonnement_code" id="abonnement_code_select" class="form-select mt-1" required>
-                <option value="">— اختر —</option>
+                <option value="">— {% trans "اختر" %} —</option>
                 {% for abonnement in abonnements %}
                 <option value="{{ abonnement.code }}"
                         {% if abonnement.code == abonnement_selectionne %}selected{% endif %}>
-                    {{ abonnement.duree_affichee }} — {{ abonnement.prix_affiche }} د.م.
+                    {{ abonnement.duree_affichee }} — {{ abonnement.prix_affiche }} {% trans "د.م." %}
                 </option>
                 {% endfor %}
             </select>
@@ -248,19 +255,19 @@
             {% if avertissement %}
             <button type="submit" onclick="document.getElementById('confirme_override_input').value='1';"
                 style="background:#E0A800; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                تأكيد التسجيل رغم التحذير ⚠️
+                {% trans "تأكيد التسجيل رغم التحذير ⚠️" %}
             </button>
             {% else %}
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                تأكيد وإنشاء طلب التسجيل ✅
+                {% trans "تأكيد وإنشاء طلب التسجيل ✅" %}
             </button>
             {% endif %}
             <button type="submit" name="retour" value="1" formnovalidate
                 style="background:none; border:1px solid #ccc; color:#555; border-radius:8px; padding:10px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                ← تعديل المعلومات الشخصية
+                {% trans "← تعديل المعلومات الشخصية" %}
             </button>
-            <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
+            <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "إلغاء" %}</a>
         </div>
     </form>
     {% endif %}

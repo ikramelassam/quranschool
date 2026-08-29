@@ -1,5 +1,6 @@
 {% extends 'dashboard/base_admin.html' %}
-{% block title %}جدول تفرغ {{ eleve.user.get_full_name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% blocktrans with nom=eleve.user.get_full_name %}جدول تفرغ {{ nom }}{% endblocktrans %}{% endblock %}
 {% block content %}
 <div class="page-title" style="display:flex; align-items:center; gap:10px;">
     {{ eleve.user.get_full_name }}
@@ -9,8 +10,8 @@
     </span>
 </div>
 <div class="page-subtitle">
-    {% if mode_edition %}وضع التعديل — يسري فوراً (الطالب لا يمكنه تعديل جدوله بنفسه)
-    {% else %}عرض فقط — اضغط "تعديل" لتغيير الجدول
+    {% if mode_edition %}{% trans "وضع التعديل — يسري فوراً (الطالب لا يمكنه تعديل جدوله بنفسه)" %}
+    {% else %}{% trans 'عرض فقط — اضغط "تعديل" لتغيير الجدول' %}
     {% endif %}
 </div>
 
@@ -21,18 +22,18 @@
         {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form lecture_seule=False %}
         <div class="d-flex gap-3 mt-3">
             <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                حفظ الجدول ✅
+                {% trans "حفظ الجدول ✅" %}
             </button>
-            <a href="{% url 'admin_eleve_disponibilites' eleve.id %}" style="color:#888; text-decoration:none; padding:10px;">إلغاء</a>
+            <a href="{% url 'admin_eleve_disponibilites' eleve.id %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "إلغاء" %}</a>
         </div>
     </form>
     {% else %}
     {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=valeurs_form lecture_seule=True %}
     <div class="d-flex gap-3 mt-3">
         <a href="?modifier=1" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; text-decoration:none;">
-            ✏️ تعديل
+            ✏️ {% trans "تعديل" %}
         </a>
-        <a href="{% url 'admin_eleve_detail' eleve.id %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+        <a href="{% url 'admin_eleve_detail' eleve.id %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
     </div>
     {% endif %}
 </div>

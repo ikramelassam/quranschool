@@ -1,9 +1,10 @@
 {% extends base_template %}
-{% block title %}إسناد {{ superviseur.user.get_full_name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% blocktrans with nom=superviseur.user.get_full_name %}إسناد {{ nom }}{% endblocktrans %}{% endblock %}
 {% block content %}
-<div class="page-title">المعلمون المُسندون إلى {{ superviseur.user.get_full_name }}</div>
+<div class="page-title">{% blocktrans with nom=superviseur.user.get_full_name %}المعلمون المُسندون إلى {{ nom }}{% endblocktrans %}</div>
 <div class="page-subtitle">
-    {% if request.user.role == 'mshrif' %}عرض للاطلاع فقط — لا يمكن التعديل من هنا{% else %}حدد المعلمين الذين يمكن لهذا المؤطر رؤيتهم وتقييمهم{% endif %}
+    {% if request.user.role == 'mshrif' %}{% trans "عرض للاطلاع فقط — لا يمكن التعديل من هنا" %}{% else %}{% trans "حدد المعلمين الذين يمكن لهذا المؤطر رؤيتهم وتقييمهم" %}{% endif %}
 </div>
 
 {% comment %}
@@ -21,7 +22,7 @@ actuelle d'un coup d'œil avant de modifier l'assignation en dessous.
         </div>
         <div>
             <div style="font-weight:700; font-size:1.1rem; color:var(--color-text-primary);">{{ superviseur.user.get_full_name }}</div>
-            <div style="color:#888; font-size:0.85rem; margin-top:2px;">{{ superviseur.user.email }} — {{ groupes_actuels|length }} مجموعة حالياً</div>
+            <div style="color:#888; font-size:0.85rem; margin-top:2px;">{% blocktrans with email=superviseur.user.email n=groupes_actuels|length %}{{ email }} — {{ n }} مجموعة حالياً{% endblocktrans %}</div>
         </div>
     </div>
     {% if groupes_actuels %}
@@ -57,10 +58,10 @@ ci-dessous), voir accounts.models.NotePersonnelle.__doc__.
             {% endif %}
         </div>
         {% empty %}
-        <div style="text-align:center; color:#aaa; padding:30px 0;">لا يوجد معلمون بعد</div>
+        <div style="text-align:center; color:#aaa; padding:30px 0;">{% trans "لا يوجد معلمون بعد" %}</div>
         {% endfor %}
         <div style="padding:16px 0 4px;">
-            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; font-size:0.9rem;">← رجوع</a>
+            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; font-size:0.9rem;">{% trans "← رجوع" %}</a>
         </div>
     {% else %}
     <form method="POST">
@@ -80,20 +81,20 @@ ci-dessous), voir accounts.models.NotePersonnelle.__doc__.
                 </div>
                 <div style="color:#888; font-size:0.85rem; margin-top:2px;">
                     {{ prof.ville }}
-                    {% if prof.id in profs_assignes_ids %} — {{ prof.nb_groupes }} مجموعة مسندة{% endif %}
+                    {% if prof.id in profs_assignes_ids %} — {% blocktrans with n=prof.nb_groupes %}{{ n }} مجموعة مسندة{% endblocktrans %}{% endif %}
                 </div>
             </label>
         </div>
         {% empty %}
-        <div style="text-align:center; color:#aaa; padding:30px 0;">لا يوجد معلمون بعد</div>
+        <div style="text-align:center; color:#aaa; padding:30px 0;">{% trans "لا يوجد معلمون بعد" %}</div>
         {% endfor %}
 
         <div class="d-flex gap-3" style="padding:20px 0 4px;">
             <button type="submit"
                 style="background:var(--color-brand-gold-dark); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                حفظ الإسناد ✅
+                {% trans "حفظ الإسناد ✅" %}
             </button>
-            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+            <a href="{% url 'admin_superviseurs' %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
     {% endif %}
@@ -105,7 +106,7 @@ ci-dessous), voir accounts.models.NotePersonnelle.__doc__.
     {% endcomment %}
     <div style="padding:8px 0 4px; border-top:1px solid #f0f0f0; margin-top:12px;">
         <a href="{% url 'superviseur_supprimer_definitivement' superviseur.id %}"
-           style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; display:inline-block; margin-top:12px;">🗑️ حذف نهائي</a>
+           style="background:var(--color-danger); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; display:inline-block; margin-top:12px;">🗑️ {% trans "حذف نهائي" %}</a>
     </div>
 </div>
 {% endblock %}

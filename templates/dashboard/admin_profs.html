@@ -1,27 +1,28 @@
 {% extends base_template %}
-{% block title %}المعلمون{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "المعلمون" %}{% endblock %}
 {% block content %}
-<div class="page-title">إدارة المعلمين</div>
-<div class="page-subtitle">إجمالي المعلمين: {{ profs.paginator.count }}{% if request.user.role == 'mshrif' %} — عرض للاطلاع فقط{% endif %}</div>
+<div class="page-title">{% trans "إدارة المعلمين" %}</div>
+<div class="page-subtitle">{% blocktrans with total=profs.paginator.count %}إجمالي المعلمين: {{ total }}{% endblocktrans %}{% if request.user.role == 'mshrif' %} — {% trans "عرض للاطلاع فقط" %}{% endif %}</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
         <div class="col-md-5">
-            <label style="color:#888; font-size:0.8rem;">بحث بالاسم أو المدينة</label>
-            <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="اكتب اسم المعلم أو مدينته...">
+            <label style="color:#888; font-size:0.8rem;">{% trans "بحث بالاسم أو المدينة" %}</label>
+            <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="{% trans 'اكتب اسم المعلم أو مدينته...' %}">
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">الحالة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الحالة" %}</label>
             <select name="statut" class="form-select">
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for code, label in statut_choices %}
                 <option value="{{ code }}" {% if filtres.statut == code %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-4 d-flex gap-2 align-items-center">
-            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">بحث</button>
-            <a href="{% url 'admin_profs' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "بحث" %}</button>
+            <a href="{% url 'admin_profs' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
         </div>
     </div>
 </form>
@@ -35,7 +36,7 @@
             <div style="color:#888; font-size:0.85rem;">{{ prof.ville }}</div>
         </a>
         <div style="display:flex; gap:10px; align-items:center;">
-            <span style="color:#888; font-size:0.85rem;">{{ prof.groupes.count }} مجموعة</span>
+            <span style="color:#888; font-size:0.85rem;">{% blocktrans count compteur=prof.groupes.count %}{{ compteur }} مجموعة{% plural %}{{ compteur }} مجموعة{% endblocktrans %}</span>
             {% include 'dashboard/_badge_archive_prof.html' with prof=prof %}
             <span style="display:inline-flex; gap:6px; align-items:center;">
                 {% include 'dashboard/_email_icon.html' with email=prof.user.email %}
@@ -43,13 +44,13 @@
             </span>
             <a href="{% url 'admin_prof_detail' prof.id %}"
                style="color:var(--color-role-admin-solid); font-size:0.85rem; font-weight:700; text-decoration:none; white-space:nowrap;">
-               التفاصيل ←
+               {% trans "التفاصيل ←" %}
             </a>
         </div>
     </div>
     {% empty %}
     <div style="text-align:center; padding:60px; color:#aaa;">
-        {% if q or filtres.statut %}لا توجد نتائج مطابقة لهذه التصفية{% else %}لا يوجد معلمون بعد{% endif %}
+        {% if q or filtres.statut %}{% trans "لا توجد نتائج مطابقة لهذه التصفية" %}{% else %}{% trans "لا يوجد معلمون بعد" %}{% endif %}
     </div>
     {% endfor %}
 </div>

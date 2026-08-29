@@ -1,46 +1,46 @@
 {% extends base_template %}
-{% load libelles_arabes %}
-{% block title %}الطلاب{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "الطلاب" %}{% endblock %}
 {% block content %}
-<div class="page-title">إدارة الطلاب</div>
-<div class="page-subtitle">إجمالي الطلاب: {{ eleves.paginator.count }}{% if request.user.role == 'mshrif' %} — عرض للاطلاع فقط{% endif %}</div>
+<div class="page-title">{% trans "إدارة الطلاب" %}</div>
+<div class="page-subtitle">{% blocktrans with total=eleves.paginator.count %}إجمالي الطلاب: {{ total }}{% endblocktrans %}{% if request.user.role == 'mshrif' %} — {% trans "عرض للاطلاع فقط" %}{% endif %}</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
         <div class="col-md-4">
-            <label style="color:#888; font-size:0.8rem;">بحث بالاسم أو البريد الإلكتروني</label>
-            <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="اكتب اسم الطالب أو بريده الإلكتروني...">
+            <label style="color:#888; font-size:0.8rem;">{% trans "بحث بالاسم أو البريد الإلكتروني" %}</label>
+            <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="{% trans 'اكتب اسم الطالب أو بريده الإلكتروني...' %}">
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">الحالة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الحالة" %}</label>
             <select name="statut" class="form-select">
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for code, label in statut_choices %}
                 <option value="{{ code }}" {% if filtres.statut == code %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">الحلقة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الحلقة" %}</label>
             <select name="groupe" class="form-select" data-select-cherchable>
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for g in groupes %}
                 <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-2 d-flex gap-2">
-            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">بحث</button>
-            <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "بحث" %}</button>
+            <a href="{% url 'admin_eleves' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
         </div>
     </div>
     <div class="row g-3 align-items-end mt-1">
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">تاريخ التسجيل من</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "تاريخ التسجيل من" %}</label>
             <input type="date" name="date_debut" class="form-control" value="{{ filtres.date_debut }}">
         </div>
         <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">إلى</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "إلى" %}</label>
             <input type="date" name="date_fin" class="form-control" value="{{ filtres.date_fin }}">
         </div>
     </div>
@@ -56,7 +56,7 @@
             </a>
         </div>
         <div style="display:flex; gap:10px; align-items:center;">
-            <span style="color:#888; font-size:0.85rem;">{{ eleve.groupes.count }} مجموعة</span>
+            <span style="color:#888; font-size:0.85rem;">{% blocktrans count compteur=eleve.groupes.count %}{{ compteur }} مجموعة{% plural %}{{ compteur }} مجموعة{% endblocktrans %}</span>
             <span style="background:{% if eleve.statut == 'actif' %}#e8f5e9; color:var(--color-success){% else %}#fce4e4; color:#dc3545{% endif %}; border-radius:20px; padding:3px 12px; font-size:0.8rem;">
                 {{ eleve.get_statut_display }}
             </span>
@@ -69,7 +69,7 @@
     </div>
     {% empty %}
     <div style="text-align:center; padding:60px; color:#aaa;">
-        {% if q or filtres.statut or filtres.groupe %}لا توجد نتائج مطابقة لهذه التصفية{% else %}لا يوجد طلاب بعد{% endif %}
+        {% if q or filtres.statut or filtres.groupe %}{% trans "لا توجد نتائج مطابقة لهذه التصفية" %}{% else %}{% trans "لا يوجد طلاب بعد" %}{% endif %}
     </div>
     {% endfor %}
 </div>
