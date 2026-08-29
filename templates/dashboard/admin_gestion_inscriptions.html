@@ -1,5 +1,6 @@
 {% extends base_template %}
-{% block title %}إدارة فتح التسجيل{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "إدارة فتح التسجيل" %}{% endblock %}
 {% block content %}
 <style>
 .gi-card {
@@ -26,22 +27,24 @@
 .toggle-switch input:checked + .toggle-slider:before { transform:translateX(-20px); }
 </style>
 
-<div class="page-title">إدارة فتح التسجيل</div>
+<div class="page-title">{% trans "إدارة فتح التسجيل" %}</div>
 <div class="page-subtitle">
-    آخر تعديل:
+    {% trans "آخر تعديل:" %}
     {% if parametres.derniere_modification_par %}{{ parametres.derniere_modification_par.get_full_name }} — {% endif %}
     {{ parametres.date_modification|date:"d-m-Y H:i" }}
 </div>
 
 <form method="POST">
     {% csrf_token %}
+    {% trans "التسجيل مفتوح حالياً" as texte_ouvert %}
+    {% trans "التسجيل مغلق حالياً" as texte_ferme %}
 
     <div class="gi-card">
         <div class="gi-field">
             <div>
-                <div class="gi-field-label">الطلاب البالغون</div>
+                <div class="gi-field-label">{% trans "الطلاب البالغون" %}</div>
                 <div class="gi-statut {% if parametres.ouverte_eleve_adulte %}ouverte{% else %}fermee{% endif %}">
-                    {% if parametres.ouverte_eleve_adulte %}التسجيل مفتوح حالياً{% else %}التسجيل مغلق حالياً{% endif %}
+                    {% if parametres.ouverte_eleve_adulte %}{{ texte_ouvert }}{% else %}{{ texte_ferme }}{% endif %}
                 </div>
             </div>
             <label class="toggle-switch">
@@ -52,9 +55,9 @@
 
         <div class="gi-field">
             <div>
-                <div class="gi-field-label">الطلاب الأطفال</div>
+                <div class="gi-field-label">{% trans "الطلاب الأطفال" %}</div>
                 <div class="gi-statut {% if parametres.ouverte_eleve_enfant %}ouverte{% else %}fermee{% endif %}">
-                    {% if parametres.ouverte_eleve_enfant %}التسجيل مفتوح حالياً{% else %}التسجيل مغلق حالياً{% endif %}
+                    {% if parametres.ouverte_eleve_enfant %}{{ texte_ouvert }}{% else %}{{ texte_ferme }}{% endif %}
                 </div>
             </div>
             <label class="toggle-switch">
@@ -65,9 +68,9 @@
 
         <div class="gi-field">
             <div>
-                <div class="gi-field-label">الأساتذة</div>
+                <div class="gi-field-label">{% trans "الأساتذة" %}</div>
                 <div class="gi-statut {% if parametres.ouverte_prof %}ouverte{% else %}fermee{% endif %}">
-                    {% if parametres.ouverte_prof %}التسجيل مفتوح حالياً{% else %}التسجيل مغلق حالياً{% endif %}
+                    {% if parametres.ouverte_prof %}{{ texte_ouvert }}{% else %}{{ texte_ferme }}{% endif %}
                 </div>
             </div>
             <label class="toggle-switch">
@@ -78,40 +81,38 @@
     </div>
 
     <div style="color:var(--color-text-muted); font-size:0.8rem; margin-bottom:16px; max-width:720px;">
-        عند إغلاق فئة، يبقى زر التسجيل ظاهراً للزوار كالمعتاد، لكنهم يصلون إلى رسالة توضح أن
-        التسجيل متوقف مؤقتاً. لا يؤثر هذا على الطلبات المُقدَّمة سابقاً — تبقى قابلة للمراجعة والقبول
-        بشكل طبيعي.
+        {% trans "عند إغلاق فئة، يبقى زر التسجيل ظاهراً للزوار كالمعتاد، لكنهم يصلون إلى رسالة توضح أن التسجيل متوقف مؤقتاً. لا يؤثر هذا على الطلبات المُقدَّمة سابقاً — تبقى قابلة للمراجعة والقبول بشكل طبيعي." %}
     </div>
 
     <div class="gi-card">
         <div class="gi-field">
             <div>
-                <div class="gi-field-label">آخر مهلة لأداء الاشتراك</div>
+                <div class="gi-field-label">{% trans "آخر مهلة لأداء الاشتراك" %}</div>
                 <div style="color:var(--color-text-muted); font-size:0.8rem; margin-top:4px;">
-                    عدد الأيام بعد التسجيل — يُعرض للطالب في نهاية النموذج.
+                    {% trans "عدد الأيام بعد التسجيل — يُعرض للطالب في نهاية النموذج." %}
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <input type="number" name="delai_paiement_jours" min="1" class="form-control" style="width:90px;"
                        value="{{ parametres.delai_paiement_jours }}">
-                <span style="color:var(--color-text-muted); font-size:0.85rem;">يوم</span>
+                <span style="color:var(--color-text-muted); font-size:0.85rem;">{% trans "يوم" %}</span>
             </div>
         </div>
         <div class="gi-field">
             <div>
-                <div class="gi-field-label">مهلة التواصل مع الطالب بعد التسجيل</div>
+                <div class="gi-field-label">{% trans "مهلة التواصل مع الطالب بعد التسجيل" %}</div>
                 <div style="color:var(--color-text-muted); font-size:0.8rem; margin-top:4px;">
-                    عدد الساعات — يُذكر في رسالة التأكيد النهائية.
+                    {% trans "عدد الساعات — يُذكر في رسالة التأكيد النهائية." %}
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <input type="number" name="delai_contact_heures" min="1" class="form-control" style="width:90px;"
                        value="{{ parametres.delai_contact_heures }}">
-                <span style="color:var(--color-text-muted); font-size:0.85rem;">ساعة</span>
+                <span style="color:var(--color-text-muted); font-size:0.85rem;">{% trans "ساعة" %}</span>
             </div>
         </div>
     </div>
 
-    <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">حفظ التعديلات ✅</button>
+    <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">{% trans "حفظ التعديلات ✅" %}</button>
 </form>
 {% endblock %}

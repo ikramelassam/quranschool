@@ -1,6 +1,7 @@
 {% extends base_template %}
 {% load libelles_arabes %}
-{% block title %}إدارة حقيبة الأستاذ{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "إدارة حقيبة الأستاذ" %}{% endblock %}
 {% block content %}
 <style>
 .hk-card {
@@ -39,27 +40,27 @@
 .hk-badge-specifique { background:#fdf1d6; color:#8a6200; }
 </style>
 
-<div class="page-title">إدارة حقيبة الأستاذ</div>
-<div class="page-subtitle">نصوص، ملفات وموارد تضيفها الإدارة — تظهر للأساتذة المعنيين في صفحة "حقيبة الأستاذ" الخاصة بهم (قراءة فقط)</div>
+<div class="page-title">{% trans "إدارة حقيبة الأستاذ" %}</div>
+<div class="page-subtitle">{% trans 'نصوص، ملفات وموارد تضيفها الإدارة — تظهر للأساتذة المعنيين في صفحة "حقيبة الأستاذ" الخاصة بهم (قراءة فقط)' %}</div>
 
 <div class="hk-card">
-    <div style="font-weight:700; margin-bottom:14px;">عنصر جديد</div>
+    <div style="font-weight:700; margin-bottom:14px;">{% trans "عنصر جديد" %}</div>
     <form method="POST" action="{% url 'admin_hakiba_ajouter' %}" enctype="multipart/form-data" id="hakibaForm">
         {% csrf_token %}
 
         <div class="mb-3">
-            <input type="text" name="titre" class="hk-input" placeholder="عنوان (اختياري)">
+            <input type="text" name="titre" class="hk-input" placeholder="{% trans 'عنوان (اختياري)' %}">
         </div>
 
         <div class="mb-3">
-            <textarea name="contenu_texte" class="hk-textarea" rows="3" placeholder="اكتب ملاحظة أو نصا هنا مباشرة..."></textarea>
+            <textarea name="contenu_texte" class="hk-textarea" rows="3" placeholder="{% trans 'اكتب ملاحظة أو نصا هنا مباشرة...' %}"></textarea>
         </div>
 
         <div class="mb-3">
             <input type="file" name="fichier" id="hakibaFichierInput" style="display:none;" onchange="hakibaFichierChange(this)">
             <div id="hakibaFichierBouton" onclick="document.getElementById('hakibaFichierInput').click();"
                  style="display:inline-block; cursor:pointer; background:white; border:1.5px solid var(--color-brand-gold-dark); color:var(--color-brand-gold-dark); border-radius:8px; padding:7px 16px; font-size:0.85rem; font-weight:600;">
-                📎 إرفاق ملف
+                📎 {% trans "إرفاق ملف" %}
             </div>
             <div id="hakibaFichierApercu" style="display:none; align-items:center; gap:10px; margin-top:8px; background:white; border:1px solid rgba(139,75,0,0.2); border-radius:8px; padding:8px 12px; max-width:fit-content;">
                 <span id="hakibaFichierIcone">📎</span>
@@ -69,15 +70,15 @@
         </div>
 
         <div class="mb-3">
-            <label class="hk-label">الفئة المستهدفة</label>
+            <label class="hk-label">{% trans "الفئة المستهدفة" %}</label>
             <div class="hk-toggle">
-                <div class="hk-toggle-opt active" data-cible="tous" onclick="hakibaChoisirCible('tous')">كل الأساتذة</div>
-                <div class="hk-toggle-opt" data-cible="specifique" onclick="hakibaChoisirCible('specifique')">أساتذة محددون</div>
+                <div class="hk-toggle-opt active" data-cible="tous" onclick="hakibaChoisirCible('tous')">{% trans "كل الأساتذة" %}</div>
+                <div class="hk-toggle-opt" data-cible="specifique" onclick="hakibaChoisirCible('specifique')">{% trans "أساتذة محددون" %}</div>
             </div>
             <input type="hidden" name="cible" id="hakibaCibleInput" value="tous">
 
             <div id="hakibaZoneSpecifique" style="display:none; margin-top:12px;">
-                <input type="text" id="hakibaRecherche" class="hk-input" placeholder="ابحث عن أستاذ..." oninput="hakibaFiltrerListe()" autocomplete="off">
+                <input type="text" id="hakibaRecherche" class="hk-input" placeholder="{% trans 'ابحث عن أستاذ...' %}" oninput="hakibaFiltrerListe()" autocomplete="off">
                 <div id="hakibaPills" style="margin-top:8px;"></div>
                 <div id="hakibaListeDeroulante" style="display:none; max-height:220px; overflow-y:auto; background:white; border:1px solid rgba(139,75,0,0.2); border-radius:8px; margin-top:6px;">
                     {% for prof in profs_disponibles %}
@@ -91,32 +92,34 @@
             </div>
         </div>
 
-        <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:9px 26px; font-family:'Tajawal',sans-serif; font-size:0.95rem; cursor:pointer;">حفظ ✅</button>
+        <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:9px 26px; font-family:'Tajawal',sans-serif; font-size:0.95rem; cursor:pointer;">{% trans "حفظ ✅" %}</button>
     </form>
 </div>
 
 <div class="hk-card">
-    <div style="font-weight:700; margin-bottom:6px;">العناصر الحالية ({{ elements_hakiba|length }})</div>
+    <div style="font-weight:700; margin-bottom:6px;">{% blocktrans with n=elements_hakiba|length %}العناصر الحالية ({{ n }}){% endblocktrans %}</div>
+    {% trans "بدون عنوان" as texte_sans_titre %}
+    {% trans "حذف هذا العنصر من حقيبة الأستاذ؟" as confirmation_suppr_hakiba %}
     {% for element in elements_hakiba %}
     <div class="hk-item">
         <div class="hk-icone-carre" style="background:{{ element.fichier|couleur_hakiba }};">{{ element.fichier|icone_hakiba }}</div>
         <div style="min-width:0; flex:1;">
-            <div style="font-weight:600;">{{ element.titre|default:"بدون عنوان" }}</div>
+            <div style="font-weight:600;">{{ element.titre|default:texte_sans_titre }}</div>
             <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">
-                {% if element.ajoute_par %}بواسطة {{ element.ajoute_par.get_full_name }} — {% endif %}{{ element.date_ajout|date:"d-m-Y" }}
+                {% if element.ajoute_par %}{% blocktrans with nom=element.ajoute_par.get_full_name %}بواسطة {{ nom }} — {% endblocktrans %}{% endif %}{{ element.date_ajout|date:"d-m-Y" }}
             </div>
             {% if element.tous_les_profs %}
-            <div class="hk-badge-cible hk-badge-tous">كل الأساتذة</div>
+            <div class="hk-badge-cible hk-badge-tous">{% trans "كل الأساتذة" %}</div>
             {% else %}
             <div class="hk-badge-cible hk-badge-specifique">{% for p in element.profs_cibles.all %}{{ p.user.get_full_name }}{% if not forloop.last %}، {% endif %}{% endfor %}</div>
             {% endif %}
         </div>
         <a href="{% url 'admin_hakiba_supprimer' element.id %}"
-           onclick="return confirm('حذف هذا العنصر من حقيبة الأستاذ؟');"
-           style="flex-shrink:0; background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:5px 12px; text-decoration:none; font-size:0.8rem;">حذف 🗑️</a>
+           onclick="return confirm('{{ confirmation_suppr_hakiba|escapejs }}');"
+           style="flex-shrink:0; background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:5px 12px; text-decoration:none; font-size:0.8rem;">{% trans "حذف 🗑️" %}</a>
     </div>
     {% empty %}
-    <div style="color:#aaa; padding:12px 0;">لا توجد عناصر مضافة بعد</div>
+    <div style="color:#aaa; padding:12px 0;">{% trans "لا توجد عناصر مضافة بعد" %}</div>
     {% endfor %}
 </div>
 

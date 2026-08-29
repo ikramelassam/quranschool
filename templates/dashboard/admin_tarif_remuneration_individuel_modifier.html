@@ -1,28 +1,29 @@
 {% extends base_template %}
-{% block title %}تعديل تعرفة فردي{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "تعديل تعرفة فردي" %}{% endblock %}
 {% block content %}
-<div class="page-title">تعديل: {{ tarif.get_tranche_age_display }} (فردي)</div>
+<div class="page-title">{% blocktrans with tranche=tarif.get_tranche_age_display %}تعديل: {{ tranche }} (فردي){% endblocktrans %}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
         {% csrf_token %}
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الفئة العمرية</label>
+            <label style="font-weight:600; color:#333;">{% trans "الفئة العمرية" %}</label>
             <input type="text" class="form-control mt-1" value="{{ tarif.get_tranche_age_display }}" disabled>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">السعر (درهم / حصة مُنجزة فعلياً) *</label>
+            <label style="font-weight:600; color:#333;">{% trans "السعر (درهم / حصة مُنجزة فعلياً) *" %}</label>
             <input type="number" step="0.01" name="montant" class="form-control mt-1" value="{{ tarif.montant }}" required>
             <div style="color:#888; font-size:0.8rem; margin-top:4px;">
-                يُحتسب هذا المبلغ لكل حصة فردية أُنجزت فعلياً هذا الشهر (المعلم حضّر والطالب حضر) — وليس مبلغاً شهرياً ثابتاً.
+                {% trans "يُحتسب هذا المبلغ لكل حصة فردية أُنجزت فعلياً هذا الشهر (المعلم حضّر والطالب حضر) — وليس مبلغاً شهرياً ثابتاً." %}
             </div>
         </div>
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                حفظ التعديلات ✅
+                {% trans "حفظ التعديلات ✅" %}
             </button>
-            <a href="{% url 'admin_tarifs_remuneration' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+            <a href="{% url 'admin_tarifs_remuneration' %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
 </div>

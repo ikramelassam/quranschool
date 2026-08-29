@@ -15,26 +15,27 @@ Le POST (action=email) est traité par dashboard.views.
 _traiter_changement_email_compte, partagée entre admin_mon_compte et
 mshrif_mon_compte pour la même raison — ne pas dupliquer 2x cette logique.
 {% endcomment %}
+{% load i18n %}
 <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; color:{{ couleur_label }}; margin-bottom:16px;">✉️ تغيير البريد الإلكتروني</div>
+    <div style="font-weight:700; color:{{ couleur_label }}; margin-bottom:16px;">✉️ {% trans "تغيير البريد الإلكتروني" %}</div>
     <form method="POST">
         {% csrf_token %}
         <input type="hidden" name="action" value="email">
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">البريد الإلكتروني الجديد *</label>
+            <label style="font-weight:600; color:#333;">{% trans "البريد الإلكتروني الجديد *" %}</label>
             <input type="email" name="nouvel_email" class="form-control mt-1" required>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">تأكيد البريد الإلكتروني *</label>
+            <label style="font-weight:600; color:#333;">{% trans "تأكيد البريد الإلكتروني *" %}</label>
             <input type="email" name="confirmation_email" class="form-control mt-1" required>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">كلمة المرور الحالية *</label>
+            <label style="font-weight:600; color:#333;">{% trans "كلمة المرور الحالية *" %}</label>
             {% include 'dashboard/_champ_mot_de_passe.html' with name='mot_de_passe_email' id=id_prefix|add:'_email_mdp' requis=True %}
         </div>
         <button type="submit"
             style="background:{{ couleur_bouton }}; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-            حفظ البريد الجديد ✅
+            {% trans "حفظ البريد الجديد ✅" %}
         </button>
     </form>
 </div>

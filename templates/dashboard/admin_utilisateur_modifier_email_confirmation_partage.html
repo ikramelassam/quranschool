@@ -1,24 +1,35 @@
 {% extends 'dashboard/base_admin.html' %}
-{% block title %}تأكيد نطاق التغيير{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "تأكيد نطاق التغيير" %}{% endblock %}
 {% comment %}
 Écran d'action focalisée à une seule tâche (confirmation avant action) —
 voir dashboard/admin_eleve_supprimer_definitivement.html (même principe, et
 la note du 2026-08-14 sur le retrait du {% block recherche_globale %}).
 {% endcomment %}
 {% block content %}
-<div class="page-title">هذا البريد مشترك مع حسابات أخرى</div>
-<div class="page-subtitle">{{ utilisateur.get_full_name }} — البريد الحالي: {{ utilisateur.email }}</div>
+<div class="page-title">{% trans "هذا البريد مشترك مع حسابات أخرى" %}</div>
+<div class="page-subtitle">{% blocktrans with nom=utilisateur.get_full_name email=utilisateur.email %}{{ nom }} — البريد الحالي: {{ email }}{% endblocktrans %}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:560px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 
     <div style="background:#fff3cd; color:#856404; border-radius:8px; padding:12px 16px; font-size:0.88rem; margin-bottom:20px;">
-        ⚠️ البريد الحالي ({{ utilisateur.email }}) مستخدم أيضاً من طرف
-        {{ autres_comptes|length }} حساب{{ autres_comptes|length|pluralize:"،آخر" }} — على الأرجح أفراد نفس
-        الأسرة. اختر بدقة قبل المتابعة، لأن هذا التغيير لا يمكن التراجع عنه تلقائياً.
+        {% comment %}
+        Pas de {% blocktrans count %}/ngettext ici volontairement — voir
+        dashboard/templatetags/libelles_arabes.py (depuis_relatif) : notre
+        compilateur .mo maison ne résout pas les entrées msgid_plural. Choix
+        simple entre 2 blocktrans classiques (msgid->msgstr, comme partout
+        ailleurs), même logique binaire (1 vs N) que l'ancien |pluralize.
+        {% endcomment %}
+        ⚠️
+        {% if autres_comptes|length == 1 %}
+        {% blocktrans with email=utilisateur.email %}البريد الحالي ({{ email }}) مستخدم أيضاً من طرف حساب واحد آخر — على الأرجح فرد من نفس الأسرة. اختر بدقة قبل المتابعة، لأن هذا التغيير لا يمكن التراجع عنه تلقائياً.{% endblocktrans %}
+        {% else %}
+        {% blocktrans with email=utilisateur.email counter=autres_comptes|length %}البريد الحالي ({{ email }}) مستخدم أيضاً من طرف {{ counter }} حسابات أخرى — على الأرجح أفراد نفس الأسرة. اختر بدقة قبل المتابعة، لأن هذا التغيير لا يمكن التراجع عنه تلقائياً.{% endblocktrans %}
+        {% endif %}
     </div>
 
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin-bottom:12px;">
-        الحسابات الأخرى المرتبطة بهذا البريد
+        {% trans "الحسابات الأخرى المرتبطة بهذا البريد" %}
     </div>
     {% for autre in autres_comptes %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
@@ -28,7 +39,7 @@ la note du 2026-08-14 sur le retrait du {% block recherche_globale %}).
     {% endfor %}
 
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:24px 0 16px;">
-        البريد الجديد المطلوب
+        {% trans "البريد الجديد المطلوب" %}
     </div>
     <div style="font-weight:600; padding:8px 0 20px;">{{ nouvel_email }}</div>
 
@@ -40,21 +51,21 @@ la note du 2026-08-14 sur le retrait du {% block recherche_globale %}).
 
         <button type="submit" name="portee" value="un_seul"
             style="display:block; width:100%; text-align:right; background:var(--color-bg-cream); border:1.5px solid var(--color-role-admin-solid); color:var(--color-role-admin-solid); border-radius:10px; padding:14px 18px; font-family:'Tajawal',sans-serif; font-size:0.95rem; font-weight:700; cursor:pointer; margin-bottom:12px;">
-            تحديث هذا الحساب فقط ({{ utilisateur.get_full_name }})
+            {% blocktrans with nom=utilisateur.get_full_name %}تحديث هذا الحساب فقط ({{ nom }}){% endblocktrans %}
             <div style="font-weight:400; font-size:0.8rem; color:#8B6040; margin-top:4px;">
-                الحسابات الأخرى تبقى على البريد القديم ({{ utilisateur.email }}).
+                {% blocktrans with email=utilisateur.email %}الحسابات الأخرى تبقى على البريد القديم ({{ email }}).{% endblocktrans %}
             </div>
         </button>
 
         <button type="submit" name="portee" value="tous"
             style="display:block; width:100%; text-align:right; background:var(--color-role-admin); color:white; border:none; border-radius:10px; padding:14px 18px; font-family:'Tajawal',sans-serif; font-size:0.95rem; font-weight:700; cursor:pointer; margin-bottom:16px;">
-            تحديث كل الحسابات المرتبطة بهذا البريد ({{ autres_comptes|length|add:1 }} حساب)
+            {% blocktrans with n=autres_comptes|length|add:1 %}تحديث كل الحسابات المرتبطة بهذا البريد ({{ n }} حساب){% endblocktrans %}
             <div style="font-weight:400; font-size:0.8rem; color:rgba(255,255,255,0.85); margin-top:4px;">
-                كل الحسابات المذكورة أعلاه + {{ utilisateur.get_full_name }} تنتقل جميعها إلى {{ nouvel_email }}.
+                {% blocktrans with nom=utilisateur.get_full_name email=nouvel_email %}كل الحسابات المذكورة أعلاه + {{ nom }} تنتقل جميعها إلى {{ email }}.{% endblocktrans %}
             </div>
         </button>
 
-        <a href="{{ next }}" style="display:block; text-align:center; color:#888; text-decoration:none; padding:6px;">← إلغاء، رجوع بدون أي تغيير</a>
+        <a href="{{ next }}" style="display:block; text-align:center; color:#888; text-decoration:none; padding:6px;">{% trans "← إلغاء، رجوع بدون أي تغيير" %}</a>
     </form>
 </div>
 {% endblock %}

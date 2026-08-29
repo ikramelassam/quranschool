@@ -1,41 +1,41 @@
 {% extends base_template %}
-{% block title %}طلبات غير ملبّاة{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "طلبات غير ملبّاة" %}{% endblock %}
 {% block content %}
-<div class="page-title">طلبات غير ملبّاة</div>
+<div class="page-title">{% trans "طلبات غير ملبّاة" %}</div>
 <div class="page-subtitle" style="margin-bottom:20px;">
-    كل مرة لم تكن فيها أي مجموعة متوافقة تماماً مع اختيارات طالب أثناء التسجيل — استخدمها لمعرفة أكثر التركيبات
-    المطلوبة، لاتخاذ قرار فتح مجموعات جديدة.
+    {% trans "كل مرة لم تكن فيها أي مجموعة متوافقة تماماً مع اختيارات طالب أثناء التسجيل — استخدمها لمعرفة أكثر التركيبات المطلوبة، لاتخاذ قرار فتح مجموعات جديدة." %}
 </div>
 
 <div class="d-flex gap-3 mb-4" style="flex-wrap:wrap;">
     <div style="background:white; border-radius:12px; padding:16px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); min-width:160px;">
         <div style="font-size:1.6rem; font-weight:700; color:var(--color-role-admin);">{{ total }}</div>
-        <div style="color:#888; font-size:0.85rem;">إجمالي الطلبات غير الملبّاة</div>
+        <div style="color:#888; font-size:0.85rem;">{% trans "إجمالي الطلبات غير الملبّاة" %}</div>
     </div>
     <div style="background:white; border-radius:12px; padding:16px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); min-width:160px;">
         <div style="font-size:1.6rem; font-weight:700; color:var(--color-success);">{{ nb_liees_a_une_inscription }}</div>
-        <div style="color:#888; font-size:0.85rem;">تحولت إلى طلب تسجيل فعلي</div>
+        <div style="color:#888; font-size:0.85rem;">{% trans "تحولت إلى طلب تسجيل فعلي" %}</div>
     </div>
 </div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
         <div class="col-md-4">
-            <label style="color:#888; font-size:0.8rem;">حالة التسجيل</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "حالة التسجيل" %}</label>
             <select name="statut" class="form-select">
-                <option value="" {% if not filtre_statut %}selected{% endif %}>الكل</option>
-                <option value="complete" {% if filtre_statut == 'complete' %}selected{% endif %}>التسجيلات المكتملة فقط</option>
-                <option value="incomplete" {% if filtre_statut == 'incomplete' %}selected{% endif %}>التسجيلات غير المكتملة فقط</option>
+                <option value="" {% if not filtre_statut %}selected{% endif %}>{% trans "الكل" %}</option>
+                <option value="complete" {% if filtre_statut == 'complete' %}selected{% endif %}>{% trans "التسجيلات المكتملة فقط" %}</option>
+                <option value="incomplete" {% if filtre_statut == 'incomplete' %}selected{% endif %}>{% trans "التسجيلات غير المكتملة فقط" %}</option>
             </select>
         </div>
         <div class="col-md-2 d-flex gap-2">
-            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">بحث</button>
-            <a href="{% url 'admin_demandes_non_satisfaites' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "بحث" %}</button>
+            <a href="{% url 'admin_demandes_non_satisfaites' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
         </div>
     </div>
 </form>
 
-<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">أكثر التركيبات طلباً</div>
+<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">{% trans "أكثر التركيبات طلباً" %}</div>
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; margin-bottom:32px;">
     {% for t in tendances %}
     <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 22px; border-bottom:1px solid #f0f0f0; flex-wrap:wrap; gap:8px;">
@@ -44,26 +44,26 @@
             <span style="background:#f0f0f0; border-radius:12px; padding:3px 12px; margin-left:6px; font-size:0.85rem;">{{ libelle }}</span>
             {% endfor %}
             {% if t.nb_slots %}
-            <span style="background:#f0f0f0; border-radius:12px; padding:3px 12px; margin-left:6px; font-size:0.85rem;">عدد الحصص: {{ t.nb_slots }}</span>
+            <span style="background:#f0f0f0; border-radius:12px; padding:3px 12px; margin-left:6px; font-size:0.85rem;">{% blocktrans with n=t.nb_slots %}عدد الحصص: {{ n }}{% endblocktrans %}</span>
             {% endif %}
         </div>
-        <div style="font-weight:700; color:var(--color-role-admin);">{{ t.nombre }} طلب</div>
+        <div style="font-weight:700; color:var(--color-role-admin);">{% blocktrans with n=t.nombre %}{{ n }} طلب{% endblocktrans %}</div>
     </div>
     {% empty %}
     <div style="text-align:center; padding:40px; color:#aaa;">
-        {% if filtre_statut %}لا توجد تركيبات مطابقة لهذه التصفية.{% else %}لا توجد أي طلبات غير ملبّاة بعد.{% endif %}
+        {% if filtre_statut %}{% trans "لا توجد تركيبات مطابقة لهذه التصفية." %}{% else %}{% trans "لا توجد أي طلبات غير ملبّاة بعد." %}{% endif %}
     </div>
     {% endfor %}
 </div>
 
-<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">كل الطلبات (بالتفصيل)</div>
+<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">{% trans "كل الطلبات (بالتفصيل)" %}</div>
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
     {% for d in demandes|slice:":15" %}
     {% include 'dashboard/_carte_demande_non_satisfaite.html' with d=d %}
     {% empty %}
     <div style="text-align:center; padding:40px; color:#aaa;">
-        {% if filtre_statut %}لا توجد طلبات مطابقة لهذه التصفية.{% else %}لا توجد أي طلبات غير ملبّاة بعد.{% endif %}
+        {% if filtre_statut %}{% trans "لا توجد طلبات مطابقة لهذه التصفية." %}{% else %}{% trans "لا توجد أي طلبات غير ملبّاة بعد." %}{% endif %}
     </div>
     {% endfor %}
 
@@ -74,20 +74,24 @@
         {% endfor %}
     </div>
     <div style="text-align:center; padding:14px 0;">
+        {% blocktrans asvar texte_afficher_tout with n=demandes|length %}عرض كل الطلبات ({{ n }}) ↓{% endblocktrans %}
+        {% trans "إخفاء الباقي ↑" as texte_masquer_demandes %}
         <span id="demandes_toggle_texte" onclick="toggleDemandesCompletes()" style="cursor:pointer; color:var(--color-brand-gold-dark); font-size:0.85rem; text-decoration:underline;">
-            عرض كل الطلبات ({{ demandes|length }}) ↓
+            {{ texte_afficher_tout }}
         </span>
     </div>
     <script>
+        const TEXTE_AFFICHER_TOUT_DEMANDES = '{{ texte_afficher_tout|escapejs }}';
+        const TEXTE_MASQUER_DEMANDES = '{{ texte_masquer_demandes|escapejs }}';
         function toggleDemandesCompletes() {
             const extra = document.getElementById('demandes_extra');
             const texte = document.getElementById('demandes_toggle_texte');
             if (extra.style.display === 'none') {
                 extra.style.display = 'block';
-                texte.textContent = 'إخفاء الباقي ↑';
+                texte.textContent = TEXTE_MASQUER_DEMANDES;
             } else {
                 extra.style.display = 'none';
-                texte.textContent = 'عرض كل الطلبات ({{ demandes|length }}) ↓';
+                texte.textContent = TEXTE_AFFICHER_TOUT_DEMANDES;
             }
         }
     </script>

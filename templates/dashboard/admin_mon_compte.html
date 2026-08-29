@@ -1,32 +1,33 @@
 {% extends 'dashboard/base_admin.html' %}
-{% block title %}حسابي{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "حسابي" %}{% endblock %}
 {% block content %}
-<div class="page-title">حسابي</div>
-<div class="page-subtitle">البريد الحالي: {{ request.user.email }}</div>
+<div class="page-title">{% trans "حسابي" %}</div>
+<div class="page-subtitle">{% blocktrans with email=request.user.email %}البريد الحالي: {{ email }}{% endblocktrans %}</div>
 
 <div class="row g-4">
     <div class="col-md-6">
         <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-            <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:16px;">📇 معلومات التواصل (تظهر للطلاب والمعلمين والمؤطرين)</div>
+            <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:16px;">📇 {% trans "معلومات التواصل (تظهر للطلاب والمعلمين والمؤطرين)" %}</div>
             <form method="POST">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="contact">
                 <div class="mb-3">
-                    <label style="font-weight:600; color:#333;">الاسم الكامل</label>
-                    <input type="text" name="nom_complet" class="form-control mt-1" value="{{ request.user.first_name }}" placeholder="مثال: الأستاذة فاطمة الزهراء">
+                    <label style="font-weight:600; color:#333;">{% trans "الاسم الكامل" %}</label>
+                    <input type="text" name="nom_complet" class="form-control mt-1" value="{{ request.user.first_name }}" placeholder="{% trans 'مثال: الأستاذة فاطمة الزهراء' %}">
                 </div>
                 <div class="mb-3">
-                    <label style="font-weight:600; color:#333;">وصف مختصر</label>
-                    <textarea name="description_courte" class="form-control mt-1" rows="2" maxlength="300" placeholder="مثال: متاحة للتواصل من 9 صباحاً إلى 6 مساءً">{{ request.user.description_courte }}</textarea>
+                    <label style="font-weight:600; color:#333;">{% trans "وصف مختصر" %}</label>
+                    <textarea name="description_courte" class="form-control mt-1" rows="2" maxlength="300" placeholder="{% trans 'مثال: متاحة للتواصل من 9 صباحاً إلى 6 مساءً' %}">{{ request.user.description_courte }}</textarea>
                 </div>
                 <div class="mb-3">
-                    <label style="font-weight:600; color:#333;">رقم الواتساب</label>
+                    <label style="font-weight:600; color:#333;">{% trans "رقم الواتساب" %}</label>
                     <input type="tel" name="whatsapp" class="form-control mt-1" value="{{ request.user.telephone }}" placeholder="مثال: 0663394165">
-                    <div style="color:#888; font-size:0.8rem; margin-top:4px;">يُستخدم في زر "تواصل عبر واتساب" الظاهر للطلاب والمعلمين والمؤطرين، وكذلك في صفحة "نسيت كلمة المرور".</div>
+                    <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans 'يُستخدم في زر "تواصل عبر واتساب" الظاهر للطلاب والمعلمين والمؤطرين، وكذلك في صفحة "نسيت كلمة المرور".' %}</div>
                 </div>
                 <button type="submit"
                     style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-                    حفظ معلومات التواصل ✅
+                    {% trans "حفظ معلومات التواصل ✅" %}
                 </button>
             </form>
         </div>

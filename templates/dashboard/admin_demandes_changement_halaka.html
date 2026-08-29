@@ -1,35 +1,39 @@
 {% extends base_template %}
-{% block title %}طلبات تغيير الحلقة{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "طلبات تغيير الحلقة" %}{% endblock %}
 {% block content %}
-<div class="page-title">طلبات تغيير الحلقة</div>
-<div class="page-subtitle">طلبات الطلاب بانتظار الموافقة — القبول ينقل الطالب تلقائياً إلى الحلقة الجديدة</div>
+<div class="page-title">{% trans "طلبات تغيير الحلقة" %}</div>
+<div class="page-subtitle">{% trans "طلبات الطلاب بانتظار الموافقة — القبول ينقل الطالب تلقائياً إلى الحلقة الجديدة" %}</div>
 
+{% trans "— (لا يوجد)" as texte_pas_de_groupe %}
+{% trans "— (حُذفت)" as texte_groupe_supprime %}
+{% trans "هل تريد رفض هذا الطلب؟" as confirmation_refus_changement %}
 {% for demande in demandes %}
 <div style="background:white; border-radius:12px; padding:18px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
         <div>
             <div style="font-weight:700;">{{ demande.eleve.user.get_full_name }}</div>
             <div style="color:#888; font-size:0.85rem; margin-top:4px;">
-                من: {{ demande.groupe_actuel.nom|default:"— (لا يوجد)" }}
+                {% blocktrans with nom=demande.groupe_actuel.nom|default:texte_pas_de_groupe %}من: {{ nom }}{% endblocktrans %}
                 ←
-                إلى: <strong>{{ demande.groupe_demande.nom|default:"— (حُذفت)" }}</strong>
+                {% blocktrans with nom=demande.groupe_demande.nom|default:texte_groupe_supprime %}إلى: <strong>{{ nom }}</strong>{% endblocktrans %}
             </div>
-            <div style="color:#aaa; font-size:0.8rem; margin-top:4px;">طُلب في {{ demande.date_demande|date:"d-m-Y H:i" }}</div>
+            <div style="color:#aaa; font-size:0.8rem; margin-top:4px;">{% blocktrans with date=demande.date_demande|date:"d-m-Y H:i" %}طُلب في {{ date }}{% endblocktrans %}</div>
         </div>
         <div class="d-flex gap-2" style="flex-shrink:0;">
             <a href="{% url 'admin_demande_changement_halaka_valider' demande.id %}"
                style="background:var(--color-success); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.85rem;">
-               قبول ✅
+               {% trans "قبول ✅" %}
             </a>
             <a href="{% url 'admin_demande_changement_halaka_refuser' demande.id %}"
-               onclick="return confirm('هل تريد رفض هذا الطلب؟');"
+               onclick="return confirm('{{ confirmation_refus_changement|escapejs }}');"
                style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.85rem;">
-               رفض ❌
+               {% trans "رفض ❌" %}
             </a>
         </div>
     </div>
 </div>
 {% empty %}
-<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px;">لا توجد طلبات معلّقة</div>
+<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px;">{% trans "لا توجد طلبات معلّقة" %}</div>
 {% endfor %}
 {% endblock %}

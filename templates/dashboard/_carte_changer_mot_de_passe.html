@@ -7,26 +7,27 @@ vue (admin_mon_compte / mshrif_mon_compte) — logique déjà quasi identique
 à accounts.views.password_change_view (flux de changement FORCÉ, rôles et
 redirection différents, volontairement laissé séparé, pas fusionné ici).
 {% endcomment %}
+{% load i18n %}
 <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; color:{{ couleur_label }}; margin-bottom:16px;">🔒 تغيير كلمة المرور</div>
+    <div style="font-weight:700; color:{{ couleur_label }}; margin-bottom:16px;">🔒 {% trans "تغيير كلمة المرور" %}</div>
     <form method="POST">
         {% csrf_token %}
         <input type="hidden" name="action" value="password">
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">كلمة المرور الحالية *</label>
+            <label style="font-weight:600; color:#333;">{% trans "كلمة المرور الحالية *" %}</label>
             {% include 'dashboard/_champ_mot_de_passe.html' with name='ancien_mot_de_passe' id=id_prefix|add:'_ancien' requis=True %}
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">كلمة المرور الجديدة *</label>
+            <label style="font-weight:600; color:#333;">{% trans "كلمة المرور الجديدة *" %}</label>
             {% include 'dashboard/_champ_mot_de_passe.html' with name='nouveau_mot_de_passe' id=id_prefix|add:'_nouveau' requis=True minlength=8 %}
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">تأكيد كلمة المرور الجديدة *</label>
+            <label style="font-weight:600; color:#333;">{% trans "تأكيد كلمة المرور الجديدة *" %}</label>
             {% include 'dashboard/_champ_mot_de_passe.html' with name='confirmation' id=id_prefix|add:'_confirmation' requis=True minlength=8 %}
         </div>
         <button type="submit"
             style="background:{{ couleur_bouton }}; color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-            حفظ كلمة المرور ✅
+            {% trans "حفظ كلمة المرور ✅" %}
         </button>
     </form>
     {% if afficher_reinitialiser %}{% include 'dashboard/_reinitialiser_mot_de_passe.html' %}{% endif %}

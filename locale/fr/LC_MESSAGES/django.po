@@ -1,83 +1,119 @@
+
 msgid ""
 msgstr ""
-"Content-Type: text/plain; charset=UTF-8\n"
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-08-29 08:36+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
+"Language-Team: fr <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
 
+#, python-format
 msgid "%(couverts)s/%(total)s آية"
 msgstr "%(couverts)s/%(total)s verset(s)"
 
+#, python-format
 msgid "%(duree)s دقيقة"
 msgstr "%(duree)s minutes"
 
+#, python-format
 msgid "%(min)s على الأقل"
 msgstr "%(min)s au minimum"
 
+#, python-format
 msgid "%(n).1f ك.ب"
 msgstr "%(n).1f Ko"
 
+#, python-format
 msgid "%(n).1f م.ب"
 msgstr "%(n).1f Mo"
 
+#, python-format
 msgid "%(n)d بايت"
 msgstr "%(n)d octets"
 
+#, python-format
 msgid "%(n)s حصة"
 msgstr "%(n)s séance(s)"
 
+#, python-format
 msgid "%(n)s حصص سابقة لم يتم تقييمها بعد"
 msgstr "%(n)s séances passées pas encore évaluées"
 
+#, python-format
 msgid "%(n)s طالب"
 msgstr "%(n)s élève(s)"
 
+#, python-format
 msgid "%(n)s طالب (بالغ) × %(tarif)s د.م."
 msgstr "%(n)s élève(s) (adulte) × %(tarif)s MAD"
 
+#, python-format
 msgid "%(n)s طالب (طفل) × %(tarif)s د.م."
 msgstr "%(n)s élève(s) (enfant) × %(tarif)s MAD"
 
+#, python-format
 msgid "%(n)s طلاب"
 msgstr "%(n)s élèves"
 
+#, python-format
 msgid "%(n)s غياب"
 msgstr "%(n)s absence(s)"
 
+#, python-format
 msgid "%(n)s غياب هذا الشهر"
 msgstr "%(n)s absence(s) ce mois-ci"
 
+#, python-format
 msgid "%(n)s مشارك"
 msgstr "%(n)s participant(s)"
 
+#, python-format
 msgid "%(n)s نسخة"
 msgstr "%(n)s copie(s)"
 
+#, python-format
 msgid "%(nom_groupe)s — %(duree)s دقيقة"
 msgstr "%(nom_groupe)s — %(duree)s minutes"
 
+#, python-format
 msgid "%(nom_groupe)s — %(nb)s سؤال — %(duree)s دقيقة"
 msgstr "%(nom_groupe)s — %(nb)s question(s) — %(duree)s minutes"
 
+#, python-format
 msgid "%(occupes)s / %(capacite)s مكان"
 msgstr "%(occupes)s / %(capacite)s place(s)"
 
+#, python-format
 msgid "%(points)s / %(max)s نقطة"
 msgstr "%(points)s / %(max)s point(s)"
 
+#, python-format
 msgid "%(points)s نقطة"
 msgstr "%(points)s point(s)"
 
+#, python-format
 msgid "%(present)s حضور · %(absent)s غياب · %(total)s حصص"
 msgstr "%(present)s présences · %(absent)s absences · %(total)s séances"
 
+#, python-format
 msgid "+ %(n)s حصة أخرى قادمة لاحقاً — عرض ↓"
 msgstr "+ %(n)s autre(s) séance(s) à venir — afficher ↓"
 
+#, python-format
 msgid "+%(n)s آية"
 msgstr "+%(n)s verset(s)"
 
 msgid "[حساب محذوف]"
 msgstr "[Compte supprimé]"
 
+#, python-format
 msgid "آخر أجل لأداء الاشتراك: <strong>%(date_limite_affichee)s</strong> (%(jours)s أيام من تاريخ التسجيل)"
 msgstr "Date limite de paiement de l'abonnement : <strong>%(date_limite_affichee)s</strong> (%(jours)s jours à partir de la date d'inscription)"
 
@@ -90,6 +126,7 @@ msgstr "Dernières évaluations"
 msgid "آخر الحصص"
 msgstr "Dernières séances"
 
+#, python-format
 msgid "آخر تحديث: %(date_maj)s"
 msgstr "Dernière mise à jour : %(date_maj)s"
 
@@ -138,6 +175,7 @@ msgstr "Femme"
 msgid "أهلاً بك في زدني علماً"
 msgstr "Bienvenue sur Zidni Ilman"
 
+#, python-format
 msgid "أهلاً، %(nom)s 👋"
 msgstr "Bienvenue, %(nom)s 👋"
 
@@ -168,12 +206,14 @@ msgstr "Réponse écrite (correction manuelle)"
 msgid "إجابتك:"
 msgstr "Votre réponse :"
 
+#, python-format
 msgid "إجمالي الحصص: %(n)s"
 msgstr "Total des séances : %(n)s"
 
 msgid "إجمالي الطلاب"
 msgstr "Total des élèves"
 
+#, python-format
 msgid "إجمالي المجموعات: %(n)s"
 msgstr "Total des groupes : %(n)s"
 
@@ -297,6 +337,7 @@ msgstr "Écrivez votre réponse ici..."
 msgid "اكتب رسالة..."
 msgstr "Écrire un message..."
 
+#, python-format
 msgid "الآيات %(plages)s من أصل %(total)s"
 msgstr "Versets %(plages)s sur %(total)s"
 
@@ -312,6 +353,7 @@ msgstr "Questions"
 msgid "الأسبوع القادم"
 msgstr "La semaine prochaine"
 
+#, python-format
 msgid "الأسبوع من %(debut)s إلى %(fin)s"
 msgstr "Semaine du %(debut)s au %(fin)s"
 
@@ -348,6 +390,7 @@ msgstr "Administration"
 msgid "الإشعارات"
 msgstr "Notifications"
 
+#, python-format
 msgid "الإشعارات — %(n)s إشعارات جديدة"
 msgstr "Notifications — %(n)s nouvelles notifications"
 
@@ -357,6 +400,7 @@ msgstr "Renvoi immédiat"
 msgid "الإعلانات"
 msgstr "Annonces"
 
+#, python-format
 msgid "الإعلانات — %(n)s إعلانات غير مقروءة"
 msgstr "Annonces — %(n)s annonces non lues"
 
@@ -414,6 +458,7 @@ msgstr "E-mail ou mot de passe incorrect"
 msgid "البيان الشهري"
 msgstr "Le bilan mensuel"
 
+#, python-format
 msgid "البيان الشهري — %(nom)s"
 msgstr "Bilan mensuel — %(nom)s"
 
@@ -486,6 +531,7 @@ msgstr "Sexe"
 msgid "الحالة"
 msgstr "Statut"
 
+#, python-format
 msgid "الحزب %(numero)s: %(fraction)s"
 msgstr "Hizb %(numero)s : %(fraction)s"
 
@@ -540,6 +586,7 @@ msgstr "Discussion"
 msgid "الدفع"
 msgstr "Paiement"
 
+#, python-format
 msgid "الذي جمعته لحد الآن (%(confirmees)s من %(prevues)s حصص)"
 msgstr "Ce que vous avez gagné jusqu'à présent (%(confirmees)s sur %(prevues)s séances)"
 
@@ -552,6 +599,7 @@ msgstr "Les hommes"
 msgid "الرسائل"
 msgstr "Messages"
 
+#, python-format
 msgid "الرسائل — %(n)s رسائل غير مقروءة"
 msgstr "Messages — %(n)s messages non lus"
 
@@ -720,12 +768,14 @@ msgstr "Assيduité et comportement :"
 msgid "النساء"
 msgstr "An-Nisa"
 
+#, python-format
 msgid "النسخ (%(n)s)"
 msgstr "Copies (%(n)s)"
 
 msgid "النسخ المُقدَّمة"
 msgstr "Copies soumises"
 
+#, python-format
 msgid "النقاط (من %(max)s)"
 msgstr "Points (sur %(max)s)"
 
@@ -756,6 +806,7 @@ msgstr "Le délai de l'examen est écoulé"
 msgid "انتهت مهلة الـ24 ساعة — لن يكون بالإمكان تقييمها"
 msgstr "Le délai de 24 heures est écoulé — elle ne pourra plus être évaluée"
 
+#, python-format
 msgid "انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) قبل إتمامها بالكامل — تم تسجيل %(enregistrees)s من أصل %(total)s طالب فقط (معروضون أدناه)، ولن يكون بالإمكان تسجيل الباقي. ستبقى هذه الحصة \"غير مكتملة التقييم\" نهائياً."
 msgstr "Le délai d'évaluation de cette séance (24 heures depuis son début) a expiré avant qu'elle ne soit terminée — %(enregistrees)s élèves sur %(total)s seulement ont été enregistrés (affichés ci-dessous), le reste ne pourra plus l'être. Cette séance restera définitivement \"évaluation incomplète\"."
 
@@ -783,12 +834,14 @@ msgstr "En attente de la correction de l'enseignant pour certaines questions"
 msgid "بحث..."
 msgstr "Rechercher..."
 
+#, python-format
 msgid "بحد أقصى %(max)s"
 msgstr "%(max)s au maximum"
 
 msgid "بدء الاختبار"
 msgstr "Commencer l'examen"
 
+#, python-format
 msgid "بدأت في %(date_debut)s"
 msgstr "Commencée le %(date_debut)s"
 
@@ -801,12 +854,14 @@ msgstr "Reste de cette semaine"
 msgid "بمجرد أن يبدأ الطالب، تُحسب المدة من لحظة بدايته — لا يمكن تمديدها لاحقاً."
 msgstr "Dès que l'élève commence, la durée est comptée à partir de ce moment — elle ne peut pas être prolongée par la suite."
 
+#, python-format
 msgid "بواسطة %(nom)s"
 msgstr "Par %(nom)s"
 
 msgid "بياناتي الشهرية"
 msgstr "Mes bilans mensuels"
 
+#, python-format
 msgid "بين %(min)s و%(max)s"
 msgstr "Entre %(min)s et %(max)s"
 
@@ -861,6 +916,7 @@ msgstr "Correction automatique"
 msgid "تصحيح نسخة"
 msgstr "Correction de la copie"
 
+#, python-format
 msgid "تصحيح نسخة %(nom)s"
 msgstr "Correction de la copie de %(nom)s"
 
@@ -954,6 +1010,7 @@ msgstr "Copié"
 msgid "تم تحديث رقم الهاتف بنجاح."
 msgstr "Le numéro de téléphone a été mis à jour avec succès."
 
+#, python-format
 msgid "تم تسجيل طلبك بنجاح، %(nom)s"
 msgstr "Votre demande a été enregistrée avec succès, %(nom)s"
 
@@ -1044,6 +1101,7 @@ msgstr "Calcul de votre salaire mensuel selon la grille tarifaire de la platefor
 msgid "حسابك مؤرشف حالياً، تواصل مع الإدارة."
 msgstr "Votre compte est actuellement archivé, contactez l'administration."
 
+#, python-format
 msgid "حسب حصة %(date_seance)s — %(nom_groupe)s"
 msgstr "Selon la séance du %(date_seance)s — %(nom_groupe)s"
 
@@ -1173,14 +1231,21 @@ msgstr "Liens fixes"
 msgid "زدني علماً"
 msgstr "Zidni Ilman"
 
+#, python-format
 msgid "سؤال %(num)s / %(total)s — %(points)s نقطة"
 msgstr "Question %(num)s / %(total)s — %(points)s point(s)"
 
+#, python-format
 msgid "سؤال %(num)s — %(type_q)s — %(points)s نقطة"
 msgstr "Question %(num)s — %(type_q)s — %(points)s point(s)"
 
-msgid "ستحصل على <strong>%(duree)s دقيقة</strong> بمجرد الضغط على \"بدء الاختبار\".\n        الوقت يستمر في الجريان حتى لو أغلقت الصفحة أو غادرت الموقع — لا يمكن استئنافه لاحقاً بمدة جديدة."
-msgstr "Vous disposerez de <strong>%(duree)s minutes</strong> dès que vous appuyez sur \"Commencer l'examen\".\n        Le temps continue de s'écouler même si vous fermez la page ou quittez le site — il ne peut pas être repris ensuite avec une nouvelle durée."
+#, python-format
+msgid ""
+"ستحصل على <strong>%(duree)s دقيقة</strong> بمجرد الضغط على \"بدء الاختبار\".\n"
+"        الوقت يستمر في الجريان حتى لو أغلقت الصفحة أو غادرت الموقع — لا يمكن استئنافه لاحقاً بمدة جديدة."
+msgstr ""
+"Vous disposerez de <strong>%(duree)s minutes</strong> dès que vous appuyez sur \"Commencer l'examen\".\n"
+"        Le temps continue de s'écouler même si vous fermez la page ou quittez le site — il ne peut pas être repris ensuite avec une nouvelle durée."
 
 msgid "ستظهر هنا فور نشر الإدارة لإعلان جديد في هذه القناة."
 msgstr "Elles apparaîtront ici dès que l'administration publiera une nouvelle annonce dans ce canal."
@@ -1209,9 +1274,11 @@ msgstr "sourate commencée"
 msgid "سيتم تحديث الحضور والتقييمات لهذه الحصة المنتهية. هل أنت متأكد؟"
 msgstr "La présence et les évaluations de cette séance terminée seront mises à jour. Êtes-vous sûr ?"
 
+#, python-format
 msgid "سيتواصل معك فريقنا خلال %(heures)s ساعة."
 msgstr "Notre équipe vous contactera sous %(heures)s heures."
 
+#, python-format
 msgid "سُلِّمت في %(date_soumission)s"
 msgstr "Soumise le %(date_soumission)s"
 
@@ -1224,6 +1291,7 @@ msgstr "Vrai"
 msgid "صح / خطأ"
 msgstr "Vrai / Faux"
 
+#, python-format
 msgid "صفحة %(num)s من %(total)s"
 msgstr "Page %(num)s sur %(total)s"
 
@@ -1263,12 +1331,14 @@ msgstr "Tout afficher ←"
 msgid "عرض الميثاق ←"
 msgstr "Voir la charte ←"
 
+#, python-format
 msgid "عرض جميع الحصص (%(n)s) ↓"
 msgstr "Afficher toutes les séances (%(n)s) ↓"
 
 msgid "عرض جميع الحصص ←"
 msgstr "Voir toutes les séances ←"
 
+#, python-format
 msgid "عرض جميع المجموعات السابقة (%(total)s) ↓"
 msgstr "Afficher tous les groupes précédents (%(total)s) ↓"
 
@@ -1287,6 +1357,7 @@ msgstr "Note /20"
 msgid "عنوان الاختبار"
 msgstr "Titre de l'examen"
 
+#, python-format
 msgid "عُدّلت %(date_mod)s"
 msgstr "Modifiée le %(date_mod)s"
 
@@ -1503,12 +1574,18 @@ msgstr "Pour la mémorisation du Coran à distance"
 msgid "لتغيير كلمة المرور، تواصل مع الإدارة."
 msgstr "Pour changer votre mot de passe, contactez l'administration."
 
-msgid "لديك طلب تعديل معلّق منذ %(date_demande)s بانتظار موافقة الإدارة.\n    جدولك الحالي (أدناه) يبقى سارياً حتى تتم الموافقة. يمكنك تعديل اقتراحك وإعادة إرساله في أي وقت."
-msgstr "Vous avez une demande de modification en attente depuis le %(date_demande)s, en attente d'approbation de l'administration.\n    Votre horaire actuel (ci-dessous) reste en vigueur jusqu'à l'approbation. Vous pouvez modifier votre proposition et la renvoyer à tout moment."
+#, python-format
+msgid ""
+"لديك طلب تعديل معلّق منذ %(date_demande)s بانتظار موافقة الإدارة.\n"
+"    جدولك الحالي (أدناه) يبقى سارياً حتى تتم الموافقة. يمكنك تعديل اقتراحك وإعادة إرساله في أي وقت."
+msgstr ""
+"Vous avez une demande de modification en attente depuis le %(date_demande)s, en attente d'approbation de l'administration.\n"
+"    Votre horaire actuel (ci-dessous) reste en vigueur jusqu'à l'approbation. Vous pouvez modifier votre proposition et la renvoyer à tout moment."
 
 msgid "لقد قرأت ووافقت على الميثاق"
 msgstr "J'ai lu et j'accepte la charte"
 
+#, python-format
 msgid "لقد وافقت على الميثاق بتاريخ %(date_acceptation)s"
 msgstr "Vous avez accepté la charte le %(date_acceptation)s"
 
@@ -1626,6 +1703,7 @@ msgstr "Continuer ←"
 msgid "متاح إلى غاية"
 msgstr "Disponible jusqu'au"
 
+#, python-format
 msgid "متاح إلى غاية %(date_limite)s"
 msgstr "Disponible jusqu'au %(date_limite)s"
 
@@ -1659,9 +1737,11 @@ msgstr "Groupes proches que vous pouvez rejoindre dès maintenant :"
 msgid "مجموعاتي"
 msgstr "Mes groupes"
 
+#, python-format
 msgid "مجموعاتي %(n)s"
 msgstr "Mes groupes %(n)s"
 
+#, python-format
 msgid "مجموعاتي (%(n)s)"
 msgstr "Mes groupes (%(n)s)"
 
@@ -1746,6 +1826,7 @@ msgstr "Remarque (facultatif)"
 msgid "ملاحظة المعلم"
 msgstr "Remarque de l'enseignant"
 
+#, python-format
 msgid "ملاحظة بتاريخ %(date_note)s"
 msgstr "Note du %(date_note)s"
 
@@ -1803,6 +1884,7 @@ msgstr "Horaires des groupes actifs"
 msgid "موقوف"
 msgstr "Suspendu"
 
+#, python-format
 msgid "موقوف منذ %(n)s يوم"
 msgstr "Suspendu depuis %(n)s jour(s)"
 
@@ -1812,6 +1894,7 @@ msgstr "Charte de l'enseignement"
 msgid "نسخ"
 msgstr "Copier"
 
+#, python-format
 msgid "نسخ %(titre)s"
 msgstr "Copies de %(titre)s"
 
@@ -1842,6 +1925,7 @@ msgstr "Texte libre — non rempli automatiquement"
 msgid "نوع السؤال"
 msgstr "Type de question"
 
+#, python-format
 msgid "هذا الاختبار غير متاح بعد. يبدأ في %(date_debut)s."
 msgstr "Cet examen n'est pas encore disponible. Il commence le %(date_debut)s."
 
@@ -1953,6 +2037,7 @@ msgstr "Les règles et engagements que vous avez acceptés lors de votre inscrip
 msgid "بانتظار معالجة الإدارة."
 msgstr "En attente de traitement par l'administration."
 
+#, python-format
 msgid "جماعي — %(tranche)s — %(n)s حصص/أسبوع"
 msgstr "Collectif — %(tranche)s — %(n)s séances/semaine"
 
@@ -1974,17 +2059,28 @@ msgstr "Demander un changement de groupe 🔄"
 msgid "عدد حصص غير معروف"
 msgstr "Nombre de séances inconnu"
 
+#, python-format
 msgid "فردي — %(tranche)s"
 msgstr "Individuel — %(tranche)s"
 
-msgid "لا توجد تعرفة محددة لهذه المجموعة بعد (%(nb)s حصص/أسبوع) —\n                لم يُحتسب أي مبلغ عنها حتى تُضبط التعرفة من طرف الإدارة."
-msgstr "Aucun tarif défini pour ce groupe pour l'instant (%(nb)s séances/semaine) —\n                aucun montant n'a été calculé pour lui tant que le tarif n'est pas réglé par l'administration."
+#, python-format
+msgid ""
+"لا توجد تعرفة محددة لهذه المجموعة بعد (%(nb)s حصص/أسبوع) —\n"
+"                لم يُحتسب أي مبلغ عنها حتى تُضبط التعرفة من طرف الإدارة."
+msgstr ""
+"Aucun tarif défini pour ce groupe pour l'instant (%(nb)s séances/semaine) —\n"
+"                aucun montant n'a été calculé pour lui tant que le tarif n'est pas réglé par l'administration."
 
 msgid "لا توجد حلقات أخرى متوافقة مع جنسك وعمرك حالياً."
 msgstr "Aucun autre groupe compatible avec votre sexe et votre âge actuellement."
 
-msgid "لديك بالفعل طلب قيد الانتظار (إلى: <strong>%(nom_groupe)s</strong>) —\n        يجب معالجته من طرف الإدارة قبل إرسال طلب جديد."
-msgstr "Vous avez déjà une demande en attente (vers : <strong>%(nom_groupe)s</strong>) —\n        elle doit être traitée par l'administration avant d'envoyer une nouvelle demande."
+#, python-format
+msgid ""
+"لديك بالفعل طلب قيد الانتظار (إلى: <strong>%(nom_groupe)s</strong>) —\n"
+"        يجب معالجته من طرف الإدارة قبل إرسال طلب جديد."
+msgstr ""
+"Vous avez déjà une demande en attente (vers : <strong>%(nom_groupe)s</strong>) —\n"
+"        elle doit être traitée par l'administration avant d'envoyer une nouvelle demande."
 
 msgid "للاطلاع فقط — الموافقة عليه تتم عند التسجيل كمعلم"
 msgstr "À titre informatif uniquement — l'approbation se fait lors de l'inscription comme enseignant"
@@ -2481,24 +2577,31 @@ msgstr "Veuillez lire la charte en entier avant de l'accepter — l'acceptation 
 msgid "يرجى ملء جميع الخانات بدقة"
 msgstr "Veuillez remplir tous les champs avec précision"
 
+#, python-format
 msgid "\"%(label)s\" إلزامي."
 msgstr "\"%(label)s\" est obligatoire."
 
+#, python-format
 msgid "\"%(label)s\" غير صالح."
 msgstr "\"%(label)s\" est invalide."
 
+#, python-format
 msgid "\"%(label)s\" يجب ألا يتجاوز %(max)s."
 msgstr "\"%(label)s\" ne doit pas dépasser %(max)s."
 
+#, python-format
 msgid "\"%(label)s\" يجب أن يكون %(min)s على الأقل."
 msgstr "\"%(label)s\" doit être au moins %(min)s."
 
+#, python-format
 msgid "\"%(label)s\" يجب أن يكون رقماً صحيحاً."
 msgstr "\"%(label)s\" doit être un nombre entier."
 
+#, python-format
 msgid "\"%(label)s\" يجب أن يكون على الأقل 1."
 msgstr "\"%(label)s\" doit être au moins 1."
 
+#, python-format
 msgid "خيار غير صالح ضمن \"%(label)s\"."
 msgstr "Option invalide dans \"%(label)s\"."
 
@@ -2568,6 +2671,7 @@ msgstr "Envoi en cours..."
 msgid "سجل المدفوعات"
 msgstr "Historique des paiements"
 
+#, python-format
 msgid "%(montant)s درهم — أُرسل في %(date)s"
 msgstr "%(montant)s dirhams — envoyé le %(date)s"
 
@@ -2640,15 +2744,18 @@ msgstr "Tout ce qui nécessite votre attention"
 msgid "كل ما يخصك شخصياً — اختبارات، تقييمات، ملفات جديدة"
 msgstr "Tout ce qui vous concerne personnellement — examens, évaluations, nouveaux fichiers"
 
+#, python-format
 msgid "اختبار جديد: %(titre)s"
 msgstr "Nouvel examen : %(titre)s"
 
 msgid "اختبارات جديدة"
 msgstr "Nouveaux examens"
 
+#, python-format
 msgid "تقييم جديد لحصة %(groupe)s"
 msgstr "Nouvelle évaluation pour la séance %(groupe)s"
 
+#, python-format
 msgid "ملف جديد في حقيبتك: %(titre)s"
 msgstr "Nouveau fichier dans votre cartable : %(titre)s"
 
@@ -2661,9 +2768,11 @@ msgstr "Nouveaux fichiers dans votre cartable"
 msgid "بدون عنوان"
 msgstr "Sans titre"
 
+#, python-format
 msgid "تقييم جديد من المؤطر على حصة %(groupe)s"
 msgstr "Nouvelle évaluation du superviseur pour la séance %(groupe)s"
 
+#, python-format
 msgid "ملف جديد في حقيبة الأستاذ: %(titre)s"
 msgstr "Nouveau fichier dans le dossier enseignant : %(titre)s"
 
@@ -2673,12 +2782,15 @@ msgstr "Nouvelles évaluations du superviseur"
 msgid "ملفات جديدة في حقيبة الأستاذ"
 msgstr "Nouveaux fichiers dans le dossier enseignant"
 
+#, python-format
 msgid "طلب تسجيل جديد: %(nom)s"
 msgstr "Nouvelle candidature : %(nom)s"
 
+#, python-format
 msgid "طلب أستاذ بانتظار تصديقك: %(nom)s %(prenom)s"
 msgstr "Candidature enseignant en attente de votre validation : %(nom)s %(prenom)s"
 
+#, python-format
 msgid "طلب تغيير حلقة: %(nom)s"
 msgstr "Demande de changement de groupe : %(nom)s"
 
@@ -2700,6 +2812,7 @@ msgstr "Il y a 1 minute"
 msgid "منذ دقيقتين"
 msgstr "Il y a 2 minutes"
 
+#, python-format
 msgid "منذ %(n)s دقائق"
 msgstr "Il y a %(n)s minutes"
 
@@ -2709,6 +2822,7 @@ msgstr "Il y a 1 heure"
 msgid "منذ ساعتين"
 msgstr "Il y a 2 heures"
 
+#, python-format
 msgid "منذ %(n)s ساعات"
 msgstr "Il y a %(n)s heures"
 
@@ -2718,6 +2832,7 @@ msgstr "Il y a 1 jour"
 msgid "منذ يومين"
 msgstr "Il y a 2 jours"
 
+#, python-format
 msgid "منذ %(n)s أيام"
 msgstr "Il y a %(n)s jours"
 
@@ -2727,12 +2842,41 @@ msgstr "Il y a 1 semaine"
 msgid "منذ أسبوعين"
 msgstr "Il y a 2 semaines"
 
+#, python-format
 msgid "منذ %(n)s أسابيع"
 msgstr "Il y a %(n)s semaines"
+
+msgid "يرجى اختيار الفئة العمرية."
+msgstr "Veuillez choisir la catégorie d'âge."
+
+msgid "يرجى اختيار مجموعة قريبة أو تأكيد الانتظار قبل المتابعة."
+msgstr "Veuillez choisir un groupe proche ou confirmer l'attente avant de continuer."
+
+msgid "يرجى اختيار مجموعة من القائمة المتاحة."
+msgstr "Veuillez choisir un groupe dans la liste disponible."
+
+msgid "يرجى اختيار نوع اشتراك صالح."
+msgstr "Veuillez choisir un type d'abonnement valide."
+
+msgid "يرجى اختيار طريقة دفع صالحة."
+msgstr "Veuillez choisir un moyen de paiement valide."
+
+msgid "شهر واحد"
+msgstr "1 mois"
+
+msgid "3 أشهر"
+msgstr "3 mois"
+
+msgid "6 أشهر"
+msgstr "6 mois"
+
+msgid "سنة واحدة"
+msgstr "1 an"
 
 msgid "التسجيل مغلق حالياً"
 msgstr "Inscription actuellement fermée"
 
+#, python-format
 msgid "التسجيل مغلق حالياً لفئة %(categorie_label)s"
 msgstr "Inscription actuellement fermée pour la catégorie %(categorie_label)s"
 
@@ -2745,5 +2889,852 @@ msgstr "Étudiants enfants"
 msgid "الأساتذة"
 msgstr "Enseignants"
 
-msgid "نعتذر، التسجيل في هذه الفئة متوقف مؤقتاً حالياً. يمكنكم التواصل مع الإدارة\n            للاستفسار أو معرفة موعد إعادة الفتح."
-msgstr "Nous nous excusons, l'inscription pour cette catégorie est temporairement suspendue. Vous pouvez contacter l'administration\n            pour vous renseigner ou connaître la date de réouverture."
+msgid ""
+"نعتذر، التسجيل في هذه الفئة متوقف مؤقتاً حالياً. يمكنكم التواصل مع الإدارة\n"
+"            للاستفسار أو معرفة موعد إعادة الفتح."
+msgstr ""
+"Nous nous excusons, l'inscription pour cette catégorie est temporairement suspendue. Vous pouvez contacter l'administration\n"
+"            pour vous renseigner ou connaître la date de réouverture."
+
+msgid "تعديل تعرفة جماعي"
+msgstr "Modifier tarif groupe"
+
+msgid "الفئة العمرية"
+msgstr "Tranche d'âge"
+
+msgid "عدد الحصص/أسبوع"
+msgstr "Nombre de séances/semaine"
+
+msgid "السعر (درهم / طالب نشط / شهر) *"
+msgstr "Prix (DH / élève actif / mois) *"
+
+msgid "نشطة"
+msgstr "Actif"
+
+msgid "تعطيل هذه التعرفة يجعلها تُعتبر \"غير محددة\" من جديد (راتب المعلمين المعنيين يُشار إليه بتحذير بدل احتساب خاطئ)."
+msgstr "Désactiver ce tarif le fait redevenir \"non défini\" (le salaire des professeurs concernés sera signalé par un avertissement au lieu d'un calcul erroné)."
+
+msgid "حفظ التعديلات ✅"
+msgstr "Enregistrer les modifications ✅"
+
+#, python-format
+msgid "تعديل: %(tranche)s — %(n)s حصص/أسبوع"
+msgstr "Modifier : %(tranche)s — %(n)s séances/semaine"
+
+msgid "تعديل تعرفة فردي"
+msgstr "Modifier tarif individuel"
+
+msgid "السعر (درهم / حصة مُنجزة فعلياً) *"
+msgstr "Prix (DH / séance réellement effectuée) *"
+
+msgid "يُحتسب هذا المبلغ لكل حصة فردية أُنجزت فعلياً هذا الشهر (المعلم حضّر والطالب حضر) — وليس مبلغاً شهرياً ثابتاً."
+msgstr "Ce montant est calculé pour chaque séance individuelle réellement effectuée ce mois-ci (professeur présent et élève présent) — pas un montant mensuel fixe."
+
+#, python-format
+msgid "تعديل: %(tranche)s (فردي)"
+msgstr "Modifier : %(tranche)s (individuel)"
+
+msgid "شبكة تعرفات رواتب المعلمين"
+msgstr "Grille des tarifs de rémunération des professeurs"
+
+msgid "تُستخدم هذه التعرفات لحساب راتب كل معلم تلقائياً حسب نوع الحلقة وعمر كل طالب وعدد الحصص الأسبوعية"
+msgstr "Ces tarifs servent à calculer automatiquement le salaire de chaque professeur selon le type de halaka, l'âge de chaque élève et le nombre de séances hebdomadaires"
+
+msgid "جماعي — مبلغ ثابت لكل طالب نشط شهرياً"
+msgstr "Groupe — montant fixe par élève actif et par mois"
+
+msgid "البالغون"
+msgstr "Adultes"
+
+msgid "معطّلة"
+msgstr "Désactivée"
+
+msgid "تعديل ✏️"
+msgstr "Modifier ✏️"
+
+msgid "لا توجد تعرفة بعد"
+msgstr "Aucun tarif pour le moment"
+
+msgid "إضافة تعرفة جماعي"
+msgstr "Ajouter un tarif groupe"
+
+msgid "المبلغ"
+msgstr "Montant"
+
+msgid "إضافة"
+msgstr "Ajouter"
+
+msgid "لا توجد أي حالة \"عدد حصص\" مفعّلة —"
+msgstr "Aucune option \"nombre de séances\" activée —"
+
+msgid "أضف واحدة أولاً"
+msgstr "Ajoutez-en une d'abord"
+
+msgid "فردي — مبلغ لكل حصة تُنجَز فعلياً"
+msgstr "Individuel — montant par séance réellement effectuée"
+
+msgid "لا توجد تعرفات — تحقق من الترحيل (migration)"
+msgstr "Aucun tarif — vérifiez la migration"
+
+msgid "إدارة أعداد الحصص الأسبوعية المتاحة (1، 2، 3...)"
+msgstr "Gérer les nombres de séances hebdomadaires disponibles (1, 2, 3...)"
+
+#, python-format
+msgid ""
+"%(configures)s من أصل %(total)s تعرفة \"جماعي\" محددة. الحالات التالية بدون تعرفة —\n"
+"    أي معلم/طالب معني بها لن يُحتسب راتبه عن هذه الحلقة تلقائياً حتى تُحدَّد:"
+msgstr ""
+"%(configures)s sur %(total)s tarifs \"groupe\" définis. Les cas suivants n'ont pas de tarif —\n"
+"    le salaire de tout professeur/élève concerné par cette halaka ne sera pas calculé automatiquement tant qu'il n'est pas défini :"
+
+#, python-format
+msgid "%(n)s حصص/أسبوع"
+msgstr "%(n)s séances/semaine"
+
+#, python-format
+msgid "%(montant)s درهم / طالب نشط / شهر"
+msgstr "%(montant)s DH / élève actif / mois"
+
+#, python-format
+msgid "%(montant)s درهم / حصة مُنجزة فعلياً"
+msgstr "%(montant)s DH / séance réellement effectuée"
+
+msgid "هامش رابط الحصص"
+msgstr "Marge du lien de séance"
+
+msgid "آخر تعديل:"
+msgstr "Dernière modification :"
+
+msgid "الهامش قبل بداية الحصة"
+msgstr "Marge avant le début de la séance"
+
+msgid "بالدقائق — يصبح الرابط قابلاً للنقر قبل هذه المدة من الموعد"
+msgstr "En minutes — le lien devient cliquable avant ce délai par rapport à l'horaire"
+
+msgid "الهامش بعد نهاية الحصة"
+msgstr "Marge après la fin de la séance"
+
+msgid "بالدقائق — يبقى الرابط قابلاً للنقر بعد هذه المدة من نهاية الحصة"
+msgstr "En minutes — le lien reste cliquable après ce délai suivant la fin de la séance"
+
+msgid "خارج هذا الهامش، يبقى رابط الاجتماع ظاهراً لكن غير قابل للنقر — يوجَّه من يحاول الوصول إليه مباشرة إلى رسالة توضح موعد الحصة. يُعاد احتساب هذا الهامش عند كل محاولة وصول، فلا حاجة لأي إجراء إضافي عند تعديل موعد حصة أو هذا الإعداد."
+msgstr "En dehors de cette marge, le lien de la réunion reste visible mais non cliquable — quiconque essaie d'y accéder directement est redirigé vers un message indiquant l'horaire de la séance. Cette marge est recalculée à chaque tentative d'accès, aucune action supplémentaire n'est donc nécessaire après modification de l'horaire d'une séance ou de ce réglage."
+
+msgid "مدة الاحتفاظ برسائل الدردشة"
+msgstr "Durée de conservation des messages du chat"
+
+msgid "مدة الاحتفاظ (بالأيام)"
+msgstr "Durée de conservation (en jours)"
+
+msgid "تُحذف تلقائياً رسائل الدردشة الأقدم من هذه المدة (7 أيام افتراضياً)"
+msgstr "Les messages du chat plus anciens que cette durée sont supprimés automatiquement (7 jours par défaut)"
+
+msgid "هذا الإعداد يخص فقط رسائل الدردشة (النصوص والملفات والرسائل الصوتية) — لا يؤثر إطلاقاً على الحسابات أو المجموعات أو الحصص أو أي بيانات أخرى في المنصة."
+msgstr "Ce réglage concerne uniquement les messages du chat (textes, fichiers et messages vocaux) — il n'affecte en rien les comptes, les groupes, les séances ou toute autre donnée de la plateforme."
+
+msgid "المعاينة الحالية — الأطفال"
+msgstr "Aperçu actuel — Enfants"
+
+msgid "لم يتم نشر أي محتوى بعد."
+msgstr "Aucun contenu publié pour le moment."
+
+msgid "المعاينة الحالية — البالغون"
+msgstr "Aperçu actuel — Adultes"
+
+msgid "تعديل النصوص"
+msgstr "Modifier les textes"
+
+msgid "نسخة الأطفال"
+msgstr "Version enfants"
+
+msgid "عنوان البرنامج"
+msgstr "Titre du programme"
+
+msgid "مقدّمة"
+msgstr "Introduction"
+
+msgid "النقاط (سطر واحد لكل نقطة، مثال: \"المرحلة الأولى: حفظ جزء عمّ\")"
+msgstr "Les points (une ligne par point, exemple : \"Étape 1 : mémorisation du Joz' Amma\")"
+
+msgid "الفاصلة \":\" اختيارية."
+msgstr "Le signe \":\" est facultatif."
+
+msgid "نسخة البالغين"
+msgstr "Version adultes"
+
+msgid "النقاط (سطر واحد لكل نقطة)"
+msgstr "Les points (une ligne par point)"
+
+#, python-format
+msgid "آخر تعديل: %(date)s — مرئي للمعلمين والطلاب، بحسب الفئة العمرية"
+msgstr "Dernière modification : %(date)s — visible par les professeurs et les élèves, selon la tranche d'âge"
+
+msgid "اشتراكات إشعارات تيليجرام"
+msgstr "Abonnements aux notifications Telegram"
+
+msgid "(بدون اسم)"
+msgstr "(sans nom)"
+
+msgid "كل من يرسل /start إلى بوت الإشعارات يظهر هنا بانتظار الموافقة —"
+msgstr "Toute personne qui envoie /start au bot de notifications apparaît ici en attente d'approbation —"
+
+msgid "لن يستقبل أي إشعار (طلبات تسجيل، مدفوعات، نسيان كلمة المرور...) قبل أن يوافق عليه مدير أو مشرف."
+msgstr "elle ne recevra aucune notification (demandes d'inscription, paiements, mot de passe oublié...) avant qu'un directeur ou un superviseur ne l'approuve."
+
+msgid "بانتظار الموافقة"
+msgstr "En attente d'approbation"
+
+msgid "قبول ✅"
+msgstr "Accepter ✅"
+
+msgid "رفض ❌"
+msgstr "Refuser ❌"
+
+msgid "لا توجد طلبات اشتراك بانتظار الموافقة"
+msgstr "Aucune demande d'abonnement en attente d'approbation"
+
+msgid "المشتركون النشطون"
+msgstr "Abonnés actifs"
+
+msgid "إلغاء التفعيل"
+msgstr "Désactiver"
+
+msgid "لا يوجد مشترك نشط حالياً"
+msgstr "Aucun abonné actif pour le moment"
+
+msgid "غير نشطين (سجل قديم)"
+msgstr "Inactifs (historique)"
+
+#, python-format
+msgid "طلب في %(date)s"
+msgstr "Demandé le %(date)s"
+
+#, python-format
+msgid "مفعّل منذ %(date)s"
+msgstr "Activé depuis le %(date)s"
+
+#, python-format
+msgid "بموافقة %(nom)s"
+msgstr "Approuvé par %(nom)s"
+
+#, python-format
+msgid "أُلغي في %(date)s"
+msgstr "Annulé le %(date)s"
+
+msgid "إدارة حقيبة الأستاذ"
+msgstr "Gestion de la mallette du professeur"
+
+msgid "نصوص، ملفات وموارد تضيفها الإدارة — تظهر للأساتذة المعنيين في صفحة \"حقيبة الأستاذ\" الخاصة بهم (قراءة فقط)"
+msgstr "Textes, fichiers et ressources ajoutés par l'administration — visibles par les professeurs concernés sur leur page \"Mallette du professeur\" (lecture seule)"
+
+msgid "عنصر جديد"
+msgstr "Nouvel élément"
+
+msgid "عنوان (اختياري)"
+msgstr "Titre (facultatif)"
+
+msgid "اكتب ملاحظة أو نصا هنا مباشرة..."
+msgstr "Écrivez une note ou un texte directement ici..."
+
+msgid "الفئة المستهدفة"
+msgstr "Catégorie ciblée"
+
+msgid "كل الأساتذة"
+msgstr "Tous les professeurs"
+
+msgid "أساتذة محددون"
+msgstr "Professeurs spécifiques"
+
+msgid "ابحث عن أستاذ..."
+msgstr "Rechercher un professeur..."
+
+msgid "حفظ ✅"
+msgstr "Enregistrer ✅"
+
+msgid "حذف هذا العنصر من حقيبة الأستاذ؟"
+msgstr "Supprimer cet élément de la mallette du professeur ?"
+
+msgid "حذف 🗑️"
+msgstr "Supprimer 🗑️"
+
+msgid "لا توجد عناصر مضافة بعد"
+msgstr "Aucun élément ajouté pour le moment"
+
+#, python-format
+msgid "العناصر الحالية (%(n)s)"
+msgstr "Éléments actuels (%(n)s)"
+
+#, python-format
+msgid "بواسطة %(nom)s —"
+msgstr "Par %(nom)s —"
+
+msgid "ظهور بيانات الأستاذ للطالب"
+msgstr "Visibilité des données du professeur pour l'élève"
+
+msgid "التواصل والتفاعل"
+msgstr "Communication et interaction"
+
+msgid "معلومات التواصل المباشر"
+msgstr "Coordonnées directes"
+
+msgid "رقم الهاتف، وأيقونتا واتساب والبريد الإلكتروني"
+msgstr "Numéro de téléphone, et icônes WhatsApp et e-mail"
+
+msgid "المعلومات الأكاديمية"
+msgstr "Informations académiques"
+
+msgid "مستوى حفظ الأستاذ للقرآن الكريم"
+msgstr "Niveau de mémorisation du Coran du professeur"
+
+msgid "الشهادات التي يحملها الأستاذ"
+msgstr "Les certifications du professeur"
+
+msgid "اللغات التي يتقنها الأستاذ"
+msgstr "Les langues maîtrisées par le professeur"
+
+msgid "المسار الدراسي للأستاذ"
+msgstr "Le parcours scolaire du professeur"
+
+msgid "مسار الأستاذ في التدريس"
+msgstr "Le parcours du professeur dans l'enseignement"
+
+msgid "صفحة التسجيل"
+msgstr "Page d'inscription"
+
+msgid "نبذة الأستاذ في بطاقة الحلقة"
+msgstr "Présentation du professeur sur la carte de la halaka"
+
+msgid "يظهر نص \"نبذة التقديم\" (Prof.presentation_publique) في بطاقات الحلقات أثناء التسجيل — بخلاف بقية هذه الصفحة، لا يؤثر هذا الخيار على فيش الأستاذ التي يراها الطالب بعد التسجيل"
+msgstr "Affiche le texte \"présentation\" (Prof.presentation_publique) sur les cartes des halakas pendant l'inscription — contrairement au reste de cette page, cette option n'affecte pas la fiche du professeur que l'élève voit après son inscription"
+
+msgid "مدينة إقامة الأستاذ"
+msgstr "Ville de résidence du professeur"
+
+msgid "الفئة العمرية التي يفضل الأستاذ التدريس لها"
+msgstr "La tranche d'âge que le professeur préfère enseigner"
+
+msgid "مهنة أو عمل الأستاذ الحالي خارج التدريس"
+msgstr "La profession ou l'activité actuelle du professeur en dehors de l'enseignement"
+
+msgid "هذه هي الحقول الوحيدة القابلة للتخصيص من ملف الأستاذ للطالب — الاسم يبقى ظاهراً دائماً، ولا تأثير لهذه الإعدادات على ما يراه المشرف أو المؤطر."
+msgstr "Ce sont les seuls champs personnalisables du profil du professeur visible par l'élève — le nom reste toujours visible, et ces réglages n'affectent pas ce que voient le superviseur ou l'encadrant."
+
+#, python-format
+msgid "آخر تعديل: %(date)s — يتحكم فيما يراه الطالب من ملف أستاذه، وفي بطاقة الحلقة أثناء التسجيل (لا يؤثر على ما يراه المشرف أو المؤطر)"
+msgstr "Dernière modification : %(date)s — contrôle ce que l'élève voit du profil de son professeur, et sur la carte de la halaka pendant l'inscription (n'affecte pas ce que voient le superviseur ou l'encadrant)"
+
+msgid "حسابي"
+msgstr "Mon compte"
+
+msgid "معلومات التواصل (تظهر للطلاب والمعلمين والمؤطرين)"
+msgstr "Coordonnées (visibles par les élèves, les professeurs et les encadrants)"
+
+msgid "مثال: الأستاذة فاطمة الزهراء"
+msgstr "Exemple : Professeure Fatima Zahra"
+
+msgid "وصف مختصر"
+msgstr "Description courte"
+
+msgid "مثال: متاحة للتواصل من 9 صباحاً إلى 6 مساءً"
+msgstr "Exemple : disponible de 9h à 18h"
+
+msgid "رقم الواتساب"
+msgstr "Numéro WhatsApp"
+
+msgid "يُستخدم في زر \"تواصل عبر واتساب\" الظاهر للطلاب والمعلمين والمؤطرين، وكذلك في صفحة \"نسيت كلمة المرور\"."
+msgstr "Utilisé dans le bouton \"Contacter via WhatsApp\" visible par les élèves, les professeurs et les encadrants, ainsi que sur la page \"Mot de passe oublié\"."
+
+msgid "حفظ معلومات التواصل ✅"
+msgstr "Enregistrer les coordonnées ✅"
+
+#, python-format
+msgid "البريد الحالي: %(email)s"
+msgstr "E-mail actuel : %(email)s"
+
+msgid "تغيير البريد الإلكتروني"
+msgstr "Changer l'adresse e-mail"
+
+msgid "البريد الإلكتروني الجديد *"
+msgstr "Nouvelle adresse e-mail *"
+
+msgid "تأكيد البريد الإلكتروني *"
+msgstr "Confirmer l'adresse e-mail *"
+
+msgid "سيتم تسجيل خروج هذا المستخدم تلقائياً من جميع الأجهزة فوراً. لن يصله أي إشعار تلقائي — ستظهر لك في الخطوة التالية رسالة جاهزة لإرسالها له يدوياً عبر واتساب."
+msgstr "Cet utilisateur sera automatiquement déconnecté de tous les appareils immédiatement. Il ne recevra aucune notification automatique — un message prêt à envoyer manuellement via WhatsApp vous sera proposé à l'étape suivante."
+
+msgid "حفظ التغيير ✅"
+msgstr "Enregistrer le changement ✅"
+
+msgid "← إلغاء"
+msgstr "← Annuler"
+
+#, python-format
+msgid "%(nom)s — البريد الحالي: %(email)s"
+msgstr "%(nom)s — e-mail actuel : %(email)s"
+
+msgid "تأكيد نطاق التغيير"
+msgstr "Confirmer la portée du changement"
+
+msgid "هذا البريد مشترك مع حسابات أخرى"
+msgstr "Cet e-mail est partagé avec d'autres comptes"
+
+msgid "الحسابات الأخرى المرتبطة بهذا البريد"
+msgstr "Les autres comptes liés à cet e-mail"
+
+msgid "البريد الجديد المطلوب"
+msgstr "Le nouvel e-mail demandé"
+
+msgid "← إلغاء، رجوع بدون أي تغيير"
+msgstr "← Annuler, retour sans aucun changement"
+
+#, python-format
+msgid "البريد الحالي (%(email)s) مستخدم أيضاً من طرف حساب واحد آخر — على الأرجح فرد من نفس الأسرة. اختر بدقة قبل المتابعة، لأن هذا التغيير لا يمكن التراجع عنه تلقائياً."
+msgstr "L'e-mail actuel (%(email)s) est aussi utilisé par un autre compte — probablement un membre de la même famille. Choisissez soigneusement avant de continuer, car ce changement ne peut pas être annulé automatiquement."
+
+#, python-format
+msgid "البريد الحالي (%(email)s) مستخدم أيضاً من طرف %(counter)s حسابات أخرى — على الأرجح أفراد نفس الأسرة. اختر بدقة قبل المتابعة، لأن هذا التغيير لا يمكن التراجع عنه تلقائياً."
+msgstr "L'e-mail actuel (%(email)s) est aussi utilisé par %(counter)s autres comptes — probablement des membres de la même famille. Choisissez soigneusement avant de continuer, car ce changement ne peut pas être annulé automatiquement."
+
+#, python-format
+msgid "تحديث هذا الحساب فقط (%(nom)s)"
+msgstr "Mettre à jour seulement ce compte (%(nom)s)"
+
+#, python-format
+msgid "الحسابات الأخرى تبقى على البريد القديم (%(email)s)."
+msgstr "Les autres comptes restent sur l'ancien e-mail (%(email)s)."
+
+#, python-format
+msgid "تحديث كل الحسابات المرتبطة بهذا البريد (%(n)s حساب)"
+msgstr "Mettre à jour tous les comptes liés à cet e-mail (%(n)s comptes)"
+
+#, python-format
+msgid "كل الحسابات المذكورة أعلاه + %(nom)s تنتقل جميعها إلى %(email)s."
+msgstr "Tous les comptes ci-dessus + %(nom)s passent tous à %(email)s."
+
+msgid "إعادة تعيين كلمة المرور"
+msgstr "Réinitialiser le mot de passe"
+
+msgid "انسخ كلمة المرور هذه الآن، لن تظهر مرة أخرى"
+msgstr "Copiez ce mot de passe maintenant, il ne réapparaîtra plus"
+
+msgid "لا يوجد رقم هاتف مسجَّل لهذا الحساب"
+msgstr "Aucun numéro de téléphone enregistré pour ce compte"
+
+msgid "سيتم تسجيل خروج هذا المستخدم فوراً من جميع الأجهزة، وستُنشأ كلمة مرور جديدة يمكنه استخدامها مباشرة لتسجيل الدخول. كلمة المرور القديمة تتوقف عن العمل فوراً."
+msgstr "Cet utilisateur sera immédiatement déconnecté de tous les appareils, et un nouveau mot de passe sera créé qu'il pourra utiliser directement pour se connecter. L'ancien mot de passe cesse de fonctionner immédiatement."
+
+msgid "إعادة تعيين كلمة المرور 🔑"
+msgstr "Réinitialiser le mot de passe 🔑"
+
+#, python-format
+msgid "يمكن لـ%(nom)s تسجيل الدخول مباشرة بهذه الكلمة، دون أي شاشة تغيير إجباري. لم يُرسَل أي بريد إلكتروني أو رسالة تلقائياً — استخدم الأزرار أدناه لإرسالها يدوياً."
+msgstr "%(nom)s peut se connecter directement avec ce mot de passe, sans aucun écran de changement obligatoire. Aucun e-mail ni message n'a été envoyé automatiquement — utilisez les boutons ci-dessous pour l'envoyer manuellement."
+
+#, python-format
+msgid "إعادة تعيين كلمة مرور %(nom)s؟ سيتم تسجيل خروجه من جميع الأجهزة فوراً، ولن يتمكن من الدخول إلا بكلمة المرور الجديدة."
+msgstr "Réinitialiser le mot de passe de %(nom)s ? Il sera déconnecté de tous les appareils immédiatement, et ne pourra se connecter qu'avec le nouveau mot de passe."
+
+msgid "كلمة المرور الحالية *"
+msgstr "Mot de passe actuel *"
+
+msgid "حفظ البريد الجديد ✅"
+msgstr "Enregistrer le nouvel e-mail ✅"
+
+msgid "تغيير كلمة المرور"
+msgstr "Changer le mot de passe"
+
+msgid "كلمة المرور الجديدة *"
+msgstr "Nouveau mot de passe *"
+
+msgid "تأكيد كلمة المرور الجديدة *"
+msgstr "Confirmer le nouveau mot de passe *"
+
+msgid "حفظ كلمة المرور ✅"
+msgstr "Enregistrer le mot de passe ✅"
+
+msgid "سيتم إنشاء كلمة مرور جديدة وإشعار الإدارة بها، وستُسجَّل خروجك فوراً. هل أنت متأكد؟"
+msgstr "Un nouveau mot de passe sera créé et l'administration en sera notifiée, et vous serez déconnecté(e) immédiatement. Êtes-vous sûr(e) ?"
+
+msgid "نسيت كلمة المرور الحالية ؟ إعادة تعيينها"
+msgstr "Mot de passe actuel oublié ? Le réinitialiser"
+
+msgid "طلبات التسجيل"
+msgstr "Demandes d'inscription"
+
+msgid "بحث بالاسم أو البريد الإلكتروني"
+msgstr "Recherche par nom ou e-mail"
+
+msgid "اكتب الاسم أو البريد الإلكتروني..."
+msgstr "Saisissez le nom ou l'e-mail..."
+
+msgid "نوع الطلب"
+msgstr "Type de demande"
+
+msgid "طلاب"
+msgstr "Élèves"
+
+msgid "معلمون"
+msgstr "Professeurs"
+
+msgid "بحث"
+msgstr "Rechercher"
+
+msgid "طالب"
+msgstr "Élève"
+
+msgid "معلم"
+msgstr "Professeur"
+
+msgid "عرض"
+msgstr "Voir"
+
+msgid "قبول"
+msgstr "Accepter"
+
+msgid "رفض"
+msgstr "Refuser"
+
+msgid "لا توجد طلبات معلقة"
+msgstr "Aucune demande en attente"
+
+#, python-format
+msgid "الطلبات المعلقة: %(n)s"
+msgstr "Demandes en attente : %(n)s"
+
+#, python-format
+msgid "تاريخ التقديم: %(date)s"
+msgstr "Date de soumission : %(date)s"
+
+#, python-format
+msgid "هل أنت متأكد من قبول طلب %(nom)s؟ سيتم إنشاء حساب مستخدم فعلي له."
+msgstr "Êtes-vous sûr(e) de vouloir accepter la demande de %(nom)s ? Un compte utilisateur réel sera créé pour lui/elle."
+
+#, python-format
+msgid "هل أنت متأكد من قبول طلب %(nom)s %(prenom)s مبدئياً؟ سيُحال إلى المشرف للتصديق النهائي (لن يُنشأ أي حساب الآن)."
+msgstr "Êtes-vous sûr(e) de vouloir accepter provisoirement la demande de %(nom)s %(prenom)s ? Elle sera transmise au superviseur pour validation finale (aucun compte ne sera créé maintenant)."
+
+msgid "إدارة فتح التسجيل"
+msgstr "Gestion de l'ouverture des inscriptions"
+
+msgid "التسجيل مفتوح حالياً"
+msgstr "L'inscription est actuellement ouverte"
+
+msgid "عند إغلاق فئة، يبقى زر التسجيل ظاهراً للزوار كالمعتاد، لكنهم يصلون إلى رسالة توضح أن التسجيل متوقف مؤقتاً. لا يؤثر هذا على الطلبات المُقدَّمة سابقاً — تبقى قابلة للمراجعة والقبول بشكل طبيعي."
+msgstr "Lorsqu'une catégorie est fermée, le bouton d'inscription reste visible pour les visiteurs comme d'habitude, mais ils arrivent sur un message indiquant que l'inscription est temporairement suspendue. Cela n'affecte pas les demandes déjà soumises — elles restent consultables et peuvent être acceptées normalement."
+
+msgid "آخر مهلة لأداء الاشتراك"
+msgstr "Délai limite pour le paiement de l'abonnement"
+
+msgid "عدد الأيام بعد التسجيل — يُعرض للطالب في نهاية النموذج."
+msgstr "Nombre de jours après l'inscription — affiché à l'élève à la fin du formulaire."
+
+msgid "يوم"
+msgstr "jour"
+
+msgid "مهلة التواصل مع الطالب بعد التسجيل"
+msgstr "Délai de contact avec l'élève après l'inscription"
+
+msgid "عدد الساعات — يُذكر في رسالة التأكيد النهائية."
+msgstr "Nombre d'heures — mentionné dans le message de confirmation final."
+
+msgid "ساعة"
+msgstr "heure"
+
+msgid "طلبات غير ملبّاة"
+msgstr "Demandes non satisfaites"
+
+msgid "كل مرة لم تكن فيها أي مجموعة متوافقة تماماً مع اختيارات طالب أثناء التسجيل — استخدمها لمعرفة أكثر التركيبات المطلوبة، لاتخاذ قرار فتح مجموعات جديدة."
+msgstr "Chaque fois qu'aucun groupe n'était parfaitement compatible avec les choix d'un élève pendant l'inscription — utilisez cette page pour connaître les combinaisons les plus demandées, afin de décider d'ouvrir de nouveaux groupes."
+
+msgid "إجمالي الطلبات غير الملبّاة"
+msgstr "Total des demandes non satisfaites"
+
+msgid "تحولت إلى طلب تسجيل فعلي"
+msgstr "Converties en demande d'inscription réelle"
+
+msgid "حالة التسجيل"
+msgstr "État de l'inscription"
+
+msgid "التسجيلات المكتملة فقط"
+msgstr "Inscriptions complètes uniquement"
+
+msgid "التسجيلات غير المكتملة فقط"
+msgstr "Inscriptions incomplètes uniquement"
+
+msgid "أكثر التركيبات طلباً"
+msgstr "Combinaisons les plus demandées"
+
+msgid "لا توجد تركيبات مطابقة لهذه التصفية."
+msgstr "Aucune combinaison ne correspond à ce filtre."
+
+msgid "لا توجد أي طلبات غير ملبّاة بعد."
+msgstr "Aucune demande non satisfaite pour le moment."
+
+msgid "كل الطلبات (بالتفصيل)"
+msgstr "Toutes les demandes (en détail)"
+
+msgid "لا توجد طلبات مطابقة لهذه التصفية."
+msgstr "Aucune demande ne correspond à ce filtre."
+
+#, python-format
+msgid "عدد الحصص: %(n)s"
+msgstr "Nombre de séances : %(n)s"
+
+#, python-format
+msgid "%(n)s طلب"
+msgstr "%(n)s demande(s)"
+
+#, python-format
+msgid "عرض كل الطلبات (%(n)s) ↓"
+msgstr "Voir toutes les demandes (%(n)s) ↓"
+
+msgid "تفاصيل الطلب غير الملبّى"
+msgstr "Détails de la demande non satisfaite"
+
+msgid "تفاصيل طلب غير ملبّى"
+msgstr "Détails d'une demande non satisfaite"
+
+msgid "— بدون اسم —"
+msgstr "— sans nom —"
+
+msgid "العمر"
+msgstr "Âge"
+
+msgid "نوع العرض"
+msgstr "Type d'offre"
+
+msgid "عدد الحصص الأسبوعية المطلوب"
+msgstr "Nombre de séances hebdomadaires demandé"
+
+msgid "المعايير المطلوبة"
+msgstr "Critères demandés"
+
+msgid "تاريخ الطلب"
+msgstr "Date de la demande"
+
+msgid "تحوّل إلى طلب تسجيل فعلي"
+msgstr "Converti en demande d'inscription réelle"
+
+msgid "← عرض ملف التسجيل الكامل"
+msgstr "← Voir le dossier d'inscription complet"
+
+msgid "لم يتم إكمال التسجيل — إمّا أن الطالب اختار الانتظار حتى تُنشأ حلقة مناسبة، أو غادر التسجيل قبل إتمامه."
+msgstr "L'inscription n'a pas été complétée — soit l'élève a choisi d'attendre qu'une halaka adaptée soit créée, soit il a quitté l'inscription avant de la terminer."
+
+msgid "هل أنت متأكد من حذف هذا الطلب نهائياً؟"
+msgstr "Êtes-vous sûr(e) de vouloir supprimer définitivement cette demande ?"
+
+msgid "حذف الطلب"
+msgstr "Supprimer la demande"
+
+msgid "طلبات تغيير الحلقة"
+msgstr "Demandes de changement de halaka"
+
+msgid "طلبات الطلاب بانتظار الموافقة — القبول ينقل الطالب تلقائياً إلى الحلقة الجديدة"
+msgstr "Demandes des élèves en attente d'approbation — l'acceptation transfère automatiquement l'élève vers la nouvelle halaka"
+
+msgid "— (لا يوجد)"
+msgstr "— (aucun)"
+
+msgid "— (حُذفت)"
+msgstr "— (supprimée)"
+
+msgid "هل تريد رفض هذا الطلب؟"
+msgstr "Voulez-vous refuser cette demande ?"
+
+msgid "لا توجد طلبات معلّقة"
+msgstr "Aucune demande en attente"
+
+#, python-format
+msgid "من: %(nom)s"
+msgstr "De : %(nom)s"
+
+#, python-format
+msgid "إلى: <strong>%(nom)s</strong>"
+msgstr "Vers : <strong>%(nom)s</strong>"
+
+#, python-format
+msgid "طُلب في %(date)s"
+msgstr "Demandé le %(date)s"
+
+msgid "طلبات تعديل الأوقات المتاحة للتدريس"
+msgstr "Demandes de modification des disponibilités d'enseignement"
+
+msgid "طلبات المعلمين بانتظار الموافقة"
+msgstr "Demandes des professeurs en attente d'approbation"
+
+msgid "بانتظار قرار الإدارة"
+msgstr "En attente de la décision de l'administration"
+
+msgid "تفاصيل طلب المعلم"
+msgstr "Détails de la demande du professeur"
+
+msgid "تم رفض هذا الطلب."
+msgstr "Cette demande a été refusée."
+
+msgid "التعامل مع الطالب الضعيف"
+msgstr "Gestion de l'élève en difficulté"
+
+msgid "التعامل مع الطالب الغائب"
+msgstr "Gestion de l'élève absent"
+
+msgid "معلومات إضافية"
+msgstr "Informations complémentaires"
+
+msgid "الأدوات"
+msgstr "Les outils"
+
+msgid "تاريخ التقديم"
+msgstr "Date de soumission"
+
+msgid "قبول الميثاق"
+msgstr "Acceptation de la charte"
+
+msgid "لم تُسجَّل (تسجيل يدوي)"
+msgstr "Non enregistrée (ajout manuel)"
+
+msgid "تعذر التحقق من وجود الملف الصوتي حالياً (مشكلة اتصال مؤقتة). أعد تحميل الصفحة لاحقاً للمحاولة مجدداً."
+msgstr "Impossible de vérifier l'existence du fichier audio pour le moment (problème de connexion temporaire). Rechargez la page plus tard pour réessayer."
+
+msgid "الملف الصوتي غير موجود على الخادم (فشل الرفع على الأرجح). يرجى التواصل مع المترشح لإعادة إرساله."
+msgstr "Le fichier audio n'existe pas sur le serveur (échec probable de l'envoi). Veuillez contacter le candidat pour qu'il le renvoie."
+
+msgid "المعلومات البنكية"
+msgstr "Informations bancaires"
+
+msgid "الحساب البنكي"
+msgstr "Compte bancaire"
+
+msgid "الأوقات المتاحة للتدريس المصرَّح بها"
+msgstr "Disponibilités d'enseignement déclarées"
+
+msgid "لم يحدد المترشح أي وقت متاح للتدريس."
+msgstr "Le candidat n'a indiqué aucune disponibilité pour enseigner."
+
+msgid "القبول هنا يُعتبر تصديقاً مبدئياً فقط — لا يُنشئ أي حساب. الطلب يُحال بعده إلى المشرف الذي يتخذ القرار النهائي وينشئ حساب المعلم عند القبول."
+msgstr "L'acceptation ici n'est qu'une validation préliminaire — elle ne crée aucun compte. La demande est ensuite transmise au superviseur, qui prend la décision finale et crée le compte du professeur en cas d'acceptation."
+
+#, python-format
+msgid "السبب: %(motif)s"
+msgstr "Motif : %(motif)s"
+
+#, python-format
+msgid "بتاريخ %(date)s"
+msgstr "Le %(date)s"
+
+msgid "تفاصيل الطلب"
+msgstr "Détails de la demande"
+
+msgid "تفاصيل طلب التسجيل"
+msgstr "Détails de la demande d'inscription"
+
+msgid "ولي الأمر"
+msgstr "Le tuteur"
+
+msgid "عمل ولي الأمر"
+msgstr "Profession du tuteur"
+
+msgid "الحلقة المطلوبة (طلب قديم)"
+msgstr "Halaka demandée (ancienne demande)"
+
+msgid "وسيلة الحضور"
+msgstr "Moyen de participation"
+
+msgid "عدد الحصص الأسبوعية والاشتراك"
+msgstr "Nombre de séances hebdomadaires et abonnement"
+
+msgid "السعر وقت الاختيار"
+msgstr "Prix au moment du choix"
+
+msgid "المبلغ الشهري الفعلي لهذه الحلقة"
+msgstr "Montant mensuel réel de cette halaka"
+
+msgid "المجموعات المتوافقة"
+msgstr "Groupes compatibles"
+
+msgid "المجموعة المختارة"
+msgstr "Groupe choisi"
+
+msgid "اشتراك فردي — لا حاجة إلى مجموعة/حلقة."
+msgstr "Abonnement individuel — aucun groupe/halaka nécessaire."
+
+msgid "اختار الطالب الانتظار حتى تُنشأ حلقة مناسبة"
+msgstr "L'élève a choisi d'attendre qu'une halaka adaptée soit créée"
+
+msgid "← عرض كل الطلبات غير المُلبّاة (لتحديد الاتجاهات)"
+msgstr "← Voir toutes les demandes non satisfaites (pour identifier les tendances)"
+
+msgid "لم يتم اختيار مجموعة لهذا الطلب. يمكنك رغم ذلك قبول الطلب، ثم إنشاء مجموعة جديدة أو التواصل مع الطالب لاحقاً."
+msgstr "Aucun groupe n'a été choisi pour cette demande. Vous pouvez néanmoins accepter la demande, puis créer un nouveau groupe ou contacter l'élève plus tard."
+
+msgid "لا توجد حلقة/مجموعة متوافقة حالياً (العمر، الجنس، البرنامج، الرواية، نوع الاشتراك، أو جدول التفرغ). يمكنك رغم ذلك قبول الطلب، ثم إنشاء مجموعة جديدة أو التواصل مع الطالب لاحقاً."
+msgstr "Aucune halaka/groupe compatible actuellement (âge, sexe, programme, riwaya, type d'abonnement, ou disponibilités). Vous pouvez néanmoins accepter la demande, puis créer un nouveau groupe ou contacter l'élève plus tard."
+
+msgid "التفرغ الأسبوعي المصرَّح به"
+msgstr "Disponibilités hebdomadaires déclarées"
+
+msgid "لم يحدد المترشح أي وقت تفرغ."
+msgstr "Le candidat n'a indiqué aucune disponibilité."
+
+msgid "قبول الشروط"
+msgstr "Acceptation des conditions"
+
+msgid "نعم"
+msgstr "Oui"
+
+msgid "لا"
+msgstr "Non"
+
+msgid "ملاحظات"
+msgstr "Remarques"
+
+msgid "إجابات إضافية"
+msgstr "Réponses complémentaires"
+
+msgid "لم يجد حلقة مناسبة — أوقاته المتاحة:"
+msgstr "N'a pas trouvé de halaka adaptée — ses disponibilités :"
+
+msgid "أُضيف يدوياً بواسطة"
+msgstr "Ajouté manuellement par"
+
+msgid "عند القبول، سيتم إنشاء كلمة مرور مؤقتة عشوائية وعرضها لك مباشرة بعد ذلك."
+msgstr "À l'acceptation, un mot de passe temporaire aléatoire sera créé et vous sera affiché immédiatement après."
+
+msgid "بلّغها للطالب — سيُطلب منه تغييرها إجبارياً عند أول تسجيل دخول."
+msgstr "Communiquez-le à l'élève — il devra le changer obligatoirement lors de sa première connexion."
+
+msgid "تعذر القبول — تعارض في البريد الإلكتروني"
+msgstr "Acceptation impossible — conflit d'adresse e-mail"
+
+msgid "حذف الحساب اليتيم"
+msgstr "Supprimer le compte orphelin"
+
+#, python-format
+msgid "%(montant)s درهم"
+msgstr "%(montant)s DH"
+
+#, python-format
+msgid "سعر خاص بـ %(n)s حصص/أسبوع — السعر الافتراضي: %(prix)s درهم"
+msgstr "Prix spécifique à %(n)s séances/semaine — prix par défaut : %(prix)s DH"
+
+#, python-format
+msgid "يوجد حساب بهذا البريد الإلكتروني (%(email)s) بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). يمكنك حذف هذا الحساب اليتيم ثم إعادة محاولة القبول."
+msgstr "Un compte existe avec cet e-mail (%(email)s) sans profil associé (probablement un ancien test). Vous pouvez supprimer ce compte orphelin puis retenter l'acceptation."
+
+#, python-format
+msgid "هل أنت متأكد من حذف هذا الحساب اليتيم (%(email)s)؟"
+msgstr "Êtes-vous sûr(e) de vouloir supprimer ce compte orphelin (%(email)s) ?"
+
+#, python-format
+msgid "يوجد حساب <strong>مؤرشف</strong> بهذا البريد الإلكتروني (%(email)s). يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول هذا الطلب."
+msgstr "Un compte <strong>archivé</strong> existe avec cet e-mail (%(email)s). Vous devez d'abord réactiver ce compte (ou changer son e-mail) avant d'accepter cette demande."
+
+#, python-format
+msgid "يوجد حساب نشط بهذا البريد الإلكتروني (%(email)s) مرتبط بملف شخصي آخر (دور الحساب: %(role)s). راجع هذا الحساب يدوياً — لا يمكن قبول هذا الطلب تلقائياً."
+msgstr "Un compte actif existe avec cet e-mail (%(email)s) lié à un autre profil (rôle du compte : %(role)s). Vérifiez ce compte manuellement — cette demande ne peut pas être acceptée automatiquement."
+
+#, python-format
+msgid "هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب طالب آخر نشط (%(nom)s) — على الأرجح فرد من نفس الأسرة. القبول سيُنشئ حساباً إضافياً مرتبطاً بنفس البريد الإلكتروني."
+msgstr "Cet e-mail est déjà utilisé par un autre compte élève actif (%(nom)s) — probablement un membre de la même famille. L'acceptation créera un compte supplémentaire lié au même e-mail."
+

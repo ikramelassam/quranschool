@@ -1,32 +1,35 @@
 {% extends base_template %}
-{% block title %}إعادة تعيين كلمة المرور{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "إعادة تعيين كلمة المرور" %}{% endblock %}
 {% block content %}
-<div class="page-title">إعادة تعيين كلمة المرور</div>
+<div class="page-title">{% trans "إعادة تعيين كلمة المرور" %}</div>
 <div class="page-subtitle">{{ utilisateur.get_full_name }} — {{ utilisateur.get_role_display }} — {{ utilisateur.email }}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:520px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     {% if mdp_genere %}
     <div style="background:#fff3cd; border:2px solid #ffc107; border-radius:10px; padding:18px 20px; margin-bottom:20px;">
-        <div style="font-weight:700; color:#7a5c00; margin-bottom:8px;">⚠️ انسخ كلمة المرور هذه الآن، لن تظهر مرة أخرى</div>
+        <div style="font-weight:700; color:#7a5c00; margin-bottom:8px;">⚠️ {% trans "انسخ كلمة المرور هذه الآن، لن تظهر مرة أخرى" %}</div>
         <div dir="ltr" style="background:white; border-radius:8px; padding:12px 16px; font-family:monospace; font-size:1.2rem; font-weight:700; letter-spacing:1px; text-align:center; color:var(--color-text-primary,#222); unicode-bidi:isolate;">{{ mdp_genere }}</div>
-        <div style="color:#7a5c00; font-size:0.82rem; margin-top:10px;">يمكن لـ{{ utilisateur.get_full_name }} تسجيل الدخول مباشرة بهذه الكلمة، دون أي شاشة تغيير إجباري. لم يُرسَل أي بريد إلكتروني أو رسالة تلقائياً — استخدم الأزرار أدناه لإرسالها يدوياً.</div>
+        <div style="color:#7a5c00; font-size:0.82rem; margin-top:10px;">{% blocktrans with nom=utilisateur.get_full_name %}يمكن لـ{{ nom }} تسجيل الدخول مباشرة بهذه الكلمة، دون أي شاشة تغيير إجباري. لم يُرسَل أي بريد إلكتروني أو رسالة تلقائياً — استخدم الأزرار أدناه لإرسالها يدوياً.{% endblocktrans %}</div>
     </div>
 
-    {% include 'dashboard/_contacts_whatsapp.html' with telephone_personne=utilisateur.telephone libelle_personne=libelle_personne_contact texte_absence_personne='لا يوجد رقم هاتف مسجَّل لهذا الحساب' message=message_pret_a_envoyer admins=admins %}
+    {% trans "لا يوجد رقم هاتف مسجَّل لهذا الحساب" as texte_absence_tel %}
+    {% include 'dashboard/_contacts_whatsapp.html' with telephone_personne=utilisateur.telephone libelle_personne=libelle_personne_contact texte_absence_personne=texte_absence_tel message=message_pret_a_envoyer admins=admins %}
 
-    <a href="{{ next }}" style="color:var(--color-role-admin,#2d5a1b); text-decoration:none; font-weight:600;">← رجوع</a>
+    <a href="{{ next }}" style="color:var(--color-role-admin,#2d5a1b); text-decoration:none; font-weight:600;">{% trans "← رجوع" %}</a>
     {% else %}
-    <form method="POST" onsubmit="return confirm('إعادة تعيين كلمة مرور {{ utilisateur.get_full_name|escapejs }}؟ سيتم تسجيل خروجه من جميع الأجهزة فوراً، ولن يتمكن من الدخول إلا بكلمة المرور الجديدة.');">
+    {% blocktrans asvar confirmation_reset with nom=utilisateur.get_full_name %}إعادة تعيين كلمة مرور {{ nom }}؟ سيتم تسجيل خروجه من جميع الأجهزة فوراً، ولن يتمكن من الدخول إلا بكلمة المرور الجديدة.{% endblocktrans %}
+    <form method="POST" onsubmit="return confirm('{{ confirmation_reset|escapejs }}');">
         {% csrf_token %}
         <div style="background:#f8d7da; color:#721c24; border-radius:8px; padding:12px 16px; font-size:0.85rem; margin-bottom:20px;">
-            ⚠️ سيتم تسجيل خروج هذا المستخدم فوراً من جميع الأجهزة، وستُنشأ كلمة مرور جديدة يمكنه استخدامها مباشرة لتسجيل الدخول. كلمة المرور القديمة تتوقف عن العمل فوراً.
+            ⚠️ {% trans "سيتم تسجيل خروج هذا المستخدم فوراً من جميع الأجهزة، وستُنشأ كلمة مرور جديدة يمكنه استخدامها مباشرة لتسجيل الدخول. كلمة المرور القديمة تتوقف عن العمل فوراً." %}
         </div>
         <div class="d-flex gap-3">
             <button type="submit"
                 style="background:var(--color-danger,#dc3545); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                إعادة تعيين كلمة المرور 🔑
+                {% trans "إعادة تعيين كلمة المرور 🔑" %}
             </button>
-            <a href="{{ next }}" style="color:#888; text-decoration:none; padding:10px;">← إلغاء</a>
+            <a href="{{ next }}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← إلغاء" %}</a>
         </div>
     </form>
     {% endif %}

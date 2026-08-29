@@ -1,11 +1,12 @@
 {% extends base_template %}
 {% load libelles_arabes %}
 {% load registration_tags %}
+{% load i18n %}
 
-{% block title %}تفاصيل الطلب{% endblock %}
+{% block title %}{% trans "تفاصيل الطلب" %}{% endblock %}
 
 {% block content %}
-<div class="page-title">📋 تفاصيل طلب التسجيل</div>
+<div class="page-title">📋 {% trans "تفاصيل طلب التسجيل" %}</div>
 
 {% if inscription.statut == 'rejete' %}
 {% comment %}
@@ -13,9 +14,9 @@ Chantier du 2026-08-14 (refus avec motif) — le motif est consultable ici même
 pas seulement au moment du refus lui-même.
 {% endcomment %}
 <div style="background:#fdecea; border-radius:10px; padding:14px 20px; margin-bottom:20px; color:#842029; max-width:700px;">
-    ❌ تم رفض هذا الطلب.
+    ❌ {% trans "تم رفض هذا الطلب." %}
     {% if inscription.motif_refus %}
-    <div style="margin-top:6px; font-weight:600;">السبب: {{ inscription.motif_refus }}</div>
+    <div style="margin-top:6px; font-weight:600;">{% blocktrans with motif=inscription.motif_refus %}السبب: {{ motif }}{% endblocktrans %}</div>
     {% endif %}
 </div>
 {% endif %}
@@ -38,10 +39,10 @@ pas seulement au moment du refus lui-même.
     {% endcomment %}
 
     <!-- Étape 1 — المعلومات الشخصية -->
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin-bottom:12px;">المعلومات الشخصية</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin-bottom:12px;">{% trans "المعلومات الشخصية" %}</div>
 
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الاسم الكامل</span>
+        <span style="color:#888;">{% trans "الاسم الكامل" %}</span>
         <span style="font-weight:600;">{{ inscription.nom }}</span>
     </div>
     {% comment %}
@@ -58,31 +59,31 @@ pas seulement au moment du refus lui-même.
 
     {% if inscription.nom_parent %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">ولي الأمر</span>
+        <span style="color:#888;">{% trans "ولي الأمر" %}</span>
         <span style="font-weight:600;">{{ inscription.nom_parent }}</span>
     </div>
     {% endif %}
 
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الجنس</span>
+        <span style="color:#888;">{% trans "الجنس" %}</span>
         <span style="font-weight:600;">{{ inscription.sexe|libelle_arabe:"sexe" }}</span>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">البريد الإلكتروني</span>
+        <span style="color:#888;">{% trans "البريد الإلكتروني" %}</span>
         <span style="font-weight:600; display:flex; align-items:center; gap:10px;">
             {{ inscription.email }}
             {% include 'dashboard/_email_icon.html' with email=inscription.email %}
         </span>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الهاتف</span>
+        <span style="color:#888;">{% trans "الهاتف" %}</span>
         <span style="font-weight:600; display:flex; align-items:center; gap:10px;">
             {{ inscription.telephone }}
             {% include 'dashboard/_whatsapp_icon.html' with telephone=inscription.telephone %}
         </span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">تاريخ الميلاد</span>
+        <span style="color:#888;">{% trans "تاريخ الميلاد" %}</span>
         <span style="font-weight:600;">
             {{ inscription.date_naissance }}
             <span style="background:#f0ebe3; color:var(--color-role-admin-solid); border-radius:20px; padding:2px 10px; font-size:0.78rem; font-weight:700; margin-right:8px;">{{ inscription.date_naissance|tranche_age_ar }}</span>
@@ -103,7 +104,7 @@ pas seulement au moment du refus lui-même.
         nom_parent (présent => inscription enfant => travail du tuteur, pas
         de l'élève), copié tel quel depuis admin_eleve_detail.html.
         {% endcomment %}
-        <span style="color:#888;">{% if inscription.nom_parent %}عمل ولي الأمر{% else %}العمل الحالي{% endif %}</span>
+        <span style="color:#888;">{% if inscription.nom_parent %}{% trans "عمل ولي الأمر" %}{% else %}{% trans "العمل الحالي" %}{% endif %}</span>
         <span style="font-weight:600;">{{ inscription.job_actuel }}</span>
     </div>
     {% endif %}
@@ -114,31 +115,31 @@ pas seulement au moment du refus lui-même.
     {% endcomment %}
     {% if inscription.niveau_scolaire %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">المستوى الدراسي</span>
+        <span style="color:#888;">{% trans "المستوى الدراسي" %}</span>
         <span style="font-weight:600;">{{ inscription.niveau_scolaire }}</span>
     </div>
     {% endif %}
 
     {% if inscription.creneau_souhaite %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الحلقة المطلوبة (طلب قديم)</span>
+        <span style="color:#888;">{% trans "الحلقة المطلوبة (طلب قديم)" %}</span>
         <span style="font-weight:600;">{{ inscription.creneau_souhaite }}</span>
     </div>
     {% endif %}
 
     <!-- Étape 2 — البرنامج -->
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">البرنامج</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "البرنامج" %}</div>
 
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">البرنامج</span>
+        <span style="color:#888;">{% trans "البرنامج" %}</span>
         <span style="font-weight:600;">{% reponse_ou_ancien_champ inscription inscription.get_programme_display 'programme' %}</span>
     </div>
 
     <!-- Étape 3 — الرواية -->
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">الرواية</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "الرواية" %}</div>
 
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الرواية</span>
+        <span style="color:#888;">{% trans "الرواية" %}</span>
         <span style="font-weight:600;">{% reponse_ou_ancien_champ inscription inscription.get_riwaya_display 'riwaya' %}</span>
     </div>
     {% comment %}
@@ -151,7 +152,7 @@ pas seulement au moment du refus lui-même.
     {% endcomment %}
     {% if inscription.outil %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">وسيلة الحضور</span>
+        <span style="color:#888;">{% trans "وسيلة الحضور" %}</span>
         <span style="font-weight:600;">{{ inscription.get_outil_display }}</span>
     </div>
     {% endif %}
@@ -164,16 +165,16 @@ pas seulement au moment du refus lui-même.
     {% endcomment %}
     {% if inscription.abonnement_type_offre %}
     <!-- Étape 4 — نوع الحصة -->
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">نوع الحصة</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "نوع الحصة" %}</div>
 
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">نوع الحصة</span>
-        <span style="font-weight:600;">{% if inscription.abonnement_type_offre == 'individuel' %}فردي{% else %}جماعي{% endif %}</span>
+        <span style="color:#888;">{% trans "نوع الحصة" %}</span>
+        <span style="font-weight:600;">{% if inscription.abonnement_type_offre == 'individuel' %}{% trans "فردي" %}{% else %}{% trans "جماعي" %}{% endif %}</span>
     </div>
     {% endif %}
 
     <!-- Étape 5 — عدد الحصص الأسبوعية + الاشتراك + السعر + الحلقة -->
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">عدد الحصص الأسبوعية والاشتراك</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "عدد الحصص الأسبوعية والاشتراك" %}</div>
 
     {% comment %}
     عدد الحصص الأسبوعية + السعر — regroupés dans le MÊME {% with %} (la
@@ -185,12 +186,12 @@ pas seulement au moment du refus lui-même.
     {% with nb_slots=inscription.nb_slots_choisi %}
     {% if nb_slots %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">عدد الحصص الأسبوعية</span>
+        <span style="color:#888;">{% trans "عدد الحصص الأسبوعية" %}</span>
         <span style="font-weight:600;">{{ nb_slots }}</span>
     </div>
     {% endif %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">الاشتراك</span>
+        <span style="color:#888;">{% trans "الاشتراك" %}</span>
         <span style="font-weight:600;">{{ inscription.abonnement_label }}</span>
     </div>
     {% comment %}
@@ -203,12 +204,12 @@ pas seulement au moment du refus lui-même.
     {% with type_abo=inscription.abonnement_obj prix_effectif=inscription.prix_effectif_calcule %}
     {% if prix_effectif is not None %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">السعر وقت الاختيار</span>
+        <span style="color:#888;">{% trans "السعر وقت الاختيار" %}</span>
         <span style="font-weight:600;">
-            {{ prix_effectif }} درهم
+            {% blocktrans with montant=prix_effectif %}{{ montant }} درهم{% endblocktrans %}
             {% if type_abo and prix_effectif != type_abo.prix %}
             <span style="background:#f0ebe3; color:var(--color-role-admin-solid); border-radius:20px; padding:2px 10px; font-size:0.78rem; font-weight:700; margin-right:8px;">
-                سعر خاص بـ {{ nb_slots }} حصص/أسبوع — السعر الافتراضي: {{ type_abo.prix }} درهم
+                {% blocktrans with n=nb_slots prix=type_abo.prix %}سعر خاص بـ {{ n }} حصص/أسبوع — السعر الافتراضي: {{ prix }} درهم{% endblocktrans %}
             </span>
             {% endif %}
         </span>
@@ -226,8 +227,8 @@ pas seulement au moment du refus lui-même.
     {% with prix_halaka=inscription.prix_effectif_halaka_choisie %}
     {% if prix_halaka is not None and prix_halaka != prix_effectif %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">المبلغ الشهري الفعلي لهذه الحلقة</span>
-        <span style="font-weight:600; color:var(--color-role-admin-solid);">{{ prix_halaka }} درهم</span>
+        <span style="color:#888;">{% trans "المبلغ الشهري الفعلي لهذه الحلقة" %}</span>
+        <span style="font-weight:600; color:var(--color-role-admin-solid);">{% blocktrans with montant=prix_halaka %}{{ montant }} درهم{% endblocktrans %}</span>
     </div>
     {% endif %}
     {% endwith %}
@@ -251,12 +252,12 @@ pas seulement au moment du refus lui-même.
     après coup qui pourrait diverger.
     {% endcomment %}
     <div style="font-weight:700; color:#555; margin:14px 0 6px; font-size:0.92rem;">
-        🎯 {% if a_reponses_nouveau_wizard %}المجموعة{% else %}المجموعات المتوافقة{% endif %}
+        🎯 {% if a_reponses_nouveau_wizard %}{% trans "المجموعة" %}{% else %}{% trans "المجموعات المتوافقة" %}{% endif %}
     </div>
     {% if a_reponses_nouveau_wizard %}
         {% if inscription.groupe_choisi %}
         <div style="background:#e8f5e9; border-radius:10px; padding:14px 18px; margin-top:8px; color:var(--color-success);">
-            <div style="font-weight:700; margin-bottom:4px;">✅ المجموعة المختارة</div>
+            <div style="font-weight:700; margin-bottom:4px;">✅ {% trans "المجموعة المختارة" %}</div>
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-weight:600; color:#333;">{{ inscription.groupe_choisi.nom }}</span>
                 <span style="color:#666; font-size:0.85rem;">
@@ -267,19 +268,19 @@ pas seulement au moment du refus lui-même.
         </div>
         {% elif inscription.abonnement_type_offre == 'individuel' %}
         <div style="background:#f0ebe3; border-radius:10px; padding:12px 16px; margin-top:8px; color:#555; font-size:0.9rem;">
-            ℹ️ اشتراك فردي — لا حاجة إلى مجموعة/حلقة.
+            ℹ️ {% trans "اشتراك فردي — لا حاجة إلى مجموعة/حلقة." %}
         </div>
         {% elif demande_non_satisfaite %}
         <div style="background:#fff3cd; border-radius:10px; padding:14px 18px; margin-top:8px; color:#856404;">
-            <div style="font-weight:700; margin-bottom:6px;">⏳ اختار الطالب الانتظار حتى تُنشأ حلقة مناسبة</div>
+            <div style="font-weight:700; margin-bottom:6px;">⏳ {% trans "اختار الطالب الانتظار حتى تُنشأ حلقة مناسبة" %}</div>
             <div style="margin-bottom:8px;">{{ presentation_inscription.message_aucun_groupe_exact }}</div>
             <a href="{% url 'admin_demandes_non_satisfaites' %}" style="color:var(--color-role-admin-solid); font-weight:600;">
-                ← عرض كل الطلبات غير المُلبّاة (لتحديد الاتجاهات)
+                {% trans "← عرض كل الطلبات غير المُلبّاة (لتحديد الاتجاهات)" %}
             </a>
         </div>
         {% else %}
         <div style="background:#fff3cd; border-radius:8px; padding:12px 16px; margin-top:8px; color:#856404; font-size:0.9rem;">
-            لم يتم اختيار مجموعة لهذا الطلب. يمكنك رغم ذلك قبول الطلب، ثم إنشاء مجموعة جديدة أو التواصل مع الطالب لاحقاً.
+            {% trans "لم يتم اختيار مجموعة لهذا الطلب. يمكنك رغم ذلك قبول الطلب، ثم إنشاء مجموعة جديدة أو التواصل مع الطالب لاحقاً." %}
         </div>
         {% endif %}
     {% elif groupes_suggeres %}
@@ -293,30 +294,30 @@ pas seulement au moment du refus lui-même.
         </div>
     {% else %}
         <div style="background:#fff3cd; border-radius:8px; padding:12px 16px; margin-top:8px; color:#856404; font-size:0.9rem;">
-            لا توجد حلقة/مجموعة متوافقة حالياً (العمر، الجنس، البرنامج، الرواية، نوع الاشتراك، أو جدول التفرغ). يمكنك رغم ذلك قبول الطلب، ثم إنشاء مجموعة جديدة أو التواصل مع الطالب لاحقاً.
+            {% trans "لا توجد حلقة/مجموعة متوافقة حالياً (العمر، الجنس، البرنامج، الرواية، نوع الاشتراك، أو جدول التفرغ). يمكنك رغم ذلك قبول الطلب، ثم إنشاء مجموعة جديدة أو التواصل مع الطالب لاحقاً." %}
         </div>
     {% endif %}
 
     <!-- Disponibilités horaires -->
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">التفرغ الأسبوعي المصرَّح به</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "التفرغ الأسبوعي المصرَّح به" %}</div>
 
     {% if inscription.disponibilites %}
     {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo_apercu' valeurs_form=valeurs_dispo lecture_seule=True %}
     {% else %}
-    <div style="color:#aaa; padding:8px 0;">لم يحدد المترشح أي وقت تفرغ.</div>
+    <div style="color:#aaa; padding:8px 0;">{% trans "لم يحدد المترشح أي وقت تفرغ." %}</div>
     {% endif %}
 
     <!-- Étape 6 — معلومات إضافية -->
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">معلومات إضافية</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "معلومات إضافية" %}</div>
 
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">قبول الشروط</span>
-        <span style="font-weight:600;">{% if inscription.accepte_conditions %}✅ نعم{% else %}❌ لا{% endif %}</span>
+        <span style="color:#888;">{% trans "قبول الشروط" %}</span>
+        <span style="font-weight:600;">{% if inscription.accepte_conditions %}✅ {% trans "نعم" %}{% else %}❌ {% trans "لا" %}{% endif %}</span>
     </div>
 
     {% if inscription.remarques %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">ملاحظات</span>
+        <span style="color:#888;">{% trans "ملاحظات" %}</span>
         <span style="font-weight:600;">{{ inscription.remarques }}</span>
     </div>
     {% endif %}
@@ -329,13 +330,13 @@ pas seulement au moment du refus lui-même.
     inscription_eleve_detail pour la requête exacte.
     {% endcomment %}
     {% if autres_reponses %}
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">📝 إجابات إضافية</div>
+    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">📝 {% trans "إجابات إضافية" %}</div>
     {% for reponse in autres_reponses %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">{{ reponse.champ.label }}</span>
         <span style="font-weight:600;">
             {% if reponse.option %}{{ reponse.option.label }}
-            {% elif reponse.champ.type_champ == 'booleen' %}{% if reponse.valeur_texte == '1' %}✅ نعم{% else %}❌ لا{% endif %}
+            {% elif reponse.champ.type_champ == 'booleen' %}{% if reponse.valeur_texte == '1' %}✅ {% trans "نعم" %}{% else %}❌ {% trans "لا" %}{% endif %}
             {% else %}{{ reponse.valeur_texte }}
             {% endif %}
         </span>
@@ -345,18 +346,18 @@ pas seulement au moment du refus lui-même.
 
     {% if inscription.disponibilites_libres %}
     <div style="background:#fff3cd; border-radius:8px; padding:12px 16px; margin:8px 0; color:#856404;">
-        <div style="font-weight:700; margin-bottom:4px;">⚠️ لم يجد حلقة مناسبة — أوقاته المتاحة:</div>
+        <div style="font-weight:700; margin-bottom:4px;">⚠️ {% trans "لم يجد حلقة مناسبة — أوقاته المتاحة:" %}</div>
         <div>{{ inscription.disponibilites_libres }}</div>
     </div>
     {% endif %}
 
     <div style="display:flex; justify-content:space-between; padding:8px 0;">
-        <span style="color:#888;">تاريخ التقديم</span>
+        <span style="color:#888;">{% trans "تاريخ التقديم" %}</span>
         <span style="font-weight:600;">{{ inscription.date_soumission|date:"d-m-Y H:i" }}</span>
     </div>
     {% if inscription.cree_par %}
     <div style="display:flex; justify-content:space-between; padding:8px 0;">
-        <span style="color:#888;">أُضيف يدوياً بواسطة</span>
+        <span style="color:#888;">{% trans "أُضيف يدوياً بواسطة" %}</span>
         <span style="font-weight:600;">{{ inscription.cree_par.get_full_name|default:inscription.cree_par.email }}</span>
     </div>
     {% endif %}
@@ -364,31 +365,28 @@ pas seulement au moment du refus lui-même.
     {% if request.user.role != 'mshrif' %}
     <!-- Mot de passe temporaire -->
     <div style="background:#e8f0fe; border-radius:8px; padding:14px 18px; margin:20px 0; color:var(--color-role-admin-solid);">
-        🔑 عند القبول، سيتم إنشاء كلمة مرور مؤقتة عشوائية وعرضها لك مباشرة بعد ذلك.<br>
-        <span style="font-size:0.85rem;">بلّغها للطالب — سيُطلب منه تغييرها إجبارياً عند أول تسجيل دخول.</span>
+        🔑 {% trans "عند القبول، سيتم إنشاء كلمة مرور مؤقتة عشوائية وعرضها لك مباشرة بعد ذلك." %}<br>
+        <span style="font-size:0.85rem;">{% trans "بلّغها للطالب — سيُطلب منه تغييرها إجبارياً عند أول تسجيل دخول." %}</span>
     </div>
 
     {% if conflit.conflit and not peut_accepter %}
     <div style="background:#f8d7da; border-radius:8px; padding:16px; margin:20px 0; color:#721c24;">
-        <div style="font-weight:700; margin-bottom:8px;">⚠️ تعذر القبول — تعارض في البريد الإلكتروني</div>
+        <div style="font-weight:700; margin-bottom:8px;">⚠️ {% trans "تعذر القبول — تعارض في البريد الإلكتروني" %}</div>
         {% if conflit.orphelin %}
         <div style="margin-bottom:12px;">
-            يوجد حساب بهذا البريد الإلكتروني ({{ inscription.email }}) بدون ملف شخصي مرتبط
-            (على الأرجح من اختبار سابق). يمكنك حذف هذا الحساب اليتيم ثم إعادة محاولة القبول.
+            {% blocktrans with email=inscription.email %}يوجد حساب بهذا البريد الإلكتروني ({{ email }}) بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). يمكنك حذف هذا الحساب اليتيم ثم إعادة محاولة القبول.{% endblocktrans %}
         </div>
+        {% blocktrans asvar confirmer_suppr_orphelin with email=conflit.user.email %}هل أنت متأكد من حذف هذا الحساب اليتيم ({{ email }})؟{% endblocktrans %}
         <a href="{% url 'admin_supprimer_user_orphelin' conflit.user.id %}?next={{ request.path }}"
-           onclick="return confirm('هل أنت متأكد من حذف هذا الحساب اليتيم ({{ conflit.user.email }})؟');"
-           style="background:#dc3545; color:white; border-radius:8px; padding:8px 20px; text-decoration:none; display:inline-block;">🗑️ حذف الحساب اليتيم</a>
+           onclick="return confirm('{{ confirmer_suppr_orphelin|escapejs }}');"
+           style="background:#dc3545; color:white; border-radius:8px; padding:8px 20px; text-decoration:none; display:inline-block;">🗑️ {% trans "حذف الحساب اليتيم" %}</a>
         {% elif conflit.archive %}
         <div>
-            يوجد حساب <strong>مؤرشف</strong> بهذا البريد الإلكتروني ({{ inscription.email }}).
-            يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول هذا الطلب.
+            {% blocktrans with email=inscription.email %}يوجد حساب <strong>مؤرشف</strong> بهذا البريد الإلكتروني ({{ email }}). يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول هذا الطلب.{% endblocktrans %}
         </div>
         {% else %}
         <div>
-            يوجد حساب نشط بهذا البريد الإلكتروني ({{ inscription.email }}) مرتبط بملف شخصي آخر
-            (دور الحساب: {{ conflit.user.get_role_display }}). راجع هذا الحساب يدوياً — لا يمكن
-            قبول هذا الطلب تلقائياً.
+            {% blocktrans with email=inscription.email role=conflit.user.get_role_display %}يوجد حساب نشط بهذا البريد الإلكتروني ({{ email }}) مرتبط بملف شخصي آخر (دور الحساب: {{ role }}). راجع هذا الحساب يدوياً — لا يمكن قبول هذا الطلب تلقائياً.{% endblocktrans %}
         </div>
         {% endif %}
     </div>
@@ -399,8 +397,7 @@ même email — cas autorisé (fratrie/famille). Purement informatif, ne bloque 
 le bouton "قبول" ci-dessous.
 {% endcomment %}
     <div style="background:#e8f0fe; border-radius:8px; padding:14px 18px; margin:20px 0; color:var(--color-role-admin-solid);">
-        ℹ️ هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب طالب آخر نشط ({{ conflit.user.get_full_name }}) —
-        على الأرجح فرد من نفس الأسرة. القبول سيُنشئ حساباً إضافياً مرتبطاً بنفس البريد الإلكتروني.
+        ℹ️ {% blocktrans with nom=conflit.user.get_full_name %}هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب طالب آخر نشط ({{ nom }}) — على الأرجح فرد من نفس الأسرة. القبول سيُنشئ حساباً إضافياً مرتبطاً بنفس البريد الإلكتروني.{% endblocktrans %}
     </div>
     {% endif %}
     {% endif %}
@@ -409,15 +406,16 @@ le bouton "قبول" ci-dessous.
     <div class="d-flex gap-3 mt-4">
         {% if request.user.role != 'mshrif' and inscription.statut == 'en_attente' %}
         {% if peut_accepter %}
+        {% blocktrans asvar confirmer_acceptation_eleve with nom=inscription.nom %}هل أنت متأكد من قبول طلب {{ nom }}؟ سيتم إنشاء حساب مستخدم فعلي له.{% endblocktrans %}
         <a href="{% url 'admin_valider_eleve' inscription.id %}"
-           onclick="return confirm('هل أنت متأكد من قبول طلب {{ inscription.nom|escapejs }}؟ سيتم إنشاء حساب مستخدم فعلي له.');"
-           style="background:var(--color-success); color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">✅ قبول</a>
+           onclick="return confirm('{{ confirmer_acceptation_eleve|escapejs }}');"
+           style="background:var(--color-success); color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">✅ {% trans "قبول" %}</a>
         {% endif %}
         <a href="{% url 'admin_rejeter_eleve' inscription.id %}"
-           style="background:#dc3545; color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">❌ رفض</a>
+           style="background:#dc3545; color:white; border-radius:8px; padding:10px 24px; text-decoration:none;">❌ {% trans "رفض" %}</a>
         {% endif %}
         <a href="{% url 'admin_inscriptions' %}"
-           style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+           style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
     </div>
 </div>
 {% endblock %}

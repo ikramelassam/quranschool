@@ -1,5 +1,6 @@
 {% extends base_template %}
-{% block title %}هامش رابط الحصص{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "هامش رابط الحصص" %}{% endblock %}
 {% block content %}
 <style>
 .gi-card {
@@ -14,9 +15,9 @@
 .gi-input { width:90px; border-radius:8px; border:1px solid rgba(139,75,0,0.2); padding:8px 10px; text-align:center; font-size:1rem; font-family:'Tajawal',sans-serif; }
 </style>
 
-<div class="page-title">هامش رابط الحصص</div>
+<div class="page-title">{% trans "هامش رابط الحصص" %}</div>
 <div class="page-subtitle">
-    آخر تعديل:
+    {% trans "آخر تعديل:" %}
     {% if reglage.derniere_modification_par %}{{ reglage.derniere_modification_par.get_full_name }} — {% endif %}
     {{ reglage.date_modification|date:"d-m-Y H:i" }}
 </div>
@@ -27,26 +28,24 @@
     <div class="gi-card">
         <div class="gi-field">
             <div>
-                <div class="gi-field-label">الهامش قبل بداية الحصة</div>
-                <div class="gi-field-hint">بالدقائق — يصبح الرابط قابلاً للنقر قبل هذه المدة من الموعد</div>
+                <div class="gi-field-label">{% trans "الهامش قبل بداية الحصة" %}</div>
+                <div class="gi-field-hint">{% trans "بالدقائق — يصبح الرابط قابلاً للنقر قبل هذه المدة من الموعد" %}</div>
             </div>
             <input type="number" min="0" name="marge_avant_minutes" class="gi-input" value="{{ reglage.marge_avant_minutes }}">
         </div>
         <div class="gi-field">
             <div>
-                <div class="gi-field-label">الهامش بعد نهاية الحصة</div>
-                <div class="gi-field-hint">بالدقائق — يبقى الرابط قابلاً للنقر بعد هذه المدة من نهاية الحصة</div>
+                <div class="gi-field-label">{% trans "الهامش بعد نهاية الحصة" %}</div>
+                <div class="gi-field-hint">{% trans "بالدقائق — يبقى الرابط قابلاً للنقر بعد هذه المدة من نهاية الحصة" %}</div>
             </div>
             <input type="number" min="0" name="marge_apres_minutes" class="gi-input" value="{{ reglage.marge_apres_minutes }}">
         </div>
     </div>
 
     <div style="color:var(--color-text-muted); font-size:0.8rem; margin-bottom:16px; max-width:480px;">
-        خارج هذا الهامش، يبقى رابط الاجتماع ظاهراً لكن غير قابل للنقر — يوجَّه من يحاول الوصول إليه
-        مباشرة إلى رسالة توضح موعد الحصة. يُعاد احتساب هذا الهامش عند كل محاولة وصول، فلا حاجة لأي
-        إجراء إضافي عند تعديل موعد حصة أو هذا الإعداد.
+        {% trans "خارج هذا الهامش، يبقى رابط الاجتماع ظاهراً لكن غير قابل للنقر — يوجَّه من يحاول الوصول إليه مباشرة إلى رسالة توضح موعد الحصة. يُعاد احتساب هذا الهامش عند كل محاولة وصول، فلا حاجة لأي إجراء إضافي عند تعديل موعد حصة أو هذا الإعداد." %}
     </div>
 
-    <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">حفظ التعديلات ✅</button>
+    <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">{% trans "حفظ التعديلات ✅" %}</button>
 </form>
 {% endblock %}

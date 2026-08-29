@@ -1,13 +1,15 @@
+{% load i18n %}
 {% comment %}
 Lien "نسيت كلمة المرور الحالية ؟" — Tâche 22 Partie E du 2026-07-26. Génère un
 nouveau mot de passe aléatoire, notifie le مدير via Telegram, déconnecte
 immédiatement. Réutilisé sur les 4 pages profil (admin/prof/élève/مؤطر).
 {% endcomment %}
+{% trans "سيتم إنشاء كلمة مرور جديدة وإشعار الإدارة بها، وستُسجَّل خروجك فوراً. هل أنت متأكد؟" as confirmation_reset_mdp %}
 <form method="POST" action="{% url 'reinitialiser_mon_mot_de_passe' %}"
-      onsubmit="return confirm('سيتم إنشاء كلمة مرور جديدة وإشعار الإدارة بها، وستُسجَّل خروجك فوراً. هل أنت متأكد؟');"
+      onsubmit="return confirm('{{ confirmation_reset_mdp|escapejs }}');"
       style="margin-top:10px;">
     {% csrf_token %}
     <button type="submit" style="background:none; border:none; color:#888; font-size:0.85rem; text-decoration:underline; cursor:pointer; padding:0;">
-        نسيت كلمة المرور الحالية ؟ إعادة تعيينها
+        {% trans "نسيت كلمة المرور الحالية ؟ إعادة تعيينها" %}
     </button>
 </form>

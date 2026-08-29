@@ -1,5 +1,6 @@
 {% extends base_template %}
-{% block title %}مدة الاحتفاظ برسائل الدردشة{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "مدة الاحتفاظ برسائل الدردشة" %}{% endblock %}
 {% block content %}
 <style>
 .gi-card {
@@ -13,9 +14,9 @@
 .gi-input { width:90px; border-radius:8px; border:1px solid rgba(139,75,0,0.2); padding:8px 10px; text-align:center; font-size:1rem; font-family:'Tajawal',sans-serif; }
 </style>
 
-<div class="page-title">مدة الاحتفاظ برسائل الدردشة</div>
+<div class="page-title">{% trans "مدة الاحتفاظ برسائل الدردشة" %}</div>
 <div class="page-subtitle">
-    آخر تعديل:
+    {% trans "آخر تعديل:" %}
     {% if config.derniere_modification_par %}{{ config.derniere_modification_par.get_full_name }} — {% endif %}
     {{ config.date_modification|date:"d-m-Y H:i" }}
 </div>
@@ -25,18 +26,17 @@
     <div class="gi-card">
         <div class="gi-field">
             <div>
-                <div class="gi-field-label">مدة الاحتفاظ (بالأيام)</div>
-                <div class="gi-field-hint">تُحذف تلقائياً رسائل الدردشة الأقدم من هذه المدة (7 أيام افتراضياً)</div>
+                <div class="gi-field-label">{% trans "مدة الاحتفاظ (بالأيام)" %}</div>
+                <div class="gi-field-hint">{% trans "تُحذف تلقائياً رسائل الدردشة الأقدم من هذه المدة (7 أيام افتراضياً)" %}</div>
             </div>
             <input type="number" min="1" name="duree_retention_jours" class="gi-input" value="{{ config.duree_retention_jours }}">
         </div>
     </div>
 
     <div style="color:var(--color-text-muted); font-size:0.8rem; margin-bottom:16px; max-width:480px;">
-        هذا الإعداد يخص فقط رسائل الدردشة (النصوص والملفات والرسائل الصوتية) — لا يؤثر إطلاقاً على
-        الحسابات أو المجموعات أو الحصص أو أي بيانات أخرى في المنصة.
+        {% trans "هذا الإعداد يخص فقط رسائل الدردشة (النصوص والملفات والرسائل الصوتية) — لا يؤثر إطلاقاً على الحسابات أو المجموعات أو الحصص أو أي بيانات أخرى في المنصة." %}
     </div>
 
-    <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">حفظ التعديلات ✅</button>
+    <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">{% trans "حفظ التعديلات ✅" %}</button>
 </form>
 {% endblock %}
