@@ -6143,18 +6143,26 @@ def construire_message_acceptation_whatsapp(nom, email, mot_de_passe):
 
 def construire_message_mdp_whatsapp(email, mot_de_passe, nom=''):
     """Message WhatsApp UNIQUE pour tout écran communiquant un mot de passe
-    (création de compte élève/prof/مؤطر, réinitialisation par مدير/مشرف) —
-    Tâche du 2026-08-06 : un seul gabarit, jamais reformulé différemment
-    d'un écran à l'autre, pour garantir la cohérence si modifié plus tard.
-    Texte exact fourni par le client, à une exception près (voir nom
-    ci-dessous).
+    en dehors d'une création/acceptation de compte (réinitialisation par
+    مدير/مشرف uniquement — voir construire_message_acceptation_whatsapp
+    ci-dessous pour la création/acceptation, texte volontairement distinct
+    depuis le chantier du 2026-08-15) — Tâche du 2026-08-06 : un seul
+    gabarit pour ce cas, jamais reformulé différemment d'un écran à
+    l'autre. Texte exact fourni par le client, à une exception près (voir
+    nom ci-dessous).
 
     nom : ajouté au chantier du 2026-08-10 (partage d'email parent/enfant).
     Depuis ce chantier, plusieurs comptes élève peuvent partager le même
     بريد إلكتروني — sans le nom, le مدير qui envoie ce message ne peut plus
     savoir avec certitude à quel compte précis ce mot de passe appartient.
     Optionnel (nom='') pour ne rien changer aux appels qui n'ont pas cette
-    info sous la main — la ligne n'apparaît alors simplement pas."""
+    info sous la main — la ligne n'apparaît alors simplement pas.
+
+    Lien de la plateforme : ajouté au chantier du 2026-08-12, refait le
+    2026-08-29 — avant, une réinitialisation donnait l'email/mot de passe
+    mais jamais où s'en servir (contrairement au message d'acceptation, qui
+    l'a depuis le 2026-08-15). Réutilise URL_PLATEFORME (domaine fixe, voir
+    sa docstring) — jamais une 2e constante pour la même valeur."""
     ligne_nom = f"الاسم: {nom}\n" if nom else ""
     return (
         "السلام عليكم\n"
@@ -6163,6 +6171,7 @@ def construire_message_mdp_whatsapp(email, mot_de_passe, nom=''):
         "هذا بريدك الالكتروني وهذه كلمة المرور\n"
         f"{email}\n"
         f"{mot_de_passe}\n"
+        f"رابط المنصة: {URL_PLATEFORME}\n"
         "بارك الله فيكم.."
     )
 
