@@ -224,12 +224,35 @@ class Prof(models.Model):
     # d'inscription (templates/inscriptions/wizard_groupe.html), gated par
     # VisibiliteProf.afficher_presentation_wizard ci-dessous.
     presentation_publique = models.TextField(blank=True, default='')
+    # _fr/_en (chantier i18n du 2026-08-29, bug signalé : cette nubdha reste
+    # arabe même en session FR/EN) — même patron que registration.models.
+    # PresentationInscription/Groupe.nom_fr ci-dessus : saisie manuelle par
+    # le مدير/مشرف (dashboard.views.admin_prof_presentation_modifier),
+    # jamais une traduction automatique. Optionnels : `presentation_publique_
+    # localise` retombe sur l'arabe si la traduction n'est pas encore saisie.
+    presentation_publique_fr = models.TextField(blank=True, default='')
+    presentation_publique_en = models.TextField(blank=True, default='')
 
     objects = models.Manager()
     actifs = ProfActifsManager()
 
     def __str__(self):
         return str(self.user)
+
+    def _localise(self, champ_base):
+        """Voir registration.models.PresentationInscription._localise —
+        même logique (repli arabe automatique), appliquée ici à
+        presentation_publique."""
+        langue = get_language()
+        if langue in ('fr', 'en'):
+            valeur = getattr(self, f'{champ_base}_{langue}', '')
+            if valeur:
+                return valeur
+        return getattr(self, champ_base)
+
+    @property
+    def presentation_publique_localise(self):
+        return self._localise('presentation_publique')
 
     class Meta:
         verbose_name = "Professeur"

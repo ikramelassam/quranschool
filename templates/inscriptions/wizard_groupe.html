@@ -40,7 +40,7 @@
     <div class="page-subtitle" style="text-align:right; margin-bottom:10px;">{% trans "مجموعات قريبة يمكنك الانضمام إليها الآن:" %}</div>
     {% for groupe in groupes_proches %}
     <div class="groupe-card" onclick="choisirGroupeProche({{ groupe.id }}, this)">
-        <div class="groupe-nom">{{ groupe.nom }}</div>
+        <div class="groupe-nom">{{ groupe.nom_localise }}</div>
         <div class="groupe-detail">
             📅
             {% for slot in groupe.creneau.slots.all %}
@@ -120,12 +120,12 @@
 
     {% for groupe in groupes %}
     <div class="groupe-card" onclick="selectionnerGroupe({{ groupe.id }}, this)">
-        <div class="groupe-nom">{{ groupe.nom }}</div>
+        <div class="groupe-nom">{{ groupe.nom_localise }}</div>
         <div class="groupe-detail">
             👨‍🏫 {% if groupe.prof %}{{ groupe.prof.user.get_full_name }}{% else %}{% trans "غير محدد بعد" %}{% endif %}
         </div>
         {% if visibilite.afficher_presentation_wizard and groupe.prof.presentation_publique %}
-        <div class="groupe-presentation">{{ groupe.prof.presentation_publique }}</div>
+        <div class="groupe-presentation">{{ groupe.prof.presentation_publique_localise }}</div>
         {% endif %}
         <div class="groupe-detail">
             📅

@@ -11,13 +11,39 @@
             <label style="font-weight:600; color:#333;">{% trans "الرمز" %}</label>
             <input type="text" class="form-control mt-1" value="{{ moyen.code }}" disabled>
         </div>
+        {% comment %}
+        label_fr/label_en/coordonnees_fr/coordonnees_en (chantier i18n du
+        2026-08-29) — voir le même commentaire dans admin_moyen_paiement_ajouter.html.
+        {% endcomment %}
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "الاسم المعروض *" %}</label>
-            <input type="text" name="label" class="form-control mt-1" value="{{ moyen.label }}" required>
+            <div style="display:flex; gap:8px; align-items:center; margin-top:4px;">
+                <span style="flex-shrink:0; width:44px; font-size:0.8rem; color:#999; text-align:center;">🇸🇦 AR</span>
+                <input type="text" name="label" class="form-control" value="{{ moyen.label }}" required>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+                <span style="flex-shrink:0; width:44px; font-size:0.8rem; color:#999; text-align:center;">🇫🇷 FR</span>
+                <input type="text" name="label_fr" class="form-control" value="{{ moyen.label_fr }}">
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+                <span style="flex-shrink:0; width:44px; font-size:0.8rem; color:#999; text-align:center;">🇬🇧 EN</span>
+                <input type="text" name="label_en" class="form-control" value="{{ moyen.label_en }}">
+            </div>
         </div>
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "المعلومات المعروضة عند الاختيار" %}</label>
-            <textarea name="coordonnees" class="form-control mt-1" rows="4">{{ moyen.coordonnees }}</textarea>
+            <div style="display:flex; gap:8px; align-items:flex-start; margin-top:4px;">
+                <span style="flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center;">🇸🇦 AR</span>
+                <textarea name="coordonnees" class="form-control" rows="4">{{ moyen.coordonnees }}</textarea>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-start; margin-top:6px;">
+                <span style="flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center;">🇫🇷 FR</span>
+                <textarea name="coordonnees_fr" class="form-control" rows="3">{{ moyen.coordonnees_fr }}</textarea>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-start; margin-top:6px;">
+                <span style="flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center;">🇬🇧 EN</span>
+                <textarea name="coordonnees_en" class="form-control" rows="3">{{ moyen.coordonnees_en }}</textarea>
+            </div>
         </div>
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>

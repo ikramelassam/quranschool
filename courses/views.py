@@ -215,9 +215,13 @@ def groupe_ajouter(request):
             if avertissements_prof and not confirme:
                 groupe_previsualise = Groupe(
                     nom=request.POST.get('nom'),
+                    nom_fr=request.POST.get('nom_fr', ''),
+                    nom_en=request.POST.get('nom_en', ''),
                     prof_id=prof_id,
                     creneau_id=creneau_id,
                     description=request.POST.get('description', ''),
+                    description_fr=request.POST.get('description_fr', ''),
+                    description_en=request.POST.get('description_en', ''),
                     capacite_max=request.POST.get('max_eleves', 10),
                     type_capacite=request.POST.get('type_capacite', 'groupe'),
                     lien_meet_id=request.POST.get('lien_meet') or None,
@@ -264,9 +268,13 @@ def groupe_ajouter(request):
 
         groupe = Groupe.objects.create(
             nom=request.POST.get('nom'),
+            nom_fr=request.POST.get('nom_fr', ''),
+            nom_en=request.POST.get('nom_en', ''),
             prof_id=prof_id,
             creneau_id=creneau_id,
             description=request.POST.get('description', ''),
+            description_fr=request.POST.get('description_fr', ''),
+            description_en=request.POST.get('description_en', ''),
             capacite_max=request.POST.get('max_eleves', 10),
             type_capacite=request.POST.get('type_capacite', 'groupe'),
             lien_meet=lien_meet_obj,
@@ -577,7 +585,11 @@ def groupe_modifier(request, groupe_id):
                 groupe_previsualise = Groupe(
                     id=groupe.id,
                     nom=request.POST.get('nom'),
+                    nom_fr=request.POST.get('nom_fr', ''),
+                    nom_en=request.POST.get('nom_en', ''),
                     description=request.POST.get('description', ''),
+                    description_fr=request.POST.get('description_fr', ''),
+                    description_en=request.POST.get('description_en', ''),
                     capacite_max=request.POST.get('capacite_max', 10),
                     type_capacite=request.POST.get('type_capacite', 'groupe'),
                     statut=request.POST.get('statut'),
@@ -628,7 +640,11 @@ def groupe_modifier(request, groupe_id):
                     })
 
             groupe.nom = request.POST.get('nom')
+            groupe.nom_fr = request.POST.get('nom_fr', '')
+            groupe.nom_en = request.POST.get('nom_en', '')
             groupe.description = request.POST.get('description', '')
+            groupe.description_fr = request.POST.get('description_fr', '')
+            groupe.description_en = request.POST.get('description_en', '')
             groupe.capacite_max = request.POST.get('capacite_max', 10)
             groupe.type_capacite = request.POST.get('type_capacite', 'groupe')
             groupe.statut = request.POST.get('statut')

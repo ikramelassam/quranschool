@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language
 from accounts.models import Eleve
 
 User = get_user_model()
@@ -16,12 +16,40 @@ class MoyenPaiement(models.Model):
 
     code = models.SlugField(max_length=30, unique=True)
     label = models.CharField(max_length=100)
+    # _fr/_en (chantier i18n du 2026-08-29, bug signalé : noms de banques et
+    # coordonnées restent arabes même en session FR/EN) — même patron que
+    # Groupe.nom_fr/Prof.presentation_publique_fr (contenu saisi à la main par
+    # مدير/مشرف, PAS un texte fixe du code : `{% trans %}` ne peut rien pour
+    # lui, contrairement au libellé "waliy amr" du catalogue système). Saisie
+    # manuelle PAR LANGUE, optionnelle, jamais une traduction automatique.
+    label_fr = models.CharField(max_length=100, blank=True, default='')
+    label_en = models.CharField(max_length=100, blank=True, default='')
     coordonnees = models.TextField(blank=True)
+    coordonnees_fr = models.TextField(blank=True, default='')
+    coordonnees_en = models.TextField(blank=True, default='')
     ordre = models.IntegerField(default=0)
     est_actif = models.BooleanField(default=True)
 
     def __str__(self):
         return self.label
+
+    def _localise(self, champ_base):
+        """Voir Groupe._localise/Prof._localise — même logique (repli
+        arabe automatique tant que la traduction n'est pas saisie)."""
+        langue = get_language()
+        if langue in ('fr', 'en'):
+            valeur = getattr(self, f'{champ_base}_{langue}', '')
+            if valeur:
+                return valeur
+        return getattr(self, champ_base)
+
+    @property
+    def label_localise(self):
+        return self._localise('label')
+
+    @property
+    def coordonnees_localise(self):
+        return self._localise('coordonnees')
 
     class Meta:
         ordering = ['ordre', 'id']

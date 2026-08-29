@@ -578,7 +578,10 @@ def wizard_abonnement(request):
     abonnements_avec_prix_effectif() pose `.prix_affiche` sur chaque
     TypeAbonnement, jamais TypeAbonnement.prix affiché brut directement."""
     from courses.utils import tranche_age_depuis_naissance
-    from .utils import abonnements_avec_prix_effectif, abonnements_disponibles, etape_est_active, nb_slots_repondu, url_etape_suivante
+    from .utils import (
+        abonnements_avec_prix_effectif, abonnements_disponibles, etape_est_active,
+        nb_slots_repondu, prix_est_configure, url_etape_suivante,
+    )
 
     donnees = wizard_donnees(request)
     if 'nom' not in donnees:
@@ -606,7 +609,12 @@ def wizard_abonnement(request):
 
     if request.method == 'POST':
         code = request.POST.get('abonnement_code', '')
-        if not abonnements.filter(code=code).exists():
+        abonnement_choisi = abonnements.filter(code=code).first()
+        # Revalidé côté serveur (bug du 2026-08-29) : une carte à 0 د.م.
+        # (voir prix_est_configure) est masquée/désactivée côté template,
+        # mais jamais une confiance aveugle dans le POST — même principe que
+        # partout ailleurs dans ce projet.
+        if abonnement_choisi is None or not prix_est_configure(abonnement_choisi, nb_slots):
             return render(request, 'inscriptions/wizard_abonnement.html', {
                 'abonnements': abonnements_avec_prix_effectif(abonnements, nb_slots),
                 'erreurs': [gettext_('يرجى اختيار نوع اشتراك صالح.')],

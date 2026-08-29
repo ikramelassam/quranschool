@@ -376,6 +376,20 @@
         {% endcomment %}
         <div class="chat-groupes-header">
             <div class="chat-groupes-titre">{% trans "المجموعات" %}</div>
+            {% comment %}
+            Bug signalé le 2026-08-29 : ces onglets n'ont de sens que s'il y a
+            plusieurs conversations à trier entre elles — un élève/prof/
+            superviseur qui n'a qu'UNE SEULE conversation (un seul groupe) se
+            retrouvait avec une rangée d'onglets Tous/النساء/الرجال/... tous à
+            0 sauf "الكل", qui ne filtre jamais rien pour lui. categories_chat.0
+            est toujours l'onglet "الكل" (voir chat.services.
+            repartition_conversations_par_categorie), son count = nombre TOTAL
+            de conversations de cet utilisateur, indépendant de tout filtre déjà
+            posé — le bon signal pour savoir s'il y a quelque chose à trier.
+            Un admin/مشرف (généralement plusieurs groupes mélangés) garde les
+            onglets sans rien changer ici.
+            {% endcomment %}
+            {% if categories_chat.0.count > 1 %}
             <div class="chat-cat-tabs" id="chatCatTabs" role="tablist" aria-label="{% trans 'تصفية المحادثات حسب الفئة' %}">
                 {% for cat in categories_chat %}
                 <button type="button" class="chat-cat-tab {% if cat.code == filtre_categorie %}active{% endif %}"
@@ -384,6 +398,7 @@
                 </button>
                 {% endfor %}
             </div>
+            {% endif %}
             {% trans "البحث عن مجموعة..." as placeholder_recherche_groupe %}
             {% trans "البحث عن مجموعة" as aria_recherche_groupe %}
             <div class="chat-recherche-groupe">

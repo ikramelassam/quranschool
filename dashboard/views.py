@@ -3862,6 +3862,7 @@ def admin_seances(request):
     """Page d'exceptions: les séances normales sont générées automatiquement
     (voir courses.utils). Ici, l'admin peut seulement annuler ou déplacer
     une séance précise (prof malade, vacances...)."""
+    from django.utils import timezone
     from courses.models import Seance, Groupe
     from courses.utils import etendre_toutes_les_seances
 
@@ -3875,17 +3876,26 @@ def admin_seances(request):
     statut = request.GET.get('statut', '')
     afficher_archives = request.GET.get('afficher_archives') == '1'
 
-    seances = Seance.objects.select_related('groupe').order_by('-date')
+    seances = Seance.objects.select_related('groupe').order_by('date', 'heure')
     if groupe_id:
         seances = seances.filter(groupe_id=groupe_id)
     if prof_id:
         seances = seances.filter(groupe__prof_id=prof_id)
     if date:
         seances = seances.filter(date=date)
-    if date_debut:
-        seances = seances.filter(date__gte=date_debut)
-    if date_fin:
-        seances = seances.filter(date__lte=date_fin)
+    elif date_debut or date_fin:
+        if date_debut:
+            seances = seances.filter(date__gte=date_debut)
+        if date_fin:
+            seances = seances.filter(date__lte=date_fin)
+    else:
+        # Par défaut (aucun filtre de date choisi par l'admin), la liste part
+        # d'aujourd'hui vers le futur — jamais tout l'historique mélangé dans
+        # le désordre (l'ancien order_by('-date') sans filtre par défaut
+        # affichait un mélange passé/futur peu lisible). Un admin qui cherche
+        # volontairement une séance passée garde ses 3 filtres de date pour
+        # la retrouver (date précise, ou date_debut dans le passé).
+        seances = seances.filter(date__gte=timezone.localdate())
     if statut:
         seances = seances.filter(statut=statut)
 
@@ -7107,7 +7117,11 @@ def admin_moyen_paiement_ajouter(request):
         MoyenPaiement.objects.create(
             code=code,
             label=request.POST.get('label', '').strip(),
+            label_fr=request.POST.get('label_fr', '').strip(),
+            label_en=request.POST.get('label_en', '').strip(),
             coordonnees=request.POST.get('coordonnees', '').strip(),
+            coordonnees_fr=request.POST.get('coordonnees_fr', '').strip(),
+            coordonnees_en=request.POST.get('coordonnees_en', '').strip(),
             ordre=request.POST.get('ordre') or 0,
         )
         messages.success(request, 'تمت إضافة طريقة الدفع بنجاح.')
@@ -7125,7 +7139,11 @@ def admin_moyen_paiement_modifier(request, moyen_id):
 
     if request.method == 'POST':
         moyen.label = request.POST.get('label', '').strip()
+        moyen.label_fr = request.POST.get('label_fr', '').strip()
+        moyen.label_en = request.POST.get('label_en', '').strip()
         moyen.coordonnees = request.POST.get('coordonnees', '').strip()
+        moyen.coordonnees_fr = request.POST.get('coordonnees_fr', '').strip()
+        moyen.coordonnees_en = request.POST.get('coordonnees_en', '').strip()
         moyen.ordre = request.POST.get('ordre') or 0
         moyen.save()
         messages.success(request, 'تم تعديل طريقة الدفع بنجاح.')
@@ -7884,14 +7902,21 @@ def admin_prof_presentation_modifier(request, prof_id):
     مشرف peuvent l'affiner ici à tout moment, même patron que
     admin_prof_infos_complementaires_modifier (mais ouvert aux 2 rôles,
     décision explicite de ce chantier — contrairement à ce précédent, resté
-    مدير seul)."""
+    مدير seul).
+
+    presentation_publique_fr/_en (chantier i18n du 2026-08-29) : saisie
+    manuelle optionnelle, jamais une traduction automatique du texte arabe —
+    voir Prof.presentation_publique_localise, affichée sur wizard_groupe.html
+    à la place du champ arabe brut."""
     from accounts.models import Prof
 
     prof = get_object_or_404(Prof, id=prof_id)
 
     if request.method == 'POST':
         prof.presentation_publique = request.POST.get('presentation_publique', '').strip()
-        prof.save(update_fields=['presentation_publique'])
+        prof.presentation_publique_fr = request.POST.get('presentation_publique_fr', '').strip()
+        prof.presentation_publique_en = request.POST.get('presentation_publique_en', '').strip()
+        prof.save(update_fields=['presentation_publique', 'presentation_publique_fr', 'presentation_publique_en'])
         messages.success(request, 'تم تحديث نبذة التقديم بنجاح.')
         return redirect('admin_prof_detail', prof_id=prof.id)
 

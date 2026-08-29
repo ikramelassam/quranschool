@@ -3582,6 +3582,9 @@ msgstr "Détails de la demande"
 msgid "تفاصيل طلب التسجيل"
 msgstr "Détails de la demande d'inscription"
 
+msgid "اسم ولي الأمر"
+msgstr "Nom du tuteur"
+
 msgid "ولي الأمر"
 msgstr "Le tuteur"
 

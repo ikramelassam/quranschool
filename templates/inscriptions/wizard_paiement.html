@@ -27,9 +27,9 @@
     {% csrf_token %}
 
     {% for moyen in moyens %}
-    <div class="select-btn mb-2" onclick="selectionnerMoyen('{{ moyen.code }}', this)">{{ moyen.label }}</div>
+    <div class="select-btn mb-2" onclick="selectionnerMoyen('{{ moyen.code }}', this)">{{ moyen.label_localise }}</div>
     <div class="coordonnees-box" id="coord_{{ moyen.code }}">
-        <div class="coordonnees-texte">{{ moyen.coordonnees }}</div>
+        <div class="coordonnees-texte">{{ moyen.coordonnees_localise }}</div>
         {% if moyen.coordonnees %}
         <button type="button" class="btn-copier-coordonnees" onclick="copierCoordonnees('{{ moyen.code }}')">📋 {% trans "نسخ" %}</button>
         <span class="confirmation-copie" id="confirmation_copie_{{ moyen.code }}">✔ {% trans "تم النسخ" %}</span>

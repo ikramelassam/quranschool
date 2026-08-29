@@ -4,7 +4,7 @@ from django.contrib.postgres.indexes import GinIndex
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language
 from accounts.models import Prof, Eleve, Superviseur
 from annonces.models import Annonce
 
@@ -269,7 +269,19 @@ class Groupe(models.Model):
     CATEGORIE_CHOICES = Annonce.CIBLE_CHOICES
 
     nom = models.CharField(max_length=100)
+    # _fr/_en (chantier i18n du 2026-08-29, bug signalé : "المجموعة" reste
+    # arabe même en session FR/EN) — même patron que registration.models.
+    # PresentationInscription/accounts.models.CharteEnseignement : contenu
+    # saisi à la main par مدير/مشرف (nom de halaka, pas un texte fixe du
+    # code, `{% trans %}` ne peut rien pour lui), saisie manuelle PAR LANGUE,
+    # jamais une traduction automatique. Optionnels (blank=True) : `_localise`
+    # retombe automatiquement sur l'arabe tant que la traduction n'est pas
+    # encore saisie, jamais un champ vide affiché à un visiteur FR/EN.
+    nom_fr = models.CharField(max_length=100, blank=True, default='')
+    nom_en = models.CharField(max_length=100, blank=True, default='')
     description = models.TextField(blank=True)
+    description_fr = models.TextField(blank=True, default='')
+    description_en = models.TextField(blank=True, default='')
     type_capacite = models.CharField(max_length=10, choices=TYPE_CAPACITE_CHOICES, default='groupe')
     eleves = models.ManyToManyField(
         'accounts.Eleve',
@@ -346,6 +358,27 @@ class Groupe(models.Model):
 
     def __str__(self):
         return self.nom
+
+    def _localise(self, champ_base):
+        """Renvoie la valeur de `champ_base` ('nom'/'description') dans la
+        langue active de la session (get_language()), avec repli automatique
+        sur l'arabe (`champ_base` lui-même) si la traduction FR/EN n'a pas
+        encore été saisie — même logique que registration.models.
+        PresentationInscription._localise, voir sa docstring."""
+        langue = get_language()
+        if langue in ('fr', 'en'):
+            valeur = getattr(self, f'{champ_base}_{langue}', '')
+            if valeur:
+                return valeur
+        return getattr(self, champ_base)
+
+    @property
+    def nom_localise(self):
+        return self._localise('nom')
+
+    @property
+    def description_localise(self):
+        return self._localise('description')
 
     @property
     def categorie_collectif(self):

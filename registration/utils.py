@@ -676,6 +676,31 @@ def prix_effectif(type_abonnement, nb_slots):
     return type_abonnement.prix
 
 
+def prix_est_configure(type_abonnement, nb_slots):
+    """False UNIQUEMENT si prix_effectif(type_abonnement, nb_slots) vaut 0 —
+    bug signalé le 2026-08-29 : un TypeAbonnement créé pour un nouveau nombre
+    de séances (via OptionNbSeances) sans jamais renseigner son prix de base
+    (resté à 0, valeur par défaut du formulaire admin) affichait silencieusement
+    "0 د.م." à l'élève sur wizard_abonnement au lieu d'un message clair.
+
+    Absence de ligne GrillePrixAbonnement pour ce nb_slots N'EST PAS ce bug :
+    c'est le fonctionnement NORMAL et volontaire du système (voir prix_effectif
+    ci-dessus, chantier du 2026-08-21) — la grande majorité des abonnements
+    n'ont jamais de ligne de grille pour la plupart des nb_slots, et
+    s'appuient sciemment sur TypeAbonnement.prix comme prix normal (un
+    montant réel, non nul). Vérifié empiriquement : bloquer sur la seule
+    absence de ligne de grille cassait 5 tests existants qui dépendent de ce
+    repli normal (AdminInscriptionDetailAuditTests) — 0 د.م. est le seul
+    signal fiable et sans ambiguïté d'un abonnement jamais correctement
+    configuré, jamais un prix légitime.
+
+    Utilisée uniquement par wizard_abonnement (Étape 4, formulaire public) :
+    décide si la carte de CET abonnement affiche son prix normalement, ou le
+    message "non configuré" à la place — jamais un blocage global de toute
+    la page, seulement de la carte concernée."""
+    return prix_effectif(type_abonnement, nb_slots) > 0
+
+
 def plage_nb_slots_grille_prix():
     """Nombres de séances/semaine proposables au مدير pour éditer
     GrillePrixAbonnement — Chantier "cases nb_slots configurables" du
@@ -810,10 +835,18 @@ def abonnements_avec_prix_effectif(abonnements, nb_slots):
     seulement pour l'affichage (Étape 9, GrillePrixAbonnement). Centralisé
     ici pour que wizard_abonnement (Étape 4) et admin_eleve_ajouter_manuel
     (Étape 7) affichent EXACTEMENT le même prix pour la même combinaison,
-    jamais 2 boucles maintenues séparément."""
+    jamais 2 boucles maintenues séparément.
+
+    `.prix_configure` (bug du 2026-08-29, voir prix_est_configure) posé de la
+    même manière — SEUL wizard_abonnement.html le lit pour décider d'afficher
+    le prix normalement ou le message "non configuré" à la place (0 د.م.
+    UNIQUEMENT — jamais une simple absence de ligne de grille, qui reste le
+    fonctionnement normal) ; admin_eleve_ajouter_manuel continue d'afficher
+    .prix_affiche tel quel, volontairement inchangé par ce correctif."""
     resultat = list(abonnements)
     for abonnement in resultat:
         abonnement.prix_affiche = prix_effectif(abonnement, nb_slots)
+        abonnement.prix_configure = prix_est_configure(abonnement, nb_slots)
     return resultat
 
 

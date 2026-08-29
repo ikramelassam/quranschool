@@ -6,9 +6,11 @@
 <div class="page-subtitle">{{ prof.user.get_full_name }} — {% trans "تظهر هذه النبذة للمرشحين في بطاقة الحلقة أثناء التسجيل" %}</div>
 
 {% comment %}
-prof.presentation_publique reste un champ arabe UNIQUEMENT (pas de version
-FR/EN) — même profil que evaluations.models.Critere.nom_ar, HORS PÉRIMÈTRE
-de ce chantier (signalé dans le rapport final, pas corrigé ici).
+Chantier i18n du 2026-08-29 : prof.presentation_publique_fr/_en, saisie
+manuelle optionnelle (même patron que registration.models.
+PresentationInscription/mshrif_charte.html) — repli automatique sur l'arabe
+tant que la traduction n'est pas saisie (voir presentation_publique_localise,
+affichée sur wizard_groupe.html à la place du champ arabe brut).
 {% endcomment %}
 <div style="background:var(--color-bg-cream); border-radius:16px; padding:32px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
@@ -16,9 +18,21 @@ de ce chantier (signalé dans le rapport final, pas corrigé ici).
 
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "نص النبذة" %}</label>
-            <textarea name="presentation_publique" class="form-control mt-1" rows="8">{{ prof.presentation_publique }}</textarea>
+            <div style="display:flex; gap:8px; align-items:flex-start; margin-top:4px;">
+                <span style="flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center;">🇸🇦 AR</span>
+                <textarea name="presentation_publique" class="form-control" rows="8">{{ prof.presentation_publique }}</textarea>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-start; margin-top:8px;">
+                <span style="flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center;">🇫🇷 FR</span>
+                <textarea name="presentation_publique_fr" class="form-control" rows="6">{{ prof.presentation_publique_fr }}</textarea>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-start; margin-top:8px;">
+                <span style="flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center;">🇬🇧 EN</span>
+                <textarea name="presentation_publique_en" class="form-control" rows="6">{{ prof.presentation_publique_en }}</textarea>
+            </div>
             <div style="color:#888; font-size:0.78rem; margin-top:4px;">
-                {% trans "تم توليد هذا النص تلقائياً عند قبول الأستاذ نهائياً — يمكنك تعديله بحرية، لن يُعاد توليده تلقائياً بعد ذلك." %}
+                {% trans "تم توليد النص العربي تلقائياً عند قبول الأستاذ نهائياً — يمكنك تعديله بحرية، لن يُعاد توليده تلقائياً بعد ذلك." %}
+                {% trans "الفرنسية والإنجليزية اختياريتان: إن تُركتا فارغتين، يظهر النص العربي بدلاً منهما." %}
                 {% trans 'يظهر فقط إذا كان "عرض نبذة الأستاذ في صفحة التسجيل" مُفعّلاً من صفحة "ظهور بيانات الأستاذ للطالب".' %}
             </div>
         </div>

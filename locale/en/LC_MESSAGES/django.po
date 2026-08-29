@@ -3582,6 +3582,9 @@ msgstr "Request details"
 msgid "تفاصيل طلب التسجيل"
 msgstr "Registration request details"
 
+msgid "اسم ولي الأمر"
+msgstr "Guardian's name"
+
 msgid "ولي الأمر"
 msgstr "Guardian"
 
