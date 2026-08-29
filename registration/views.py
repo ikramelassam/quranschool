@@ -17,8 +17,9 @@ import datetime
 
 from django.shortcuts import render, redirect
 from django.views.decorators.cache import never_cache
+from django.utils.translation import gettext as gettext_
 
-from .utils import wizard_donnees, wizard_maj, wizard_reinitialiser
+from .utils import wizard_donnees, wizard_maj, wizard_reinitialiser, traduire_libelle_dynamique
 
 
 def wizard_categorie_age(request):
@@ -47,7 +48,7 @@ def wizard_categorie_age(request):
         type_age_choisi = request.POST.get('type_age', '')
         if type_age_choisi not in ('enfant', 'adulte'):
             return render(request, 'inscriptions/wizard_categorie_age.html', {
-                'erreurs': ['يرجى اختيار الفئة العمرية.'],
+                'erreurs': [gettext_('يرجى اختيار الفئة العمرية.')],
             })
 
         parametres = get_parametres_inscriptions()
@@ -215,13 +216,13 @@ def wizard_identite(request):
         if 'sexe' in configs_par_cle:
             sexe = request.POST.get('sexe', '')
             if sexe not in ('homme', 'femme'):
-                erreurs.append(f'"{configs_par_cle["sexe"].label}" إلزامي.')
+                erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(configs_par_cle['sexe'].label)})
             nouvelles_valeurs['sexe'] = sexe
 
         if 'email' in configs_par_cle:
             email = request.POST.get('email', '').strip()
             if not email:
-                erreurs.append(f'"{configs_par_cle["email"].label}" إلزامي.')
+                erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(configs_par_cle['email'].label)})
             nouvelles_valeurs['email'] = email
 
         if 'date_naissance' in configs_par_cle:
@@ -229,7 +230,7 @@ def wizard_identite(request):
             try:
                 date_naissance_obj = datetime.date.fromisoformat(date_naissance_str)
             except (ValueError, TypeError):
-                erreurs.append('يرجى إدخال تاريخ ميلاد صحيح.')
+                erreurs.append(gettext_('يرجى إدخال تاريخ ميلاد صحيح.'))
             else:
                 # Revérifie la VRAIE date de naissance contre le choix
                 # précoce بالغ/طفل (wizard_categorie_age) — tranche_age_
@@ -495,7 +496,7 @@ def wizard_groupe(request):
             if not choix_attente and groupe_choisi is None:
                 return render(request, 'inscriptions/wizard_groupe.html', {
                     **contexte_commun,
-                    'erreurs': ['يرجى اختيار مجموعة قريبة أو تأكيد الانتظار قبل المتابعة.'],
+                    'erreurs': [gettext_('يرجى اختيار مجموعة قريبة أو تأكيد الانتظار قبل المتابعة.')],
                 })
 
             # Un choix valide a été fait (groupe proche OU attente) — la
@@ -525,7 +526,7 @@ def wizard_groupe(request):
             groupe_choisi = None
         if groupe_choisi is None:
             return render(request, 'inscriptions/wizard_groupe.html', {
-                **contexte_commun, 'erreurs': ['يرجى اختيار مجموعة من القائمة المتاحة.'],
+                **contexte_commun, 'erreurs': [gettext_('يرجى اختيار مجموعة من القائمة المتاحة.')],
             })
         wizard_maj(request, {'groupe_id': groupe_id})
         return redirect(url_etape_suivante('groupe'))
@@ -575,7 +576,7 @@ def wizard_abonnement(request):
         if not abonnements.filter(code=code).exists():
             return render(request, 'inscriptions/wizard_abonnement.html', {
                 'abonnements': abonnements_avec_prix_effectif(abonnements, nb_slots),
-                'erreurs': ['يرجى اختيار نوع اشتراك صالح.'],
+                'erreurs': [gettext_('يرجى اختيار نوع اشتراك صالح.')],
                 'wizard_etape_num': 4,
             })
         wizard_maj(request, {'abonnement_code': code})
@@ -647,7 +648,7 @@ def _wizard_confirmer_inscription(request, donnees, moyens, date_limite, paramet
         return render(request, 'inscriptions/wizard_paiement.html', {
             'moyens': moyens, 'date_limite': date_limite,
             'delai_paiement_jours': parametres.delai_paiement_jours,
-            'erreurs': ['يرجى اختيار طريقة دفع صالحة.'],
+            'erreurs': [gettext_('يرجى اختيار طريقة دفع صالحة.')],
             'wizard_etape_num': 5,
         })
 

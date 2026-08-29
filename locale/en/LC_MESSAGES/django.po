@@ -1,119 +1,83 @@
-
 msgid ""
 msgstr ""
-"Project-Id-Version: PROJECT VERSION\n"
-"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-29 08:36+0100\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Language: en\n"
-"Language-Team: en <LL@li.org>\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=utf-8\n"
-"Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.18.0\n"
 
-#, python-format
 msgid "%(couverts)s/%(total)s آية"
 msgstr "%(couverts)s/%(total)s verse(s)"
 
-#, python-format
 msgid "%(duree)s دقيقة"
 msgstr "%(duree)s minutes"
 
-#, python-format
 msgid "%(min)s على الأقل"
 msgstr "%(min)s at minimum"
 
-#, python-format
 msgid "%(n).1f ك.ب"
 msgstr "%(n).1f KB"
 
-#, python-format
 msgid "%(n).1f م.ب"
 msgstr "%(n).1f MB"
 
-#, python-format
 msgid "%(n)d بايت"
 msgstr "%(n)d bytes"
 
-#, python-format
 msgid "%(n)s حصة"
 msgstr "%(n)s session(s)"
 
-#, python-format
 msgid "%(n)s حصص سابقة لم يتم تقييمها بعد"
 msgstr "%(n)s past sessions not yet evaluated"
 
-#, python-format
 msgid "%(n)s طالب"
 msgstr "%(n)s student(s)"
 
-#, python-format
 msgid "%(n)s طالب (بالغ) × %(tarif)s د.م."
 msgstr "%(n)s student(s) (adult) × %(tarif)s MAD"
 
-#, python-format
 msgid "%(n)s طالب (طفل) × %(tarif)s د.م."
 msgstr "%(n)s student(s) (child) × %(tarif)s MAD"
 
-#, python-format
 msgid "%(n)s طلاب"
 msgstr "%(n)s students"
 
-#, python-format
 msgid "%(n)s غياب"
 msgstr "%(n)s absence(s)"
 
-#, python-format
 msgid "%(n)s غياب هذا الشهر"
 msgstr "%(n)s absence(s) this month"
 
-#, python-format
 msgid "%(n)s مشارك"
 msgstr "%(n)s participant(s)"
 
-#, python-format
 msgid "%(n)s نسخة"
 msgstr "%(n)s submission(s)"
 
-#, python-format
 msgid "%(nom_groupe)s — %(duree)s دقيقة"
 msgstr "%(nom_groupe)s — %(duree)s minutes"
 
-#, python-format
 msgid "%(nom_groupe)s — %(nb)s سؤال — %(duree)s دقيقة"
 msgstr "%(nom_groupe)s — %(nb)s question(s) — %(duree)s minutes"
 
-#, python-format
 msgid "%(occupes)s / %(capacite)s مكان"
 msgstr "%(occupes)s / %(capacite)s spot(s)"
 
-#, python-format
 msgid "%(points)s / %(max)s نقطة"
 msgstr "%(points)s / %(max)s point(s)"
 
-#, python-format
 msgid "%(points)s نقطة"
 msgstr "%(points)s point(s)"
 
-#, python-format
 msgid "%(present)s حضور · %(absent)s غياب · %(total)s حصص"
 msgstr "%(present)s present · %(absent)s absent · %(total)s sessions"
 
-#, python-format
 msgid "+ %(n)s حصة أخرى قادمة لاحقاً — عرض ↓"
 msgstr "+ %(n)s more upcoming session(s) — show ↓"
 
-#, python-format
 msgid "+%(n)s آية"
 msgstr "+%(n)s verse(s)"
 
 msgid "[حساب محذوف]"
 msgstr "[Deleted account]"
 
-#, python-format
 msgid "آخر أجل لأداء الاشتراك: <strong>%(date_limite_affichee)s</strong> (%(jours)s أيام من تاريخ التسجيل)"
 msgstr "Subscription payment deadline: <strong>%(date_limite_affichee)s</strong> (%(jours)s days from the registration date)"
 
@@ -126,7 +90,6 @@ msgstr "Latest evaluations"
 msgid "آخر الحصص"
 msgstr "Latest sessions"
 
-#, python-format
 msgid "آخر تحديث: %(date_maj)s"
 msgstr "Last updated: %(date_maj)s"
 
@@ -175,7 +138,6 @@ msgstr "Female"
 msgid "أهلاً بك في زدني علماً"
 msgstr "Welcome to Zidni Ilman"
 
-#, python-format
 msgid "أهلاً، %(nom)s 👋"
 msgstr "Welcome, %(nom)s 👋"
 
@@ -206,14 +168,12 @@ msgstr "Text answer (manual grading)"
 msgid "إجابتك:"
 msgstr "Your answer:"
 
-#, python-format
 msgid "إجمالي الحصص: %(n)s"
 msgstr "Total sessions: %(n)s"
 
 msgid "إجمالي الطلاب"
 msgstr "Total students"
 
-#, python-format
 msgid "إجمالي المجموعات: %(n)s"
 msgstr "Total groups: %(n)s"
 
@@ -337,7 +297,6 @@ msgstr "Write your answer here..."
 msgid "اكتب رسالة..."
 msgstr "Write a message..."
 
-#, python-format
 msgid "الآيات %(plages)s من أصل %(total)s"
 msgstr "Verses %(plages)s out of %(total)s"
 
@@ -353,7 +312,6 @@ msgstr "Questions"
 msgid "الأسبوع القادم"
 msgstr "Next week"
 
-#, python-format
 msgid "الأسبوع من %(debut)s إلى %(fin)s"
 msgstr "Week from %(debut)s to %(fin)s"
 
@@ -390,7 +348,6 @@ msgstr "Administration"
 msgid "الإشعارات"
 msgstr "Notifications"
 
-#, python-format
 msgid "الإشعارات — %(n)s إشعارات جديدة"
 msgstr "Notifications — %(n)s new notifications"
 
@@ -400,7 +357,6 @@ msgstr "Immediate dismissal"
 msgid "الإعلانات"
 msgstr "Announcements"
 
-#, python-format
 msgid "الإعلانات — %(n)s إعلانات غير مقروءة"
 msgstr "Announcements — %(n)s unread announcements"
 
@@ -458,7 +414,6 @@ msgstr "Incorrect email or password"
 msgid "البيان الشهري"
 msgstr "The monthly report"
 
-#, python-format
 msgid "البيان الشهري — %(nom)s"
 msgstr "Monthly report — %(nom)s"
 
@@ -531,7 +486,6 @@ msgstr "Gender"
 msgid "الحالة"
 msgstr "Status"
 
-#, python-format
 msgid "الحزب %(numero)s: %(fraction)s"
 msgstr "Hizb %(numero)s: %(fraction)s"
 
@@ -586,7 +540,6 @@ msgstr "Chat"
 msgid "الدفع"
 msgstr "Payment"
 
-#, python-format
 msgid "الذي جمعته لحد الآن (%(confirmees)s من %(prevues)s حصص)"
 msgstr "What you've earned so far (%(confirmees)s out of %(prevues)s sessions)"
 
@@ -599,7 +552,6 @@ msgstr "Men"
 msgid "الرسائل"
 msgstr "Messages"
 
-#, python-format
 msgid "الرسائل — %(n)s رسائل غير مقروءة"
 msgstr "Messages — %(n)s unread messages"
 
@@ -768,14 +720,12 @@ msgstr "Attendance and behavior:"
 msgid "النساء"
 msgstr "An-Nisa"
 
-#, python-format
 msgid "النسخ (%(n)s)"
 msgstr "Submissions (%(n)s)"
 
 msgid "النسخ المُقدَّمة"
 msgstr "Submitted copies"
 
-#, python-format
 msgid "النقاط (من %(max)s)"
 msgstr "Points (out of %(max)s)"
 
@@ -806,7 +756,6 @@ msgstr "The exam time is up"
 msgid "انتهت مهلة الـ24 ساعة — لن يكون بالإمكان تقييمها"
 msgstr "The 24-hour window has passed — it can no longer be evaluated"
 
-#, python-format
 msgid "انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) قبل إتمامها بالكامل — تم تسجيل %(enregistrees)s من أصل %(total)s طالب فقط (معروضون أدناه)، ولن يكون بالإمكان تسجيل الباقي. ستبقى هذه الحصة \"غير مكتملة التقييم\" نهائياً."
 msgstr "The evaluation deadline for this session (24 hours from its start) expired before it was completed — only %(enregistrees)s out of %(total)s students were recorded (shown below), the rest can no longer be recorded. This session will permanently remain \"incomplete evaluation\"."
 
@@ -834,14 +783,12 @@ msgstr "Waiting for the teacher to grade some questions"
 msgid "بحث..."
 msgstr "Search..."
 
-#, python-format
 msgid "بحد أقصى %(max)s"
 msgstr "%(max)s at maximum"
 
 msgid "بدء الاختبار"
 msgstr "Start the exam"
 
-#, python-format
 msgid "بدأت في %(date_debut)s"
 msgstr "Started on %(date_debut)s"
 
@@ -854,14 +801,12 @@ msgstr "Rest of this week"
 msgid "بمجرد أن يبدأ الطالب، تُحسب المدة من لحظة بدايته — لا يمكن تمديدها لاحقاً."
 msgstr "Once the student starts, the duration is counted from that moment — it cannot be extended afterwards."
 
-#, python-format
 msgid "بواسطة %(nom)s"
 msgstr "By %(nom)s"
 
 msgid "بياناتي الشهرية"
 msgstr "My monthly reports"
 
-#, python-format
 msgid "بين %(min)s و%(max)s"
 msgstr "Between %(min)s and %(max)s"
 
@@ -916,7 +861,6 @@ msgstr "Automatic grading"
 msgid "تصحيح نسخة"
 msgstr "Grade submission"
 
-#, python-format
 msgid "تصحيح نسخة %(nom)s"
 msgstr "Grading %(nom)s's submission"
 
@@ -1010,7 +954,6 @@ msgstr "Copied"
 msgid "تم تحديث رقم الهاتف بنجاح."
 msgstr "Phone number updated successfully."
 
-#, python-format
 msgid "تم تسجيل طلبك بنجاح، %(nom)s"
 msgstr "Your request has been successfully registered, %(nom)s"
 
@@ -1101,7 +1044,6 @@ msgstr "Calculation of your monthly salary according to the platform's rate sche
 msgid "حسابك مؤرشف حالياً، تواصل مع الإدارة."
 msgstr "Your account is currently archived, please contact the administration."
 
-#, python-format
 msgid "حسب حصة %(date_seance)s — %(nom_groupe)s"
 msgstr "Based on the %(date_seance)s session — %(nom_groupe)s"
 
@@ -1231,21 +1173,11 @@ msgstr "Fixed links"
 msgid "زدني علماً"
 msgstr "Zidni Ilman"
 
-#, python-format
 msgid "سؤال %(num)s / %(total)s — %(points)s نقطة"
 msgstr "Question %(num)s / %(total)s — %(points)s point(s)"
 
-#, python-format
 msgid "سؤال %(num)s — %(type_q)s — %(points)s نقطة"
 msgstr "Question %(num)s — %(type_q)s — %(points)s point(s)"
-
-#, python-format
-msgid ""
-"ستحصل على <strong>%(duree)s دقيقة</strong> بمجرد الضغط على \"بدء الاختبار\".\n"
-"        الوقت يستمر في الجريان حتى لو أغلقت الصفحة أو غادرت الموقع — لا يمكن استئنافه لاحقاً بمدة جديدة."
-msgstr ""
-"You will get <strong>%(duree)s minutes</strong> as soon as you press \"Start the exam\".\n"
-"        Time keeps running even if you close the page or leave the site — it cannot be resumed later with a new duration."
 
 msgid "ستظهر هنا فور نشر الإدارة لإعلان جديد في هذه القناة."
 msgstr "They will appear here as soon as the administration publishes a new announcement in this channel."
@@ -1274,11 +1206,9 @@ msgstr "surah started"
 msgid "سيتم تحديث الحضور والتقييمات لهذه الحصة المنتهية. هل أنت متأكد؟"
 msgstr "Attendance and evaluations for this completed session will be updated. Are you sure?"
 
-#, python-format
 msgid "سيتواصل معك فريقنا خلال %(heures)s ساعة."
 msgstr "Our team will contact you within %(heures)s hours."
 
-#, python-format
 msgid "سُلِّمت في %(date_soumission)s"
 msgstr "Submitted on %(date_soumission)s"
 
@@ -1291,7 +1221,6 @@ msgstr "True"
 msgid "صح / خطأ"
 msgstr "True / False"
 
-#, python-format
 msgid "صفحة %(num)s من %(total)s"
 msgstr "Page %(num)s of %(total)s"
 
@@ -1331,14 +1260,12 @@ msgstr "View all ←"
 msgid "عرض الميثاق ←"
 msgstr "View the charter ←"
 
-#, python-format
 msgid "عرض جميع الحصص (%(n)s) ↓"
 msgstr "Show all sessions (%(n)s) ↓"
 
 msgid "عرض جميع الحصص ←"
 msgstr "View all sessions ←"
 
-#, python-format
 msgid "عرض جميع المجموعات السابقة (%(total)s) ↓"
 msgstr "Show all previous groups (%(total)s) ↓"
 
@@ -1357,7 +1284,6 @@ msgstr "Score /20"
 msgid "عنوان الاختبار"
 msgstr "Exam title"
 
-#, python-format
 msgid "عُدّلت %(date_mod)s"
 msgstr "Edited on %(date_mod)s"
 
@@ -1574,18 +1500,9 @@ msgstr "For remote Quran memorization"
 msgid "لتغيير كلمة المرور، تواصل مع الإدارة."
 msgstr "To change your password, contact the administration."
 
-#, python-format
-msgid ""
-"لديك طلب تعديل معلّق منذ %(date_demande)s بانتظار موافقة الإدارة.\n"
-"    جدولك الحالي (أدناه) يبقى سارياً حتى تتم الموافقة. يمكنك تعديل اقتراحك وإعادة إرساله في أي وقت."
-msgstr ""
-"You have a pending modification request since %(date_demande)s, awaiting administration approval.\n"
-"    Your current schedule (below) remains in effect until approved. You can edit your suggestion and resend it at any time."
-
 msgid "لقد قرأت ووافقت على الميثاق"
 msgstr "I have read and agree to the charter"
 
-#, python-format
 msgid "لقد وافقت على الميثاق بتاريخ %(date_acceptation)s"
 msgstr "You accepted the charter on %(date_acceptation)s"
 
@@ -1703,7 +1620,6 @@ msgstr "Continue ←"
 msgid "متاح إلى غاية"
 msgstr "Available until"
 
-#, python-format
 msgid "متاح إلى غاية %(date_limite)s"
 msgstr "Available until %(date_limite)s"
 
@@ -1737,11 +1653,9 @@ msgstr "Nearby groups you can join right now:"
 msgid "مجموعاتي"
 msgstr "My groups"
 
-#, python-format
 msgid "مجموعاتي %(n)s"
 msgstr "My groups %(n)s"
 
-#, python-format
 msgid "مجموعاتي (%(n)s)"
 msgstr "My groups (%(n)s)"
 
@@ -1826,7 +1740,6 @@ msgstr "Remark (optional)"
 msgid "ملاحظة المعلم"
 msgstr "Teacher's remark"
 
-#, python-format
 msgid "ملاحظة بتاريخ %(date_note)s"
 msgstr "Note from %(date_note)s"
 
@@ -1884,7 +1797,6 @@ msgstr "Active groups' schedules"
 msgid "موقوف"
 msgstr "Suspended"
 
-#, python-format
 msgid "موقوف منذ %(n)s يوم"
 msgstr "Suspended for %(n)s day(s)"
 
@@ -1894,7 +1806,6 @@ msgstr "Teaching charter"
 msgid "نسخ"
 msgstr "Copy"
 
-#, python-format
 msgid "نسخ %(titre)s"
 msgstr "%(titre)s submissions"
 
@@ -1925,7 +1836,6 @@ msgstr "Free text — not automatically filled"
 msgid "نوع السؤال"
 msgstr "Question type"
 
-#, python-format
 msgid "هذا الاختبار غير متاح بعد. يبدأ في %(date_debut)s."
 msgstr "This exam is not yet available. It starts on %(date_debut)s."
 
@@ -2037,7 +1947,6 @@ msgstr "The rules and commitments you agreed to when registering — for informa
 msgid "بانتظار معالجة الإدارة."
 msgstr "Awaiting processing by the administration."
 
-#, python-format
 msgid "جماعي — %(tranche)s — %(n)s حصص/أسبوع"
 msgstr "Group — %(tranche)s — %(n)s sessions/week"
 
@@ -2059,28 +1968,11 @@ msgstr "Request a group change 🔄"
 msgid "عدد حصص غير معروف"
 msgstr "Unknown number of sessions"
 
-#, python-format
 msgid "فردي — %(tranche)s"
 msgstr "Individual — %(tranche)s"
 
-#, python-format
-msgid ""
-"لا توجد تعرفة محددة لهذه المجموعة بعد (%(nb)s حصص/أسبوع) —\n"
-"                لم يُحتسب أي مبلغ عنها حتى تُضبط التعرفة من طرف الإدارة."
-msgstr ""
-"No rate defined for this group yet (%(nb)s sessions/week) —\n"
-"                no amount has been calculated for it until the rate is set by the administration."
-
 msgid "لا توجد حلقات أخرى متوافقة مع جنسك وعمرك حالياً."
 msgstr "No other group compatible with your gender and age currently."
-
-#, python-format
-msgid ""
-"لديك بالفعل طلب قيد الانتظار (إلى: <strong>%(nom_groupe)s</strong>) —\n"
-"        يجب معالجته من طرف الإدارة قبل إرسال طلب جديد."
-msgstr ""
-"You already have a pending request (to: <strong>%(nom_groupe)s</strong>) —\n"
-"        it must be processed by the administration before sending a new request."
 
 msgid "للاطلاع فقط — الموافقة عليه تتم عند التسجيل كمعلم"
 msgstr "For information only — approval happens during teacher registration"
@@ -2577,31 +2469,24 @@ msgstr "Please read the entire charter before accepting it — acceptance is man
 msgid "يرجى ملء جميع الخانات بدقة"
 msgstr "Please fill in all fields accurately"
 
-#, python-format
 msgid "\"%(label)s\" إلزامي."
 msgstr "\"%(label)s\" is required."
 
-#, python-format
 msgid "\"%(label)s\" غير صالح."
 msgstr "\"%(label)s\" is invalid."
 
-#, python-format
 msgid "\"%(label)s\" يجب ألا يتجاوز %(max)s."
 msgstr "\"%(label)s\" must not exceed %(max)s."
 
-#, python-format
 msgid "\"%(label)s\" يجب أن يكون %(min)s على الأقل."
 msgstr "\"%(label)s\" must be at least %(min)s."
 
-#, python-format
 msgid "\"%(label)s\" يجب أن يكون رقماً صحيحاً."
 msgstr "\"%(label)s\" must be a whole number."
 
-#, python-format
 msgid "\"%(label)s\" يجب أن يكون على الأقل 1."
 msgstr "\"%(label)s\" must be at least 1."
 
-#, python-format
 msgid "خيار غير صالح ضمن \"%(label)s\"."
 msgstr "Invalid option within \"%(label)s\"."
 
@@ -2671,7 +2556,6 @@ msgstr "Sending..."
 msgid "سجل المدفوعات"
 msgstr "Payment history"
 
-#, python-format
 msgid "%(montant)s درهم — أُرسل في %(date)s"
 msgstr "%(montant)s dirhams — sent on %(date)s"
 
@@ -2744,18 +2628,15 @@ msgstr "Everything that needs your attention"
 msgid "كل ما يخصك شخصياً — اختبارات، تقييمات، ملفات جديدة"
 msgstr "Everything that concerns you personally — exams, evaluations, new files"
 
-#, python-format
 msgid "اختبار جديد: %(titre)s"
 msgstr "New exam: %(titre)s"
 
 msgid "اختبارات جديدة"
 msgstr "New exams"
 
-#, python-format
 msgid "تقييم جديد لحصة %(groupe)s"
 msgstr "New evaluation for the %(groupe)s session"
 
-#, python-format
 msgid "ملف جديد في حقيبتك: %(titre)s"
 msgstr "New file in your folder: %(titre)s"
 
@@ -2768,11 +2649,9 @@ msgstr "New files in your folder"
 msgid "بدون عنوان"
 msgstr "Untitled"
 
-#, python-format
 msgid "تقييم جديد من المؤطر على حصة %(groupe)s"
 msgstr "New supervisor evaluation for the %(groupe)s session"
 
-#, python-format
 msgid "ملف جديد في حقيبة الأستاذ: %(titre)s"
 msgstr "New file in the teacher folder: %(titre)s"
 
@@ -2782,15 +2661,12 @@ msgstr "New supervisor evaluations"
 msgid "ملفات جديدة في حقيبة الأستاذ"
 msgstr "New files in the teacher folder"
 
-#, python-format
 msgid "طلب تسجيل جديد: %(nom)s"
 msgstr "New application: %(nom)s"
 
-#, python-format
 msgid "طلب أستاذ بانتظار تصديقك: %(nom)s %(prenom)s"
 msgstr "Teacher application awaiting your approval: %(nom)s %(prenom)s"
 
-#, python-format
 msgid "طلب تغيير حلقة: %(nom)s"
 msgstr "Group change request: %(nom)s"
 
@@ -2812,7 +2688,6 @@ msgstr "1 minute ago"
 msgid "منذ دقيقتين"
 msgstr "2 minutes ago"
 
-#, python-format
 msgid "منذ %(n)s دقائق"
 msgstr "%(n)s minutes ago"
 
@@ -2822,7 +2697,6 @@ msgstr "1 hour ago"
 msgid "منذ ساعتين"
 msgstr "2 hours ago"
 
-#, python-format
 msgid "منذ %(n)s ساعات"
 msgstr "%(n)s hours ago"
 
@@ -2832,7 +2706,6 @@ msgstr "1 day ago"
 msgid "منذ يومين"
 msgstr "2 days ago"
 
-#, python-format
 msgid "منذ %(n)s أيام"
 msgstr "%(n)s days ago"
 
@@ -2842,7 +2715,6 @@ msgstr "1 week ago"
 msgid "منذ أسبوعين"
 msgstr "2 weeks ago"
 
-#, python-format
 msgid "منذ %(n)s أسابيع"
 msgstr "%(n)s weeks ago"
 
@@ -2876,7 +2748,6 @@ msgstr "1 year"
 msgid "التسجيل مغلق حالياً"
 msgstr "Registration currently closed"
 
-#, python-format
 msgid "التسجيل مغلق حالياً لفئة %(categorie_label)s"
 msgstr "Registration is currently closed for the %(categorie_label)s category"
 
@@ -2888,13 +2759,6 @@ msgstr "Child students"
 
 msgid "الأساتذة"
 msgstr "Teachers"
-
-msgid ""
-"نعتذر، التسجيل في هذه الفئة متوقف مؤقتاً حالياً. يمكنكم التواصل مع الإدارة\n"
-"            للاستفسار أو معرفة موعد إعادة الفتح."
-msgstr ""
-"We apologize, registration for this category is temporarily closed. You can contact the administration\n"
-"            for inquiries or to find out the reopening date."
 
 msgid "تعديل تعرفة جماعي"
 msgstr "Edit group rate"
@@ -2917,7 +2781,6 @@ msgstr "Disabling this rate makes it \"undefined\" again (affected teachers' sal
 msgid "حفظ التعديلات ✅"
 msgstr "Save changes ✅"
 
-#, python-format
 msgid "تعديل: %(tranche)s — %(n)s حصص/أسبوع"
 msgstr "Edit: %(tranche)s — %(n)s sessions/week"
 
@@ -2930,7 +2793,6 @@ msgstr "Price (MAD / actually completed session) *"
 msgid "يُحتسب هذا المبلغ لكل حصة فردية أُنجزت فعلياً هذا الشهر (المعلم حضّر والطالب حضر) — وليس مبلغاً شهرياً ثابتاً."
 msgstr "This amount is calculated for each individual session actually completed this month (teacher present and student present) — not a fixed monthly amount."
 
-#, python-format
 msgid "تعديل: %(tranche)s (فردي)"
 msgstr "Edit: %(tranche)s (individual)"
 
@@ -2979,23 +2841,12 @@ msgstr "No rates — check the migration"
 msgid "إدارة أعداد الحصص الأسبوعية المتاحة (1، 2، 3...)"
 msgstr "Manage available weekly session counts (1, 2, 3...)"
 
-#, python-format
-msgid ""
-"%(configures)s من أصل %(total)s تعرفة \"جماعي\" محددة. الحالات التالية بدون تعرفة —\n"
-"    أي معلم/طالب معني بها لن يُحتسب راتبه عن هذه الحلقة تلقائياً حتى تُحدَّد:"
-msgstr ""
-"%(configures)s out of %(total)s \"group\" rates defined. The following cases have no rate —\n"
-"    any teacher/student concerned by this halaka will not have their salary calculated automatically until it is set:"
-
-#, python-format
 msgid "%(n)s حصص/أسبوع"
 msgstr "%(n)s sessions/week"
 
-#, python-format
 msgid "%(montant)s درهم / طالب نشط / شهر"
 msgstr "%(montant)s MAD / active student / month"
 
-#, python-format
 msgid "%(montant)s درهم / حصة مُنجزة فعلياً"
 msgstr "%(montant)s MAD / actually completed session"
 
@@ -3065,7 +2916,6 @@ msgstr "Adults version"
 msgid "النقاط (سطر واحد لكل نقطة)"
 msgstr "Points (one line per point)"
 
-#, python-format
 msgid "آخر تعديل: %(date)s — مرئي للمعلمين والطلاب، بحسب الفئة العمرية"
 msgstr "Last modified: %(date)s — visible to teachers and students, depending on age group"
 
@@ -3105,19 +2955,15 @@ msgstr "No active subscriber at the moment"
 msgid "غير نشطين (سجل قديم)"
 msgstr "Inactive (history)"
 
-#, python-format
 msgid "طلب في %(date)s"
 msgstr "Requested on %(date)s"
 
-#, python-format
 msgid "مفعّل منذ %(date)s"
 msgstr "Active since %(date)s"
 
-#, python-format
 msgid "بموافقة %(nom)s"
 msgstr "Approved by %(nom)s"
 
-#, python-format
 msgid "أُلغي في %(date)s"
 msgstr "Cancelled on %(date)s"
 
@@ -3160,11 +3006,9 @@ msgstr "Delete 🗑️"
 msgid "لا توجد عناصر مضافة بعد"
 msgstr "No items added yet"
 
-#, python-format
 msgid "العناصر الحالية (%(n)s)"
 msgstr "Current items (%(n)s)"
 
-#, python-format
 msgid "بواسطة %(nom)s —"
 msgstr "By %(nom)s —"
 
@@ -3219,7 +3063,6 @@ msgstr "The teacher's current job or activity outside of teaching"
 msgid "هذه هي الحقول الوحيدة القابلة للتخصيص من ملف الأستاذ للطالب — الاسم يبقى ظاهراً دائماً، ولا تأثير لهذه الإعدادات على ما يراه المشرف أو المؤطر."
 msgstr "These are the only customizable fields of the teacher's profile visible to the student — the name always remains visible, and these settings do not affect what the supervisor or overseer sees."
 
-#, python-format
 msgid "آخر تعديل: %(date)s — يتحكم فيما يراه الطالب من ملف أستاذه، وفي بطاقة الحلقة أثناء التسجيل (لا يؤثر على ما يراه المشرف أو المؤطر)"
 msgstr "Last modified: %(date)s — controls what the student sees of their teacher's profile, and on the halaka card during registration (does not affect what the supervisor or overseer sees)"
 
@@ -3247,7 +3090,6 @@ msgstr "Used in the \"Contact via WhatsApp\" button visible to students, teacher
 msgid "حفظ معلومات التواصل ✅"
 msgstr "Save contact information ✅"
 
-#, python-format
 msgid "البريد الحالي: %(email)s"
 msgstr "Current email: %(email)s"
 
@@ -3269,7 +3111,6 @@ msgstr "Save change ✅"
 msgid "← إلغاء"
 msgstr "← Cancel"
 
-#, python-format
 msgid "%(nom)s — البريد الحالي: %(email)s"
 msgstr "%(nom)s — current email: %(email)s"
 
@@ -3288,27 +3129,21 @@ msgstr "The requested new email"
 msgid "← إلغاء، رجوع بدون أي تغيير"
 msgstr "← Cancel, go back without any change"
 
-#, python-format
 msgid "البريد الحالي (%(email)s) مستخدم أيضاً من طرف حساب واحد آخر — على الأرجح فرد من نفس الأسرة. اختر بدقة قبل المتابعة، لأن هذا التغيير لا يمكن التراجع عنه تلقائياً."
 msgstr "The current email (%(email)s) is also used by one other account — probably a family member. Choose carefully before continuing, as this change cannot be undone automatically."
 
-#, python-format
 msgid "البريد الحالي (%(email)s) مستخدم أيضاً من طرف %(counter)s حسابات أخرى — على الأرجح أفراد نفس الأسرة. اختر بدقة قبل المتابعة، لأن هذا التغيير لا يمكن التراجع عنه تلقائياً."
 msgstr "The current email (%(email)s) is also used by %(counter)s other accounts — probably family members. Choose carefully before continuing, as this change cannot be undone automatically."
 
-#, python-format
 msgid "تحديث هذا الحساب فقط (%(nom)s)"
 msgstr "Update only this account (%(nom)s)"
 
-#, python-format
 msgid "الحسابات الأخرى تبقى على البريد القديم (%(email)s)."
 msgstr "Other accounts remain on the old email (%(email)s)."
 
-#, python-format
 msgid "تحديث كل الحسابات المرتبطة بهذا البريد (%(n)s حساب)"
 msgstr "Update all accounts linked to this email (%(n)s accounts)"
 
-#, python-format
 msgid "كل الحسابات المذكورة أعلاه + %(nom)s تنتقل جميعها إلى %(email)s."
 msgstr "All the accounts above + %(nom)s all move to %(email)s."
 
@@ -3327,11 +3162,9 @@ msgstr "This user will be immediately logged out of all devices, and a new passw
 msgid "إعادة تعيين كلمة المرور 🔑"
 msgstr "Reset password 🔑"
 
-#, python-format
 msgid "يمكن لـ%(nom)s تسجيل الدخول مباشرة بهذه الكلمة، دون أي شاشة تغيير إجباري. لم يُرسَل أي بريد إلكتروني أو رسالة تلقائياً — استخدم الأزرار أدناه لإرسالها يدوياً."
 msgstr "%(nom)s can log in directly with this password, without any mandatory change screen. No email or message was sent automatically — use the buttons below to send it manually."
 
-#, python-format
 msgid "إعادة تعيين كلمة مرور %(nom)s؟ سيتم تسجيل خروجه من جميع الأجهزة فوراً، ولن يتمكن من الدخول إلا بكلمة المرور الجديدة."
 msgstr "Reset %(nom)s's password? They will be logged out of all devices immediately, and will only be able to log in with the new password."
 
@@ -3398,19 +3231,15 @@ msgstr "Reject"
 msgid "لا توجد طلبات معلقة"
 msgstr "No pending requests"
 
-#, python-format
 msgid "الطلبات المعلقة: %(n)s"
 msgstr "Pending requests: %(n)s"
 
-#, python-format
 msgid "تاريخ التقديم: %(date)s"
 msgstr "Submission date: %(date)s"
 
-#, python-format
 msgid "هل أنت متأكد من قبول طلب %(nom)s؟ سيتم إنشاء حساب مستخدم فعلي له."
 msgstr "Are you sure you want to accept %(nom)s's request? A real user account will be created for them."
 
-#, python-format
 msgid "هل أنت متأكد من قبول طلب %(nom)s %(prenom)s مبدئياً؟ سيُحال إلى المشرف للتصديق النهائي (لن يُنشأ أي حساب الآن)."
 msgstr "Are you sure you want to provisionally accept %(nom)s %(prenom)s's request? It will be forwarded to the supervisor for final approval (no account will be created now)."
 
@@ -3477,15 +3306,12 @@ msgstr "All requests (in detail)"
 msgid "لا توجد طلبات مطابقة لهذه التصفية."
 msgstr "No requests match this filter."
 
-#, python-format
 msgid "عدد الحصص: %(n)s"
 msgstr "Number of sessions: %(n)s"
 
-#, python-format
 msgid "%(n)s طلب"
 msgstr "%(n)s request(s)"
 
-#, python-format
 msgid "عرض كل الطلبات (%(n)s) ↓"
 msgstr "View all requests (%(n)s) ↓"
 
@@ -3546,15 +3372,12 @@ msgstr "Do you want to reject this request?"
 msgid "لا توجد طلبات معلّقة"
 msgstr "No pending requests"
 
-#, python-format
 msgid "من: %(nom)s"
 msgstr "From: %(nom)s"
 
-#, python-format
 msgid "إلى: <strong>%(nom)s</strong>"
 msgstr "To: <strong>%(nom)s</strong>"
 
-#, python-format
 msgid "طُلب في %(date)s"
 msgstr "Requested on %(date)s"
 
@@ -3615,11 +3438,9 @@ msgstr "The candidate did not specify any availability to teach."
 msgid "القبول هنا يُعتبر تصديقاً مبدئياً فقط — لا يُنشئ أي حساب. الطلب يُحال بعده إلى المشرف الذي يتخذ القرار النهائي وينشئ حساب المعلم عند القبول."
 msgstr "Accepting here is only a preliminary validation — it does not create any account. The request is then forwarded to the supervisor, who makes the final decision and creates the teacher's account upon acceptance."
 
-#, python-format
 msgid "السبب: %(motif)s"
 msgstr "Reason: %(motif)s"
 
-#, python-format
 msgid "بتاريخ %(date)s"
 msgstr "On %(date)s"
 
@@ -3710,31 +3531,38 @@ msgstr "Cannot accept — email conflict"
 msgid "حذف الحساب اليتيم"
 msgstr "Delete orphan account"
 
-#, python-format
 msgid "%(montant)s درهم"
 msgstr "%(montant)s MAD"
 
-#, python-format
 msgid "سعر خاص بـ %(n)s حصص/أسبوع — السعر الافتراضي: %(prix)s درهم"
 msgstr "Price specific to %(n)s sessions/week — default price: %(prix)s MAD"
 
-#, python-format
 msgid "يوجد حساب بهذا البريد الإلكتروني (%(email)s) بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). يمكنك حذف هذا الحساب اليتيم ثم إعادة محاولة القبول."
 msgstr "An account exists with this email (%(email)s) without a linked profile (probably from an earlier test). You can delete this orphan account then retry accepting."
 
-#, python-format
 msgid "هل أنت متأكد من حذف هذا الحساب اليتيم (%(email)s)؟"
 msgstr "Are you sure you want to delete this orphan account (%(email)s)?"
 
-#, python-format
 msgid "يوجد حساب <strong>مؤرشف</strong> بهذا البريد الإلكتروني (%(email)s). يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول هذا الطلب."
 msgstr "An <strong>archived</strong> account exists with this email (%(email)s). You must first reactivate that account (or change its email) before accepting this request."
 
-#, python-format
 msgid "يوجد حساب نشط بهذا البريد الإلكتروني (%(email)s) مرتبط بملف شخصي آخر (دور الحساب: %(role)s). راجع هذا الحساب يدوياً — لا يمكن قبول هذا الطلب تلقائياً."
 msgstr "An active account exists with this email (%(email)s) linked to another profile (account role: %(role)s). Review this account manually — this request cannot be accepted automatically."
 
-#, python-format
 msgid "هذا البريد الإلكتروني مستخدم بالفعل من طرف حساب طالب آخر نشط (%(nom)s) — على الأرجح فرد من نفس الأسرة. القبول سيُنشئ حساباً إضافياً مرتبطاً بنفس البريد الإلكتروني."
 msgstr "This email is already used by another active student account (%(nom)s) — probably a family member. Accepting will create an additional account linked to the same email."
 
+msgid "ستحصل على <strong>%(duree)s دقيقة</strong> بمجرد الضغط على \"بدء الاختبار\".\n        الوقت يستمر في الجريان حتى لو أغلقت الصفحة أو غادرت الموقع — لا يمكن استئنافه لاحقاً بمدة جديدة."
+msgstr "You will get <strong>%(duree)s minutes</strong> as soon as you press \"Start the exam\".\n        Time keeps running even if you close the page or leave the site — it cannot be resumed later with a new duration."
+
+msgid "لديك طلب تعديل معلّق منذ %(date_demande)s بانتظار موافقة الإدارة.\n    جدولك الحالي (أدناه) يبقى سارياً حتى تتم الموافقة. يمكنك تعديل اقتراحك وإعادة إرساله في أي وقت."
+msgstr "You have a pending modification request since %(date_demande)s, awaiting administration approval.\n    Your current schedule (below) remains in effect until approved. You can edit your suggestion and resend it at any time."
+
+msgid "لا توجد تعرفة محددة لهذه المجموعة بعد (%(nb)s حصص/أسبوع) —\n                لم يُحتسب أي مبلغ عنها حتى تُضبط التعرفة من طرف الإدارة."
+msgstr "No rate defined for this group yet (%(nb)s sessions/week) —\n                no amount has been calculated for it until the rate is set by the administration."
+
+msgid "لديك بالفعل طلب قيد الانتظار (إلى: <strong>%(nom_groupe)s</strong>) —\n        يجب معالجته من طرف الإدارة قبل إرسال طلب جديد."
+msgstr "You already have a pending request (to: <strong>%(nom_groupe)s</strong>) —\n        it must be processed by the administration before sending a new request."
+
+msgid "نعتذر، التسجيل في هذه الفئة متوقف مؤقتاً حالياً. يمكنكم التواصل مع الإدارة\n            للاستفسار أو معرفة موعد إعادة الفتح."
+msgstr "We apologize, registration for this category is temporarily closed. You can contact the administration\n            for inquiries or to find out the reopening date."

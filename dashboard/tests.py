@@ -3607,6 +3607,12 @@ class AjoutManuelEleveTests(TestCase):
             'round_form': 'identite',
             'nom': 'سلمى الإدريسي', 'sexe': 'femme', 'email': email,
             'date_naissance': '2010-01-01',
+            # nom_parent devenu obligatoire pour un mineur depuis le partage de
+            # la règle wizard_identite/inscrire_eleve (commit du 2026-08-28,
+            # appliquer_regle_nom_parent) — cette fixture représente une
+            # candidate mineure (2010), jamais fourni avant ce correctif car
+            # inscrire_eleve() ne l'exigeait pas encore réellement à l'époque.
+            'nom_parent': 'فاطمة الإدريسي',
             'indicatif_pays': '212', 'telephone': '0611223344', 'telephone_confirmation': '0611223344',
             f'champ_{self.champ_programme.id}': 'hifz',
             f'champ_{self.champ_riwaya.id}': 'hafs',
@@ -3751,7 +3757,7 @@ class AjoutManuelEleveTests(TestCase):
         donnees_round1 = {
             'round_form': 'identite',
             'nom': 'سلمى الإدريسي', 'sexe': 'femme', 'email': 'sans_groupe_manuel@zidni.test',
-            'date_naissance': '2010-01-01',
+            'date_naissance': '2010-01-01', 'nom_parent': 'فاطمة الإدريسي',
             'indicatif_pays': '212', 'telephone': '0611229900', 'telephone_confirmation': '0611229900',
             f'champ_{self.champ_programme.id}': 'hifz',
             f'champ_{self.champ_riwaya.id}': 'hafs',
@@ -4111,7 +4117,10 @@ class GroupeCacheDuWizardPublicCoteAdminTests(TestCase):
         return {
             'round_form': 'identite',
             'nom': 'تلميذ اختبار الإخفاء', 'sexe': 'homme', 'email': email,
-            'date_naissance': '2010-01-01',
+            # nom_parent obligatoire pour un mineur depuis appliquer_regle_nom_parent
+            # (commit du 2026-08-28) -- cette fixture représente un candidat
+            # mineur (2010), voir le même correctif dans AjoutManuelEleveTests.
+            'date_naissance': '2010-01-01', 'nom_parent': 'ولي أمر اختبار الإخفاء',
             'indicatif_pays': '212', 'telephone': '0611223344', 'telephone_confirmation': '0611223344',
             f'champ_{self.champ_programme.id}': 'hifz',
             f'champ_{self.champ_riwaya.id}': 'hafs',
@@ -4136,7 +4145,7 @@ class GroupeCacheDuWizardPublicCoteAdminTests(TestCase):
         reponse = client.post(reverse('admin_eleve_ajouter_manuel'), {
             'round_form': 'confirmation',
             'nom': 'تلميذ اختبار الإخفاء', 'sexe': 'homme', 'email': 'cache_choisi_admin@zidni.test',
-            'date_naissance': '2010-01-01',
+            'date_naissance': '2010-01-01', 'nom_parent': 'ولي أمر اختبار الإخفاء',
             'indicatif_pays': '212', 'telephone': '0611223344', 'telephone_confirmation': '0611223344',
             f'champ_{self.champ_programme.id}': 'hifz',
             f'champ_{self.champ_riwaya.id}': 'hafs',

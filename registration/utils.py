@@ -952,7 +952,7 @@ def traiter_champs_dynamiques_post(post_data, champs):
             erreurs.append(erreur)
             continue
         if not paires and champ.obligatoire:
-            erreurs.append(f'"{champ.label}" إلزامي.')
+            erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(champ.label)})
             continue
         nouvelles_valeurs[cle] = valeur_brute
     return nouvelles_valeurs, erreurs
@@ -1163,17 +1163,17 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
 
     sexe = reponses_brutes.get('sexe') or ''
     if 'sexe' in configs_par_cle and sexe not in ('homme', 'femme'):
-        erreurs.append(f'"{configs_par_cle["sexe"].label}" إلزامي.')
+        erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(configs_par_cle['sexe'].label)})
 
     telephone_config = configs_par_cle.get('telephone')
     telephone = (reponses_brutes.get('telephone') or '').strip()
     if telephone_config is not None and telephone_config.obligatoire and not telephone:
-        erreurs.append(f'"{telephone_config.label}" إلزامي.')
+        erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(telephone_config.label)})
 
     email = (reponses_brutes.get('email') or '').strip()
     if 'email' in configs_par_cle:
         if not email:
-            erreurs.append(f'"{configs_par_cle["email"].label}" إلزامي.')
+            erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(configs_par_cle['email'].label)})
         elif _email_bloque_pour_candidature_eleve(email):
             erreurs.append(MESSAGE_EMAIL_DEJA_UTILISE)
 
@@ -1205,7 +1205,7 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
             erreurs.append(erreur)
             continue
         if not paires and champ.obligatoire:
-            erreurs.append(f'"{champ.label}" إلزامي.')
+            erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(champ.label)})
             continue
         for option, texte in paires:
             a_creer.append((champ, option, texte))
