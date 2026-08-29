@@ -28,12 +28,44 @@ propres fonctions, jamais d'imposer l'ordre d'exécution à la page.
     Caché par défaut (bug UX signalé le 2026-08-21) : révélé par JS
     (toggleNbSeances) uniquement une fois tous les champs obligatoires
     précédents remplis — jamais un état vide statique affiché d'emblée.
+
+    Cases sélectionnables (chantier du 2026-08-29 — voir
+    registration.views.wizard_programme.__doc__ pour l'historique des 2
+    tentatives précédentes le même jour) : la liste vient TELLE QUELLE
+    d'`options_nb_seances` (contexte de la vue, courses.OptionNbSeances
+    actives triées, catalogue partagé réutilisé plutôt que dupliqué),
+    JAMAIS recalculée ni filtrée ici en JS selon Programme/Riwaya/
+    Type d'offre — une combinaison sans groupe réel exact reste normale,
+    gérée par wizard_groupe une étape plus loin. Élément volontairement
+    SÉPARÉ de selectionnerOptionChampDynamique/_champsDynamiquesSelections :
+    ce champ n'a pas d'options STOCKÉES en CritereOption (voir Critere.
+    backend='nb_slots' dans registration/models.py) — pas de data-critere-id/
+    data-obligatoire ici, sinon champsObligatoiresRepondus() créerait une
+    dépendance circulaire (le wrapper ne s'affiche qu'une fois les champs
+    obligatoires répondus, or ce champ EN FAIT PARTIE).
     {% endcomment %}
     <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
         <label class="form-label">{{ champ.label|traduire_dynamique }}{% if champ.obligatoire %} *{% endif %}</label>
-        {% trans "مثال: 3" as placeholder_nb_seances %}
-        <input type="number" name="champ_{{ champ.id }}" class="form-control mt-1" min="1" step="1"
-               placeholder="{{ placeholder_nb_seances }}" {% if champ.obligatoire %}required{% endif %}>
+        {% if options_nb_seances %}
+        <div class="row g-2 mt-1">
+            {% for option in options_nb_seances %}
+            <div class="col-4">
+                <div class="select-btn" onclick="selectionnerNbSeances({{ option.valeur }}, this)">{{ option.valeur }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        <input type="hidden" name="champ_{{ champ.id }}" id="nb_seances_valeur" value="">
+        {% else %}
+        {% comment %}
+        Cas prévu par le point 3 du chantier du 2026-08-29 : le مدير n'a
+        encore configuré AUCUNE option — message générique, jamais un champ
+        vide sans explication (voir /dashboard/admin/parametres/options-nb-
+        seances/, dashboard.views.admin_options_nb_seances).
+        {% endcomment %}
+        <div style="color:#888; font-size:0.85rem; margin-top:4px;">
+            {% blocktrans %}لم يقم المدير بتحديد أي عدد حصص متاح بعد. الرجاء التواصل مع الإدارة.{% endblocktrans %}
+        </div>
+        {% endif %}
     </div>
     {% elif not champ.critere and champ.type_champ == 'booleen' %}
     {% comment %}
@@ -162,6 +194,18 @@ propres fonctions, jamais d'imposer l'ordre d'exécution à la page.
         const wrapper = document.getElementById('nb_seances_wrapper');
         if (!wrapper) return;
         wrapper.style.display = champsObligatoiresRepondus() ? '' : 'none';
+    }
+
+    // ---- Nombre de séances : cases STATIQUES, rendues une fois par le
+    // serveur depuis OptionNbSeances (chantier du 2026-08-29, décision
+    // finale — voir registration.views.wizard_programme.__doc__) — jamais
+    // recalculées en JS selon Programme/Riwaya/Type d'offre. Élément séparé
+    // de selectionnerOptionChampDynamique : pas de data-critere-id ici (ce
+    // champ n'a pas de Critere.options, voir le commentaire plus haut).
+    function selectionnerNbSeances(valeur, element) {
+        document.querySelectorAll('#nb_seances_wrapper .select-btn').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+        document.getElementById('nb_seances_valeur').value = valeur;
     }
 
     document.addEventListener('DOMContentLoaded', toggleNbSeances);

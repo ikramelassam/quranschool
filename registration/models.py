@@ -18,12 +18,21 @@ par nom de critère métier :
                    une donnée déjà structurellement embarquée ailleurs dans le projet
                    (TarifRemuneration, capacité...). Aucune ligne GroupeCritereValeur
                    n'est jamais écrite pour ce backend.
-- 'nb_slots'     : le critère est ENTIÈREMENT dérivé du nombre réel de CreneauSlot d'un
-                   groupe (courses.models.CreneauSlot) — jamais stocké nulle part par
-                   groupe, jamais configuré manuellement. Une seule source de vérité :
-                   le planning réel du groupe. Aucune CritereOption ni GroupeCritereValeur
-                   n'est jamais créée pour ce backend, les valeurs possibles sont
-                   recalculées à la volée (voir registration.utils.groupes_compatibles).
+- 'nb_slots'     : la RÉPONSE (ReponseInscription.valeur_texte) reste ENTIÈREMENT dérivée
+                   du nombre réel de CreneauSlot d'un groupe pour le FILTRAGE (courses.
+                   models.CreneauSlot, voir registration.utils.groupes_compatibles/
+                   nb_seances_disponibles) — jamais stockée nulle part par groupe. Aucune
+                   CritereOption ni GroupeCritereValeur n'est jamais créée pour ce backend.
+                   Les CASES PROPOSÉES à l'élève, elles, viennent depuis le 2026-08-29 de
+                   courses.models.OptionNbSeances — le catalogue partagé créé le 2026-08-27
+                   pour la tarification élève/le barème salaire prof (voir son __doc__),
+                   réutilisé ici plutôt que dupliqué : une liste configurée UNE FOIS par le
+                   مدير, volontairement DÉCORRÉLÉE des groupes réels et des autres réponses
+                   (programme/riwaya/type_offre) de la même étape (2 tentatives de filtrage
+                   par groupes réels essayées puis abandonnées le même jour avant d'aboutir
+                   à cette liste fixe). Les 2 usages de 'nb_slots' (filtrage des groupes
+                   compatibles VS cases affichées) restent donc sciemment DÉCOUPLÉS — voir
+                   registration.utils.valeurs_options_nb_seances_actives pour le détail.
 
 Ces 3 backends sont fixés UNE FOIS à l'architecture, pas par critère métier à l'infini —
 c'est ce qui permet au moteur de filtrage de rester générique (voir registration.utils)

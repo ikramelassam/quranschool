@@ -3214,6 +3214,14 @@ class MoyenPaiementPresentationDelaisTests(TestCase):
         moyen.refresh_from_db()
         self.assertFalse(moyen.est_actif)
 
+    # test_liste_ajout_toggle_suppression_option_nb_seances_a_parite_stricte
+    # retiré (2026-08-29) : doublon de couverture avec les tests déjà
+    # existants pour admin_options_nb_seances/ajouter/toggle plus haut dans
+    # ce fichier (catalogue partagé courses.OptionNbSeances, chantier du
+    # 2026-08-27) — ce catalogue n'a volontairement aucune suppression
+    # définitive (toggle actif/inactif seulement, voir son __doc__), la
+    # version testée ici en avait une, incompatible avec cette politique.
+
     def test_presentation_inscription_editable_par_les_deux_roles(self):
         for client in (self._connecte_admin(), self._connecte_mshrif()):
             reponse = client.post(reverse('admin_presentation_inscription'), {

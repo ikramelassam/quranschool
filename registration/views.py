@@ -286,23 +286,34 @@ def wizard_programme(request):
     'programme' (au minimum, prévus dès le lancement via la migration de
     seed : Programme, Riwaya, Groupe-ou-Individuel, Nombre de séances).
 
-    Chantier du 2026-08-22 ("liberté totale du nombre de séances") : le
-    champ backend='nb_slots' est désormais un simple nombre libre (aucune
-    liste calculée depuis les groupes réels existants, contrairement à
-    avant) — un élève peut demander N'IMPORTE QUEL nombre, même si aucun
-    groupe n'a jamais eu ce nombre de séances. Si ça mène à zéro groupe
-    correspondant exactement, voir wizard_groupe (message configurable +
-    DemandeNonSatisfaite, généralisé à TOUTE combinaison de critères).
+    Le champ backend='nb_slots' est passé par 3 comportements le même jour
+    (2026-08-29) avant ce dernier : (1) "liberté totale du nombre de séances"
+    (2026-08-22, nombre libre non filtré), (2) cases filtrées par les groupes
+    réels correspondant EXACTEMENT à programme/riwaya/type_offre déjà
+    choisis, (3) cases filtrées par l'existence d'un groupe QUELCONQUE dans
+    le système. Les 2 tentatives à base de groupes réels bloquaient (ou
+    risquaient de bloquer) la progression dès CETTE étape pour toute
+    combinaison sans groupe exact — précisément le cas que wizard_groupe est
+    déjà conçu pour gérer une étape plus loin (message configurable + groupes
+    proches + DemandeNonSatisfaite). Retenu à la place : la liste de cases
+    vient de courses.models.OptionNbSeances (dashboard.views.
+    admin_options_nb_seances, /dashboard/admin/parametres/options-nb-seances/)
+    — le catalogue partagé du 2026-08-27 (tarification élève/barème salaire
+    prof), réutilisé ici plutôt que dupliqué — configurée UNE FOIS par le
+    مدير/مشرف, plus jamais recalculée depuis les groupes ni filtrée par les
+    autres réponses de cette même étape. Voir OptionNbSeances.__doc__
+    (courses/models.py) pour le détail du catalogue.
 
     SAUT SERVEUR si l'étape 'programme' a été désactivée par le مدير
     (correction 8, 2026-08-22, navigation dynamique) — même principe que le
     saut Individuel de wizard_groupe : un visiteur qui force cette URL est
     TOUJOURS redirigé, quelle que soit la méthode HTTP."""
-    from courses.utils import tranche_age_precise
+    from courses.models import OptionNbSeances
     from .utils import (
         etape_est_active, traiter_champs_dynamiques_post, url_etape_suivante,
-        wizard_donnees, wizard_maj,
+        valeurs_options_nb_seances_actives, wizard_donnees, wizard_maj,
     )
+    from courses.utils import tranche_age_precise
 
     donnees = wizard_donnees(request)
     if 'nom' not in donnees:
@@ -321,9 +332,29 @@ def wizard_programme(request):
     )
     tranche_age_label = resultat_tranche[1] if resultat_tranche else ''
 
+    # Cases affichées pour "عدد الحصص الأسبوعية" — communes au GET et aux 2
+    # branches du POST, jamais 2 requêtes divergentes. Voir docstring
+    # ci-dessus : configurées par le مدير, jamais dérivées des groupes.
+    options_nb_seances = OptionNbSeances.objects.filter(est_actif=True).order_by('ordre', 'valeur')
+
     if request.method == 'POST':
         champs = _champs_visibles_pour_etape('programme')
         nouvelles_valeurs, erreurs = traiter_champs_dynamiques_post(request.POST, champs)
+
+        if not erreurs:
+            # Revalidation stricte contre les options ACTIVES configurées par
+            # le مدير — le JS n'a pu proposer que celles-là, mais un POST
+            # forgé pourrait en soumettre une autre, jamais une confiance
+            # aveugle au POST. valeur_brute déjà validée (entier positif en
+            # texte) par traiter_champs_dynamiques_post ci-dessus — jamais
+            # reparsée ici.
+            champ_nb_seances = next((c for c in champs if c.critere and c.critere.backend == 'nb_slots'), None)
+            if champ_nb_seances is not None:
+                valeur_brute = nouvelles_valeurs.get(f'champ_{champ_nb_seances.id}')
+                if valeur_brute not in (None, '') and int(valeur_brute) not in valeurs_options_nb_seances_actives():
+                    erreurs.append(
+                        f'"{champ_nb_seances.label}" لم يعد متاحاً، الرجاء اختيار قيمة أخرى.'
+                    )
 
         if not erreurs:
             wizard_maj(request, nouvelles_valeurs)
@@ -333,6 +364,7 @@ def wizard_programme(request):
             'champs': champs, 'erreurs': erreurs, 'valeurs_form': {**donnees, **request.POST.dict()},
             'tranche_age_label': tranche_age_label,
             'wizard_etape_num': 2,
+            'options_nb_seances': options_nb_seances,
         })
 
     champs = _champs_visibles_pour_etape('programme')
@@ -340,6 +372,7 @@ def wizard_programme(request):
         'champs': champs, 'valeurs_form': donnees,
         'tranche_age_label': tranche_age_label,
         'wizard_etape_num': 2,
+        'options_nb_seances': options_nb_seances,
     })
 
 

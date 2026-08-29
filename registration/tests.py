@@ -67,6 +67,23 @@ def _creer_creneau(nb_slots=2, age_min=6, age_max=60, sexe_cible='mixte'):
     return creneau
 
 
+def _seeder_options_nb_seances(*valeurs):
+    """Crée (ou complète) les courses.OptionNbSeances actives nécessaires à
+    un test qui POST un champ backend='nb_slots' au wizard — voir son
+    __doc__ (catalogue partagé du 2026-08-27, réutilisé depuis le 2026-08-29
+    par registration.utils.valeurs_options_nb_seances_actives). get_or_create
+    : la migration 0040 de courses seed déjà 1/2/3 dans la vraie base, mais
+    chaque test repart potentiellement d'une table vidée par un autre test
+    (voir ex. CouvertureTarifsRemunerationGroupeTests.setUp) — ne jamais
+    supposer un état précis, toujours créer explicitement ce dont ce test a
+    besoin, exactement comme TypeAbonnement/MoyenPaiement/GrillePrixAbonnement
+    ailleurs dans ce fichier."""
+    from courses.models import OptionNbSeances
+
+    for i, valeur in enumerate(valeurs, start=1):
+        OptionNbSeances.objects.get_or_create(valeur=valeur, defaults={'ordre': i})
+
+
 def _creer_critere(code, label='', backend='eav', filtrable=True, bloquant=False,
                     type_champ='choix_unique', champ_modele_groupe='', options=()):
     critere = Critere.objects.create(
@@ -1015,6 +1032,7 @@ class ChampAvecCritereSurEtapeIdentiteTests(TestCase):
         self.abo_groupe = TypeAbonnement.objects.create(
             code='test_langue_abo', label='جماعي شهري', prix=80, type_offre='groupe', cible_age='les_deux', ordre=1,
         )
+        _seeder_options_nb_seances(2)
 
     # ---- Côté wizard public ----
 
@@ -1641,6 +1659,11 @@ class WizardProgrammeTests(TestCase):
         self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
         self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
         self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+        # OptionNbSeances (chantier du 2026-08-29, cases décorrélées des
+        # groupes réels — voir son __doc__ : AUCUNE valeur seedée par
+        # migration, le مدير configure tout lui-même) — sans elles, AUCUNE
+        # valeur ne serait acceptée dans cette classe, même '2'.
+        _seeder_options_nb_seances(1, 2, 3, 4, 5)
 
     def _avancer_a_etape_2(self, client):
         _choisir_categorie_age(client)
@@ -1672,6 +1695,41 @@ class WizardProgrammeTests(TestCase):
         self.assertIn('id="nb_seances_wrapper" style="display:none;"', html)  # Bug B : caché par défaut
         self.assertIn('data-obligatoire="1"', html)
 
+    def test_options_affichees_independamment_de_toute_combinaison(self):
+        """Chantier du 2026-08-29 (voir OptionNbSeances.__doc__ et
+        registration.views.wizard_programme.__doc__ pour l'historique) :
+        les cases affichées sont EXACTEMENT les OptionNbSeances actives
+        configurées par le مدير — 7 et 9 n'existent dans AUCUN groupe réel de
+        cette classe (voir setUp, qui n'en crée d'ailleurs aucun) et
+        apparaissent quand même ; 11, désactivée, n'apparaît jamais."""
+        from courses.models import OptionNbSeances
+
+        OptionNbSeances.objects.all().delete()
+        OptionNbSeances.objects.create(valeur=7, ordre=1)
+        OptionNbSeances.objects.create(valeur=9, ordre=2)
+        OptionNbSeances.objects.create(valeur=11, ordre=3, est_actif=False)
+
+        client = Client()
+        self._avancer_a_etape_2(client)
+        html = client.get(reverse('wizard_programme')).content.decode('utf-8')
+        self.assertIn('selectionnerNbSeances(7,', html)
+        self.assertIn('selectionnerNbSeances(9,', html)
+        self.assertNotIn('selectionnerNbSeances(11,', html)
+        self.assertNotIn('لم يقم المدير بتحديد', html)
+
+    def test_aucune_option_configuree_affiche_message_generique(self):
+        """Point 3 du chantier du 2026-08-29 : le SEUL cas où "aucune
+        option disponible" doit encore apparaître — un message générique,
+        jamais un champ vide sans explication."""
+        from courses.models import OptionNbSeances
+
+        OptionNbSeances.objects.all().delete()
+        client = Client()
+        self._avancer_a_etape_2(client)
+        html = client.get(reverse('wizard_programme')).content.decode('utf-8')
+        self.assertIn('لم يقم المدير بتحديد أي عدد حصص متاح بعد', html)
+        self.assertNotIn('onclick="selectionnerNbSeances(', html)
+
     def test_redirige_vers_identite_si_etape_1_pas_encore_faite(self):
         """Accès direct à /wizard/programme/ sans être passé par l'étape 1 —
         pas de session encore peuplée. fetch_redirect_response=False : sans
@@ -1681,22 +1739,27 @@ class WizardProgrammeTests(TestCase):
         reponse = Client().get(reverse('wizard_programme'))
         self.assertRedirects(reponse, reverse('wizard_identite'), fetch_redirect_response=False)
 
-    def test_nombre_de_seances_libre_meme_sans_aucun_groupe_reel_a_ce_nombre(self):
-        """Chantier du 2026-08-22 ("liberté totale du nombre de séances") :
-        99 séances/semaine n'existe RÉELLEMENT nulle part dans le système —
-        avant ce chantier, seules les valeurs calculées depuis les groupes
-        réels étaient acceptées. Doit désormais être accepté sans erreur,
-        pour Groupe comme pour Individuel (plus de distinction)."""
+    def test_nombre_de_seances_hors_options_configurees_refuse(self):
+        """Le chantier du 2026-08-22 ("liberté totale du nombre de séances")
+        avait ouvert ce champ à n'importe quel entier. Remplacé le 2026-08-29
+        par des cases sélectionnables (courses.OptionNbSeances, catalogue
+        partagé réutilisé — voir son __doc__) : 99 ne fait pas partie des
+        options 1..5 créées par setUp (_seeder_options_nb_seances) — doit
+        être REFUSÉ, pour Groupe comme pour Individuel, quels que soient les
+        groupes réels existants (cette classe n'en crée d'ailleurs aucun)."""
         client = Client()
-        self._avancer_a_etape_2(client)
-        reponse = client.post(reverse('wizard_programme'), {
-            f'champ_{self.champ_programme.id}': 'hifz',
-            f'champ_{self.champ_riwaya.id}': 'hafs',
-            f'champ_{self.champ_type_offre.id}': 'groupe',
-            f'champ_{self.champ_nb_seances.id}': '99',
-        })
-        self.assertRedirects(reponse, reverse('wizard_groupe'), fetch_redirect_response=False)
-        self.assertEqual(client.session['wizard_inscription'][f'champ_{self.champ_nb_seances.id}'], '99')
+        for type_offre in ('groupe', 'individuel'):
+            self._avancer_a_etape_2(client)
+            reponse = client.post(reverse('wizard_programme'), {
+                f'champ_{self.champ_programme.id}': 'hifz',
+                f'champ_{self.champ_riwaya.id}': 'hafs',
+                f'champ_{self.champ_type_offre.id}': type_offre,
+                f'champ_{self.champ_nb_seances.id}': '99',
+            })
+            self.assertEqual(reponse.status_code, 200, type_offre)
+            self.assertNotIn(
+                f'champ_{self.champ_nb_seances.id}', client.session.get('wizard_inscription', {}), type_offre
+            )
 
     def test_nombre_de_seances_zero_ou_non_numerique_refuse(self):
         """Liberté totale ne veut pas dire aucune validation : un input libre
@@ -1788,6 +1851,7 @@ class WizardGroupeTests(TestCase):
         GroupeCritereValeur.objects.create(
             groupe=self.groupe, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'),
         )
+        _seeder_options_nb_seances(2)
 
     def _avancer_a_etape_3(self, client, type_offre='groupe'):
         _choisir_categorie_age(client)
@@ -2250,6 +2314,7 @@ class CritereFiltrableEavSousConfigureCoteGroupeTests(TestCase):
         )
         # AUCUNE GroupeCritereValeur créée pour critere_niveau sur ce groupe
         # — reproduit fidèlement le manque de configuration observé en base.
+        _seeder_options_nb_seances(2)
 
     def test_critere_eav_a_couverture_nulle_est_ignore_le_groupe_reste_trouve(self):
         """Cause confirmée, isolée de la vue : répondre au critère à
@@ -2369,6 +2434,7 @@ class GroupeCacheDuWizardPublicTests(TestCase):
             code='test_cache_wizard_abo', label='جماعي شهري', prix=80, type_offre='groupe', cible_age='les_deux', ordre=1,
         )
         self.moyen = MoyenPaiement.objects.create(code='test_cache_wizard_cih', label='CIH بنك', coordonnees='RIB', est_actif=True)
+        _seeder_options_nb_seances(2)
 
     def _reponses_pour_filtrage(self):
         return {
@@ -2569,6 +2635,10 @@ class WizardNavigationDynamiqueTests(TestCase):
         self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
         self.etape_groupe = EtapeInscription.objects.get(code='groupe')
         self.etape_programme = EtapeInscription.objects.get(code='programme')
+        # OptionNbSeances (chantier du 2026-08-29, voir son __doc__) : '2',
+        # posté par _programme() ci-dessous, est acceptable sans créer le
+        # moindre Groupe/Creneau dans cette classe.
+        _seeder_options_nb_seances(2)
 
     def _identite(self, client):
         _choisir_categorie_age(client)
@@ -2721,6 +2791,10 @@ class EtapePersonnaliseeInsereeEntreDeuxEtapesReellesTests(TestCase):
         )
         from payments.models import MoyenPaiement
         self.moyen = MoyenPaiement.objects.create(code='test_conditions_cih', label='CIH بنك', coordonnees='RIB', est_actif=True)
+        # OptionNbSeances (chantier du 2026-08-29, voir son __doc__) : '2',
+        # posté par _avancer_jusqua_abonnement() ci-dessous, est acceptable
+        # sans créer le moindre Groupe/Creneau dans cette classe.
+        _seeder_options_nb_seances(2)
 
     def _avancer_jusqua_abonnement(self, client, email):
         _choisir_categorie_age(client)
@@ -2848,12 +2922,23 @@ class WizardGroupeAucunMatchExactTests(TestCase):
         self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
 
         # Groupe "proche" : correspond à l'âge/sexe (non négociables) et au
-        # programme/riwaya, mais PAS au nombre de séances demandé (77,
-        # jamais réel) -> apparaît dans groupes_proches, jamais dans groupes.
-        creneau_proche = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
-        remplacer_slots_creneau(creneau_proche, [
-            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
-        ])
+        # critère bloquant type_offre='groupe', mais PAS à la riwaya demandée
+        # (warsh) -> apparaît dans groupes_proches, jamais dans groupes.
+        #
+        # Chantier du 2026-08-29 (cases nb_seances = OptionNbSeances, retour
+        # en arrière sur la "liberté totale" du 2026-08-22, voir son __doc__
+        # pour l'historique) : le mismatch de CE test ne peut plus porter sur
+        # nb_seances lui-même — 77 n'est plus une valeur soumettable dès lors
+        # qu'elle n'est pas dans les OptionNbSeances configurées ci-dessous,
+        # rejeté par wizard_programme avant même d'arriver ici (voir
+        # WizardProgrammeTests.test_nombre_de_seances_hors_options_
+        # configurees_refuse). Le scénario "aucune combinaison EXACTE" reste
+        # entier — généralisé à TOUTE combinaison de critères dès la
+        # conception (voir wizard_groupe.__doc__) — simplement déclenché ici
+        # via la riwaya (bloquant=False) plutôt que via un nombre de séances
+        # inventé.
+        _seeder_options_nb_seances(2)
+        creneau_proche = _creer_creneau(nb_slots=2)
         self.groupe_proche = Groupe.objects.create(
             nom='مجموعة قريبة اختبار عدم التطابق', creneau=creneau_proche, statut='actif',
             type_capacite='groupe', capacite_max=10,
@@ -2861,7 +2946,7 @@ class WizardGroupeAucunMatchExactTests(TestCase):
         GroupeCritereValeur.objects.create(groupe=self.groupe_proche, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
         GroupeCritereValeur.objects.create(groupe=self.groupe_proche, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
 
-    def _avancer_a_etape_3(self, client, email='aucun.match@zidni.test', nb_seances='77'):
+    def _avancer_a_etape_3(self, client, email='aucun.match@zidni.test', riwaya='warsh'):
         _choisir_categorie_age(client)
         client.post(reverse('wizard_identite'), {
             'nom': 'اختبار عدم التطابق', 'sexe': 'homme', 'email': email,
@@ -2870,9 +2955,9 @@ class WizardGroupeAucunMatchExactTests(TestCase):
         })
         client.post(reverse('wizard_programme'), {
             f'champ_{self.champ_programme.id}': 'hifz',
-            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_riwaya.id}': riwaya,
             f'champ_{self.champ_type_offre.id}': 'groupe',
-            f'champ_{self.champ_nb_seances.id}': nb_seances,
+            f'champ_{self.champ_nb_seances.id}': '2',
         })
 
     def test_affiche_message_configurable_et_groupes_proches(self):
@@ -2914,12 +2999,12 @@ class WizardGroupeAucunMatchExactTests(TestCase):
         self.assertRedirects(reponse, reverse('wizard_abonnement'), fetch_redirect_response=False)
 
         demande = DemandeNonSatisfaite.objects.get()
-        self.assertEqual(demande.nb_slots, 77)
+        self.assertEqual(demande.nb_slots, 2)
         # reponses_pour_filtrage_depuis_resultats stocke TOUJOURS une liste
         # pour un backend 'eav', même en choix_unique (voir groupes_
         # compatibles, qui accepte les deux formes) — snapshot fidèle, pas
         # une chaîne brute.
-        self.assertEqual(demande.criteres_json.get(self.critere_riwaya.code), ['hafs'])
+        self.assertEqual(demande.criteres_json.get(self.critere_riwaya.code), ['warsh'])
         self.assertIsNone(demande.inscription)
         self.assertEqual(client.session['wizard_inscription']['groupe_id'], '')
 
@@ -2966,7 +3051,7 @@ class WizardGroupeAucunMatchExactTests(TestCase):
         self.assertEqual(client.session['wizard_inscription']['groupe_id'], str(self.groupe_proche.id))
 
         demande = DemandeNonSatisfaite.objects.get()
-        self.assertEqual(demande.nb_slots, 77)
+        self.assertEqual(demande.nb_slots, 2)
 
     def test_aucun_choix_soumis_est_refuse(self):
         client = Client()
@@ -2998,7 +3083,7 @@ class WizardGroupeAucunMatchExactTests(TestCase):
 
     def test_inscription_reussit_avec_un_groupe_proche_choisi(self):
         """Bout en bout : le groupe proche choisi à l'étape 3 est bien celui
-        de l'inscription finale, malgré le mismatch sur le nombre de séances."""
+        de l'inscription finale, malgré le mismatch sur la riwaya."""
         from inscriptions.models import InscriptionEleve, TypeAbonnement
         from payments.models import MoyenPaiement
 
@@ -3052,6 +3137,7 @@ class RegressionSexeGroupesTests(TestCase):
         self.groupe_hommes = self._creer_groupe('مجموعة رجال — اختبار الانحدار', sexe_cible='homme')
         self.groupe_femmes = self._creer_groupe('مجموعة نساء — اختبار الانحدار', sexe_cible='femme')
         self.groupe_mixte = self._creer_groupe('مجموعة مختلطة — اختبار الانحدار', sexe_cible='mixte')
+        _seeder_options_nb_seances(1)
 
     def _creer_groupe(self, nom, sexe_cible):
         creneau = Creneau.objects.create(
@@ -3155,6 +3241,10 @@ class WizardAbonnementPaiementTests(TestCase):
 
         from payments.models import MoyenPaiement
         self.moyen = MoyenPaiement.objects.create(code='test_wizard_cih', label='CIH بنك', coordonnees='RIB: 000111222', est_actif=True)
+        # 2 (valeur par défaut de _avancer_a_etape_4) + 4 (utilisée par
+        # test_prix_affiche_individuel_utilise_le_nb_slots_reellement_choisi
+        # ci-dessous) — voir OptionNbSeances.__doc__ (chantier du 2026-08-29).
+        _seeder_options_nb_seances(2, 4)
 
     def _avancer_a_etape_4(self, client, type_offre='groupe', choisir_groupe=True, nb_seances='2'):
         _choisir_categorie_age(client)
@@ -3236,6 +3326,12 @@ class WizardAbonnementPaiementTests(TestCase):
         pour nb_slots=4 (désormais possible pour n'importe quel nombre,
         chantier grille de prix), le wizard affiche bien ce prix, jamais
         celui d'une autre combinaison."""
+        # '4' est acceptable à l'étape 2 grâce à _seeder_options_nb_seances(2,
+        # 4) dans setUp (chantier du 2026-08-29) — jamais lié à un groupe
+        # réel, voir OptionNbSeances.__doc__. La grille de prix elle-même
+        # reste, elle, DÉCORRÉLÉE des groupes réels de longue date (voir
+        # plage_nb_slots_grille_prix.__doc__) : les 2 mécanismes sont
+        # indépendants, aucun Groupe/Creneau à 4 séances n'est donc requis ici.
         GrillePrixAbonnement.objects.create(type_abonnement=self.abo_individuel, nb_slots=4, prix=777)
         client = Client()
         self._avancer_a_etape_4(client, type_offre='individuel', nb_seances='4')
@@ -3358,6 +3454,7 @@ class WizardConfirmationTests(TestCase):
         parametres = get_parametres_inscriptions()
         parametres.delai_contact_heures = 24
         parametres.save()
+        _seeder_options_nb_seances(2)
 
     def _avancer_jusquau_paiement(self, client, email, type_offre='groupe', abonnement_code=None):
         _choisir_categorie_age(client)
@@ -3710,6 +3807,7 @@ class AucuneFuiteDeCommentaireTechniqueTests(TestCase):
         )
         from payments.models import MoyenPaiement
         self.moyen = MoyenPaiement.objects.create(code='test_fuite_cih', label='CIH بنك', coordonnees='RIB', est_actif=True)
+        _seeder_options_nb_seances(1)
 
     def _assert_pas_de_fuite(self, reponse, contexte):
         html = reponse.content.decode('utf-8')

@@ -632,6 +632,28 @@ def nb_slots_repondu(reponses_brutes):
     return None
 
 
+def valeurs_options_nb_seances_actives():
+    """{valeur, ...} des courses.OptionNbSeances actives — LA liste proposée
+    comme cases à l'étape 2 du wizard (champ backend='nb_slots'), et LA
+    référence de validation serveur pour ce même champ (registration.views.
+    wizard_programme). Réutilise le catalogue partagé créé le 2026-08-27
+    pour la tarification élève/le barème salaire prof (courses.models.
+    OptionNbSeances.__doc__) plutôt que d'en dupliquer un second — mais reste
+    volontairement DÉCORRÉLÉE des groupes réels/des autres réponses de la
+    même étape (programme/riwaya/type_offre), contrairement à
+    nb_seances_disponibles()/nb_slots_reels_systeme() ci-dessus, qui restent
+    réservées au FILTRAGE des groupes compatibles et au calcul de prix
+    (GrillePrixAbonnement), jamais à l'affichage des cases.
+
+    Renvoie un set (pas une liste triée) : sert uniquement à un test
+    d'appartenance (`in`), jamais affiché tel quel — l'ordre d'affichage vient
+    de OptionNbSeances.objects.filter(est_actif=True).order_by('ordre',
+    'valeur'), lu directement par la vue/le template."""
+    from courses.models import OptionNbSeances
+
+    return set(OptionNbSeances.objects.filter(est_actif=True).values_list('valeur', flat=True))
+
+
 def prix_effectif(type_abonnement, nb_slots):
     """Prix à afficher pour ce TypeAbonnement compte tenu du nombre de
     séances/semaine choisi (Étape 9, GrillePrixAbonnement) : celui de la

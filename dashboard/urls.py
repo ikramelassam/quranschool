@@ -121,6 +121,11 @@ urlpatterns = [
     path('admin/parametres/options-nb-seances/ajouter/', views.admin_option_nb_seances_ajouter, name='admin_option_nb_seances_ajouter'),
     path('admin/parametres/options-nb-seances/<int:option_id>/toggle/', views.admin_option_nb_seances_toggle, name='admin_option_nb_seances_toggle'),
 
+    # Admin — options de nombre de séances : URLs déjà définies plus haut
+    # dans ce fichier (catalogue partagé courses.OptionNbSeances, chantier du
+    # 2026-08-27) — le wizard public (étape 2) les réutilise, voir
+    # registration.utils.valeurs_options_nb_seances_actives.
+
     # Admin — critères d'évaluation (superviseur)
     path('admin/criteres/', views.admin_criteres, name='admin_criteres'),
     path('admin/criteres/ajouter/', views.admin_critere_ajouter, name='admin_critere_ajouter'),

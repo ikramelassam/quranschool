@@ -7369,6 +7369,13 @@ def admin_demande_non_satisfaite_supprimer(request, demande_id):
     return redirect('admin_demandes_non_satisfaites')
 
 
+# Options de nombre de séances (cases "عدد الحصص الأسبوعية" de l'étape 2 du
+# wizard public) : vues admin déjà définies plus haut dans ce fichier
+# (catalogue partagé courses.OptionNbSeances, chantier du 2026-08-27) — pas
+# de doublon ici, voir registration.utils.valeurs_options_nb_seances_actives
+# pour comment le wizard le réutilise.
+
+
 # ==================== MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 7 ====================
 # Ajout manuel d'une candidature élève par le Directeur ou le مشرف — même
 # service que le wizard public (registration.utils.inscrire_eleve), même
