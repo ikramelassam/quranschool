@@ -11,7 +11,8 @@ from .models import Groupe, Creneau, HistoriqueGroupeEleve, LienMeet
 from .utils import (
     regenerer_pour_nouveau_creneau, raison_incompatibilite_groupe, avertissements_groupe,
     avertissements_prof_creneau, creneau_peut_etre_supprime, groupe_peut_etre_supprime,
-    lien_meet_est_disponible, description_conflit_lien_meet, liens_meet_disponibles,
+    description_conflit_lien_meet,
+    matrice_disponibilite_liens_meet, _message_conflit_depuis_groupes,
     valider_photo_groupe, remplacer_slots_creneau, TRANCHES_AGE_PRECISES,
 )
 from accounts.models import Prof, Eleve
@@ -37,15 +38,27 @@ def _liens_meet_contexte(creneaux, groupe_exclu=None):
     + un JSON {creneau_id: [{id, label, disponible, conflit}]} qui permet au
     JS de rafraîchir le sélecteur sans recharger la page quand l'admin change
     de créneau (section 7 du cahier des charges). Ne remplace JAMAIS la
-    validation serveur faite à la sauvegarde — seulement un confort d'affichage."""
+    validation serveur faite à la sauvegarde — seulement un confort d'affichage.
+
+    Correctif du 2026-08-30 (voir courses.utils.matrice_disponibilite_liens_meet
+    pour le diagnostic complet) : la grille disponible/conflit de CHAQUE lien
+    actif x CHAQUE créneau actif est désormais calculée en UN SEUL appel en
+    lot (4 requêtes SQL fixes) au lieu d'un couple de requêtes PAR couple
+    (lien, créneau) — c'était ~800 requêtes et ~88s mesurées en conditions
+    réelles (21 créneaux actifs x 16 liens actifs), largement au-dessus du
+    `--timeout 30` de gunicorn (Procfile), d'où les "Internal Server Error"
+    sur /courses/groupes/<id>/modifier/ et /courses/groupes/ajouter/. Résultat
+    JSON strictement identique à avant (même clés, mêmes valeurs)."""
+    creneaux = list(creneaux)
     liens = list(LienMeet.objects.filter(est_actif=True))
+    conflits = matrice_disponibilite_liens_meet(liens, creneaux, groupe_exclu)
     payload = {
         creneau.id: [
             {
                 'id': lien.id,
                 'label': str(lien),
-                'disponible': lien_meet_est_disponible(lien, creneau, groupe_exclu),
-                'conflit': description_conflit_lien_meet(lien, creneau, groupe_exclu),
+                'disponible': not conflits.get((lien.id, creneau.id), []),
+                'conflit': _message_conflit_depuis_groupes(conflits.get((lien.id, creneau.id), [])),
             }
             for lien in liens
         ]
@@ -59,7 +72,7 @@ def _liens_meet_contexte(creneaux, groupe_exclu=None):
 
 @role_required('admin', 'mshrif')
 def groupes_list(request):
-    from django.db.models import Q
+    from django.db.models import Q, Count
 
     statut = request.GET.get('statut', '')
     prof_id = request.GET.get('prof', '')
@@ -93,7 +106,15 @@ def groupes_list(request):
     # حلقة, exactement la même règle de recouvrement.
     tranche_filtre = request.GET.get('tranche', '')
 
-    groupes = Groupe.objects.select_related('prof__user', 'creneau').order_by('id')
+    # annotate(Count('eleves')) (Correctif perf du 2026-08-30) : le template
+    # affichait groupe.eleves.count dans la boucle -> 1 requête COUNT par
+    # groupe affiché (jusqu'à 10, la page est paginée) au lieu d'une seule
+    # requête pour toute la page. distinct=True : Groupe.eleves est un M2M,
+    # nécessaire pour un compte exact même si un futur filtre rejoint une
+    # autre relation multi-valuée sur ce même queryset.
+    groupes = Groupe.objects.select_related('prof__user', 'creneau').annotate(
+        nb_eleves=Count('eleves', distinct=True)
+    ).order_by('id')
     if statut:
         groupes = groupes.filter(statut=statut)
     else:
@@ -158,7 +179,11 @@ def groupes_list(request):
 @role_required('admin')
 def groupe_ajouter(request):
     creneaux = Creneau.objects.filter(est_actif=True)
-    profs = Prof.actifs.all()
+    # select_related('user') : le template affiche prof.user.get_full_name
+    # pour chaque prof du <select> — sans lui, 1 requête par prof actif de
+    # toute l'école à chaque ouverture de cette page (Correctif du 2026-08-30,
+    # même famille de bug que _liens_meet_contexte ci-dessus).
+    profs = Prof.actifs.select_related('user').all()
 
     if request.method == 'POST':
         # Photo (Tâche du 2026-08-17) — validée AVANT toute autre étape, comme
@@ -315,8 +340,24 @@ def _retirer_eleve_du_groupe(eleve, groupe):
 def groupe_detail(request, groupe_id):
     from chat.permissions import peut_voir_chat_groupe
 
-    groupe = get_object_or_404(Groupe, id=groupe_id)
-    eleves_disponibles = Eleve.actifs.exclude(groupes=groupe)
+    # select_related('prof__user', 'creneau') (Correctif perf du 2026-08-30) :
+    # le template affiche groupe.prof.user.get_full_name/.email/.telephone et
+    # groupe.creneau.get_riwaya_display — sans ça, 2-3 requêtes de plus à
+    # chaque ouverture de cette page (la plus visitée par l'admin).
+    groupe = get_object_or_404(
+        Groupe.objects.select_related('prof__user', 'creneau'), id=groupe_id
+    )
+    # select_related('user') (même correctif) : le template affiche
+    # eleve.user.get_full_name pour chaque élève actif non membre — sans ça,
+    # 1 requête par élève actif de toute l'école (voir eleves_du_groupe
+    # ci-dessous pour le même correctif côté élèves déjà membres).
+    eleves_disponibles = Eleve.actifs.exclude(groupes=groupe).select_related('user')
+    # eleves_du_groupe/nb_eleves calculés une seule fois ici (Correctif perf
+    # du 2026-08-30) : le template appelait groupe.eleves.all (1 requête par
+    # élève membre, pas de select_related) et groupe.eleves.count 2 fois (2
+    # requêtes COUNT identiques) — remplacés par ces 2 variables de contexte.
+    eleves_du_groupe = list(groupe.eleves.select_related('user').all())
+    nb_eleves = len(eleves_du_groupe)
     autres_groupes_actifs = (
         Groupe.objects.filter(statut='actif')
         .exclude(id=groupe.id)
@@ -395,6 +436,8 @@ def groupe_detail(request, groupe_id):
     context = {
         'groupe': groupe,
         'eleves_disponibles': eleves_disponibles,
+        'eleves_du_groupe': eleves_du_groupe,
+        'nb_eleves': nb_eleves,
         'autres_groupes_actifs': autres_groupes_actifs,
         'eleve_en_attente': eleve_en_attente,
         'avertissements_en_attente': avertissements_en_attente,
@@ -520,7 +563,11 @@ def groupe_modifier(request, groupe_id):
     # dans le template) pour que l'admin voie clairement qui est en place et
     # puisse le réassigner explicitement, plutôt que de le faire disparaître
     # silencieusement du formulaire (chantier d'archivage du 2026-08-03).
-    profs = list(Prof.actifs.all())
+    # select_related('user') : même correctif que groupe_ajouter ci-dessus
+    # (Correctif du 2026-08-30) — le template affiche prof.user.get_full_name
+    # pour chaque prof, sans quoi c'est 1 requête par prof actif de toute
+    # l'école à chaque ouverture de cette page.
+    profs = list(Prof.actifs.select_related('user').all())
     if groupe.prof_id and groupe.prof and groupe.prof.statut == 'archive' and groupe.prof not in profs:
         profs.append(groupe.prof)
 
@@ -1014,16 +1061,37 @@ def liens_meet_list(request):
     listés ici et comment ils sont affichés."""
     from django.db.models import Count, Prefetch
 
-    liens = LienMeet.objects.annotate(nb_groupes=Count('groupes', distinct=True)).prefetch_related(
+    liens = list(LienMeet.objects.annotate(nb_groupes=Count('groupes', distinct=True)).prefetch_related(
         Prefetch('groupes', queryset=Groupe.objects.select_related('creneau'))
-    ).order_by('libelle', 'id')
+    ).order_by('libelle', 'id'))
 
     groupes_sans_lien_avec_creneau = list(
         Groupe.actifs.filter(creneau__isnull=False, lien_reunion='')
         .select_related('creneau').order_by('nom')
     )
+    # Correctif du 2026-08-30 (voir courses.utils.matrice_disponibilite_liens_meet) :
+    # la disponibilité de CHAQUE lien actif pour CHAQUE groupe de cette liste était
+    # auparavant recalculée indépendamment (liens_meet_disponibles par groupe, donc
+    # par groupe x par lien x conflit) — désormais un seul appel en lot, chaque
+    # groupe s'excluant ensuite lui-même de SES résultats (groupe_exclu diffère par
+    # groupe ici, contrairement à _liens_meet_contexte qui n'en a qu'un seul, d'où
+    # le filtrage en Python plutôt qu'un groupe_exclu global).
+    liens_actifs = [lien for lien in liens if lien.est_actif]
+    conflits_par_couple = matrice_disponibilite_liens_meet(
+        liens_actifs, [groupe.creneau for groupe in groupes_sans_lien_avec_creneau],
+    )
     for groupe in groupes_sans_lien_avec_creneau:
-        groupe.liens_disponibles = liens_meet_disponibles(groupe.creneau, groupe_exclu=groupe)
+        disponibles = []
+        for lien in liens_actifs:
+            conflits = conflits_par_couple.get((lien.id, groupe.creneau_id), [])
+            # Un groupe SANS lien assigné (c'est le cas de tous ceux de cette
+            # liste, lien_reunion='') n'apparaît jamais lui-même dans conflits
+            # (matrice_disponibilite_liens_meet ne liste que les candidats
+            # ayant déjà `lien` assigné) — filtré quand même par sécurité,
+            # pour un comportement identique à l'ancien groupe_exclu=groupe.
+            if not [g for g in conflits if g.id != groupe.id]:
+                disponibles.append(lien)
+        groupe.liens_disponibles = disponibles
 
     groupes_sans_lien_sans_creneau = list(
         Groupe.actifs.filter(creneau__isnull=True, lien_reunion='').order_by('nom')

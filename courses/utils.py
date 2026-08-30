@@ -1032,15 +1032,116 @@ def liens_meet_disponibles(creneau, groupe_exclu=None):
     ]
 
 
+def _message_conflit_depuis_groupes(groupes_en_conflit):
+    """Compose le message arabe à partir d'une liste DÉJÀ calculée de groupes
+    en conflit (chaîne vide si la liste est vide) — extrait de
+    description_conflit_lien_meet (Correctif du 2026-08-30, voir
+    matrice_disponibilite_liens_meet.__doc__) pour être réutilisé aussi bien
+    par le chemin unitaire (1 seul couple lien/créneau) que par le chemin en
+    lot (toute une grille de couples), sans dupliquer la formulation du
+    message dans 2 endroits qui pourraient diverger."""
+    if not groupes_en_conflit:
+        return ''
+    noms = '، '.join(f'"{g.nom}"' for g in groupes_en_conflit)
+    return f'يتعارض مع توقيت مجموعة {noms}.'
+
+
 def description_conflit_lien_meet(lien_meet, creneau, groupe_exclu=None):
     """Message arabe court expliquant POURQUOI `lien_meet` est indisponible
     pour `creneau` (nom du/des groupe(s) en conflit) — chaîne vide si
-    disponible. Utilisé côté formulaire (JSON pour le JS + erreur serveur)."""
+    disponible. Utilisé côté formulaire (JSON pour le JS + erreur serveur)
+    pour vérifier UN SEUL couple (ex: validation serveur à la sauvegarde d'un
+    groupe) — pour toute une grille de couples à la fois, voir
+    matrice_disponibilite_liens_meet ci-dessous, pas cette fonction appelée
+    en boucle."""
     conflits = groupes_en_conflit_pour_lien(lien_meet, creneau, groupe_exclu)
-    if not conflits:
-        return ''
-    noms = '، '.join(f'"{g.nom}"' for g in conflits)
-    return f'يتعارض مع توقيت مجموعة {noms}.'
+    return _message_conflit_depuis_groupes(conflits)
+
+
+def matrice_disponibilite_liens_meet(liens, creneaux, groupe_exclu=None):
+    """Version "en lot" de groupes_en_conflit_pour_lien : calcule, pour CHAQUE
+    couple (lien, créneau) parmi `liens` x `creneaux`, la liste des groupes
+    actifs en conflit — EXACTEMENT le même résultat que d'appeler
+    groupes_en_conflit_pour_lien(lien, creneau, groupe_exclu) couple par
+    couple, mais avec un nombre de requêtes SQL FIXE (4, voir plus bas) au
+    lieu d'une (en réalité 2 à 4, voir groupes_en_conflit_pour_lien/
+    creneaux_se_chevauchent) PAR COUPLE.
+
+    Correctif du 2026-08-30 : /courses/groupes/<id>/modifier/ (et
+    /courses/groupes/ajouter/, toutes les deux via _liens_meet_contexte)
+    évaluaient la disponibilité ET le message de conflit de CHAQUE lien Meet
+    actif pour CHAQUE créneau actif indépendamment — mesuré en conditions
+    réelles (21 créneaux actifs x 16 liens actifs) : ~800 requêtes SQL et
+    ~88 secondes de temps de réponse, très au-dessus du `--timeout 30` de
+    gunicorn (Procfile) → l'admin recevait "Internal Server Error" à chaque
+    ouverture de la page de modification/création d'un groupe, pas de façon
+    intermittente. liens_meet_list (page du pool de liens Meet) avait la
+    même faiblesse structurelle pour une raison différente (une requête par
+    groupe sans lien x par lien actif).
+
+    Principe : au lieu d'une requête par couple, TOUT ce dont le calcul a
+    besoin est chargé UNE SEULE FOIS puis le chevauchement horaire est
+    calculé en mémoire (aucune requête supplémentaire, `creneaux_se_chevauchent`
+    lit `.slots.all()` depuis le cache de prefetch Django) :
+    - 1 requête (+1 pour le prefetch) : tous les groupes ACTIFS candidats
+      (creneau assigné, lien_meet parmi `liens`), avec les CreneauSlot de LEUR
+      créneau déjà préchargés ;
+    - 1 requête (+1 pour le prefetch) : les CreneauSlot de TOUS les `creneaux`
+      demandés, y compris s'ils viennent d'instances déjà en mémoire sans
+      prefetch (ex: liens_meet_list, qui passe des `groupe.creneau` obtenus
+      via select_related — jamais prefetched pour `.slots`) — re-requêtés
+      par id ici plutôt que de faire confiance à l'appelant, pour rester
+      correct quel que soit ce qu'il passe.
+
+    Les fonctions unitaires (groupes_en_conflit_pour_lien/lien_meet_est_disponible/
+    liens_meet_disponibles/description_conflit_lien_meet) restent INCHANGÉES et
+    restent le bon choix pour vérifier UN SEUL couple (ex: revalidation serveur
+    au moment de sauvegarder un groupe, courses.views.groupe_ajouter/
+    groupe_modifier) — cette fonction est réservée aux écrans qui doivent
+    évaluer TOUTES les combinaisons à la fois.
+
+    `creneaux` accepte une queryset ou une liste d'instances Creneau (peuvent
+    contenir des doublons, ex. plusieurs groupes partageant le même créneau —
+    dédupliqués ici). `groupe_exclu` s'applique globalement à toute la grille
+    (un seul groupe en cours d'édition, comme _liens_meet_contexte) — pour un
+    groupe_exclu DIFFÉRENT par créneau (cas de liens_meet_list, chaque groupe
+    de la liste s'exclut lui-même), appeler avec groupe_exclu=None puis
+    retirer le groupe de la liste retournée pour chaque couple, en Python
+    (voir courses.views.liens_meet_list).
+
+    Retourne {(lien.id, creneau.id): [groupe, ...]} — liste vide = disponible."""
+    from .models import Creneau, Groupe
+
+    liens_ids = [lien.id for lien in liens]
+    creneaux_par_id = {creneau.id: creneau for creneau in creneaux}
+    if not liens_ids or not creneaux_par_id:
+        return {}
+
+    candidats = (
+        Groupe.actifs.filter(lien_meet_id__in=liens_ids, creneau__isnull=False)
+        .select_related('creneau')
+        .prefetch_related('creneau__slots')
+    )
+    if groupe_exclu is not None:
+        candidats = candidats.exclude(pk=groupe_exclu.pk)
+
+    candidats_par_lien = {}
+    for groupe in candidats:
+        candidats_par_lien.setdefault(groupe.lien_meet_id, []).append(groupe)
+
+    creneaux_avec_slots = {
+        creneau.id: creneau
+        for creneau in Creneau.objects.filter(id__in=creneaux_par_id.keys()).prefetch_related('slots')
+    }
+
+    resultat = {}
+    for lien_id in liens_ids:
+        groupes_candidats = candidats_par_lien.get(lien_id, [])
+        for creneau_id, creneau_cible in creneaux_avec_slots.items():
+            resultat[(lien_id, creneau_id)] = [
+                g for g in groupes_candidats if creneaux_se_chevauchent(g.creneau, creneau_cible)
+            ]
+    return resultat
 
 
 # ==================== EXCEPTIONS DE SÉANCE (Tâche du 2026-08-17) ====================
