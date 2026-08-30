@@ -1488,6 +1488,9 @@ msgstr "Aucun groupe pour l'instant"
 msgid "لا توجد مجموعات نشطة"
 msgstr "Aucun groupe actif"
 
+msgid "لا توجد مجموعات نشطة لدى الأساتذة المسندين إليك"
+msgstr "Aucun groupe actif chez les enseignants qui vous sont assignés"
+
 msgid "لا توجد محادثات متاحة حالياً."
 msgstr "Aucune conversation disponible actuellement."
 
@@ -1864,6 +1867,9 @@ msgstr "assiduité"
 
 msgid "مواعيد المجموعات النشطة"
 msgstr "Horaires des groupes actifs"
+
+msgid "مواعيد مجموعات الأساتذة المسندين إليّ"
+msgstr "Horaires des groupes des enseignants qui me sont assignés"
 
 msgid "موقوف"
 msgstr "Suspendu"

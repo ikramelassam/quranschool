@@ -155,6 +155,27 @@
            class="menu-item {% if request.resolver_match.url_name == 'dashboard_superviseur' %}active{% endif %}">
             <span class="icon">📊</span> لوحة التحكم
         </a>
+        {% comment %} "تقييم الأساتذة" pointe vers dashboard_superviseur (même vue que
+           "لوحة التحكم" ci-dessus) mais avec l'ancre #section-passees — c'est
+           déjà là que vivent تقييم/غير مقيّمة/تم التقييم (badges +
+           _seance_evaluation_badge.html, lien Meet inclus pour les حصص à
+           venir), rien de neuf côté vue. Le problème réel signalé le
+           2026-08-30 (chantier découvrabilité مؤطر) : ce flux entier n'avait
+           AUCUN lien explicite dans la sidebar — seul "لوحة التحكم" (libellé
+           générique) y menait, sans indiquer que l'évaluation s'y trouve.
+        {% endcomment %}
+        <a href="{% url 'dashboard_superviseur' %}#section-passees"
+           class="menu-item {% if request.resolver_match.url_name == 'dashboard_superviseur' %}active{% endif %}">
+            <span class="icon">✅</span> تقييم الأساتذة
+        </a>
+        {% comment %} جدول أسبوعي لمجموعات الأساتذة المسندين — mirroir de prof_emploi
+           (même chantier). Vue distincte : grille horaire de la semaine,
+           n'existait pour aucun rôle مؤطر jusqu'ici.
+        {% endcomment %}
+        <a href="{% url 'superviseur_emploi' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'superviseur_emploi' %}active{% endif %}">
+            <span class="icon">🗓️</span> جدولي
+        </a>
 
         <a href="{% url 'chat_liste' %}"
            class="menu-item {% if request.resolver_match.url_name == 'chat_liste' or request.resolver_match.url_name == 'chat_conversation' %}active{% endif %}">
