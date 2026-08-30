@@ -109,7 +109,7 @@ def mot_de_passe_oublie(request):
     protection contre l'énumération de comptes, inchangée. S'applique aussi
     à مدير/مشرف (même formulaire unique pour tous les rôles) : sans risque,
     tous les comptes existants ont un nom complet non vide (vérifié)."""
-    from core.utils import envoyer_notification_telegram
+    from core.utils import envoyer_notification_telegram_async
     from dashboard.views import generer_mot_de_passe_temporaire, generer_mot_de_passe_sequentiel
 
     if request.method == 'POST':
@@ -130,7 +130,7 @@ def mot_de_passe_oublie(request):
             user.set_password(nouveau_mot_de_passe)
             user.doit_changer_mot_de_passe = False
             user.save()
-            envoyer_notification_telegram(
+            envoyer_notification_telegram_async(
                 f'🔑 طلب كلمة مرور جديدة\n'
                 f'الحساب: {user.get_full_name()} ({LIBELLES_ROLE_MDP_OUBLIE[user.role]})\n'
                 f'البريد: {email}\n'
@@ -141,7 +141,7 @@ def mot_de_passe_oublie(request):
             user.set_password(nouveau_mot_de_passe)
             user.doit_changer_mot_de_passe = True
             user.save()
-            envoyer_notification_telegram(
+            envoyer_notification_telegram_async(
                 f'🔑 طلب "نسيت كلمة المرور"\n'
                 f'الحساب: {email}\n'
                 f'كلمة المرور الجديدة: {nouveau_mot_de_passe}\n'
@@ -168,7 +168,7 @@ def reinitialiser_mon_mot_de_passe(request):
     """Même mécanisme que mot_de_passe_oublie, pour un utilisateur déjà connecté
     qui veut réinitialiser (Tâche 22 Partie E) — accessible depuis sa page
     profil. Déconnecte immédiatement (l'ancien mot de passe devient invalide)."""
-    from core.utils import envoyer_notification_telegram
+    from core.utils import envoyer_notification_telegram_async
     from dashboard.views import generer_mot_de_passe_temporaire
 
     # Points 13/14/17 (Tâche du 2026-08-04) : même retrait du self-service
@@ -184,7 +184,7 @@ def reinitialiser_mon_mot_de_passe(request):
         request.user.set_password(nouveau_mot_de_passe)
         request.user.doit_changer_mot_de_passe = True
         request.user.save()
-        envoyer_notification_telegram(
+        envoyer_notification_telegram_async(
             f'🔑 طلب إعادة تعيين كلمة مرور (من داخل الحساب)\n'
             f'الحساب: {email}\n'
             f'كلمة المرور الجديدة: {nouveau_mot_de_passe}\n'

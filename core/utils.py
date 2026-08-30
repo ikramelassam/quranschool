@@ -118,3 +118,42 @@ def envoyer_notification_telegram(message):
             logger.error("Échec inattendu de l'envoi Telegram vers %s : %s", abonne.chat_id, e)
 
     return au_moins_un_envoi_reussi
+
+
+def envoyer_notification_telegram_async(message):
+    """Comme envoyer_notification_telegram, mais SANS bloquer la requête HTTP
+    en cours (Correctif perf du 2026-08-30, voir AUDIT_PERFORMANCE_2026-08-30.md
+    point 5.1) : chaque envoi fait un appel réseau synchrone (timeout=5) par
+    abonné actif, DANS le cycle requête/réponse de l'utilisateur (élève qui
+    soumet un paiement, candidat qui s'inscrit, mot de passe oublié...) — un
+    souci Telegram (lent ou indisponible) retardait alors une action qui n'a
+    pourtant rien à voir avec Telegram. Ici, l'envoi part dans un thread
+    daemon détaché : la réponse HTTP part immédiatement, l'envoi continue en
+    arrière-plan. Pas de file d'attente Celery/Redis (hors de portée sur cet
+    hébergeur) — juste ne pas faire attendre l'utilisateur pour un
+    "fire-and-forget" qui l'était déjà fonctionnellement (aucun appelant
+    n'inspecte la valeur de retour, voir la docstring ci-dessus).
+
+    Limite à connaître (acceptée explicitement, pas un oubli) : un thread
+    daemon est tué net si le worker gunicorn redémarre avant sa fin — dans ce
+    cas rarissime, l'envoi Telegram peut ne jamais partir, silencieusement.
+    Acceptable ici : la notification reste "best effort" par design (un échec
+    individuel n'a jamais empêché l'opération métier déjà effectuée), ce
+    correctif ne fait qu'élargir légèrement cette même tolérance à un
+    redémarrage pile pendant cette fenêtre de quelques centaines de ms."""
+    import threading
+    from django.db import connection
+
+    def _cible():
+        try:
+            envoyer_notification_telegram(message)
+        finally:
+            # La connexion DB ouverte par ce thread (AbonneTelegram.objects...)
+            # est thread-locale : Django ne la ferme jamais tout seul en dehors
+            # du cycle requête/réponse normal (voir request_finished). Sans ce
+            # close() explicite, CONN_MAX_AGE (settings.py) la laisserait
+            # ouverte indéfiniment — un thread neuf par notification finirait
+            # par accumuler des connexions Postgres jamais relâchées.
+            connection.close()
+
+    threading.Thread(target=_cible, daemon=True).start()

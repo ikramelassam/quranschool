@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.contrib import messages
 from accounts.decorators import role_required
 from accounts.services import eleves_pour_filtre
-from core.utils import paginer, envoyer_notification_telegram
+from core.utils import paginer, envoyer_notification_telegram_async
 from accounts.models import Eleve
 from .models import Paiement
 
@@ -154,7 +154,7 @@ def eleve_paiements(request):
                 f'({request.build_absolute_uri(reverse("admin_paiement_detail", args=[p.id]))})'
                 for p in mois_crees
             )
-            envoyer_notification_telegram(
+            envoyer_notification_telegram_async(
                 f'💰 دفعة جديدة بانتظار المراجعة\n'
                 f'الطالب: {eleve.user.get_full_name()}\n'
                 f'{lignes_mois}'
@@ -251,16 +251,37 @@ def suivi_paiements_eleves(request):
     groupe_id = request.GET.get('groupe', '')
     impayes_seulement = request.GET.get('impayes') == '1'
 
+    # Correctif perf du 2026-08-30 : les 2 requêtes Paiement ci-dessous
+    # chargeaient TOUTE la table à chaque ouverture de cette page, même
+    # quand ?groupe= filtrait déjà l'affichage à un seul groupe — une table
+    # qui ne fait que grandir avec le temps (1 Paiement par élève par mois
+    # payé), contrairement aux N+1 "classiques" qui restent bornés par le
+    # nombre d'élèves. Quand un groupe précis est demandé, on ne charge que
+    # les paiements des élèves de CE groupe (tous statuts d'élève confondus,
+    # pas seulement 'actif' : un élève archivé garde son historique
+    # consultable ici, voir plus bas). Sans filtre ?groupe=, la vue affiche
+    # volontairement tous les groupes -> aucun scope possible sans changer
+    # l'UX (pagination, voir AUDIT_PERFORMANCE_2026-08-30.md point 2.3/9).
+    eleves_scope_ids = None
+    if groupe_id:
+        eleves_scope_ids = list(
+            Groupe.objects.filter(id=groupe_id).values_list('eleves__id', flat=True)
+        )
+
+    paiements_scope = Paiement.objects.all()
+    if eleves_scope_ids is not None:
+        paiements_scope = paiements_scope.filter(eleve_id__in=eleves_scope_ids)
+
     # Tous statuts confondus (pas seulement 'valide') pour que le panneau
     # puisse retrouver/modifier un paiement 'en_attente' ou 'rejete' existant,
     # pas seulement en créer un nouveau par-dessus.
     paiement_par_cellule = {}
-    for p in Paiement.objects.all():
+    for p in paiements_scope:
         cle = (p.eleve_id, p.mois_reference.year, p.mois_reference.month)
         paiement_par_cellule[cle] = p
 
     mois_payes_par_eleve = {}
-    for eleve_id, annee, mois in Paiement.objects.filter(statut='valide').values_list(
+    for eleve_id, annee, mois in paiements_scope.filter(statut='valide').values_list(
         'eleve_id', 'mois_reference__year', 'mois_reference__month'
     ):
         mois_payes_par_eleve.setdefault(eleve_id, set()).add((annee, mois))

@@ -511,11 +511,37 @@ class LogoConfig(models.Model):
         verbose_name_plural = "Logo de la plateforme"
 
 
+CLE_CACHE_LOGO_CONFIG = 'logo_config'
+
+
 def get_logo_config():
     """Renvoie l'unique instance de LogoConfig, en la créant (vide -> logo=None,
-    donc fallback sur le logo statique par défaut) si elle n'existe pas encore."""
+    donc fallback sur le logo statique par défaut) si elle n'existe pas encore.
+
+    Mise en cache 5 min (Correctif perf du 2026-08-30) : appelée par
+    accounts.context_processors.logo_context sur ABSOLUMENT CHAQUE page du
+    site (dashboard ET pages publiques : connexion, inscription) — sans
+    cache, c'est une requête DB en plus sur chaque page, pour une donnée qui
+    ne change qu'à chaque changement de logo par le المشرف (voir
+    invalider_cache_logo_config, appelée depuis dashboard.views.mshrif_logo).
+    Même patron que chat.services.total_messages_non_lus (déjà caché 15s)."""
+    from django.core.cache import cache
+
+    config = cache.get(CLE_CACHE_LOGO_CONFIG)
+    if config is not None:
+        return config
     config, _ = LogoConfig.objects.get_or_create(pk=1)
+    cache.set(CLE_CACHE_LOGO_CONFIG, config, 300)
     return config
+
+
+def invalider_cache_logo_config():
+    """À appeler juste après tout config.save() sur LogoConfig (voir
+    dashboard.views.mshrif_logo) — sinon l'ancien logo resterait affiché
+    partout jusqu'à expiration du cache (5 min)."""
+    from django.core.cache import cache
+
+    cache.delete(CLE_CACHE_LOGO_CONFIG)
 
 
 class NotePersonnelle(models.Model):

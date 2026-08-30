@@ -516,20 +516,58 @@ def etendre_seances(groupe, horizon_semaines=HORIZON_SEMAINES):
 
 
 def etendre_toutes_les_seances():
-    """Appelée à chaque visite des pages séances/calendrier admin: pousse l'horizon
-    de génération de tous les groupes actifs ayant un créneau, sans jamais retoucher
-    aux semaines déjà couvertes.
+    """Pousse l'horizon de génération de tous les groupes actifs ayant un
+    créneau, sans jamais retoucher aux semaines déjà couvertes — voir
+    etendre_toutes_les_seances_opportuniste ci-dessous pour la version
+    THROTTLÉE réellement appelée depuis les vues (celle-ci reste appelable
+    directement, ex. depuis un test ou une future commande de management).
 
     Exclut les groupes dont le prof est archivé (chantier du 2026-08-03): pas de
     plantage, mais plus aucune nouvelle séance générée pour un groupe sans prof
     actif — les séances déjà générées restent intactes, à annuler/reporter ou à
     faire reprendre par un nouveau prof manuellement (voir admin_prof_detail,
-    bannière d'avertissement affichée quand un prof archivé a encore des groupes)."""
+    bannière d'avertissement affichée quand un prof archivé a encore des groupes).
+
+    select_related('creneau').prefetch_related('creneau__slots') (Correctif
+    perf du 2026-08-30) : sans ça, etendre_seances(groupe) déclenchait 1
+    requête pour lire groupe.creneau PUIS 1 requête pour creneau.slots.all(),
+    PAR GROUPE actif — sur une école à 20-30 groupes, ~40-60 requêtes rien
+    que pour cette lecture, en plus de la requête "dernière séance" restée
+    par groupe (celle-ci dépend du groupe, pas batchable aussi simplement
+    sans changer la logique d'incrémentation — voir la note de throttling
+    ci-dessous, qui règle le vrai problème : la fréquence d'appel)."""
     from .models import Groupe
 
-    groupes = Groupe.objects.filter(statut='actif', creneau__isnull=False).exclude(prof__statut='archive')
+    groupes = Groupe.objects.filter(
+        statut='actif', creneau__isnull=False
+    ).exclude(prof__statut='archive').select_related('creneau').prefetch_related('creneau__slots')
     for groupe in groupes:
         etendre_seances(groupe)
+
+
+def etendre_toutes_les_seances_opportuniste():
+    """Version throttlée (Correctif perf du 2026-08-30, voir
+    AUDIT_PERFORMANCE_2026-08-30.md) d'etendre_toutes_les_seances — à appeler
+    depuis les vues à la place de la fonction ci-dessus, MÊME PATRON que
+    chat.services.purge_opportuniste (déjà en place pour la purge du chat).
+
+    Avant ce correctif, dashboard.views.admin_seances/admin_calendrier
+    appelaient etendre_toutes_les_seances() SANS AUCUN throttle, À CHAQUE
+    ouverture de page — y compris à chaque filtre/recherche appliqué dessus
+    (un filtre recharge entièrement la page, donc rejoue tout du début) :
+    signalé lent par le client précisément dans ce cas ("quand on applique
+    des filtres... ça devient très lent"), alors que le filtre lui-même
+    n'a rien à voir — c'est ce balayage de TOUS les groupes actifs, rejoué à
+    chaque requête, qui payait le prix à chaque fois. L'horizon de génération
+    (HORIZON_SEMAINES = 8 semaines) n'a besoin d'être poussé qu'occasionnellement
+    (1h ici, largement suffisant) — pas à chaque clic sur un filtre."""
+    from django.core.cache import cache
+
+    cle_cache = 'seances_extension_derniere_execution'
+    if cache.get(cle_cache):
+        return
+    cache.set(cle_cache, True, 60 * 60)
+    etendre_toutes_les_seances()
 
 
 def regenerer_pour_nouveau_creneau(groupe):
