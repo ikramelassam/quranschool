@@ -24,3 +24,7 @@ staticfiles/
 # OS
 .DS_Store
 Thumbs.db
+
+# Instructions internes (pas destinées au client)
+CLAUDE.md
+AUDIT_PERFORMANCE_*.md
