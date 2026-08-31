@@ -219,13 +219,13 @@ def wizard_identite(request):
         if 'sexe' in configs_par_cle:
             sexe = request.POST.get('sexe', '')
             if sexe not in ('homme', 'femme'):
-                erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(configs_par_cle['sexe'].label)})
+                erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': configs_par_cle['sexe'].label_localise})
             nouvelles_valeurs['sexe'] = sexe
 
         if 'email' in configs_par_cle:
             email = request.POST.get('email', '').strip()
             if not email:
-                erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(configs_par_cle['email'].label)})
+                erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': configs_par_cle['email'].label_localise})
             nouvelles_valeurs['email'] = email
 
         if 'date_naissance' in configs_par_cle:

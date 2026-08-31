@@ -328,9 +328,9 @@ pas seulement au moment du refus lui-même.
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">📝 {% trans "إجابات إضافية" %}</div>
     {% for reponse in autres_reponses %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">{{ reponse.champ.label }}</span>
+        <span style="color:#888;">{{ reponse.champ.label_localise }}</span>
         <span style="font-weight:600;">
-            {% if reponse.option %}{{ reponse.option.label }}
+            {% if reponse.option %}{{ reponse.option.label_localise }}
             {% elif reponse.champ.type_champ == 'booleen' %}{% if reponse.valeur_texte == '1' %}✅ {% trans "نعم" %}{% else %}❌ {% trans "لا" %}{% endif %}
             {% else %}{{ reponse.valeur_texte }}
             {% endif %}

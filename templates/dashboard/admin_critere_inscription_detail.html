@@ -142,6 +142,8 @@ bouton "حذف 🗑️" plus haut) tant que ces liens existent.
             </div>
             <div class="col-5">
                 <input type="text" name="label" class="form-control" placeholder="{% trans 'الاسم المعروض' %}" required>
+                <input type="text" name="label_fr" class="form-control mt-1" placeholder="🇫🇷 FR">
+                <input type="text" name="label_en" class="form-control mt-1" placeholder="🇬🇧 EN">
             </div>
             <div class="col-3">
                 <input type="number" name="ordre" class="form-control" placeholder="{% trans 'الترتيب' %}" value="{{ options.count|add:1 }}">

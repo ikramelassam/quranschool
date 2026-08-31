@@ -16,6 +16,8 @@
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "الاسم المعروض *" %}</label>
             <input type="text" name="label" class="form-control mt-1" value="{{ option.label }}" required>
+            <input type="text" name="label_fr" class="form-control mt-1" placeholder="🇫🇷 FR" value="{{ option.label_fr }}">
+            <input type="text" name="label_en" class="form-control mt-1" placeholder="🇬🇧 EN" value="{{ option.label_en }}">
         </div>
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>

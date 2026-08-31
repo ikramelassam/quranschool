@@ -4251,3 +4251,54 @@ class PresentationInscriptionLocaliseeTests(TestCase):
         client.post(reverse('set_language'), {'language': 'ar', 'next': reverse('wizard_intro')})
         html = client.get(reverse('wizard_intro')).content.decode('utf-8')
         self.assertIn('أهلاً بك في زدني علماً', html)
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class CritereEtapeChampLocaliseTests(TestCase):
+    """Chantier i18n contenu-DB (2026-08-31), lot 2 : label/titre des
+    Critere / CritereOption / EtapeInscription / ConfigurationChampStructurel
+    / ChampInscription (configurés à la main par le مدير) gagnent _fr/_en,
+    lus via <base>_localise avec 3 niveaux de repli : traduction manuelle,
+    catalogue Django (vocabulaire seedé), puis arabe brut."""
+
+    def test_localise_repli_3_niveaux(self):
+        from django.utils import translation
+        c = Critere.objects.create(code='obj_test', label='الهدف التربوي', label_fr='Objectif pédagogique')
+        with translation.override('fr'):
+            self.assertEqual(c.label_localise, 'Objectif pédagogique')          # 1. traduction manuelle
+        seede = Critere.objects.create(code='riw_test', label='الرواية')
+        with translation.override('fr'):
+            libelle = seede.label_localise                                      # 2. catalogue (msgid seedé)
+            self.assertNotEqual(libelle, 'الرواية')
+            self.assertIn('Riwaya', libelle)
+        with translation.override('fr'):
+            self.assertEqual(c.label_localise, 'Objectif pédagogique')
+        custom = Critere.objects.create(code='xyz_test', label='معيار لا يوجد في القاموس')
+        with translation.override('fr'):
+            self.assertEqual(custom.label_localise, 'معيار لا يوجد في القاموس')  # 3. repli arabe brut
+
+    def test_wizard_identite_affiche_le_champ_informatif_traduit(self):
+        etape = EtapeInscription.objects.get(code='identite')
+        champ = ChampInscription.objects.create(
+            etape=etape, critere=None, type_champ='texte',
+            label='بلد الإقامة', label_fr='Pays de résidence', obligatoire=False, ordre=50,
+        )
+        client = Client()
+        _choisir_categorie_age(client)
+        client.post(reverse('set_language'), {'language': 'fr', 'next': reverse('wizard_identite')})
+        html = client.get(reverse('wizard_identite')).content.decode('utf-8')
+        self.assertIn('Pays de résidence', html)
+        self.assertNotIn('بلد الإقامة', html)
+        champ.delete()
+
+    def test_admin_enregistre_les_traductions_du_critere(self):
+        client = Client()
+        client.force_login(_creer_admin(email='admin_l2@zidni.test'))
+        client.post(reverse('admin_critere_inscription_ajouter'), {
+            'code': 'methode_apprentissage', 'label': 'طريقة التعلم',
+            'label_fr': 'Méthode d\'apprentissage', 'label_en': 'Learning method',
+            'type_champ': 'choix_unique', 'backend': 'eav', 'ordre': 9,
+        })
+        cree = Critere.objects.get(code='methode_apprentissage')
+        self.assertEqual(cree.label_fr, "Méthode d'apprentissage")
+        self.assertEqual(cree.label_en, 'Learning method')

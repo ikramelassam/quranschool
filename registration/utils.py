@@ -116,13 +116,13 @@ def valider_champ_structurel_libre(config, valeur):
     jamais être rejeté par une regex qui ne concerne que sa FORME quand il
     est rempli."""
     valeur = (valeur or '').strip()
-    label_traduit = traduire_libelle_dynamique(config.label)
+    label_traduit = config.label_localise
     if config.obligatoire and not valeur:
         return gettext_('"%(label)s" إلزامي.') % {'label': label_traduit}
     if valeur and config.regex_validation:
         try:
             if not re.fullmatch(config.regex_validation, valeur):
-                return config.message_erreur_regex or gettext_('"%(label)s" غير صالح.') % {'label': label_traduit}
+                return config.message_erreur_regex_localise or gettext_('"%(label)s" غير صالح.') % {'label': label_traduit}
         except re.error:
             # Regex mal formée par le مدير — jamais un 500 pour l'élève,
             # signalé nulle part d'autre qu'ici : mieux vaut laisser passer
@@ -901,7 +901,7 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
             texte = str(valeur_brute).strip() if valeur_brute not in (None, '') else ''
             if not texte:
                 return [], None
-            label_traduit = traduire_libelle_dynamique(champ.label)
+            label_traduit = champ.label_localise
             try:
                 nombre = int(texte)
             except (ValueError, TypeError):
@@ -931,7 +931,7 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
         texte = str(valeur_brute).strip() if valeur_brute not in (None, '') else ''
         if not texte:
             return [], None
-        label_traduit = traduire_libelle_dynamique(champ.label)
+        label_traduit = champ.label_localise
         try:
             nombre = int(texte)
         except (ValueError, TypeError):
@@ -946,7 +946,7 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
             return [], None
         options = list(critere.options.filter(est_actif=True, code__in=codes))
         if len(options) != len(set(codes)):
-            return [], gettext_('خيار غير صالح ضمن "%(label)s".') % {'label': traduire_libelle_dynamique(champ.label)}
+            return [], gettext_('خيار غير صالح ضمن "%(label)s".') % {'label': champ.label_localise}
         return [(o, '') for o in options], None
 
     if critere.type_champ == 'choix_unique':
@@ -955,7 +955,7 @@ def _reponses_a_creer_pour_champ(champ, valeur_brute):
             return [], None
         option = critere.options.filter(est_actif=True, code=code).first()
         if option is None:
-            return [], gettext_('خيار غير صالح ضمن "%(label)s".') % {'label': traduire_libelle_dynamique(champ.label)}
+            return [], gettext_('خيار غير صالح ضمن "%(label)s".') % {'label': champ.label_localise}
         return [(option, '')], None
 
     # texte/email/telephone/nombre/date/booleen rattaché à un critère (rare mais
@@ -1007,7 +1007,7 @@ def traiter_champs_dynamiques_post(post_data, champs):
             erreurs.append(erreur)
             continue
         if not paires and champ.obligatoire:
-            erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(champ.label)})
+            erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': champ.label_localise})
             continue
         nouvelles_valeurs[cle] = valeur_brute
     return nouvelles_valeurs, erreurs
@@ -1218,17 +1218,17 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
 
     sexe = reponses_brutes.get('sexe') or ''
     if 'sexe' in configs_par_cle and sexe not in ('homme', 'femme'):
-        erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(configs_par_cle['sexe'].label)})
+        erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': configs_par_cle['sexe'].label_localise})
 
     telephone_config = configs_par_cle.get('telephone')
     telephone = (reponses_brutes.get('telephone') or '').strip()
     if telephone_config is not None and telephone_config.obligatoire and not telephone:
-        erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(telephone_config.label)})
+        erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': telephone_config.label_localise})
 
     email = (reponses_brutes.get('email') or '').strip()
     if 'email' in configs_par_cle:
         if not email:
-            erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(configs_par_cle['email'].label)})
+            erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': configs_par_cle['email'].label_localise})
         elif _email_bloque_pour_candidature_eleve(email):
             erreurs.append(MESSAGE_EMAIL_DEJA_UTILISE)
 
@@ -1260,7 +1260,7 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
             erreurs.append(erreur)
             continue
         if not paires and champ.obligatoire:
-            erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': traduire_libelle_dynamique(champ.label)})
+            erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': champ.label_localise})
             continue
         for option, texte in paires:
             a_creer.append((champ, option, texte))

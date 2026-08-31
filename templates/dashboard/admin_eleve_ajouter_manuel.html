@@ -46,7 +46,7 @@
         {% for config in configs_structurels %}
             {% if config.champ_cle == 'sexe' %}
             <div class="mb-3">
-                <label class="form-label" style="font-weight:600;">{{ config.label|traduire_dynamique }}{% if config.obligatoire %} *{% endif %}</label>
+                <label class="form-label" style="font-weight:600;">{{ config.label_localise }}{% if config.obligatoire %} *{% endif %}</label>
                 <select name="sexe" class="form-select mt-1" {% if config.obligatoire %}required{% endif %}>
                     <option value="">— {% trans "اختر" %} —</option>
                     <option value="homme" {% if config.valeur_actuelle == 'homme' %}selected{% endif %}>{% trans "ذكر" %}</option>
@@ -55,19 +55,19 @@
             </div>
             {% elif config.champ_cle == 'email' %}
             <div class="mb-3">
-                <label class="form-label" style="font-weight:600;">{{ config.label|traduire_dynamique }}{% if config.obligatoire %} *{% endif %}</label>
+                <label class="form-label" style="font-weight:600;">{{ config.label_localise }}{% if config.obligatoire %} *{% endif %}</label>
                 <input type="email" name="email" class="form-control mt-1" value="{{ config.valeur_actuelle|default:'' }}" {% if config.obligatoire %}required{% endif %}>
             </div>
             {% elif config.champ_cle == 'telephone' %}
             {% include 'inscriptions/_verification_whatsapp.html' with telephone_obligatoire=config.obligatoire %}
             {% elif config.champ_cle == 'date_naissance' %}
             <div class="mb-3">
-                <label class="form-label" style="font-weight:600;">{{ config.label|traduire_dynamique }}{% if config.obligatoire %} *{% endif %}</label>
+                <label class="form-label" style="font-weight:600;">{{ config.label_localise }}{% if config.obligatoire %} *{% endif %}</label>
                 <input type="date" name="date_naissance" class="form-control mt-1" value="{{ config.valeur_actuelle|default:'' }}" {% if config.obligatoire %}required{% endif %}>
             </div>
             {% else %}
             <div class="mb-3">
-                <label class="form-label" style="font-weight:600;">{{ config.label|traduire_dynamique }}{% if config.obligatoire %} *{% endif %}</label>
+                <label class="form-label" style="font-weight:600;">{{ config.label_localise }}{% if config.obligatoire %} *{% endif %}</label>
                 {% if config.type_champ == 'texte_multiligne' %}
                 <textarea name="{{ config.champ_cle }}" class="form-control mt-1" placeholder="{{ config.placeholder }}" {% if config.obligatoire %}required{% endif %}>{{ config.valeur_actuelle|default:'' }}</textarea>
                 {% else %}
@@ -91,14 +91,14 @@
             Django rendait ce commentaire littéralement à l'écran tel quel.
             {% endcomment %}
             <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
-                <label class="form-label" style="font-weight:600;">{{ c.champ.label|traduire_dynamique }}{% if c.champ.obligatoire %} *{% endif %}</label>
+                <label class="form-label" style="font-weight:600;">{{ c.champ.label_localise }}{% if c.champ.obligatoire %} *{% endif %}</label>
                 <input type="number" name="champ_{{ c.champ.id }}" class="form-control mt-1" min="1" step="1"
                        placeholder="{% trans 'مثال: 3' %}" value="{{ c.valeur }}" {% if c.champ.obligatoire %}required{% endif %}>
                 <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "أي عدد، دون قيود." %}</div>
             </div>
             {% else %}
             <div class="mb-3">
-                <label class="form-label" style="font-weight:600;">{{ c.champ.label|traduire_dynamique }}{% if c.champ.obligatoire %} *{% endif %}</label>
+                <label class="form-label" style="font-weight:600;">{{ c.champ.label_localise }}{% if c.champ.obligatoire %} *{% endif %}</label>
 
                 {% if c.champ.critere.type_champ == 'choix_multiple' %}
                     <select name="champ_{{ c.champ.id }}" class="form-select mt-1" multiple
@@ -106,7 +106,7 @@
                             data-obligatoire="{% if c.champ.obligatoire %}1{% else %}0{% endif %}" onchange="toggleNbSeancesManuel()">
                         {% for option in c.champ.critere.options.all %}
                         {% if option.est_actif %}
-                        <option value="{{ option.code }}" {% if option.code in c.valeurs_liste %}selected{% endif %}>{{ option.label|traduire_dynamique }}</option>
+                        <option value="{{ option.code }}" {% if option.code in c.valeurs_liste %}selected{% endif %}>{{ option.label_localise }}</option>
                         {% endif %}
                         {% endfor %}
                     </select>
@@ -118,7 +118,7 @@
                         <option value="">— {% trans "اختر" %} —</option>
                         {% for option in c.champ.critere.options.all %}
                         {% if option.est_actif %}
-                        <option value="{{ option.code }}" {% if option.code == c.valeur %}selected{% endif %}>{{ option.label|traduire_dynamique }}</option>
+                        <option value="{{ option.code }}" {% if option.code == c.valeur %}selected{% endif %}>{{ option.label_localise }}</option>
                         {% endif %}
                         {% endfor %}
                     </select>

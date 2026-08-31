@@ -17,6 +17,8 @@
             <label style="font-weight:600; color:#333;">{% trans "العنوان المعروض *" %}</label>
             <input type="text" name="titre" class="form-control mt-1" placeholder="{% trans 'مثال: اختيار المجموعة' %}"
                    value="{{ valeurs_form.titre|default:'' }}" required>
+            <input type="text" name="titre_fr" class="form-control mt-1" placeholder="🇫🇷 FR" value="{{ valeurs_form.titre_fr|default:'' }}">
+            <input type="text" name="titre_en" class="form-control mt-1" placeholder="🇬🇧 EN" value="{{ valeurs_form.titre_en|default:'' }}">
         </div>
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>

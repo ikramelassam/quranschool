@@ -73,6 +73,22 @@ from django.db import models
 from django.utils.translation import get_language
 
 
+def _libelle_localise(langue, valeur_fr, valeur_en, valeur_ar):
+    """Repli langue active pour un libellé configuré par le مدير (chantier
+    i18n contenu-DB, 2026-08-31) : d'abord la traduction FR/EN saisie à la
+    main si elle existe, sinon le catalogue Django (`gettext` — couvre le
+    petit vocabulaire SEEDÉ déjà présent dans locale/*.po, voir
+    registration.utils.traduire_libelle_dynamique), sinon la valeur arabe
+    brute ressort inchangée (comportement standard de gettext sur un msgid
+    absent). Jamais de traduction automatique d'un libellé personnalisé."""
+    if langue == 'fr' and valeur_fr:
+        return valeur_fr
+    if langue == 'en' and valeur_en:
+        return valeur_en
+    from django.utils.translation import gettext
+    return gettext(str(valeur_ar or ''))
+
+
 class Critere(models.Model):
     """Un critère configurable — de filtrage (Riwaya, Objectif...) ou purement
     informatif (filtrable=False). Voir la politique de backend dans le docstring
@@ -96,6 +112,8 @@ class Critere(models.Model):
 
     code = models.SlugField(max_length=50, unique=True)
     label = models.CharField(max_length=200)
+    label_fr = models.CharField(max_length=200, blank=True, default='')
+    label_en = models.CharField(max_length=200, blank=True, default='')
     type_champ = models.CharField(max_length=20, choices=TYPE_CHAMP_CHOICES, default='choix_unique')
     # 'eav' pour tout critère par défaut, y compris tout critère futur jamais prévu
     # aujourd'hui. 'champ_groupe'/'nb_slots' sont réservés aux 2 cas structurels déjà
@@ -120,6 +138,16 @@ class Critere(models.Model):
     def __str__(self):
         return self.label
 
+    def _localise(self, champ_base):
+        return _libelle_localise(
+            get_language(), getattr(self, f'{champ_base}_fr', ''),
+            getattr(self, f'{champ_base}_en', ''), getattr(self, champ_base),
+        )
+
+    @property
+    def label_localise(self):
+        return self._localise('label')
+
     class Meta:
         ordering = ['ordre', 'id']
         verbose_name = "Critère d'inscription"
@@ -134,11 +162,23 @@ class CritereOption(models.Model):
     critere = models.ForeignKey(Critere, on_delete=models.CASCADE, related_name='options')
     code = models.SlugField(max_length=50)
     label = models.CharField(max_length=200)
+    label_fr = models.CharField(max_length=200, blank=True, default='')
+    label_en = models.CharField(max_length=200, blank=True, default='')
     ordre = models.IntegerField(default=0)
     est_actif = models.BooleanField(default=True)
 
     def __str__(self):
         return self.label
+
+    def _localise(self, champ_base):
+        return _libelle_localise(
+            get_language(), getattr(self, f'{champ_base}_fr', ''),
+            getattr(self, f'{champ_base}_en', ''), getattr(self, champ_base),
+        )
+
+    @property
+    def label_localise(self):
+        return self._localise('label')
 
     class Meta:
         ordering = ['ordre', 'id']
@@ -190,6 +230,8 @@ class EtapeInscription(models.Model):
 
     code = models.SlugField(max_length=50, unique=True)
     titre = models.CharField(max_length=200)
+    titre_fr = models.CharField(max_length=200, blank=True, default='')
+    titre_en = models.CharField(max_length=200, blank=True, default='')
     ordre = models.IntegerField(default=0)
     est_actif = models.BooleanField(default=True)
 
@@ -221,6 +263,16 @@ class EtapeInscription(models.Model):
 
     def __str__(self):
         return self.titre
+
+    def _localise(self, champ_base):
+        return _libelle_localise(
+            get_language(), getattr(self, f'{champ_base}_fr', ''),
+            getattr(self, f'{champ_base}_en', ''), getattr(self, champ_base),
+        )
+
+    @property
+    def titre_localise(self):
+        return self._localise('titre')
 
     @property
     def est_verrouillee(self):
@@ -302,6 +354,8 @@ class ConfigurationChampStructurel(models.Model):
 
     champ_cle = models.CharField(max_length=30, choices=CHAMP_CLE_CHOICES, unique=True)
     label = models.CharField(max_length=100)
+    label_fr = models.CharField(max_length=100, blank=True, default='')
+    label_en = models.CharField(max_length=100, blank=True, default='')
     ordre = models.IntegerField(default=0)
     etape = models.ForeignKey(EtapeInscription, on_delete=models.PROTECT, related_name='champs_structurels')
     obligatoire = models.BooleanField(default=True)
@@ -310,12 +364,18 @@ class ConfigurationChampStructurel(models.Model):
     # laissé blank pour eux, jamais lu par le rendu dans ce cas.
     type_champ = models.CharField(max_length=20, choices=TYPE_CHAMP_CHOICES, default='texte', blank=True)
     placeholder = models.CharField(max_length=200, blank=True, default='')
+    placeholder_fr = models.CharField(max_length=200, blank=True, default='')
+    placeholder_en = models.CharField(max_length=200, blank=True, default='')
     texte_aide = models.CharField(max_length=300, blank=True, default='')
+    texte_aide_fr = models.CharField(max_length=300, blank=True, default='')
+    texte_aide_en = models.CharField(max_length=300, blank=True, default='')
     # Regex Python optionnelle (re.fullmatch), appliquée UNIQUEMENT si non
     # vide ET valeur non vide déjà présente — jamais pour CLES_SANS_TYPE_CHAMP
     # (leur validation dédiée existante reste seule autorité).
     regex_validation = models.CharField(max_length=200, blank=True, default='')
     message_erreur_regex = models.CharField(max_length=200, blank=True, default='')
+    message_erreur_regex_fr = models.CharField(max_length=200, blank=True, default='')
+    message_erreur_regex_en = models.CharField(max_length=200, blank=True, default='')
 
     def save(self, *args, **kwargs):
         if self.champ_cle in self.CLES_VERROUILLEES:
@@ -327,6 +387,28 @@ class ConfigurationChampStructurel(models.Model):
 
     def __str__(self):
         return f"{self.label} ({self.get_champ_cle_display()})"
+
+    def _localise(self, champ_base):
+        return _libelle_localise(
+            get_language(), getattr(self, f'{champ_base}_fr', ''),
+            getattr(self, f'{champ_base}_en', ''), getattr(self, champ_base),
+        )
+
+    @property
+    def label_localise(self):
+        return self._localise('label')
+
+    @property
+    def placeholder_localise(self):
+        return self._localise('placeholder')
+
+    @property
+    def texte_aide_localise(self):
+        return self._localise('texte_aide')
+
+    @property
+    def message_erreur_regex_localise(self):
+        return self._localise('message_erreur_regex')
 
     @property
     def est_verrouille(self):
@@ -375,12 +457,31 @@ class ChampInscription(models.Model):
     valeur_min = models.IntegerField(null=True, blank=True)
     valeur_max = models.IntegerField(null=True, blank=True)
     label = models.CharField(max_length=200)
+    # Traductions FR/EN — pertinentes surtout pour un champ informatif
+    # (critere=NULL) ; pour un champ lié à un critère, label_localise retombe
+    # de toute façon sur le libellé du critère si ce label-ci est vide.
+    label_fr = models.CharField(max_length=200, blank=True, default='')
+    label_en = models.CharField(max_length=200, blank=True, default='')
     obligatoire = models.BooleanField(default=False)
     ordre = models.IntegerField(default=0)
     est_actif = models.BooleanField(default=True)
 
     def __str__(self):
         return self.label
+
+    def _localise(self, champ_base):
+        return _libelle_localise(
+            get_language(), getattr(self, f'{champ_base}_fr', ''),
+            getattr(self, f'{champ_base}_en', ''), getattr(self, champ_base),
+        )
+
+    @property
+    def label_localise(self):
+        """Libellé affiché sur le wizard. Si ce champ est lié à un critère et
+        que son propre label est vide, on prend celui du critère (localisé)."""
+        if self.critere_id and not self.label:
+            return self.critere.label_localise
+        return self._localise('label')
 
     class Meta:
         ordering = ['ordre', 'id']

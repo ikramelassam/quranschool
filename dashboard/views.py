@@ -6797,6 +6797,8 @@ def admin_critere_inscription_ajouter(request):
         critere = Critere.objects.create(
             code=code,
             label=request.POST.get('label', '').strip(),
+            label_fr=request.POST.get('label_fr', '').strip(),
+            label_en=request.POST.get('label_en', '').strip(),
             type_champ=request.POST.get('type_champ', 'choix_unique'),
             backend=backend,
             champ_modele_groupe=champ_modele_groupe,
@@ -6868,6 +6870,8 @@ def admin_critere_inscription_modifier(request, critere_id):
             })
 
         critere.label = request.POST.get('label', '').strip()
+        critere.label_fr = request.POST.get('label_fr', '').strip()
+        critere.label_en = request.POST.get('label_en', '').strip()
         critere.type_champ = request.POST.get('type_champ', critere.type_champ)
         critere.filtrable = filtrable_demande
         critere.bloquant = request.POST.get('bloquant') == 'on'
@@ -6957,6 +6961,8 @@ def admin_critere_option_ajouter(request, critere_id):
         CritereOption.objects.create(
             critere=critere, code=code,
             label=request.POST.get('label', '').strip(),
+            label_fr=request.POST.get('label_fr', '').strip(),
+            label_en=request.POST.get('label_en', '').strip(),
             ordre=request.POST.get('ordre') or 0,
         )
         messages.success(request, 'تمت إضافة الخيار بنجاح.')
@@ -6970,6 +6976,8 @@ def admin_critere_option_modifier(request, option_id):
     option = get_object_or_404(CritereOption, id=option_id)
     if request.method == 'POST':
         option.label = request.POST.get('label', '').strip()
+        option.label_fr = request.POST.get('label_fr', '').strip()
+        option.label_en = request.POST.get('label_en', '').strip()
         option.ordre = request.POST.get('ordre') or 0
         option.save()
         messages.success(request, 'تم تعديل الخيار بنجاح.')
@@ -7045,6 +7053,8 @@ def admin_etape_inscription_ajouter(request):
         etape = EtapeInscription.objects.create(
             code=code,
             titre=request.POST.get('titre', '').strip(),
+            titre_fr=request.POST.get('titre_fr', '').strip(),
+            titre_en=request.POST.get('titre_en', '').strip(),
             ordre=request.POST.get('ordre') or 0,
         )
         messages.success(request, f'تمت إضافة المرحلة "{etape.titre}" بنجاح.')
@@ -7101,6 +7111,8 @@ def admin_etape_inscription_modifier(request, etape_id):
     verrouillee = etape.est_verrouillee
     if request.method == 'POST':
         etape.titre = request.POST.get('titre', '').strip()
+        etape.titre_fr = request.POST.get('titre_fr', '').strip()
+        etape.titre_en = request.POST.get('titre_en', '').strip()
         etape.ordre = request.POST.get('ordre') or 0
         if not verrouillee:
             etape.est_actif = request.POST.get('est_actif') == 'on'
@@ -7212,6 +7224,8 @@ def admin_champ_inscription_ajouter(request, etape_id):
             valeur_min=_parse_entier_optionnel(request.POST.get('valeur_min')) if type_champ == 'nombre' else None,
             valeur_max=_parse_entier_optionnel(request.POST.get('valeur_max')) if type_champ == 'nombre' else None,
             label=request.POST.get('label', '').strip(),
+            label_fr=request.POST.get('label_fr', '').strip(),
+            label_en=request.POST.get('label_en', '').strip(),
             obligatoire=request.POST.get('obligatoire') == 'on',
             ordre=request.POST.get('ordre') or 0,
         )
@@ -7245,6 +7259,8 @@ def admin_champ_inscription_modifier(request, champ_id):
             })
 
         champ.label = request.POST.get('label', '').strip()
+        champ.label_fr = request.POST.get('label_fr', '').strip()
+        champ.label_en = request.POST.get('label_en', '').strip()
         champ.obligatoire = obligatoire_demande
         champ.ordre = request.POST.get('ordre') or 0
         champ.est_actif = request.POST.get('est_actif') == 'on'
@@ -7321,6 +7337,8 @@ def admin_champ_structurel_modifier(request, config_id):
 
     if request.method == 'POST':
         config.label = request.POST.get('label', '').strip() or config.label
+        config.label_fr = request.POST.get('label_fr', '').strip()
+        config.label_en = request.POST.get('label_en', '').strip()
         config.ordre = request.POST.get('ordre') or 0
         # Le reste est ignoré pour les clés verrouillées (sexe/date_naissance/
         # email) — model.save() les réécrit de toute façon (défense en
@@ -7334,9 +7352,15 @@ def admin_champ_structurel_modifier(request, config_id):
             if not sans_type_champ:
                 config.type_champ = request.POST.get('type_champ', 'texte')
                 config.placeholder = request.POST.get('placeholder', '').strip()
+                config.placeholder_fr = request.POST.get('placeholder_fr', '').strip()
+                config.placeholder_en = request.POST.get('placeholder_en', '').strip()
                 config.texte_aide = request.POST.get('texte_aide', '').strip()
+                config.texte_aide_fr = request.POST.get('texte_aide_fr', '').strip()
+                config.texte_aide_en = request.POST.get('texte_aide_en', '').strip()
                 config.regex_validation = request.POST.get('regex_validation', '').strip()
                 config.message_erreur_regex = request.POST.get('message_erreur_regex', '').strip()
+                config.message_erreur_regex_fr = request.POST.get('message_erreur_regex_fr', '').strip()
+                config.message_erreur_regex_en = request.POST.get('message_erreur_regex_en', '').strip()
         config.save()
         messages.success(request, f'تم تعديل الحقل البنيوي "{config.label}" بنجاح.')
         return redirect('admin_etape_inscription_detail', config.etape_id)

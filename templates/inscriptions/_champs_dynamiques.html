@@ -45,7 +45,7 @@ propres fonctions, jamais d'imposer l'ordre d'exécution à la page.
     obligatoires répondus, or ce champ EN FAIT PARTIE).
     {% endcomment %}
     <div class="mb-3" id="nb_seances_wrapper" style="display:none;">
-        <label class="form-label">{{ champ.label|traduire_dynamique }}{% if champ.obligatoire %} *{% endif %}</label>
+        <label class="form-label">{{ champ.label_localise }}{% if champ.obligatoire %} *{% endif %}</label>
         {% if options_nb_seances %}
         <div class="row g-2 mt-1">
             {% for option in options_nb_seances %}
@@ -76,11 +76,11 @@ propres fonctions, jamais d'imposer l'ordre d'exécution à la page.
     <div class="mb-3 form-check">
         <input type="checkbox" name="champ_{{ champ.id }}" value="1" class="form-check-input"
                id="champ_bool_{{ champ.id }}" {% if champ.obligatoire %}required{% endif %}>
-        <label class="form-check-label" for="champ_bool_{{ champ.id }}">{{ champ.label|traduire_dynamique }}{% if champ.obligatoire %} *{% endif %}</label>
+        <label class="form-check-label" for="champ_bool_{{ champ.id }}">{{ champ.label_localise }}{% if champ.obligatoire %} *{% endif %}</label>
     </div>
     {% else %}
     <div class="mb-3">
-        <label class="form-label">{{ champ.label|traduire_dynamique }}{% if champ.obligatoire %} *{% endif %}</label>
+        <label class="form-label">{{ champ.label_localise }}{% if champ.obligatoire %} *{% endif %}</label>
 
         {% if champ.critere %}
         <div class="row g-2" data-champ-container="{{ champ.id }}">
@@ -92,7 +92,7 @@ propres fonctions, jamais d'imposer l'ordre d'exécution à la page.
                      data-backend="{{ champ.critere.backend }}"
                      data-obligatoire="{% if champ.obligatoire %}1{% else %}0{% endif %}"
                      onclick="selectionnerOptionChampDynamique({{ champ.id }}, {{ champ.critere.id }}, '{{ option.code }}', {% if champ.critere.type_champ == 'choix_multiple' %}true{% else %}false{% endif %}, this)">
-                    {{ option.label|traduire_dynamique }}
+                    {{ option.label_localise }}
                 </div>
             </div>
             {% endif %}

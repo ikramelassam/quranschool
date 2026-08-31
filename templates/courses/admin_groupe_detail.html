@@ -255,7 +255,7 @@
     {% for item in criteres_config %}
     <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid #f0f0f0;">
         <div style="font-weight:600; min-width:160px;">
-            {{ item.critere.label }}
+            {{ item.critere.label_localise }}
             {% if item.critere.filtrable %}
                 <span style="color:#1565c0; font-size:0.75rem;">🔍</span>
             {% endif %}
@@ -271,7 +271,7 @@
                         <input type="checkbox" name="options" value="{{ option.code }}" class="form-check-input"
                                id="crit_{{ item.critere.id }}_{{ option.id }}"
                                {% if option.id in item.valeurs_actuelles_ids %}checked{% endif %}>
-                        <label class="form-check-label" for="crit_{{ item.critere.id }}_{{ option.id }}" style="font-size:0.88rem;">{{ option.label }}</label>
+                        <label class="form-check-label" for="crit_{{ item.critere.id }}_{{ option.id }}" style="font-size:0.88rem;">{{ option.label_localise }}</label>
                     </div>
                     {% endfor %}
                 </div>
@@ -279,7 +279,7 @@
                 <select name="options" class="form-select form-select-sm" style="min-width:160px;">
                     <option value="">— {% trans "غير محدد" %} —</option>
                     {% for option in item.options %}
-                    <option value="{{ option.code }}" {% if option.id in item.valeurs_actuelles_ids %}selected{% endif %}>{{ option.label }}</option>
+                    <option value="{{ option.code }}" {% if option.id in item.valeurs_actuelles_ids %}selected{% endif %}>{{ option.label_localise }}</option>
                     {% endfor %}
                 </select>
             {% endif %}

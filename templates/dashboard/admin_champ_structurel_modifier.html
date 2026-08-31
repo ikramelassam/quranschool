@@ -19,6 +19,8 @@
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "الاسم المعروض *" %}</label>
             <input type="text" name="label" class="form-control mt-1" value="{{ config.label }}" required>
+            <input type="text" name="label_fr" class="form-control mt-1" placeholder="🇫🇷 FR" value="{{ config.label_fr }}">
+            <input type="text" name="label_en" class="form-control mt-1" placeholder="🇬🇧 EN" value="{{ config.label_en }}">
         </div>
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>
@@ -62,10 +64,14 @@
             <div class="mb-3">
                 <label style="font-weight:600; color:#333;">{% trans "نص توضيحي داخل الحقل (placeholder)" %}</label>
                 <input type="text" name="placeholder" class="form-control mt-1" value="{{ config.placeholder }}">
+                <input type="text" name="placeholder_fr" class="form-control mt-1" placeholder="🇫🇷 FR" value="{{ config.placeholder_fr }}">
+                <input type="text" name="placeholder_en" class="form-control mt-1" placeholder="🇬🇧 EN" value="{{ config.placeholder_en }}">
             </div>
             <div class="mb-3">
                 <label style="font-weight:600; color:#333;">{% trans "نص مساعد (يظهر تحت الحقل)" %}</label>
                 <input type="text" name="texte_aide" class="form-control mt-1" value="{{ config.texte_aide }}">
+                <input type="text" name="texte_aide_fr" class="form-control mt-1" placeholder="🇫🇷 FR" value="{{ config.texte_aide_fr }}">
+                <input type="text" name="texte_aide_en" class="form-control mt-1" placeholder="🇬🇧 EN" value="{{ config.texte_aide_en }}">
             </div>
             <div class="mb-3">
                 <label style="font-weight:600; color:#333;">{% trans "قاعدة تحقق (regex، اختياري)" %}</label>
@@ -76,6 +82,8 @@
             <div class="mb-3">
                 <label style="font-weight:600; color:#333;">{% trans "رسالة الخطأ عند عدم التطابق" %}</label>
                 <input type="text" name="message_erreur_regex" class="form-control mt-1" value="{{ config.message_erreur_regex }}">
+                <input type="text" name="message_erreur_regex_fr" class="form-control mt-1" placeholder="🇫🇷 FR" value="{{ config.message_erreur_regex_fr }}">
+                <input type="text" name="message_erreur_regex_en" class="form-control mt-1" placeholder="🇬🇧 EN" value="{{ config.message_erreur_regex_en }}">
             </div>
             {% endif %}
         {% endif %}

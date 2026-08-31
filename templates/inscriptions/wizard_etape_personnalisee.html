@@ -8,9 +8,9 @@ Aucun `wizard_etape_num` : la barre de progression à 6 points reste
 dimensionnée pour les 7 pages réelles historiques, une étape personnalisée
 n'a pas de position fixe qui y corresponde — jamais un point trompeur.
 {% endcomment %}
-{% block wizard_title %}{{ etape.titre|traduire_dynamique }}{% endblock %}
+{% block wizard_title %}{{ etape.titre_localise }}{% endblock %}
 {% block wizard_content %}
-<div class="page-title">{{ etape.titre|traduire_dynamique }}</div>
+<div class="page-title">{{ etape.titre_localise }}</div>
 
 <form method="POST">
     {% csrf_token %}
