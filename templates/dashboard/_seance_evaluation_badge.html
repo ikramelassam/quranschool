@@ -1,13 +1,19 @@
+{% load i18n %}
 {% if seance.statut == 'annulee' %}
-    {% include 'dashboard/_badge_statut.html' with type='neutre' texte='ملغاة ❌' %}
+    {% trans "ملغاة ❌" as txt_badge_eval %}
+    {% include 'dashboard/_badge_statut.html' with type='neutre' texte=txt_badge_eval %}
 {% elif seance.est_evaluee %}
-    {% include 'dashboard/_badge_statut.html' with type='success' texte='تم التقييم ✅' %}
+    {% trans "تم التقييم ✅" as txt_badge_eval %}
+    {% include 'dashboard/_badge_statut.html' with type='success' texte=txt_badge_eval %}
 {% elif seance.date > aujourdhui %}
-    {% include 'dashboard/_badge_statut.html' with type='neutre' texte='لم تُدرَّس بعد 📌' %}
+    {% trans "لم تُدرَّس بعد 📌" as txt_badge_eval %}
+    {% include 'dashboard/_badge_statut.html' with type='neutre' texte=txt_badge_eval %}
     {% include 'dashboard/_meet_icon.html' with seance=seance %}
 {% elif seance.date < aujourdhui %}
-    {% include 'dashboard/_badge_statut.html' with type='danger' texte='لم يتم تقييمها بعد ⚠️' %}
+    {% trans "لم يتم تقييمها بعد ⚠️" as txt_badge_eval %}
+    {% include 'dashboard/_badge_statut.html' with type='danger' texte=txt_badge_eval %}
 {% else %}
-    {% include 'dashboard/_badge_statut.html' with type='warning' texte='لم يتم تقييمها بعد ⏳' %}
+    {% trans "لم يتم تقييمها بعد ⏳" as txt_badge_eval %}
+    {% include 'dashboard/_badge_statut.html' with type='warning' texte=txt_badge_eval %}
     {% include 'dashboard/_meet_icon.html' with seance=seance %}
 {% endif %}
