@@ -5588,3 +5588,246 @@ msgstr "Section 2"
 msgid "ثانياً"
 msgstr "Secondly"
 
+
+#, python-format
+msgid "%(n)s أساتذة مسندون"
+msgstr "%(n)s assigned teachers"
+
+#, python-format
+msgid "%(n)s اليوم"
+msgstr "%(n)s today"
+
+#, python-format
+msgid "%(n)s تقييمات بانتظارك"
+msgstr "%(n)s evaluations pending"
+
+#, python-format
+msgid "%(n)s حصص لم تُقيّم بعد"
+msgstr "%(n)s sessions not yet evaluated"
+
+#, python-format
+msgid "%(n)s غير مقيّمة"
+msgstr "%(n)s not evaluated"
+
+#, python-format
+msgid "%(n)s قادمة"
+msgstr "%(n)s upcoming"
+
+#, python-format
+msgid "%(n)s متأخرة"
+msgstr "%(n)s overdue"
+
+msgid "(مؤرشف)"
+msgstr "(archived)"
+
+#, python-format
+msgid "+%(n)s حصة سابقة أخرى — استخدم عامل التصفية أعلاه لتضييق البحث"
+msgstr "+%(n)s more past session — use the filter above to narrow down"
+
+#, python-format
+msgid "+%(n)s حصة قادمة أخرى"
+msgstr "+%(n)s more upcoming session"
+
+msgid "اسم الحلقة"
+msgstr "Group name"
+
+msgid "اسم المعلم المُقيَّم"
+msgstr "Name of the evaluated teacher"
+
+#, python-format
+msgid "التلاوة: %(n)s/20"
+msgstr "Recitation: %(n)s/20"
+
+msgid "الحصة لم تنته بعد."
+msgstr "The session has not ended yet."
+
+#, python-format
+msgid "الحصة لم تنته بعد، يمكن التقييم بعد الساعة %(heure)s."
+msgstr "The session has not ended yet; evaluation will be available after %(heure)s."
+
+#, python-format
+msgid "الحفظ: %(n)s/20"
+msgstr "Memorization: %(n)s/20"
+
+msgid "الكفاءات"
+msgstr "Skills"
+
+msgid "المجموعات المسندة"
+msgstr "Assigned groups"
+
+#, python-format
+msgid "المراجعة: %(n)s/20"
+msgstr "Review: %(n)s/20"
+
+#, python-format
+msgid "المواظبة والسلوك: %(n)s/20"
+msgstr "Attendance and behavior: %(n)s/20"
+
+#, python-format
+msgid "اليوم — %(h)s"
+msgstr "Today — %(h)s"
+
+msgid "انتهت مدة تعديل هذا التقييم (24 ساعة من الإرسال الأول) — لم يعد قابلاً للتعديل."
+msgstr "The editing window for this evaluation (24 hours after first submission) has passed — it can no longer be edited."
+
+msgid "بالترتيب الزمني"
+msgstr "Chronological order"
+
+msgid "تاريخ المراقبة"
+msgstr "Observation date"
+
+msgid "تقييم الأساتذة"
+msgstr "Teacher evaluation"
+
+msgid "تقييم الحصة"
+msgstr "Session evaluation"
+
+msgid "تقييم المعلم"
+msgstr "Teacher evaluation"
+
+msgid "تقييم المعلم 📝"
+msgstr "Evaluate the teacher 📝"
+
+msgid "تقييم ←"
+msgstr "Evaluate ←"
+
+#, python-format
+msgid "تم التقييم بتاريخ: %(d)s"
+msgstr "Evaluated on: %(d)s"
+
+msgid "تم التقييم ✅"
+msgstr "Evaluated ✅"
+
+msgid "جماعية"
+msgstr "Group"
+
+msgid "حسب المعلم"
+msgstr "By teacher"
+
+msgid "حصة اليوم"
+msgstr "Today's session"
+
+msgid "حفظ التقييم"
+msgstr "Save evaluation"
+
+msgid "حقل \"ملاحظات وتوجيهات\" إلزامي — يرجى تعبئته قبل الحفظ."
+msgstr "The \"Remarks and guidance\" field is required — please fill it in before saving."
+
+msgid "عدد الحصص هذا الشهر"
+msgstr "Number of sessions this month"
+
+msgid "عدد المتعلمين الحاضرين"
+msgstr "Number of learners present"
+
+msgid "عرض تقييم المعلم 👁"
+msgstr "View teacher evaluation 👁"
+
+msgid "عرض حصص اليوم ←"
+msgstr "View today's sessions ←"
+
+msgid "عرض سجل الحصص ←"
+msgstr "View session history ←"
+
+msgid "غير مقيّمة"
+msgstr "Not evaluated"
+
+msgid "فردية"
+msgstr "Individual"
+
+msgid "لا توجد تقييمات لهذه الحصة"
+msgstr "No evaluations for this session"
+
+msgid "لا توجد حصص في هذا الشهر"
+msgstr "No sessions this month"
+
+msgid "لا توجد مجموعات مسندة حاليا"
+msgstr "No assigned groups for now"
+
+msgid "لا توجد معايير تقييم بعد. يجب على الإدارة إضافتها أولاً من لوحة الإدارة."
+msgstr "No evaluation criteria yet. The administration must add them first from the dashboard."
+
+msgid "لا توجد معايير مسجلة لهذا التقييم"
+msgstr "No criteria recorded for this evaluation"
+
+msgid "لا توجد نتائج مطابقة"
+msgstr "No matching results"
+
+msgid "لم تُدرَّس بعد 📌"
+msgstr "Not yet taught 📌"
+
+msgid "لم يتم تقييمها بعد ⏳"
+msgstr "Not yet evaluated ⏳"
+
+msgid "لوحة المؤطر"
+msgstr "Supervisor dashboard"
+
+msgid "مراقبة الحصص والتقييمات"
+msgstr "Monitoring sessions and evaluations"
+
+msgid "ملاحظات وتوجيهات *"
+msgstr "Remarks and guidance *"
+
+msgid "هذا الشهر"
+msgstr "This month"
+
+msgid "هل أنت متأكد من حفظ هذا التقييم؟"
+msgstr "Are you sure you want to save this evaluation?"
+
+#, python-format
+msgid "يمكن التقييم بعد الساعة %(h)s"
+msgstr "Evaluation available after %(h)s"
+
+msgid "يوجد تقييم سابق لهذه الحصة. هل أنت متأكد من حفظ هذا التقييم؟ سيتم استبدال التقييم الحالي نهائياً."
+msgstr "An evaluation already exists for this session. Are you sure you want to save this one? The current evaluation will be permanently replaced."
+
+msgid "— اختر —"
+msgstr "— Select —"
+
+#, python-format
+msgid "— منذ %(h)s"
+msgstr "— since %(h)s"
+
+msgid "← رجوع إلى تفاصيل الحصة"
+msgstr "← Back to session details"
+
+msgid "← رجوع إلى ملفي الشخصي"
+msgstr "← Back to my profile"
+
+msgid "⏭ الحصة التالية"
+msgstr "⏭ Next session"
+
+msgid "⏳ الحصة لم تنته بعد"
+msgstr "⏳ The session has not ended yet"
+
+msgid "⚠ يجب تعيين أستاذ آخر لهذه المجموعة."
+msgstr "⚠ Another teacher must be assigned to this group."
+
+msgid "⚠️ هذا الأستاذ مؤرشف. إذا كانت هذه المجموعة لا تزال نشطة، يجب على الإدارة تعيين أستاذ آخر لها."
+msgstr "⚠️ This teacher is archived. If this group is still active, the administration must assign it another teacher."
+
+msgid "⚠️ هذه المجموعة بدون أستاذ حالياً. إذا كانت لا تزال نشطة، يجب على الإدارة تعيين أستاذ لها."
+msgstr "⚠️ This group currently has no teacher. If it is still active, the administration must assign one."
+
+msgid "✅ كل الحصص مقيّمة"
+msgstr "✅ All sessions are evaluated"
+
+msgid "📂 السجل السابق"
+msgstr "📂 Past record"
+
+msgid "📅 الحصص"
+msgstr "📅 Sessions"
+
+msgid "📌 اليوم"
+msgstr "📌 Today"
+
+msgid "📝 التقييمات"
+msgstr "📝 Evaluations"
+
+msgid "🔒 لم يعد قابلاً للتعديل (تجاوز 24 ساعة)"
+msgstr "🔒 No longer editable (24 h window passed)"
+
+msgid "🔜 القادمة"
+msgstr "🔜 Upcoming"
+
+msgid "🔴 جارية الآن"
+msgstr "🔴 In progress"
