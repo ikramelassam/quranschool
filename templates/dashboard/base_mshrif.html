@@ -25,7 +25,6 @@
             background: var(--color-role-mshrif);
             display: flex; flex-direction: column;
             z-index: 100;
-            overflow-y: auto;
         }
         .sidebar-header {
             display: flex; align-items: center; gap: 14px;
@@ -62,7 +61,7 @@
         .btn-logout-top { flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; background: var(--gradient-cta-gold); color: var(--color-cta-gold-text); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.28); transition: transform 0.15s ease, box-shadow 0.15s ease; }
         .btn-logout-top:hover, .btn-logout-top:active { transform: scale(1.07); box-shadow: 0 3px 14px rgba(0,0,0,0.38); }
 
-        .sidebar-menu { padding: 16px 0; flex: 1; }
+        .sidebar-menu { padding: 16px 0; flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         .menu-item {
             display: flex; align-items: center;
             padding: 12px 20px; color: rgba(255,255,255,0.8);
