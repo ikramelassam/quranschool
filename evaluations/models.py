@@ -3,7 +3,7 @@ import datetime
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language
 from accounts.models import Superviseur, Prof
 from courses.models import Seance
 
@@ -13,11 +13,34 @@ FENETRE_MODIFICATION_EVALUATION_HEURES = 24  # confirmé par le client : le مؤ
 
 class Critere(models.Model):
     nom_ar = models.CharField(max_length=200)
+    # Traductions manuelles FR/EN saisies par le مدير à côté de l'arabe
+    # (chantier i18n contenu-DB, 2026-08-31) — même patron que
+    # courses.models.Groupe.nom_fr/nom_en : optionnelles, repli automatique
+    # sur l'arabe si non renseignées (voir _localise ci-dessous). Ces critères
+    # sont vus par le مؤطر (formulaire d'évaluation du prof) ET par le prof
+    # lui-même (page "تقييمات المؤطر لي") — les 2 peuvent être en session FR/EN.
+    nom_fr = models.CharField(max_length=200, blank=True, default='')
+    nom_en = models.CharField(max_length=200, blank=True, default='')
     ordre = models.IntegerField(default=0)
     est_actif = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nom_ar
+
+    def _localise(self, champ_base):
+        """Renvoie `<champ_base>` dans la langue active (get_language()) avec
+        repli sur l'arabe (`<champ_base>_ar`) si la traduction FR/EN n'est pas
+        encore saisie — même logique que courses.models.Groupe._localise."""
+        langue = get_language()
+        if langue in ('fr', 'en'):
+            valeur = getattr(self, f'{champ_base}_{langue}', '')
+            if valeur:
+                return valeur
+        return getattr(self, f'{champ_base}_ar')
+
+    @property
+    def nom_localise(self):
+        return self._localise('nom')
 
     class Meta:
         ordering = ['ordre']

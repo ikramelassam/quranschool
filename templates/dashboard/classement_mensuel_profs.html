@@ -86,7 +86,7 @@
         <div style="padding:10px 24px 0; color:var(--color-text-muted); font-size:0.82rem;">{% trans "تظهر هذه المعايير في استمارة تقييم المؤطر للمعلم" %}</div>
         {% for critere in criteres %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 24px; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
-            <div style="font-weight:700;">{{ critere.ordre }}. {{ critere.nom_ar }}</div>
+            <div style="font-weight:700;">{{ critere.ordre }}. {{ critere.nom_localise }}</div>
             {% if critere.est_actif %}
             <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">{% trans "نشط ✅" %}</span>
             {% else %}

@@ -81,7 +81,7 @@
                 {% else %}
                 <span class="badge-note" style="background:#e8f5e9; color:#1b5e20;">{% trans "✅ لا غياب" %}</span>
                 {% endif %}
-                {% for m in ligne.moyennes %}<span class="badge-note">{% blocktrans with nom=m.nom_ar moyenne=m.moyenne %}{{ nom }}: {{ moyenne }}/20{% endblocktrans %}</span>{% endfor %}
+                {% for m in ligne.moyennes %}<span class="badge-note">{% blocktrans with nom=m.nom moyenne=m.moyenne %}{{ nom }}: {{ moyenne }}/20{% endblocktrans %}</span>{% endfor %}
             </span>
         </div>
         <div class="ligne2">

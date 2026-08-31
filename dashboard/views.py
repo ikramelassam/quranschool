@@ -12,7 +12,19 @@ from django.db import transaction
 # jetable un peu partout (ex: "annee, _, num_mois = mois.partition('-')")
 # — un import "gettext as _" serait silencieusement écrasé dans ces
 # fonctions et casserait tout appel _() placé après ce genre de ligne.
-from django.utils.translation import gettext as gettext_, gettext_lazy as gettext_lazy_
+from django.utils.translation import gettext as gettext_, gettext_lazy as gettext_lazy_, get_language
+
+
+def _critere_nom_localise(nom_ar, nom_fr, nom_en):
+    """Repli langue active pour un libellé de critère servi via .values()
+    (pas d'objet ORM, donc pas de .nom_localise) — même logique que
+    Critere._localise / Groupe._localise."""
+    langue = get_language()
+    if langue == 'fr' and nom_fr:
+        return nom_fr
+    if langue == 'en' and nom_en:
+        return nom_en
+    return nom_ar
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from accounts.decorators import role_required
@@ -1778,12 +1790,16 @@ def bilans_mensuels(request):
     # regroupées ci-dessous par .setdefault(cle, []).append(...).
     moyennes_par_paire = {}
     for m in moyennes_qs_global.values(
-        'presence__eleve_id', 'presence__seance__groupe_id', 'critere__nom_ar', 'critere__ordre'
+        'presence__eleve_id', 'presence__seance__groupe_id',
+        'critere__nom_ar', 'critere__nom_fr', 'critere__nom_en', 'critere__ordre'
     ).annotate(moyenne=Avg('note')).order_by('critere__ordre'):
         cle = (m['presence__eleve_id'], m['presence__seance__groupe_id'])
-        moyennes_par_paire.setdefault(cle, []).append(
-            {'nom_ar': m['critere__nom_ar'], 'moyenne': round(m['moyenne'], 1)}
-        )
+        moyennes_par_paire.setdefault(cle, []).append({
+            'nom': _critere_nom_localise(
+                m['critere__nom_ar'], m['critere__nom_fr'], m['critere__nom_en']
+            ),
+            'moyenne': round(m['moyenne'], 1),
+        })
 
     q_prof = Q(prof_id__in=prof_ids)
     if inclut_bilans_sans_prof:
@@ -5655,6 +5671,8 @@ def admin_critere_ajouter(request):
     if request.method == 'POST':
         Critere.objects.create(
             nom_ar=request.POST.get('nom_ar'),
+            nom_fr=request.POST.get('nom_fr', '').strip(),
+            nom_en=request.POST.get('nom_en', '').strip(),
             ordre=request.POST.get('ordre', 0),
         )
         messages.success(request, 'تمت إضافة المعيار بنجاح.')
@@ -5670,6 +5688,8 @@ def admin_critere_modifier(request, critere_id):
 
     if request.method == 'POST':
         critere.nom_ar = request.POST.get('nom_ar')
+        critere.nom_fr = request.POST.get('nom_fr', '').strip()
+        critere.nom_en = request.POST.get('nom_en', '').strip()
         critere.ordre = request.POST.get('ordre', 0)
         critere.save()
         messages.success(request, 'تم تعديل المعيار بنجاح.')
@@ -5736,6 +5756,8 @@ def admin_critere_eleve_ajouter(request):
     if request.method == 'POST':
         CritereEleve.objects.create(
             nom_ar=request.POST.get('nom_ar'),
+            nom_fr=request.POST.get('nom_fr', '').strip(),
+            nom_en=request.POST.get('nom_en', '').strip(),
             ordre=request.POST.get('ordre', 0),
         )
         messages.success(request, 'تمت إضافة المعيار بنجاح.')
@@ -5751,6 +5773,8 @@ def admin_critere_eleve_modifier(request, critere_id):
 
     if request.method == 'POST':
         critere.nom_ar = request.POST.get('nom_ar')
+        critere.nom_fr = request.POST.get('nom_fr', '').strip()
+        critere.nom_en = request.POST.get('nom_en', '').strip()
         critere.ordre = request.POST.get('ordre', 0)
         critere.save()
         messages.success(request, 'تم تعديل المعيار بنجاح.')

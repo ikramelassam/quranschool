@@ -1027,11 +1027,30 @@ class CritereEleve(models.Model):
     (note_hifz/note_muraja3a/note_tilawa/note_mouwazaba, voir plus bas —
     conservés en lecture seule pour l'historique, jamais plus écrits)."""
     nom_ar = models.CharField(max_length=200)
+    # Traductions manuelles FR/EN (chantier i18n contenu-DB, 2026-08-31) —
+    # même patron que Groupe.nom_fr/nom_en. Vus par le prof (feuille de
+    # présence), l'élève (historique) et le مؤطر — tous peuvent être en FR/EN.
+    nom_fr = models.CharField(max_length=200, blank=True, default='')
+    nom_en = models.CharField(max_length=200, blank=True, default='')
     ordre = models.IntegerField(default=0)
     est_actif = models.BooleanField(default=True)
 
     def __str__(self):
         return self.nom_ar
+
+    def _localise(self, champ_base):
+        """Voir evaluations.models.Critere._localise / Groupe._localise —
+        langue active, repli sur `<champ_base>_ar`."""
+        langue = get_language()
+        if langue in ('fr', 'en'):
+            valeur = getattr(self, f'{champ_base}_{langue}', '')
+            if valeur:
+                return valeur
+        return getattr(self, f'{champ_base}_ar')
+
+    @property
+    def nom_localise(self):
+        return self._localise('nom')
 
     class Meta:
         ordering = ['ordre']

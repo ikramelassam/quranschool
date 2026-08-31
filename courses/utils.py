@@ -632,7 +632,7 @@ def calculer_progression_eleve(eleve, mois=None):
     notes_par_presence = {}
     for n in NotePresence.objects.filter(presence__eleve=eleve).select_related('critere'):
         notes_par_presence.setdefault(n.presence_id, []).append(
-            {'nom_ar': n.critere.nom_ar, 'note': n.note, 'ordre': n.critere.ordre}
+            {'nom': n.critere.nom_localise, 'note': n.note, 'ordre': n.critere.ordre}
         )
     for liste in notes_par_presence.values():
         liste.sort(key=lambda x: x['ordre'])

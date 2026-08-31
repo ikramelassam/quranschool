@@ -35,7 +35,7 @@ Usage : {% include 'dashboard/_historique_evaluations_eleve.html' with historiqu
     {% if h.notes_criteres %}
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
         {% for nc in h.notes_criteres %}
-        <span style="background:#f9f9f9; border-radius:8px; padding:2px 10px; font-size:0.78rem;">{% blocktrans with nom=nc.nom_ar moyenne=nc.note %}{{ nom }}: {{ moyenne }}/20{% endblocktrans %}</span>
+        <span style="background:#f9f9f9; border-radius:8px; padding:2px 10px; font-size:0.78rem;">{% blocktrans with nom=nc.nom moyenne=nc.note %}{{ nom }}: {{ moyenne }}/20{% endblocktrans %}</span>
         {% endfor %}
     </div>
     {% endif %}
@@ -76,7 +76,7 @@ Usage : {% include 'dashboard/_historique_evaluations_eleve.html' with historiqu
         {% if h.notes_criteres %}
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
             {% for nc in h.notes_criteres %}
-            <span style="background:#f9f9f9; border-radius:8px; padding:2px 10px; font-size:0.78rem;">{% blocktrans with nom=nc.nom_ar moyenne=nc.note %}{{ nom }}: {{ moyenne }}/20{% endblocktrans %}</span>
+            <span style="background:#f9f9f9; border-radius:8px; padding:2px 10px; font-size:0.78rem;">{% blocktrans with nom=nc.nom moyenne=nc.note %}{{ nom }}: {{ moyenne }}/20{% endblocktrans %}</span>
             {% endfor %}
         </div>
         {% endif %}

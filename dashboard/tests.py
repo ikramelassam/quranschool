@@ -515,6 +515,52 @@ class BilansMensuelsPerfRefactorTests(TestCase):
         self.assertIn('بيان بدون أستاذ', response.content.decode('utf-8'))
 
 
+class CritereEleveLocaliseTests(TestCase):
+    """Chantier i18n contenu-DB (2026-08-31) : courses.CritereEleve.nom_ar
+    gagne nom_fr/nom_en. Vu par le prof (feuille de présence), l'élève et le
+    مؤطر — repli automatique sur l'arabe via nom_localise."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.client.force_login(self.admin)
+
+    def test_nom_localise_repli(self):
+        from django.utils import translation
+        c = CritereEleve.objects.create(nom_ar='الحفظ', nom_fr='Mémorisation', ordre=1)
+        with translation.override('fr'):
+            self.assertEqual(c.nom_localise, 'Mémorisation')
+        with translation.override('en'):
+            self.assertEqual(c.nom_localise, 'الحفظ')  # repli arabe (nom_en vide)
+        with translation.override('ar'):
+            self.assertEqual(c.nom_localise, 'الحفظ')
+
+    def test_bilans_mensuels_affiche_le_critere_traduit_en_fr(self):
+        critere = CritereEleve.objects.create(
+            nom_ar='الحفظ', nom_fr='Mémorisation', nom_en='Memorization', ordre=1, est_actif=True,
+        )
+        eleve = _creer_eleve('eleve_crit_loc@zidni.test')
+        prof = _creer_prof('prof_crit_loc@zidni.test')
+        groupe = Groupe.objects.create(nom='مجموعة', prof=prof)
+        groupe.eleves.add(eleve)
+        seance = Seance.objects.create(groupe=groupe, date=datetime.date(2026, 8, 5), heure='14:00', type='normal')
+        presence = Presence.objects.create(seance=seance, eleve=eleve, statut='present')
+        NotePresence.objects.create(presence=presence, critere=critere, note=15)
+
+        response = self.client.get(reverse('bilans_mensuels'), HTTP_ACCEPT_LANGUAGE='fr')
+        self.assertEqual(response.status_code, 200)
+        contenu = response.content.decode('utf-8')
+        self.assertIn('Mémorisation', contenu)
+        self.assertNotIn('الحفظ', contenu)
+
+    def test_admin_enregistre_nom_fr_nom_en(self):
+        self.client.post(reverse('admin_critere_eleve_ajouter'), {
+            'nom_ar': 'معيار تجريبي للترجمة', 'nom_fr': 'Récitation', 'nom_en': 'Recitation', 'ordre': 3,
+        })
+        cree = CritereEleve.objects.get(nom_ar='معيار تجريبي للترجمة')
+        self.assertEqual(cree.nom_fr, 'Récitation')
+        self.assertEqual(cree.nom_en, 'Recitation')
+
+
 @override_settings(STORAGES=_STORAGES_TEST)
 class ExtensionSeancesThrottleTests(TestCase):
     """Correctif perf du 2026-08-30 (voir AUDIT_PERFORMANCE_2026-08-30.md) :

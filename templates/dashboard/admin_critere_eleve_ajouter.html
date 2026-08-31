@@ -7,9 +7,21 @@
 <div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
         {% csrf_token %}
+        {% comment %} Voir admin_critere_ajouter.html — bloc AR/FR/EN, repli arabe via CritereEleve.nom_localise. {% endcomment %}
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "نص المعيار *" %}</label>
-            <textarea name="nom_ar" class="form-control mt-1" rows="2" required></textarea>
+            <div style="display:flex; gap:8px; align-items:flex-start; margin-top:4px;">
+                <span style="flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center;">🇸🇦 AR</span>
+                <textarea name="nom_ar" class="form-control" rows="2" required></textarea>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-start; margin-top:6px;">
+                <span style="flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center;">🇫🇷 FR</span>
+                <textarea name="nom_fr" class="form-control" rows="2"></textarea>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-start; margin-top:6px;">
+                <span style="flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center;">🇬🇧 EN</span>
+                <textarea name="nom_en" class="form-control" rows="2"></textarea>
+            </div>
         </div>
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>

@@ -85,15 +85,13 @@
         {% trans "بواسطة" %} {% if evaluation.superviseur %}{{ evaluation.superviseur.user.get_full_name }}{% else %}[{% trans "حساب محذوف" %}]{% endif %} — {{ evaluation.date|date:"d-m-Y H:i" }}
     </div>
     {% comment %}
-    note.critere.nom_ar (evaluations.models.Critere) — champ arabe UNIQUEMENT
-    (pas de nom_fr/nom_en), même famille que PresentationInscription/
-    CharteEnseignement (contenu rédigé par le مدير, `{% trans %}` ne peut rien
-    pour lui) mais HORS PÉRIMÈTRE de ce chantier — signalé dans le rapport,
-    pas corrigé ici.
+    note.critere.nom_localise (evaluations.models.Critere) — traductions FR/EN
+    manuelles saisies par le مدير, repli sur l'arabe (chantier i18n contenu-DB
+    du 2026-08-31), même famille que Groupe/CharteEnseignement.
     {% endcomment %}
     {% for note in evaluation.notes.all %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span>{{ note.critere.nom_ar }}</span>
+        <span>{{ note.critere.nom_localise }}</span>
         <span style="font-weight:600;">{{ note.get_note_display }}</span>
     </div>
     {% endfor %}

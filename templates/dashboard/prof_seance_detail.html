@@ -152,7 +152,7 @@
             <div class="row g-3 mt-1">
                 {% for nc in item.notes_criteres %}
                 {% if nc.note %}
-                <div class="col-6 col-md-3"><div class="notation-groupe" style="text-align:center;"><div class="notation-titre">{{ nc.critere.nom_ar }}</div><div style="font-weight:700; font-size:1.1rem;">{{ nc.note }}/20</div></div></div>
+                <div class="col-6 col-md-3"><div class="notation-groupe" style="text-align:center;"><div class="notation-titre">{{ nc.critere.nom_localise }}</div><div style="font-weight:700; font-size:1.1rem;">{{ nc.note }}/20</div></div></div>
                 {% endif %}
                 {% endfor %}
             </div>
@@ -296,7 +296,7 @@
                     {% for nc in item.notes_criteres %}
                     <div class="col-6 col-md-3">
                         <div class="notation-groupe">
-                            <div class="notation-titre">{{ nc.critere.nom_ar }}</div>
+                            <div class="notation-titre">{{ nc.critere.nom_localise }}</div>
                             <label style="color:#888; font-size:0.8rem;">{% trans "علامة /20" %}</label>
                             <input type="number" min="1" max="20" name="note_critere_{{ nc.critere.id }}_{{ eleve.id }}" class="form-control form-control-sm note-input"
                                    value="{{ nc.note|default:'' }}">

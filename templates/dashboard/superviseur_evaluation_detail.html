@@ -43,7 +43,7 @@
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     {% for note in notes %}
     <div class="d-flex justify-content-between align-items-center" style="padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} flex-wrap:wrap; gap:8px;">
-        <span style="font-weight:600; color:#333;">{{ note.critere.nom_ar }}</span>
+        <span style="font-weight:600; color:#333;">{{ note.critere.nom_localise }}</span>
         <span style="{{ note.note|note_evaluation_style }} border-radius:20px; padding:4px 14px; font-size:0.85rem; font-weight:600;">{{ note.get_note_display }}</span>
     </div>
     {% empty %}

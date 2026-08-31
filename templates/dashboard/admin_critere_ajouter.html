@@ -7,9 +7,27 @@
 <div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
         {% csrf_token %}
+        {% comment %}
+        nom_fr/nom_en (chantier i18n contenu-DB, 2026-08-31) : saisie manuelle
+        optionnelle, jamais une traduction automatique — même patron que
+        Groupe.nom_fr/_en. Repli automatique sur l'arabe tant que non saisi
+        (Critere.nom_localise), affiché à la place du champ arabe partout où
+        le مؤطر ou le prof voient les critères.
+        {% endcomment %}
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "نص المعيار *" %}</label>
-            <textarea name="nom_ar" class="form-control mt-1" rows="2" required></textarea>
+            <div style="display:flex; gap:8px; align-items:flex-start; margin-top:4px;">
+                <span style="flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center;">🇸🇦 AR</span>
+                <textarea name="nom_ar" class="form-control" rows="2" required></textarea>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-start; margin-top:6px;">
+                <span style="flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center;">🇫🇷 FR</span>
+                <textarea name="nom_fr" class="form-control" rows="2"></textarea>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-start; margin-top:6px;">
+                <span style="flex-shrink:0; width:44px; padding-top:8px; font-size:0.8rem; color:#999; text-align:center;">🇬🇧 EN</span>
+                <textarea name="nom_en" class="form-control" rows="2"></textarea>
+            </div>
         </div>
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>

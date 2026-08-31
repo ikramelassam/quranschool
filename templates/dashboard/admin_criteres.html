@@ -19,7 +19,7 @@
     {% for critere in criteres %}
     <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:16px 24px; border-bottom:1px solid #f0f0f0;">
         <div>
-            <div style="font-weight:700;">{{ critere.ordre }}. {{ critere.nom_ar }}</div>
+            <div style="font-weight:700;">{{ critere.ordre }}. {{ critere.nom_localise }}</div>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center">
             {% if critere.est_actif %}
@@ -37,7 +37,7 @@
                {% if critere.est_actif %}{% trans "تعطيل" %}{% else %}{% trans "تفعيل" %}{% endif %}
             </a>
             <a href="{% url 'admin_critere_supprimer' critere.id %}"
-               onclick="return confirm('{% blocktrans with nom=critere.nom_ar|escapejs %}حذف المعيار «{{ nom }}»؟ لن يُحذف إذا كان مستخدَماً في تقييمات سابقة.{% endblocktrans %}');"
+               onclick="return confirm('{% blocktrans with nom=critere.nom_localise|escapejs %}حذف المعيار «{{ nom }}»؟ لن يُحذف إذا كان مستخدَماً في تقييمات سابقة.{% endblocktrans %}');"
                style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
                {% trans "حذف 🗑️" %}
             </a>

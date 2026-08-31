@@ -35,7 +35,7 @@
         {% endif %}
         {% for note in evaluation.notes.all %}
         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f5f5f5;">
-            <span>{{ note.critere.nom_ar }}</span>
+            <span>{{ note.critere.nom_localise }}</span>
             <span style="font-weight:600;">{{ note.get_note_display }}</span>
         </div>
         {% endfor %}
