@@ -7016,3 +7016,150 @@ msgstr "Yes/No"
 
 msgid "نوع الحقل"
 msgstr "Field type"
+
+#, python-format
+msgid "%(nom)s — بريد إلكتروني"
+msgstr "%(nom)s — email"
+
+#, python-format
+msgid "%(nom)s — واتساب"
+msgstr "%(nom)s — WhatsApp"
+
+msgid "أوافق ✅"
+msgstr "I agree ✅"
+
+msgid "أي ملاحظات أو اقتراحات..."
+msgstr "Any comments or suggestions…"
+
+msgid "إرسال مباشر عبر واتساب"
+msgstr "Send directly via WhatsApp"
+
+msgid "ابحث عن مؤطر..."
+msgstr "Search for a supervisor…"
+
+msgid "ابحث عن مجموعة..."
+msgstr "Search for a group…"
+
+msgid "اسم الطفل/الطفلة *"
+msgstr "Child's name *"
+
+msgid "اسم ولي الأمر *"
+msgstr "Guardian's name *"
+
+msgid "الاسم الكامل للطفل"
+msgstr "Child's full name"
+
+msgid "الاسم الكامل لولي الأمر"
+msgstr "Guardian's full name"
+
+msgid "البرنامج المرغوب *"
+msgstr "Desired program *"
+
+msgid "التسجيل - برنامج الأطفال 👶"
+msgstr "Registration — children's program 👶"
+
+msgid "التسجيل - برنامج البالغين 🎓"
+msgstr "Registration — adults' program 🎓"
+
+msgid "الجنس *"
+msgstr "Gender *"
+
+#, python-format
+msgid "العمر: %(age)s — الجنس: %(sexe)s"
+msgstr "Age: %(age)s — Gender: %(sexe)s"
+
+msgid "العودة للرئيسية"
+msgstr "Back to home"
+
+msgid "بحث شامل"
+msgstr "Global search"
+
+msgid "برنامج خاص للأطفال"
+msgstr "Special program for children"
+
+msgid "برنامج للبالغين"
+msgstr "Program for adults"
+
+msgid "تاريخ الميلاد *"
+msgstr "Date of birth *"
+
+msgid "تم إرسال طلبك بنجاح!"
+msgstr "Your request has been sent successfully!"
+
+msgid "تواصل مع الإدارة"
+msgstr "Contact the administration"
+
+msgid "جدول التفرغ الأسبوعي"
+msgstr "Weekly availability schedule"
+
+msgid "حدد الأوقات التي تناسبك أسبوعياً، ليتسنى لنا اقتراح أفضل مجموعة لك."
+msgstr "Select the time slots that suit you each week, so we can suggest the best group for you."
+
+msgid ""
+"حرصاً على تنظيم سير العمل وضمان استمرارية البرامج التعليمية بالمنصة، يُرجى من جميع المشتركين الالتزام بما يلي:\n"
+"            1- يتم أداء المستحقات المالية في بداية كل شهر خلال الفترة من اليوم الأول إلى الخامس.\n"
+"            2- من التحق بعد يوم 15 يُلزم بدفع نصف الاشتراك فقط.\n"
+"            3- يُشترط إتمام الدفع قبل الانضمام للمجموعات.\n"
+"            4- تُتاح حصة تعريفية مجانية واحدة.\n"
+"            5- يُعلّق الالتحاق لمن تأخّر دون إشعار الإدارة."
+msgstr "In order to organize the workflow and ensure the continuity of the platform's educational programs, all members are asked to comply with the following: 1- Payments are made at the beginning of each month, between the 1st and the 5th. 2- Anyone joining after the 15th pays only half of the subscription. 3- Payment must be completed before joining the groups. 4- One free trial session is available. 5- Enrollment is suspended for anyone who is late without notifying the administration."
+
+msgid "درهم"
+msgstr "dirhams"
+
+msgid "رجوع ←"
+msgstr "Back ←"
+
+msgid "سياسة الاشتراك"
+msgstr "Subscription policy"
+
+msgid "سيتم التواصل معك قريباً بعد مراجعة طلبك من قِبَل الإدارة."
+msgstr "We will contact you soon after your request has been reviewed by the administration."
+
+msgid "عرض كل النتائج ←"
+msgstr "See all results ←"
+
+msgid "عرض ملف التسجيل الكامل ←"
+msgstr "View the full registration file ←"
+
+msgid "كلاهما"
+msgstr "Both"
+
+msgid "لا أوافق ❌"
+msgstr "I do not agree ❌"
+
+msgid "لا توجد نتائج لـ"
+msgstr "No results for"
+
+msgid "لا يوجد رقم/بريد مسجَّل"
+msgstr "No phone / email registered"
+
+msgid "لم يتم إكمال التسجيل"
+msgstr "Registration not completed"
+
+msgid "متابعة"
+msgstr "Continue"
+
+msgid "مثال: تفرغي غير منتظم، أو أي توضيح تريد إضافته"
+msgstr "Example: my availability is irregular, or any clarification you want to add"
+
+msgid "مدة الاشتراك"
+msgstr "Subscription duration"
+
+msgid "ملاحظات إضافية حول التفرغ (اختياري)"
+msgstr "Additional notes about availability (optional)"
+
+msgid "يمكنك البحث عن:"
+msgstr "You can search for:"
+
+msgid "🎓 الأساتذة"
+msgstr "🎓 Teachers"
+
+msgid "👤 الطلاب"
+msgstr "👤 Students"
+
+msgid "📅 عرض البيانات الشهرية لـ"
+msgstr "📅 Show monthly data for"
+
+msgid "🧭 المؤطرون"
+msgstr "🧭 Supervisors"

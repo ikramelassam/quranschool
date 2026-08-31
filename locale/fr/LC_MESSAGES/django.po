@@ -7016,3 +7016,150 @@ msgstr "Oui/Non"
 
 msgid "نوع الحقل"
 msgstr "Type de champ"
+
+#, python-format
+msgid "%(nom)s — بريد إلكتروني"
+msgstr "%(nom)s — e-mail"
+
+#, python-format
+msgid "%(nom)s — واتساب"
+msgstr "%(nom)s — WhatsApp"
+
+msgid "أوافق ✅"
+msgstr "J'accepte ✅"
+
+msgid "أي ملاحظات أو اقتراحات..."
+msgstr "Toute remarque ou suggestion…"
+
+msgid "إرسال مباشر عبر واتساب"
+msgstr "Envoi direct via WhatsApp"
+
+msgid "ابحث عن مؤطر..."
+msgstr "Rechercher un superviseur…"
+
+msgid "ابحث عن مجموعة..."
+msgstr "Rechercher un groupe…"
+
+msgid "اسم الطفل/الطفلة *"
+msgstr "Nom de l'enfant *"
+
+msgid "اسم ولي الأمر *"
+msgstr "Nom du tuteur *"
+
+msgid "الاسم الكامل للطفل"
+msgstr "Nom complet de l'enfant"
+
+msgid "الاسم الكامل لولي الأمر"
+msgstr "Nom complet du tuteur"
+
+msgid "البرنامج المرغوب *"
+msgstr "Programme souhaité *"
+
+msgid "التسجيل - برنامج الأطفال 👶"
+msgstr "Inscription — programme enfants 👶"
+
+msgid "التسجيل - برنامج البالغين 🎓"
+msgstr "Inscription — programme adultes 🎓"
+
+msgid "الجنس *"
+msgstr "Sexe *"
+
+#, python-format
+msgid "العمر: %(age)s — الجنس: %(sexe)s"
+msgstr "Âge : %(age)s — Sexe : %(sexe)s"
+
+msgid "العودة للرئيسية"
+msgstr "Retour à l'accueil"
+
+msgid "بحث شامل"
+msgstr "Recherche globale"
+
+msgid "برنامج خاص للأطفال"
+msgstr "Programme spécial pour les enfants"
+
+msgid "برنامج للبالغين"
+msgstr "Programme pour les adultes"
+
+msgid "تاريخ الميلاد *"
+msgstr "Date de naissance *"
+
+msgid "تم إرسال طلبك بنجاح!"
+msgstr "Votre demande a bien été envoyée !"
+
+msgid "تواصل مع الإدارة"
+msgstr "Contacter l'administration"
+
+msgid "جدول التفرغ الأسبوعي"
+msgstr "Emploi du temps de disponibilité hebdomadaire"
+
+msgid "حدد الأوقات التي تناسبك أسبوعياً، ليتسنى لنا اقتراح أفضل مجموعة لك."
+msgstr "Indiquez les créneaux qui vous conviennent chaque semaine, pour que nous puissions vous proposer le meilleur groupe."
+
+msgid ""
+"حرصاً على تنظيم سير العمل وضمان استمرارية البرامج التعليمية بالمنصة، يُرجى من جميع المشتركين الالتزام بما يلي:\n"
+"            1- يتم أداء المستحقات المالية في بداية كل شهر خلال الفترة من اليوم الأول إلى الخامس.\n"
+"            2- من التحق بعد يوم 15 يُلزم بدفع نصف الاشتراك فقط.\n"
+"            3- يُشترط إتمام الدفع قبل الانضمام للمجموعات.\n"
+"            4- تُتاح حصة تعريفية مجانية واحدة.\n"
+"            5- يُعلّق الالتحاق لمن تأخّر دون إشعار الإدارة."
+msgstr "Afin d'organiser le déroulement du travail et de garantir la continuité des programmes éducatifs de la plateforme, tous les inscrits sont priés de respecter ce qui suit : 1- Les paiements sont effectués au début de chaque mois, entre le 1er et le 5. 2- Toute personne inscrite après le 15 ne paie que la moitié de l'abonnement. 3- Le paiement doit être finalisé avant de rejoindre les groupes. 4- Une séance d'essai gratuite est offerte. 5- L'inscription est suspendue pour toute personne en retard sans avoir prévenu l'administration."
+
+msgid "درهم"
+msgstr "dirhams"
+
+msgid "رجوع ←"
+msgstr "Retour ←"
+
+msgid "سياسة الاشتراك"
+msgstr "Politique d'abonnement"
+
+msgid "سيتم التواصل معك قريباً بعد مراجعة طلبك من قِبَل الإدارة."
+msgstr "Nous vous contacterons prochainement après examen de votre demande par l'administration."
+
+msgid "عرض كل النتائج ←"
+msgstr "Voir tous les résultats ←"
+
+msgid "عرض ملف التسجيل الكامل ←"
+msgstr "Voir le dossier d'inscription complet ←"
+
+msgid "كلاهما"
+msgstr "Les deux"
+
+msgid "لا أوافق ❌"
+msgstr "Je n'accepte pas ❌"
+
+msgid "لا توجد نتائج لـ"
+msgstr "Aucun résultat pour"
+
+msgid "لا يوجد رقم/بريد مسجَّل"
+msgstr "Aucun numéro / e-mail enregistré"
+
+msgid "لم يتم إكمال التسجيل"
+msgstr "Inscription non terminée"
+
+msgid "متابعة"
+msgstr "Continuer"
+
+msgid "مثال: تفرغي غير منتظم، أو أي توضيح تريد إضافته"
+msgstr "Exemple : ma disponibilité est irrégulière, ou toute précision que vous souhaitez ajouter"
+
+msgid "مدة الاشتراك"
+msgstr "Durée de l'abonnement"
+
+msgid "ملاحظات إضافية حول التفرغ (اختياري)"
+msgstr "Remarques supplémentaires sur la disponibilité (facultatif)"
+
+msgid "يمكنك البحث عن:"
+msgstr "Vous pouvez rechercher :"
+
+msgid "🎓 الأساتذة"
+msgstr "🎓 Enseignants"
+
+msgid "👤 الطلاب"
+msgstr "👤 Élèves"
+
+msgid "📅 عرض البيانات الشهرية لـ"
+msgstr "📅 Afficher les données mensuelles de"
+
+msgid "🧭 المؤطرون"
+msgstr "🧭 Superviseurs"
