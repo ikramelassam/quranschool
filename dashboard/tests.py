@@ -2372,6 +2372,134 @@ class CartableEleveTests(TestCase):
 
 
 # ============================================================================
+# Besoin du 2026-08-31 — les fichiers (cartable élève + حقيبة الأستاذ) s'ouvrent
+# DEPUIS le site, plus par une redirection vers l'URL Cloudinary directe.
+# Vues proxy : dashboard.views.eleve_cartable_fichier / hakiba_fichier.
+# Stockage local en mémoire ici : ces tests ne dépendent pas de Cloudinary
+# (contrairement aux CartableEleveTests ci-dessus qui testent l'upload réel).
+# ============================================================================
+_STORAGES_TEST_MEMOIRE = {
+    **_STORAGES_TEST,
+    'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'},
+}
+
+
+@override_settings(STORAGES=_STORAGES_TEST_MEMOIRE)
+class FichiersServisDepuisLeSiteTests(TestCase):
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.admin = _creer_admin()
+        self.eleve = _creer_eleve('eleve_proxy_fichier@zidni.test')
+        self.autre_eleve = _creer_eleve('autre_eleve_proxy_fichier@zidni.test')
+        self.prof = _creer_prof('prof_proxy_fichier@zidni.test')
+        self.autre_prof = _creer_prof('autre_prof_proxy_fichier@zidni.test')
+        self.superviseur = _creer_superviseur('superviseur_proxy_fichier@zidni.test')
+
+        self.doc_pdf = _creer_document_cartable(
+            self.eleve, titre='الحصة الأولى',
+            fichier=SimpleUploadedFile('cours.pdf', b'%PDF-1.4 factice'),
+            ajoute_par=self.admin,
+        )
+        self.doc_pptx = _creer_document_cartable(
+            self.eleve, titre='عرض',
+            fichier=SimpleUploadedFile('slides.pptx', b'PK\x03\x04 factice'),
+            ajoute_par=self.admin,
+        )
+        self.element_tous = ElementHakiba.objects.create(
+            titre='ميثاق', tous_les_profs=True,
+            fichier=SimpleUploadedFile('charte.pdf', b'%PDF-1.4 charte'),
+        )
+        self.element_autre_prof = ElementHakiba.objects.create(
+            titre='خاص', tous_les_profs=False,
+            fichier=SimpleUploadedFile('prive.pdf', b'%PDF-1.4 prive'),
+        )
+        self.element_autre_prof.profs_cibles.add(self.autre_prof)
+
+    # ---------- Cartable élève ----------
+    def test_eleve_ouvre_son_pdf_dans_longlet(self):
+        self.client.force_login(self.eleve.user)
+        r = self.client.get(reverse('eleve_cartable_fichier', args=[self.doc_pdf.id]))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        self.assertIn('inline', r['Content-Disposition'])
+        self.assertEqual(b''.join(r.streaming_content), b'%PDF-1.4 factice')
+
+    def test_parametre_dl_force_le_telechargement(self):
+        self.client.force_login(self.eleve.user)
+        r = self.client.get(reverse('eleve_cartable_fichier', args=[self.doc_pdf.id]) + '?dl=1')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('attachment', r['Content-Disposition'])
+        # Le titre sans extension récupère celle du fichier réel.
+        self.assertIn('.pdf', r['Content-Disposition'])
+
+    def test_office_toujours_en_telechargement_meme_sans_dl(self):
+        self.client.force_login(self.eleve.user)
+        r = self.client.get(reverse('eleve_cartable_fichier', args=[self.doc_pptx.id]))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('attachment', r['Content-Disposition'])
+
+    def test_eleve_ne_peut_pas_ouvrir_le_fichier_dun_autre_eleve(self):
+        self.client.force_login(self.autre_eleve.user)
+        r = self.client.get(reverse('eleve_cartable_fichier', args=[self.doc_pdf.id]))
+        self.assertEqual(r.status_code, 404)
+
+    def test_admin_peut_ouvrir_nimporte_quel_fichier_du_cartable(self):
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse('eleve_cartable_fichier', args=[self.doc_pdf.id]))
+        self.assertEqual(r.status_code, 200)
+
+    # ---------- حقيبة الأستاذ ----------
+    def test_prof_ouvre_un_element_qui_le_concerne(self):
+        self.client.force_login(self.prof.user)
+        r = self.client.get(reverse('hakiba_fichier', args=[self.element_tous.id]))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+
+    def test_prof_ne_peut_pas_ouvrir_un_element_ciblant_un_autre_prof(self):
+        self.client.force_login(self.prof.user)
+        r = self.client.get(reverse('hakiba_fichier', args=[self.element_autre_prof.id]))
+        self.assertEqual(r.status_code, 404)
+
+    def test_superviseur_ouvre_nimporte_quel_element(self):
+        self.client.force_login(self.superviseur.user)
+        r = self.client.get(reverse('hakiba_fichier', args=[self.element_autre_prof.id]))
+        self.assertEqual(r.status_code, 200)
+
+    def test_element_sans_fichier_renvoie_404(self):
+        element_texte = ElementHakiba.objects.create(titre='note', contenu_texte='bonjour', tous_les_profs=True)
+        self.client.force_login(self.prof.user)
+        r = self.client.get(reverse('hakiba_fichier', args=[element_texte.id]))
+        self.assertEqual(r.status_code, 404)
+
+
+class MediaProxyHelpersTests(TestCase):
+    """core.media_proxy — briques pures (sans HTTP ni stockage)."""
+
+    def test_extensions_affichables_vs_telechargement(self):
+        from core.media_proxy import est_affichable_navigateur
+
+        for ok in ('a.pdf', 'b.PNG', 'c.mp3', 'd.mp4', 'e.txt'):
+            self.assertTrue(est_affichable_navigateur(ok), ok)
+        for ko in ('a.docx', 'b.xlsx', 'c.pptx', 'd.zip', 'e.inconnu'):
+            self.assertFalse(est_affichable_navigateur(ko), ko)
+
+    def test_content_type_connu_et_repli(self):
+        from core.media_proxy import content_type_pour
+
+        self.assertEqual(content_type_pour('x.pdf'), 'application/pdf')
+        self.assertEqual(content_type_pour('x.png'), 'image/png')
+        self.assertEqual(content_type_pour('x.bizarre'), 'application/octet-stream')
+
+    def test_nom_telechargement_recolle_lextension_manquante(self):
+        from core.media_proxy import _nom_telechargement
+
+        self.assertEqual(_nom_telechargement('الحصة الأولى', 'media/x/abc_qtyuf6.pptx'), 'الحصة الأولى.pptx')
+        self.assertEqual(_nom_telechargement('rapport.pdf', 'media/x/abc.pdf'), 'rapport.pdf')
+        self.assertEqual(_nom_telechargement('', 'media/x/abc.pdf'), 'abc.pdf')
+
+
+# ============================================================================
 # Tâche du 2026-08-18 — Critère ينتقل/يعيد, sauvegarde depuis la vue prof
 # ============================================================================
 class PresenceResultatMemorisationVueTests(TestCase):

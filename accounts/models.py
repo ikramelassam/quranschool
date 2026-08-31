@@ -298,6 +298,14 @@ class ElementHakiba(models.Model):
     def __str__(self):
         return self.titre or (self.contenu_texte[:40] if self.contenu_texte else 'عنصر بدون عنوان')
 
+    @property
+    def fichier_affichable_navigateur(self):
+        """True si le fichier joint peut s'ouvrir dans l'onglet du navigateur
+        (PDF, image, audio, vidéo, texte) — le template affiche alors "فتح" en
+        plus de "تحميل". Voir core.media_proxy."""
+        from core.media_proxy import est_affichable_navigateur
+        return bool(self.fichier) and est_affichable_navigateur(self.fichier.name)
+
     class Meta:
         ordering = ['-date_ajout']
         verbose_name = "Élément de حقيبة الأستاذ"
@@ -645,6 +653,14 @@ class DocumentEleve(models.Model):
 
     def __str__(self):
         return self.titre or self.fichier.name
+
+    @property
+    def fichier_affichable_navigateur(self):
+        """True si le fichier peut s'ouvrir dans l'onglet du navigateur (PDF,
+        image, audio, vidéo, texte) — le template affiche alors "فتح" en plus
+        de "تحميل". Voir core.media_proxy."""
+        from core.media_proxy import est_affichable_navigateur
+        return bool(self.fichier) and est_affichable_navigateur(self.fichier.name)
 
     def description_cible(self):
         """Libellé arabe lisible du ciblage, pour l'affichage dans

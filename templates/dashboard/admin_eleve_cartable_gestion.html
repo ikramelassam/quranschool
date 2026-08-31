@@ -133,7 +133,10 @@ action manuelle de مدير/مشرف.
                 {{ doc.description_cible }}{% if doc.ajoute_par %} — {% trans "بواسطة" %} {{ doc.ajoute_par.get_full_name }}{% endif %} — {{ doc.date_ajout|date:"d-m-Y" }}
             </div>
         </div>
-        <a href="{{ doc.fichier.url }}" target="_blank" rel="noopener" style="flex-shrink:0; color:var(--color-role-admin-solid); font-size:0.85rem; text-decoration:none;">⬇ {% trans "تحميل" %}</a>
+        {% if doc.fichier_affichable_navigateur %}
+        <a href="{% url 'eleve_cartable_fichier' doc.id %}" target="_blank" rel="noopener" style="flex-shrink:0; color:var(--color-role-admin-solid); font-size:0.85rem; text-decoration:none;">↗ {% trans "فتح" %}</a>
+        {% endif %}
+        <a href="{% url 'eleve_cartable_fichier' doc.id %}?dl=1" style="flex-shrink:0; color:var(--color-role-admin-solid); font-size:0.85rem; text-decoration:none;">⬇ {% trans "تحميل" %}</a>
         {% trans "حذف هذا الملف من حقيبة الطالب؟" as confirmer_suppression_doc %}
         <form method="POST" action="{% url 'admin_eleve_cartable_supprimer' doc.id %}" style="flex-shrink:0;"
               onsubmit="return confirm('{{ confirmer_suppression_doc|escapejs }}');">

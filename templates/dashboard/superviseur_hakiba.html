@@ -46,7 +46,12 @@ pour le prof lui-même — rien à retirer, ce template n'en a jamais eu.
             <div style="color:#555; font-size:0.9rem; white-space:pre-line; margin-top:4px;">{{ element.contenu_texte }}</div>
             {% endif %}
             {% if element.fichier %}
-            <a href="{{ element.fichier.url }}" target="_blank" rel="noopener" style="display:inline-block; margin-top:6px; color:var(--color-role-superviseur-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">تحميل الملف ←</a>
+            <div style="margin-top:6px; display:flex; gap:14px; flex-wrap:wrap;">
+                {% if element.fichier_affichable_navigateur %}
+                <a href="{% url 'hakiba_fichier' element.id %}" target="_blank" rel="noopener" style="color:var(--color-role-superviseur-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">فتح الملف ↗</a>
+                {% endif %}
+                <a href="{% url 'hakiba_fichier' element.id %}?dl=1" style="color:var(--color-role-superviseur-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">تحميل الملف ⬇</a>
+            </div>
             {% endif %}
             <div style="color:#aaa; font-size:0.78rem; margin-top:4px;">{{ element.date_ajout|date:"d-m-Y" }}</div>
         </div>

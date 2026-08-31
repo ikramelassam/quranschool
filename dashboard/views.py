@@ -4005,6 +4005,40 @@ def superviseur_hakiba(request):
     })
 
 
+@role_required('prof', 'superviseur', 'admin', 'mshrif')
+def hakiba_fichier(request, element_id):
+    """Sert un fichier de la حقيبة الأستاذ DEPUIS le domaine du site (voir
+    core.media_proxy.__doc__) : affichage dans l'onglet si le navigateur sait
+    le faire, sinon (ou ?dl=1) téléchargement.
+
+    Contrôle d'accès AVANT de révéler le fichier — calqué sur ce que chaque
+    rôle voit déjà sur sa page حقيبة :
+      - prof : uniquement les éléments qui le concernent (tous_les_profs=True
+        OU lui-même dans profs_cibles — voir prof_hakiba) ;
+      - مؤطر/مدير/مشرف : tous les éléments (voir superviseur_hakiba : la
+        حقيبة est un contenu informationnel de l'administration).
+    Un élément hors périmètre renvoie 404, jamais le fichier."""
+    from django.db.models import Q
+    from django.http import Http404
+    from accounts.models import ElementHakiba, Prof
+    from core.media_proxy import servir_fichier_media
+
+    elements = ElementHakiba.objects.all()
+    if request.user.role == 'prof':
+        prof = get_object_or_404(Prof, user=request.user)
+        elements = elements.filter(Q(tous_les_profs=True) | Q(profs_cibles=prof)).distinct()
+
+    element = get_object_or_404(elements, id=element_id)
+    if not element.fichier:
+        raise Http404('Cet élément ne contient pas de fichier.')
+
+    return servir_fichier_media(
+        element.fichier,
+        telecharger=request.GET.get('dl') == '1',
+        nom_telechargement=element.titre or '',
+    )
+
+
 # ==================== ADMIN — SÉANCES ====================
 
 @role_required('admin', 'mshrif')
@@ -4438,6 +4472,35 @@ def eleve_cartable(request):
     marquer_visite(request.user, 'cartable')
 
     return render(request, 'dashboard/eleve_cartable.html', {'documents': documents})
+
+
+@role_required('eleve', 'admin', 'mshrif')
+def eleve_cartable_fichier(request, document_id):
+    """Sert un fichier du cartable élève DEPUIS le domaine du site (voir
+    core.media_proxy.__doc__) : affichage dans l'onglet quand le navigateur
+    sait le faire, sinon (ou avec ?dl=1) téléchargement.
+
+    Contrôle d'accès AVANT de révéler le fichier :
+      - élève : uniquement les documents que DocumentEleve.pour_eleve lui
+        rend visibles (mêmes règles que sa page cartable — un document d'un
+        autre élève renvoie 404, jamais le fichier) ;
+      - مدير/مشرف : n'importe quel document (ils gèrent le cartable et
+        ouvrent les fichiers depuis admin_eleve_cartable_gestion).
+    """
+    from accounts.models import DocumentEleve
+    from core.media_proxy import servir_fichier_media
+
+    if request.user.role == 'eleve':
+        visibles = DocumentEleve.pour_eleve(request.user.eleve)
+        document = get_object_or_404(visibles, id=document_id)
+    else:
+        document = get_object_or_404(DocumentEleve, id=document_id)
+
+    return servir_fichier_media(
+        document.fichier,
+        telecharger=request.GET.get('dl') == '1',
+        nom_telechargement=document.titre or '',
+    )
 
 
 @role_required('admin')

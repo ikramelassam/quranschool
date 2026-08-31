@@ -324,7 +324,9 @@ class IdorHttpEleveTests(TestCase):
 
     def test_fichier_de_mon_propre_groupe_autorise(self):
         """Chemin positif manquant dans l'audit précédent : seul le refus était
-        testé, jamais l'accès réussi à un fichier légitime."""
+        testé, jamais l'accès réussi à un fichier légitime. Depuis le
+        2026-08-31, chat_fichier RELAIE le document (200) au lieu de rediriger
+        vers Cloudinary (302) — voir chat.views.chat_fichier."""
         from django.core.files.uploadedfile import SimpleUploadedFile
         fichier = SimpleUploadedFile('rapport.pdf', b'%PDF-1.4 x', content_type='application/pdf')
         message = Message.objects.create(
@@ -333,7 +335,8 @@ class IdorHttpEleveTests(TestCase):
             contenu='', fichier=fichier, nom_fichier_original='rapport.pdf',
         )
         response = self.client.get(f'/chat/{self.mon_groupe.id}/fichier/{message.id}/')
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
         message.fichier.delete(save=False)
 
     def test_acces_perdu_apres_retrait_du_groupe_y_compris_fichier(self):
@@ -349,7 +352,7 @@ class IdorHttpEleveTests(TestCase):
             contenu='', fichier=fichier, nom_fichier_original='doc.pdf',
         )
         self.assertEqual(self.client.get(f'/chat/{self.mon_groupe.id}/').status_code, 200)
-        self.assertEqual(self.client.get(f'/chat/{self.mon_groupe.id}/fichier/{message.id}/').status_code, 302)
+        self.assertEqual(self.client.get(f'/chat/{self.mon_groupe.id}/fichier/{message.id}/').status_code, 200)
 
         self.mon_groupe.eleves.remove(self.eleve)
 
