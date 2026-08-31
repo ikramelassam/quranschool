@@ -1,6 +1,6 @@
 {% extends base_template %}
-{% load annonces_extras %}
-{% block title %}الإعلانات{% endblock %}
+{% load annonces_extras i18n %}
+{% block title %}{% trans "الإعلانات" %}{% endblock %}
 {% block content %}
 <style>
     /* Chantier "canaux de diffusion" (2026-08-16, redesign du 2026-08-16) —
@@ -66,9 +66,9 @@
 
 <div class="page-title-row">
     {% include 'annonces/_canal_icone.html' %}
-    <div class="page-title">الإعلانات</div>
+    <div class="page-title">{% trans "الإعلانات" %}</div>
 </div>
-<div class="page-subtitle">اختر قناة لعرض منشوراتها أو نشر إعلان جديد فيها</div>
+<div class="page-subtitle">{% trans "اختر قناة لعرض منشوراتها أو نشر إعلان جديد فيها" %}</div>
 
 <div class="canaux-grille">
     {% for canal in canaux %}
@@ -77,15 +77,15 @@
         <div class="canal-nom">{{ canal.nom }}</div>
         <div class="canal-desc">{{ canal.description }}</div>
         <div class="canal-pied">
-            <span>{{ canal.effectif }} طالب معني</span>
-            <span><strong>{{ canal.nb_publications }}</strong> منشورات</span>
+            <span>{% blocktrans with n=canal.effectif %}{{ n }} طالب معني{% endblocktrans %}</span>
+            <span>{% blocktrans with n=canal.nb_publications %}<strong>{{ n }}</strong> منشورات{% endblocktrans %}</span>
         </div>
     </a>
     {% endfor %}
 </div>
 
 {% if dernieres_publications %}
-<div class="flux-entete">آخر النشاط عبر القنوات</div>
+<div class="flux-entete">{% trans "آخر النشاط عبر القنوات" %}</div>
 <div class="flux-liste">
     {% for annonce in dernieres_publications %}
     <a class="flux-ligne" href="{% url 'annonces_canal_detail' annonce.cible %}">

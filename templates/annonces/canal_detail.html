@@ -1,6 +1,6 @@
 {% extends base_template %}
-{% load annonces_extras %}
-{% block title %}{{ canal.nom }} — الإعلانات{% endblock %}
+{% load annonces_extras i18n %}
+{% block title %}{% blocktrans with nom=canal.nom %}{{ nom }} — الإعلانات{% endblocktrans %}{% endblock %}
 {% block content %}
 <style>
     .canal-entete {
@@ -143,13 +143,13 @@
 </style>
 
 <div class="canal-entete">
-    <a href="{% url 'annonces_gestion' %}" class="canal-entete-retour" aria-label="العودة إلى القنوات">
+    <a href="{% url 'annonces_gestion' %}" class="canal-entete-retour" aria-label="{% trans 'العودة إلى القنوات' %}">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 19 19 12 12 5"></polyline></svg>
     </a>
     <div class="canal-entete-avatar">{% include 'annonces/_canal_icone.html' %}</div>
     <div>
         <div class="canal-entete-titre">{{ canal.nom }}</div>
-        <div class="canal-entete-sous">{{ canal.description }} — {{ effectif }} طالب معني</div>
+        <div class="canal-entete-sous">{% blocktrans with desc=canal.description n=effectif %}{{ desc }} — {{ n }} طالب معني{% endblocktrans %}</div>
     </div>
 </div>
 
@@ -162,8 +162,8 @@ publications déjà envoyées à UNE tranche précise ; celles envoyées à "ك�
 الأطفال" (tranche_age='') restent invisibles derrière ce filtre — normal,
 elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
 {% endcomment %}
-<nav class="tranche-nav" aria-label="تصفية حسب الفئة العمرية">
-    <a href="{% querystring tranche=None %}" class="{% if not tranche_filtre %}active{% endif %}">الكل</a>
+<nav class="tranche-nav" aria-label="{% trans 'تصفية حسب الفئة العمرية' %}">
+    <a href="{% querystring tranche=None %}" class="{% if not tranche_filtre %}active{% endif %}">{% trans "الكل" %}</a>
     {% for t in tranches %}
     <a href="{% querystring tranche=t.code %}" class="{% if tranche_filtre == t.code %}active{% endif %}">
         {{ t.nom }} ({{ effectifs_tranches|get_item:t.code|default:0 }})
@@ -173,7 +173,7 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
 {% endif %}
 
 <div class="pub-form" id="pubForm">
-    <div class="pub-form-titre">+ منشور جديد</div>
+    <div class="pub-form-titre">{% trans "+ منشور جديد" %}</div>
     <form method="POST" action="{% url 'annonce_ajouter' %}" enctype="multipart/form-data" id="pubFormulaire">
         {% csrf_token %}
         <input type="hidden" name="cible" value="{{ canal.code }}">
@@ -187,14 +187,14 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
         volontairement non liées.
         {% endcomment %}
         <select name="tranche_age" class="pub-select-tranche">
-            <option value="">🌍 كل الأطفال</option>
+            <option value="">{% trans "🌍 كل الأطفال" %}</option>
             {% for t in tranches %}
-            <option value="{{ t.code }}">{{ t.nom }} فقط</option>
+            <option value="{{ t.code }}">{% blocktrans with nom=t.nom %}{{ nom }} فقط{% endblocktrans %}</option>
             {% endfor %}
         </select>
         {% endif %}
-        <input type="text" name="titre" id="pubTitreInput" class="pub-input" placeholder="عنوان المنشور" required>
-        <textarea name="contenu" class="pub-textarea" rows="3" placeholder="نص المنشور..." required></textarea>
+        <input type="text" name="titre" id="pubTitreInput" class="pub-input" placeholder="{% trans 'عنوان المنشور' %}" required>
+        <textarea name="contenu" class="pub-textarea" rows="3" placeholder="{% trans 'نص المنشور...' %}" required></textarea>
 
         <input type="file" id="pubFichierImage" hidden accept=".jpg,.jpeg,.png,.gif,.webp">
         <input type="file" id="pubFichierVideo" hidden accept=".mp4,.webm,.mov">
@@ -205,19 +205,19 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
         <div class="pub-joindre-rangee">
             <button type="button" class="pub-joindre-btn" data-cible-input="pubFichierImage">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg>
-                صورة
+                {% trans "صورة" %}
             </button>
             <button type="button" class="pub-joindre-btn" data-cible-input="pubFichierVideo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2"></rect></svg>
-                فيديو
+                {% trans "فيديو" %}
             </button>
             <button type="button" class="pub-joindre-btn" id="pubBtnAudio">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-                صوت
+                {% trans "صوت" %}
             </button>
             <button type="button" class="pub-joindre-btn" data-cible-input="pubFichierDocument">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                PDF
+                {% trans "PDF" %}
             </button>
         </div>
 
@@ -234,12 +234,12 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
         {% endcomment %}
         <div class="pub-enregistrement" id="pubEnregistrement">
             <span class="pub-enregistrement-point" aria-hidden="true"></span>
-            <span>جارٍ التسجيل… <span class="pub-enregistrement-heure" id="pubDureeEnregistrement">00:00</span></span>
+            <span>{% trans "جارٍ التسجيل…" %} <span class="pub-enregistrement-heure" id="pubDureeEnregistrement">00:00</span></span>
             <span class="pub-enregistrement-actions">
-                <button type="button" id="pubArreterEnregistrement" aria-label="إيقاف وإرفاق" title="إيقاف وإرفاق">
+                <button type="button" id="pubArreterEnregistrement" aria-label="{% trans 'إيقاف وإرفاق' %}" title="{% trans 'إيقاف وإرفاق' %}">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>
                 </button>
-                <button type="button" id="pubAnnulerEnregistrement" aria-label="إلغاء" title="إلغاء">
+                <button type="button" id="pubAnnulerEnregistrement" aria-label="{% trans 'إلغاء' %}" title="{% trans 'إلغاء' %}">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="6" y1="18" x2="18" y2="6"></line></svg>
                 </button>
             </span>
@@ -247,10 +247,10 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
 
         <div class="pub-apercu-fichier" id="pubApercu">
             <span id="pubApercuTexte"></span>
-            <button type="button" id="pubApercuAnnuler" aria-label="إلغاء المرفق">✕</button>
+            <button type="button" id="pubApercuAnnuler" aria-label="{% trans 'إلغاء المرفق' %}">✕</button>
         </div>
 
-        <button type="submit" class="pub-form-submit">نشر</button>
+        <button type="submit" class="pub-form-submit">{% trans "نشر" %}</button>
     </form>
 </div>
 
@@ -260,11 +260,11 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
     {% empty %}
     <div class="pub-vide">
         {% include 'annonces/_canal_icone.html' %}
-        <div class="pub-vide-titre">لا توجد منشورات في هذه القناة بعد</div>
-        <div class="pub-vide-sous">ابدأ بنشر أول إعلان ليصل مباشرة إلى {{ effectif }} طالب في قناة {{ canal.nom }}.</div>
+        <div class="pub-vide-titre">{% trans "لا توجد منشورات في هذه القناة بعد" %}</div>
+        <div class="pub-vide-sous">{% blocktrans with n=effectif nom=canal.nom %}ابدأ بنشر أول إعلان ليصل مباشرة إلى {{ n }} طالب في قناة {{ nom }}.{% endblocktrans %}</div>
         <button type="button" class="pub-vide-cta" id="pubVideCta">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            نشر إعلان جديد
+            {% trans "نشر إعلان جديد" %}
         </button>
     </div>
     {% endfor %}
@@ -384,7 +384,7 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
     formulaire.addEventListener('submit', function () {
         if (btnPublier.disabled) { return; }
         btnPublier.disabled = true;
-        btnPublier.textContent = 'جارٍ النشر...';
+        btnPublier.textContent = '{% trans "جارٍ النشر..." %}';
     });
 })();
 </script>

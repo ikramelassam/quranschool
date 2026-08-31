@@ -6788,3 +6788,231 @@ msgstr "📝 Motif du rejet"
 
 msgid "🔒 يجب تغيير كلمة المرور المؤقتة التي حصلت عليها قبل أن تتمكن من الوصول إلى باقي الموقع."
 msgstr "🔒 Vous devez changer le mot de passe temporaire qui vous a été fourni avant de pouvoir accéder au reste du site."
+
+#, python-format
+msgid "%(desc)s — %(n)s طالب معني"
+msgstr "%(desc)s — %(n)s élève(s) concerné(s)"
+
+#, python-format
+msgid "%(n)s طالب معني"
+msgstr "%(n)s élève(s) concerné(s)"
+
+#, python-format
+msgid "%(n)s من أصل %(total)s حصة ماضية هذا الشهر (غير الملغاة) سُجّل حضورها."
+msgstr "%(n)s séances passées sur %(total)s ce mois-ci (hors annulées) ont leur présence saisie."
+
+#, python-format
+msgid "%(nom)s فقط"
+msgstr "%(nom)s uniquement"
+
+#, python-format
+msgid "%(nom)s — الإعلانات"
+msgstr "%(nom)s — Annonces"
+
+msgid "+ منشور جديد"
+msgstr "+ Nouvelle publication"
+
+msgid "0 من 0"
+msgstr "0 sur 0"
+
+#, python-format
+msgid "<strong>%(n)s</strong> منشورات"
+msgstr "<strong>%(n)s</strong> publications"
+
+msgid "PDF"
+msgstr "PDF"
+
+msgid "آخر النشاط عبر القنوات"
+msgstr "Dernière activité sur les canaux"
+
+msgid "إثبات الدفع (اختياري)"
+msgstr "Justificatif de paiement (facultatif)"
+
+msgid "إثبات الدفع الحالي"
+msgstr "Justificatif de paiement actuel"
+
+msgid "إخفاء الأشهر الأقدم ↑"
+msgstr "Masquer les mois plus anciens ↑"
+
+msgid "إعادة تحميل الصفحة"
+msgstr "Recharger la page"
+
+msgid "إيقاف وإرفاق"
+msgstr "Arrêter et joindre"
+
+#, python-format
+msgid "ابدأ بنشر أول إعلان ليصل مباشرة إلى %(n)s طالب في قناة %(nom)s."
+msgstr "Publiez la première annonce pour qu'elle parvienne directement à %(n)s élève(s) du canal %(nom)s."
+
+msgid "اختر قناة لعرض منشوراتها أو نشر إعلان جديد فيها"
+msgstr "Choisissez un canal pour voir ses publications ou y publier une nouvelle annonce"
+
+msgid "الحصص غير المسجلة:"
+msgstr "Séances non saisies :"
+
+msgid "الحصص غير المقيَّمة:"
+msgstr "Séances non évaluées :"
+
+msgid "العودة إلى القنوات"
+msgstr "Retour aux canaux"
+
+msgid "المبلغ (درهم)"
+msgstr "Montant (dirhams)"
+
+#, python-format
+msgid "المبلغ: %(montant)s درهم — الحالة: %(statut)s"
+msgstr "Montant : %(montant)s dirhams — Statut : %(statut)s"
+
+msgid "انتهت صلاحية النموذج"
+msgstr "Le formulaire a expiré"
+
+msgid "انتهت صلاحية هذه الصفحة"
+msgstr "Cette page a expiré"
+
+#, python-format
+msgid "تاريخ الإرسال: %(date)s"
+msgstr "Date d'envoi : %(date)s"
+
+#, python-format
+msgid "تاريخ المعالجة: %(date)s"
+msgstr "Date de traitement : %(date)s"
+
+msgid "تسجيل الحضور — الأساتذة"
+msgstr "Saisie des présences — Enseignants"
+
+msgid "تقييم الحصص — المؤطرون"
+msgstr "Évaluation des séances — Superviseurs"
+
+msgid "جارٍ النشر..."
+msgstr "Publication en cours…"
+
+msgid "جميع الحصص المسجلة هذا الشهر مُقيَّمة ✅"
+msgstr "Toutes les séances saisies ce mois-ci sont évaluées ✅"
+
+msgid "جميع حصص هذه المجموعات مسجلة ✅"
+msgstr "Toutes les séances de ces groupes sont saisies ✅"
+
+msgid "جميع حصصه الماضية هذا الشهر مسجلة ✅"
+msgstr "Toutes ses séances passées ce mois-ci sont saisies ✅"
+
+msgid "حالة الدفع"
+msgstr "Statut de paiement"
+
+msgid "حصص لم يسجلها الأستاذ"
+msgstr "Séances non saisies par l'enseignant"
+
+msgid "حصص لم يقيّمها المؤطر"
+msgstr "Séances non évaluées par le superviseur"
+
+msgid "حصص معلَّمها بدون مؤطر مسؤول — يحتاج إسناد مؤطر لهذا المعلم:"
+msgstr "Séances dont l'enseignant n'a pas de superviseur responsable — un superviseur doit être assigné à cet enseignant :"
+
+msgid "صوت"
+msgstr "Audio"
+
+msgid "صورة"
+msgstr "Image"
+
+#, python-format
+msgid "عرض جميع الأشهر (%(n)s) ↓"
+msgstr "Afficher tous les mois (%(n)s) ↓"
+
+msgid "عرض على مستوى الحصة (وليس الطالب × الحصة)"
+msgstr "Vue au niveau de la séance (et non élève × séance)"
+
+msgid "عنوان المنشور"
+msgstr "Titre de la publication"
+
+msgid "غير المدفوعين فقط"
+msgstr "Impayés uniquement"
+
+msgid "غير مدفوع ❌"
+msgstr "Non payé ❌"
+
+msgid "فيديو"
+msgstr "Vidéo"
+
+msgid "لا توجد أي دفعة مسجَّلة لهذا الشهر."
+msgstr "Aucun paiement enregistré pour ce mois."
+
+msgid "لا توجد بيانات كافية بعد"
+msgstr "Pas encore assez de données"
+
+msgid "لا توجد حصص ماضية هذا الشهر لهذا الأستاذ"
+msgstr "Aucune séance passée ce mois-ci pour cet enseignant"
+
+msgid "لا توجد حصص مسجلة بعد لدى المعلمين الذين يشرف عليهم هذا الشهر"
+msgstr "Aucune séance saisie ce mois-ci chez les enseignants qu'il supervise"
+
+msgid "لا توجد مجموعات بها طلاب بعد"
+msgstr "Aucun groupe avec des élèves pour l'instant"
+
+msgid "لا توجد منشورات في هذه القناة بعد"
+msgstr "Aucune publication dans ce canal pour l'instant"
+
+msgid "لا يوجد أي أستاذ في النظام"
+msgstr "Aucun enseignant dans le système"
+
+msgid "لا يوجد أي مؤطر في النظام"
+msgstr "Aucun superviseur dans le système"
+
+#, python-format
+msgid "مجموعات بدون أستاذ معيّن — (%(total)s حصة، منها %(traitees)s مسجلة) :"
+msgstr "Groupes sans enseignant assigné — (%(total)s séances, dont %(traitees)s saisies) :"
+
+msgid "مدفوع ✅"
+msgstr "Payé ✅"
+
+#, python-format
+msgid "من أصل %(n)s حصة مسجلة هذا الشهر"
+msgstr "sur %(n)s séances saisies ce mois-ci"
+
+msgid "من شهر التسجيل حتى الشهر الحالي — اضغط على أي شهر للاطلاع على الدفعة أو إدارتها"
+msgstr "Du mois d'inscription jusqu'au mois en cours — cliquez sur un mois pour consulter ou gérer le paiement"
+
+#, python-format
+msgid "منها %(n)s حصة بدون مؤطر مسؤول"
+msgstr "dont %(n)s séances sans superviseur responsable"
+
+msgid "نسبة الحضور الفعلي (من الحصص المسجلة)"
+msgstr "Taux de présence réel (parmi les séances saisies)"
+
+msgid "نسبة تغطية الحضور تقيس هل الحصة سُجّلت (انضباط إداري) — نسبة الحضور الفعلي تقيس، من بين ما سُجّل فقط، هل الطلاب كانوا حاضرين فعلاً. مؤشران مختلفان ومكمّلان."
+msgstr "Le taux de couverture des présences mesure si la séance a été saisie (rigueur administrative) — le taux de présence réel mesure, parmi ce qui a été saisi seulement, si les élèves étaient effectivement présents. Deux indicateurs différents et complémentaires."
+
+msgid "نشر إعلان جديد"
+msgstr "Publier une nouvelle annonce"
+
+msgid "نص المنشور..."
+msgstr "Texte de la publication…"
+
+msgid "يبدو أن هذه الصفحة كانت مفتوحة منذ فترة طويلة. لأسباب أمنية، يرجى إعادة تحميل الصفحة وإعادة تعبئة المعلومات قبل الإرسال مجدداً."
+msgstr "Il semble que cette page était ouverte depuis longtemps. Pour des raisons de sécurité, veuillez recharger la page et ressaisir les informations avant de renvoyer."
+
+msgid "🌍 كل الأطفال"
+msgstr "🌍 Tous les enfants"
+
+msgid "إضافة مرحلة"
+msgstr "Ajouter une étape"
+
+msgid "الاسم المعروض"
+msgstr "Nom affiché"
+
+#, python-format
+msgid "الرمز: %(code)s"
+msgstr "Code : %(code)s"
+
+msgid "طريقة التخزين"
+msgstr "Mode de stockage"
+
+msgid "نسبة تغطية الحضور"
+msgstr "Taux de couverture des présences"
+
+msgid "نشر"
+msgstr "Publier"
+
+msgid "نعم/لا"
+msgstr "Oui/Non"
+
+msgid "نوع الحقل"
+msgstr "Type de champ"

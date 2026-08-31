@@ -6788,3 +6788,231 @@ msgstr "📝 Rejection reason"
 
 msgid "🔒 يجب تغيير كلمة المرور المؤقتة التي حصلت عليها قبل أن تتمكن من الوصول إلى باقي الموقع."
 msgstr "🔒 You must change the temporary password you were given before you can access the rest of the site."
+
+#, python-format
+msgid "%(desc)s — %(n)s طالب معني"
+msgstr "%(desc)s — %(n)s student(s) concerned"
+
+#, python-format
+msgid "%(n)s طالب معني"
+msgstr "%(n)s student(s) concerned"
+
+#, python-format
+msgid "%(n)s من أصل %(total)s حصة ماضية هذا الشهر (غير الملغاة) سُجّل حضورها."
+msgstr "%(n)s of %(total)s past sessions this month (excluding cancelled) have their attendance recorded."
+
+#, python-format
+msgid "%(nom)s فقط"
+msgstr "%(nom)s only"
+
+#, python-format
+msgid "%(nom)s — الإعلانات"
+msgstr "%(nom)s — Announcements"
+
+msgid "+ منشور جديد"
+msgstr "+ New post"
+
+msgid "0 من 0"
+msgstr "0 of 0"
+
+#, python-format
+msgid "<strong>%(n)s</strong> منشورات"
+msgstr "<strong>%(n)s</strong> posts"
+
+msgid "PDF"
+msgstr "PDF"
+
+msgid "آخر النشاط عبر القنوات"
+msgstr "Latest activity across channels"
+
+msgid "إثبات الدفع (اختياري)"
+msgstr "Payment proof (optional)"
+
+msgid "إثبات الدفع الحالي"
+msgstr "Current payment proof"
+
+msgid "إخفاء الأشهر الأقدم ↑"
+msgstr "Hide older months ↑"
+
+msgid "إعادة تحميل الصفحة"
+msgstr "Reload the page"
+
+msgid "إيقاف وإرفاق"
+msgstr "Stop and attach"
+
+#, python-format
+msgid "ابدأ بنشر أول إعلان ليصل مباشرة إلى %(n)s طالب في قناة %(nom)s."
+msgstr "Publish the first announcement so it reaches %(n)s student(s) in the %(nom)s channel directly."
+
+msgid "اختر قناة لعرض منشوراتها أو نشر إعلان جديد فيها"
+msgstr "Choose a channel to view its posts or publish a new announcement in it"
+
+msgid "الحصص غير المسجلة:"
+msgstr "Unrecorded sessions:"
+
+msgid "الحصص غير المقيَّمة:"
+msgstr "Unevaluated sessions:"
+
+msgid "العودة إلى القنوات"
+msgstr "Back to channels"
+
+msgid "المبلغ (درهم)"
+msgstr "Amount (dirhams)"
+
+#, python-format
+msgid "المبلغ: %(montant)s درهم — الحالة: %(statut)s"
+msgstr "Amount: %(montant)s dirhams — Status: %(statut)s"
+
+msgid "انتهت صلاحية النموذج"
+msgstr "The form has expired"
+
+msgid "انتهت صلاحية هذه الصفحة"
+msgstr "This page has expired"
+
+#, python-format
+msgid "تاريخ الإرسال: %(date)s"
+msgstr "Submission date: %(date)s"
+
+#, python-format
+msgid "تاريخ المعالجة: %(date)s"
+msgstr "Processing date: %(date)s"
+
+msgid "تسجيل الحضور — الأساتذة"
+msgstr "Attendance entry — Teachers"
+
+msgid "تقييم الحصص — المؤطرون"
+msgstr "Session evaluation — Supervisors"
+
+msgid "جارٍ النشر..."
+msgstr "Publishing…"
+
+msgid "جميع الحصص المسجلة هذا الشهر مُقيَّمة ✅"
+msgstr "All sessions recorded this month are evaluated ✅"
+
+msgid "جميع حصص هذه المجموعات مسجلة ✅"
+msgstr "All sessions of these groups are recorded ✅"
+
+msgid "جميع حصصه الماضية هذا الشهر مسجلة ✅"
+msgstr "All their past sessions this month are recorded ✅"
+
+msgid "حالة الدفع"
+msgstr "Payment status"
+
+msgid "حصص لم يسجلها الأستاذ"
+msgstr "Sessions not recorded by the teacher"
+
+msgid "حصص لم يقيّمها المؤطر"
+msgstr "Sessions not evaluated by the supervisor"
+
+msgid "حصص معلَّمها بدون مؤطر مسؤول — يحتاج إسناد مؤطر لهذا المعلم:"
+msgstr "Sessions whose teacher has no responsible supervisor — a supervisor must be assigned to this teacher:"
+
+msgid "صوت"
+msgstr "Audio"
+
+msgid "صورة"
+msgstr "Image"
+
+#, python-format
+msgid "عرض جميع الأشهر (%(n)s) ↓"
+msgstr "Show all months (%(n)s) ↓"
+
+msgid "عرض على مستوى الحصة (وليس الطالب × الحصة)"
+msgstr "View at session level (not student × session)"
+
+msgid "عنوان المنشور"
+msgstr "Post title"
+
+msgid "غير المدفوعين فقط"
+msgstr "Unpaid only"
+
+msgid "غير مدفوع ❌"
+msgstr "Unpaid ❌"
+
+msgid "فيديو"
+msgstr "Video"
+
+msgid "لا توجد أي دفعة مسجَّلة لهذا الشهر."
+msgstr "No payment recorded for this month."
+
+msgid "لا توجد بيانات كافية بعد"
+msgstr "Not enough data yet"
+
+msgid "لا توجد حصص ماضية هذا الشهر لهذا الأستاذ"
+msgstr "No past sessions this month for this teacher"
+
+msgid "لا توجد حصص مسجلة بعد لدى المعلمين الذين يشرف عليهم هذا الشهر"
+msgstr "No sessions recorded this month for the teachers they supervise"
+
+msgid "لا توجد مجموعات بها طلاب بعد"
+msgstr "No groups with students yet"
+
+msgid "لا توجد منشورات في هذه القناة بعد"
+msgstr "No posts in this channel yet"
+
+msgid "لا يوجد أي أستاذ في النظام"
+msgstr "No teachers in the system"
+
+msgid "لا يوجد أي مؤطر في النظام"
+msgstr "No supervisors in the system"
+
+#, python-format
+msgid "مجموعات بدون أستاذ معيّن — (%(total)s حصة، منها %(traitees)s مسجلة) :"
+msgstr "Groups with no assigned teacher — (%(total)s sessions, %(traitees)s of them recorded):"
+
+msgid "مدفوع ✅"
+msgstr "Paid ✅"
+
+#, python-format
+msgid "من أصل %(n)s حصة مسجلة هذا الشهر"
+msgstr "of %(n)s sessions recorded this month"
+
+msgid "من شهر التسجيل حتى الشهر الحالي — اضغط على أي شهر للاطلاع على الدفعة أو إدارتها"
+msgstr "From the registration month to the current month — click a month to view or manage the payment"
+
+#, python-format
+msgid "منها %(n)s حصة بدون مؤطر مسؤول"
+msgstr "of which %(n)s sessions with no responsible supervisor"
+
+msgid "نسبة الحضور الفعلي (من الحصص المسجلة)"
+msgstr "Actual attendance rate (among recorded sessions)"
+
+msgid "نسبة تغطية الحضور تقيس هل الحصة سُجّلت (انضباط إداري) — نسبة الحضور الفعلي تقيس، من بين ما سُجّل فقط، هل الطلاب كانوا حاضرين فعلاً. مؤشران مختلفان ومكمّلان."
+msgstr "The attendance coverage rate measures whether the session was recorded (administrative rigor) — the actual attendance rate measures, among what was recorded only, whether students were actually present. Two different and complementary indicators."
+
+msgid "نشر إعلان جديد"
+msgstr "Publish a new announcement"
+
+msgid "نص المنشور..."
+msgstr "Post text…"
+
+msgid "يبدو أن هذه الصفحة كانت مفتوحة منذ فترة طويلة. لأسباب أمنية، يرجى إعادة تحميل الصفحة وإعادة تعبئة المعلومات قبل الإرسال مجدداً."
+msgstr "This page appears to have been open for a long time. For security reasons, please reload the page and re-enter the information before submitting again."
+
+msgid "🌍 كل الأطفال"
+msgstr "🌍 All children"
+
+msgid "إضافة مرحلة"
+msgstr "Add a step"
+
+msgid "الاسم المعروض"
+msgstr "Displayed name"
+
+#, python-format
+msgid "الرمز: %(code)s"
+msgstr "Code: %(code)s"
+
+msgid "طريقة التخزين"
+msgstr "Storage method"
+
+msgid "نسبة تغطية الحضور"
+msgstr "Attendance coverage rate"
+
+msgid "نشر"
+msgstr "Publish"
+
+msgid "نعم/لا"
+msgstr "Yes/No"
+
+msgid "نوع الحقل"
+msgstr "Field type"
