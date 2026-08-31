@@ -4450,7 +4450,10 @@ def admin_eleve_cartable_ajouter(request):
     titre = request.POST.get('titre', '').strip()
     document = DocumentEleve.objects.create(
         cible_type=cible, categorie_cible=categorie_cible,
-        titre=titre, fichier=fichier, ajoute_par=request.user,
+        titre=titre,
+        titre_fr=request.POST.get('titre_fr', '').strip(),
+        titre_en=request.POST.get('titre_en', '').strip(),
+        fichier=fichier, ajoute_par=request.user,
     )
     if cible == 'specifique':
         document.eleves_cibles.set(eleves_cibles)
@@ -4920,7 +4923,11 @@ def admin_hakiba_ajouter(request):
 
     element = ElementHakiba(
         titre=titre,
+        titre_fr=request.POST.get('titre_fr', '').strip(),
+        titre_en=request.POST.get('titre_en', '').strip(),
         contenu_texte=contenu_texte,
+        contenu_texte_fr=request.POST.get('contenu_texte_fr', '').strip(),
+        contenu_texte_en=request.POST.get('contenu_texte_en', '').strip(),
         tous_les_profs=tous_les_profs,
         ajoute_par=request.user,
     )

@@ -2417,6 +2417,58 @@ class CartableEleveTests(TestCase):
         self.assertFalse(DocumentEleve.objects.filter(id=doc.id).exists())
 
 
+@override_settings(STORAGES={**_STORAGES_TEST, 'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'}})
+class HakibaCartableLocaliseTests(TestCase):
+    """Chantier i18n contenu-DB (2026-08-31), lot 5 : ElementHakiba
+    (titre/contenu_texte) et DocumentEleve (titre) — ajoutés par le مدير/مشرف,
+    vus par le prof (حقيبة الأستاذ) et l'élève (حقيبتي) — gagnent _fr/_en +
+    <champ>_localise avec repli arabe."""
+
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.admin = _creer_admin()
+        self.client.force_login(self.admin)
+        self._pdf = lambda: SimpleUploadedFile('f.pdf', b'x', content_type='application/pdf')
+
+    def test_element_hakiba_localise(self):
+        from django.utils import translation
+        from accounts.models import ElementHakiba
+        e = ElementHakiba.objects.create(
+            titre='ميثاق', titre_fr='Charte', contenu_texte='نص عربي', contenu_texte_en='English text',
+        )
+        with translation.override('fr'):
+            self.assertEqual(e.titre_localise, 'Charte')
+            self.assertEqual(e.contenu_texte_localise, 'نص عربي')  # _fr vide -> repli
+        with translation.override('en'):
+            self.assertEqual(e.contenu_texte_localise, 'English text')
+
+    def test_admin_hakiba_ajouter_enregistre_les_traductions(self):
+        from accounts.models import ElementHakiba
+        self.client.post(reverse('admin_hakiba_ajouter'), {
+            'cible': 'tous', 'titre': 'ملاحظة', 'titre_fr': 'Note', 'titre_en': 'Note EN',
+            'contenu_texte': 'محتوى', 'contenu_texte_fr': 'Contenu FR', 'contenu_texte_en': '',
+        })
+        e = ElementHakiba.objects.get(titre='ملاحظة')
+        self.assertEqual(e.titre_fr, 'Note')
+        self.assertEqual(e.contenu_texte_fr, 'Contenu FR')
+
+    def test_document_eleve_localise_et_ajout(self):
+        from django.utils import translation
+        from accounts.models import DocumentEleve
+        eleve = _creer_eleve('eleve_doc_loc@zidni.test')
+        self.client.post(reverse('admin_eleve_cartable_ajouter'), {
+            'cible': 'specifique', 'eleves_cibles': [eleve.id],
+            'titre': 'وثيقة', 'titre_fr': 'Document', 'fichier': self._pdf(),
+        })
+        d = DocumentEleve.objects.get(titre='وثيقة')
+        self.assertEqual(d.titre_fr, 'Document')
+        with translation.override('fr'):
+            self.assertEqual(d.titre_localise, 'Document')
+        with translation.override('en'):
+            self.assertEqual(d.titre_localise, 'وثيقة')
+        d.fichier.delete(save=False)
+
+
 # ============================================================================
 # Besoin du 2026-08-31 — les fichiers (cartable élève + حقيبة الأستاذ) s'ouvrent
 # DEPUIS le site, plus par une redirection vers l'URL Cloudinary directe.

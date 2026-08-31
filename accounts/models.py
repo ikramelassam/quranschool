@@ -278,7 +278,11 @@ class ElementHakiba(models.Model):
     0029, sans perte : aucune ligne n'existait encore en base au moment de la
     refonte)."""
     titre = models.CharField(max_length=200, blank=True)
+    titre_fr = models.CharField(max_length=200, blank=True, default='')
+    titre_en = models.CharField(max_length=200, blank=True, default='')
     contenu_texte = models.TextField(blank=True)
+    contenu_texte_fr = models.TextField(blank=True, default='')
+    contenu_texte_en = models.TextField(blank=True, default='')
     fichier = models.FileField(upload_to='hakiba_prof/', null=True, blank=True)
     # True = visible par tous les profs actifs (valeur par défaut, la plus
     # courante d'après le besoin exprimé — ex: ميثاق التدريس, une note générale).
@@ -297,6 +301,24 @@ class ElementHakiba(models.Model):
 
     def __str__(self):
         return self.titre or (self.contenu_texte[:40] if self.contenu_texte else 'عنصر بدون عنوان')
+
+    def _localise(self, champ_base):
+        """Repli langue active -> arabe (chantier i18n contenu-DB, 2026-08-31)
+        — voir Prof._localise. Contenu vu par les profs (حقيبة الأستاذ)."""
+        langue = get_language()
+        if langue in ('fr', 'en'):
+            valeur = getattr(self, f'{champ_base}_{langue}', '')
+            if valeur:
+                return valeur
+        return getattr(self, champ_base)
+
+    @property
+    def titre_localise(self):
+        return self._localise('titre')
+
+    @property
+    def contenu_texte_localise(self):
+        return self._localise('contenu_texte')
 
     @property
     def fichier_apercu_type(self):
@@ -706,6 +728,8 @@ class DocumentEleve(models.Model):
         'accounts.Eleve', blank=True, related_name='documents_cartable_cibles'
     )
     titre = models.CharField(max_length=200, blank=True)
+    titre_fr = models.CharField(max_length=200, blank=True, default='')
+    titre_en = models.CharField(max_length=200, blank=True, default='')
     fichier = models.FileField(upload_to='cartable_eleve/%Y/%m/')
     ajoute_par = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
@@ -714,6 +738,17 @@ class DocumentEleve(models.Model):
 
     def __str__(self):
         return self.titre or self.fichier.name
+
+    @property
+    def titre_localise(self):
+        """Repli langue active -> arabe (chantier i18n contenu-DB, 2026-08-31).
+        Vu par l'élève (حقيبتي / cartable)."""
+        langue = get_language()
+        if langue == 'fr' and self.titre_fr:
+            return self.titre_fr
+        if langue == 'en' and self.titre_en:
+            return self.titre_en
+        return self.titre
 
     @property
     def fichier_apercu_type(self):

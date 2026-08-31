@@ -33,9 +33,9 @@
     <div style="padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} display:flex; gap:12px; align-items:flex-start;">
         <div style="flex-shrink:0; width:36px; height:36px; border-radius:9px; background:{{ element.fichier|couleur_hakiba }}; color:white; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">{{ element.fichier|icone_hakiba }}</div>
         <div style="min-width:0; flex:1;">
-            {% if element.titre %}<div style="font-weight:600;">{{ element.titre }}</div>{% endif %}
-            {% if element.contenu_texte %}
-            <div style="color:#555; font-size:0.9rem; white-space:pre-line; margin-top:4px;">{{ element.contenu_texte }}</div>
+            {% if element.titre_localise %}<div style="font-weight:600;">{{ element.titre_localise }}</div>{% endif %}
+            {% if element.contenu_texte_localise %}
+            <div style="color:#555; font-size:0.9rem; white-space:pre-line; margin-top:4px;">{{ element.contenu_texte_localise }}</div>
             {% endif %}
             {% if element.fichier %}
             <div style="margin-top:6px; display:flex; gap:14px; flex-wrap:wrap;">
@@ -43,7 +43,7 @@
                 <button type="button" class="media-open" style="color:var(--color-role-prof-solid); font-size:0.85rem; font-weight:600;"
                         data-media-url="{% url 'hakiba_fichier' element.id %}"
                         data-media-type="{{ element.fichier_apercu_type }}"
-                        data-media-nom="{{ element.titre|default:element.fichier.name }}">{% trans "فتح الملف 👁" %}</button>
+                        data-media-nom="{{ element.titre_localise|default:element.fichier.name }}">{% trans "فتح الملف 👁" %}</button>
                 {% endif %}
                 <a href="{% url 'hakiba_fichier' element.id %}?dl=1" style="color:var(--color-role-prof-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">{% trans "تحميل الملف ⬇" %}</a>
             </div>

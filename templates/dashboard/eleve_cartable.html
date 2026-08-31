@@ -15,7 +15,7 @@ possible d'ici.
     {% for doc in documents %}
     <div style="padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} display:flex; justify-content:space-between; align-items:center; gap:10px;">
         <div style="min-width:0;">
-            <div style="font-weight:600;">{{ doc.titre|default:doc.fichier.name }}</div>
+            <div style="font-weight:600;">{{ doc.titre_localise|default:doc.fichier.name }}</div>
             <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">{{ doc.date_ajout|date:"d-m-Y" }}</div>
         </div>
         <div style="flex-shrink:0; display:flex; gap:14px; align-items:center;">
@@ -23,7 +23,7 @@ possible d'ici.
             <button type="button" class="media-open" style="color:var(--color-role-eleve-solid); font-size:0.85rem; font-weight:600;"
                     data-media-url="{% url 'eleve_cartable_fichier' doc.id %}"
                     data-media-type="{{ doc.fichier_apercu_type }}"
-                    data-media-nom="{{ doc.titre|default:doc.fichier.name }}">{% trans "فتح 👁" %}</button>
+                    data-media-nom="{{ doc.titre_localise|default:doc.fichier.name }}">{% trans "فتح 👁" %}</button>
             {% endif %}
             <a href="{% url 'eleve_cartable_fichier' doc.id %}?dl=1" style="color:var(--color-role-eleve-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">{% trans "تحميل ⬇" %}</a>
         </div>
