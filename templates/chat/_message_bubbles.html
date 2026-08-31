@@ -56,8 +56,11 @@
                 </span>
             </div>
             <div class="chat-fichier-actions">
-                {% if message.fichier_affichable_navigateur %}
-                <a class="chat-fichier-btn" href="{% url 'chat_fichier' groupe_id message.id %}" target="_blank" rel="noopener">{% trans "فتح ↗" %}</a>
+                {% if message.fichier_apercu_type %}
+                <button type="button" class="chat-fichier-btn chat-media-open"
+                        data-media-url="{% url 'chat_fichier' groupe_id message.id %}"
+                        data-media-type="{{ message.fichier_apercu_type }}"
+                        data-media-nom="{{ message.nom_fichier_original|default:nom_fichier_defaut }}">{% trans "فتح 👁" %}</button>
                 {% endif %}
                 <a class="chat-fichier-btn" href="{% url 'chat_fichier' groupe_id message.id %}?dl=1">{% trans "تحميل ⬇" %}</a>
             </div>

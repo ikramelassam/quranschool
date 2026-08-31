@@ -292,9 +292,43 @@
     .chat-fichier-btn {
         font-size: 0.74rem; font-weight: 700; text-decoration: none;
         color: #8b4b00; background: rgba(139,75,0,0.10);
-        border-radius: 7px; padding: 3px 10px;
+        border-radius: 7px; padding: 3px 10px; border: none; cursor: pointer;
+        font-family: inherit;
     }
     .chat-fichier-btn:hover { background: rgba(139,75,0,0.18); }
+
+    /* ---------- Aperçu d'une pièce jointe DANS la page (modale, pas un nouvel
+       onglet) — clic sur "فتح", voir _message_bubbles.html + initMediaViewer(). */
+    .chat-media-overlay {
+        position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,0.75);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 24px 16px;
+    }
+    .chat-media-barre {
+        width: 100%; max-width: 900px; display: flex; align-items: center;
+        justify-content: space-between; gap: 12px; margin-bottom: 10px;
+    }
+    .chat-media-nom {
+        color: #fff; font-size: 0.9rem; font-weight: 600; min-width: 0;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .chat-media-barre-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .chat-media-btn {
+        background: rgba(255,255,255,0.15); color: #fff; border: none; border-radius: 8px;
+        padding: 6px 14px; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+        text-decoration: none; font-family: inherit;
+    }
+    .chat-media-btn:hover { background: rgba(255,255,255,0.28); }
+    .chat-media-corps {
+        width: 100%; max-width: 900px; flex: 1; min-height: 0;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .chat-media-corps img,
+    .chat-media-corps video { max-width: 100%; max-height: 100%; border-radius: 8px; background: #000; }
+    .chat-media-corps iframe {
+        width: 100%; height: 100%; border: none; border-radius: 8px; background: #fff;
+    }
+    .chat-media-corps audio { width: 100%; max-width: 460px; }
 
     /* Bandeau "accès révoqué" (Point 6 de l'audit du 2026-08-15) — affiché en
        bas du panneau quand les permissions changent pendant que la
@@ -427,6 +461,22 @@
             {% endif %}
         </div>
     </div>
+</div>
+
+{% comment %}
+Modale d'aperçu d'une pièce jointe (Besoin du 2026-08-31 : "ouvrir dans le
+site", pas un nouvel onglet). Un seul exemplaire pour toute la page, rempli
+en JS selon le type (image/vidéo/audio/PDF) — voir initMediaViewer().
+{% endcomment %}
+<div class="chat-media-overlay" id="chatMediaOverlay" hidden>
+    <div class="chat-media-barre">
+        <span class="chat-media-nom" id="chatMediaNom"></span>
+        <div class="chat-media-barre-actions">
+            <a class="chat-media-btn" id="chatMediaTelecharger" href="#">{% trans "تحميل ⬇" %}</a>
+            <button type="button" class="chat-media-btn" id="chatMediaFermer" aria-label="{% trans 'إغلاق' %}">✕ {% trans "إغلاق" %}</button>
+        </div>
+    </div>
+    <div class="chat-media-corps" id="chatMediaCorps"></div>
 </div>
 {% endblock %}
 
@@ -850,6 +900,65 @@
         });
     }
 
+    // ---------- Aperçu d'une pièce jointe DANS la page (Besoin du 2026-08-31) ----------
+    // Clic sur "فتح" (bouton .chat-media-open, voir _message_bubbles.html) → on
+    // remplit la modale #chatMediaOverlay avec <img>/<video>/<audio>/<iframe>
+    // selon data-media-type, plutôt que d'ouvrir un nouvel onglet. La source
+    // reste toujours l'URL du site (/chat/<g>/fichier/<m>/), jamais Cloudinary.
+    // Délégation sur #chatPanneauContenu (élément stable : son innerHTML est
+    // remplacé par le polling / l'ouverture AJAX, mais lui persiste), même
+    // principe que initSuppressionMessages / la liste des conversations.
+    function initMediaViewer() {
+        const overlay = document.getElementById('chatMediaOverlay');
+        const zone = document.getElementById('chatPanneauContenu');
+        if (!overlay || !zone) { return; }
+        const corps = document.getElementById('chatMediaCorps');
+        const nom = document.getElementById('chatMediaNom');
+        const lienDl = document.getElementById('chatMediaTelecharger');
+
+        function fermer() {
+            overlay.hidden = true;
+            corps.innerHTML = '';  // stoppe une vidéo/un audio en cours
+        }
+        function ouvrir(url, type, libelle) {
+            nom.textContent = libelle || '';
+            lienDl.href = url + '?dl=1';
+            let el;
+            if (type === 'image') {
+                el = document.createElement('img');
+                el.src = url;
+                el.alt = libelle || '';
+            } else if (type === 'video') {
+                el = document.createElement('video');
+                el.src = url;
+                el.controls = true;
+            } else if (type === 'audio') {
+                el = document.createElement('audio');
+                el.src = url;
+                el.controls = true;
+            } else {  // 'embed' : PDF, texte
+                el = document.createElement('iframe');
+                el.src = url;
+            }
+            corps.innerHTML = '';
+            corps.appendChild(el);
+            overlay.hidden = false;
+        }
+
+        zone.addEventListener('click', function (e) {
+            const bouton = e.target.closest('.chat-media-open');
+            if (!bouton) { return; }
+            e.preventDefault();
+            ouvrir(bouton.dataset.mediaUrl, bouton.dataset.mediaType, bouton.dataset.mediaNom);
+        });
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay || e.target.id === 'chatMediaFermer') { fermer(); }
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !overlay.hidden) { fermer(); }
+        });
+    }
+
     // ---------- Panneau de conversation courant ----------
     function initPanel() {
         const panel = document.getElementById('chatPanel');
@@ -1163,6 +1272,8 @@
     function arreterPolling() {
         if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     }
+
+    initMediaViewer();
 
     if (document.getElementById('chatPanel')) {
         initPanel();

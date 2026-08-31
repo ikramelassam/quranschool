@@ -107,13 +107,21 @@ class Message(models.Model):
         return self.ROLE_LABELS.get(self.auteur_role, '')
 
     @property
+    def fichier_apercu_type(self):
+        """'image' / 'video' / 'audio' / 'embed' (PDF, texte) selon ce que le
+        navigateur sait afficher en aperçu intégré, '' sinon (Word/Excel/
+        PowerPoint : téléchargement seul). Voir core.media_proxy.type_apercu.
+        Le template chat s'en sert pour ouvrir la pièce jointe dans une modale
+        au lieu d'un nouvel onglet."""
+        from core.media_proxy import type_apercu
+        return type_apercu(self.fichier.name) if self.fichier else ''
+
+    @property
     def fichier_affichable_navigateur(self):
-        """True si la pièce jointe (type 'fichier') peut s'ouvrir dans l'onglet
-        du navigateur — PDF, image, texte. Un Word/Excel/PowerPoint renvoie
-        False : le template ne propose alors que le téléchargement. Voir
-        core.media_proxy."""
-        from core.media_proxy import est_affichable_navigateur
-        return bool(self.fichier) and est_affichable_navigateur(self.fichier.name)
+        """True si la pièce jointe (type 'fichier') peut s'afficher (aperçu
+        intégré) — PDF, image, texte, audio, vidéo. Un Word/Excel/PowerPoint
+        renvoie False : le template ne propose alors que le téléchargement."""
+        return bool(self.fichier_apercu_type)
 
     def __str__(self):
         return f"{self.auteur_nom} — {self.conversation} ({self.date_envoi:%Y-%m-%d %H:%M})"

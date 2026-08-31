@@ -2491,6 +2491,17 @@ class MediaProxyHelpersTests(TestCase):
         self.assertEqual(content_type_pour('x.png'), 'image/png')
         self.assertEqual(content_type_pour('x.bizarre'), 'application/octet-stream')
 
+    def test_type_apercu(self):
+        from core.media_proxy import type_apercu
+
+        self.assertEqual(type_apercu('a.png'), 'image')
+        self.assertEqual(type_apercu('a.MP4'), 'video')
+        self.assertEqual(type_apercu('a.mp3'), 'audio')
+        self.assertEqual(type_apercu('a.pdf'), 'embed')
+        self.assertEqual(type_apercu('a.txt'), 'embed')
+        self.assertEqual(type_apercu('a.docx'), '')
+        self.assertEqual(type_apercu('a.zip'), '')
+
     def test_nom_telechargement_recolle_lextension_manquante(self):
         from core.media_proxy import _nom_telechargement
 

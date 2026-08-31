@@ -299,12 +299,18 @@ class ElementHakiba(models.Model):
         return self.titre or (self.contenu_texte[:40] if self.contenu_texte else 'عنصر بدون عنوان')
 
     @property
+    def fichier_apercu_type(self):
+        """'image'/'video'/'audio'/'embed' selon ce que le navigateur sait
+        afficher en aperçu intégré, '' sinon. Voir core.media_proxy.type_apercu."""
+        from core.media_proxy import type_apercu
+        return type_apercu(self.fichier.name) if self.fichier else ''
+
+    @property
     def fichier_affichable_navigateur(self):
-        """True si le fichier joint peut s'ouvrir dans l'onglet du navigateur
-        (PDF, image, audio, vidéo, texte) — le template affiche alors "فتح" en
-        plus de "تحميل". Voir core.media_proxy."""
-        from core.media_proxy import est_affichable_navigateur
-        return bool(self.fichier) and est_affichable_navigateur(self.fichier.name)
+        """True si le fichier joint peut s'afficher (aperçu intégré : PDF,
+        image, audio, vidéo, texte) — le template affiche alors "فتح" en plus
+        de "تحميل"."""
+        return bool(self.fichier_apercu_type)
 
     class Meta:
         ordering = ['-date_ajout']
@@ -655,12 +661,18 @@ class DocumentEleve(models.Model):
         return self.titre or self.fichier.name
 
     @property
+    def fichier_apercu_type(self):
+        """'image'/'video'/'audio'/'embed' selon ce que le navigateur sait
+        afficher en aperçu intégré, '' sinon. Voir core.media_proxy.type_apercu."""
+        from core.media_proxy import type_apercu
+        return type_apercu(self.fichier.name) if self.fichier else ''
+
+    @property
     def fichier_affichable_navigateur(self):
-        """True si le fichier peut s'ouvrir dans l'onglet du navigateur (PDF,
-        image, audio, vidéo, texte) — le template affiche alors "فتح" en plus
-        de "تحميل". Voir core.media_proxy."""
-        from core.media_proxy import est_affichable_navigateur
-        return bool(self.fichier) and est_affichable_navigateur(self.fichier.name)
+        """True si le fichier peut s'afficher (aperçu intégré : PDF, image,
+        audio, vidéo, texte) — le template affiche alors "فتح" en plus de
+        "تحميل"."""
+        return bool(self.fichier_apercu_type)
 
     def description_cible(self):
         """Libellé arabe lisible du ciblage, pour l'affichage dans
