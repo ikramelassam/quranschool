@@ -1,36 +1,36 @@
 {% extends 'dashboard/base_admin.html' %}
-{% load libelles_arabes %}
-{% block title %}تم تغيير البريد الإلكتروني{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "تم تغيير البريد الإلكتروني" %}{% endblock %}
 {% comment %}
 Écran d'action focalisée à une seule tâche (confirmation) — voir
 dashboard/admin_eleve_supprimer_definitivement.html (même principe, et
 la note du 2026-08-14 sur le retrait du {% block recherche_globale %}).
 {% endcomment %}
 {% block content %}
-<div class="page-title">✅ تم تغيير البريد الإلكتروني بنجاح</div>
-<div class="page-subtitle">{{ info.nom }} — البريد الجديد: {{ info.nouvel_email }}</div>
+<div class="page-title">{% trans "✅ تم تغيير البريد الإلكتروني بنجاح" %}</div>
+<div class="page-subtitle">{% blocktrans with nom=info.nom email=info.nouvel_email %}{{ nom }} — البريد الجديد: {{ email }}{% endblocktrans %}</div>
 
 {% if info.nb_comptes_maj > 1 %}
 <div style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:10px 16px; max-width:640px; font-size:0.85rem; margin-bottom:16px;">
-    ✅ تم تحديث {{ info.nb_comptes_maj }} حسابات مرتبطة بهذا البريد المشترك دفعة واحدة.
+    {% blocktrans with n=info.nb_comptes_maj %}✅ تم تحديث {{ n }} حسابات مرتبطة بهذا البريد المشترك دفعة واحدة.{% endblocktrans %}
 </div>
 {% endif %}
 
 <div style="background:white; border-radius:16px; padding:28px; max-width:640px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px;">
-    <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:10px;">📋 رسالة جاهزة للإرسال</div>
+    <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:10px;">{% trans "📋 رسالة جاهزة للإرسال" %}</div>
     <textarea id="texte-modif-email" readonly rows="6"
         style="width:100%; resize:none; border:1.5px solid #e5d9c3; border-radius:10px; padding:12px 14px; font-family:'Tajawal',sans-serif; font-size:0.92rem; background:#FFF8EF; color:var(--color-text-primary);">{{ message_pret_a_envoyer }}</textarea>
     <button type="button" onclick="copierTexteModifEmail()"
         style="margin-top:10px; background:var(--gradient-cta-gold); color:var(--color-cta-gold-text); border:none; border-radius:8px; padding:9px 20px; font-weight:700; font-size:0.88rem; cursor:pointer;">
-        📋 نسخ
+        {% trans "📋 نسخ" %}
     </button>
-    <span id="confirmation-copie-email" style="display:none; margin-inline-start:10px; color:var(--color-success); font-size:0.85rem; font-weight:600;">✔ تم النسخ</span>
-    <div style="color:#999; font-size:0.78rem; margin-top:10px;">تم تسجيل خروج هذا المستخدم تلقائياً من جميع الأجهزة. لم يُرسَل أي بريد إلكتروني تلقائياً (Brevo متوقف حالياً) — أرسل الرسالة أعلاه يدوياً.</div>
+    <span id="confirmation-copie-email" style="display:none; margin-inline-start:10px; color:var(--color-success); font-size:0.85rem; font-weight:600;">{% trans "✔ تم النسخ" %}</span>
+    <div style="color:#999; font-size:0.78rem; margin-top:10px;">{% trans "تم تسجيل خروج هذا المستخدم تلقائياً من جميع الأجهزة. لم يُرسَل أي بريد إلكتروني تلقائياً (Brevo متوقف حالياً) — أرسل الرسالة أعلاه يدوياً." %}</div>
 </div>
 
-{% include 'dashboard/_contacts_whatsapp.html' with telephone_personne=info.telephone libelle_personne=libelle_personne_contact texte_absence_personne='لا يوجد رقم هاتف مسجَّل لهذا الحساب' message=message_pret_a_envoyer %}
+{% include 'dashboard/_contacts_whatsapp.html' with telephone_personne=info.telephone libelle_personne=libelle_personne_contact texte_absence_personne=_('لا يوجد رقم هاتف مسجَّل لهذا الحساب') message=message_pret_a_envoyer %}
 
-<a href="{{ info.next }}" style="color:var(--color-brand-gold-dark); text-decoration:none; font-weight:600;">← رجوع</a>
+<a href="{{ info.next }}" style="color:var(--color-brand-gold-dark); text-decoration:none; font-weight:600;">{% trans "← رجوع" %}</a>
 
 <script>
 function copierTexteModifEmail() {

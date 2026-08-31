@@ -1,4 +1,5 @@
 {% extends base_template %}
+{% load i18n %}
 {% block title %}{{ titre_refus }}{% endblock %}
 {% comment %}
 Écran d'action focalisée à une seule tâche — voir
@@ -44,41 +45,41 @@ WhatsApp alors que la demande était encore 'en_attente' en base (si
         {% csrf_token %}
 
         <div class="rf-champ-groupe">
-            <label class="rf-label">✍️ صيغة جاهزة (اختياري)</label>
-            <div class="rf-aide">اختيار صيغة يملأ الحقل أدناه تلقائياً — يبقى قابلاً للتعديل بحرية بعد ذلك</div>
+            <label class="rf-label">{% trans "✍️ صيغة جاهزة (اختياري)" %}</label>
+            <div class="rf-aide">{% trans "اختيار صيغة يملأ الحقل أدناه تلقائياً — يبقى قابلاً للتعديل بحرية بعد ذلك" %}</div>
             <select id="id_phrase_select" class="form-select" data-select-cherchable>
-                <option value="">— بدون صيغة جاهزة —</option>
+                <option value="">{% trans "— بدون صيغة جاهزة —" %}</option>
                 {% for phrase in phrases %}
                 <option value="{{ phrase.texte }}">{{ phrase.texte|truncatechars:80 }}</option>
                 {% endfor %}
             </select>
 
-            <div class="rf-connecteur">↓ يُدرَج تلقائياً في الحقل أدناه</div>
+            <div class="rf-connecteur">{% trans "↓ يُدرَج تلقائياً في الحقل أدناه" %}</div>
 
-            <label class="rf-label">📝 سبب الرفض <span class="rf-requis">*</span></label>
-            <div class="rf-aide">نص حر — يُحفظ نهائياً مع هذا الطلب، ولا يتغيّر أبداً لاحقاً حتى لو عُدّلت أو حُذفت الصيغة الجاهزة المستخدمة أعلاه</div>
+            <label class="rf-label">{% trans "📝 سبب الرفض" %} <span class="rf-requis">*</span></label>
+            <div class="rf-aide">{% trans "نص حر — يُحفظ نهائياً مع هذا الطلب، ولا يتغيّر أبداً لاحقاً حتى لو عُدّلت أو حُذفت الصيغة الجاهزة المستخدمة أعلاه" %}</div>
             <textarea id="id_motif" name="motif" rows="6" class="form-control rf-motif" required
-                      placeholder="اكتب سبب الرفض هنا بوضوح — سيظهر هذا النص للشخص المعني...">{{ motif_saisi }}</textarea>
+                      placeholder="{% trans 'اكتب سبب الرفض هنا بوضوح — سيظهر هذا النص للشخص المعني...' %}">{{ motif_saisi }}</textarea>
 
             <div class="form-check rf-checkbox">
                 <input type="checkbox" class="form-check-input" name="enregistrer_phrase" id="id_enregistrer_phrase">
                 <label class="form-check-label" for="id_enregistrer_phrase">
-                    💾 احفظ هذا النص كصيغة جاهزة لاستخدامها لاحقاً
+                    {% trans "💾 احفظ هذا النص كصيغة جاهزة لاستخدامها لاحقاً" %}
                 </label>
             </div>
         </div>
 
         <div class="rf-apercu">
-            <div class="rf-apercu-titre">👁️ معاينة الرسالة الكاملة</div>
+            <div class="rf-apercu-titre">{% trans "👁️ معاينة الرسالة الكاملة" %}</div>
             <div class="rf-apercu-corps" id="id_apercu_message" dir="rtl"></div>
         </div>
 
         <div class="rf-actions">
             <button type="submit" class="rf-btn-confirmer"
-                    onclick="return confirm('هل أنت متأكد من رفض طلب {{ nom_complet|escapejs }}؟ لا يمكن التراجع عن هذا الإجراء.');">
-                ❌ تأكيد الرفض
+                    onclick="return confirm('{% blocktrans with nom=nom_complet|escapejs %}هل أنت متأكد من رفض طلب {{ nom }}؟ لا يمكن التراجع عن هذا الإجراء.{% endblocktrans %}');">
+                {% trans "❌ تأكيد الرفض" %}
             </button>
-            <a href="{{ retour_url }}" class="rf-btn-retour">← رجوع بدون رفض</a>
+            <a href="{{ retour_url }}" class="rf-btn-retour">{% trans "← رجوع بدون رفض" %}</a>
         </div>
     </form>
 </div>

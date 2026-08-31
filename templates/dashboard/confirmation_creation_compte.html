@@ -1,36 +1,36 @@
 {% extends base_template %}
-{% load libelles_arabes %}
-{% block title %}تم إنشاء الحساب{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "تم إنشاء الحساب" %}{% endblock %}
 {% comment %}
 Écran d'action focalisée à une seule tâche (confirmation post-acceptation)
 — voir dashboard/admin_eleve_supprimer_definitivement.html (même principe,
 et sa note du 2026-08-14 sur le retrait du {% block recherche_globale %}).
 {% endcomment %}
 {% block content %}
-<div class="page-title">✅ تم إنشاء الحساب بنجاح</div>
+<div class="page-title">{% trans "✅ تم إنشاء الحساب بنجاح" %}</div>
 <div class="page-subtitle">
-    {% if info.type_compte == 'eleve' %}تم قبول الطالب {{ info.nom }} وإنشاء حسابه.
-    {% elif info.type_compte == 'superviseur' %}تمت إضافة المؤطر {{ info.nom }} وإنشاء حسابه.
-    {% else %}تم قبول المعلم {{ info.nom }} نهائياً وإنشاء حسابه.{% endif %}
+    {% if info.type_compte == 'eleve' %}{% blocktrans with nom=info.nom %}تم قبول الطالب {{ nom }} وإنشاء حسابه.{% endblocktrans %}
+    {% elif info.type_compte == 'superviseur' %}{% blocktrans with nom=info.nom %}تمت إضافة المؤطر {{ nom }} وإنشاء حسابه.{% endblocktrans %}
+    {% else %}{% blocktrans with nom=info.nom %}تم قبول المعلم {{ nom }} نهائياً وإنشاء حسابه.{% endblocktrans %}{% endif %}
 </div>
 
 <div style="background:white; border-radius:16px; padding:28px; max-width:640px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px;">
-    <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:10px;">📋 معلومات الدخول — جاهزة للنسخ أو الإرسال</div>
+    <div style="font-weight:700; color:var(--color-brand-gold-dark); margin-bottom:10px;">{% trans "📋 معلومات الدخول — جاهزة للنسخ أو الإرسال" %}</div>
     <textarea id="texte-infos-connexion" readonly rows="9"
         style="width:100%; resize:none; border:1.5px solid #e5d9c3; border-radius:10px; padding:12px 14px; font-family:'Tajawal',sans-serif; font-size:0.92rem; background:#FFF8EF; color:var(--color-text-primary);">{{ message_pret_a_envoyer }}</textarea>
     <button type="button" onclick="copierInfosConnexion()"
         style="margin-top:10px; background:var(--gradient-cta-gold); color:var(--color-cta-gold-text); border:none; border-radius:8px; padding:9px 20px; font-weight:700; font-size:0.88rem; cursor:pointer;">
-        📋 نسخ
+        {% trans "📋 نسخ" %}
     </button>
-    <span id="confirmation-copie" style="display:none; margin-inline-start:10px; color:var(--color-success); font-size:0.85rem; font-weight:600;">✔ تم النسخ</span>
+    <span id="confirmation-copie" style="display:none; margin-inline-start:10px; color:var(--color-success); font-size:0.85rem; font-weight:600;">{% trans "✔ تم النسخ" %}</span>
 </div>
 
 {% include 'dashboard/_contacts_whatsapp.html' with telephone_personne=info.telephone libelle_personne=libelle_personne_contact texte_absence_personne=texte_absence_personne message=message_pret_a_envoyer admins=admins %}
 {% if info.type_compte == 'prof' %}
-<div style="color:#999; font-size:0.78rem; margin-top:-12px; margin-bottom:20px;">💡 إذا فضّلت تمرير المعلومات للإدارة بدل التواصل المباشر مع المعلم، استخدم زر "تواصل مع الإدارة" أعلاه — الرسالة نفسها جاهزة للإرسال.</div>
+<div style="color:#999; font-size:0.78rem; margin-top:-12px; margin-bottom:20px;">{% trans '💡 إذا فضّلت تمرير المعلومات للإدارة بدل التواصل المباشر مع المعلم، استخدم زر "تواصل مع الإدارة" أعلاه — الرسالة نفسها جاهزة للإرسال.' %}</div>
 {% endif %}
 
-<a href="{% url info.redirect_url_name %}" style="color:var(--color-brand-gold-dark); text-decoration:none; font-weight:600;">← رجوع لقائمة الطلبات</a>
+<a href="{% url info.redirect_url_name %}" style="color:var(--color-brand-gold-dark); text-decoration:none; font-weight:600;">{% trans "← رجوع لقائمة الطلبات" %}</a>
 
 {# .contact-option / .contact-option-wa / .contact-option-mail : stylées dans dashboard/_contacts_whatsapp.html, inclus ci-dessus — pas de duplication. #}
 

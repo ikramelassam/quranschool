@@ -6649,3 +6649,142 @@ msgstr "Supprimer le critère « %(nom)s » ? Il ne sera pas supprimé s'il est 
 #, python-format
 msgid "فك ارتباط «%(label)s» عن مجموعة «%(nom)s»؟"
 msgstr "Dissocier « %(label)s » du groupe « %(nom)s » ?"
+
+#, python-format
+msgid "%(nom)s — البريد الجديد: %(email)s"
+msgstr "%(nom)s — nouvelle adresse : %(email)s"
+
+msgid "أدخل بريدك الإلكتروني واسمك الكامل، وستُشعَر الإدارة لتزويدك بكلمة مرور جديدة."
+msgstr "Saisissez votre e-mail et votre nom complet ; l'administration sera notifiée pour vous fournir un nouveau mot de passe."
+
+msgid "أو تواصل مباشرة مع الإدارة الآن"
+msgstr "Ou contactez directement l'administration maintenant"
+
+msgid "اختيار صيغة يملأ الحقل أدناه تلقائياً — يبقى قابلاً للتعديل بحرية بعد ذلك"
+msgstr "Choisir une formule remplit automatiquement le champ ci-dessous — il reste librement modifiable ensuite"
+
+msgid "اكتب سبب الرفض هنا بوضوح — سيظهر هذا النص للشخص المعني..."
+msgstr "Écrivez ici clairement le motif du rejet — ce texte sera visible par la personne concernée…"
+
+msgid "تأكيد كلمة المرور الجديدة"
+msgstr "Confirmer le nouveau mot de passe"
+
+msgid "تم إنشاء الحساب"
+msgstr "Compte créé"
+
+msgid "تم تسجيل خروج هذا المستخدم تلقائياً من جميع الأجهزة. لم يُرسَل أي بريد إلكتروني تلقائياً (Brevo متوقف حالياً) — أرسل الرسالة أعلاه يدوياً."
+msgstr "Cet utilisateur a été déconnecté automatiquement de tous les appareils. Aucun e-mail n'a été envoyé automatiquement (Brevo est actuellement désactivé) — envoyez le message ci-dessus manuellement."
+
+msgid "تم تغيير البريد الإلكتروني"
+msgstr "Adresse e-mail modifiée"
+
+#, python-format
+msgid "تم حفظ الرفض في قاعدة البيانات. يمكنك الآن، اختيارياً، إعلام %(nom)s بذلك عبر واتساب."
+msgstr "Le rejet a été enregistré dans la base de données. Vous pouvez maintenant, facultativement, en informer %(nom)s via WhatsApp."
+
+msgid "تم رفض الطلب"
+msgstr "Demande rejetée"
+
+#, python-format
+msgid "تم قبول الطالب %(nom)s وإنشاء حسابه."
+msgstr "L'élève %(nom)s a été accepté et son compte a été créé."
+
+#, python-format
+msgid "تم قبول المعلم %(nom)s نهائياً وإنشاء حسابه."
+msgstr "L'enseignant %(nom)s a été définitivement accepté et son compte créé."
+
+#, python-format
+msgid "تمت إضافة المؤطر %(nom)s وإنشاء حسابه."
+msgstr "Le superviseur %(nom)s a été ajouté et son compte créé."
+
+msgid "تواصل عبر البريد الإلكتروني"
+msgstr "Contacter par e-mail"
+
+msgid "تواصل عبر واتساب"
+msgstr "Contacter par WhatsApp"
+
+msgid "حافظ على أمان حسابك"
+msgstr "Gardez votre compte en sécurité"
+
+msgid "كلمة المرور الجديدة"
+msgstr "Nouveau mot de passe"
+
+msgid "كلمة المرور الحالية"
+msgstr "Mot de passe actuel"
+
+msgid "نسيت كلمة المرور — منصة زدني علماً"
+msgstr "Mot de passe oublié — Plateforme Zidni Ilman"
+
+msgid "نص حر — يُحفظ نهائياً مع هذا الطلب، ولا يتغيّر أبداً لاحقاً حتى لو عُدّلت أو حُذفت الصيغة الجاهزة المستخدمة أعلاه"
+msgstr "Texte libre — enregistré définitivement avec cette demande, il ne change jamais par la suite même si la formule utilisée ci-dessus est modifiée ou supprimée"
+
+msgid "نفس الاسم المسجل في حسابك"
+msgstr "Le même nom que celui enregistré sur votre compte"
+
+msgid "هذه الخطوة إلزامية قبل المتابعة"
+msgstr "Cette étape est obligatoire avant de continuer"
+
+#, python-format
+msgid "هل أنت متأكد من رفض طلب %(nom)s؟ لا يمكن التراجع عن هذا الإجراء."
+msgstr "Confirmer le rejet de la demande de %(nom)s ? Cette action est irréversible."
+
+msgid "— بدون صيغة جاهزة —"
+msgstr "— Sans formule prédéfinie —"
+
+msgid "← رجوع بدون رفض"
+msgstr "← Retour sans rejeter"
+
+msgid "← رجوع لتسجيل الدخول"
+msgstr "← Retour à la connexion"
+
+msgid "← رجوع لقائمة الطلبات"
+msgstr "← Retour à la liste des demandes"
+
+msgid "↓ يُدرَج تلقائياً في الحقل أدناه"
+msgstr "↓ Inséré automatiquement dans le champ ci-dessous"
+
+msgid "✅ تم إنشاء الحساب بنجاح"
+msgstr "✅ Compte créé avec succès"
+
+#, python-format
+msgid "✅ تم تحديث %(n)s حسابات مرتبطة بهذا البريد المشترك دفعة واحدة."
+msgstr "✅ %(n)s comptes liés à cette adresse e-mail partagée ont été mis à jour en une seule fois."
+
+msgid "✅ تم تغيير البريد الإلكتروني بنجاح"
+msgstr "✅ Adresse e-mail modifiée avec succès"
+
+msgid "✍️ صيغة جاهزة (اختياري)"
+msgstr "✍️ Formule prédéfinie (facultatif)"
+
+msgid "✔ تم النسخ"
+msgstr "✔ Copié"
+
+msgid "❌ تأكيد الرفض"
+msgstr "❌ Confirmer le rejet"
+
+msgid "👁️ معاينة الرسالة الكاملة"
+msgstr "👁️ Aperçu du message complet"
+
+msgid "💡 إذا فضّلت تمرير المعلومات للإدارة بدل التواصل المباشر مع المعلم، استخدم زر \"تواصل مع الإدارة\" أعلاه — الرسالة نفسها جاهزة للإرسال."
+msgstr "💡 Si vous préférez transmettre les informations à l'administration plutôt que de contacter directement l'enseignant, utilisez le bouton « Contacter l'administration » ci-dessus — le message est le même, prêt à être envoyé."
+
+msgid "💾 احفظ هذا النص كصيغة جاهزة لاستخدامها لاحقاً"
+msgstr "💾 Enregistrer ce texte comme formule prédéfinie pour un usage ultérieur"
+
+msgid "📋 رسالة جاهزة للإرسال"
+msgstr "📋 Message prêt à envoyer"
+
+msgid "📋 معلومات الدخول — جاهزة للنسخ أو الإرسال"
+msgstr "📋 Identifiants de connexion — prêts à copier ou envoyer"
+
+msgid "📋 نسخ"
+msgstr "📋 Copier"
+
+msgid "📋 نص الرسالة — جاهز للنسخ أو الإرسال"
+msgstr "📋 Texte du message — prêt à copier ou envoyer"
+
+msgid "📝 سبب الرفض"
+msgstr "📝 Motif du rejet"
+
+msgid "🔒 يجب تغيير كلمة المرور المؤقتة التي حصلت عليها قبل أن تتمكن من الوصول إلى باقي الموقع."
+msgstr "🔒 Vous devez changer le mot de passe temporaire qui vous a été fourni avant de pouvoir accéder au reste du site."
