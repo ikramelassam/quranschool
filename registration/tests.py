@@ -3506,6 +3506,30 @@ class WizardConfirmationTests(TestCase):
         # categorie_age, seul ce PREMIER saut nous intéresse ici.
         self.assertRedirects(reponse_rafraichie, reverse('wizard_intro'), fetch_redirect_response=False)
 
+    def test_confirmation_envoie_notification_telegram(self):
+        """Bug trouvé le 2026-08-31 : la bascule du 2026-08-24 vers ce wizard
+        (voir docstring de module registration/views.py) avait laissé de côté
+        la notif Telegram au مدير/مشرف que l'ancien formulaire à une page
+        (inscriptions.views.inscription_eleve_formulaire) envoyait à chaque
+        candidature — plus aucune candidature élève ne notifiait personne
+        depuis cette date. Corrigé dans _wizard_confirmer_inscription (voir
+        registration/views.py) ; ce test vérifie que l'appel a bien lieu, avec
+        un message contenant l'essentiel (voir aussi InscriptionProfTests.
+        test_inscription_prof_envoie_bien_la_notification_telegram, chemin
+        prof resté fonctionnel, jamais touché par ce bug)."""
+        from unittest.mock import patch
+
+        client = Client()
+        self._avancer_jusquau_paiement(client, 'notif.wizard@zidni.test', type_offre='groupe')
+        with patch('registration.views.envoyer_notification_telegram_async') as mock_notif:
+            reponse = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+        self.assertRedirects(reponse, reverse('wizard_confirmation'), fetch_redirect_response=False)
+
+        mock_notif.assert_called_once()
+        message = mock_notif.call_args[0][0]
+        self.assertIn('طلب تسجيل جديد', message)
+        self.assertIn('نور الدين حمزة', message)
+
     def test_parcours_complet_individuel_saute_le_groupe_jusquau_bout(self):
         client = Client()
         self._avancer_jusquau_paiement(client, 'individuel.wizard@zidni.test', type_offre='individuel')
