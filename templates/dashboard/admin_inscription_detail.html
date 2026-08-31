@@ -310,11 +310,6 @@ pas seulement au moment du refus lui-même.
     <!-- Étape 6 — معلومات إضافية -->
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "معلومات إضافية" %}</div>
 
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">{% trans "قبول الشروط" %}</span>
-        <span style="font-weight:600;">{% if inscription.accepte_conditions %}✅ {% trans "نعم" %}{% else %}❌ {% trans "لا" %}{% endif %}</span>
-    </div>
-
     {% if inscription.remarques %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">{% trans "ملاحظات" %}</span>
