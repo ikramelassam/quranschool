@@ -1,5 +1,6 @@
 {% extends base_template %}
-{% block title %}الترتيب الشهري للمعلمين{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "الترتيب الشهري للمعلمين" %}{% endblock %}
 {% block extra_css %}
 <style>
 .ref-details summary { list-style:none; cursor:pointer; }
@@ -12,15 +13,15 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="page-title">الترتيب الشهري للمعلمين</div>
-<div class="page-subtitle">مرتب حسب متوسط تقييمات المؤطر لهذا الشهر — غير مرئي للمعلمين{% if lecture_stricte %} — عرض للاطلاع فقط{% endif %}</div>
+<div class="page-title">{% trans "الترتيب الشهري للمعلمين" %}</div>
+<div class="page-subtitle">{% trans "مرتب حسب متوسط تقييمات المؤطر لهذا الشهر — غير مرئي للمعلمين" %}{% if lecture_stricte %} — {% trans "عرض للاطلاع فقط" %}{% endif %}</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
     <div>
-        <label style="color:#888; font-size:0.8rem;">الشهر</label>
+        <label style="color:#888; font-size:0.8rem;">{% trans "الشهر" %}</label>
         <input type="month" name="mois" class="form-control" value="{{ mois }}">
     </div>
-    <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+    <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
 </form>
 
 <div style="display:flex; flex-direction:column; gap:12px;">
@@ -32,23 +33,24 @@
                  de la ligne 2 (المعدل), pour qu'aucune coïncidence numérique entre les deux
                  (ex: 4 évaluations ce mois avec une échelle sur 4) ne puisse se lire comme
                  une fraction "X / Y". -->
-            <div style="color:#888; font-size:0.82rem; margin-bottom:8px;">{{ ligne.nb_evaluations }} تقييمات هذا الشهر</div>
+            <div style="color:#888; font-size:0.82rem; margin-bottom:8px;">{% blocktrans with n=ligne.nb_evaluations %}{{ n }} تقييمات هذا الشهر{% endblocktrans %}</div>
             <!-- Ligne 2 : المعدل, échelle 0-4 propre au score lui-même — voir l'infobulle
                  pour la formule exacte (moyenne des moyennes par critères notés). -->
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 {% if ligne.moyenne_mensuelle is not None %}
+                {% trans "معدل الحصص المقيَّمة هذا الشهر، بناءً على المعايير المسجَّلة لكل حصة" as titre_infobulle_moyenne %}
                 <span style="background:rgba(45,90,61,0.1); color:var(--color-success); border-radius:20px; padding:5px 14px; font-weight:700; font-size:0.9rem; cursor:help;"
-                      title="معدل الحصص المقيَّمة هذا الشهر، بناءً على المعايير المسجَّلة لكل حصة">
-                    ⭐ المعدل: {{ ligne.moyenne_mensuelle }} / 4 <span style="opacity:0.65; font-weight:400;">ℹ️</span>
+                      title="{{ titre_infobulle_moyenne }}">
+                    {% blocktrans with v=ligne.moyenne_mensuelle %}⭐ المعدل: {{ v }} / 4{% endblocktrans %} <span style="opacity:0.65; font-weight:400;">ℹ️</span>
                 </span>
                 {% else %}
-                <span style="background:#f0f0f0; color:#aaa; border-radius:20px; padding:5px 14px; font-size:0.85rem;">— لا يوجد تقييم</span>
+                <span style="background:#f0f0f0; color:#aaa; border-radius:20px; padding:5px 14px; font-size:0.85rem;">{% trans "— لا يوجد تقييم" %}</span>
                 {% endif %}
                 {% if ligne.majoration_mensuelle %}
-                <span style="background:rgba(201,150,46,0.12); color:var(--color-brand-gold-dark); border-radius:20px; padding:5px 14px; font-size:0.85rem;">➕ منحة: {{ ligne.majoration_mensuelle }} د.م.</span>
+                <span style="background:rgba(201,150,46,0.12); color:var(--color-brand-gold-dark); border-radius:20px; padding:5px 14px; font-size:0.85rem;">{% blocktrans with v=ligne.majoration_mensuelle %}➕ منحة: {{ v }} د.م.{% endblocktrans %}</span>
                 {% endif %}
                 {% if lecture_stricte %}
-                <a href="{% url 'admin_evaluations' %}?prof={{ ligne.prof.id }}" style="color:{{ couleur_role }}; font-size:0.85rem; font-weight:600; text-decoration:none; white-space:nowrap;">عرض التقييمات التفصيلية (15 معيار) ←</a>
+                <a href="{% url 'admin_evaluations' %}?prof={{ ligne.prof.id }}" style="color:{{ couleur_role }}; font-size:0.85rem; font-weight:600; text-decoration:none; white-space:nowrap;">{% trans "عرض التقييمات التفصيلية (15 معيار) ←" %}</a>
                 {% endif %}
             </div>
         </div>
@@ -60,13 +62,14 @@
         <form method="POST" action="{% url 'classement_mensuel_commentaire' ligne.prof.id %}" style="display:flex; gap:10px; align-items:flex-start;">
             {% csrf_token %}
             <input type="hidden" name="mois" value="{{ mois }}">
-            <textarea name="commentaire" rows="2" class="form-control" placeholder="ملاحظة حول أداء هذا المعلم هذا الشهر...">{{ ligne.commentaire }}</textarea>
-            <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; white-space:nowrap; cursor:pointer;">حفظ</button>
+            {% trans "ملاحظة حول أداء هذا المعلم هذا الشهر..." as ph_commentaire_prof %}
+            <textarea name="commentaire" rows="2" class="form-control" placeholder="{{ ph_commentaire_prof }}">{{ ligne.commentaire }}</textarea>
+            <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:8px 18px; font-size:0.85rem; white-space:nowrap; cursor:pointer;">{% trans "حفظ" %}</button>
         </form>
         {% endif %}
     </div>
     {% empty %}
-    <div style="background:white; border-radius:12px; padding:60px; text-align:center; color:#aaa;">لا يوجد معلمون لعرضهم</div>
+    <div style="background:white; border-radius:12px; padding:60px; text-align:center; color:#aaa;">{% trans "لا يوجد معلمون لعرضهم" %}</div>
     {% endfor %}
 </div>
 {% include 'dashboard/_pagination.html' with page_obj=lignes %}
@@ -74,24 +77,24 @@
 <details class="ref-details" style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:20px; overflow:hidden;">
     <summary style="padding:16px 24px; font-weight:700; color:{{ couleur_role }}; display:flex; align-items:center; justify-content:space-between;">
         <span>
-            <span class="label-closed">عرض معايير التقييم</span>
-            <span class="label-open">إخفاء معايير التقييم</span>
+            <span class="label-closed">{% trans "عرض معايير التقييم" %}</span>
+            <span class="label-open">{% trans "إخفاء معايير التقييم" %}</span>
         </span>
         <span class="chevron">⌄</span>
     </summary>
     <div style="border-top:1px solid #f0f0f0;">
-        <div style="padding:10px 24px 0; color:var(--color-text-muted); font-size:0.82rem;">تظهر هذه المعايير في استمارة تقييم المؤطر للمعلم</div>
+        <div style="padding:10px 24px 0; color:var(--color-text-muted); font-size:0.82rem;">{% trans "تظهر هذه المعايير في استمارة تقييم المؤطر للمعلم" %}</div>
         {% for critere in criteres %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 24px; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
             <div style="font-weight:700;">{{ critere.ordre }}. {{ critere.nom_ar }}</div>
             {% if critere.est_actif %}
-            <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">نشط ✅</span>
+            <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:4px 12px; font-size:0.8rem;">{% trans "نشط ✅" %}</span>
             {% else %}
-            <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:4px 12px; font-size:0.8rem;">غير نشط ❌</span>
+            <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:4px 12px; font-size:0.8rem;">{% trans "غير نشط ❌" %}</span>
             {% endif %}
         </div>
         {% empty %}
-        <div style="text-align:center; padding:40px; color:#aaa;">لا توجد معايير بعد</div>
+        <div style="text-align:center; padding:40px; color:#aaa;">{% trans "لا توجد معايير بعد" %}</div>
         {% endfor %}
     </div>
 </details>

@@ -1,6 +1,6 @@
 {% extends base_template %}
-{% load libelles_arabes %}
-{% block title %}تقييم الطلاب{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "تقييم الطلاب" %}{% endblock %}
 {% block content %}
 <style>
 .groupe-accordeon {
@@ -33,43 +33,43 @@
 .ligne-eleve .ligne2 { color:#999; font-size:0.82rem; font-style:italic; margin-top:4px; }
 </style>
 
-<div class="page-title">تقييم الطلاب</div>
-<div class="page-subtitle">عرض للاطلاع فقط — التحرير من صلاحية المعلم</div>
-<div class="page-subtitle" style="margin-top:-14px;">🚫 حصيلة الغياب المعروضة على كل طالب تخص شهر <strong>{{ mois_reference_absences|mois_annee_ar }}</strong> — اختر شهراً آخر من الفلتر أدناه لتغييرها</div>
+<div class="page-title">{% trans "تقييم الطلاب" %}</div>
+<div class="page-subtitle">{% trans "عرض للاطلاع فقط — التحرير من صلاحية المعلم" %}</div>
+<div class="page-subtitle" style="margin-top:-14px;">{% blocktrans with mois=mois_reference_absences|mois_annee_ar %}🚫 حصيلة الغياب المعروضة على كل طالب تخص شهر <strong>{{ mois }}</strong> — اختر شهراً آخر من الفلتر أدناه لتغييرها{% endblocktrans %}</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
     <div>
-        <label style="color:#888; font-size:0.8rem;">الشهر</label>
+        <label style="color:#888; font-size:0.8rem;">{% trans "الشهر" %}</label>
         <input type="month" name="mois" class="form-control" value="{{ filtres.mois }}">
     </div>
     <div>
-        <label style="color:#888; font-size:0.8rem;">المعلم</label>
+        <label style="color:#888; font-size:0.8rem;">{% trans "المعلم" %}</label>
         <select name="prof" class="form-select" data-select-cherchable>
-            <option value="">الكل</option>
+            <option value="">{% trans "الكل" %}</option>
             {% for prof in profs %}
             <option value="{{ prof.id }}" {% if filtres.prof == prof.id|stringformat:"s" %}selected{% endif %}>{{ prof.user.get_full_name }}</option>
             {% endfor %}
         </select>
     </div>
     <div>
-        <label style="color:#888; font-size:0.8rem;">المجموعة</label>
+        <label style="color:#888; font-size:0.8rem;">{% trans "المجموعة" %}</label>
         <select name="groupe" class="form-select" data-select-cherchable>
-            <option value="">الكل</option>
+            <option value="">{% trans "الكل" %}</option>
             {% for g in groupes_filtre %}
             <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
             {% endfor %}
         </select>
     </div>
-    <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
-    <a href="{% url 'bilans_mensuels' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+    <button type="submit" style="background:{{ couleur_role }}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
+    <a href="{% url 'bilans_mensuels' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
 </form>
 
 {% for item in groupes_accordeon %}
 <details class="groupe-accordeon">
     <summary>
         <span style="font-weight:700;">{{ item.groupe.nom }}</span>
-        <span class="pill-prof">{{ item.groupe.prof.user.get_full_name|default:"— بدون أستاذ" }}</span>
-        <span class="pill-nb">{{ item.nb_eleves }} طلاب</span>
+        <span class="pill-prof">{{ item.groupe.prof.user.get_full_name|default:_("— بدون أستاذ") }}</span>
+        <span class="pill-nb">{% blocktrans with n=item.nb_eleves %}{{ n }} طلاب{% endblocktrans %}</span>
     </summary>
     {% for ligne in item.lignes_eleves %}
     <a href="{% url 'bilans_mensuels_detail_seance' item.groupe.id ligne.eleve.id %}{% if filtres.mois %}?mois={{ filtres.mois }}{% endif %}" class="ligne-eleve">
@@ -77,22 +77,22 @@
             <span style="font-weight:600;">{{ ligne.eleve.user.get_full_name }}</span>
             <span class="moyennes">
                 {% if ligne.nb_absences %}
-                <span class="badge-note" style="background:#fdecea; color:#c0392b;">🚫 {{ ligne.nb_absences }} غياب</span>
+                <span class="badge-note" style="background:#fdecea; color:#c0392b;">🚫 {% blocktrans with n=ligne.nb_absences %}{{ n }} غياب{% endblocktrans %}</span>
                 {% else %}
-                <span class="badge-note" style="background:#e8f5e9; color:#1b5e20;">✅ لا غياب</span>
+                <span class="badge-note" style="background:#e8f5e9; color:#1b5e20;">{% trans "✅ لا غياب" %}</span>
                 {% endif %}
-                {% for m in ligne.moyennes %}<span class="badge-note">{{ m.nom_ar }}: {{ m.moyenne }}/20</span>{% endfor %}
+                {% for m in ligne.moyennes %}<span class="badge-note">{% blocktrans with nom=m.nom_ar moyenne=m.moyenne %}{{ nom }}: {{ moyenne }}/20{% endblocktrans %}</span>{% endfor %}
             </span>
         </div>
         <div class="ligne2">
-            {% if ligne.bilan_texte %}{{ ligne.bilan_texte|truncatechars:110 }}{% else %}لا يوجد بيان مكتوب لهذا الشهر{% endif %}
+            {% if ligne.bilan_texte %}{{ ligne.bilan_texte|truncatechars:110 }}{% else %}{% trans "لا يوجد بيان مكتوب لهذا الشهر" %}{% endif %}
         </div>
     </a>
     {% empty %}
-    <div style="padding:16px 20px; color:#aaa; border-top:1px solid #f0f0f0;">لا يوجد طلاب في هذه المجموعة</div>
+    <div style="padding:16px 20px; color:#aaa; border-top:1px solid #f0f0f0;">{% trans "لا يوجد طلاب في هذه المجموعة" %}</div>
     {% endfor %}
 </details>
 {% empty %}
-<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px;">لا توجد مجموعات مطابقة لهذه التصفية</div>
+<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px;">{% trans "لا توجد مجموعات مطابقة لهذه التصفية" %}</div>
 {% endfor %}
 {% endblock %}
