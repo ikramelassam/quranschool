@@ -5831,3 +5831,21 @@ msgstr "🔜 Upcoming"
 
 msgid "🔴 جارية الآن"
 msgstr "🔴 In progress"
+
+msgid "تحميل الملف ⬇"
+msgstr "Download file ⬇"
+
+msgid "فتح"
+msgstr "Open"
+
+msgid "فتح الملف ↗"
+msgstr "Open file ↗"
+
+msgid "فتح ↗"
+msgstr "Open ↗"
+
+msgid "كل ما يحتاجه الأستاذ لمعرفة قواعد وبرنامج التدريس في المنصة — عرض للاطلاع فقط"
+msgstr "Everything the teacher needs to know about the platform's teaching rules and program — view only"
+
+msgid "ملفات حقيبة الطالب — يديرها المدير والمشرف فقط، ويراها كل طالب معني في \"حقيبتي\" (قراءة فقط)"
+msgstr "Student bag files — managed only by the director and supervisor, visible to each concerned student in \"My bag\" (read only)"

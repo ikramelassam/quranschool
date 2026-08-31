@@ -1,6 +1,6 @@
 {% extends 'dashboard/base_superviseur.html' %}
-{% load libelles_arabes %}
-{% block title %}حقيبة الأستاذ{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "حقيبة الأستاذ" %}{% endblock %}
 {% block content %}
 {% comment %}
 Copie fidèle du design de prof_hakiba.html (Tâche du 2026-08-05, complément
@@ -10,32 +10,32 @@ pour rester cohérent avec le reste des pages مؤطر). Lecture seule pour le
 مؤطر : aucun bouton d'action, exactement comme prof_hakiba.html l'est déjà
 pour le prof lui-même — rien à retirer, ce template n'en a jamais eu.
 {% endcomment %}
-<div class="page-title">حقيبة الأستاذ</div>
-<div class="page-subtitle">كل ما يحتاجه الأستاذ لمعرفة قواعد وبرنامج التدريس في المنصة — عرض للاطلاع فقط</div>
+<div class="page-title">{% trans "حقيبة الأستاذ" %}</div>
+<div class="page-subtitle">{% trans "كل ما يحتاجه الأستاذ لمعرفة قواعد وبرنامج التدريس في المنصة — عرض للاطلاع فقط" %}</div>
 
-<div style="color:var(--color-role-superviseur-solid); font-weight:700; margin-bottom:10px;">روابط ثابتة</div>
+<div style="color:var(--color-role-superviseur-solid); font-weight:700; margin-bottom:10px;">{% trans "روابط ثابتة" %}</div>
 <div class="row g-3">
     <div class="col-md-6">
         <a href="{% url 'mshrif_charte' %}" class="compact-card" style="display:block; text-decoration:none; color:inherit;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:700; font-size:1.05rem;">📜 ميثاق التدريس</span>
-                <span style="color:var(--color-role-superviseur-solid);">عرض ←</span>
+                <span style="font-weight:700; font-size:1.05rem;">📜 {% trans "ميثاق التدريس" %}</span>
+                <span style="color:var(--color-role-superviseur-solid);">{% trans "عرض ←" %}</span>
             </div>
-            <div style="color:#888; font-size:0.85rem; margin-top:8px;">القواعد والالتزامات التي يجب على كل معلم الاطلاع عليها والموافقة عليها.</div>
+            <div style="color:#888; font-size:0.85rem; margin-top:8px;">{% trans "القواعد والالتزامات التي يجب على كل معلم الاطلاع عليها والموافقة عليها." %}</div>
         </a>
     </div>
     <div class="col-md-6">
         <a href="{% url 'programme_general_detail' %}" class="compact-card" style="display:block; text-decoration:none; color:inherit;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:700; font-size:1.05rem;">📖 البرنامج العام</span>
-                <span style="color:var(--color-role-superviseur-solid);">عرض ←</span>
+                <span style="font-weight:700; font-size:1.05rem;">📖 {% trans "البرنامج العام" %}</span>
+                <span style="color:var(--color-role-superviseur-solid);">{% trans "عرض ←" %}</span>
             </div>
-            <div style="color:#888; font-size:0.85rem; margin-top:8px;">البرنامج العام لمقرأة زدني علماً — للاطلاع فقط.</div>
+            <div style="color:#888; font-size:0.85rem; margin-top:8px;">{% blocktrans %}البرنامج العام لمقرأة زدني علماً — للاطلاع فقط.{% endblocktrans %}</div>
         </a>
     </div>
 </div>
 
-<div style="color:var(--color-role-superviseur-solid); font-weight:700; margin:28px 0 10px;">أضيفت من طرف الإدارة</div>
+<div style="color:var(--color-role-superviseur-solid); font-weight:700; margin:28px 0 10px;">{% trans "أضيفت من طرف الإدارة" %}</div>
 <div class="compact-card">
     {% for element in elements_hakiba %}
     <div style="padding:12px 0; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %} display:flex; gap:12px; align-items:flex-start;">
@@ -48,16 +48,16 @@ pour le prof lui-même — rien à retirer, ce template n'en a jamais eu.
             {% if element.fichier %}
             <div style="margin-top:6px; display:flex; gap:14px; flex-wrap:wrap;">
                 {% if element.fichier_affichable_navigateur %}
-                <a href="{% url 'hakiba_fichier' element.id %}" target="_blank" rel="noopener" style="color:var(--color-role-superviseur-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">فتح الملف ↗</a>
+                <a href="{% url 'hakiba_fichier' element.id %}" target="_blank" rel="noopener" style="color:var(--color-role-superviseur-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">{% trans "فتح الملف ↗" %}</a>
                 {% endif %}
-                <a href="{% url 'hakiba_fichier' element.id %}?dl=1" style="color:var(--color-role-superviseur-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">تحميل الملف ⬇</a>
+                <a href="{% url 'hakiba_fichier' element.id %}?dl=1" style="color:var(--color-role-superviseur-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">{% trans "تحميل الملف ⬇" %}</a>
             </div>
             {% endif %}
             <div style="color:#aaa; font-size:0.78rem; margin-top:4px;">{{ element.date_ajout|date:"d-m-Y" }}</div>
         </div>
     </div>
     {% empty %}
-    <div style="color:#aaa; text-align:center; padding:20px 0;">لا توجد وثائق مضافة من الإدارة حاليا</div>
+    <div style="color:#aaa; text-align:center; padding:20px 0;">{% trans "لا توجد وثائق مضافة من الإدارة حاليا" %}</div>
     {% endfor %}
 </div>
 {% endblock %}

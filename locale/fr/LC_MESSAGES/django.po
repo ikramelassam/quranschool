@@ -5831,3 +5831,21 @@ msgstr "🔜 À venir"
 
 msgid "🔴 جارية الآن"
 msgstr "🔴 En cours"
+
+msgid "تحميل الملف ⬇"
+msgstr "Télécharger le fichier ⬇"
+
+msgid "فتح"
+msgstr "Ouvrir"
+
+msgid "فتح الملف ↗"
+msgstr "Ouvrir le fichier ↗"
+
+msgid "فتح ↗"
+msgstr "Ouvrir ↗"
+
+msgid "كل ما يحتاجه الأستاذ لمعرفة قواعد وبرنامج التدريس في المنصة — عرض للاطلاع فقط"
+msgstr "Tout ce dont l'enseignant a besoin pour connaître les règles et le programme d'enseignement de la plateforme — consultation seule"
+
+msgid "ملفات حقيبة الطالب — يديرها المدير والمشرف فقط، ويراها كل طالب معني في \"حقيبتي\" (قراءة فقط)"
+msgstr "Fichiers du cartable de l'élève — gérés uniquement par le directeur et le superviseur, visibles par chaque élève concerné dans « Mon cartable » (lecture seule)"
