@@ -300,7 +300,9 @@
     /* ---------- Aperçu d'une pièce jointe DANS la page (modale, pas un nouvel
        onglet) — clic sur "فتح", voir _message_bubbles.html + initMediaViewer(). */
     .chat-media-overlay {
-        position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,0.75);
+        position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+        z-index: 2147483000;  /* au-dessus de la sidebar (z-index 100) et de tout le reste */
+        background: rgba(0,0,0,0.82);
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         padding: 24px 16px;
     }
@@ -912,6 +914,10 @@ en JS selon le type (image/vidéo/audio/PDF) — voir initMediaViewer().
         const overlay = document.getElementById('chatMediaOverlay');
         const zone = document.getElementById('chatPanneauContenu');
         if (!overlay || !zone) { return; }
+        // Enfant direct de <body> : sinon l'overlay est rendu dans .main-content
+        // (décalé de la sidebar) et un position:fixed pouvait s'y retrouver
+        // cadré, sidebar visible à côté (bug remonté le 2026-08-31).
+        if (overlay.parentNode !== document.body) { document.body.appendChild(overlay); }
         const corps = document.getElementById('chatMediaCorps');
         const nom = document.getElementById('chatMediaNom');
         const lienDl = document.getElementById('chatMediaTelecharger');
@@ -919,6 +925,7 @@ en JS selon le type (image/vidéo/audio/PDF) — voir initMediaViewer().
         function fermer() {
             overlay.hidden = true;
             corps.innerHTML = '';  // stoppe une vidéo/un audio en cours
+            document.body.style.overflow = '';
         }
         function ouvrir(url, type, libelle) {
             nom.textContent = libelle || '';
@@ -943,6 +950,7 @@ en JS selon le type (image/vidéo/audio/PDF) — voir initMediaViewer().
             corps.innerHTML = '';
             corps.appendChild(el);
             overlay.hidden = false;
+            document.body.style.overflow = 'hidden';
         }
 
         zone.addEventListener('click', function (e) {

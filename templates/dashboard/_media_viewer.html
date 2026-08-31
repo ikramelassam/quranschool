@@ -27,7 +27,9 @@ clic sur `document`, donc il fonctionne quelle que soit la structure de la page
 
 <style>
     .media-viewer-overlay {
-        position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,0.78);
+        position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+        z-index: 2147483000;  /* au-dessus de la sidebar (z-index 100) et de tout le reste */
+        background: rgba(0,0,0,0.82);
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         padding: 24px 16px;
     }
@@ -67,6 +69,16 @@ clic sur `document`, donc il fonctionne quelle que soit la structure de la page
     'use strict';
     var overlay = document.getElementById('mediaViewerOverlay');
     if (!overlay) { return; }
+    // Déplace l'overlay en enfant direct de <body> : dans les pages du
+    // dashboard il est rendu à l'intérieur de .main-content (décalé de la
+    // largeur de la sidebar + padding). Un position:fixed y reste en principe
+    // relatif au viewport, mais selon les navigateurs / un ancêtre stylé, il
+    // pouvait se retrouver cadré sur la colonne de contenu (sidebar visible
+    // à côté, contenu non centré — bug remonté le 2026-08-31). En enfant de
+    // <body>, plus aucune ambiguïté.
+    if (overlay.parentNode !== document.body) {
+        document.body.appendChild(overlay);
+    }
     var corps = document.getElementById('mediaViewerCorps');
     var nom = document.getElementById('mediaViewerNom');
     var lienDl = document.getElementById('mediaViewerTelecharger');
@@ -74,6 +86,7 @@ clic sur `document`, donc il fonctionne quelle que soit la structure de la page
     function fermer() {
         overlay.hidden = true;
         corps.innerHTML = '';  // stoppe une vidéo / un audio en cours
+        document.body.style.overflow = '';
     }
     function ouvrir(url, type, libelle) {
         nom.textContent = libelle || '';
@@ -95,6 +108,7 @@ clic sur `document`, donc il fonctionne quelle que soit la structure de la page
         corps.innerHTML = '';
         corps.appendChild(el);
         overlay.hidden = false;
+        document.body.style.overflow = 'hidden';  // pas de scroll de la page derrière
     }
 
     document.addEventListener('click', function (e) {
