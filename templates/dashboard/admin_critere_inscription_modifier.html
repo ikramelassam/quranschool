@@ -1,21 +1,22 @@
 {% extends base_template %}
-{% block title %}تعديل {{ critere.label }}{% endblock %}
+{% load i18n %}
+{% block title %}{% blocktrans with label=critere.label %}تعديل {{ label }}{% endblocktrans %}{% endblock %}
 {% block content %}
-<div class="page-title">تعديل معيار: {{ critere.label }}</div>
+<div class="page-title">{% blocktrans with label=critere.label %}تعديل معيار: {{ label }}{% endblocktrans %}</div>
 
 {% if couverture_warning %}
 <div style="background:#fff3cd; border-radius:12px; padding:18px 22px; margin-bottom:20px; max-width:600px;">
     {% if couverture_warning.configures == 0 %}
         <div style="color:#856404; font-weight:700;">
-            ⚠️ أي مجموعة نشطة لا تملك حالياً قيمة لهذا المعيار. إذا فُعّل هذا المعيار كفلتر الآن، لن تُقترح أي مجموعة على الطلاب إلى أن يتم تحديد القيم.
+            {% trans "⚠️ أي مجموعة نشطة لا تملك حالياً قيمة لهذا المعيار. إذا فُعّل هذا المعيار كفلتر الآن، لن تُقترح أي مجموعة على الطلاب إلى أن يتم تحديد القيم." %}
         </div>
     {% else %}
         <div style="color:#856404; font-weight:700;">
-            ⚠️ {{ couverture_warning.configures }} من أصل {{ couverture_warning.total }} مجموعة نشطة مهيأة لهذا المعيار. المجموعات المتبقية لن تظهر في النتائج عند استخدام هذا الفلتر.
+            {% blocktrans with configures=couverture_warning.configures total=couverture_warning.total %}⚠️ {{ configures }} من أصل {{ total }} مجموعة نشطة مهيأة لهذا المعيار. المجموعات المتبقية لن تظهر في النتائج عند استخدام هذا الفلتر.{% endblocktrans %}
         </div>
     {% endif %}
     <div style="color:#856404; font-size:0.85rem; margin-top:8px;">
-        يمكنك المتابعة رغم ذلك، أو الرجوع لتهيئة قيم المجموعات أولاً من صفحة المعيار.
+        {% trans "يمكنك المتابعة رغم ذلك، أو الرجوع لتهيئة قيم المجموعات أولاً من صفحة المعيار." %}
     </div>
 </div>
 {% endif %}
@@ -26,60 +27,60 @@
         {% if couverture_warning %}<input type="hidden" name="confirme" value="1">{% endif %}
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الرمز</label>
+            <label style="font-weight:600; color:#333;">{% trans "الرمز" %}</label>
             <input type="text" class="form-control mt-1" value="{{ critere.code }}" disabled>
-            <div style="color:#888; font-size:0.78rem; margin-top:4px;">غير قابل للتعديل.</div>
+            <div style="color:#888; font-size:0.78rem; margin-top:4px;">{% trans "غير قابل للتعديل." %}</div>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الاسم المعروض *</label>
+            <label style="font-weight:600; color:#333;">{% trans "الاسم المعروض *" %}</label>
             <input type="text" name="label" class="form-control mt-1" value="{{ valeurs_form.label|default:critere.label }}" required>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">نوع الحقل *</label>
+            <label style="font-weight:600; color:#333;">{% trans "نوع الحقل *" %}</label>
             <select name="type_champ" class="form-select mt-1">
-                <option value="choix_unique" {% if critere.type_champ == 'choix_unique' %}selected{% endif %}>اختيار واحد</option>
-                <option value="choix_multiple" {% if critere.type_champ == 'choix_multiple' %}selected{% endif %}>اختيار متعدد</option>
+                <option value="choix_unique" {% if critere.type_champ == 'choix_unique' %}selected{% endif %}>{% trans "اختيار واحد" %}</option>
+                <option value="choix_multiple" {% if critere.type_champ == 'choix_multiple' %}selected{% endif %}>{% trans "اختيار متعدد" %}</option>
                 {% if critere.type_champ != 'choix_unique' and critere.type_champ != 'choix_multiple' %}
                 {% comment %}
                 Critère existant créé avant le chantier du 2026-08-23 (Partie 2) avec un type qui ne filtre
                 jamais — conservé tel quel dans la liste pour ne pas changer silencieusement sa valeur
                 actuelle si le مدير enregistre sans y toucher, mais plus jamais proposé pour un NOUVEAU critère.
                 {% endcomment %}
-                <option value="{{ critere.type_champ }}" selected>{{ critere.get_type_champ_display }} (قديم — غيّره إن أمكن)</option>
+                <option value="{{ critere.type_champ }}" selected>{% blocktrans with type=critere.get_type_champ_display %}{{ type }} (قديم — غيّره إن أمكن){% endblocktrans %}</option>
                 {% endif %}
             </select>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">طريقة التخزين</label>
+            <label style="font-weight:600; color:#333;">{% trans "طريقة التخزين" %}</label>
             <input type="text" class="form-control mt-1" value="{{ critere.get_backend_display }}" disabled>
-            <div style="color:#888; font-size:0.78rem; margin-top:4px;">غير قابلة للتعديل بعد الإنشاء.</div>
+            <div style="color:#888; font-size:0.78rem; margin-top:4px;">{% trans "غير قابلة للتعديل بعد الإنشاء." %}</div>
         </div>
         <div class="form-check mb-2">
             <input type="checkbox" name="filtrable" id="filtrable" class="form-check-input"
                    {% if critere.filtrable %}checked{% endif %}>
-            <label class="form-check-label" for="filtrable" style="font-weight:600; color:#333;">يُستخدم لتصفية المجموعات المقترحة على الطالب</label>
+            <label class="form-check-label" for="filtrable" style="font-weight:600; color:#333;">{% trans "يُستخدم لتصفية المجموعات المقترحة على الطالب" %}</label>
         </div>
         <div class="form-check mb-3">
             <input type="checkbox" name="bloquant" id="bloquant" class="form-check-input"
                    {% if critere.bloquant %}checked{% endif %}>
-            <label class="form-check-label" for="bloquant" style="font-weight:600; color:#333;">عدم التوافق معه يمنع الإضافة نهائياً (حتى للمدير/المشرف)</label>
+            <label class="form-check-label" for="bloquant" style="font-weight:600; color:#333;">{% trans "عدم التوافق معه يمنع الإضافة نهائياً (حتى للمدير/المشرف)" %}</label>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
+            <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>
             <input type="number" name="ordre" class="form-control mt-1" value="{{ critere.ordre }}">
         </div>
         <div class="form-check mb-3">
             <input type="checkbox" name="est_actif" id="est_actif" class="form-check-input"
                    {% if critere.est_actif %}checked{% endif %}>
-            <label class="form-check-label" for="est_actif" style="font-weight:600; color:#333;">نشط</label>
+            <label class="form-check-label" for="est_actif" style="font-weight:600; color:#333;">{% trans "نشط" %}</label>
         </div>
 
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                {% if couverture_warning %}تأكيد الحفظ رغم التنبيه ✅{% else %}حفظ التعديلات ✅{% endif %}
+                {% if couverture_warning %}{% trans "تأكيد الحفظ رغم التنبيه ✅" %}{% else %}{% trans "حفظ التعديلات ✅" %}{% endif %}
             </button>
-            <a href="{% url 'admin_critere_inscription_detail' critere.id %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+            <a href="{% url 'admin_critere_inscription_detail' critere.id %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
 </div>

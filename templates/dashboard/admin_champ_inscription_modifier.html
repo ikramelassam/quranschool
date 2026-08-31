@@ -1,18 +1,19 @@
 {% extends base_template %}
-{% block title %}تعديل {{ champ.label }}{% endblock %}
+{% load i18n %}
+{% block title %}{% blocktrans with label=champ.label %}تعديل {{ label }}{% endblocktrans %}{% endblock %}
 {% block content %}
-<div class="page-title">تعديل حقل: {{ champ.label }}</div>
-<div class="page-subtitle" style="margin-bottom:20px;">ضمن المرحلة: {{ champ.etape.titre }}</div>
+<div class="page-title">{% blocktrans with label=champ.label %}تعديل حقل: {{ label }}{% endblocktrans %}</div>
+<div class="page-subtitle" style="margin-bottom:20px;">{% blocktrans with etape=champ.etape.titre %}ضمن المرحلة: {{ etape }}{% endblocktrans %}</div>
 
 {% if couverture_warning %}
 <div style="background:#fff3cd; border-radius:12px; padding:18px 22px; margin-bottom:20px; max-width:600px;">
     {% if couverture_warning.configures == 0 %}
         <div style="color:#856404; font-weight:700;">
-            ⚠️ أي مجموعة نشطة لا تملك حالياً قيمة للمعيار المرتبط بهذا الحقل. إذا جُعل إلزامياً الآن، لن يستطيع أي طالب إكمال هذه الخطوة إلى أن يتم تحديد القيم.
+            {% trans "⚠️ أي مجموعة نشطة لا تملك حالياً قيمة للمعيار المرتبط بهذا الحقل. إذا جُعل إلزامياً الآن، لن يستطيع أي طالب إكمال هذه الخطوة إلى أن يتم تحديد القيم." %}
         </div>
     {% else %}
         <div style="color:#856404; font-weight:700;">
-            ⚠️ {{ couverture_warning.configures }} من أصل {{ couverture_warning.total }} مجموعة نشطة مهيأة لهذا المعيار. جعل الحقل إلزامياً الآن قد يمنع بعض الطلاب من إيجاد مجموعة مناسبة.
+            {% blocktrans with configures=couverture_warning.configures total=couverture_warning.total %}⚠️ {{ configures }} من أصل {{ total }} مجموعة نشطة مهيأة لهذا المعيار. جعل الحقل إلزامياً الآن قد يمنع بعض الطلاب من إيجاد مجموعة مناسبة.{% endblocktrans %}
         </div>
     {% endif %}
 </div>
@@ -24,19 +25,19 @@
         {% if couverture_warning %}<input type="hidden" name="confirme" value="1">{% endif %}
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">مرتبط بمعيار</label>
-            <input type="text" class="form-control mt-1" value="{% if champ.critere %}{{ champ.critere.label }}{% else %}لا شيء (حقل معلوماتي){% endif %}" disabled>
+            <label style="font-weight:600; color:#333;">{% trans "مرتبط بمعيار" %}</label>
+            <input type="text" class="form-control mt-1" value="{% if champ.critere %}{{ champ.critere.label }}{% else %}{% trans 'لا شيء (حقل معلوماتي)' %}{% endif %}" disabled>
         </div>
         {% if not champ.critere %}
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">نوع الحقل</label>
+            <label style="font-weight:600; color:#333;">{% trans "نوع الحقل" %}</label>
             <select name="type_champ" id="type_champ_select" class="form-select mt-1" onchange="toggleBornesNumeriques()">
-                <option value="texte" {% if champ.type_champ == 'texte' %}selected{% endif %}>نص</option>
-                <option value="email" {% if champ.type_champ == 'email' %}selected{% endif %}>بريد إلكتروني</option>
-                <option value="telephone" {% if champ.type_champ == 'telephone' %}selected{% endif %}>هاتف</option>
-                <option value="nombre" {% if champ.type_champ == 'nombre' %}selected{% endif %}>رقم</option>
-                <option value="date" {% if champ.type_champ == 'date' %}selected{% endif %}>تاريخ</option>
-                <option value="booleen" {% if champ.type_champ == 'booleen' %}selected{% endif %}>نعم/لا</option>
+                <option value="texte" {% if champ.type_champ == 'texte' %}selected{% endif %}>{% trans "نص" %}</option>
+                <option value="email" {% if champ.type_champ == 'email' %}selected{% endif %}>{% trans "بريد إلكتروني" %}</option>
+                <option value="telephone" {% if champ.type_champ == 'telephone' %}selected{% endif %}>{% trans "هاتف" %}</option>
+                <option value="nombre" {% if champ.type_champ == 'nombre' %}selected{% endif %}>{% trans "رقم" %}</option>
+                <option value="date" {% if champ.type_champ == 'date' %}selected{% endif %}>{% trans "تاريخ" %}</option>
+                <option value="booleen" {% if champ.type_champ == 'booleen' %}selected{% endif %}>{% trans "نعم/لا" %}</option>
             </select>
         </div>
         {% comment %}
@@ -45,12 +46,12 @@
         {% endcomment %}
         <div class="row g-2 mb-3" id="bornes_numeriques_wrapper" style="display:none;">
             <div class="col-6">
-                <label style="font-weight:600; color:#333; font-size:0.85rem;">الحد الأدنى</label>
-                <input type="number" name="valeur_min" class="form-control mt-1" value="{{ champ.valeur_min|default_if_none:'' }}" placeholder="بلا حد">
+                <label style="font-weight:600; color:#333; font-size:0.85rem;">{% trans "الحد الأدنى" %}</label>
+                <input type="number" name="valeur_min" class="form-control mt-1" value="{{ champ.valeur_min|default_if_none:'' }}" placeholder="{% trans 'بلا حد' %}">
             </div>
             <div class="col-6">
-                <label style="font-weight:600; color:#333; font-size:0.85rem;">الحد الأقصى</label>
-                <input type="number" name="valeur_max" class="form-control mt-1" value="{{ champ.valeur_max|default_if_none:'' }}" placeholder="بلا حد">
+                <label style="font-weight:600; color:#333; font-size:0.85rem;">{% trans "الحد الأقصى" %}</label>
+                <input type="number" name="valeur_max" class="form-control mt-1" value="{{ champ.valeur_max|default_if_none:'' }}" placeholder="{% trans 'بلا حد' %}">
             </div>
         </div>
         <script>
@@ -62,27 +63,27 @@
         </script>
         {% endif %}
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">التسمية المعروضة *</label>
+            <label style="font-weight:600; color:#333;">{% trans "التسمية المعروضة *" %}</label>
             <input type="text" name="label" class="form-control mt-1" value="{{ champ.label }}" required>
         </div>
         <div class="form-check mb-3">
             <input type="checkbox" name="obligatoire" id="obligatoire" class="form-check-input" {% if champ.obligatoire %}checked{% endif %}>
-            <label class="form-check-label" for="obligatoire" style="font-weight:600; color:#333;">إلزامي</label>
+            <label class="form-check-label" for="obligatoire" style="font-weight:600; color:#333;">{% trans "إلزامي" %}</label>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
+            <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>
             <input type="number" name="ordre" class="form-control mt-1" value="{{ champ.ordre }}">
         </div>
         <div class="form-check mb-3">
             <input type="checkbox" name="est_actif" id="est_actif" class="form-check-input" {% if champ.est_actif %}checked{% endif %}>
-            <label class="form-check-label" for="est_actif" style="font-weight:600; color:#333;">نشط</label>
+            <label class="form-check-label" for="est_actif" style="font-weight:600; color:#333;">{% trans "نشط" %}</label>
         </div>
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                {% if couverture_warning %}تأكيد الحفظ رغم التنبيه ✅{% else %}حفظ التعديلات ✅{% endif %}
+                {% if couverture_warning %}{% trans "تأكيد الحفظ رغم التنبيه ✅" %}{% else %}{% trans "حفظ التعديلات ✅" %}{% endif %}
             </button>
-            <a href="{% url 'admin_etape_inscription_detail' champ.etape_id %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+            <a href="{% url 'admin_etape_inscription_detail' champ.etape_id %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
 </div>

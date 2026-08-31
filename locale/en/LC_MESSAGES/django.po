@@ -6167,3 +6167,485 @@ msgstr "🗓️ Weekly calendar"
 
 msgid "🧭 إسناد المؤطرين"
 msgstr "🧭 Supervisor assignment"
+
+msgid "+ إضافة معيار"
+msgstr "+ Add a criterion"
+
+#, python-format
+msgid "آخر تحديث: %(date)s"
+msgstr "Last updated: %(date)s"
+
+msgid "إضافة معيار"
+msgstr "Add a criterion"
+
+msgid "إضافة معيار تقييم"
+msgstr "Add an evaluation criterion"
+
+msgid "إضافة معيار تقييم طالب"
+msgstr "Add a student evaluation criterion"
+
+msgid "إلزامي التوافق 🚫"
+msgstr "Match required 🚫"
+
+#, python-format
+msgid "الرمز: %(code)s — %(type)s"
+msgstr "Code: %(code)s — %(type)s"
+
+msgid "الرواية، البرنامج، أو أي معيار جديد تريد إضافته لاستمارة تسجيل الطلاب"
+msgstr "The riwaya, the program, or any new criterion you want to add to the student registration form"
+
+msgid ""
+"الصيغ المقبولة: PNG، JPEG، WEBP، GIF — الحجم الأقصى: 2 ميغابايت.\n"
+"            سيظهر الشعار الجديد فوراً في كل الصفحات (الترويسة، تسجيل الدخول، أيقونة المتصفح، صفحات التسجيل)."
+msgstr "Accepted formats: PNG, JPEG, WEBP, GIF — maximum size: 2 MB. The new logo will appear immediately on all pages (header, login, browser icon, registration pages)."
+
+msgid "تصفية 🔍"
+msgstr "Filter 🔍"
+
+msgid "تظهر هذه المعايير في استمارة تقييم المعلم للطالب (ورقة الحضور)"
+msgstr "These criteria appear in the teacher's evaluation form for the student (attendance sheet)"
+
+msgid "تعديل خيار"
+msgstr "Edit option"
+
+#, python-format
+msgid "تعديل خيار: %(label)s"
+msgstr "Edit option: %(label)s"
+
+msgid "تعديل معيار"
+msgstr "Edit criterion"
+
+msgid "تعديل معيار تقييم"
+msgstr "Edit an evaluation criterion"
+
+msgid "تعديل معيار تقييم طالب"
+msgstr "Edit a student evaluation criterion"
+
+#, python-format
+msgid "جماعي — %(tranche)s — %(slots)s حصص/أسبوع"
+msgstr "Group — %(tranche)s — %(slots)s sessions/week"
+
+#, python-format
+msgid "حذف المعيار \\'%(nom)s\\'؟ لن يُحذف إذا كان مستخدَماً في تقييمات سابقة."
+msgstr "Delete the criterion \\'%(nom)s\\'? It will not be deleted if it is used in past evaluations."
+
+#, python-format
+msgid "ضمن المعيار: %(critere)s"
+msgstr "Within the criterion: %(critere)s"
+
+msgid "غير قابل للتعديل."
+msgstr "Not editable."
+
+#, python-format
+msgid "مجموعات بدون رابط Meet: %(groupes_sans_lien_meet)s"
+msgstr "Groups without a Meet link: %(groupes_sans_lien_meet)s"
+
+msgid "نص المعيار *"
+msgstr "Criterion text *"
+
+#, python-format
+msgid "هل أنت متأكد من القبول النهائي لطلب %(nom)s %(prenom)s؟ سيتم إنشاء حساب مستخدم فعلي له."
+msgstr "Confirm final acceptance of %(nom)s %(prenom)s's request? A real user account will be created for this person."
+
+#, python-format
+msgid "هل أنت متأكد من رفض طلب %(nom)s %(prenom)s؟ لا يمكن التراجع عن هذا الإجراء."
+msgstr "Confirm rejection of %(nom)s %(prenom)s's request? This action cannot be undone."
+
+#, python-format
+msgid ""
+"يوجد حساب <strong>مؤرشف</strong> بهذا البريد الإلكتروني (%(email)s).\n"
+"            يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول هذا الطلب."
+msgstr "An <strong>archived</strong> account exists with this email address (%(email)s). You must first reactivate that account (or change its email address) before accepting this request."
+
+#, python-format
+msgid ""
+"يوجد حساب بهذا البريد الإلكتروني (%(email)s) بدون ملف شخصي مرتبط\n"
+"            (على الأرجح من اختبار سابق). يمكنك حذف هذا الحساب اليتيم ثم إعادة محاولة القبول."
+msgstr "An account exists with this email address (%(email)s) with no associated profile (probably from an earlier test). You can delete this orphan account then retry the acceptance."
+
+#, python-format
+msgid ""
+"يوجد حساب نشط بهذا البريد الإلكتروني (%(email)s) مرتبط بملف شخصي آخر\n"
+"            (دور الحساب: %(role)s). راجع هذا الحساب يدوياً — لا يمكن\n"
+"            قبول هذا الطلب تلقائياً."
+msgstr "An active account exists with this email address (%(email)s), linked to another profile (account role: %(role)s). Review this account manually — this request cannot be accepted automatically."
+
+#, python-format
+msgid "⚠️ %(configures)s من أصل %(total)s تعرفة \"جماعي\" محددة — راتب أي معلم/طالب يخص الحالات الناقصة لا يُحتسب تلقائياً."
+msgstr "⚠️ %(configures)s of %(total)s “group” rates defined — the salary of any teacher/student affected by the missing cases is not computed automatically."
+
+#, python-format
+msgid "%(type)s (قديم — غيّره إن أمكن)"
+msgstr "%(type)s (legacy — change it if possible)"
+
+msgid "+ إضافة حقل جديد"
+msgstr "+ Add a new field"
+
+msgid "+ إضافة خيار جديد"
+msgstr "+ Add a new option"
+
+msgid "+ إضافة مرحلة"
+msgstr "+ Add a step"
+
+msgid "إجابة الطالب هنا تُستخدم لتصفية المجموعات المقترحة عليه (تماماً مثل البرنامج أو الرواية). تُبنى فقط من معيار جاهز بخيارات محددة مسبقاً — لا علاقة لها بالتصفية إن اخترت \"محتوى إعلامي\"."
+msgstr "The student's answer here is used to filter the groups proposed to them (just like the program or the riwaya). It is built only from an existing criterion with predefined options — it has nothing to do with filtering if you choose “Informative content”."
+
+msgid "إضافة مرحلة جديدة"
+msgstr "Add a new step"
+
+msgid "إضافة معيار تسجيل جديد"
+msgstr "Add a new registration criterion"
+
+msgid "إلزامي"
+msgstr "Required"
+
+msgid "إن تُرك غير محدد، فعدم التوافق يُظهر تنبيهاً قابلاً للتجاوز من طرف المدير/المشرف فقط."
+msgstr "If left unchecked, a mismatch shows a warning that only the Director/Deputy can override."
+
+msgid "اختر \"قيمة حرة\" في كل الحالات تقريباً — الخياران الآخران محجوزان لحالات بنيوية محددة مسبقاً (نوع الحصة، عدد الحصص الأسبوعية) ولا يحتاجهما أي معيار جديد."
+msgstr "Choose “Free value” in almost all cases — the other two options are reserved for predefined structural cases (session type, weekly session count) and no new criterion needs them."
+
+msgid "اختيار متعدد"
+msgstr "Multiple choice"
+
+msgid "اختيار واحد"
+msgstr "Single choice"
+
+msgid "اسم الحقل الحقيقي في نموذج المجموعة"
+msgstr "Name of the actual field in the group model"
+
+msgid "الترتيب"
+msgstr "Order"
+
+msgid "التسمية المعروضة *"
+msgstr "Displayed label *"
+
+msgid "الحد الأدنى"
+msgstr "Minimum"
+
+msgid "الحد الأقصى"
+msgstr "Maximum"
+
+msgid "الحقول"
+msgstr "Fields"
+
+msgid "الخيارات"
+msgstr "Options"
+
+#, python-format
+msgid "الرمز: %(code)s — %(n)s حقل"
+msgstr "Code: %(code)s — %(n)s field(s)"
+
+#, python-format
+msgid "الرمز: %(code)s — %(type)s — %(backend)s"
+msgstr "Code: %(code)s — %(type)s — %(backend)s"
+
+msgid "العنوان المعروض *"
+msgstr "Displayed title *"
+
+#, python-format
+msgid "المجموعات المهيأة لهذا المعيار (%(n)s)"
+msgstr "Groups configured for this criterion (%(n)s)"
+
+msgid "المجموعات غير المهيأة:"
+msgstr "Groups not configured:"
+
+msgid "المرحلة"
+msgstr "Step"
+
+msgid "المعيار *"
+msgstr "Criterion *"
+
+msgid "بريد إلكتروني"
+msgstr "Email"
+
+msgid "بلا حد"
+msgstr "No limit"
+
+msgid "تأكيد الحفظ رغم التنبيه ✅"
+msgstr "Confirm saving despite the warning ✅"
+
+msgid "تاريخ"
+msgstr "Date"
+
+msgid "ترتيب الظهور يُحدد فعلياً الصفحة التالية التي يزورها المسجِّل — وليس مجرد قيمة تجميلية."
+msgstr "The display order actually determines the next page the applicant sees — it is not just a cosmetic value."
+
+#, python-format
+msgid "تعديل %(titre)s"
+msgstr "Edit %(titre)s"
+
+msgid "تعديل حقل بنيوي"
+msgstr "Edit a structural field"
+
+#, python-format
+msgid "تعديل حقل: %(label)s"
+msgstr "Edit field: %(label)s"
+
+#, python-format
+msgid "تعديل مرحلة: %(titre)s"
+msgstr "Edit step: %(titre)s"
+
+#, python-format
+msgid "تعديل معيار: %(label)s"
+msgstr "Edit criterion: %(label)s"
+
+#, python-format
+msgid "تعديل: %(label)s"
+msgstr "Edit: %(label)s"
+
+msgid "تُطبَّق فقط إذا كان الحقل غير فارغ — لا تمنع تركه فارغاً إذا لم يكن إلزامياً."
+msgstr "Applied only if the field is not empty — does not prevent leaving it empty if it is not required."
+
+#, python-format
+msgid "حذف الحقل \\'%(label)s\\'؟ لن يُحذف إذا استُخدم في طلبات سابقة."
+msgstr "Delete the field \\'%(label)s\\'? It will not be deleted if it was used in previous requests."
+
+#, python-format
+msgid "حذف الخيار \\'%(label)s\\'؟ لن يُحذف إذا كان مستخدَماً في إجابات/مجموعات سابقة."
+msgstr "Delete the option \\'%(label)s\\'? It will not be deleted if it is used in past answers/groups."
+
+#, python-format
+msgid "حذف المرحلة \\'%(titre)s\\'؟ لن تُحذف إذا كانت تحتوي على حقول."
+msgstr "Delete the step \\'%(titre)s\\'? It will not be deleted if it contains fields."
+
+#, python-format
+msgid "حذف المعيار \\'%(label)s\\'؟ لن يُحذف إذا كان مستخدَماً في نموذج التسجيل أو في إجابات/مجموعات سابقة."
+msgstr "Delete the criterion \\'%(label)s\\'? It will not be deleted if it is used in the registration form or in past answers/groups."
+
+msgid "حقل بنيوي حقيقي (مخزَّن في عمود فعلي) — هذه الشاشة تُعدّل طريقة عرضه فقط، وليس مكان تخزينه."
+msgstr "Real structural field (stored in an actual column) — this screen only changes how it is displayed, not where it is stored."
+
+#, python-format
+msgid "حقل معلوماتي (%(type)s)"
+msgstr "Informative field (%(type)s)"
+
+msgid "رسالة الخطأ عند عدم التطابق"
+msgstr "Error message when it does not match"
+
+msgid "رقم"
+msgstr "Number"
+
+msgid "صفحة معايير التسجيل"
+msgstr "the registration criteria page"
+
+#, python-format
+msgid "ضمن المرحلة: %(etape)s"
+msgstr "Within the step: %(etape)s"
+
+msgid "طريقة التخزين *"
+msgstr "Storage method *"
+
+msgid "عدم التوافق معه يمنع الإضافة نهائياً (حتى للمدير/المشرف)"
+msgstr "A mismatch permanently prevents adding (even for the Director/Deputy)"
+
+msgid "غير قابلة للتعديل بعد الإنشاء."
+msgstr "Cannot be changed after creation."
+
+#, python-format
+msgid "فك ارتباط \\'%(label)s\\' عن مجموعة \\'%(nom)s\\'؟"
+msgstr "Unlink \\'%(label)s\\' from group \\'%(nom)s\\'?"
+
+msgid "فك الارتباط ✂️"
+msgstr "Unlink ✂️"
+
+msgid "قاعدة تحقق (regex، اختياري)"
+msgstr "Validation rule (regex, optional)"
+
+msgid "قيمة حرة (الحالة الافتراضية لأي معيار جديد)"
+msgstr "Free value (default for any new criterion)"
+
+msgid "كل مرحلة تظهر كخطوة في نموذج تسجيل الطالب"
+msgstr "Each step appears as a step in the student registration form"
+
+msgid "لا توجد حقول بعد في هذه المرحلة"
+msgstr "No fields in this step yet"
+
+msgid "لا توجد خيارات بعد"
+msgstr "No options yet"
+
+msgid "لا توجد مراحل بعد"
+msgstr "No steps yet"
+
+msgid "لا شيء (حقل معلوماتي)"
+msgstr "None (informative field)"
+
+msgid "لا يمكن تعديله لاحقاً — اختر رمزاً واضحاً."
+msgstr "Cannot be changed later — choose a clear code."
+
+msgid "لا يوجد بعد أي معيار من نوع \"اختيار واحد/متعدد\". أنشئ واحداً أولاً من"
+msgstr "There is no “single/multiple choice” criterion yet. Create one first from"
+
+msgid "مثال: ^[0-9]{5}$"
+msgstr "Example: ^[0-9]{5}$"
+
+msgid "مثال: choix_groupe"
+msgstr "Example: choix_groupe"
+
+msgid "مثال: objectif_pedagogique"
+msgstr "Example: objectif_pedagogique"
+
+msgid "مثال: type_capacite"
+msgstr "Example: type_capacite"
+
+msgid "مثال: اختيار المجموعة"
+msgstr "Example: group choice"
+
+msgid "مثال: الرواية، الهدف التربوي، طريقة التعلم المفضلة — أي معيار تريده، دون الحاجة لأي تعديل برمجي."
+msgstr "Example: the riwaya, the pedagogical goal, the preferred learning method — any criterion you want, without any code change."
+
+msgid "مثال: الهدف التربوي"
+msgstr "Example: the pedagogical goal"
+
+msgid "مراحل نموذج التسجيل"
+msgstr "Registration form steps"
+
+msgid "مرتبط بحقل حقيقي موجود في نموذج المجموعة"
+msgstr "Linked to an actual field in the group model"
+
+msgid "مرتبط بمعيار"
+msgstr "Linked to a criterion"
+
+msgid "مرحلة أساسية، لا يمكن تعطيلها"
+msgstr "Essential step, it cannot be disabled"
+
+#, python-format
+msgid "مستخدم في %(n)s حقل من نموذج التسجيل"
+msgstr "Used in %(n)s field(s) of the registration form"
+
+msgid "مشتق تلقائياً من عدد الحصص الأسبوعية الحقيقية للمجموعة"
+msgstr "Automatically derived from the group's actual number of weekly sessions"
+
+msgid "معيار التسجيل هو دائماً سؤال بخيارات محددة مسبقاً تُستخدم لتصفية المجموعات — إن كنت تريد حقلاً نصياً/رقمياً معلوماتياً بلا علاقة بالتصفية (مثال: البلد، الموافقة على الشروط)، أضفه مباشرة من صفحة المرحلة (\"محتوى إعلامي / موافقة\") بدلاً من إنشاء معيار هنا."
+msgstr "A registration criterion is always a question with predefined options used to filter groups — if you want an informative text/numeric field unrelated to filtering (example: country, terms acceptance), add it directly from the step page (“Informative content / consent”) instead of creating a criterion here."
+
+msgid "معيار:"
+msgstr "Criterion:"
+
+msgid "نشط (غير محذوف)"
+msgstr "Active (not deleted)"
+
+msgid "نص بسيط أو خانة موافقة — لا يُستخدم أبداً لتصفية المجموعات، فقط يُعرض على الطالب ويُسجَّل مع طلبه (مثال: البلد، الموافقة على الشروط)."
+msgstr "Plain text or consent checkbox — never used to filter groups, only shown to the student and saved with their request (example: country, terms acceptance)."
+
+msgid "نص توضيحي داخل الحقل (placeholder)"
+msgstr "Hint text inside the field (placeholder)"
+
+msgid "نص طويل"
+msgstr "Long text"
+
+msgid "نص قصير"
+msgstr "Short text"
+
+msgid "نص مساعد (يظهر تحت الحقل)"
+msgstr "Help text (shown below the field)"
+
+msgid "نعم/لا (خانة موافقة)"
+msgstr "Yes/No (consent checkbox)"
+
+msgid "نوع الحقل *"
+msgstr "Field type *"
+
+msgid "هاتف"
+msgstr "Phone"
+
+#, python-format
+msgid "هذا المعيار لا يحتاج خيارات مُدارة يدوياً — القيم تُحسب تلقائياً من الحقل الحقيقي \"%(champ)s\" في نموذج المجموعة."
+msgstr "This criterion does not need manually managed options — the values are computed automatically from the actual field “%(champ)s” of the group model."
+
+msgid "هذا المعيار لا يحتاج خيارات مُدارة يدوياً — القيم تُحسب تلقائياً من عدد الحصص الأسبوعية الحقيقي لكل مجموعة."
+msgstr "This criterion does not need manually managed options — the values are computed automatically from each group's actual number of weekly sessions."
+
+msgid "يمكنك المتابعة رغم ذلك، أو الرجوع لتهيئة قيم المجموعات أولاً من صفحة المعيار."
+msgstr "You can continue anyway, or go back to first configure the group values from the criterion page."
+
+msgid "يُستخدم لتصفية المجموعات المقترحة على الطالب"
+msgstr "Used to filter the groups proposed to the student"
+
+msgid "— اختر معياراً —"
+msgstr "— Choose a criterion —"
+
+#, python-format
+msgid "— عمود حقيقي: %(colonne)s"
+msgstr "— actual column: %(colonne)s"
+
+msgid "← رجوع لقائمة المراحل"
+msgstr "← Back to the step list"
+
+msgid "← رجوع لقائمة المعايير"
+msgstr "← Back to the criteria list"
+
+#, python-format
+msgid "⚠️ %(configures)s من أصل %(total)s مجموعة نشطة مهيأة لهذا المعيار. المجموعات المتبقية لن تظهر في النتائج عند استخدام هذا الفلتر."
+msgstr "⚠️ %(configures)s of %(total)s active groups are configured for this criterion. The remaining groups will not appear in the results when using this filter."
+
+#, python-format
+msgid "⚠️ %(configures)s من أصل %(total)s مجموعة نشطة مهيأة لهذا المعيار. جعل الحقل إلزامياً الآن قد يمنع بعض الطلاب من إيجاد مجموعة مناسبة."
+msgstr "⚠️ %(configures)s of %(total)s active groups are configured for this criterion. Making the field required now could prevent some students from finding a suitable group."
+
+msgid "⚠️ أي مجموعة نشطة لا تملك حالياً قيمة للمعيار المرتبط بهذا الحقل. إذا جُعل إلزامياً الآن، لن يستطيع أي طالب إكمال هذه الخطوة إلى أن يتم تحديد القيم."
+msgstr "⚠️ No active group currently has a value for the criterion linked to this field. If it is made required now, no student will be able to complete this step until the values are set."
+
+msgid "⚠️ أي مجموعة نشطة لا تملك حالياً قيمة لهذا المعيار. إذا استُخدم هذا المعيار للتصفية، لن تُقترح أي مجموعة على الطلاب إلى أن يتم تحديد القيم أدناه."
+msgstr "⚠️ No active group currently has a value for this criterion. If this criterion is used for filtering, no group will be proposed to students until the values are set below."
+
+msgid "⚠️ أي مجموعة نشطة لا تملك حالياً قيمة لهذا المعيار. إذا فُعّل هذا المعيار كفلتر الآن، لن تُقترح أي مجموعة على الطلاب إلى أن يتم تحديد القيم."
+msgstr "⚠️ No active group currently has a value for this criterion. If this criterion is enabled as a filter now, no group will be proposed to students until the values are set."
+
+msgid "⚠️ لا توجد أي مجموعة نشطة في النظام حالياً — لا يمكن تفعيل هذا المعيار كفلتر فعلي إلى أن تُنشأ مجموعات."
+msgstr "⚠️ There are no active groups in the system right now — this criterion cannot be enabled as a real filter until groups are created."
+
+msgid "⚠️ هذه المرحلة لها شاشة خاصة مبنية في الكود ولا تعرض أي حقل عام على نموذج التسجيل العلني — لا يمكن إضافة حقل هنا. لإضافة سؤال جديد، استخدم مرحلة \"المعلومات الشخصية\"، \"اختيار البرنامج\"، أو أنشئ مرحلة مخصصة جديدة من صفحة \"مراحل التسجيل\"."
+msgstr "⚠️ This step has its own hard-coded screen and shows no generic field on the public registration form — you cannot add a field here. To add a new question, use the “Personal information” or “Program choice” step, or create a new custom step from the “Registration steps” page."
+
+#, python-format
+msgid "✅ جميع المجموعات النشطة (%(total)s) مهيأة لهذا المعيار."
+msgstr "✅ All active groups (%(total)s) are configured for this criterion."
+
+msgid "🎯 سؤال يُستخدم لتصفية المجموعات"
+msgstr "🎯 Question used to filter groups"
+
+msgid "🏗️ حقل بنيوي"
+msgstr "🏗️ Structural field"
+
+msgid "📝 محتوى إعلامي / موافقة"
+msgstr "📝 Informative content / consent"
+
+msgid "🔒 حقل بنيوي مقفل"
+msgstr "🔒 Locked structural field"
+
+msgid "🔒 مرحلة أساسية للتسجيل — لا يمكن تعطيلها أو حذفها (شرط حقيقي في الكود يعتمد عليها)."
+msgstr "🔒 Essential registration step — it cannot be disabled or deleted (a real code condition depends on it)."
+
+msgid "🔒 نشطة دائماً (غير قابلة للتعطيل)"
+msgstr "🔒 Always active (cannot be disabled)"
+
+msgid "🔒 هذا الحقل مقفل: يشترط منطق حقيقي (تصفية المجموعات حسب الجنس/العمر، أو إنشاء حساب الطالب عبر البريد الإلكتروني) — لا يمكن جعله اختيارياً أو إخفاءه أو نقله إلى مرحلة أخرى. فقط الاسم المعروض والترتيب قابلان للتعديل."
+msgstr "🔒 This field is locked: real logic depends on it (filtering groups by gender/age, or creating the student's account via email) — it cannot be made optional, hidden, or moved to another step. Only the displayed label and the order can be changed."
+
+msgid "🔒 هذه مرحلة أساسية للتسجيل — لا يمكن تعطيلها (شرط حقيقي في الكود يعتمد عليها، راجع التوثيق التقني إن احتجت التفاصيل). فقط العنوان المعروض والترتيب قابلان للتعديل."
+msgstr "🔒 This is an essential registration step — it cannot be disabled (a real code condition depends on it, see the technical documentation if needed). Only the displayed title and the order can be changed."
+
+#, python-format
+msgid "حذف الحقل «%(label)s»؟ لن يُحذف إذا استُخدم في طلبات سابقة."
+msgstr "Delete the field “%(label)s”? It will not be deleted if it was used in previous requests."
+
+#, python-format
+msgid "حذف الخيار «%(label)s»؟ لن يُحذف إذا كان مستخدَماً في إجابات/مجموعات سابقة."
+msgstr "Delete the option “%(label)s”? It will not be deleted if it is used in past answers/groups."
+
+#, python-format
+msgid "حذف المرحلة «%(titre)s»؟ لن تُحذف إذا كانت تحتوي على حقول."
+msgstr "Delete the step “%(titre)s”? It will not be deleted if it contains fields."
+
+#, python-format
+msgid "حذف المعيار «%(label)s»؟ لن يُحذف إذا كان مستخدَماً في نموذج التسجيل أو في إجابات/مجموعات سابقة."
+msgstr "Delete the criterion “%(label)s”? It will not be deleted if it is used in the registration form or in past answers/groups."
+
+#, python-format
+msgid "حذف المعيار «%(nom)s»؟ لن يُحذف إذا كان مستخدَماً في تقييمات سابقة."
+msgstr "Delete the criterion “%(nom)s”? It will not be deleted if it is used in past evaluations."
+
+#, python-format
+msgid "فك ارتباط «%(label)s» عن مجموعة «%(nom)s»؟"
+msgstr "Unlink “%(label)s” from group “%(nom)s”?"

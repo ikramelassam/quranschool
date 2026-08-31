@@ -1,32 +1,33 @@
 {% extends base_template %}
+{% load i18n %}
 {% block title %}{{ etape.titre }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <div class="page-title">{{ etape.titre }} {% if etape.est_verrouillee %}🔒{% endif %}</div>
-        <div class="page-subtitle">الرمز: {{ etape.code }}</div>
+        <div class="page-subtitle">{% blocktrans with code=etape.code %}الرمز: {{ code }}{% endblocktrans %}</div>
     </div>
     <div class="d-flex gap-2">
         <a href="{% url 'admin_etape_inscription_modifier' etape.id %}"
-           style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">تعديل ✏️</a>
+           style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">{% trans "تعديل ✏️" %}</a>
         {% if not etape.est_verrouillee %}
         <a href="{% url 'admin_etape_inscription_toggle' etape.id %}"
            style="background:#f0f0f0; color:#555; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">
-           {% if etape.est_actif %}تعطيل{% else %}تفعيل{% endif %}
+           {% if etape.est_actif %}{% trans "تعطيل" %}{% else %}{% trans "تفعيل" %}{% endif %}
         </a>
         <a href="{% url 'admin_etape_inscription_supprimer' etape.id %}"
-           onclick="return confirm('حذف المرحلة \'{{ etape.titre }}\'؟ لن تُحذف إذا كانت تحتوي على حقول.');"
-           style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">حذف 🗑️</a>
+           onclick="return confirm('{% blocktrans with titre=etape.titre|escapejs %}حذف المرحلة «{{ titre }}»؟ لن تُحذف إذا كانت تحتوي على حقول.{% endblocktrans %}');"
+           style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">{% trans "حذف 🗑️" %}</a>
         {% endif %}
     </div>
 </div>
 {% if etape.est_verrouillee %}
 <div style="background:#fff3cd; border-radius:12px; padding:14px 18px; margin-bottom:20px; color:#856404; font-weight:600;">
-    🔒 مرحلة أساسية للتسجيل — لا يمكن تعطيلها أو حذفها (شرط حقيقي في الكود يعتمد عليها).
+    {% trans "🔒 مرحلة أساسية للتسجيل — لا يمكن تعطيلها أو حذفها (شرط حقيقي في الكود يعتمد عليها)." %}
 </div>
 {% endif %}
 
-<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">الحقول</div>
+<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">{% trans "الحقول" %}</div>
 
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; margin-bottom:24px;">
     {% for config in champs_structurels %}
@@ -34,23 +35,23 @@
         <div>
             <div style="font-weight:700;">{{ config.ordre }}. {{ config.label }}</div>
             <div style="color:#888; font-size:0.8rem;">
-                {% if config.est_verrouille %}🔒 حقل بنيوي مقفل{% else %}🏗️ حقل بنيوي{% endif %}
-                — عمود حقيقي: {{ config.get_champ_cle_display }}
+                {% if config.est_verrouille %}{% trans "🔒 حقل بنيوي مقفل" %}{% else %}{% trans "🏗️ حقل بنيوي" %}{% endif %}
+                {% blocktrans with colonne=config.get_champ_cle_display %}— عمود حقيقي: {{ colonne }}{% endblocktrans %}
             </div>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center">
             {% if config.obligatoire %}
-                {% include 'dashboard/_badge_statut.html' with type='danger' texte='إلزامي' %}
+                {% include 'dashboard/_badge_statut.html' with type='danger' texte=_('إلزامي') %}
             {% else %}
-                {% include 'dashboard/_badge_statut.html' with type='neutre' texte='اختياري' %}
+                {% include 'dashboard/_badge_statut.html' with type='neutre' texte=_('اختياري') %}
             {% endif %}
             {% if config.est_actif %}
-                {% include 'dashboard/_badge_statut.html' with type='success' texte='نشط' %}
+                {% include 'dashboard/_badge_statut.html' with type='success' texte=_('نشط') %}
             {% else %}
-                {% include 'dashboard/_badge_statut.html' with type='danger' texte='محذوف (معطَّل)' %}
+                {% include 'dashboard/_badge_statut.html' with type='danger' texte=_('محذوف (معطَّل)') %}
             {% endif %}
             <a href="{% url 'admin_champ_structurel_modifier' config.id %}"
-               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">تعديل ✏️</a>
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">{% trans "تعديل ✏️" %}</a>
         </div>
     </div>
     {% endfor %}
@@ -60,43 +61,43 @@
             <div style="font-weight:700;">{{ champ.ordre }}. {{ champ.label }}</div>
             <div style="color:#888; font-size:0.8rem;">
                 {% if champ.critere %}
-                    معيار: <a href="{% url 'admin_critere_inscription_detail' champ.critere_id %}">{{ champ.critere.label }}</a>
+                    {% trans "معيار:" %} <a href="{% url 'admin_critere_inscription_detail' champ.critere_id %}">{{ champ.critere.label }}</a>
                 {% else %}
-                    حقل معلوماتي ({{ champ.get_type_champ_display }})
+                    {% blocktrans with type=champ.get_type_champ_display %}حقل معلوماتي ({{ type }}){% endblocktrans %}
                 {% endif %}
             </div>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center">
             {% if champ.obligatoire %}
-                {% include 'dashboard/_badge_statut.html' with type='danger' texte='إلزامي' %}
+                {% include 'dashboard/_badge_statut.html' with type='danger' texte=_('إلزامي') %}
             {% else %}
-                {% include 'dashboard/_badge_statut.html' with type='neutre' texte='اختياري' %}
+                {% include 'dashboard/_badge_statut.html' with type='neutre' texte=_('اختياري') %}
             {% endif %}
             {% if champ.est_actif %}
-                {% include 'dashboard/_badge_statut.html' with type='success' texte='نشط' %}
+                {% include 'dashboard/_badge_statut.html' with type='success' texte=_('نشط') %}
             {% else %}
-                {% include 'dashboard/_badge_statut.html' with type='danger' texte='غير نشط' %}
+                {% include 'dashboard/_badge_statut.html' with type='danger' texte=_('غير نشط') %}
             {% endif %}
             <a href="{% url 'admin_champ_inscription_modifier' champ.id %}"
-               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">تعديل ✏️</a>
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">{% trans "تعديل ✏️" %}</a>
             <a href="{% url 'admin_champ_inscription_toggle' champ.id %}"
                style="background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">
-               {% if champ.est_actif %}تعطيل{% else %}تفعيل{% endif %}
+               {% if champ.est_actif %}{% trans "تعطيل" %}{% else %}{% trans "تفعيل" %}{% endif %}
             </a>
             <a href="{% url 'admin_champ_inscription_supprimer' champ.id %}"
-               onclick="return confirm('حذف الحقل \'{{ champ.label }}\'؟ لن يُحذف إذا استُخدم في طلبات سابقة.');"
-               style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">حذف 🗑️</a>
+               onclick="return confirm('{% blocktrans with label=champ.label|escapejs %}حذف الحقل «{{ label }}»؟ لن يُحذف إذا استُخدم في طلبات سابقة.{% endblocktrans %}');"
+               style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">{% trans "حذف 🗑️" %}</a>
         </div>
     </div>
     {% empty %}
     {% if not champs_structurels %}
-    <div style="text-align:center; padding:40px; color:#aaa;">لا توجد حقول بعد في هذه المرحلة</div>
+    <div style="text-align:center; padding:40px; color:#aaa;">{% trans "لا توجد حقول بعد في هذه المرحلة" %}</div>
     {% endif %}
     {% endfor %}
 </div>
 
 <div style="background:white; border-radius:16px; padding:24px; max-width:600px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; margin-bottom:16px;">+ إضافة حقل جديد</div>
+    <div style="font-weight:700; margin-bottom:16px;">{% trans "+ إضافة حقل جديد" %}</div>
 
     {% if not etape.accepte_champs_generiques %}
     {% comment %}
@@ -107,9 +108,7 @@
     models.EtapeInscription.CODES_SANS_RENDU_GENERIQUE).
     {% endcomment %}
     <div style="background:#fff3cd; border-radius:10px; padding:14px 18px; color:#856404; font-size:0.85rem;">
-        ⚠️ هذه المرحلة لها شاشة خاصة مبنية في الكود ولا تعرض أي حقل عام على نموذج التسجيل العلني —
-        لا يمكن إضافة حقل هنا. لإضافة سؤال جديد، استخدم مرحلة "المعلومات الشخصية"، "اختيار البرنامج"،
-        أو أنشئ مرحلة مخصصة جديدة من صفحة "مراحل التسجيل".
+        {% trans "⚠️ هذه المرحلة لها شاشة خاصة مبنية في الكود ولا تعرض أي حقل عام على نموذج التسجيل العلني — لا يمكن إضافة حقل هنا. لإضافة سؤال جديد، استخدم مرحلة \"المعلومات الشخصية\"، \"اختيار البرنامج\"، أو أنشئ مرحلة مخصصة جديدة من صفحة \"مراحل التسجيل\"." %}
     </div>
     {% else %}
 
@@ -126,12 +125,12 @@
     <div class="row g-2 mb-3">
         <div class="col-6">
             <div id="onglet_systeme_a" class="systeme-onglet actif" onclick="choisirSysteme('a')">
-                🎯 سؤال يُستخدم لتصفية المجموعات
+                {% trans "🎯 سؤال يُستخدم لتصفية المجموعات" %}
             </div>
         </div>
         <div class="col-6">
             <div id="onglet_systeme_b" class="systeme-onglet" onclick="choisirSysteme('b')">
-                📝 محتوى إعلامي / موافقة
+                {% trans "📝 محتوى إعلامي / موافقة" %}
             </div>
         </div>
     </div>
@@ -141,20 +140,20 @@
 
         <div id="section_systeme_a">
             <div style="background:#f0ebe3; border-radius:10px; padding:12px 16px; margin-bottom:16px; color:#555; font-size:0.82rem;">
-                إجابة الطالب هنا تُستخدم لتصفية المجموعات المقترحة عليه (تماماً مثل البرنامج أو الرواية). تُبنى فقط من معيار جاهز بخيارات محددة مسبقاً — لا علاقة لها بالتصفية إن اخترت "محتوى إعلامي".
+                {% trans "إجابة الطالب هنا تُستخدم لتصفية المجموعات المقترحة عليه (تماماً مثل البرنامج أو الرواية). تُبنى فقط من معيار جاهز بخيارات محددة مسبقاً — لا علاقة لها بالتصفية إن اخترت \"محتوى إعلامي\"." %}
             </div>
             <div class="mb-3">
-                <label style="font-weight:600; color:#333; font-size:0.9rem;">المعيار *</label>
+                <label style="font-weight:600; color:#333; font-size:0.9rem;">{% trans "المعيار *" %}</label>
                 <select name="critere_id" id="critere_select" class="form-select mt-1">
-                    <option value="">— اختر معياراً —</option>
+                    <option value="">{% trans "— اختر معياراً —" %}</option>
                     {% for critere in criteres_disponibles %}
                     <option value="{{ critere.id }}">{{ critere.label }}</option>
                     {% endfor %}
                 </select>
                 {% if not criteres_disponibles %}
                 <div style="color:#888; font-size:0.78rem; margin-top:4px;">
-                    لا يوجد بعد أي معيار من نوع "اختيار واحد/متعدد". أنشئ واحداً أولاً من
-                    <a href="{% url 'admin_critere_inscription_ajouter' %}">صفحة معايير التسجيل</a>.
+                    {% trans 'لا يوجد بعد أي معيار من نوع "اختيار واحد/متعدد". أنشئ واحداً أولاً من' %}
+                    <a href="{% url 'admin_critere_inscription_ajouter' %}">{% trans "صفحة معايير التسجيل" %}</a>.
                 </div>
                 {% endif %}
             </div>
@@ -162,17 +161,17 @@
 
         <div id="section_systeme_b" style="display:none;">
             <div style="background:#f0ebe3; border-radius:10px; padding:12px 16px; margin-bottom:16px; color:#555; font-size:0.82rem;">
-                نص بسيط أو خانة موافقة — لا يُستخدم أبداً لتصفية المجموعات، فقط يُعرض على الطالب ويُسجَّل مع طلبه (مثال: البلد، الموافقة على الشروط).
+                {% trans "نص بسيط أو خانة موافقة — لا يُستخدم أبداً لتصفية المجموعات، فقط يُعرض على الطالب ويُسجَّل مع طلبه (مثال: البلد، الموافقة على الشروط)." %}
             </div>
             <div class="mb-3">
-                <label style="font-weight:600; color:#333; font-size:0.9rem;">نوع الحقل *</label>
+                <label style="font-weight:600; color:#333; font-size:0.9rem;">{% trans "نوع الحقل *" %}</label>
                 <select name="type_champ" id="type_champ_select" class="form-select mt-1" onchange="toggleBornesNumeriques()">
-                    <option value="texte">نص</option>
-                    <option value="email">بريد إلكتروني</option>
-                    <option value="telephone">هاتف</option>
-                    <option value="nombre">رقم</option>
-                    <option value="date">تاريخ</option>
-                    <option value="booleen">نعم/لا (خانة موافقة)</option>
+                    <option value="texte">{% trans "نص" %}</option>
+                    <option value="email">{% trans "بريد إلكتروني" %}</option>
+                    <option value="telephone">{% trans "هاتف" %}</option>
+                    <option value="nombre">{% trans "رقم" %}</option>
+                    <option value="date">{% trans "تاريخ" %}</option>
+                    <option value="booleen">{% trans "نعم/لا (خانة موافقة)" %}</option>
                 </select>
             </div>
             {% comment %}
@@ -183,41 +182,41 @@
             {% endcomment %}
             <div class="row g-2" id="bornes_numeriques_wrapper" style="display:none;">
                 <div class="col-6">
-                    <label style="font-weight:600; color:#333; font-size:0.85rem;">الحد الأدنى</label>
-                    <input type="number" name="valeur_min" class="form-control mt-1" placeholder="بلا حد">
+                    <label style="font-weight:600; color:#333; font-size:0.85rem;">{% trans "الحد الأدنى" %}</label>
+                    <input type="number" name="valeur_min" class="form-control mt-1" placeholder="{% trans 'بلا حد' %}">
                 </div>
                 <div class="col-6">
-                    <label style="font-weight:600; color:#333; font-size:0.85rem;">الحد الأقصى</label>
-                    <input type="number" name="valeur_max" class="form-control mt-1" placeholder="بلا حد">
+                    <label style="font-weight:600; color:#333; font-size:0.85rem;">{% trans "الحد الأقصى" %}</label>
+                    <input type="number" name="valeur_max" class="form-control mt-1" placeholder="{% trans 'بلا حد' %}">
                 </div>
             </div>
         </div>
 
         <div class="mb-3">
-            <label style="font-weight:600; color:#333; font-size:0.9rem;">التسمية المعروضة *</label>
+            <label style="font-weight:600; color:#333; font-size:0.9rem;">{% trans "التسمية المعروضة *" %}</label>
             <input type="text" name="label" class="form-control mt-1" required>
         </div>
         <div class="row g-2 align-items-center">
             <div class="col-4">
                 <div class="form-check">
                     <input type="checkbox" name="obligatoire" id="obligatoire" class="form-check-input">
-                    <label class="form-check-label" for="obligatoire" style="font-size:0.9rem;">إلزامي</label>
+                    <label class="form-check-label" for="obligatoire" style="font-size:0.9rem;">{% trans "إلزامي" %}</label>
                 </div>
             </div>
             <div class="col-4">
-                <input type="number" name="ordre" class="form-control" placeholder="الترتيب" value="{{ champs.count|add:1 }}">
+                <input type="number" name="ordre" class="form-control" placeholder="{% trans 'الترتيب' %}" value="{{ champs.count|add:1 }}">
             </div>
         </div>
         <button type="submit" class="mt-3"
             style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-            إضافة ✅
+            {% trans "إضافة ✅" %}
         </button>
     </form>
     {% endif %}
 </div>
 
 <div class="mt-4">
-    <a href="{% url 'admin_etapes_inscription' %}" style="color:#888; text-decoration:none;">← رجوع لقائمة المراحل</a>
+    <a href="{% url 'admin_etapes_inscription' %}" style="color:#888; text-decoration:none;">{% trans "← رجوع لقائمة المراحل" %}</a>
 </div>
 
 <style>
