@@ -5849,3 +5849,141 @@ msgstr "Everything the teacher needs to know about the platform's teaching rules
 
 msgid "ملفات حقيبة الطالب — يديرها المدير والمشرف فقط، ويراها كل طالب معني في \"حقيبتي\" (قراءة فقط)"
 msgstr "Student bag files — managed only by the director and supervisor, visible to each concerned student in \"My bag\" (read only)"
+
+#, python-format
+msgid "%(n)s تقييمات هذا الشهر"
+msgstr "%(n)s evaluations this month"
+
+#, python-format
+msgid "%(n)s دقيقة"
+msgstr "%(n)s minutes"
+
+#, python-format
+msgid "%(nom)s — تقييم الطلاب"
+msgstr "%(nom)s — Student evaluation"
+
+#, python-format
+msgid "%(nom)s: %(moyenne)s/20"
+msgstr "%(nom)s: %(moyenne)s/20"
+
+#, python-format
+msgid "%(obtenus)s / %(max)s نقطة"
+msgstr "%(obtenus)s / %(max)s points"
+
+msgid "(تلقائياً)"
+msgstr "(automatically)"
+
+msgid "إخفاء معايير التقييم"
+msgstr "Hide evaluation criteria"
+
+msgid "الإجابة:"
+msgstr "Answer:"
+
+#, python-format
+msgid "المطلوب حفظه: %(v)s"
+msgstr "To memorize: %(v)s"
+
+#, python-format
+msgid "المطلوب مراجعته: %(v)s"
+msgstr "To review: %(v)s"
+
+msgid "تظهر هذه المعايير في استمارة تقييم المؤطر للمعلم"
+msgstr "These criteria appear in the supervisor's teacher evaluation form"
+
+#, python-format
+msgid "سؤال %(num)s — %(type)s — %(points)s نقطة"
+msgstr "Question %(num)s — %(type)s — %(points)s points"
+
+#, python-format
+msgid "سُلِّمت في %(d)s"
+msgstr "Submitted on %(d)s"
+
+msgid "عرض التقييمات التفصيلية (15 معيار) ←"
+msgstr "View detailed evaluations (15 criteria) ←"
+
+msgid "عرض كل التاريخ"
+msgstr "View full history"
+
+msgid "عرض للاطلاع فقط — التحرير من صلاحية المعلم"
+msgstr "View only — editing is the teacher's responsibility"
+
+msgid "عرض معايير التقييم"
+msgstr "View evaluation criteria"
+
+msgid "غير مكتملة التصحيح"
+msgstr "Grading incomplete"
+
+msgid "لا توجد اختبارات لعرضها ضمن نطاق صلاحيتك."
+msgstr "No exams to display within your scope."
+
+msgid "لا توجد معايير بعد"
+msgstr "No criteria yet"
+
+msgid "لا توجد ملاحظة لهذه الحصة"
+msgstr "No remark for this session"
+
+msgid "لا يوجد بيان مكتوب لهذا الشهر"
+msgstr "No written report for this month"
+
+msgid "لا يوجد تسجيل صوتي."
+msgstr "No audio recording."
+
+msgid "لا يوجد فيديو."
+msgstr "No video."
+
+msgid "لا يوجد معلمون لعرضهم"
+msgstr "No teachers to display"
+
+msgid "لم تُسلَّم بعد"
+msgstr "Not submitted yet"
+
+msgid "مرتب حسب متوسط تقييمات المؤطر لهذا الشهر — غير مرئي للمعلمين"
+msgstr "Ranked by the supervisor's average evaluation this month — not visible to teachers"
+
+msgid "معدل الحصص المقيَّمة هذا الشهر، بناءً على المعايير المسجَّلة لكل حصة"
+msgstr "Average of the sessions evaluated this month, based on the criteria recorded for each session"
+
+msgid "ملاحظة حول أداء هذا المعلم هذا الشهر..."
+msgstr "Remark on this teacher's performance this month..."
+
+#, python-format
+msgid "نسخة %(nom)s"
+msgstr "%(nom)s's copy"
+
+msgid "نظرة عامة على اختبارات الحلقات — للاطلاع فقط"
+msgstr "Overview of the halqas' exams — view only"
+
+msgid "— لا يوجد تقييم"
+msgstr "— No evaluation"
+
+#, python-format
+msgid "← رجوع إلى %(nom)s"
+msgstr "← Back to %(nom)s"
+
+msgid "← رجوع إلى قائمة الاختبارات"
+msgstr "← Back to the exam list"
+
+msgid "✅ لا غياب"
+msgstr "✅ No absence"
+
+#, python-format
+msgid "➕ منحة: %(v)s د.م."
+msgstr "➕ Bonus: %(v)s DH"
+
+#, python-format
+msgid "⭐ المعدل: %(v)s / 4"
+msgstr "⭐ Average: %(v)s / 4"
+
+#, python-format
+msgid "📅 حصص شهر <strong>%(mois)s</strong> فقط"
+msgstr "📅 Sessions from <strong>%(mois)s</strong> only"
+
+msgid "📅 كل التاريخ"
+msgstr "📅 Full history"
+
+msgid "🔁 يعاد"
+msgstr "🔁 To redo"
+
+#, python-format
+msgid "🚫 حصيلة الغياب المعروضة على كل طالب تخص شهر <strong>%(mois)s</strong> — اختر شهراً آخر من الفلتر أدناه لتغييرها"
+msgstr "🚫 The absence summary shown for each student is for <strong>%(mois)s</strong> — pick another month in the filter below to change it"

@@ -5849,3 +5849,141 @@ msgstr "Tout ce dont l'enseignant a besoin pour connaître les règles et le pro
 
 msgid "ملفات حقيبة الطالب — يديرها المدير والمشرف فقط، ويراها كل طالب معني في \"حقيبتي\" (قراءة فقط)"
 msgstr "Fichiers du cartable de l'élève — gérés uniquement par le directeur et le superviseur, visibles par chaque élève concerné dans « Mon cartable » (lecture seule)"
+
+#, python-format
+msgid "%(n)s تقييمات هذا الشهر"
+msgstr "%(n)s évaluations ce mois-ci"
+
+#, python-format
+msgid "%(n)s دقيقة"
+msgstr "%(n)s minutes"
+
+#, python-format
+msgid "%(nom)s — تقييم الطلاب"
+msgstr "%(nom)s — Évaluation des élèves"
+
+#, python-format
+msgid "%(nom)s: %(moyenne)s/20"
+msgstr "%(nom)s : %(moyenne)s/20"
+
+#, python-format
+msgid "%(obtenus)s / %(max)s نقطة"
+msgstr "%(obtenus)s / %(max)s points"
+
+msgid "(تلقائياً)"
+msgstr "(automatiquement)"
+
+msgid "إخفاء معايير التقييم"
+msgstr "Masquer les critères d'évaluation"
+
+msgid "الإجابة:"
+msgstr "Réponse :"
+
+#, python-format
+msgid "المطلوب حفظه: %(v)s"
+msgstr "À mémoriser : %(v)s"
+
+#, python-format
+msgid "المطلوب مراجعته: %(v)s"
+msgstr "À réviser : %(v)s"
+
+msgid "تظهر هذه المعايير في استمارة تقييم المؤطر للمعلم"
+msgstr "Ces critères figurent dans le formulaire d'évaluation de l'enseignant par le superviseur"
+
+#, python-format
+msgid "سؤال %(num)s — %(type)s — %(points)s نقطة"
+msgstr "Question %(num)s — %(type)s — %(points)s points"
+
+#, python-format
+msgid "سُلِّمت في %(d)s"
+msgstr "Rendue le %(d)s"
+
+msgid "عرض التقييمات التفصيلية (15 معيار) ←"
+msgstr "Voir les évaluations détaillées (15 critères) ←"
+
+msgid "عرض كل التاريخ"
+msgstr "Voir tout l'historique"
+
+msgid "عرض للاطلاع فقط — التحرير من صلاحية المعلم"
+msgstr "Affichage en lecture seule — l'édition relève de l'enseignant"
+
+msgid "عرض معايير التقييم"
+msgstr "Voir les critères d'évaluation"
+
+msgid "غير مكتملة التصحيح"
+msgstr "Correction incomplète"
+
+msgid "لا توجد اختبارات لعرضها ضمن نطاق صلاحيتك."
+msgstr "Aucun examen à afficher dans votre périmètre."
+
+msgid "لا توجد معايير بعد"
+msgstr "Aucun critère pour l'instant"
+
+msgid "لا توجد ملاحظة لهذه الحصة"
+msgstr "Aucune remarque pour cette séance"
+
+msgid "لا يوجد بيان مكتوب لهذا الشهر"
+msgstr "Aucun bilan écrit pour ce mois"
+
+msgid "لا يوجد تسجيل صوتي."
+msgstr "Aucun enregistrement audio."
+
+msgid "لا يوجد فيديو."
+msgstr "Aucune vidéo."
+
+msgid "لا يوجد معلمون لعرضهم"
+msgstr "Aucun enseignant à afficher"
+
+msgid "لم تُسلَّم بعد"
+msgstr "Pas encore rendue"
+
+msgid "مرتب حسب متوسط تقييمات المؤطر لهذا الشهر — غير مرئي للمعلمين"
+msgstr "Classé selon la moyenne des évaluations du superviseur ce mois-ci — non visible par les enseignants"
+
+msgid "معدل الحصص المقيَّمة هذا الشهر، بناءً على المعايير المسجَّلة لكل حصة"
+msgstr "Moyenne des séances évaluées ce mois-ci, d'après les critères enregistrés pour chaque séance"
+
+msgid "ملاحظة حول أداء هذا المعلم هذا الشهر..."
+msgstr "Remarque sur la performance de cet enseignant ce mois-ci..."
+
+#, python-format
+msgid "نسخة %(nom)s"
+msgstr "Copie de %(nom)s"
+
+msgid "نظرة عامة على اختبارات الحلقات — للاطلاع فقط"
+msgstr "Vue d'ensemble des examens des halqas — en lecture seule"
+
+msgid "— لا يوجد تقييم"
+msgstr "— Aucune évaluation"
+
+#, python-format
+msgid "← رجوع إلى %(nom)s"
+msgstr "← Retour à %(nom)s"
+
+msgid "← رجوع إلى قائمة الاختبارات"
+msgstr "← Retour à la liste des examens"
+
+msgid "✅ لا غياب"
+msgstr "✅ Aucune absence"
+
+#, python-format
+msgid "➕ منحة: %(v)s د.م."
+msgstr "➕ Prime : %(v)s DH"
+
+#, python-format
+msgid "⭐ المعدل: %(v)s / 4"
+msgstr "⭐ Moyenne : %(v)s / 4"
+
+#, python-format
+msgid "📅 حصص شهر <strong>%(mois)s</strong> فقط"
+msgstr "📅 Séances du mois de <strong>%(mois)s</strong> uniquement"
+
+msgid "📅 كل التاريخ"
+msgstr "📅 Tout l'historique"
+
+msgid "🔁 يعاد"
+msgstr "🔁 À refaire"
+
+#, python-format
+msgid "🚫 حصيلة الغياب المعروضة على كل طالب تخص شهر <strong>%(mois)s</strong> — اختر شهراً آخر من الفلتر أدناه لتغييرها"
+msgstr "🚫 Le bilan d'absences affiché pour chaque élève concerne le mois de <strong>%(mois)s</strong> — choisissez un autre mois dans le filtre ci-dessous pour le changer"
