@@ -279,7 +279,7 @@ def mes_notes_personnelles(request):
     return render(request, 'dashboard/mes_notes_personnelles.html', context)
 
 
-@role_required('eleve', 'prof', 'admin', 'mshrif')
+@role_required('eleve', 'prof', 'superviseur', 'admin', 'mshrif')
 def mes_notifications(request):
     """Page "عرض الكل" du panneau 🔔 الإشعارات (lien en bas du dropdown, voir
     dashboard/_header_raccourcis.html) — mêmes données que le dropdown, sans
@@ -292,8 +292,13 @@ def mes_notifications(request):
     survolant cette liste.
 
     admin/mshrif ajoutés au chantier du 2026-08-24 (voir dashboard.
-    notifications.notifications_direction) — même page, juste une 3e branche."""
-    from dashboard.notifications import notifications_eleve, notifications_prof, notifications_direction, LIMITE_FETCH
+    notifications.notifications_direction) — même page, juste une 3e branche.
+    superviseur ajouté au chantier du 2026-08-31 (voir dashboard.
+    notifications.notifications_superviseur) — 4e branche."""
+    from dashboard.notifications import (
+        notifications_eleve, notifications_prof, notifications_superviseur,
+        notifications_direction, LIMITE_FETCH,
+    )
 
     if request.user.role == 'eleve':
         from accounts.models import Eleve
@@ -305,6 +310,9 @@ def mes_notifications(request):
         prof = get_object_or_404(Prof, user=request.user)
         notif_groupes, notif_total = notifications_prof(prof, request.user, limite=LIMITE_FETCH)
         base_template = 'dashboard/base_prof.html'
+    elif request.user.role == 'superviseur':
+        notif_groupes, notif_total = notifications_superviseur(request.user, limite=LIMITE_FETCH)
+        base_template = 'dashboard/base_superviseur.html'
     else:  # 'admin' ou 'mshrif'
         notif_groupes, notif_total = notifications_direction(request.user, limite=LIMITE_FETCH)
         base_template = _base_template_admin_ou_mshrif(request)
@@ -3708,9 +3716,18 @@ def dashboard_superviseur(request):
     ]
     nb_semaine_courante = a_venir['nb_semaine_courante']
 
+    # Panneau 🔔 الإشعارات (Chantier du 2026-08-31) — calculé UNIQUEMENT ici
+    # (page d'accueil), jamais en context processor global : voir
+    # dashboard.notifications.__doc__. Un seul déclencheur côté مؤطر : un
+    # nouvel élément déposé dans la حقيبة الأستاذ par la direction.
+    from dashboard.notifications import notifications_superviseur
+    notif_groupes, notif_total = notifications_superviseur(request.user)
+
     return render(request, 'dashboard/superviseur.html', {
         'superviseur': superviseur,
         'aujourdhui': aujourdhui,
+        'notif_groupes': notif_groupes,
+        'notif_total': notif_total,
         'total_seances': toutes_seances.count(),
         'nb_retard': seances_retard.count(),
         'nb_seances_mois_courant': nb_seances_mois_courant,
@@ -3974,6 +3991,15 @@ def superviseur_hakiba(request):
     elements = ElementHakiba.objects.select_related('ajoute_par').prefetch_related(
         'profs_cibles__user'
     ).all()
+
+    # Marque le type 'hakiba' comme lu (panneau 🔔 الإشعارات, Chantier du
+    # 2026-08-31) — même clé que côté prof (prof_hakiba), keyée par (user,
+    # cle) donc propre à ce مؤطر. Juste avant le render, jamais avant (la vue
+    # ne redirige jamais plus tôt ici, mais on garde la même précaution que
+    # les autres appelants de marquer_visite).
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'hakiba')
+
     return render(request, 'dashboard/superviseur_hakiba.html', {
         'elements_hakiba': elements,
     })

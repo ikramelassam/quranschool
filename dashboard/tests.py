@@ -2619,21 +2619,56 @@ class NotificationsChantierTests(TestCase):
         response = self.client.get(reverse('dashboard_prof'))
         self.assertEqual(response.context['notif_total'], 0)
 
-    # ---------- Rôles sans ce déclencheur ----------
-    def test_superviseur_naffiche_jamais_le_panneau_notifications(self):
+    # ---------- 5c. Hakiba côté مؤطر (Chantier du 2026-08-31) ----------
+    def _connecter_superviseur(self):
         self.client.force_login(self.superviseur.user)
+
+    def test_hakiba_declenche_le_badge_superviseur(self):
+        ElementHakiba.objects.create(titre='ميثاق التدريس', contenu_texte='...', tous_les_profs=True)
+        self._connecter_superviseur()
         response = self.client.get(reverse('dashboard_superviseur'))
-        self.assertNotContains(response, 'id="notifWrap"')
+        self.assertEqual(response.context['notif_total'], 1)
+        self.assertContains(response, 'ميثاق التدريس')
+
+    def test_hakiba_ciblant_un_prof_precis_declenche_quand_meme_le_superviseur(self):
+        """Contrairement au prof, le مؤطر voit TOUS les éléments de la حقيبة
+        sans distinction de ciblage (voir dashboard.views.superviseur_hakiba)
+        — un élément ciblé sur un seul prof lève donc quand même son badge."""
+        autre_prof = _creer_prof(email='notif_hakiba_autre_prof@zidni.test')
+        element = ElementHakiba.objects.create(titre='خاص بأستاذ واحد', tous_les_profs=False)
+        element.profs_cibles.add(autre_prof)
+        self._connecter_superviseur()
+        response = self.client.get(reverse('dashboard_superviseur'))
+        self.assertEqual(response.context['notif_total'], 1)
+
+    def test_visiter_hakiba_marque_le_type_comme_lu_pour_le_superviseur(self):
+        ElementHakiba.objects.create(titre='ميثاق', contenu_texte='...', tous_les_profs=True)
+        self._connecter_superviseur()
+        self.assertEqual(self.client.get(reverse('dashboard_superviseur')).context['notif_total'], 1)
+        self.client.get(reverse('superviseur_hakiba'))
+        self.assertEqual(self.client.get(reverse('dashboard_superviseur')).context['notif_total'], 0)
+
+    def test_visite_prof_ne_marque_pas_lu_pour_le_superviseur(self):
+        """DerniereVisiteNotification est keyée par (user, cle) : la visite de
+        prof_hakiba par le prof ne fait jamais retomber le badge du مؤطر."""
+        ElementHakiba.objects.create(titre='ميثاق', contenu_texte='...', tous_les_profs=True)
+        self._connecter_prof()
+        self.client.get(reverse('prof_hakiba'))  # le prof marque SON 'hakiba' lu
+        self._connecter_superviseur()
+        response = self.client.get(reverse('dashboard_superviseur'))
+        self.assertEqual(response.context['notif_total'], 1)
 
     # ---------- Page "عرض الكل" ----------
-    def test_mes_notifications_accessible_eleve_et_prof(self):
+    def test_mes_notifications_accessible_eleve_prof_superviseur(self):
         self._connecter_eleve()
         self.assertEqual(self.client.get(reverse('mes_notifications')).status_code, 200)
         self._connecter_prof()
         self.assertEqual(self.client.get(reverse('mes_notifications')).status_code, 200)
+        self._connecter_superviseur()
+        self.assertEqual(self.client.get(reverse('mes_notifications')).status_code, 200)
 
-    def test_mes_notifications_refuse_autre_role(self):
-        self.client.force_login(self.superviseur.user)
+    def test_mes_notifications_refuse_visiteur_anonyme(self):
+        self.client.logout()
         response = self.client.get(reverse('mes_notifications'))
         self.assertNotEqual(response.status_code, 200)
 

@@ -20,10 +20,10 @@ notifications_direction) — un sous-titre générique évite d'énumérer un
 contenu qui ne s'affichera jamais pour ce rôle.
 {% endcomment %}
 <div class="page-subtitle">
-    {% if request.user.role == 'admin' or request.user.role == 'mshrif' %}
-    {% trans "كل جديد يستدعي انتباهك" %}
-    {% else %}
+    {% if request.user.role == 'eleve' or request.user.role == 'prof' %}
     {% trans "كل ما يخصك شخصياً — اختبارات، تقييمات، ملفات جديدة" %}
+    {% else %}
+    {% trans "كل جديد يستدعي انتباهك" %}
     {% endif %}
 </div>
 
