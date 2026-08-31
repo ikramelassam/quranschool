@@ -298,6 +298,22 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
     étant déjà keyée par (user, cle) et pas juste par cle : la visite de
     l'un ne marque jamais "lu" pour l'autre.
 
+    1bis. Nouvelle candidature PROF encore en attente de la pré-validation
+    étape 1 (InscriptionProf.statut='en_attente', date_soumission
+    auto_now_add — même garantie anti-fausse-notification que le reste du
+    module). مدير UNIQUEMENT : cette pré-validation est @role_required('admin')
+    (voir admin_valider_prof/admin_rejeter_prof), le مشرف n'agit qu'à
+    l'étape 2 sur les 'validee_directeur' (groupe 2 ci-dessous) — lui
+    montrer aussi les 'en_attente' serait du bruit sur lequel il ne peut
+    rien faire. `cle` DÉDIÉE 'demandes_inscription_prof', PAS la
+    'demandes_inscription' des élèves : repère de lecture distinct, pour
+    que visiter la fiche d'un élève ne fasse pas disparaître les
+    notifications profs et inversement (même précision que le correctif du
+    2026-08-25). Marquée lue par admin_inscriptions (liste mixte) ET
+    admin_inscription_prof_detail (fiche), exactement comme le couple
+    liste/fiche du groupe 1. Mène vers la fiche (admin_inscription_prof_
+    detail), comme le groupe 1.
+
     2. Candidature prof pré-validée par le مدير, en attente de la
     validation finale du مشرف (InscriptionProf.statut='validee_directeur')
     — Fonctionnalité 3 (2026-08-27, chantier annoncé mais volontairement
@@ -329,6 +345,8 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
     cles = ['demandes_inscription', 'demandes_changement_halaka']
     if user.role == 'mshrif':
         cles.append('profs_en_attente_validation')
+    if user.role == 'admin':
+        cles.append('demandes_inscription_prof')
     seuils = _seuils(user, cles)
 
     demandes = list(
@@ -344,6 +362,24 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
         }
         for d in demandes
     ]
+
+    # 1bis — nouvelle candidature prof en attente de pré-validation étape 1,
+    # مدير uniquement (voir docstring). Même patron que le groupe 1 élève.
+    evenements_demandes_prof = []
+    if user.role == 'admin':
+        demandes_prof = list(
+            InscriptionProf.objects.filter(
+                statut='en_attente', date_soumission__gt=seuils['demandes_inscription_prof'],
+            ).order_by('-date_soumission')[:LIMITE_FETCH]
+        )
+        evenements_demandes_prof = [
+            {
+                'texte': _('طلب تسجيل أستاذ جديد: %(nom)s %(prenom)s') % {'nom': p.nom, 'prenom': p.prenom},
+                'url': reverse('admin_inscription_prof_detail', args=[p.id]),
+                'date': p.date_soumission,
+            }
+            for p in demandes_prof
+        ]
 
     evenements_profs_en_attente = []
     if user.role == 'mshrif':
@@ -382,6 +418,10 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
         groupes.append({
             'icone': '📝', 'label': _('طلبات تسجيل جديدة'), 'evenements': evenements_demandes[:limite],
         })
+    if evenements_demandes_prof:
+        groupes.append({
+            'icone': '👨‍🏫', 'label': _('طلبات تسجيل أساتذة جديدة'), 'evenements': evenements_demandes_prof[:limite],
+        })
     if evenements_profs_en_attente:
         groupes.append({
             'icone': '👨‍🏫', 'label': _('طلبات أساتذة بانتظار تصديقك'),
@@ -392,4 +432,7 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
             'icone': '🔄', 'label': _('طلبات تغيير حلقة'), 'evenements': evenements_changement_halaka[:limite],
         })
 
-    return groupes, len(evenements_demandes) + len(evenements_profs_en_attente) + len(evenements_changement_halaka)
+    return groupes, (
+        len(evenements_demandes) + len(evenements_demandes_prof)
+        + len(evenements_profs_en_attente) + len(evenements_changement_halaka)
+    )

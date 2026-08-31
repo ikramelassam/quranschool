@@ -2985,6 +2985,72 @@ class NotificationsProfEnAttenteDirectionTests(TestCase):
         self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 0)
 
 
+class NotificationsNouvelleCandidatureProfDirectionTests(TestCase):
+    """Voir dashboard.notifications.notifications_direction — groupe "1bis" :
+    InscriptionProf.statut='en_attente' (candidature prof pas encore
+    pré-validée). مدير UNIQUEMENT (le مشرف n'agit qu'à l'étape 2), `cle`
+    dédiée 'demandes_inscription_prof' distincte de celle des élèves."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def _candidature(self, nom='مرشح أستاذ جديد', statut='en_attente'):
+        from inscriptions.models import InscriptionProf
+        return InscriptionProf.objects.create(
+            nom=nom, prenom='تجريبي', telephone='0600000020',
+            email=f'{nom}_prof_nouveau@zidni.test'.replace(' ', '_'), statut=statut,
+        )
+
+    def test_nouvelle_candidature_prof_declenche_le_badge_du_directeur_pas_du_mshrif(self):
+        self._candidature()
+        self.client.force_login(self.admin)
+        reponse_admin = self.client.get(reverse('dashboard_admin'))
+        self.assertEqual(reponse_admin.context['notif_total'], 1)
+        self.assertContains(reponse_admin, 'طلب تسجيل أستاذ جديد')
+
+        # مشرف : l'étape 1 n'est pas la sienne, rien pour lui ici.
+        self.client.force_login(self.mshrif)
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 0)
+
+    def test_candidature_prof_deja_pre_validee_ne_declenche_pas_ce_groupe(self):
+        self._candidature(statut='validee_directeur')
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 0)
+
+    def test_visiter_la_liste_des_inscriptions_marque_comme_lu(self):
+        self._candidature()
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 1)
+        self.client.get(reverse('admin_inscriptions'))
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 0)
+
+    def test_visiter_la_fiche_de_la_candidature_marque_comme_lu(self):
+        inscription = self._candidature()
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 1)
+        self.client.get(reverse('admin_inscription_prof_detail', args=[inscription.id]))
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 0)
+
+    def test_repere_de_lecture_independant_de_celui_des_eleves(self):
+        """`cle` dédiée : lire une fiche élève ne doit pas faire disparaître
+        la notification d'une candidature prof (et inversement)."""
+        self._candidature()
+        eleve_ins = InscriptionEleve.objects.create(
+            nom='مرشح تلميذ', date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+            telephone='0600000021', email='notif_mix_eleve@zidni.test',
+            programme='hifz', riwaya='hafs', outil='whatsapp', abonnement='groupe_1mois',
+            statut='en_attente',
+        )
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 2)
+        # Lire uniquement la fiche élève.
+        self.client.get(reverse('admin_inscription_eleve_detail', args=[eleve_ins.id]))
+        reponse = self.client.get(reverse('dashboard_admin'))
+        self.assertEqual(reponse.context['notif_total'], 1)
+        self.assertContains(reponse, 'طلب تسجيل أستاذ جديد')
+
+
 class DepuisRelatifFiltreTests(TestCase):
     """Filtre dashboard.templatetags.libelles_arabes.depuis_relatif — duel
     arabe correct à CHAQUE palier (minute/heure/jour/semaine), pas juste le
@@ -3015,6 +3081,35 @@ class DepuisRelatifFiltreTests(TestCase):
         self.assertEqual(depuis_relatif(self._il_y_a(minutes=1)), 'منذ دقيقة')
         self.assertEqual(depuis_relatif(self._il_y_a(minutes=5)), 'منذ 5 دقائق')
         self.assertEqual(depuis_relatif(self._il_y_a(hours=5)), 'منذ 5 ساعات')
+
+
+class LibellesArabesListeFiltreTests(TestCase):
+    """Filtre dashboard.templatetags.libelles_arabes.libelles_arabes_liste —
+    les valeurs de LIBELLES sont des gettext_lazy (__proxy__) depuis le
+    chantier i18n : str.join() lève 'expected str instance, __proxy__ found'
+    si on ne force pas str() sur chaque élément (bug fiche prof, 2026-08-31)."""
+
+    def test_liste_de_codes_traduits_est_jointe_sans_typeerror(self):
+        from dashboard.templatetags.libelles_arabes import libelles_arabes_liste
+        self.assertEqual(
+            libelles_arabes_liste(['arabe', 'francais'], 'langues'),
+            'العربية، الفرنسية',
+        )
+
+    def test_code_inconnu_retombe_sur_le_code_brut(self):
+        from dashboard.templatetags.libelles_arabes import libelles_arabes_liste
+        self.assertEqual(libelles_arabes_liste(['xyz'], 'langues'), 'xyz')
+
+    def test_fiche_prof_avec_champs_json_non_vides_rend_200(self):
+        prof = _creer_prof('prof_libelles_json@zidni.test')
+        prof.langues = ['arabe', 'francais']
+        prof.outils_maitrises = ['whatsapp', 'meet']
+        prof.type_eleve_preference = ['enfants']
+        prof.contrainte_genre = ['mixte']
+        prof.save()
+        self.client.force_login(_creer_admin())
+        r = self.client.get(reverse('admin_prof_detail', args=[prof.id]))
+        self.assertEqual(r.status_code, 200)
 
 
 # ============================================================================

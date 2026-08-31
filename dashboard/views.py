@@ -2043,6 +2043,11 @@ def admin_inscriptions(request):
     # les autres appelants de marquer_visite).
     from dashboard.notifications import marquer_visite
     marquer_visite(request.user, 'demandes_inscription')
+    # Cette liste mixte affiche AUSSI les candidatures profs en attente —
+    # elle est donc la page cible du groupe 🔔 'demandes_inscription_prof'
+    # (مدير, voir dashboard.notifications.notifications_direction), au même
+    # titre que admin_inscription_prof_detail (la fiche).
+    marquer_visite(request.user, 'demandes_inscription_prof')
     return render(request, 'dashboard/admin_inscriptions.html', context)
 
 
@@ -2531,6 +2536,13 @@ def admin_inscription_prof_detail(request, inscription_id):
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
+    # 2e "page cible" du groupe 🔔 'demandes_inscription_prof' (مدير, voir
+    # dashboard.notifications.notifications_direction) — chaque lien de
+    # notification pointe ICI (la fiche d'une candidature précise). Même
+    # précaution que les autres appelants de marquer_visite : juste avant le
+    # render. Inoffensif pour le مشرف (qui n'utilise pas cette cle).
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'demandes_inscription_prof')
     return render(request, 'dashboard/admin_inscription_prof_detail.html', context)
 
 @role_required('admin')

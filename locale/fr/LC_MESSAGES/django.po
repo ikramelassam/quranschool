@@ -2765,6 +2765,13 @@ msgid "طلب أستاذ بانتظار تصديقك: %(nom)s %(prenom)s"
 msgstr "Candidature enseignant en attente de votre validation : %(nom)s %(prenom)s"
 
 #, python-format
+msgid "طلب تسجيل أستاذ جديد: %(nom)s %(prenom)s"
+msgstr "Nouvelle candidature enseignant : %(nom)s %(prenom)s"
+
+msgid "طلبات تسجيل أساتذة جديدة"
+msgstr "Nouvelles candidatures enseignants"
+
+#, python-format
 msgid "طلب تغيير حلقة: %(nom)s"
 msgstr "Demande de changement de groupe : %(nom)s"
 
