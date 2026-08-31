@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language
 
 
 class TypeAbonnement(models.Model):
@@ -51,6 +51,11 @@ class TypeAbonnement(models.Model):
     # dérivé de `label`), simplement rarement nécessaire aujourd'hui que
     # `label` est déjà court.
     label = models.CharField(max_length=100)
+    # Traductions manuelles FR/EN (chantier i18n contenu-DB, 2026-08-31) —
+    # repli automatique sur l'arabe via label_localise. Vu par le candidat
+    # (wizard étape Abonnement) + le مدير.
+    label_fr = models.CharField(max_length=100, blank=True, default='')
+    label_en = models.CharField(max_length=100, blank=True, default='')
     duree = models.CharField(max_length=50, blank=True, default='', choices=DUREE_CHOICES)
     prix = models.DecimalField(max_digits=8, decimal_places=2)
     # Utilisé pour comparer un abonnement choisi à l'inscription au type_capacite
@@ -68,6 +73,15 @@ class TypeAbonnement(models.Model):
         return f"{self.get_type_offre_display()} - {self.label} ({self.prix} درهم)"
 
     @property
+    def label_localise(self):
+        langue = get_language()
+        if langue == 'fr' and self.label_fr:
+            return self.label_fr
+        if langue == 'en' and self.label_en:
+            return self.label_en
+        return self.label
+
+    @property
     def duree_affichee(self):
         """Texte à afficher là où le type d'offre est déjà connu par le
         parcours (wizard public étape Abonnement, admin_eleve_ajouter_
@@ -82,7 +96,7 @@ class TypeAbonnement(models.Model):
         display() la retourne alors TELLE QUELLE (comportement standard de
         Django pour une valeur hors choices), donc strictement identique à
         `self.duree` pour ces anciennes valeurs : aucune régression."""
-        return self.get_duree_display() or self.label
+        return self.get_duree_display() or self.label_localise
 
     class Meta:
         ordering = ['ordre']
@@ -283,7 +297,7 @@ class InscriptionEleve(models.Model):
         """Libellé lisible de l'abonnement, lu depuis TypeAbonnement (dynamique).
         Retombe sur le code brut si le type a été supprimé depuis."""
         type_abo = TypeAbonnement.objects.filter(code=self.abonnement).first()
-        return type_abo.label if type_abo else self.abonnement
+        return type_abo.label_localise if type_abo else self.abonnement
 
     def abonnement_type_offre(self):
         """'individuel' ou 'groupe', lu depuis TypeAbonnement. None si le type

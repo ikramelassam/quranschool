@@ -36,7 +36,7 @@ perdre au مدير.
             <input type="hidden" name="lien_meet_exceptionnel" value="{{ lien.id }}">
             <span style="display:flex; align-items:center; gap:6px; min-width:0; flex:1 1 auto;">
                 {% include 'dashboard/_meet_glyph.html' %}
-                <span style="font-weight:600; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ lien.libelle|default:lien.url }}</span>
+                <span style="font-weight:600; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ lien.libelle_localise|default:lien.url }}</span>
             </span>
             <span style="color:var(--color-success); font-size:0.75rem; white-space:nowrap;">{% trans "متاح لهذا الموعد" %}</span>
             <button type="submit"

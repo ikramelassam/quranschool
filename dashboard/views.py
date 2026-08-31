@@ -1342,12 +1342,10 @@ def admin_programme_general(request):
 
     programme = get_programme_general()
     if request.method == 'POST':
-        programme.titre_enfants = request.POST.get('titre_enfants', '')
-        programme.intro_enfants = request.POST.get('intro_enfants', '')
-        programme.items_enfants = request.POST.get('items_enfants', '')
-        programme.titre_adultes = request.POST.get('titre_adultes', '')
-        programme.intro_adultes = request.POST.get('intro_adultes', '')
-        programme.items_adultes = request.POST.get('items_adultes', '')
+        for champ in programme._CHAMPS_LOCALISABLES:
+            setattr(programme, champ, request.POST.get(champ, ''))
+            setattr(programme, f'{champ}_fr', request.POST.get(f'{champ}_fr', ''))
+            setattr(programme, f'{champ}_en', request.POST.get(f'{champ}_en', ''))
         programme.save()
         messages.success(request, 'تم تحديث البرنامج العام بنجاح.')
         return redirect('admin_programme_general')
@@ -5357,7 +5355,10 @@ def admin_abonnement_ajouter(request):
         else:
             with transaction.atomic():
                 abonnement = TypeAbonnement.objects.create(
-                    code=code, label=label, duree=duree, type_offre=type_offre, cible_age=cible_age,
+                    code=code, label=label,
+                    label_fr=(request.POST.get('label_fr') or '').strip(),
+                    label_en=(request.POST.get('label_en') or '').strip(),
+                    duree=duree, type_offre=type_offre, cible_age=cible_age,
                     prix=prix_par_nb_slots[min(prix_par_nb_slots)], ordre=ordre or 0,
                 )
                 for nb_slots, prix in prix_par_nb_slots.items():
@@ -5425,6 +5426,8 @@ def admin_abonnement_modifier(request, abonnement_id):
     if request.method == 'POST':
         with transaction.atomic():
             type_abonnement.label = request.POST.get('label')
+            type_abonnement.label_fr = (request.POST.get('label_fr') or '').strip()
+            type_abonnement.label_en = (request.POST.get('label_en') or '').strip()
             type_abonnement.duree = request.POST.get('duree', '').strip()
             type_abonnement.prix = request.POST.get('prix')
             type_abonnement.cible_age = request.POST.get('cible_age', 'les_deux')

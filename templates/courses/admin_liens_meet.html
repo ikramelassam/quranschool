@@ -41,6 +41,8 @@ contente d'afficher/masquer ce bloc, déjà à portée immédiate du bouton.
         <div style="flex:1; min-width:200px;">
             <label style="color:#888; font-size:0.8rem;">{% trans "اسم الرابط (اختياري)" %}</label>
             <input type="text" name="libelle" class="form-control mt-1" placeholder="{% trans 'مثال: Meet 1' %}">
+            <input type="text" name="libelle_fr" class="form-control mt-1" placeholder="🇫🇷 FR">
+            <input type="text" name="libelle_en" class="form-control mt-1" placeholder="🇬🇧 EN">
         </div>
         <div style="flex:2; min-width:260px;">
             <label style="color:#888; font-size:0.8rem;">{% trans "رابط Google Meet *" %}</label>
@@ -136,7 +138,7 @@ d'abord l'horaire").
                         <input type="hidden" name="lien_meet" value="{{ lien.id }}">
                         <span style="display:flex; align-items:center; gap:6px; min-width:0; flex:1 1 auto;">
                             {% include 'dashboard/_meet_glyph.html' %}
-                            <span style="font-weight:600; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ lien.libelle|default:lien.url }}</span>
+                            <span style="font-weight:600; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ lien.libelle_localise|default:lien.url }}</span>
                         </span>
                         <span style="color:var(--color-success); font-size:0.75rem; white-space:nowrap;">{% trans "متاح لهذا التوقيت" %}</span>
                         <button type="submit"
@@ -145,11 +147,35 @@ d'abord l'horaire").
                         </button>
                     </form>
                     {% endfor %}
+                    <form method="POST" action="{% url 'admin_lien_meet_attribuer_groupe' groupe.id %}"
+                          class="d-flex align-items-center flex-wrap gap-2"
+                          style="background:#f7f3ea; border:1px solid var(--color-brand-gold); border-radius:8px; padding:8px 10px;">
+                        {% csrf_token %}
+                        <input type="url" name="lien_meet_nouveau" required
+                               style="flex:1 1 auto; min-width:0; font-size:0.8rem; border:1px solid #ddd; border-radius:6px; padding:5px 8px;"
+                               placeholder="{% trans 'أو الصق رابطاً جديداً' %}">
+                        <button type="submit"
+                            style="background:var(--color-brand-gold-dark); color:white; border:none; border-radius:6px; padding:5px 14px; font-size:0.8rem; font-weight:600; white-space:nowrap; cursor:pointer; flex-shrink:0;">
+                            {% trans "إسناد" %}
+                        </button>
+                    </form>
                 </div>
                 {% else %}
                 <div style="background:#fce4e4; border-radius:8px; padding:10px 12px;">
                     <div style="color:var(--color-danger); font-size:0.85rem; font-weight:700; margin-bottom:4px;">⚠️ {% trans "لا يوجد رابط Google Meet متاح لهذا الجدول" %}</div>
                     <div style="color:#8a3b36; font-size:0.78rem; margin-bottom:8px;">{% trans "جميع الروابط الحالية متعارضة مع أوقات مجموعات أخرى." %}</div>
+                    <form method="POST" action="{% url 'admin_lien_meet_attribuer_groupe' groupe.id %}"
+                          class="d-flex align-items-center flex-wrap gap-2 mb-2"
+                          style="background:white; border:1px solid var(--color-danger); border-radius:6px; padding:8px 10px;">
+                        {% csrf_token %}
+                        <input type="url" name="lien_meet_nouveau" required
+                               style="flex:1 1 auto; min-width:0; font-size:0.8rem; border:1px solid #ddd; border-radius:6px; padding:5px 8px;"
+                               placeholder="{% trans 'الصق رابط Google Meet جديداً' %}">
+                        <button type="submit"
+                            style="background:var(--color-danger); color:white; border:none; border-radius:6px; padding:5px 14px; font-size:0.78rem; font-weight:600; white-space:nowrap; cursor:pointer;">
+                            {% trans "إسناد" %}
+                        </button>
+                    </form>
                     <div class="d-flex gap-2 flex-wrap">
                         <button type="button" onclick="toggleAjouterLien()"
                             style="background:var(--color-danger); color:white; border:none; border-radius:6px; padding:6px 12px; font-size:0.78rem; cursor:pointer;">
@@ -224,7 +250,7 @@ natif (repliable SANS JS) pour ne pas alourdir la carte par défaut.
             <div style="display:flex; align-items:center; gap:8px; min-width:0;">
                 {% include 'dashboard/_meet_glyph.html' %}
                 {% trans "رابط بدون اسم" as texte_sans_nom %}
-                <span style="font-weight:700; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ lien.libelle|default:texte_sans_nom }}</span>
+                <span style="font-weight:700; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ lien.libelle_localise|default:texte_sans_nom }}</span>
             </div>
             {% if lien.est_actif %}
                 {% trans "نشط" as texte_actif %}

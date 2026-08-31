@@ -489,10 +489,65 @@ class ProgrammeGeneral(models.Model):
     intro_adultes = models.TextField(blank=True)
     items_adultes = models.TextField(blank=True)
 
+    # Traductions FR/EN manuelles (chantier i18n contenu-DB, 2026-08-31) —
+    # même patron que registration.PresentationInscription : optionnelles,
+    # repli automatique sur l'arabe via _localise / <champ>_localise. Contenu
+    # vu par l'élève et le prof.
+    titre_enfants_fr = models.CharField(max_length=200, blank=True, default='')
+    titre_enfants_en = models.CharField(max_length=200, blank=True, default='')
+    intro_enfants_fr = models.TextField(blank=True, default='')
+    intro_enfants_en = models.TextField(blank=True, default='')
+    items_enfants_fr = models.TextField(blank=True, default='')
+    items_enfants_en = models.TextField(blank=True, default='')
+    titre_adultes_fr = models.CharField(max_length=200, blank=True, default='')
+    titre_adultes_en = models.CharField(max_length=200, blank=True, default='')
+    intro_adultes_fr = models.TextField(blank=True, default='')
+    intro_adultes_en = models.TextField(blank=True, default='')
+    items_adultes_fr = models.TextField(blank=True, default='')
+    items_adultes_en = models.TextField(blank=True, default='')
+
     date_modification = models.DateTimeField(auto_now=True)
+
+    _CHAMPS_LOCALISABLES = (
+        'titre_enfants', 'intro_enfants', 'items_enfants',
+        'titre_adultes', 'intro_adultes', 'items_adultes',
+    )
 
     def __str__(self):
         return "البرنامج العام"
+
+    def _localise(self, champ_base):
+        """Repli langue active -> arabe — voir Prof._localise / PresentationInscription._localise."""
+        langue = get_language()
+        if langue in ('fr', 'en'):
+            valeur = getattr(self, f'{champ_base}_{langue}', '')
+            if valeur:
+                return valeur
+        return getattr(self, champ_base)
+
+    @property
+    def titre_enfants_localise(self):
+        return self._localise('titre_enfants')
+
+    @property
+    def intro_enfants_localise(self):
+        return self._localise('intro_enfants')
+
+    @property
+    def items_enfants_localise(self):
+        return self._localise('items_enfants')
+
+    @property
+    def titre_adultes_localise(self):
+        return self._localise('titre_adultes')
+
+    @property
+    def intro_adultes_localise(self):
+        return self._localise('intro_adultes')
+
+    @property
+    def items_adultes_localise(self):
+        return self._localise('items_adultes')
 
     class Meta:
         verbose_name = "Programme général"

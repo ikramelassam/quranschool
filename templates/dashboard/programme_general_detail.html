@@ -7,10 +7,10 @@
 
 {% if montrer_enfants %}
 <div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px; max-width:800px;">
-    <h3 style="margin-top:0;">{{ programme.titre_enfants }}</h3>
-    <div style="line-height:2;">{{ programme.intro_enfants|linebreaks }}</div>
+    <h3 style="margin-top:0;">{{ programme.titre_enfants_localise }}</h3>
+    <div style="line-height:2;">{{ programme.intro_enfants_localise|linebreaks }}</div>
     <ul style="padding-right:20px; line-height:1.9;">
-        {% for item in programme.items_enfants|parse_items %}
+        {% for item in programme.items_enfants_localise|parse_items %}
         <li>{% if item.label %}<strong>{{ item.label }}:</strong> {% endif %}{{ item.texte }}</li>
         {% endfor %}
     </ul>
@@ -22,10 +22,10 @@
 
 {% if montrer_adultes %}
 <div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); max-width:800px;">
-    <h3 style="margin-top:0;">{{ programme.titre_adultes }}</h3>
-    <div style="line-height:2;">{{ programme.intro_adultes|linebreaks }}</div>
+    <h3 style="margin-top:0;">{{ programme.titre_adultes_localise }}</h3>
+    <div style="line-height:2;">{{ programme.intro_adultes_localise|linebreaks }}</div>
     <ul style="padding-right:20px; line-height:1.9;">
-        {% for item in programme.items_adultes|parse_items %}
+        {% for item in programme.items_adultes_localise|parse_items %}
         <li>{% if item.label %}<strong>{{ item.label }}:</strong> {% endif %}{{ item.texte }}</li>
         {% endfor %}
     </ul>

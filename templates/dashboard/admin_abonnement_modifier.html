@@ -18,6 +18,8 @@
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "الاسم المعروض *" %}</label>
             <input type="text" name="label" class="form-control mt-1" value="{{ type_abonnement.label }}" required>
+            <input type="text" name="label_fr" class="form-control mt-1" placeholder="🇫🇷 FR" value="{{ type_abonnement.label_fr }}">
+            <input type="text" name="label_en" class="form-control mt-1" placeholder="🇬🇧 EN" value="{{ type_abonnement.label_en }}">
             <div style="color:#888; font-size:0.8rem; margin-top:4px;">
                 {% trans 'نوع الاشتراك (جماعي/فردي) يظهر بشكل منفصل — لا داعي لتكراره هنا (تجنّب مثلاً "جماعي - 6 أشهر").' %}
             </div>

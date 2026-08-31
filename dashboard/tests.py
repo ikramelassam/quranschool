@@ -6232,6 +6232,52 @@ class CharteEnseignementLocaliseeTests(TestCase):
             self.assertEqual(ligne._localise('violation'), 'التأخر عن الحصة')
 
 
+class ProgrammeGeneralLocaliseTests(TestCase):
+    """Chantier i18n contenu-DB (2026-08-31), lot 4 : accounts.ProgrammeGeneral
+    gagne 6 paires _fr/_en (titre/intro/items × enfants/adultes), lues via
+    <champ>_localise avec repli arabe — même patron que PresentationInscription."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.client.force_login(self.admin)
+
+    def test_localise_repli(self):
+        from django.utils import translation
+        from accounts.models import get_programme_general
+        p = get_programme_general()
+        p.titre_enfants = 'برنامج الأطفال'
+        p.titre_enfants_fr = 'Programme enfants'
+        p.save()
+        with translation.override('fr'):
+            self.assertEqual(p.titre_enfants_localise, 'Programme enfants')
+        with translation.override('en'):
+            self.assertEqual(p.titre_enfants_localise, 'برنامج الأطفال')  # _en vide -> repli
+
+    def test_admin_enregistre_les_traductions_et_page_detail_les_affiche(self):
+        self.client.post(reverse('admin_programme_general'), {
+            'titre_enfants': 'برنامج الأطفال', 'titre_enfants_fr': 'Programme enfants', 'titre_enfants_en': '',
+            'intro_enfants': 'مقدمة', 'intro_enfants_fr': 'Intro FR', 'intro_enfants_en': '',
+            'items_enfants': 'نقطة 1', 'items_enfants_fr': '', 'items_enfants_en': '',
+            'titre_adultes': '', 'titre_adultes_fr': '', 'titre_adultes_en': '',
+            'intro_adultes': '', 'intro_adultes_fr': '', 'intro_adultes_en': '',
+            'items_adultes': '', 'items_adultes_fr': '', 'items_adultes_en': '',
+        })
+        from accounts.models import get_programme_general
+        p = get_programme_general()
+        self.assertEqual(p.titre_enfants_fr, 'Programme enfants')
+        self.assertEqual(p.intro_enfants_fr, 'Intro FR')
+
+        eleve = _creer_eleve('eleve_prog_gen@zidni.test')
+        eleve.user.date_naissance = datetime.date(2015, 1, 1)  # enfant
+        eleve.user.save()
+        self.client.force_login(eleve.user)
+        r = self.client.get(reverse('programme_general_detail'), HTTP_ACCEPT_LANGUAGE='fr')
+        self.assertEqual(r.status_code, 200)
+        contenu = r.content.decode('utf-8')
+        self.assertIn('Programme enfants', contenu)
+        self.assertIn('Intro FR', contenu)
+
+
 class RenduReelFrEnTemplatesAdminTests(TestCase):
     """Chantier i18n du 2026-08-29 (audit مدير/مشرف, fin de chantier) —
     contrairement aux tests {% trans %}/gettext_lazy déjà présents ailleurs

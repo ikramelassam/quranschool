@@ -27,6 +27,8 @@
             <label style="font-weight:600; color:#333;">3️⃣ {% trans "الاسم المعروض *" %}</label>
             <input type="text" name="label" id="input-label" class="form-control mt-1"
                    placeholder="{% trans 'مثال: الاشتراك الجماعي' %}" value="{{ valeurs_postees.label|default:'' }}">
+            <input type="text" name="label_fr" class="form-control mt-1" placeholder="🇫🇷 FR" value="{{ valeurs_postees.label_fr|default:'' }}">
+            <input type="text" name="label_en" class="form-control mt-1" placeholder="🇬🇧 EN" value="{{ valeurs_postees.label_en|default:'' }}">
         </div>
 
         <div class="mb-3 step" id="step-duree" style="display:none;">

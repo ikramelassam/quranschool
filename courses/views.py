@@ -819,6 +819,8 @@ def creneau_ajouter(request):
 
         creneau = Creneau.objects.create(
             nom=request.POST.get('nom', '').strip(),
+            nom_fr=request.POST.get('nom_fr', '').strip(),
+            nom_en=request.POST.get('nom_en', '').strip(),
             sexe_cible=request.POST.get('sexe_cible'),
             type_seance=request.POST.get('type_seance'),
             riwaya=request.POST.get('riwaya'),
@@ -848,6 +850,8 @@ def creneau_modifier(request, creneau_id):
             return render(request, 'courses/admin_creneau_modifier.html', {'creneau': creneau})
 
         creneau.nom = request.POST.get('nom', '').strip()
+        creneau.nom_fr = request.POST.get('nom_fr', '').strip()
+        creneau.nom_en = request.POST.get('nom_en', '').strip()
         creneau.sexe_cible = request.POST.get('sexe_cible')
         creneau.type_seance = request.POST.get('type_seance')
         creneau.riwaya = request.POST.get('riwaya')
@@ -1121,12 +1125,14 @@ def lien_meet_ajouter(request):
     if request.method == 'POST':
         url = request.POST.get('url', '').strip()
         libelle = request.POST.get('libelle', '').strip()
+        libelle_fr = request.POST.get('libelle_fr', '').strip()
+        libelle_en = request.POST.get('libelle_en', '').strip()
         if not url:
             messages.error(request, 'يجب إدخال رابط.')
         elif LienMeet.objects.filter(url=url).exists():
             messages.error(request, 'هذا الرابط مسجَّل مسبقاً في القائمة.')
         else:
-            LienMeet.objects.create(url=url, libelle=libelle)
+            LienMeet.objects.create(url=url, libelle=libelle, libelle_fr=libelle_fr, libelle_en=libelle_en)
             messages.success(request, 'تمت إضافة الرابط بنجاح.')
     return redirect('admin_liens_meet')
 

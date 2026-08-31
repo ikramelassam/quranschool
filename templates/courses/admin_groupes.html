@@ -109,7 +109,7 @@
                 <option value="">{% trans "الكل" %}</option>
                 {% for c in creneaux %}
                 <option value="{{ c.id }}" {% if filtres.creneau == c.id|stringformat:"s" %}selected{% endif %}>
-                    {% if c.nom %}{{ c.nom }}{% else %}{% blocktrans with creneau=c age_min=c.age_min age_max=c.age_max sexe=c.get_sexe_cible_display type_seance=c.get_type_seance_display riwaya=c.get_riwaya_display %}{{ creneau }} — {{ age_min }}-{{ age_max }} سنة، {{ sexe }}، {{ type_seance }}، {{ riwaya }}{% endblocktrans %}{% endif %}
+                    {% if c.nom %}{{ c.nom_localise }}{% else %}{% blocktrans with creneau=c age_min=c.age_min age_max=c.age_max sexe=c.get_sexe_cible_display type_seance=c.get_type_seance_display riwaya=c.get_riwaya_display %}{{ creneau }} — {{ age_min }}-{{ age_max }} سنة، {{ sexe }}، {{ type_seance }}، {{ riwaya }}{% endblocktrans %}{% endif %}
                 </option>
                 {% endfor %}
                 {% if request.user.role != 'mshrif' %}

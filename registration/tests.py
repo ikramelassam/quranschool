@@ -539,6 +539,20 @@ class TypeAbonnementDureeAfficheeTests(TestCase):
         abo = TypeAbonnement.objects.create(code='test_duree_2', label='جماعي - شهر', prix=80)
         self.assertEqual(abo.duree_affichee, 'جماعي - شهر')
 
+    def test_label_localise_et_duree_affichee_en_fr(self):
+        """Chantier i18n contenu-DB (2026-08-31), lot 3 : TypeAbonnement.label
+        gagne label_fr/label_en, lus via label_localise (repli arabe).
+        duree_affichee retombe dessus quand `duree` est vide."""
+        from django.utils import translation
+        abo = TypeAbonnement.objects.create(
+            code='test_loc', label='اشتراك جماعي', label_fr='Abonnement groupe', prix=80,
+        )
+        with translation.override('fr'):
+            self.assertEqual(abo.label_localise, 'Abonnement groupe')
+            self.assertEqual(abo.duree_affichee, 'Abonnement groupe')
+        with translation.override('en'):
+            self.assertEqual(abo.label_localise, 'اشتراك جماعي')  # label_en vide -> repli arabe
+
 
 class TypeAbonnementLabelNettoyeTests(TestCase):
     """Correction 4 (2026-08-22, suite au test local de la page مدير) :

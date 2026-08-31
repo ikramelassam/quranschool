@@ -129,6 +129,8 @@ class Creneau(models.Model):
     # d'un coup d'œil (ex: "حلقة الأطفال - الصباح") plutôt que seulement par
     # son horaire, notamment dans le <select> d'assignation d'un Groupe.
     nom = models.CharField(max_length=100, blank=True, default='')
+    nom_fr = models.CharField(max_length=100, blank=True, default='')
+    nom_en = models.CharField(max_length=100, blank=True, default='')
     sexe_cible = models.CharField(max_length=10, choices=SEXE_CHOICES, default='mixte')
     type_seance = models.CharField(max_length=20, choices=TYPE_SEANCE_CHOICES, default='hifz')
     riwaya = models.CharField(max_length=10, choices=RIWAYA_CHOICES, default='hafs')
@@ -163,6 +165,17 @@ class Creneau(models.Model):
             for slot in self.slots.all()
         )
         return libelle or "حلقة بدون توقيت محدد"
+
+    @property
+    def nom_localise(self):
+        """Nom optionnel du créneau, repli langue active -> arabe (chantier
+        i18n contenu-DB, 2026-08-31). Affiché côté مدير/مشرف uniquement."""
+        langue = get_language()
+        if langue == 'fr' and self.nom_fr:
+            return self.nom_fr
+        if langue == 'en' and self.nom_en:
+            return self.nom_en
+        return self.nom
 
     class Meta:
         verbose_name = "Créneau"
@@ -225,11 +238,24 @@ class LienMeet(models.Model):
     lien, jamais stockée."""
     url = models.URLField(unique=True)
     libelle = models.CharField(max_length=100, blank=True)
+    libelle_fr = models.CharField(max_length=100, blank=True, default='')
+    libelle_en = models.CharField(max_length=100, blank=True, default='')
     est_actif = models.BooleanField(default=True)
     date_creation = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.libelle or self.url
+
+    @property
+    def libelle_localise(self):
+        """Repli langue active -> arabe (chantier i18n contenu-DB, 2026-08-31).
+        Affiché uniquement côté مدير/مشرف (pool de liens Meet)."""
+        langue = get_language()
+        if langue == 'fr' and self.libelle_fr:
+            return self.libelle_fr
+        if langue == 'en' and self.libelle_en:
+            return self.libelle_en
+        return self.libelle
 
     class Meta:
         ordering = ['libelle', 'id']
