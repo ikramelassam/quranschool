@@ -1,14 +1,14 @@
 {% extends base_template %}
-{% block title %}تعديل {{ etape.titre }}{% endblock %}
+{% load i18n %}
+{% block title %}{% blocktrans with titre=etape.titre %}تعديل {{ titre }}{% endblocktrans %}{% endblock %}
 {% block content %}
-<div class="page-title">تعديل مرحلة: {{ etape.titre }}</div>
-<div class="page-subtitle">ترتيب الظهور يُحدد فعلياً الصفحة التالية التي يزورها المسجِّل — وليس مجرد قيمة تجميلية.</div>
+<div class="page-title">{% blocktrans with titre=etape.titre %}تعديل مرحلة: {{ titre }}{% endblocktrans %}</div>
+<div class="page-subtitle">{% trans "ترتيب الظهور يُحدد فعلياً الصفحة التالية التي يزورها المسجِّل — وليس مجرد قيمة تجميلية." %}</div>
 
 {% if verrouillee %}
 <div style="background:#fff3cd; border-radius:12px; padding:16px 20px; margin-bottom:24px;">
     <div style="color:#856404; font-weight:600;">
-        🔒 هذه مرحلة أساسية للتسجيل — لا يمكن تعطيلها (شرط حقيقي في الكود يعتمد عليها، راجع التوثيق التقني إن
-        احتجت التفاصيل). فقط العنوان المعروض والترتيب قابلان للتعديل.
+        {% trans "🔒 هذه مرحلة أساسية للتسجيل — لا يمكن تعطيلها (شرط حقيقي في الكود يعتمد عليها، راجع التوثيق التقني إن احتجت التفاصيل). فقط العنوان المعروض والترتيب قابلان للتعديل." %}
     </div>
 </div>
 {% endif %}
@@ -17,31 +17,31 @@
     <form method="POST">
         {% csrf_token %}
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">الرمز</label>
+            <label style="font-weight:600; color:#333;">{% trans "الرمز" %}</label>
             <input type="text" class="form-control mt-1" value="{{ etape.code }}" disabled>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">العنوان المعروض *</label>
+            <label style="font-weight:600; color:#333;">{% trans "العنوان المعروض *" %}</label>
             <input type="text" name="titre" class="form-control mt-1" value="{{ etape.titre }}" required>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
+            <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>
             <input type="number" name="ordre" class="form-control mt-1" value="{{ etape.ordre }}">
         </div>
         {% if verrouillee %}
-            <div style="color:#888; font-size:0.85rem; margin-bottom:16px;">🔒 نشطة دائماً (غير قابلة للتعطيل)</div>
+            <div style="color:#888; font-size:0.85rem; margin-bottom:16px;">{% trans "🔒 نشطة دائماً (غير قابلة للتعطيل)" %}</div>
         {% else %}
         <div class="form-check mb-3">
             <input type="checkbox" name="est_actif" id="est_actif" class="form-check-input" {% if etape.est_actif %}checked{% endif %}>
-            <label class="form-check-label" for="est_actif" style="font-weight:600; color:#333;">نشطة</label>
+            <label class="form-check-label" for="est_actif" style="font-weight:600; color:#333;">{% trans "نشطة" %}</label>
         </div>
         {% endif %}
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                حفظ التعديلات ✅
+                {% trans "حفظ التعديلات ✅" %}
             </button>
-            <a href="{% url 'admin_etape_inscription_detail' etape.id %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+            <a href="{% url 'admin_etape_inscription_detail' etape.id %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
 </div>

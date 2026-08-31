@@ -70,7 +70,9 @@ def libelles_arabes_liste(codes, categorie):
     valeurs), jointe avec la même ponctuation arabe (، ) déjà utilisée
     ailleurs dans ces mêmes fiches."""
     mapping = LIBELLES.get(categorie, {})
-    return '، '.join(mapping.get(code, code) for code in codes)
+    # str() force le rendu des libellés gettext_lazy (__proxy__) : str.join
+    # exige de vraies chaînes, or LIBELLES contient des proxies paresseux.
+    return '، '.join(str(mapping.get(code, code)) for code in codes)
 
 
 @register.filter

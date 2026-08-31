@@ -1,6 +1,6 @@
 {% extends base_template %}
-{% load libelles_arabes %}
-{% block title %}متابعة مدفوعات الطلاب{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "متابعة مدفوعات الطلاب" %}{% endblock %}
 {% block extra_css %}
 <style>
 .groupe-card { background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:18px; }
@@ -19,30 +19,30 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="page-title">متابعة مدفوعات الطلاب</div>
-<div class="page-subtitle">من شهر التسجيل حتى الشهر الحالي — اضغط على أي شهر للاطلاع على الدفعة أو إدارتها</div>
+<div class="page-title">{% trans "متابعة مدفوعات الطلاب" %}</div>
+<div class="page-subtitle">{% trans "من شهر التسجيل حتى الشهر الحالي — اضغط على أي شهر للاطلاع على الدفعة أو إدارتها" %}</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">
         <div class="col-md-4">
-            <label style="color:#888; font-size:0.8rem;">الحلقة</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "الحلقة" %}</label>
             <select name="groupe" class="form-select" data-select-cherchable>
-                <option value="">الكل</option>
+                <option value="">{% trans "الكل" %}</option>
                 {% for g in groupes %}
                 <option value="{{ g.id }}" {% if filtres.groupe == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nom }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="col-md-4">
-            <label style="color:#888; font-size:0.8rem;">حالة الدفع</label>
+            <label style="color:#888; font-size:0.8rem;">{% trans "حالة الدفع" %}</label>
             <select name="impayes" class="form-select">
-                <option value="">كل الطلاب</option>
-                <option value="1" {% if filtres.impayes %}selected{% endif %}>غير المدفوعين فقط</option>
+                <option value="">{% trans "كل الطلاب" %}</option>
+                <option value="1" {% if filtres.impayes %}selected{% endif %}>{% trans "غير المدفوعين فقط" %}</option>
             </select>
         </div>
         <div class="col-md-4 d-flex gap-2">
-            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
-            <a href="{% url 'suivi_paiements_eleves' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+            <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
+            <a href="{% url 'suivi_paiements_eleves' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
         </div>
     </div>
 </form>
@@ -64,7 +64,7 @@
             {% for m in ligne.mois_liste_recents %}
             <a class="mois-badge {% if m.paye %}paye{% else %}non-paye{% endif %}"
                href="{% querystring panel_eleve=ligne.eleve.id panel_mois=m.cle_mois %}">
-                {{ m.label|mois_annee_ar }} - {% if m.paye %}مدفوع ✅{% else %}غير مدفوع ❌{% endif %}
+                {{ m.label|mois_annee_ar }} - {% if m.paye %}{% trans "مدفوع ✅" %}{% else %}{% trans "غير مدفوع ❌" %}{% endif %}
             </a>
             {% endfor %}
         </div>
@@ -73,13 +73,13 @@
             {% for m in ligne.mois_liste_anciens %}
             <a class="mois-badge {% if m.paye %}paye{% else %}non-paye{% endif %}"
                href="{% querystring panel_eleve=ligne.eleve.id panel_mois=m.cle_mois %}">
-                {{ m.label|mois_annee_ar }} - {% if m.paye %}مدفوع ✅{% else %}غير مدفوع ❌{% endif %}
+                {{ m.label|mois_annee_ar }} - {% if m.paye %}{% trans "مدفوع ✅" %}{% else %}{% trans "غير مدفوع ❌" %}{% endif %}
             </a>
             {% endfor %}
         </div>
         <div style="margin-top:6px;">
             <span id="mois_toggle_texte_{{ ligne.eleve.id }}" onclick="toggleMoisAnciens({{ ligne.eleve.id }})" style="cursor:pointer; color:var(--color-role-admin-solid); font-size:0.8rem; text-decoration:underline;">
-                عرض جميع الأشهر ({{ ligne.nb_mois_total }}) ↓
+                {% blocktrans with n=ligne.nb_mois_total %}عرض جميع الأشهر ({{ n }}) ↓{% endblocktrans %}
             </span>
         </div>
         {% endif %}
@@ -88,7 +88,7 @@
 </div>
 {% empty %}
 <div style="background:white; border-radius:12px; padding:60px; text-align:center; color:#aaa;">
-    {% if filtres.groupe or filtres.impayes %}لا توجد نتائج مطابقة لهذه التصفية{% else %}لا توجد مجموعات بها طلاب بعد{% endif %}
+    {% if filtres.groupe or filtres.impayes %}{% trans "لا توجد نتائج مطابقة لهذه التصفية" %}{% else %}{% trans "لا توجد مجموعات بها طلاب بعد" %}{% endif %}
 </div>
 {% endfor %}
 
@@ -105,14 +105,14 @@
 
         {% if panel.paiement %}
         <div style="color:#888; font-size:0.8rem; margin-bottom:14px;">
-            تاريخ الإرسال: {{ panel.paiement.date|date:"Y-m-d H:i" }}
-            {% if panel.paiement.date_validation %} — تاريخ المعالجة: {{ panel.paiement.date_validation|date:"Y-m-d H:i" }}{% endif %}
+            {% blocktrans with date=panel.paiement.date|date:"Y-m-d H:i" %}تاريخ الإرسال: {{ date }}{% endblocktrans %}
+            {% if panel.paiement.date_validation %} — {% blocktrans with date=panel.paiement.date_validation|date:"Y-m-d H:i" %}تاريخ المعالجة: {{ date }}{% endblocktrans %}{% endif %}
         </div>
         {% if panel.paiement.screenshot %}
         <div style="margin-bottom:14px;">
-            <label>إثبات الدفع الحالي</label>
+            <label>{% trans "إثبات الدفع الحالي" %}</label>
             <a href="{{ panel.paiement.screenshot.url }}" target="_blank">
-                <img src="{{ panel.paiement.screenshot.url }}" alt="إثبات الدفع" style="max-width:100%; border-radius:8px; border:1px solid #eee;">
+                <img src="{{ panel.paiement.screenshot.url }}" alt="{% trans 'إثبات الدفع' %}" style="max-width:100%; border-radius:8px; border:1px solid #eee;">
             </a>
         </div>
         {% endif %}
@@ -124,29 +124,29 @@
             <input type="hidden" name="eleve_id" value="{{ panel.eleve.id }}">
             <input type="hidden" name="mois" value="{{ panel.mois }}">
 
-            <label>المبلغ (درهم)</label>
+            <label>{% trans "المبلغ (درهم)" %}</label>
             <input type="number" step="0.01" min="0" name="montant" value="{{ panel.paiement.montant|default:'' }}" class="form-control mb-3" required>
 
-            <label>الحالة</label>
+            <label>{% trans "الحالة" %}</label>
             <select name="statut" class="form-select mb-3">
-                <option value="en_attente" {% if not panel.paiement or panel.paiement.statut == 'en_attente' %}selected{% endif %}>قيد المراجعة</option>
-                <option value="valide" {% if panel.paiement.statut == 'valide' %}selected{% endif %}>مقبول</option>
-                <option value="rejete" {% if panel.paiement.statut == 'rejete' %}selected{% endif %}>مرفوض</option>
+                <option value="en_attente" {% if not panel.paiement or panel.paiement.statut == 'en_attente' %}selected{% endif %}>{% trans "قيد المراجعة" %}</option>
+                <option value="valide" {% if panel.paiement.statut == 'valide' %}selected{% endif %}>{% trans "مقبول" %}</option>
+                <option value="rejete" {% if panel.paiement.statut == 'rejete' %}selected{% endif %}>{% trans "مرفوض" %}</option>
             </select>
 
-            <label>إثبات الدفع (اختياري)</label>
+            <label>{% trans "إثبات الدفع (اختياري)" %}</label>
             <input type="file" name="screenshot" class="form-control mb-3">
 
             <button type="submit" style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; cursor:pointer; width:100%;">
-                حفظ ✅
+                {% trans "حفظ ✅" %}
             </button>
         </form>
         {% else %}
         <div style="color:#888; font-size:0.85rem;">
             {% if panel.paiement %}
-            المبلغ: {{ panel.paiement.montant }} درهم — الحالة: {{ panel.paiement.get_statut_display }}
+            {% blocktrans with montant=panel.paiement.montant statut=panel.paiement.get_statut_display %}المبلغ: {{ montant }} درهم — الحالة: {{ statut }}{% endblocktrans %}
             {% else %}
-            لا توجد أي دفعة مسجَّلة لهذا الشهر.
+            {% trans "لا توجد أي دفعة مسجَّلة لهذا الشهر." %}
             {% endif %}
         </div>
         {% endif %}
@@ -160,7 +160,7 @@
         const texte = document.getElementById('mois_toggle_texte_' + eleveId);
         if (extra.style.display === 'none') {
             extra.style.display = 'flex';
-            texte.textContent = 'إخفاء الأشهر الأقدم ↑';
+            texte.textContent = '{% trans "إخفاء الأشهر الأقدم ↑" %}';
         } else {
             extra.style.display = 'none';
             texte.textContent = texte.dataset.original;

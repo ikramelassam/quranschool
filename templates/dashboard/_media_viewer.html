@@ -1,0 +1,127 @@
+{% load i18n %}
+{% comment %}
+Aperçu d'un fichier DANS la page (modale), au lieu d'un nouvel onglet — Besoin
+du 2026-08-31, même principe que la modale du chat (templates/chat/chat.html).
+
+À inclure UNE fois en bas du {% block content %} d'une page qui contient des
+boutons `.media-open` portant :
+  - data-media-url  : URL du fichier servi par le site (jamais Cloudinary)
+  - data-media-type : 'image' | 'video' | 'audio' | 'embed'  (voir
+                      core.media_proxy.type_apercu / le champ fichier_apercu_type)
+  - data-media-nom  : nom affiché dans la barre de la modale
+
+Autonome : style + script inline, aucune dépendance JS. Le script délègue le
+clic sur `document`, donc il fonctionne quelle que soit la structure de la page
+(cartable élève, حقيبة prof/مؤطر, gestion admin...).
+{% endcomment %}
+<div class="media-viewer-overlay" id="mediaViewerOverlay" hidden>
+    <div class="media-viewer-barre">
+        <span class="media-viewer-nom" id="mediaViewerNom"></span>
+        <span class="media-viewer-actions">
+            <a class="media-viewer-btn" id="mediaViewerTelecharger" href="#">{% trans "تحميل ⬇" %}</a>
+            <button type="button" class="media-viewer-btn" id="mediaViewerFermer">✕ {% trans "إغلاق" %}</button>
+        </span>
+    </div>
+    <div class="media-viewer-corps" id="mediaViewerCorps"></div>
+</div>
+
+<style>
+    .media-viewer-overlay {
+        position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+        z-index: 2147483000;  /* au-dessus de la sidebar (z-index 100) et de tout le reste */
+        background: rgba(0,0,0,0.82);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 24px 16px;
+    }
+    .media-viewer-barre {
+        width: 100%; max-width: 900px; display: flex; align-items: center;
+        justify-content: space-between; gap: 12px; margin-bottom: 10px;
+    }
+    .media-viewer-nom {
+        color: #fff; font-size: 0.9rem; font-weight: 600; min-width: 0;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .media-viewer-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .media-viewer-btn {
+        background: rgba(255,255,255,0.15); color: #fff; border: none; border-radius: 8px;
+        padding: 6px 14px; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+        text-decoration: none; font-family: inherit;
+    }
+    .media-viewer-btn:hover { background: rgba(255,255,255,0.30); }
+    .media-viewer-corps {
+        width: 100%; max-width: 900px; flex: 1; min-height: 0;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .media-viewer-corps img,
+    .media-viewer-corps video { max-width: 100%; max-height: 100%; border-radius: 8px; background: #000; }
+    .media-viewer-corps iframe {
+        width: 100%; height: 100%; border: none; border-radius: 8px; background: #fff;
+    }
+    .media-viewer-corps audio { width: 100%; max-width: 460px; }
+    /* Bouton "فتح" (dans la liste des fichiers) — hérite du style du lien voisin
+       "تحميل" via les styles inline de chaque page ; ici on neutralise juste
+       l'apparence par défaut d'un <button>. */
+    .media-open { background: none; border: none; padding: 0; cursor: pointer; font: inherit; }
+</style>
+
+<script>
+(function () {
+    'use strict';
+    var overlay = document.getElementById('mediaViewerOverlay');
+    if (!overlay) { return; }
+    // Déplace l'overlay en enfant direct de <body> : dans les pages du
+    // dashboard il est rendu à l'intérieur de .main-content (décalé de la
+    // largeur de la sidebar + padding). Un position:fixed y reste en principe
+    // relatif au viewport, mais selon les navigateurs / un ancêtre stylé, il
+    // pouvait se retrouver cadré sur la colonne de contenu (sidebar visible
+    // à côté, contenu non centré — bug remonté le 2026-08-31). En enfant de
+    // <body>, plus aucune ambiguïté.
+    if (overlay.parentNode !== document.body) {
+        document.body.appendChild(overlay);
+    }
+    var corps = document.getElementById('mediaViewerCorps');
+    var nom = document.getElementById('mediaViewerNom');
+    var lienDl = document.getElementById('mediaViewerTelecharger');
+
+    function fermer() {
+        overlay.hidden = true;
+        corps.innerHTML = '';  // stoppe une vidéo / un audio en cours
+        document.body.style.overflow = '';
+    }
+    function ouvrir(url, type, libelle) {
+        nom.textContent = libelle || '';
+        lienDl.href = url + (url.indexOf('?') === -1 ? '?dl=1' : '&dl=1');
+        var el;
+        if (type === 'image') {
+            el = document.createElement('img');
+            el.src = url; el.alt = libelle || '';
+        } else if (type === 'video') {
+            el = document.createElement('video');
+            el.src = url; el.controls = true;
+        } else if (type === 'audio') {
+            el = document.createElement('audio');
+            el.src = url; el.controls = true;
+        } else {  // 'embed' : PDF, texte
+            el = document.createElement('iframe');
+            el.src = url;
+        }
+        corps.innerHTML = '';
+        corps.appendChild(el);
+        overlay.hidden = false;
+        document.body.style.overflow = 'hidden';  // pas de scroll de la page derrière
+    }
+
+    document.addEventListener('click', function (e) {
+        var bouton = e.target.closest('.media-open');
+        if (bouton) {
+            e.preventDefault();
+            ouvrir(bouton.dataset.mediaUrl, bouton.dataset.mediaType, bouton.dataset.mediaNom);
+            return;
+        }
+        if (e.target === overlay || e.target.id === 'mediaViewerFermer') { fermer(); }
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !overlay.hidden) { fermer(); }
+    });
+})();
+</script>

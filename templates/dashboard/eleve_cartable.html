@@ -19,8 +19,11 @@ possible d'ici.
             <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">{{ doc.date_ajout|date:"d-m-Y" }}</div>
         </div>
         <div style="flex-shrink:0; display:flex; gap:14px; align-items:center;">
-            {% if doc.fichier_affichable_navigateur %}
-            <a href="{% url 'eleve_cartable_fichier' doc.id %}" target="_blank" rel="noopener" style="color:var(--color-role-eleve-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">{% trans "فتح ↗" %}</a>
+            {% if doc.fichier_apercu_type %}
+            <button type="button" class="media-open" style="color:var(--color-role-eleve-solid); font-size:0.85rem; font-weight:600;"
+                    data-media-url="{% url 'eleve_cartable_fichier' doc.id %}"
+                    data-media-type="{{ doc.fichier_apercu_type }}"
+                    data-media-nom="{{ doc.titre|default:doc.fichier.name }}">{% trans "فتح 👁" %}</button>
             {% endif %}
             <a href="{% url 'eleve_cartable_fichier' doc.id %}?dl=1" style="color:var(--color-role-eleve-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">{% trans "تحميل ⬇" %}</a>
         </div>
@@ -29,4 +32,5 @@ possible d'ici.
     <div style="color:#aaa; text-align:center; padding:30px 0;">{% trans "لا توجد ملفات في حقيبتك حالياً" %}</div>
     {% endfor %}
 </div>
+{% include 'dashboard/_media_viewer.html' %}
 {% endblock %}

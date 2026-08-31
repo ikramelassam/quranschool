@@ -1,8 +1,9 @@
 {% extends 'dashboard/base_mshrif.html' %}
-{% block title %}طلبات الأساتذة{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "طلبات الأساتذة" %}{% endblock %}
 {% block content %}
-<div class="page-title">طلبات الأساتذة</div>
-<div class="page-subtitle">مرحّلة من الإدارة، بانتظار التصديق النهائي — القبول هنا ينشئ حساب المعلم فعلياً</div>
+<div class="page-title">{% trans "طلبات الأساتذة" %}</div>
+<div class="page-subtitle">{% trans "مرحّلة من الإدارة، بانتظار التصديق النهائي — القبول هنا ينشئ حساب المعلم فعلياً" %}</div>
 
 {% if inscriptions %}
     {% for ins in inscriptions %}
@@ -12,30 +13,30 @@
                 <div style="font-weight:700; font-size:1.1rem;">{{ ins.nom }} {{ ins.prenom }}</div>
                 <div style="color:#888; font-size:0.9rem;">{{ ins.email }}</div>
                 <div style="color:#888; font-size:0.85rem; margin-top:4px;">
-                    تاريخ التقديم: {{ ins.date_soumission|date:"d-m-Y" }}
+                    {% blocktrans with date=ins.date_soumission|date:"d-m-Y" %}تاريخ التقديم: {{ date }}{% endblocktrans %}
                 </div>
             </div>
             <div class="col-md-6 d-flex gap-2 justify-content-end mt-3 mt-md-0">
                 <a href="{% url 'mshrif_inscription_prof_detail' ins.id %}"
                    style="background:white; color:var(--color-role-mshrif-solid); border:2px solid var(--color-role-mshrif-solid); border-radius:8px; padding:8px 16px; text-decoration:none;">
-                   👁 عرض
+                   {% trans "👁 عرض" %}
                 </a>
                 <a href="{% url 'mshrif_valider_prof_final' ins.id %}"
-                   onclick="return confirm('هل أنت متأكد من القبول النهائي لطلب {{ ins.nom|escapejs }} {{ ins.prenom|escapejs }}؟ سيتم إنشاء حساب مستخدم فعلي له.');"
+                   onclick="return confirm('{% blocktrans with nom=ins.nom|escapejs prenom=ins.prenom|escapejs %}هل أنت متأكد من القبول النهائي لطلب {{ nom }} {{ prenom }}؟ سيتم إنشاء حساب مستخدم فعلي له.{% endblocktrans %}');"
                    style="background:var(--color-success); color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
-                   ✅ قبول نهائي
+                   {% trans "✅ قبول نهائي" %}
                 </a>
                 <a href="{% url 'mshrif_rejeter_prof' ins.id %}"
-                   onclick="return confirm('هل أنت متأكد من رفض طلب {{ ins.nom|escapejs }} {{ ins.prenom|escapejs }}؟ لا يمكن التراجع عن هذا الإجراء.');"
+                   onclick="return confirm('{% blocktrans with nom=ins.nom|escapejs prenom=ins.prenom|escapejs %}هل أنت متأكد من رفض طلب {{ nom }} {{ prenom }}؟ لا يمكن التراجع عن هذا الإجراء.{% endblocktrans %}');"
                    style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none;">
-                   ❌ رفض
+                   {% trans "❌ رفض" %}
                 </a>
             </div>
         </div>
     </div>
     {% endfor %}
 {% else %}
-    <div style="text-align:center; padding:60px; color:#aaa;">🎉 لا توجد طلبات بانتظار التصديق النهائي</div>
+    <div style="text-align:center; padding:60px; color:#aaa;">{% trans "🎉 لا توجد طلبات بانتظار التصديق النهائي" %}</div>
 {% endif %}
 {% include 'dashboard/_pagination.html' with page_obj=inscriptions %}
 {% endblock %}

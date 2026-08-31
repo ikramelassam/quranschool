@@ -1,6 +1,6 @@
 {% extends base_template %}
-{% load libelles_arabes %}
-{% block title %}متابعة الالتزام الشهري{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "متابعة الالتزام الشهري" %}{% endblock %}
 {% block extra_css %}
 <style>
 {% comment %}
@@ -56,52 +56,52 @@ Palette gold/cream/brown existante, mêmes tokens que le reste du site
 </style>
 {% endblock %}
 {% block content %}
-<div class="page-title">متابعة الالتزام الشهري</div>
-<div class="page-subtitle">{{ mois_reference|mois_annee_ar }} — عرض على مستوى الحصة (وليس الطالب × الحصة)</div>
+<div class="page-title">{% trans "متابعة الالتزام الشهري" %}</div>
+<div class="page-subtitle">{{ mois_reference|mois_annee_ar }} — {% trans "عرض على مستوى الحصة (وليس الطالب × الحصة)" %}</div>
 
 <form method="GET" style="background:white; border-radius:16px; padding:16px 24px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
     <div>
-        <label style="color:#888; font-size:0.8rem; display:block; margin-bottom:4px;">الشهر</label>
+        <label style="color:#888; font-size:0.8rem; display:block; margin-bottom:4px;">{% trans "الشهر" %}</label>
         <input type="month" name="mois" class="form-control" value="{{ mois_filtre }}">
     </div>
-    <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+    <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
     {% if mois_filtre %}
-    <a href="{% url 'suivi_engagement_mensuel' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+    <a href="{% url 'suivi_engagement_mensuel' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
     {% endif %}
 </form>
 
 <!-- Zone 1 -->
 <div class="suivi-grille-stats">
     <div class="suivi-carte-stat {% if donnees.taux_couverture != None and donnees.taux_couverture < 50 %}alerte{% endif %}">
-        <div class="libelle">نسبة تغطية الحضور</div>
+        <div class="libelle">{% trans "نسبة تغطية الحضور" %}</div>
         <div class="valeur">{% if donnees.taux_couverture != None %}{{ donnees.taux_couverture }}%{% else %}—{% endif %}</div>
     </div>
     <div class="suivi-carte-stat {% if donnees.taux_presence_reel != None and donnees.taux_presence_reel < 50 %}alerte{% endif %}">
-        <div class="libelle">نسبة الحضور الفعلي (من الحصص المسجلة)</div>
-        <div class="valeur">{% if donnees.taux_presence_reel != None %}{{ donnees.taux_presence_reel }}%{% else %}لا توجد بيانات كافية بعد{% endif %}</div>
+        <div class="libelle">{% trans "نسبة الحضور الفعلي (من الحصص المسجلة)" %}</div>
+        <div class="valeur">{% if donnees.taux_presence_reel != None %}{{ donnees.taux_presence_reel }}%{% else %}{% trans "لا توجد بيانات كافية بعد" %}{% endif %}</div>
         {% if donnees.taux_presence_reel != None %}
-        <div class="sous-texte">من أصل {{ donnees.nb_traitees }} حصة مسجلة هذا الشهر</div>
+        <div class="sous-texte">{% blocktrans with n=donnees.nb_traitees %}من أصل {{ n }} حصة مسجلة هذا الشهر{% endblocktrans %}</div>
         {% endif %}
     </div>
     <div class="suivi-carte-stat {% if donnees.nb_non_traitees > 0 %}alerte{% endif %}">
-        <div class="libelle">حصص لم يسجلها الأستاذ</div>
+        <div class="libelle">{% trans "حصص لم يسجلها الأستاذ" %}</div>
         <div class="valeur">{{ donnees.nb_non_traitees }}</div>
     </div>
     <div class="suivi-carte-stat {% if donnees.nb_non_evaluees > 0 %}alerte{% endif %}">
-        <div class="libelle">حصص لم يقيّمها المؤطر</div>
+        <div class="libelle">{% trans "حصص لم يقيّمها المؤطر" %}</div>
         <div class="valeur">{{ donnees.nb_non_evaluees }}</div>
         {% if donnees.nb_non_evaluees_sans_superviseur > 0 %}
-        <div class="sous-texte">منها {{ donnees.nb_non_evaluees_sans_superviseur }} حصة بدون مؤطر مسؤول</div>
+        <div class="sous-texte">{% blocktrans with n=donnees.nb_non_evaluees_sans_superviseur %}منها {{ n }} حصة بدون مؤطر مسؤول{% endblocktrans %}</div>
         {% endif %}
     </div>
 </div>
 <div style="color:var(--color-text-muted); font-size:0.78rem; margin:-14px 0 24px;">
-    {{ donnees.nb_traitees }} من أصل {{ donnees.nb_total_passees }} حصة ماضية هذا الشهر (غير الملغاة) سُجّل حضورها.
-    نسبة تغطية الحضور تقيس هل الحصة سُجّلت (انضباط إداري) — نسبة الحضور الفعلي تقيس، من بين ما سُجّل فقط، هل الطلاب كانوا حاضرين فعلاً. مؤشران مختلفان ومكمّلان.
+    {% blocktrans with n=donnees.nb_traitees total=donnees.nb_total_passees %}{{ n }} من أصل {{ total }} حصة ماضية هذا الشهر (غير الملغاة) سُجّل حضورها.{% endblocktrans %}
+    {% trans "نسبة تغطية الحضور تقيس هل الحصة سُجّلت (انضباط إداري) — نسبة الحضور الفعلي تقيس، من بين ما سُجّل فقط، هل الطلاب كانوا حاضرين فعلاً. مؤشران مختلفان ومكمّلان." %}
 </div>
 
 <!-- Zone 2 -->
-<div class="section-title">تسجيل الحضور — الأساتذة</div>
+<div class="section-title">{% trans "تسجيل الحضور — الأساتذة" %}</div>
 <div class="suivi-liste-entite">
     {% for ligne in donnees.lignes_profs %}
     <details class="suivi-ligne">
@@ -112,24 +112,24 @@ Palette gold/cream/brown existante, mêmes tokens que le reste du site
             <div class="suivi-barre"><div class="suivi-barre-remplissage {% if ligne.taux < 50 %}faible{% else %}correct{% endif %}" style="width:{{ ligne.taux }}%;"></div></div>
             <div class="suivi-pourcentage {% if ligne.taux < 50 %}faible{% endif %}">{{ ligne.taux }}%</div>
             {% else %}
-            <div class="suivi-pourcentage aucune-donnee">0 من 0</div>
+            <div class="suivi-pourcentage aucune-donnee">{% trans "0 من 0" %}</div>
             {% endif %}
         </summary>
         <div class="suivi-detail">
             {% if ligne.nb_total == 0 %}
-                <div class="suivi-detail-seance">لا توجد حصص ماضية هذا الشهر لهذا الأستاذ</div>
+                <div class="suivi-detail-seance">{% trans "لا توجد حصص ماضية هذا الشهر لهذا الأستاذ" %}</div>
             {% elif ligne.seances_non_traitees %}
-                <div class="suivi-detail-label">الحصص غير المسجلة:</div>
+                <div class="suivi-detail-label">{% trans "الحصص غير المسجلة:" %}</div>
                 {% for s in ligne.seances_non_traitees %}
                 <div class="suivi-detail-seance">{{ s.date|date:"d-m-Y" }} — {{ s.groupe.nom }}</div>
                 {% endfor %}
             {% else %}
-                <div class="suivi-detail-seance">جميع حصصه الماضية هذا الشهر مسجلة ✅</div>
+                <div class="suivi-detail-seance">{% trans "جميع حصصه الماضية هذا الشهر مسجلة ✅" %}</div>
             {% endif %}
         </div>
     </details>
     {% empty %}
-    <div class="suivi-vide">لا يوجد أي أستاذ في النظام</div>
+    <div class="suivi-vide">{% trans "لا يوجد أي أستاذ في النظام" %}</div>
     {% endfor %}
     {% if donnees.ligne_sans_prof %}
     {% with ligne=donnees.ligne_sans_prof %}
@@ -141,13 +141,13 @@ Palette gold/cream/brown existante, mêmes tokens que le reste du site
             <div class="suivi-pourcentage {% if ligne.taux < 50 %}faible{% endif %}">{{ ligne.taux }}%</div>
         </summary>
         <div class="suivi-detail">
-            <div class="suivi-detail-label">مجموعات بدون أستاذ معيّن — ({{ ligne.nb_total }} حصة، منها {{ ligne.nb_traitees }} مسجلة) :</div>
+            <div class="suivi-detail-label">{% blocktrans with total=ligne.nb_total traitees=ligne.nb_traitees %}مجموعات بدون أستاذ معيّن — ({{ total }} حصة، منها {{ traitees }} مسجلة) :{% endblocktrans %}</div>
             {% if ligne.seances_non_traitees %}
                 {% for s in ligne.seances_non_traitees %}
                 <div class="suivi-detail-seance">{{ s.date|date:"d-m-Y" }} — {{ s.groupe.nom }}</div>
                 {% endfor %}
             {% else %}
-                <div class="suivi-detail-seance">جميع حصص هذه المجموعات مسجلة ✅</div>
+                <div class="suivi-detail-seance">{% trans "جميع حصص هذه المجموعات مسجلة ✅" %}</div>
             {% endif %}
         </div>
     </details>
@@ -156,7 +156,7 @@ Palette gold/cream/brown existante, mêmes tokens que le reste du site
 </div>
 
 <!-- Zone 3 -->
-<div class="section-title">تقييم الحصص — المؤطرون</div>
+<div class="section-title">{% trans "تقييم الحصص — المؤطرون" %}</div>
 <div class="suivi-liste-entite">
     {% for ligne in donnees.lignes_superviseurs %}
     <details class="suivi-ligne">
@@ -167,24 +167,24 @@ Palette gold/cream/brown existante, mêmes tokens que le reste du site
             <div class="suivi-barre"><div class="suivi-barre-remplissage {% if ligne.taux < 50 %}faible{% else %}correct{% endif %}" style="width:{{ ligne.taux }}%;"></div></div>
             <div class="suivi-pourcentage {% if ligne.taux < 50 %}faible{% endif %}">{{ ligne.taux }}%</div>
             {% else %}
-            <div class="suivi-pourcentage aucune-donnee">0 من 0</div>
+            <div class="suivi-pourcentage aucune-donnee">{% trans "0 من 0" %}</div>
             {% endif %}
         </summary>
         <div class="suivi-detail">
             {% if ligne.nb_total == 0 %}
-                <div class="suivi-detail-seance">لا توجد حصص مسجلة بعد لدى المعلمين الذين يشرف عليهم هذا الشهر</div>
+                <div class="suivi-detail-seance">{% trans "لا توجد حصص مسجلة بعد لدى المعلمين الذين يشرف عليهم هذا الشهر" %}</div>
             {% elif ligne.seances_non_evaluees %}
-                <div class="suivi-detail-label">الحصص غير المقيَّمة:</div>
+                <div class="suivi-detail-label">{% trans "الحصص غير المقيَّمة:" %}</div>
                 {% for s in ligne.seances_non_evaluees %}
-                <div class="suivi-detail-seance">{{ s.date|date:"d-m-Y" }} — {{ s.groupe.nom }} — {{ s.groupe.prof.user.get_full_name|default:"(بدون أستاذ)" }}</div>
+                <div class="suivi-detail-seance">{{ s.date|date:"d-m-Y" }} — {{ s.groupe.nom }} — {{ s.groupe.prof.user.get_full_name|default:_("(بدون أستاذ)") }}</div>
                 {% endfor %}
             {% else %}
-                <div class="suivi-detail-seance">جميع الحصص المسجلة هذا الشهر مُقيَّمة ✅</div>
+                <div class="suivi-detail-seance">{% trans "جميع الحصص المسجلة هذا الشهر مُقيَّمة ✅" %}</div>
             {% endif %}
         </div>
     </details>
     {% empty %}
-    <div class="suivi-vide">لا يوجد أي مؤطر في النظام</div>
+    <div class="suivi-vide">{% trans "لا يوجد أي مؤطر في النظام" %}</div>
     {% endfor %}
     {% if donnees.ligne_sans_superviseur %}
     {% with ligne=donnees.ligne_sans_superviseur %}
@@ -192,12 +192,12 @@ Palette gold/cream/brown existante, mêmes tokens que le reste du site
         <summary>
             <div class="suivi-avatar" style="background:#fce4e4; color:var(--color-danger);">⚠</div>
             <div class="suivi-nom">{{ ligne.label }}</div>
-            <div class="suivi-pourcentage" style="color:var(--color-danger);">{{ ligne.seances_non_evaluees|length }} حصة</div>
+            <div class="suivi-pourcentage" style="color:var(--color-danger);">{% blocktrans with n=ligne.seances_non_evaluees|length %}{{ n }} حصة{% endblocktrans %}</div>
         </summary>
         <div class="suivi-detail">
-            <div class="suivi-detail-label">حصص معلَّمها بدون مؤطر مسؤول — يحتاج إسناد مؤطر لهذا المعلم:</div>
+            <div class="suivi-detail-label">{% trans "حصص معلَّمها بدون مؤطر مسؤول — يحتاج إسناد مؤطر لهذا المعلم:" %}</div>
             {% for s in ligne.seances_non_evaluees %}
-            <div class="suivi-detail-seance">{{ s.date|date:"d-m-Y" }} — {{ s.groupe.nom }} — {{ s.groupe.prof.user.get_full_name|default:"(بدون أستاذ)" }}</div>
+            <div class="suivi-detail-seance">{{ s.date|date:"d-m-Y" }} — {{ s.groupe.nom }} — {{ s.groupe.prof.user.get_full_name|default:_("(بدون أستاذ)") }}</div>
             {% endfor %}
         </div>
     </details>

@@ -64,6 +64,34 @@ def _extension(nom_fichier):
     return os.path.splitext(nom_fichier or '')[1].lower()
 
 
+EXTENSIONS_IMAGE = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'}
+EXTENSIONS_VIDEO = {'.mp4', '.webm', '.mov', '.m4v'}
+EXTENSIONS_AUDIO = {'.mp3', '.wav', '.ogg', '.oga', '.m4a', '.aac', '.opus'}
+EXTENSIONS_EMBED = {'.pdf', '.txt'}
+
+
+def type_apercu(nom_fichier):
+    """Comment afficher CE fichier dans un aperçu intégré à la page (modale),
+    au lieu d'ouvrir un onglet séparé :
+    - 'image' : balise <img>
+    - 'video' : balise <video controls>
+    - 'audio' : balise <audio controls>
+    - 'embed' : balise <iframe> (PDF, texte)
+    - ''      : pas d'aperçu possible (Word/Excel/PowerPoint, archives...) →
+      seul le téléchargement est proposé.
+    """
+    ext = _extension(nom_fichier)
+    if ext in EXTENSIONS_IMAGE:
+        return 'image'
+    if ext in EXTENSIONS_VIDEO:
+        return 'video'
+    if ext in EXTENSIONS_AUDIO:
+        return 'audio'
+    if ext in EXTENSIONS_EMBED:
+        return 'embed'
+    return ''
+
+
 def est_affichable_navigateur(nom_fichier):
     """True si un navigateur sait afficher/lire ce fichier dans un onglet
     (d'après son extension) — utilisé par les templates pour décider s'ils
@@ -96,12 +124,20 @@ def servir_fichier_media(fieldfile, *, telecharger=False, nom_telechargement='')
     nom_stocke = fieldfile.name
     inline = (not telecharger) and est_affichable_navigateur(nom_stocke)
 
-    return FileResponse(
+    reponse = FileResponse(
         fieldfile.open('rb'),
         content_type=content_type_pour(nom_stocke),
         as_attachment=not inline,
         filename=_nom_telechargement(nom_telechargement, nom_stocke),
     )
+    # Autorise l'affichage dans un <iframe> de MÊME origine (aperçu PDF/texte
+    # dans la modale du chat, voir templates/chat/chat.html) — sans ça, le
+    # XFrameOptionsMiddleware du projet pose 'DENY' par défaut et le navigateur
+    # refuse de rendre le fichier même sur notre propre domaine. Reste
+    # inaccessible depuis un site tiers (SAMEORIGIN, pas ALLOWALL) et l'accès
+    # est de toute façon déjà contrôlé par la vue appelante.
+    reponse['X-Frame-Options'] = 'SAMEORIGIN'
+    return reponse
 
 
 def _nom_telechargement(nom_choisi, nom_stocke):

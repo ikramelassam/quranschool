@@ -1,69 +1,70 @@
 {% extends base_template %}
+{% load i18n %}
 {% block title %}{{ critere.label }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <div class="page-title">{{ critere.label }}</div>
-        <div class="page-subtitle">الرمز: {{ critere.code }} — {{ critere.get_type_champ_display }} — {{ critere.get_backend_display }}</div>
+        <div class="page-subtitle">{% blocktrans with code=critere.code type=critere.get_type_champ_display backend=critere.get_backend_display %}الرمز: {{ code }} — {{ type }} — {{ backend }}{% endblocktrans %}</div>
     </div>
     <div class="d-flex gap-2">
         <a href="{% url 'admin_critere_inscription_modifier' critere.id %}"
            style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">
-           تعديل ✏️
+           {% trans "تعديل ✏️" %}
         </a>
         <a href="{% url 'admin_critere_inscription_toggle' critere.id %}"
            style="background:#f0f0f0; color:#555; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">
-           {% if critere.est_actif %}تعطيل{% else %}تفعيل{% endif %}
+           {% if critere.est_actif %}{% trans "تعطيل" %}{% else %}{% trans "تفعيل" %}{% endif %}
         </a>
         <a href="{% url 'admin_critere_inscription_supprimer' critere.id %}"
-           onclick="return confirm('حذف المعيار \'{{ critere.label }}\'؟ لن يُحذف إذا كان مستخدَماً في نموذج التسجيل أو في إجابات/مجموعات سابقة.');"
+           onclick="return confirm('{% blocktrans with label=critere.label|escapejs %}حذف المعيار «{{ label }}»؟ لن يُحذف إذا كان مستخدَماً في نموذج التسجيل أو في إجابات/مجموعات سابقة.{% endblocktrans %}');"
            style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">
-           حذف 🗑️
+           {% trans "حذف 🗑️" %}
         </a>
     </div>
 </div>
 
 <div class="d-flex flex-wrap gap-2 mb-4">
     {% if critere.est_actif %}
-        {% include 'dashboard/_badge_statut.html' with type='success' texte='نشط ✅' %}
+        {% include 'dashboard/_badge_statut.html' with type='success' texte=_('نشط ✅') %}
     {% else %}
-        {% include 'dashboard/_badge_statut.html' with type='danger' texte='غير نشط ❌' %}
+        {% include 'dashboard/_badge_statut.html' with type='danger' texte=_('غير نشط ❌') %}
     {% endif %}
     {% if critere.filtrable %}
-        {% include 'dashboard/_badge_statut.html' with type='neutre' texte='يُستخدم للتصفية 🔍' %}
+        {% include 'dashboard/_badge_statut.html' with type='neutre' texte=_('يُستخدم للتصفية 🔍') %}
         {% if critere.bloquant %}
-            {% include 'dashboard/_badge_statut.html' with type='danger' texte='عدم التوافق يمنع الإضافة نهائياً 🚫' %}
+            {% include 'dashboard/_badge_statut.html' with type='danger' texte=_('عدم التوافق يمنع الإضافة نهائياً 🚫') %}
         {% else %}
-            {% include 'dashboard/_badge_statut.html' with type='warning' texte='عدم التوافق قابل للتجاوز من المدير/المشرف ⚠️' %}
+            {% include 'dashboard/_badge_statut.html' with type='warning' texte=_('عدم التوافق قابل للتجاوز من المدير/المشرف ⚠️') %}
         {% endif %}
     {% else %}
-        {% include 'dashboard/_badge_statut.html' with type='neutre' texte='معلوماتي فقط (لا يُستخدم للتصفية)' %}
+        {% include 'dashboard/_badge_statut.html' with type='neutre' texte=_('معلوماتي فقط (لا يُستخدم للتصفية)') %}
     {% endif %}
     <span style="background:#f0f0f0; color:#666; border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">
-        مستخدم في {{ nb_champs_utilises }} حقل من نموذج التسجيل
+        {% blocktrans with n=nb_champs_utilises %}مستخدم في {{ n }} حقل من نموذج التسجيل{% endblocktrans %}
     </span>
 </div>
 
 {% if couverture %}
 <div style="background:{% if couverture.configures < couverture.total %}#fff3cd{% else %}#e8f5e9{% endif %}; border-radius:12px; padding:16px 20px; margin-bottom:24px;">
     {% if couverture.total == 0 %}
-        <div style="color:#856404; font-weight:600;">⚠️ لا توجد أي مجموعة نشطة في النظام حالياً — لا يمكن تفعيل هذا المعيار كفلتر فعلي إلى أن تُنشأ مجموعات.</div>
+        <div style="color:#856404; font-weight:600;">{% trans "⚠️ لا توجد أي مجموعة نشطة في النظام حالياً — لا يمكن تفعيل هذا المعيار كفلتر فعلي إلى أن تُنشأ مجموعات." %}</div>
     {% elif couverture.configures == 0 %}
         <div style="color:#856404; font-weight:600;">
-            ⚠️ أي مجموعة نشطة لا تملك حالياً قيمة لهذا المعيار. إذا استُخدم هذا المعيار للتصفية، لن تُقترح أي مجموعة على الطلاب إلى أن يتم تحديد القيم أدناه.
+            {% trans "⚠️ أي مجموعة نشطة لا تملك حالياً قيمة لهذا المعيار. إذا استُخدم هذا المعيار للتصفية، لن تُقترح أي مجموعة على الطلاب إلى أن يتم تحديد القيم أدناه." %}
         </div>
     {% elif couverture.configures < couverture.total %}
         <div style="color:#856404; font-weight:600;">
-            ⚠️ {{ couverture.configures }} من أصل {{ couverture.total }} مجموعة نشطة مهيأة لهذا المعيار. المجموعات المتبقية لن تظهر في النتائج عند استخدام هذا الفلتر.
+            {% blocktrans with configures=couverture.configures total=couverture.total %}⚠️ {{ configures }} من أصل {{ total }} مجموعة نشطة مهيأة لهذا المعيار. المجموعات المتبقية لن تظهر في النتائج عند استخدام هذا الفلتر.{% endblocktrans %}
         </div>
         <div style="margin-top:8px; font-size:0.85rem;">
-            المجموعات غير المهيأة:
+            {% trans "المجموعات غير المهيأة:" %}
             {% for groupe in couverture.groupes_manquants %}
                 <a href="{% url 'admin_groupe_detail' groupe.id %}" style="color:#856404; font-weight:600;">{{ groupe.nom }}</a>{% if not forloop.last %}، {% endif %}
             {% endfor %}
         </div>
     {% else %}
-        <div style="color:var(--color-success); font-weight:600;">✅ جميع المجموعات النشطة ({{ couverture.total }}) مهيأة لهذا المعيار.</div>
+        <div style="color:var(--color-success); font-weight:600;">{% blocktrans with total=couverture.total %}✅ جميع المجموعات النشطة ({{ total }}) مهيأة لهذا المعيار.{% endblocktrans %}</div>
     {% endif %}
 </div>
 {% endif %}
@@ -77,7 +78,7 @@ critère lié à ne serait-ce qu'un groupe ne peut pas être supprimé (voir le
 bouton "حذف 🗑️" plus haut) tant que ces liens existent.
 {% endcomment %}
 {% if valeurs_groupes %}
-<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">المجموعات المهيأة لهذا المعيار ({{ valeurs_groupes|length }})</div>
+<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">{% blocktrans with n=valeurs_groupes|length %}المجموعات المهيأة لهذا المعيار ({{ n }}){% endblocktrans %}</div>
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; margin-bottom:24px;">
     {% for v in valeurs_groupes %}
     <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 22px; border-bottom:1px solid #f0f0f0;">
@@ -86,20 +87,20 @@ bouton "حذف 🗑️" plus haut) tant que ces liens existent.
             <span style="color:#888; font-size:0.85rem; margin-inline-start:8px;">= {{ v.option.label }}</span>
         </div>
         <form method="POST" action="{% url 'admin_critere_inscription_detacher_groupe' critere.id v.groupe.id %}"
-              onsubmit="return confirm('فك ارتباط \'{{ critere.label|escapejs }}\' عن مجموعة \'{{ v.groupe.nom|escapejs }}\'؟');">
+              onsubmit="return confirm('{% blocktrans with label=critere.label|escapejs nom=v.groupe.nom|escapejs %}فك ارتباط «{{ label }}» عن مجموعة «{{ nom }}»؟{% endblocktrans %}');">
             {% csrf_token %}
-            <button type="submit" style="background:#fce4e4; color:var(--color-danger); border:none; border-radius:8px; padding:6px 14px; font-size:0.82rem; cursor:pointer;">فك الارتباط ✂️</button>
+            <button type="submit" style="background:#fce4e4; color:var(--color-danger); border:none; border-radius:8px; padding:6px 14px; font-size:0.82rem; cursor:pointer;">{% trans "فك الارتباط ✂️" %}</button>
         </form>
     </div>
     {% endfor %}
 </div>
 {% endif %}
 
-<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">الخيارات</div>
+<div class="page-title" style="font-size:1.1rem; margin-bottom:12px;">{% trans "الخيارات" %}</div>
 
 {% if critere.backend != 'eav' %}
 <div style="background:#f0ebe3; border-radius:12px; padding:16px 20px; margin-bottom:20px; color:#666;">
-    هذا المعيار لا يحتاج خيارات مُدارة يدوياً — القيم تُحسب تلقائياً من {% if critere.backend == 'nb_slots' %}عدد الحصص الأسبوعية الحقيقي لكل مجموعة{% else %}الحقل الحقيقي "{{ critere.champ_modele_groupe }}" في نموذج المجموعة{% endif %}.
+    {% if critere.backend == 'nb_slots' %}{% trans "هذا المعيار لا يحتاج خيارات مُدارة يدوياً — القيم تُحسب تلقائياً من عدد الحصص الأسبوعية الحقيقي لكل مجموعة." %}{% else %}{% blocktrans with champ=critere.champ_modele_groupe %}هذا المعيار لا يحتاج خيارات مُدارة يدوياً — القيم تُحسب تلقائياً من الحقل الحقيقي "{{ champ }}" في نموذج المجموعة.{% endblocktrans %}{% endif %}
 </div>
 {% else %}
 <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; margin-bottom:20px;">
@@ -107,54 +108,54 @@ bouton "حذف 🗑️" plus haut) tant que ces liens existent.
     <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 22px; border-bottom:1px solid #f0f0f0;">
         <div>
             <div style="font-weight:700;">{{ option.ordre }}. {{ option.label }}</div>
-            <div style="color:#888; font-size:0.8rem;">الرمز: {{ option.code }}</div>
+            <div style="color:#888; font-size:0.8rem;">{% blocktrans with code=option.code %}الرمز: {{ code }}{% endblocktrans %}</div>
         </div>
         <div class="d-flex gap-2 align-items-center">
             {% if option.est_actif %}
-                {% include 'dashboard/_badge_statut.html' with type='success' texte='نشط' %}
+                {% include 'dashboard/_badge_statut.html' with type='success' texte=_('نشط') %}
             {% else %}
-                {% include 'dashboard/_badge_statut.html' with type='danger' texte='غير نشط' %}
+                {% include 'dashboard/_badge_statut.html' with type='danger' texte=_('غير نشط') %}
             {% endif %}
             <a href="{% url 'admin_critere_option_modifier' option.id %}"
-               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">تعديل ✏️</a>
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">{% trans "تعديل ✏️" %}</a>
             <a href="{% url 'admin_critere_option_toggle' option.id %}"
                style="background:#f0f0f0; color:#555; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">
-               {% if option.est_actif %}تعطيل{% else %}تفعيل{% endif %}
+               {% if option.est_actif %}{% trans "تعطيل" %}{% else %}{% trans "تفعيل" %}{% endif %}
             </a>
             <a href="{% url 'admin_critere_option_supprimer' option.id %}"
-               onclick="return confirm('حذف الخيار \'{{ option.label }}\'؟ لن يُحذف إذا كان مستخدَماً في إجابات/مجموعات سابقة.');"
-               style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">حذف 🗑️</a>
+               onclick="return confirm('{% blocktrans with label=option.label|escapejs %}حذف الخيار «{{ label }}»؟ لن يُحذف إذا كان مستخدَماً في إجابات/مجموعات سابقة.{% endblocktrans %}');"
+               style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.82rem;">{% trans "حذف 🗑️" %}</a>
         </div>
     </div>
     {% empty %}
-    <div style="text-align:center; padding:40px; color:#aaa;">لا توجد خيارات بعد</div>
+    <div style="text-align:center; padding:40px; color:#aaa;">{% trans "لا توجد خيارات بعد" %}</div>
     {% endfor %}
 </div>
 
 <div style="background:white; border-radius:16px; padding:24px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; margin-bottom:12px;">+ إضافة خيار جديد</div>
+    <div style="font-weight:700; margin-bottom:12px;">{% trans "+ إضافة خيار جديد" %}</div>
     <form method="POST" action="{% url 'admin_critere_option_ajouter' critere.id %}">
         {% csrf_token %}
         <div class="row g-2">
             <div class="col-4">
-                <input type="text" name="code" class="form-control" placeholder="الرمز" required>
+                <input type="text" name="code" class="form-control" placeholder="{% trans 'الرمز' %}" required>
             </div>
             <div class="col-5">
-                <input type="text" name="label" class="form-control" placeholder="الاسم المعروض" required>
+                <input type="text" name="label" class="form-control" placeholder="{% trans 'الاسم المعروض' %}" required>
             </div>
             <div class="col-3">
-                <input type="number" name="ordre" class="form-control" placeholder="الترتيب" value="{{ options.count|add:1 }}">
+                <input type="number" name="ordre" class="form-control" placeholder="{% trans 'الترتيب' %}" value="{{ options.count|add:1 }}">
             </div>
         </div>
         <button type="submit" class="mt-2"
             style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">
-            إضافة ✅
+            {% trans "إضافة ✅" %}
         </button>
     </form>
 </div>
 {% endif %}
 
 <div class="mt-4">
-    <a href="{% url 'admin_criteres_inscription' %}" style="color:#888; text-decoration:none;">← رجوع لقائمة المعايير</a>
+    <a href="{% url 'admin_criteres_inscription' %}" style="color:#888; text-decoration:none;">{% trans "← رجوع لقائمة المعايير" %}</a>
 </div>
 {% endblock %}

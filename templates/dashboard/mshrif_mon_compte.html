@@ -1,8 +1,9 @@
 {% extends 'dashboard/base_mshrif.html' %}
-{% block title %}حسابي{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "حسابي" %}{% endblock %}
 {% block content %}
-<div class="page-title">حسابي</div>
-<div class="page-subtitle">البريد الحالي: {{ request.user.email }}</div>
+<div class="page-title">{% trans "حسابي" %}</div>
+<div class="page-subtitle">{% blocktrans with email=request.user.email %}البريد الحالي: {{ email }}{% endblocktrans %}</div>
 
 <div class="row g-4">
     <div class="col-md-6">

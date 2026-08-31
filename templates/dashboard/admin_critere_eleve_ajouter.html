@@ -1,25 +1,26 @@
 {% extends 'dashboard/base_admin.html' %}
-{% block title %}إضافة معيار{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "إضافة معيار" %}{% endblock %}
 {% block content %}
-<div class="page-title">إضافة معيار تقييم طالب</div>
+<div class="page-title">{% trans "إضافة معيار تقييم طالب" %}</div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">
         {% csrf_token %}
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">نص المعيار *</label>
+            <label style="font-weight:600; color:#333;">{% trans "نص المعيار *" %}</label>
             <textarea name="nom_ar" class="form-control mt-1" rows="2" required></textarea>
         </div>
         <div class="mb-3">
-            <label style="font-weight:600; color:#333;">ترتيب الظهور</label>
+            <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>
             <input type="number" name="ordre" class="form-control mt-1" value="0">
         </div>
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
-                إضافة ✅
+                {% trans "إضافة ✅" %}
             </button>
-            <a href="{% url 'admin_criteres_eleves' %}" style="color:#888; text-decoration:none; padding:10px;">← رجوع</a>
+            <a href="{% url 'admin_criteres_eleves' %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
 </div>

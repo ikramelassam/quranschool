@@ -21,6 +21,7 @@ fonctionnel INCHANGÉ : debounce 300ms, seuil 2 caractères, permissions et
 endpoint (dashboard.views.api_recherche_globale), scoring (dashboard.
 recherche) — rien de tout cela ne bouge ici, uniquement présentation.
 {% endcomment %}
+{% load i18n %}
 <div class="recherche-globale-wrap">
     <div class="recherche-globale-input-wrap" id="rechercheGlobaleInputWrap">
         <span class="recherche-globale-icone">🔍</span>
@@ -28,15 +29,15 @@ recherche) — rien de tout cela ne bouge ici, uniquement présentation.
                id="rechercheGlobaleInput"
                class="recherche-globale-input"
                autocomplete="off"
-               aria-label="بحث شامل">
+               aria-label="{% trans 'بحث شامل' %}">
     </div>
     <div id="rechercheGlobaleAide" class="recherche-globale-aide" hidden>
-        <div class="rg-aide-titre">يمكنك البحث عن:</div>
+        <div class="rg-aide-titre">{% trans "يمكنك البحث عن:" %}</div>
         <div class="rg-aide-categories">
-            <span class="rg-aide-cat">👤 الطلاب</span>
-            <span class="rg-aide-cat">🎓 الأساتذة</span>
-            <span class="rg-aide-cat">🧭 المؤطرون</span>
-            <span class="rg-aide-cat">👥 المجموعات</span>
+            <span class="rg-aide-cat">{% trans "👤 الطلاب" %}</span>
+            <span class="rg-aide-cat">{% trans "🎓 الأساتذة" %}</span>
+            <span class="rg-aide-cat">{% trans "🧭 المؤطرون" %}</span>
+            <span class="rg-aide-cat">{% trans "👥 المجموعات" %}</span>
         </div>
     </div>
     <div id="rechercheGlobaleDropdown" class="recherche-globale-dropdown" hidden></div>
@@ -136,7 +137,7 @@ recherche) — rien de tout cela ne bouge ici, uniquement présentation.
 <script>
 (function () {
     const CATEGORIE_ICONES = { eleves: '👤', profs: '🎓', superviseurs: '🧭', groupes: '👥' };
-    const PLACEHOLDERS = ['ابحث عن طالب...', 'ابحث عن أستاذ...', 'ابحث عن مؤطر...', 'ابحث عن مجموعة...'];
+    const PLACEHOLDERS = ['{% trans "ابحث عن طالب..." %}', '{% trans "ابحث عن أستاذ..." %}', '{% trans "ابحث عن مؤطر..." %}', '{% trans "ابحث عن مجموعة..." %}'];
 
     const input = document.getElementById('rechercheGlobaleInput');
     const dropdown = document.getElementById('rechercheGlobaleDropdown');
@@ -199,14 +200,14 @@ recherche) — rien de tout cela ne bouge ici, uniquement présentation.
 
         if (data.mois) {
             html += `<a class="rg-mois-bandeau" href="${data.mois.url}">
-                📅 عرض البيانات الشهرية لـ ${echapperHtml(data.mois.libelle)}
+                {% trans "📅 عرض البيانات الشهرية لـ" %} ${echapperHtml(data.mois.libelle)}
             </a>`;
         }
 
         const categoriesAvecResultats = data.categories.filter(c => c.resultats.length > 0);
 
         if (categoriesAvecResultats.length === 0 && !data.mois) {
-            html += `<div class="rg-vide"><span class="rg-vide-icone">🗂️</span>لا توجد نتائج لـ «${echapperHtml(q)}»</div>`;
+            html += `<div class="rg-vide"><span class="rg-vide-icone">🗂️</span>{% trans "لا توجد نتائج لـ" %} «${echapperHtml(q)}»</div>`;
         } else {
             for (const cat of categoriesAvecResultats) {
                 html += `<div class="rg-categorie">
@@ -222,7 +223,7 @@ recherche) — rien de tout cela ne bouge ici, uniquement présentation.
                     </a>`;
                 }
                 if (cat.a_plus && cat.voir_tout_url) {
-                    html += `<a class="rg-voir-tout" href="${cat.voir_tout_url}">عرض كل النتائج ←</a>`;
+                    html += `<a class="rg-voir-tout" href="${cat.voir_tout_url}">{% trans "عرض كل النتائج ←" %}</a>`;
                 }
                 html += `</div>`;
             }

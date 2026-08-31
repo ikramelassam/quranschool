@@ -47,8 +47,11 @@ pour le prof lui-même — rien à retirer, ce template n'en a jamais eu.
             {% endif %}
             {% if element.fichier %}
             <div style="margin-top:6px; display:flex; gap:14px; flex-wrap:wrap;">
-                {% if element.fichier_affichable_navigateur %}
-                <a href="{% url 'hakiba_fichier' element.id %}" target="_blank" rel="noopener" style="color:var(--color-role-superviseur-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">{% trans "فتح الملف ↗" %}</a>
+                {% if element.fichier_apercu_type %}
+                <button type="button" class="media-open" style="color:var(--color-role-superviseur-solid); font-size:0.85rem; font-weight:600;"
+                        data-media-url="{% url 'hakiba_fichier' element.id %}"
+                        data-media-type="{{ element.fichier_apercu_type }}"
+                        data-media-nom="{{ element.titre|default:element.fichier.name }}">{% trans "فتح الملف 👁" %}</button>
                 {% endif %}
                 <a href="{% url 'hakiba_fichier' element.id %}?dl=1" style="color:var(--color-role-superviseur-solid); font-size:0.85rem; font-weight:600; text-decoration:none;">{% trans "تحميل الملف ⬇" %}</a>
             </div>
@@ -60,4 +63,5 @@ pour le prof lui-même — rien à retirer, ce template n'en a jamais eu.
     <div style="color:#aaa; text-align:center; padding:20px 0;">{% trans "لا توجد وثائق مضافة من الإدارة حاليا" %}</div>
     {% endfor %}
 </div>
+{% include 'dashboard/_media_viewer.html' %}
 {% endblock %}

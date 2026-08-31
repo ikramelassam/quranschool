@@ -1,12 +1,16 @@
-{% load static %}
+{% load static i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE|default:'ar' }}" dir="{% if LANGUAGE_CODE and not LANGUAGE_BIDI %}ltr{% else %}rtl{% endif %}">
 <head>
     <meta charset="UTF-8">
     <link rel="icon" href="{{ logo_url }}" type="{{ logo_mime_type }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>التسجيل كطالب</title>
+    <title>{% trans "التسجيل كطالب" %}</title>
+    {% if LANGUAGE_CODE and not LANGUAGE_BIDI %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    {% else %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    {% endif %}
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
     <style>
@@ -105,27 +109,27 @@
 
         <!-- Logo -->
         <div class="logo-container">
-            <img src="{{ logo_url }}" alt="زدني علماً">
+            <img src="{{ logo_url }}" alt="{% trans 'زدني علماً' %}">
         </div>
 
         <!-- Titre -->
-        <div class="page-title">التسجيل كطالب</div>
-        <div class="page-subtitle">اختر الفئة العمرية</div>
+        <div class="page-title">{% trans "التسجيل كطالب" %}</div>
+        <div class="page-subtitle">{% trans "اختر الفئة العمرية" %}</div>
 
         <!-- Choix -->
         <div class="row g-3 mb-4">
             <div class="col-6">
                 <div class="choice-card selected" id="card-enfant" onclick="selectAge('enfant')">
                     <div class="emoji">👶</div>
-                    <div class="choice-title">طفل (أقل من 18 سنة)</div>
-                    <div class="choice-desc">برنامج خاص للأطفال</div>
+                    <div class="choice-title">{% trans "طفل (أقل من 18 سنة)" %}</div>
+                    <div class="choice-desc">{% trans "برنامج خاص للأطفال" %}</div>
                 </div>
             </div>
             <div class="col-6">
                 <div class="choice-card" id="card-adulte" onclick="selectAge('adulte')">
                     <div class="emoji">🎓</div>
-                    <div class="choice-title">بالغ (18 سنة فما فوق)</div>
-                    <div class="choice-desc">برنامج للبالغين</div>
+                    <div class="choice-title">{% trans "بالغ (18 سنة فما فوق)" %}</div>
+                    <div class="choice-desc">{% trans "برنامج للبالغين" %}</div>
                 </div>
             </div>
         </div>
@@ -133,10 +137,10 @@
         <!-- Boutons -->
         <div class="row g-3">
             <div class="col-6">
-                <button class="btn-continue" onclick="continuer()">متابعة</button>
+                <button class="btn-continue" onclick="continuer()">{% trans "متابعة" %}</button>
             </div>
             <div class="col-6">
-                <a href="{% url 'login' %}" class="btn-back">رجوع ←</a>
+                <a href="{% url 'login' %}" class="btn-back">{% trans "رجوع ←" %}</a>
             </div>
         </div>
 
