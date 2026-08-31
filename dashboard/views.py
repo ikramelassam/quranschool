@@ -599,7 +599,13 @@ def prof_seances(request):
     aujourdhui = timezone.localdate()
     groupe_id = request.GET.get('groupe', '')
 
-    toutes_seances = Seance.objects.filter(groupe__prof=prof).select_related('groupe').prefetch_related('groupe__eleves__user')
+    # prefetch_related('groupe__eleves__user') retiré d'ici (Correctif perf du
+    # 2026-08-30) : seul le bloc "القادمة" (seances_a_venir_qs plus bas)
+    # affiche la liste des élèves d'un groupe — les 3 autres sections
+    # (retard/aujourd'hui/passées, ci-dessous) n'affichent que seance.groupe.nom
+    # et payaient pourtant, elles aussi, ce même prefetch (élèves + user)
+    # à chaque évaluation de leur queryset, sans jamais l'utiliser.
+    toutes_seances = Seance.objects.filter(groupe__prof=prof).select_related('groupe')
     if groupe_id:
         toutes_seances = toutes_seances.filter(groupe_id=groupe_id)
 
@@ -612,7 +618,12 @@ def prof_seances(request):
     ).order_by('-date', '-heure')
 
     seances_aujourdhui = toutes_seances.filter(date=aujourdhui).order_by('heure')
-    seances_a_venir_qs = toutes_seances.filter(date__gt=aujourdhui).order_by('date', 'heure')
+    # prefetch_related réappliqué UNIQUEMENT ici : templates/dashboard/
+    # prof_seances.html affiche seance.groupe.eleves.all|length et
+    # {{ seance.groupe.eleves|noms_eleves }} seulement pour cette section.
+    seances_a_venir_qs = toutes_seances.filter(date__gt=aujourdhui).order_by(
+        'date', 'heure'
+    ).prefetch_related('groupe__eleves__user')
     nb_a_venir = seances_a_venir_qs.count()
     # On plafonne l'affichage des séances à venir: un emploi du temps récurrent
     # peut en générer des dizaines à l'avance, ce qui recréerait le scroll
@@ -776,7 +787,11 @@ def prof_seance_detail(request, seance_id):
     # Un élève suspendu/archivé ne doit plus apparaître dans les feuilles de
     # présence à venir (voir Tâche 3 du 2026-07-25) — son historique passé
     # n'est pas affecté, seule cette liste "à remplir maintenant" l'exclut.
-    eleves = seance.groupe.eleves.filter(statut='actif')
+    # select_related('user') (Correctif perf du 2026-08-30) : le template
+    # affiche eleve.user.get_full_name pour chaque élève de la feuille —
+    # sans ça, 1 requête par élève à CHAQUE ouverture de cette page (la page
+    # que le prof utilise pour rapporter/remplir chaque séance).
+    eleves = seance.groupe.eleves.filter(statut='actif').select_related('user')
 
     # Critères dynamiques (Point 7, Tâche du 2026-08-04) — remplacent les 4
     # champs fixes note_hifz/note_muraja3a/note_tilawa/note_mouwazaba.
@@ -857,7 +872,11 @@ def prof_presence_sauvegarder(request, seance_id):
         # Un élève suspendu/archivé ne doit plus apparaître dans les feuilles de
         # présence à venir (voir Tâche 3 du 2026-07-25) — son historique passé
         # n'est pas affecté, seule cette liste "à remplir maintenant" l'exclut.
-        eleves = seance.groupe.eleves.filter(statut='actif')
+        # select_related('user') (Correctif perf du 2026-08-30) : eleve.user.
+        # get_full_name() est appelé plusieurs fois par élève dans les messages
+        # d'erreur ci-dessous — sans ça, 1 requête par élève dès qu'une seule
+        # ligne du formulaire est invalide.
+        eleves = seance.groupe.eleves.filter(statut='actif').select_related('user')
         erreurs = []
         for eleve in eleves:
             statut = request.POST.get(f'statut_{eleve.id}', 'absent')
@@ -1676,7 +1695,7 @@ def bilans_mensuels(request):
     Lecture seule pour مدير/مؤطر/مشرف, مؤطر scopé à ses profs assignés (même
     filtre que classement_mensuel_profs) — appliqué ici au niveau des GROUPES
     eux-mêmes (queryset de base), pas juste des données affichées."""
-    from django.db.models import Avg
+    from django.db.models import Avg, Q
     from django.utils import timezone
     from accounts.models import Prof, Superviseur
     from courses.models import BilanMensuel, Groupe, NotePresence
@@ -1713,6 +1732,66 @@ def bilans_mensuels(request):
     mois_absences = mois_num or aujourdhui.month
     mois_reference_absences = datetime.date(annee_absences, mois_absences, 1)
 
+    # Correctif perf du 2026-08-30 (voir AUDIT_PERFORMANCE_2026-08-30.md,
+    # point 2.4) : moyennes_qs/bilan_qs étaient recalculés par 2 requêtes
+    # SÉPARÉES PAR ÉLÈVE AFFICHÉ (jusqu'à 2 x nb total d'élèves actifs de
+    # l'école quand aucun filtre groupe/prof n'est appliqué). Remplacé par 2
+    # requêtes groupées, calculées une fois AVANT la boucle d'affichage, puis
+    # indexées par (eleve_id, groupe_id)/(eleve_id, prof_id) pour préserver
+    # EXACTEMENT le même périmètre que l'ancien code : la moyenne reste scopée
+    # au groupe affiché (presence__seance__groupe), le bilan reste scopé au
+    # prof de ce groupe (BilanMensuel.prof) — un même élève dans 2 groupes
+    # (donc éventuellement 2 profs différents) continue d'afficher des
+    # valeurs différentes sur chacune de ses 2 lignes, comme avant.
+    groupes = list(groupes)  # matérialisé une fois : réutilisé plusieurs fois ci-dessous sans requête supplémentaire
+    groupe_ids = [g.id for g in groupes]
+    prof_ids = {g.prof_id for g in groupes if g.prof_id is not None}
+    # Un groupe SANS prof assigné (prof=None, ex: prof archivé/supprimé — voir
+    # Groupe.prof, SET_NULL) reproduisait, avec l'ancien code, `prof=None` ->
+    # Django traduit ça en `prof_id IS NULL`, qui matche les BilanMensuel dont
+    # l'auteur a depuis été supprimé (SET_NULL, voir BilanMensuel.prof) —
+    # jamais silencieusement masqués. `prof_id__in=` ne matche PAS NULL en SQL
+    # (logique 3-valeurs), d'où ce cas à part pour ne rien perdre.
+    inclut_bilans_sans_prof = any(g.prof_id is None for g in groupes)
+    eleve_ids = {e.id for g in groupes for e in g.eleves.all()}
+
+    moyennes_qs_global = NotePresence.objects.filter(
+        presence__eleve_id__in=eleve_ids,
+        presence__seance__groupe_id__in=groupe_ids,
+        critere__est_actif=True,
+    )
+    if annee:
+        moyennes_qs_global = moyennes_qs_global.filter(
+            presence__seance__date__year=annee, presence__seance__date__month=mois_num
+        )
+    # order_by('critere__ordre') seul (pas par eleve/groupe d'abord) suffit :
+    # pour une paire (eleve, groupe) donnée, ses lignes restent une
+    # sous-séquence de ce tri global, donc déjà dans le bon ordre une fois
+    # regroupées ci-dessous par .setdefault(cle, []).append(...).
+    moyennes_par_paire = {}
+    for m in moyennes_qs_global.values(
+        'presence__eleve_id', 'presence__seance__groupe_id', 'critere__nom_ar', 'critere__ordre'
+    ).annotate(moyenne=Avg('note')).order_by('critere__ordre'):
+        cle = (m['presence__eleve_id'], m['presence__seance__groupe_id'])
+        moyennes_par_paire.setdefault(cle, []).append(
+            {'nom_ar': m['critere__nom_ar'], 'moyenne': round(m['moyenne'], 1)}
+        )
+
+    q_prof = Q(prof_id__in=prof_ids)
+    if inclut_bilans_sans_prof:
+        q_prof |= Q(prof_id__isnull=True)
+    bilans_qs_global = BilanMensuel.objects.filter(Q(eleve_id__in=eleve_ids) & q_prof)
+    if annee:
+        bilans_qs_global = bilans_qs_global.filter(mois_reference__year=annee, mois_reference__month=mois_num)
+    # order_by('eleve_id', 'prof_id', '-mois_reference') + setdefault : ne
+    # garde que le PREMIER bilan rencontré par paire, donc le plus récent
+    # (mois_reference le plus grand) — équivalent exact de l'ancien
+    # bilan_qs.order_by('-mois_reference').first() appliqué paire par paire.
+    bilans_par_paire = {}
+    for b in bilans_qs_global.order_by('eleve_id', 'prof_id', '-mois_reference'):
+        cle = (b.eleve_id, b.prof_id)
+        bilans_par_paire.setdefault(cle, b)
+
     groupes_accordeon = []
     for groupe in groupes:
         lignes_eleves = []
@@ -1725,22 +1804,8 @@ def bilans_mensuels(request):
             [e.id for e in groupe.eleves.all()], annee_absences, mois_absences, groupe=groupe,
         )
         for eleve in groupe.eleves.all():
-            moyennes_qs = NotePresence.objects.filter(
-                presence__eleve=eleve, presence__seance__groupe=groupe, critere__est_actif=True,
-            )
-            bilan_qs = BilanMensuel.objects.filter(eleve=eleve, prof=groupe.prof)
-            if annee:
-                moyennes_qs = moyennes_qs.filter(
-                    presence__seance__date__year=annee, presence__seance__date__month=mois_num
-                )
-                bilan_qs = bilan_qs.filter(mois_reference__year=annee, mois_reference__month=mois_num)
-
-            moyennes_calc = moyennes_qs.values('critere__nom_ar', 'critere__ordre').annotate(
-                moyenne=Avg('note')
-            ).order_by('critere__ordre')
-            moyennes = [{'nom_ar': m['critere__nom_ar'], 'moyenne': round(m['moyenne'], 1)} for m in moyennes_calc]
-
-            bilan = bilan_qs.order_by('-mois_reference').first()
+            moyennes = moyennes_par_paire.get((eleve.id, groupe.id), [])
+            bilan = bilans_par_paire.get((eleve.id, groupe.prof_id))
             # Choix arbitraire (BilanMensuel n'a pas de champ "texte" unique) :
             # les 3 champs qualitatifs (mémorisation/révision/discipline) sont
             # concaténés pour l'aperçu, tronqué côté template (truncatechars).
@@ -3070,7 +3135,7 @@ def mshrif_logo(request):
     """Gestion du logo de la plateforme — المشرف uniquement. Validation manuelle
     (pas de Django Forms dans ce projet) : extension, taille, et ouverture réelle via
     Pillow (confirme que le fichier est vraiment une image, pas juste renommé)."""
-    from accounts.models import get_logo_config
+    from accounts.models import get_logo_config, invalider_cache_logo_config
     from PIL import Image
 
     config = get_logo_config()
@@ -3099,6 +3164,7 @@ def mshrif_logo(request):
 
         config.logo = fichier
         config.save()
+        invalider_cache_logo_config()
         messages.success(request, 'تم تحديث شعار المنصة بنجاح — سيظهر الشعار الجديد في كل الصفحات.')
         return redirect('mshrif_logo')
 
@@ -3253,9 +3319,13 @@ def eleve_seances(request):
     # Le passé (évaluations à consulter) est plus prioritaire visuellement que
     # le futur (juste informatif) — voir le template, cette section s'affiche
     # en premier.
+    # select_related('seance__groupe') (Correctif perf du 2026-08-30) : le
+    # template affiche presence.seance.groupe.nom/.date/.heure pour chaque
+    # ligne — sans ça, 2 requêtes en plus par ligne affichée (bornées à 10
+    # par la pagination, mais évitables).
     presences = Presence.objects.filter(
         eleve=eleve
-    ).order_by('-seance__date', '-seance__heure')
+    ).select_related('seance__groupe').order_by('-seance__date', '-seance__heure')
 
     # Marque le type 'notes_seances' comme lu (panneau 🔔 الإشعارات, Chantier
     # notifications du 2026-08-19) — voir dashboard.notifications.__doc__.
@@ -3686,6 +3756,60 @@ def superviseur_seance_detail(request, seance_id):
 
 
 @role_required('superviseur')
+def superviseur_emploi(request):
+    """جدول المؤطر — grille hebdomadaire des groupes de TOUS les profs
+    assignés à ce superviseur (mirroir de prof_emploi, dont le patron de
+    grille jours×heures est repris tel quel — voir prof_emploi pour le
+    détail du raisonnement). Différence avec prof_emploi : un superviseur
+    supervise plusieurs profs à la fois, donc chaque cellule affiche aussi
+    le nom du prof (pas seulement le groupe) pour lever l'ambiguïté quand
+    deux groupes de profs différents apparaissent sur la grille.
+
+    Ajouté le 2026-08-30 : ni cette page ni un lien sidebar vers les séances/
+    l'évaluation n'existaient pour le مؤطر — seule dashboard_superviseur
+    (le tableau de bord) donnait accès aux séances à évaluer, sans qu'aucun
+    lien de la sidebar ne l'indique clairement, et aucune grille horaire
+    n'existait pour visualiser la charge de la semaine d'un coup d'œil."""
+    from accounts.models import Superviseur
+    from courses.models import Groupe
+    from courses.utils import JOUR_INDEX, JOURS_SEMAINE_DISPO, generer_heures_grille, _heures_couvertes
+    from django.utils import timezone
+
+    superviseur = get_object_or_404(Superviseur, user=request.user)
+    groupes = Groupe.objects.filter(prof__in=superviseur.profs_assignes.all(), statut='actif')\
+        .select_related('prof__user', 'creneau').prefetch_related('creneau__slots')
+
+    occupation = {}
+    for groupe in groupes:
+        creneau = groupe.creneau
+        if not creneau:
+            continue
+        for slot in creneau.slots.all():
+            for h in _heures_couvertes(slot.heure_debut, slot.heure_fin):
+                occupation[(slot.jour, h)] = groupe
+
+    jour_actuel = {v: k for k, v in JOUR_INDEX.items()}[timezone.localdate().weekday()]
+
+    lignes_grille = []
+    for heure in generer_heures_grille():
+        lignes_grille.append({
+            'heure': heure,
+            'cellules': [
+                {'jour_code': jour_code, 'groupe': occupation.get((jour_code, heure))}
+                for jour_code, _ in JOURS_SEMAINE_DISPO
+            ],
+        })
+
+    return render(request, 'dashboard/superviseur_emploi.html', {
+        'superviseur': superviseur,
+        'groupes': groupes,
+        'jours': JOURS_SEMAINE_DISPO,
+        'lignes_grille': lignes_grille,
+        'jour_actuel': jour_actuel,
+    })
+
+
+@role_required('superviseur')
 def superviseur_profil(request):
     """Profil مؤطر — refondu en centre d'information sur son périmètre de
     supervision (Tâche 13 du 2026-07-25) : une carte enrichie par prof
@@ -3864,9 +3988,13 @@ def admin_seances(request):
     une séance précise (prof malade, vacances...)."""
     from django.utils import timezone
     from courses.models import Seance, Groupe
-    from courses.utils import etendre_toutes_les_seances
+    from courses.utils import etendre_toutes_les_seances_opportuniste
 
-    etendre_toutes_les_seances()
+    # Correctif perf du 2026-08-30 (voir AUDIT_PERFORMANCE_2026-08-30.md) :
+    # throttlée à 1x/heure — appliquer un filtre/une recherche sur cette page
+    # rechargeait entièrement etendre_toutes_les_seances() (balayage de TOUS
+    # les groupes actifs) à CHAQUE requête, pas seulement à la 1ère ouverture.
+    etendre_toutes_les_seances_opportuniste()
 
     groupe_id = request.GET.get('groupe', '')
     prof_id = request.GET.get('prof', '')
@@ -4939,10 +5067,12 @@ def admin_demande_changement_halaka_refuser(request, demande_id):
 @role_required('admin', 'mshrif')
 def admin_calendrier(request):
     from courses.models import Seance
-    from courses.utils import etendre_toutes_les_seances
+    from courses.utils import etendre_toutes_les_seances_opportuniste
     from django.utils import timezone
 
-    etendre_toutes_les_seances()
+    # Correctif perf du 2026-08-30 — même throttle qu'admin_seances, voir sa
+    # docstring et AUDIT_PERFORMANCE_2026-08-30.md.
+    etendre_toutes_les_seances_opportuniste()
 
     semaine_param = request.GET.get('semaine')
     prof_id = request.GET.get('prof', '')

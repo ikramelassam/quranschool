@@ -468,6 +468,23 @@ class InscriptionPubliqueDateNaissanceTests(TestCase):
         inscription = InscriptionProf.objects.get(email='regression.date.prof.ok@zidni.test')
         self.assertEqual(inscription.date_naissance.isoformat(), '1990-01-01')
 
+    def test_inscription_prof_envoie_bien_la_notification_telegram(self):
+        """Non-régression (vérifié le 2026-08-31, suite au bug équivalent
+        trouvé côté élève sur registration.views — voir
+        WizardConfirmationTests.test_confirmation_envoie_notification_telegram) :
+        ce chemin (inscriptions.views.inscription_prof, toujours celui monté
+        sur /register/teacher, voir core/urls.py) doit continuer à notifier
+        le مدير/مشرف par Telegram à chaque candidature prof."""
+        from unittest.mock import patch
+
+        donnees = self._donnees_prof(date_naissance='1990-01-01', email='regression.telegram.prof.ok@zidni.test')
+        with patch('inscriptions.views.envoyer_notification_telegram_async') as mock_notif:
+            reponse = self.client.post(reverse('inscription_prof'), donnees)
+        self.assertEqual(reponse.status_code, 302)
+        mock_notif.assert_called_once()
+        self.assertIn('طلب تسجيل جديد', mock_notif.call_args[0][0])
+        self.assertIn('أستاذ', mock_notif.call_args[0][0])
+
 
 @override_settings(STORAGES={
     **settings.STORAGES,

@@ -3,6 +3,7 @@ import time
 
 from django.conf import settings
 from django.core import mail
+from django.core.cache import cache
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -13,6 +14,7 @@ from accounts.models import (
 from courses.models import (
     Groupe, Creneau, Seance, Presence, BilanMensuel, HistoriqueGroupeEleve,
     DisponibiliteEleve, DisponibiliteProf, DemandeModificationDisponibilite, DemandeChangementHalaka,
+    CritereEleve, NotePresence,
 )
 from courses.utils import remplacer_slots_creneau
 from courses.views import _ajouter_eleve_au_groupe
@@ -420,6 +422,128 @@ class AffichageDonneesDetacheesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         contenu = response.content.decode('utf-8')
         self.assertIn('[حساب محذوف]', contenu)
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class BilansMensuelsPerfRefactorTests(TestCase):
+    """Correctif perf du 2026-08-30 (voir AUDIT_PERFORMANCE_2026-08-30.md,
+    point 2.4) : moyennes/bilan de dashboard.views.bilans_mensuels sont
+    passés de 2 requêtes PAR ÉLÈVE affiché à 2 requêtes groupées, indexées
+    par (eleve_id, groupe_id)/(eleve_id, prof_id). Ces tests vérifient
+    précisément le cas qui rendait ce refactor délicat : un même élève dans
+    2 groupes (donc 2 profs différents) doit continuer à afficher des
+    moyennes/bilans DIFFÉRENTS sur chacune de ses 2 lignes — jamais l'un
+    écrasant l'autre par erreur de clé de regroupement."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.client.force_login(self.admin)
+        self.critere = CritereEleve.objects.create(nom_ar='الحفظ', ordre=1, est_actif=True)
+
+    def test_meme_eleve_dans_2_groupes_affiche_moyenne_et_bilan_distincts_par_groupe(self):
+        eleve = _creer_eleve('eleve_bilans_perf@zidni.test')
+        prof_a = _creer_prof('prof_bilans_perf_a@zidni.test')
+        prof_b = _creer_prof('prof_bilans_perf_b@zidni.test')
+        groupe_a = Groupe.objects.create(nom='مجموعة أ', prof=prof_a)
+        groupe_b = Groupe.objects.create(nom='مجموعة ب', prof=prof_b)
+        groupe_a.eleves.add(eleve)
+        groupe_b.eleves.add(eleve)
+
+        seance_a = Seance.objects.create(groupe=groupe_a, date=datetime.date(2026, 8, 5), heure='14:00', type='normal')
+        presence_a = Presence.objects.create(seance=seance_a, eleve=eleve, statut='present')
+        NotePresence.objects.create(presence=presence_a, critere=self.critere, note=10)
+
+        seance_b = Seance.objects.create(groupe=groupe_b, date=datetime.date(2026, 8, 6), heure='16:00', type='normal')
+        presence_b = Presence.objects.create(seance=seance_b, eleve=eleve, statut='present')
+        NotePresence.objects.create(presence=presence_b, critere=self.critere, note=18)
+
+        BilanMensuel.objects.create(
+            eleve=eleve, prof=prof_a, mois_reference=datetime.date(2026, 8, 1),
+            memorisation='بيان المجموعة أ',
+        )
+        BilanMensuel.objects.create(
+            eleve=eleve, prof=prof_b, mois_reference=datetime.date(2026, 8, 1),
+            memorisation='بيان المجموعة ب',
+        )
+
+        response = self.client.get(reverse('bilans_mensuels'))
+        self.assertEqual(response.status_code, 200)
+        contenu = response.content.decode('utf-8')
+
+        # Chaque groupe doit afficher SA PROPRE moyenne pour ce même élève —
+        # jamais la moyenne de l'autre groupe (bug qu'une clé de regroupement
+        # par seul eleve_id, sans le groupe_id, aurait introduit).
+        # Virgule (pas point) : {{ m.moyenne }} passe par le formatage de
+        # nombre localisé de Django, actif par défaut — LANGUAGE_CODE='ar'
+        # (la langue par défaut de ce test, aucun ?language= choisi) utilise
+        # la virgule comme séparateur décimal, pas le point.
+        self.assertIn('الحفظ: 10,0/20', contenu)
+        self.assertIn('الحفظ: 18,0/20', contenu)
+        # Idem pour le bilan textuel, scopé par prof.
+        self.assertIn('بيان المجموعة أ', contenu)
+        self.assertIn('بيان المجموعة ب', contenu)
+
+    def test_groupe_sans_prof_affiche_quand_meme_un_bilan_dont_lauteur_a_ete_supprime(self):
+        """prof=None sur le bilan (SET_NULL après suppression définitive du
+        prof, voir AffichageDonneesDetacheesTests) ET sur le groupe lui-même
+        (prof réassigné à None) — cas à part car `prof_id__in=[...]` ne
+        matche jamais NULL en SQL, contrairement à l'ancien `prof=groupe.prof`
+        (qui devenait `prof_id IS NULL` quand groupe.prof valait None)."""
+        eleve = _creer_eleve('eleve_bilans_perf_sansprof@zidni.test')
+        groupe = Groupe.objects.create(nom='مجموعة بدون أستاذ', prof=None)
+        groupe.eleves.add(eleve)
+        BilanMensuel.objects.create(
+            eleve=eleve, prof=None, mois_reference=datetime.date(2026, 8, 1),
+            memorisation='بيان بدون أستاذ',
+        )
+
+        response = self.client.get(reverse('bilans_mensuels'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('بيان بدون أستاذ', response.content.decode('utf-8'))
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class ExtensionSeancesThrottleTests(TestCase):
+    """Correctif perf du 2026-08-30 (voir AUDIT_PERFORMANCE_2026-08-30.md) :
+    admin_seances/admin_calendrier appelaient etendre_toutes_les_seances()
+    (balayage — 1 à plusieurs requêtes SQL PAR groupe actif) SANS AUCUN
+    throttle, à CHAQUE requête — signalé lent par le client précisément en
+    appliquant un filtre/une recherche sur /dashboard/admin/seances/ (qui
+    recharge entièrement la page, donc rejoue tout depuis le début). Vérifie
+    que la version throttlée (courses.utils.
+    etendre_toutes_les_seances_opportuniste) n'exécute réellement le balayage
+    qu'une seule fois, même après plusieurs requêtes/filtres successifs."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.client.force_login(self.admin)
+        # La clé de throttle vit dans le cache global (LocMemCache en test,
+        # comme en dev) — partagé entre tests si on ne la nettoie pas.
+        cache.clear()
+
+    def tearDown(self):
+        cache.clear()
+
+    def test_filtrer_plusieurs_fois_de_suite_n_appelle_le_balayage_qu_une_fois(self):
+        from unittest.mock import patch
+
+        with patch('courses.utils.etendre_toutes_les_seances') as balayage:
+            self.assertEqual(self.client.get(reverse('admin_seances')).status_code, 200)
+            self.assertEqual(
+                self.client.get(reverse('admin_seances'), {'statut': 'planifiee'}).status_code, 200
+            )
+            self.assertEqual(
+                self.client.get(reverse('admin_seances'), {'groupe': '999999'}).status_code, 200
+            )
+            self.assertEqual(balayage.call_count, 1)
+
+    def test_admin_calendrier_partage_le_meme_throttle_que_admin_seances(self):
+        from unittest.mock import patch
+
+        with patch('courses.utils.etendre_toutes_les_seances') as balayage:
+            self.assertEqual(self.client.get(reverse('admin_seances')).status_code, 200)
+            self.assertEqual(self.client.get(reverse('admin_calendrier')).status_code, 200)
+            self.assertEqual(balayage.call_count, 1)
 
 
 @override_settings(STORAGES=_STORAGES_TEST)
@@ -2724,6 +2848,79 @@ class ProfEmploiGeneralisationSlotsTests(TestCase):
         Groupe.objects.create(nom='مجموعة بدون حلقة', prof=self.prof, statut='actif')
         reponse = self.client.get(reverse('prof_emploi'))
         self.assertEqual(reponse.status_code, 200)
+
+
+# ============================================================================
+# Chantier découvrabilité مؤطر du 2026-08-30 — superviseur_emploi (nouvelle
+# vue, jusqu'ici la sidebar مؤطر n'exposait ni grille horaire ni lien clair
+# vers les séances/l'évaluation). Mirroir de ProfEmploiGeneralisationSlotsTests
+# mais scopé sur superviseur.profs_assignes (plusieurs profs possibles).
+# ============================================================================
+class SuperviseurEmploiTests(TestCase):
+    def setUp(self):
+        self.superviseur = _creer_superviseur('superviseur_emploi@zidni.test')
+        self.prof = _creer_prof('prof_emploi_superviseur@zidni.test')
+        self.superviseur.profs_assignes.add(self.prof)
+        self.client.force_login(self.superviseur.user)
+
+    def _creneau_lundi_16h(self):
+        creneau = Creneau.objects.create(
+            sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=12,
+        )
+        remplacer_slots_creneau(creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        return creneau
+
+    def test_affiche_le_groupe_dun_prof_assigne(self):
+        creneau = self._creneau_lundi_16h()
+        Groupe.objects.create(nom='مجموعة المؤطر', creneau=creneau, prof=self.prof, statut='actif')
+
+        reponse = self.client.get(reverse('superviseur_emploi'))
+        self.assertEqual(reponse.status_code, 200)
+        html = reponse.content.decode('utf-8')
+        self.assertIn('مجموعة المؤطر', html)
+        self.assertIn(self.prof.user.get_full_name(), html)
+
+    def test_groupe_dun_prof_non_assigne_est_absent(self):
+        """Isolation : un prof non assigné à ce مؤطر ne doit jamais apparaître
+        sur sa grille, même si son groupe a un créneau actif."""
+        creneau = self._creneau_lundi_16h()
+        autre_prof = _creer_prof('prof_hors_perimetre@zidni.test')
+        Groupe.objects.create(nom='مجموعة أستاذ آخر', creneau=creneau, prof=autre_prof, statut='actif')
+
+        reponse = self.client.get(reverse('superviseur_emploi'))
+        self.assertNotIn('مجموعة أستاذ آخر', reponse.content.decode('utf-8'))
+
+    def test_sans_groupe_actif_affiche_letat_vide(self):
+        reponse = self.client.get(reverse('superviseur_emploi'))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertIn('لا توجد مجموعات نشطة', reponse.content.decode('utf-8'))
+
+    def test_lien_accessible_uniquement_au_role_superviseur(self):
+        """@role_required('superviseur') — un prof connecté ne doit pas
+        pouvoir accéder à la grille d'un مؤطر."""
+        self.client.force_login(self.prof.user)
+        reponse = self.client.get(reverse('superviseur_emploi'))
+        self.assertNotEqual(reponse.status_code, 200)
+
+    def test_traduit_reellement_en_fr_et_en(self):
+        """Même piège que RenduReelFrEnTemplatesAdminTests (chantier i18n du
+        2026-08-29) : un {% trans %} syntaxiquement correct peut rester
+        affiché en arabe si locale/*.po/.mo n'a pas été recompilé avec ce
+        msgid — cette page ajoute justement 2 nouveaux msgids au catalogue,
+        donc test de rendu réel plutôt qu'un simple assertIn sur le tag."""
+        self.client.post(reverse('set_language'), {'language': 'fr', 'next': reverse('superviseur_emploi')})
+        html_fr = self.client.get(reverse('superviseur_emploi')).content.decode('utf-8')
+        self.assertIn('Mon emploi du temps', html_fr)
+        self.assertIn('Aucun groupe actif chez les enseignants qui vous sont assignés', html_fr)
+        self.assertNotIn('لا توجد مجموعات نشطة', html_fr)
+
+        self.client.post(reverse('set_language'), {'language': 'en', 'next': reverse('superviseur_emploi')})
+        html_en = self.client.get(reverse('superviseur_emploi')).content.decode('utf-8')
+        self.assertIn('My schedule', html_en)
+        self.assertIn('No active groups among the teachers assigned to you', html_en)
+        self.assertNotIn('لا توجد مجموعات نشطة', html_en)
 
 
 # ============================================================================

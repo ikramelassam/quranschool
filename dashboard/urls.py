@@ -33,6 +33,7 @@ urlpatterns = [
     path('programme-general/', views.programme_general_detail, name='programme_general_detail'),
 
     # Superviseur
+    path('superviseur/emploi/', views.superviseur_emploi, name='superviseur_emploi'),
     path('superviseur/seance/<int:seance_id>/', views.superviseur_seance_detail, name='superviseur_seance_detail'),
     path('superviseur/profil/', views.superviseur_profil, name='superviseur_profil'),
     path('superviseur/profs/<int:prof_id>/', views.superviseur_prof_detail, name='superviseur_prof_detail'),

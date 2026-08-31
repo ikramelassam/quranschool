@@ -1,0 +1,53 @@
+{% extends 'dashboard/base_superviseur.html' %}
+{% load i18n %}
+{% block title %}{% trans "جدولي" %}{% endblock %}
+{% block extra_css %}
+<style>
+.emploi-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+.emploi-table th, .emploi-table td { border:1px solid #f0f0f0; padding:8px; text-align:center; vertical-align:middle; }
+.emploi-table th { background:#f9f9f9; color:#555; font-weight:600; }
+.emploi-table th.jour-actuel { background:var(--color-role-superviseur); color:white; }
+.emploi-table td.jour-actuel { background:#f5f0e9; }
+.emploi-table .heure-col { background:#f9f9f9; color:#888; font-weight:600; white-space:nowrap; }
+.emploi-cellule-groupe { background:var(--color-role-superviseur); color:white; border-radius:6px; padding:4px 8px; font-size:0.78rem; font-weight:600; display:block; }
+.emploi-cellule-prof { display:block; font-size:0.68rem; font-weight:400; opacity:0.85; margin-top:2px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-title">{% trans "جدولي" %}</div>
+<div class="page-subtitle">{% trans "مواعيد مجموعات الأساتذة المسندين إليّ" %}</div>
+
+{% if groupes %}
+<div style="background:white; border-radius:12px; padding:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow-x:auto;">
+    <table class="emploi-table">
+        <thead>
+            <tr>
+                <th></th>
+                {% for jour_code, jour_label in jours %}
+                <th class="{% if jour_code == jour_actuel %}jour-actuel{% endif %}">{{ jour_label }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for ligne in lignes_grille %}
+            <tr>
+                <td class="heure-col">{{ ligne.heure|time:"H:i" }}</td>
+                {% for cellule in ligne.cellules %}
+                <td class="{% if cellule.jour_code == jour_actuel %}jour-actuel{% endif %}">
+                    {% if cellule.groupe %}
+                    <span class="emploi-cellule-groupe">
+                        {{ cellule.groupe.nom }}
+                        {% if cellule.groupe.prof %}<span class="emploi-cellule-prof">{{ cellule.groupe.prof.user.get_full_name }}</span>{% endif %}
+                    </span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div style="text-align:center; padding:60px; color:#aaa;">{% trans "لا توجد مجموعات نشطة لدى الأساتذة المسندين إليك" %}</div>
+{% endif %}
+{% endblock %}

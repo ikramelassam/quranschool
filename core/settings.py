@@ -137,6 +137,16 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': env.db('DATABASE_URL')
 }
+# Correctif perf (audit du 2026-08-30) : sans CONN_MAX_AGE, Django rouvre une
+# connexion Postgres neuve (TCP+TLS+auth vers le pooler Supabase) à CHAQUE
+# requête HTTP, sur CHAQUE thread gunicorn — un coût fixe payé par toutes les
+# pages, avant même la moindre requête SQL. 60s : connexion réutilisée entre
+# requêtes rapprochées, jamais gardée bien plus longtemps qu'un cycle de
+# requêtes utilisateur. CONN_HEALTH_CHECKS (Django >= 4.1) : revalide la
+# connexion avant réutilisation si le pooler l'a fermée entre-temps, plutôt
+# que de laisser planter la requête suivante avec une connexion morte.
+DATABASES['default']['CONN_MAX_AGE'] = 60
+DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 
 
 # Password validation

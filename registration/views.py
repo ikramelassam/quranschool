@@ -16,9 +16,12 @@ wizard_maj) — jamais dans des champs cachés HTML entre 2 requêtes."""
 import datetime
 
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.utils.translation import gettext as gettext_
 
+from core.utils import envoyer_notification_telegram_async
+from courses.utils import tranche_age_depuis_naissance
 from .utils import wizard_donnees, wizard_maj, wizard_reinitialiser, traduire_libelle_dynamique
 
 
@@ -701,6 +704,25 @@ def _wizard_confirmer_inscription(request, donnees, moyens, date_limite, paramet
             'erreurs': erreurs,
             'wizard_etape_num': 5,
         })
+
+    # Notif Telegram au مدير/مشرف (voir telegram_bot app) — équivalent de
+    # l'appel qui existait dans l'ancien formulaire à une page (inscriptions.
+    # views.inscription_eleve_formulaire), jamais reporté ici lors du chantier
+    # "registration" du 2026-08-24 (bug identifié le 2026-08-31 : aucune notif
+    # de candidature élève n'était envoyée depuis la bascule vers ce wizard).
+    lien_fiche = request.build_absolute_uri(
+        reverse('admin_inscription_eleve_detail', args=[inscription.id])
+    )
+    if inscription.date_naissance is not None:
+        categorie_label = 'بالغ' if tranche_age_depuis_naissance(inscription.date_naissance) == 'adulte' else 'طفل'
+    else:
+        categorie_label = 'غير محدد'
+    envoyer_notification_telegram_async(
+        f'📥 طلب تسجيل جديد — طالب ({categorie_label})\n'
+        f'الاسم: {inscription}\n'
+        f'تاريخ التقديم: {inscription.date_soumission.strftime("%Y-%m-%d %H:%M")}\n'
+        f'رابط الملف: {lien_fiche}'
+    )
 
     presentation = get_presentation_inscription()
     wizard_reinitialiser(request)

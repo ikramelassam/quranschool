@@ -55,7 +55,7 @@
         .btn-logout-top { flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; background: var(--gradient-cta-gold); color: var(--color-cta-gold-text); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.28); transition: transform 0.15s ease, box-shadow 0.15s ease; }
         .btn-logout-top:hover, .btn-logout-top:active { transform: scale(1.07); box-shadow: 0 3px 14px rgba(0,0,0,0.38); }
 
-        .sidebar-menu { padding: 16px 0; flex: 1; }
+        .sidebar-menu { padding: 16px 0; flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         .menu-item {
             display: flex; align-items: center;
             padding: 12px 20px; color: rgba(255,255,255,0.8);
@@ -154,6 +154,27 @@
         <a href="{% url 'dashboard_superviseur' %}"
            class="menu-item {% if request.resolver_match.url_name == 'dashboard_superviseur' %}active{% endif %}">
             <span class="icon">📊</span> لوحة التحكم
+        </a>
+        {% comment %} "تقييم الأساتذة" pointe vers dashboard_superviseur (même vue que
+           "لوحة التحكم" ci-dessus) mais avec l'ancre #section-passees — c'est
+           déjà là que vivent تقييم/غير مقيّمة/تم التقييم (badges +
+           _seance_evaluation_badge.html, lien Meet inclus pour les حصص à
+           venir), rien de neuf côté vue. Le problème réel signalé le
+           2026-08-30 (chantier découvrabilité مؤطر) : ce flux entier n'avait
+           AUCUN lien explicite dans la sidebar — seul "لوحة التحكم" (libellé
+           générique) y menait, sans indiquer que l'évaluation s'y trouve.
+        {% endcomment %}
+        <a href="{% url 'dashboard_superviseur' %}#section-passees"
+           class="menu-item {% if request.resolver_match.url_name == 'dashboard_superviseur' %}active{% endif %}">
+            <span class="icon">✅</span> تقييم الأساتذة
+        </a>
+        {% comment %} جدول أسبوعي لمجموعات الأساتذة المسندين — mirroir de prof_emploi
+           (même chantier). Vue distincte : grille horaire de la semaine,
+           n'existait pour aucun rôle مؤطر jusqu'ici.
+        {% endcomment %}
+        <a href="{% url 'superviseur_emploi' %}"
+           class="menu-item {% if request.resolver_match.url_name == 'superviseur_emploi' %}active{% endif %}">
+            <span class="icon">🗓️</span> جدولي
         </a>
 
         <a href="{% url 'chat_liste' %}"

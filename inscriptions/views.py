@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 # pour tout le reste (constantes de module simplement assignées/retournées).
 from django.utils.translation import gettext as gettext_
 from .models import InscriptionEleve, InscriptionProf, TypeAbonnement, get_parametres_inscriptions
-from core.utils import envoyer_notification_telegram
+from core.utils import envoyer_notification_telegram_async
 from courses.utils import AGE_SEUIL_ADULTE, tranche_age_depuis_naissance
 import json
 
@@ -347,7 +347,7 @@ def inscription_eleve_formulaire(request, type_age):
             categorie_label = 'بالغ' if tranche_age_depuis_naissance(date_naissance) == 'adulte' else 'طفل'
         else:
             categorie_label = 'غير محدد'
-        envoyer_notification_telegram(
+        envoyer_notification_telegram_async(
             f'📥 طلب تسجيل جديد — طالب ({categorie_label})\n'
             f'الاسم: {inscription}\n'
             f'تاريخ التقديم: {inscription.date_soumission.strftime("%Y-%m-%d %H:%M")}\n'
@@ -502,7 +502,7 @@ def inscription_prof(request):
         lien_fiche = request.build_absolute_uri(
             reverse('admin_inscription_prof_detail', args=[inscription.id])
         )
-        envoyer_notification_telegram(
+        envoyer_notification_telegram_async(
             f'📥 طلب تسجيل جديد — أستاذ\n'
             f'الاسم: {inscription}\n'
             f'تاريخ التقديم: {inscription.date_soumission.strftime("%Y-%m-%d %H:%M")}\n'
