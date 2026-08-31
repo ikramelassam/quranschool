@@ -1,5 +1,6 @@
 {% extends 'dashboard/base_mshrif.html' %}
-{% block title %}لوحة المشرف{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "لوحة المشرف" %}{% endblock %}
 {% block extra_css %}
 <style>
 .stat-grid { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
@@ -31,8 +32,8 @@ accès au chat) ne doivent apparaître QUE sur cette page d'accueil, pas sur
 tout le site — inclusion déplacée depuis base_mshrif.html.
 {% endcomment %}
 {% include 'dashboard/_header_raccourcis.html' with afficher_messages=False afficher_annonces=True afficher_notifications=True url_annonces='annonces_gestion' couleur_role='var(--color-role-mshrif-solid)' %}
-<div class="page-title">أهلاً بك 👋</div>
-<div class="page-subtitle">نظرة عامة على المنصة</div>
+<div class="page-title">{% trans "أهلاً بك 👋" %}</div>
+<div class="page-subtitle">{% trans "نظرة عامة على المنصة" %}</div>
 
 {% comment %}
 Tâche du 2026-08-07 : l'ancienne 5e carte de ce bloc retirée — son calcul
@@ -50,27 +51,27 @@ commentaires déjà corrigée ailleurs sur le site, ici en gardant le libellé
 retiré dans le code source de la page.
 {% endcomment %}
 <div class="stat-grid">
-    <div class="stat-card"><div class="l">الطلاب النشطون</div><div class="v">{{ nb_eleves_actifs }}</div><div class="i">👤</div></div>
-    <div class="stat-card"><div class="l">المعلمون</div><div class="v">{{ nb_profs }}</div><div class="i">🎓</div></div>
-    <div class="stat-card"><div class="l">المجموعات النشطة</div><div class="v">{{ nb_groupes_actifs }}</div><div class="i">👥</div></div>
-    <div class="stat-card"><div class="l">المؤطرون</div><div class="v">{{ nb_superviseurs }}</div><div class="i">👤</div></div>
+    <div class="stat-card"><div class="l">{% trans "الطلاب النشطون" %}</div><div class="v">{{ nb_eleves_actifs }}</div><div class="i">👤</div></div>
+    <div class="stat-card"><div class="l">{% trans "المعلمون" %}</div><div class="v">{{ nb_profs }}</div><div class="i">🎓</div></div>
+    <div class="stat-card"><div class="l">{% trans "المجموعات النشطة" %}</div><div class="v">{{ nb_groupes_actifs }}</div><div class="i">👥</div></div>
+    <div class="stat-card"><div class="l">{% trans "المؤطرون" %}</div><div class="v">{{ nb_superviseurs }}</div><div class="i">👤</div></div>
 </div>
 <div style="margin:-14px 0 24px;">
-    <a href="{% url 'suivi_engagement_mensuel' %}" style="color:var(--color-role-mshrif-solid); font-size:0.85rem; text-decoration:none;">📊 متابعة الالتزام الشهري (تسجيل الحضور والتقييم) ←</a>
+    <a href="{% url 'suivi_engagement_mensuel' %}" style="color:var(--color-role-mshrif-solid); font-size:0.85rem; text-decoration:none;">{% trans "📊 متابعة الالتزام الشهري (تسجيل الحضور والتقييم) ←" %}</a>
 </div>
 
-<div class="section-title">الوصول السريع (قراءة فقط)</div>
+<div class="section-title">{% trans "الوصول السريع (قراءة فقط)" %}</div>
 <div class="row2" style="margin-bottom:24px;">
     <a class="compact-card" href="{% url 'admin_eleves' %}">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:700;">👤 قائمة الطلاب</span>
-            <span style="color:var(--color-role-mshrif-solid);">عرض القائمة الكاملة ←</span>
+            <span style="font-weight:700;">{% trans "👤 قائمة الطلاب" %}</span>
+            <span style="color:var(--color-role-mshrif-solid);">{% trans "عرض القائمة الكاملة ←" %}</span>
         </div>
     </a>
     <a class="compact-card" href="{% url 'admin_profs' %}">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:700;">🎓 قائمة المعلمين</span>
-            <span style="color:var(--color-role-mshrif-solid);">عرض القائمة الكاملة ←</span>
+            <span style="font-weight:700;">{% trans "🎓 قائمة المعلمين" %}</span>
+            <span style="color:var(--color-role-mshrif-solid);">{% trans "عرض القائمة الكاملة ←" %}</span>
         </div>
     </a>
     {% comment %}
@@ -84,26 +85,26 @@ retiré dans le code source de la page.
     {% endcomment %}
     <a class="compact-card" href="{% url 'admin_superviseurs' %}">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:700;">👤 قائمة المؤطرين</span>
-            <span style="color:var(--color-role-mshrif-solid);">عرض القائمة الكاملة ←</span>
+            <span style="font-weight:700;">{% trans "👤 قائمة المؤطرين" %}</span>
+            <span style="color:var(--color-role-mshrif-solid);">{% trans "عرض القائمة الكاملة ←" %}</span>
         </div>
     </a>
 </div>
 
-<div class="section-title">كل ما تراه الإدارة والمؤطر — بنفس صلاحيات القراءة</div>
+<div class="section-title">{% trans "كل ما تراه الإدارة والمؤطر — بنفس صلاحيات القراءة" %}</div>
 <div class="quick-links">
-    <a class="quick-link" href="{% url 'admin_inscriptions' %}">📋 طلبات التسجيل المعلقة</a>
-    <a class="quick-link" href="{% url 'admin_seances' %}">📅 سجل الحصص</a>
-    <a class="quick-link" href="{% url 'admin_calendrier' %}">🗓️ التقويم الأسبوعي</a>
-    <a class="quick-link" href="{% url 'admin_demandes_disponibilite' %}">🕐 طلبات تعديل الأوقات</a>
-    <a class="quick-link" href="{% url 'admin_groupes' %}">👥 المجموعات</a>
-    <a class="quick-link" href="{% url 'admin_creneaux' %}">🕐 الحلقات</a>
-    <a class="quick-link" href="{% url 'admin_paiements' %}">💰 مدفوعات الطلاب</a>
-    <a class="quick-link" href="{% url 'suivi_paiements_eleves' %}">📆 متابعة مدفوعات الطلاب</a>
-    <a class="quick-link" href="{% url 'admin_parametres_abonnements' %}">🏷️ أنواع الاشتراك</a>
-    <a class="quick-link" href="{% url 'mshrif_remuneration' %}">💰 الاستحقاقات وشبكة التعرفات</a>
-    <a class="quick-link" href="{% url 'classement_mensuel_profs' %}">📝 معايير التقييم والترتيب الشهري</a>
-    <a class="quick-link" href="{% url 'admin_superviseurs' %}">🧭 إسناد المؤطرين</a>
-    <a class="quick-link" href="{% url 'bilans_mensuels' %}">📝 تقييم الطلاب</a>
+    <a class="quick-link" href="{% url 'admin_inscriptions' %}">{% trans "📋 طلبات التسجيل المعلقة" %}</a>
+    <a class="quick-link" href="{% url 'admin_seances' %}">{% trans "📅 سجل الحصص" %}</a>
+    <a class="quick-link" href="{% url 'admin_calendrier' %}">{% trans "🗓️ التقويم الأسبوعي" %}</a>
+    <a class="quick-link" href="{% url 'admin_demandes_disponibilite' %}">{% trans "🕐 طلبات تعديل الأوقات" %}</a>
+    <a class="quick-link" href="{% url 'admin_groupes' %}">{% trans "👥 المجموعات" %}</a>
+    <a class="quick-link" href="{% url 'admin_creneaux' %}">{% trans "🕐 الحلقات" %}</a>
+    <a class="quick-link" href="{% url 'admin_paiements' %}">{% trans "💰 مدفوعات الطلاب" %}</a>
+    <a class="quick-link" href="{% url 'suivi_paiements_eleves' %}">{% trans "📆 متابعة مدفوعات الطلاب" %}</a>
+    <a class="quick-link" href="{% url 'admin_parametres_abonnements' %}">{% trans "🏷️ أنواع الاشتراك" %}</a>
+    <a class="quick-link" href="{% url 'mshrif_remuneration' %}">{% trans "💰 الاستحقاقات وشبكة التعرفات" %}</a>
+    <a class="quick-link" href="{% url 'classement_mensuel_profs' %}">{% trans "📝 معايير التقييم والترتيب الشهري" %}</a>
+    <a class="quick-link" href="{% url 'admin_superviseurs' %}">{% trans "🧭 إسناد المؤطرين" %}</a>
+    <a class="quick-link" href="{% url 'bilans_mensuels' %}">{% trans "📝 تقييم الطلاب" %}</a>
 </div>
 {% endblock %}

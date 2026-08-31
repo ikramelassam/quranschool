@@ -5987,3 +5987,183 @@ msgstr "🔁 To redo"
 #, python-format
 msgid "🚫 حصيلة الغياب المعروضة على كل طالب تخص شهر <strong>%(mois)s</strong> — اختر شهراً آخر من الفلتر أدناه لتغييرها"
 msgstr "🚫 The absence summary shown for each student is for <strong>%(mois)s</strong> — pick another month in the filter below to change it"
+
+msgid "أهلاً بك 👋"
+msgstr "Welcome 👋"
+
+msgid "إخفاء شبكة التعرفات"
+msgstr "Hide the rate grid"
+
+msgid "الطلاب النشطون"
+msgstr "Active students"
+
+msgid "المبلغ الأساسي"
+msgstr "Base amount"
+
+msgid "المجموع"
+msgstr "Total"
+
+msgid "المجموع العام"
+msgstr "Grand total"
+
+msgid "المجموعات النشطة"
+msgstr "Active groups"
+
+msgid "المنحة"
+msgstr "Bonus"
+
+msgid "الوصول السريع (قراءة فقط)"
+msgstr "Quick access (read only)"
+
+msgid "بعض المجموعات لا تملك تعرفة محددة بعد"
+msgstr "Some groups do not have a defined rate yet"
+
+msgid "بلّغها للمعلم — سيُطلب منه تغييرها إجبارياً عند أول تسجيل دخول."
+msgstr "Give it to the teacher — they will be required to change it at first login."
+
+msgid "حفظ الشعار الجديد ✅"
+msgstr "Save the new logo ✅"
+
+msgid "طلبات التسجيل الأخيرة"
+msgstr "Latest registration requests"
+
+msgid "طلبات معلقة"
+msgstr "Pending requests"
+
+msgid "عرض القائمة الكاملة ←"
+msgstr "View full list ←"
+
+msgid "عرض جميع الطلبات ←"
+msgstr "View all requests ←"
+
+msgid "عرض شبكة التعرفات"
+msgstr "Show the rate grid"
+
+msgid "قائمة الطلاب"
+msgstr "Student list"
+
+msgid "قائمة المؤطرين"
+msgstr "Supervisor list"
+
+msgid "قائمة المعلمين"
+msgstr "Teacher list"
+
+msgid "كل المجموعات لديها رابط Meet ✅"
+msgstr "All groups have a Meet link ✅"
+
+msgid "كل ما تراه الإدارة والمؤطر — بنفس صلاحيات القراءة"
+msgstr "Everything the administration and the supervisor see — with the same read access"
+
+msgid "لا توجد طلبات طلاب"
+msgstr "No student requests"
+
+msgid "لا توجد طلبات معلمين"
+msgstr "No teacher requests"
+
+msgid "لا يوجد شعار مخصص حالياً — الشعار الافتراضي معروض في كل الصفحات"
+msgstr "No custom logo yet — the default logo is shown on all pages"
+
+msgid "مجموع الرواتب التقديري"
+msgstr "Estimated total salaries"
+
+msgid "مرحّلة من الإدارة، بانتظار التصديق النهائي — القبول هنا ينشئ حساب المعلم فعلياً"
+msgstr "Forwarded by the administration, awaiting final approval — accepting here actually creates the teacher's account"
+
+msgid "نظرة شاملة على المنصة"
+msgstr "Platform overview"
+
+msgid "نظرة عامة على المنصة"
+msgstr "Platform overview"
+
+msgid "ℹ️ تصفية \"الشهر\" لا تؤثر إلا على قسم \"الحصص الفردية\" (مبني على تواريخ حصص حقيقية). قسم \"المجموعات الجماعية\" يبقى دائماً محسوباً حسب الطلاب النشطين حالياً، أياً كان الشهر المختار — لا يوجد أرشفة شهرية لعضوية المجموعات في هذا المشروع."
+msgstr "ℹ️ The “Month” filter only affects the “Individual sessions” section (based on actual session dates). The “Collective groups” section is always computed from the currently active students, regardless of the selected month — there is no monthly archiving of group membership in this project."
+
+msgid "⚠️ الملف الصوتي غير موجود على الخادم (فشل الرفع على الأرجح). يرجى التواصل مع المترشح لإعادة إرساله."
+msgstr "⚠️ The audio file is missing on the server (upload probably failed). Please contact the applicant to resend it."
+
+msgid "⚠️ تعذر التحقق من وجود الملف الصوتي حالياً (مشكلة اتصال مؤقتة). أعد تحميل الصفحة لاحقاً للمحاولة مجدداً."
+msgstr "⚠️ Unable to verify the audio file right now (temporary connection issue). Reload the page later to try again."
+
+msgid "⚠️ تعذر القبول — تعارض في البريد الإلكتروني"
+msgstr "⚠️ Cannot accept — email address conflict"
+
+msgid "✅ قبول نهائي"
+msgstr "✅ Final acceptance"
+
+msgid "❌ تم رفض هذا الطلب."
+msgstr "❌ This request was rejected."
+
+msgid "❌ رفض"
+msgstr "❌ Reject"
+
+msgid "🎉 لا توجد طلبات بانتظار التصديق النهائي"
+msgstr "🎉 No requests awaiting final approval"
+
+msgid "🎓 قائمة المعلمين"
+msgstr "🎓 Teacher list"
+
+msgid "🏷️ أنواع الاشتراك"
+msgstr "🏷️ Subscription types"
+
+msgid "👁 الشعار الحالي"
+msgstr "👁 Current logo"
+
+msgid "👁 عرض"
+msgstr "👁 View"
+
+msgid "👤 قائمة الطلاب"
+msgstr "👤 Student list"
+
+msgid "👤 قائمة المؤطرين"
+msgstr "👤 Supervisor list"
+
+msgid "👥 المجموعات"
+msgstr "👥 Groups"
+
+msgid "💰 الاستحقاقات وشبكة التعرفات"
+msgstr "💰 Payments and rate grid"
+
+msgid "💰 مدفوعات الطلاب"
+msgstr "💰 Student payments"
+
+msgid "📅 سجل الحصص"
+msgstr "📅 Session log"
+
+msgid "📆 متابعة مدفوعات الطلاب"
+msgstr "📆 Student payment tracking"
+
+msgid "📊 متابعة الالتزام الشهري (تسجيل الحضور والتقييم) ←"
+msgstr "📊 Monthly engagement tracking (attendance and evaluation entry) ←"
+
+msgid "📋 تفاصيل طلب المعلم"
+msgstr "📋 Teacher request details"
+
+msgid "📋 طلبات التسجيل المعلقة"
+msgstr "📋 Pending registration requests"
+
+msgid "📝 تقييم الطلاب"
+msgstr "📝 Student evaluation"
+
+msgid "📝 معايير التقييم والترتيب الشهري"
+msgstr "📝 Evaluation criteria and monthly ranking"
+
+msgid "📤 تحميل شعار جديد"
+msgstr "📤 Upload a new logo"
+
+msgid "🔑 عند القبول النهائي، سيتم إنشاء حساب المعلم وكلمة مرور مؤقتة عشوائية تُعرض لك مباشرة بعد ذلك."
+msgstr "🔑 Upon final acceptance, the teacher's account and a random temporary password will be created and shown to you right after."
+
+msgid "🕐 الحلقات"
+msgstr "🕐 Halakas"
+
+msgid "🕐 طلبات تعديل الأوقات"
+msgstr "🕐 Schedule change requests"
+
+msgid "🗑️ حذف الحساب اليتيم"
+msgstr "🗑️ Delete the orphan account"
+
+msgid "🗓️ التقويم الأسبوعي"
+msgstr "🗓️ Weekly calendar"
+
+msgid "🧭 إسناد المؤطرين"
+msgstr "🧭 Supervisor assignment"

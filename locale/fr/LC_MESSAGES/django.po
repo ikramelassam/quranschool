@@ -5987,3 +5987,183 @@ msgstr "🔁 À refaire"
 #, python-format
 msgid "🚫 حصيلة الغياب المعروضة على كل طالب تخص شهر <strong>%(mois)s</strong> — اختر شهراً آخر من الفلتر أدناه لتغييرها"
 msgstr "🚫 Le bilan d'absences affiché pour chaque élève concerne le mois de <strong>%(mois)s</strong> — choisissez un autre mois dans le filtre ci-dessous pour le changer"
+
+msgid "أهلاً بك 👋"
+msgstr "Bienvenue 👋"
+
+msgid "إخفاء شبكة التعرفات"
+msgstr "Masquer la grille des tarifs"
+
+msgid "الطلاب النشطون"
+msgstr "Élèves actifs"
+
+msgid "المبلغ الأساسي"
+msgstr "Montant de base"
+
+msgid "المجموع"
+msgstr "Total"
+
+msgid "المجموع العام"
+msgstr "Total général"
+
+msgid "المجموعات النشطة"
+msgstr "Groupes actifs"
+
+msgid "المنحة"
+msgstr "Prime"
+
+msgid "الوصول السريع (قراءة فقط)"
+msgstr "Accès rapide (lecture seule)"
+
+msgid "بعض المجموعات لا تملك تعرفة محددة بعد"
+msgstr "Certains groupes n'ont pas encore de tarif défini"
+
+msgid "بلّغها للمعلم — سيُطلب منه تغييرها إجبارياً عند أول تسجيل دخول."
+msgstr "Communiquez-le à l'enseignant — il devra obligatoirement le changer à sa première connexion."
+
+msgid "حفظ الشعار الجديد ✅"
+msgstr "Enregistrer le nouveau logo ✅"
+
+msgid "طلبات التسجيل الأخيرة"
+msgstr "Dernières demandes d'inscription"
+
+msgid "طلبات معلقة"
+msgstr "Demandes en attente"
+
+msgid "عرض القائمة الكاملة ←"
+msgstr "Voir la liste complète ←"
+
+msgid "عرض جميع الطلبات ←"
+msgstr "Voir toutes les demandes ←"
+
+msgid "عرض شبكة التعرفات"
+msgstr "Afficher la grille des tarifs"
+
+msgid "قائمة الطلاب"
+msgstr "Liste des élèves"
+
+msgid "قائمة المؤطرين"
+msgstr "Liste des superviseurs"
+
+msgid "قائمة المعلمين"
+msgstr "Liste des enseignants"
+
+msgid "كل المجموعات لديها رابط Meet ✅"
+msgstr "Tous les groupes ont un lien Meet ✅"
+
+msgid "كل ما تراه الإدارة والمؤطر — بنفس صلاحيات القراءة"
+msgstr "Tout ce que voient l'administration et le superviseur — avec les mêmes droits de lecture"
+
+msgid "لا توجد طلبات طلاب"
+msgstr "Aucune demande d'élève"
+
+msgid "لا توجد طلبات معلمين"
+msgstr "Aucune demande d'enseignant"
+
+msgid "لا يوجد شعار مخصص حالياً — الشعار الافتراضي معروض في كل الصفحات"
+msgstr "Aucun logo personnalisé pour le moment — le logo par défaut est affiché sur toutes les pages"
+
+msgid "مجموع الرواتب التقديري"
+msgstr "Total estimé des salaires"
+
+msgid "مرحّلة من الإدارة، بانتظار التصديق النهائي — القبول هنا ينشئ حساب المعلم فعلياً"
+msgstr "Transmises par l'administration, en attente de validation finale — l'acceptation ici crée réellement le compte de l'enseignant"
+
+msgid "نظرة شاملة على المنصة"
+msgstr "Vue d'ensemble de la plateforme"
+
+msgid "نظرة عامة على المنصة"
+msgstr "Vue d'ensemble de la plateforme"
+
+msgid "ℹ️ تصفية \"الشهر\" لا تؤثر إلا على قسم \"الحصص الفردية\" (مبني على تواريخ حصص حقيقية). قسم \"المجموعات الجماعية\" يبقى دائماً محسوباً حسب الطلاب النشطين حالياً، أياً كان الشهر المختار — لا يوجد أرشفة شهرية لعضوية المجموعات في هذا المشروع."
+msgstr "ℹ️ Le filtre « Mois » n'affecte que la section « Séances individuelles » (basée sur les dates réelles des séances). La section « Groupes collectifs » reste toujours calculée selon les élèves actifs actuels, quel que soit le mois choisi — il n'y a pas d'archivage mensuel des membres des groupes dans ce projet."
+
+msgid "⚠️ الملف الصوتي غير موجود على الخادم (فشل الرفع على الأرجح). يرجى التواصل مع المترشح لإعادة إرساله."
+msgstr "⚠️ Le fichier audio est introuvable sur le serveur (échec de l'envoi probablement). Merci de contacter le candidat pour qu'il le renvoie."
+
+msgid "⚠️ تعذر التحقق من وجود الملف الصوتي حالياً (مشكلة اتصال مؤقتة). أعد تحميل الصفحة لاحقاً للمحاولة مجدداً."
+msgstr "⚠️ Impossible de vérifier la présence du fichier audio pour l'instant (problème de connexion temporaire). Rechargez la page plus tard pour réessayer."
+
+msgid "⚠️ تعذر القبول — تعارض في البريد الإلكتروني"
+msgstr "⚠️ Acceptation impossible — conflit d'adresse e-mail"
+
+msgid "✅ قبول نهائي"
+msgstr "✅ Acceptation finale"
+
+msgid "❌ تم رفض هذا الطلب."
+msgstr "❌ Cette demande a été rejetée."
+
+msgid "❌ رفض"
+msgstr "❌ Rejeter"
+
+msgid "🎉 لا توجد طلبات بانتظار التصديق النهائي"
+msgstr "🎉 Aucune demande en attente de validation finale"
+
+msgid "🎓 قائمة المعلمين"
+msgstr "🎓 Liste des enseignants"
+
+msgid "🏷️ أنواع الاشتراك"
+msgstr "🏷️ Types d'abonnement"
+
+msgid "👁 الشعار الحالي"
+msgstr "👁 Logo actuel"
+
+msgid "👁 عرض"
+msgstr "👁 Voir"
+
+msgid "👤 قائمة الطلاب"
+msgstr "👤 Liste des élèves"
+
+msgid "👤 قائمة المؤطرين"
+msgstr "👤 Liste des superviseurs"
+
+msgid "👥 المجموعات"
+msgstr "👥 Groupes"
+
+msgid "💰 الاستحقاقات وشبكة التعرفات"
+msgstr "💰 Rémunérations et grille des tarifs"
+
+msgid "💰 مدفوعات الطلاب"
+msgstr "💰 Paiements des élèves"
+
+msgid "📅 سجل الحصص"
+msgstr "📅 Registre des séances"
+
+msgid "📆 متابعة مدفوعات الطلاب"
+msgstr "📆 Suivi des paiements des élèves"
+
+msgid "📊 متابعة الالتزام الشهري (تسجيل الحضور والتقييم) ←"
+msgstr "📊 Suivi de l'assiduité mensuelle (saisie des présences et évaluation) ←"
+
+msgid "📋 تفاصيل طلب المعلم"
+msgstr "📋 Détails de la demande de l'enseignant"
+
+msgid "📋 طلبات التسجيل المعلقة"
+msgstr "📋 Demandes d'inscription en attente"
+
+msgid "📝 تقييم الطلاب"
+msgstr "📝 Évaluation des élèves"
+
+msgid "📝 معايير التقييم والترتيب الشهري"
+msgstr "📝 Critères d'évaluation et classement mensuel"
+
+msgid "📤 تحميل شعار جديد"
+msgstr "📤 Téléverser un nouveau logo"
+
+msgid "🔑 عند القبول النهائي، سيتم إنشاء حساب المعلم وكلمة مرور مؤقتة عشوائية تُعرض لك مباشرة بعد ذلك."
+msgstr "🔑 Lors de l'acceptation finale, le compte de l'enseignant et un mot de passe temporaire aléatoire seront créés et affichés juste après."
+
+msgid "🕐 الحلقات"
+msgstr "🕐 Les halqas"
+
+msgid "🕐 طلبات تعديل الأوقات"
+msgstr "🕐 Demandes de modification des horaires"
+
+msgid "🗑️ حذف الحساب اليتيم"
+msgstr "🗑️ Supprimer le compte orphelin"
+
+msgid "🗓️ التقويم الأسبوعي"
+msgstr "🗓️ Calendrier hebdomadaire"
+
+msgid "🧭 إسناد المؤطرين"
+msgstr "🧭 Assignation des superviseurs"

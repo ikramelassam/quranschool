@@ -1,6 +1,7 @@
 {% extends base_template %}
+{% load i18n %}
 
-{% block title %}لوحة التحكم{% endblock %}
+{% block title %}{% trans "لوحة التحكم" %}{% endblock %}
 
 {% block content %}
 {% comment %}
@@ -17,8 +18,8 @@ leur inclusion, jusqu'ici dans base_admin.html (donc sur CHAQUE page مدير),
 est déplacée ICI.
 {% endcomment %}
 {% include 'dashboard/_header_raccourcis.html' with afficher_messages=True afficher_annonces=True afficher_notifications=True url_annonces='annonces_gestion' couleur_role='var(--color-role-admin-solid)' %}
-<div class="page-title">لوحة التحكم</div>
-<div class="page-subtitle">نظرة شاملة على المنصة</div>
+<div class="page-title">{% trans "لوحة التحكم" %}</div>
+<div class="page-subtitle">{% trans "نظرة شاملة على المنصة" %}</div>
 
 {% comment %}
 Stats — الوصول السريع : cartes cliquables vers chaque liste (Tâche du
@@ -28,42 +29,42 @@ cliquables, elles affichaient un chiffre mais ne menaient nulle part).
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-6">
         <a href="{% url 'admin_eleves' %}" style="display:block; background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-decoration:none; color:inherit;">
-            <div style="color:#888; font-size:0.85rem;">قائمة الطلاب</div>
+            <div style="color:#888; font-size:0.85rem;">{% trans "قائمة الطلاب" %}</div>
             <div style="color:var(--color-role-admin-solid); font-size:2rem; font-weight:700;">{{ total_eleves }}</div>
             <div style="color:#888; font-size:0.8rem;">👤</div>
         </a>
     </div>
     <div class="col-md-3 col-6">
         <a href="{% url 'admin_profs' %}" style="display:block; background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-decoration:none; color:inherit;">
-            <div style="color:#888; font-size:0.85rem;">قائمة المعلمين</div>
+            <div style="color:#888; font-size:0.85rem;">{% trans "قائمة المعلمين" %}</div>
             <div style="color: var(--color-brand-gold-dark); font-size:2rem; font-weight:700;">{{ total_profs }}</div>
             <div style="color:#888; font-size:0.8rem;">🎓</div>
         </a>
     </div>
     <div class="col-md-3 col-6">
         <a href="{% url 'admin_superviseurs' %}" style="display:block; background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-decoration:none; color:inherit;">
-            <div style="color:#888; font-size:0.85rem;">قائمة المؤطرين</div>
+            <div style="color:#888; font-size:0.85rem;">{% trans "قائمة المؤطرين" %}</div>
             <div style="color:#8a5a2b; font-size:2rem; font-weight:700;">{{ total_superviseurs }}</div>
             <div style="color:#888; font-size:0.8rem;">🧭</div>
         </a>
     </div>
     <div class="col-md-3 col-6">
         <a href="{% url 'admin_groupes' %}" style="display:block; background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-decoration:none; color:inherit;">
-            <div style="color:#888; font-size:0.85rem;">المجموعات</div>
+            <div style="color:#888; font-size:0.85rem;">{% trans "المجموعات" %}</div>
             <div style="color:var(--color-role-admin-solid); font-size:2rem; font-weight:700;">{{ total_groupes }}</div>
             <div style="color:#888; font-size:0.8rem;">👥</div>
         </a>
     </div>
     <div class="col-md-3 col-6">
         <a href="{% url 'admin_inscriptions' %}" style="display:block; background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-decoration:none; color:inherit;">
-            <div style="color:#888; font-size:0.85rem;">طلبات معلقة</div>
+            <div style="color:#888; font-size:0.85rem;">{% trans "طلبات معلقة" %}</div>
             <div style="color:#dc3545; font-size:2rem; font-weight:700;">{{ total_pending }}</div>
             <div style="color:#888; font-size:0.8rem;">📋</div>
         </a>
     </div>
 </div>
 <div style="margin:-14px 0 20px; display:flex; flex-wrap:wrap; gap:6px 20px;">
-    <a href="{% url 'suivi_engagement_mensuel' %}" style="color:var(--color-role-admin-solid); font-size:0.85rem; text-decoration:none;">📊 متابعة الالتزام الشهري (تسجيل الحضور والتقييم) ←</a>
+    <a href="{% url 'suivi_engagement_mensuel' %}" style="color:var(--color-role-admin-solid); font-size:0.85rem; text-decoration:none;">{% trans "📊 متابعة الالتزام الشهري (تسجيل الحضور والتقييم) ←" %}</a>
     {% comment %}
     Tâche du 2026-08-17 (Phase 2, audit UX liens Meet) : même style discret que
     le lien ci-dessus, pas une carte — voir dashboard.views.dashboard_admin
@@ -73,15 +74,15 @@ cliquables, elles affichaient un chiffre mais ne menaient nulle part).
     <a href="{% url 'admin_liens_meet' %}"
        style="color:{% if groupes_sans_lien_meet %}#a15c00{% else %}var(--color-role-admin-solid){% endif %}; font-size:0.85rem; text-decoration:none;">
        {% include 'dashboard/_meet_glyph.html' %}
-       {% if groupes_sans_lien_meet %}مجموعات بدون رابط Meet: {{ groupes_sans_lien_meet }}{% else %}كل المجموعات لديها رابط Meet ✅{% endif %} ←
+       {% if groupes_sans_lien_meet %}{% blocktrans %}مجموعات بدون رابط Meet: {{ groupes_sans_lien_meet }}{% endblocktrans %}{% else %}{% trans "كل المجموعات لديها رابط Meet ✅" %}{% endif %} ←
     </a>
 </div>
 
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; font-size:1.1rem; color:#222; margin-bottom:16px;">طلبات التسجيل الأخيرة</div>
+    <div style="font-weight:700; font-size:1.1rem; color:#222; margin-bottom:16px;">{% trans "طلبات التسجيل الأخيرة" %}</div>
 
     <!-- Élèves -->
-    <div style="font-weight:600; color:var(--color-role-admin-solid); margin-bottom:8px;">الطلاب</div>
+    <div style="font-weight:600; color:var(--color-role-admin-solid); margin-bottom:8px;">{% trans "الطلاب" %}</div>
     {% if dernieres_eleves %}
         {% for ins in dernieres_eleves %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0;">
@@ -90,18 +91,18 @@ cliquables, elles affichaient un chiffre mais ne menaient nulle part).
                 <div style="color:#888; font-size:0.85rem;">{{ ins.date_soumission|date:"d-m-Y" }}</div>
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
-                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">قيد المراجعة</span>
-                <a href="{% url 'admin_inscription_eleve_detail' ins.id %}" 
-                   style="color:var(--color-role-admin-solid); text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">{% trans "قيد المراجعة" %}</span>
+                <a href="{% url 'admin_inscription_eleve_detail' ins.id %}"
+                   style="color:var(--color-role-admin-solid); text-decoration:none; font-size:0.85rem;">{% trans "عرض ←" %}</a>
             </div>
         </div>
         {% endfor %}
     {% else %}
-        <div style="color:#aaa; font-size:0.9rem; padding:8px 0;">لا توجد طلبات طلاب</div>
+        <div style="color:#aaa; font-size:0.9rem; padding:8px 0;">{% trans "لا توجد طلبات طلاب" %}</div>
     {% endif %}
 
     <!-- Profs -->
-    <div style="font-weight:600; color: var(--color-brand-gold-dark); margin:16px 0 8px;">المعلمون</div>
+    <div style="font-weight:600; color: var(--color-brand-gold-dark); margin:16px 0 8px;">{% trans "المعلمون" %}</div>
     {% if dernieres_profs %}
         {% for ins in dernieres_profs %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0;">
@@ -110,19 +111,19 @@ cliquables, elles affichaient un chiffre mais ne menaient nulle part).
                 <div style="color:#888; font-size:0.85rem;">{{ ins.date_soumission|date:"d-m-Y" }}</div>
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
-                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">قيد المراجعة</span>
+                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">{% trans "قيد المراجعة" %}</span>
                 <a href="{% url 'admin_inscription_prof_detail' ins.id %}"
-                   style="color: var(--color-brand-gold-dark); text-decoration:none; font-size:0.85rem;">عرض ←</a>
+                   style="color: var(--color-brand-gold-dark); text-decoration:none; font-size:0.85rem;">{% trans "عرض ←" %}</a>
             </div>
         </div>
         {% endfor %}
     {% else %}
-        <div style="color:#aaa; font-size:0.9rem; padding:8px 0;">لا توجد طلبات معلمين</div>
+        <div style="color:#aaa; font-size:0.9rem; padding:8px 0;">{% trans "لا توجد طلبات معلمين" %}</div>
     {% endif %}
 
     <div class="mt-3">
         <a href="{% url 'admin_inscriptions' %}" style="color:var(--color-role-admin-solid); text-decoration:none; font-size:0.9rem;">
-            عرض جميع الطلبات ←
+            {% trans "عرض جميع الطلبات ←" %}
         </a>
     </div>
 </div>

@@ -1,6 +1,6 @@
 {% extends base_template %}
-{% load libelles_arabes %}
-{% block title %}متابعة رواتب الأساتذة{% endblock %}
+{% load libelles_arabes i18n %}
+{% block title %}{% trans "متابعة رواتب الأساتذة" %}{% endblock %}
 {% block extra_css %}
 <style>
 .ref-details summary { list-style:none; cursor:pointer; }
@@ -15,37 +15,37 @@
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
     <div>
-        <div class="page-title">متابعة رواتب الأساتذة</div>
+        <div class="page-title">{% trans "متابعة رواتب الأساتذة" %}</div>
         <div class="page-subtitle">{{ mois_reference|mois_annee_ar }}</div>
     </div>
     <div style="background:white; border-radius:16px; padding:16px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-align:center;">
-        <div style="color:#888; font-size:0.8rem;">مجموع الرواتب التقديري</div>
-        <div style="font-size:1.6rem; font-weight:700; color:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif-solid){% else %}var(--color-role-admin-solid){% endif %};">{{ total_general }} د.م.</div>
+        <div style="color:#888; font-size:0.8rem;">{% trans "مجموع الرواتب التقديري" %}</div>
+        <div style="font-size:1.6rem; font-weight:700; color:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif-solid){% else %}var(--color-role-admin-solid){% endif %};">{{ total_general }} {% trans "د.م." %}</div>
     </div>
 </div>
 
 <form method="GET" style="background:white; border-radius:16px; padding:16px 24px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
     <div>
-        <label style="color:#888; font-size:0.8rem; display:block; margin-bottom:4px;">الشهر</label>
+        <label style="color:#888; font-size:0.8rem; display:block; margin-bottom:4px;">{% trans "الشهر" %}</label>
         <input type="month" name="mois" class="form-control" value="{{ mois_filtre }}">
     </div>
-    <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">تصفية</button>
+    <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "تصفية" %}</button>
     {% if mois_filtre %}
-    <a href="{% url 'mshrif_remuneration' %}" style="color:#888; text-decoration:none; padding:8px;">إلغاء</a>
+    <a href="{% url 'mshrif_remuneration' %}" style="color:#888; text-decoration:none; padding:8px;">{% trans "إلغاء" %}</a>
     {% endif %}
 </form>
 <div style="background:var(--color-bg-cream); border-radius:8px; padding:10px 16px; margin-bottom:20px; color:var(--color-text-muted); font-size:0.78rem; max-width:700px;">
-    ℹ️ تصفية "الشهر" لا تؤثر إلا على قسم "الحصص الفردية" (مبني على تواريخ حصص حقيقية). قسم "المجموعات الجماعية" يبقى دائماً محسوباً حسب الطلاب النشطين حالياً، أياً كان الشهر المختار — لا يوجد أرشفة شهرية لعضوية المجموعات في هذا المشروع.
+    {% trans 'ℹ️ تصفية "الشهر" لا تؤثر إلا على قسم "الحصص الفردية" (مبني على تواريخ حصص حقيقية). قسم "المجموعات الجماعية" يبقى دائماً محسوباً حسب الطلاب النشطين حالياً، أياً كان الشهر المختار — لا يوجد أرشفة شهرية لعضوية المجموعات في هذا المشروع.' %}
 </div>
 
 <div style="background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow-x:auto;">
 <table style="width:100%; border-collapse:collapse; min-width:520px;">
     <thead>
         <tr style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif-solid){% else %}var(--color-role-admin-solid){% endif %}; color:white;">
-            <th style="text-align:right; padding:12px 18px; font-size:0.85rem; font-weight:600;">المعلم</th>
-            <th style="text-align:right; padding:12px 18px; font-size:0.85rem; font-weight:600;">المبلغ الأساسي</th>
-            <th style="text-align:right; padding:12px 18px; font-size:0.85rem; font-weight:600;">المنحة</th>
-            <th style="text-align:right; padding:12px 18px; font-size:0.85rem; font-weight:600;">المجموع</th>
+            <th style="text-align:right; padding:12px 18px; font-size:0.85rem; font-weight:600;">{% trans "المعلم" %}</th>
+            <th style="text-align:right; padding:12px 18px; font-size:0.85rem; font-weight:600;">{% trans "المبلغ الأساسي" %}</th>
+            <th style="text-align:right; padding:12px 18px; font-size:0.85rem; font-weight:600;">{% trans "المنحة" %}</th>
+            <th style="text-align:right; padding:12px 18px; font-size:0.85rem; font-weight:600;">{% trans "المجموع" %}</th>
         </tr>
     </thead>
     <tbody>
@@ -58,36 +58,36 @@
                     </div>
                     <span style="font-weight:600;">
                         {{ ligne.prof.user.get_full_name }}
-                        {% if ligne.archive %}<span style="color:#999; font-weight:400; font-size:0.82rem;">(مؤرشف)</span>{% endif %}
+                        {% if ligne.archive %}<span style="color:#999; font-weight:400; font-size:0.82rem;">{% trans "(مؤرشف)" %}</span>{% endif %}
                     </span>
                 </a>
             </td>
-            <td style="padding:14px 18px;">{{ ligne.base }} د.م.</td>
+            <td style="padding:14px 18px;">{{ ligne.base }} {% trans "د.م." %}</td>
             <td style="padding:14px 18px;">
                 {% if ligne.majoration %}
-                <span style="background:rgba(201,150,46,0.15); color:var(--color-brand-gold-dark); border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">➕ {{ ligne.majoration }} د.م.</span>
+                <span style="background:rgba(201,150,46,0.15); color:var(--color-brand-gold-dark); border-radius:20px; padding:3px 12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">➕ {{ ligne.majoration }} {% trans "د.م." %}</span>
                 {% else %}
                 <span style="color:#bbb; font-size:0.85rem;">—</span>
                 {% endif %}
             </td>
             <td style="padding:14px 18px; font-weight:700;">
-                {{ ligne.total }} د.م.
+                {{ ligne.total }} {% trans "د.م." %}
                 {% if ligne.tarif_manquant %}
-                <span title="بعض المجموعات لا تملك تعرفة محددة بعد" style="color:#c98a1f;">⚠️</span>
+                <span title="{% trans 'بعض المجموعات لا تملك تعرفة محددة بعد' %}" style="color:#c98a1f;">⚠️</span>
                 {% endif %}
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" style="text-align:center; padding:60px; color:#aaa;">لا يوجد معلمون بعد</td></tr>
+        <tr><td colspan="4" style="text-align:center; padding:60px; color:#aaa;">{% trans "لا يوجد معلمون بعد" %}</td></tr>
         {% endfor %}
     </tbody>
     {% if lignes %}
     <tfoot>
         <tr style="background:var(--color-bg-cream); font-weight:700; font-size:1.05rem; color:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif-solid){% else %}var(--color-role-admin-solid){% endif %};">
-            <td style="padding:14px 18px;">المجموع العام</td>
-            <td style="padding:14px 18px;">{{ total_base }} د.م.</td>
-            <td style="padding:14px 18px;">{{ total_majoration }} د.م.</td>
-            <td style="padding:14px 18px;">{{ total_general }} د.م.</td>
+            <td style="padding:14px 18px;">{% trans "المجموع العام" %}</td>
+            <td style="padding:14px 18px;">{{ total_base }} {% trans "د.م." %}</td>
+            <td style="padding:14px 18px;">{{ total_majoration }} {% trans "د.م." %}</td>
+            <td style="padding:14px 18px;">{{ total_general }} {% trans "د.م." %}</td>
         </tr>
     </tfoot>
     {% endif %}
@@ -98,35 +98,35 @@
 <details class="ref-details" style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:20px; max-width:700px; overflow:hidden;">
     <summary style="padding:16px 24px; font-weight:700; color:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif-solid){% else %}var(--color-role-admin-solid){% endif %}; display:flex; align-items:center; justify-content:space-between;">
         <span>
-            <span class="label-closed">عرض شبكة التعرفات</span>
-            <span class="label-open">إخفاء شبكة التعرفات</span>
+            <span class="label-closed">{% trans "عرض شبكة التعرفات" %}</span>
+            <span class="label-open">{% trans "إخفاء شبكة التعرفات" %}</span>
         </span>
         <span class="chevron">⌄</span>
     </summary>
     <div style="border-top:1px solid #f0f0f0;">
-        <div style="padding:10px 24px 0; color:var(--color-text-muted); font-size:0.82rem;">تُستخدم هذه التعرفات لحساب راتب كل معلم تلقائياً حسب نوع الحلقة وعمر كل طالب وعدد الحصص الأسبوعية</div>
+        <div style="padding:10px 24px 0; color:var(--color-text-muted); font-size:0.82rem;">{% trans "تُستخدم هذه التعرفات لحساب راتب كل معلم تلقائياً حسب نوع الحلقة وعمر كل طالب وعدد الحصص الأسبوعية" %}</div>
         {% if couverture_groupe.combinaisons_manquantes %}
         <div style="background:#fff3cd; color:#856404; border-radius:8px; padding:10px 16px; margin:10px 24px; font-size:0.8rem; font-weight:600;">
-            ⚠️ {{ couverture_groupe.configures }} من أصل {{ couverture_groupe.total }} تعرفة "جماعي" محددة — راتب أي معلم/طالب يخص الحالات الناقصة لا يُحتسب تلقائياً.
+            {% blocktrans with configures=couverture_groupe.configures total=couverture_groupe.total %}⚠️ {{ configures }} من أصل {{ total }} تعرفة "جماعي" محددة — راتب أي معلم/طالب يخص الحالات الناقصة لا يُحتسب تلقائياً.{% endblocktrans %}
         </div>
         {% endif %}
         {% for tarif in tarifs_groupe %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid #f0f0f0;">
             <div>
-                <div style="font-weight:700;">جماعي — {{ tarif.get_tranche_age_display }} — {{ tarif.nb_slots }} حصص/أسبوع</div>
-                <div style="color:#888; font-size:0.85rem;">{{ tarif.montant }} درهم / طالب نشط / شهر</div>
+                <div style="font-weight:700;">{% blocktrans with tranche=tarif.get_tranche_age_display slots=tarif.nb_slots %}جماعي — {{ tranche }} — {{ slots }} حصص/أسبوع{% endblocktrans %}</div>
+                <div style="color:#888; font-size:0.85rem;">{% blocktrans with montant=tarif.montant %}{{ montant }} درهم / طالب نشط / شهر{% endblocktrans %}</div>
             </div>
         </div>
         {% endfor %}
         {% for tarif in tarifs_individuel %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; {% if not forloop.last %}border-bottom:1px solid #f0f0f0;{% endif %}">
             <div>
-                <div style="font-weight:700;">فردي — {{ tarif.get_tranche_age_display }}</div>
-                <div style="color:#888; font-size:0.85rem;">{{ tarif.montant }} درهم / حصة مُنجزة فعلياً</div>
+                <div style="font-weight:700;">{% blocktrans with tranche=tarif.get_tranche_age_display %}فردي — {{ tranche }}{% endblocktrans %}</div>
+                <div style="color:#888; font-size:0.85rem;">{% blocktrans with montant=tarif.montant %}{{ montant }} درهم / حصة مُنجزة فعلياً{% endblocktrans %}</div>
             </div>
         </div>
         {% empty %}
-        <div style="text-align:center; padding:40px; color:#aaa;">لا توجد تعرفات — تحقق من الترحيل (migration)</div>
+        <div style="text-align:center; padding:40px; color:#aaa;">{% trans "لا توجد تعرفات — تحقق من الترحيل (migration)" %}</div>
         {% endfor %}
     </div>
 </details>
