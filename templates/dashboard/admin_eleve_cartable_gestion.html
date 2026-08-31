@@ -133,8 +133,11 @@ action manuelle de مدير/مشرف.
                 {{ doc.description_cible }}{% if doc.ajoute_par %} — {% trans "بواسطة" %} {{ doc.ajoute_par.get_full_name }}{% endif %} — {{ doc.date_ajout|date:"d-m-Y" }}
             </div>
         </div>
-        {% if doc.fichier_affichable_navigateur %}
-        <a href="{% url 'eleve_cartable_fichier' doc.id %}" target="_blank" rel="noopener" style="flex-shrink:0; color:var(--color-role-admin-solid); font-size:0.85rem; text-decoration:none;">↗ {% trans "فتح" %}</a>
+        {% if doc.fichier_apercu_type %}
+        <button type="button" class="media-open" style="flex-shrink:0; color:var(--color-role-admin-solid); font-size:0.85rem;"
+                data-media-url="{% url 'eleve_cartable_fichier' doc.id %}"
+                data-media-type="{{ doc.fichier_apercu_type }}"
+                data-media-nom="{{ doc.titre|default:doc.fichier.name }}">👁 {% trans "فتح" %}</button>
         {% endif %}
         <a href="{% url 'eleve_cartable_fichier' doc.id %}?dl=1" style="flex-shrink:0; color:var(--color-role-admin-solid); font-size:0.85rem; text-decoration:none;">⬇ {% trans "تحميل" %}</a>
         {% trans "حذف هذا الملف من حقيبة الطالب؟" as confirmer_suppression_doc %}
@@ -245,4 +248,5 @@ action manuelle de مدير/مشرف.
         document.getElementById('cartableFichierBouton').style.display = 'inline-block';
     }
 </script>
+{% include 'dashboard/_media_viewer.html' %}
 {% endblock %}
