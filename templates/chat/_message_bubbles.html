@@ -40,22 +40,27 @@
             {% comment %}
             Depuis le 2026-08-31 : les liens passent par chat_fichier qui relaie
             le fichier DEPUIS le site (plus de redirection vers l'URL Cloudinary,
-            voir chat.views.chat_fichier). Lien principal = "فتح" quand le
-            navigateur sait afficher le type (PDF/image/texte), sinon il n'y a
-            que le téléchargement (?dl=1) — un Word/Excel/PowerPoint ne s'ouvre
-            dans aucun navigateur sans convertisseur.
+            voir chat.views.chat_fichier). Deux boutons explicites :
+            - "فتح" : ouvre le fichier dans l'onglet (sans ?dl=1) — seulement
+              quand le navigateur sait l'afficher (PDF/image/texte) ;
+            - "تحميل" : force le téléchargement (?dl=1), toujours présent.
+            Un Word/Excel/PowerPoint n'a donc que "تحميل" (aucun navigateur ne
+            l'ouvre sans convertisseur).
             {% endcomment %}
             {% trans "ملف مرفق" as nom_fichier_defaut %}
-            <a class="chat-bubble-fichier" href="{% url 'chat_fichier' groupe_id message.id %}{% if not message.fichier_affichable_navigateur %}?dl=1{% endif %}" target="_blank" rel="noopener">
+            <div class="chat-bubble-fichier">
                 <span class="chat-fichier-icone" aria-hidden="true">📎</span>
                 <span class="chat-fichier-infos">
                     <span class="chat-fichier-nom">{{ message.nom_fichier_original|default:nom_fichier_defaut }}</span>
                     <span class="chat-fichier-taille">{{ message.taille_fichier_octets|taille_lisible }}</span>
                 </span>
-            </a>
-            {% if message.fichier_affichable_navigateur %}
-            <a class="chat-fichier-telecharger" href="{% url 'chat_fichier' groupe_id message.id %}?dl=1">⬇ {% trans "تحميل" %}</a>
-            {% endif %}
+            </div>
+            <div class="chat-fichier-actions">
+                {% if message.fichier_affichable_navigateur %}
+                <a class="chat-fichier-btn" href="{% url 'chat_fichier' groupe_id message.id %}" target="_blank" rel="noopener">{% trans "فتح ↗" %}</a>
+                {% endif %}
+                <a class="chat-fichier-btn" href="{% url 'chat_fichier' groupe_id message.id %}?dl=1">{% trans "تحميل ⬇" %}</a>
+            </div>
             {% endif %}
 
             {% if message.contenu %}
