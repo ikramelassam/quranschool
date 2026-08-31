@@ -1,8 +1,9 @@
 {% extends base_template %}
-{% block title %}الاختبارات{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "الاختبارات" %}{% endblock %}
 {% block content %}
-<div class="page-title">الاختبارات</div>
-<div class="page-subtitle">نظرة عامة على اختبارات الحلقات — للاطلاع فقط</div>
+<div class="page-title">{% trans "الاختبارات" %}</div>
+<div class="page-subtitle">{% trans "نظرة عامة على اختبارات الحلقات — للاطلاع فقط" %}</div>
 
 {% if examens %}
 <div style="display:flex; flex-direction:column; gap:12px; margin-top:20px;">
@@ -25,7 +26,7 @@
 </div>
 {% else %}
 <div style="background:white; border-radius:12px; padding:40px; text-align:center; color:#aaa; box-shadow:0 2px 12px rgba(0,0,0,0.04); margin-top:20px;">
-    لا توجد اختبارات لعرضها ضمن نطاق صلاحيتك.
+    {% trans "لا توجد اختبارات لعرضها ضمن نطاق صلاحيتك." %}
 </div>
 {% endif %}
 {% endblock %}
