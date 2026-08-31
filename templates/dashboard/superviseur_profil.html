@@ -1,7 +1,8 @@
 {% extends 'dashboard/base_superviseur.html' %}
-{% block title %}ملفي الشخصي{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "ملفي الشخصي" %}{% endblock %}
 {% block content %}
-<div class="page-title">ملفي الشخصي</div>
+<div class="page-title">{% trans "ملفي الشخصي" %}</div>
 
 <!-- En-tête -->
 <div style="background:white; border-radius:16px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
@@ -15,8 +16,8 @@
         </div>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <span style="background:#f3e6cc; color:var(--color-role-superviseur-solid); border-radius:20px; padding:6px 16px; font-size:0.85rem; font-weight:700;">{{ nb_profs }} أساتذة مسندون</span>
-        <span style="background:{% if nb_evaluations_en_attente > 0 %}#fce4e4{% else %}#f3e6cc{% endif %}; color:{% if nb_evaluations_en_attente > 0 %}var(--color-danger){% else %}var(--color-role-superviseur-solid){% endif %}; border-radius:20px; padding:6px 16px; font-size:0.85rem; font-weight:700;">{{ nb_evaluations_en_attente }} تقييمات بانتظارك</span>
+        <span style="background:#f3e6cc; color:var(--color-role-superviseur-solid); border-radius:20px; padding:6px 16px; font-size:0.85rem; font-weight:700;">{% blocktrans with n=nb_profs %}{{ n }} أساتذة مسندون{% endblocktrans %}</span>
+        <span style="background:{% if nb_evaluations_en_attente > 0 %}#fce4e4{% else %}#f3e6cc{% endif %}; color:{% if nb_evaluations_en_attente > 0 %}var(--color-danger){% else %}var(--color-role-superviseur-solid){% endif %}; border-radius:20px; padding:6px 16px; font-size:0.85rem; font-weight:700;">{% blocktrans with n=nb_evaluations_en_attente %}{{ n }} تقييمات بانتظارك{% endblocktrans %}</span>
     </div>
 </div>
 
@@ -39,17 +40,17 @@ arbitraire fait sans confirmation, confirmé par le client le 2026-08-05.
         <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
             <div class="row g-4">
                 <div class="col-md-6">
-                    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">معلومات عامة</div>
+                    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">{% trans "معلومات عامة" %}</div>
                     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-                        <span style="color:#888;">البريد الإلكتروني</span>
+                        <span style="color:#888;">{% trans "البريد الإلكتروني" %}</span>
                         <span style="font-weight:600;">{{ superviseur.user.email }}</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0;">
-                        <span style="color:#888;">الهاتف</span>
+                        <span style="color:#888;">{% trans "الهاتف" %}</span>
                         {% if not modifier_telephone %}
                         <span style="display:flex; align-items:center; gap:10px;">
                             <span style="font-weight:600;">{{ superviseur.user.telephone|default:"—" }}</span>
-                            <a href="?modifier_telephone=1" style="color:var(--color-role-superviseur-solid); font-size:0.82rem; text-decoration:none;">✏️ تعديل</a>
+                            <a href="?modifier_telephone=1" style="color:var(--color-role-superviseur-solid); font-size:0.82rem; text-decoration:none;">✏️ {% trans "تعديل" %}</a>
                         </span>
                         {% endif %}
                     </div>
@@ -57,16 +58,17 @@ arbitraire fait sans confirmation, confirmé par le client le 2026-08-05.
                     <form method="POST" action="{% url 'modifier_telephone' %}" style="padding-top:10px;">
                         {% csrf_token %}
                         <input type="hidden" name="next" value="{% url 'superviseur_profil' %}">
-                        <input type="tel" name="telephone" class="form-control mb-2" value="{{ superviseur.user.telephone }}" placeholder="رقم الهاتف">
+                        {% trans "رقم الهاتف" as placeholder_telephone %}
+                        <input type="tel" name="telephone" class="form-control mb-2" value="{{ superviseur.user.telephone }}" placeholder="{{ placeholder_telephone }}">
                         <div class="d-flex gap-2">
-                            <button type="submit" style="background:var(--color-role-superviseur-solid); color:white; border:none; border-radius:8px; padding:6px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">حفظ</button>
-                            <a href="{% url 'superviseur_profil' %}" style="color:#888; text-decoration:none; padding:6px;">إلغاء</a>
+                            <button type="submit" style="background:var(--color-role-superviseur-solid); color:white; border:none; border-radius:8px; padding:6px 18px; font-family:'Tajawal',sans-serif; cursor:pointer;">{% trans "حفظ" %}</button>
+                            <a href="{% url 'superviseur_profil' %}" style="color:#888; text-decoration:none; padding:6px;">{% trans "إلغاء" %}</a>
                         </div>
                     </form>
                     {% endif %}
                 </div>
                 <div class="col-md-6">
-                    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">التواصل مع الإدارة</div>
+                    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">{% trans "التواصل مع الإدارة" %}</div>
                     {% include 'dashboard/_contact_administration.html' with admins=admins %}
                 </div>
             </div>
@@ -76,13 +78,13 @@ arbitraire fait sans confirmation, confirmé par le client le 2026-08-05.
 
 <!-- المجموعات المسندة -->
 <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px;">
-    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:16px;">المجموعات المسندة</div>
+    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:16px;">{% trans "المجموعات المسندة" %}</div>
     {% include 'dashboard/_liste_groupes_mesnad.html' with groupes=groupes_assignes couleur_accent='var(--color-role-superviseur-solid)' url_detail_name='superviseur_groupe_detail' lien_seances_jour=True %}
 </div>
 
 <!-- الأمان -->
 <div style="background:white; border-radius:16px; padding:32px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">🔒 الأمان</div>
-    <div style="color:#888; font-size:0.9rem; line-height:1.7;">لتغيير كلمة المرور، تواصل مع الإدارة.</div>
+    <div style="color:var(--color-role-superviseur-solid); font-weight:700; border-bottom:2px solid var(--color-role-superviseur-solid); padding-bottom:6px; margin-bottom:12px;">🔒 {% trans "الأمان" %}</div>
+    <div style="color:#888; font-size:0.9rem; line-height:1.7;">{% trans "لتغيير كلمة المرور، تواصل مع الإدارة." %}</div>
 </div>
 {% endblock %}
