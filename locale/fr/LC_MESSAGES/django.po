@@ -5588,3 +5588,264 @@ msgstr "Section 2"
 msgid "ثانياً"
 msgstr "Deuxièmement"
 
+
+#, python-format
+msgid "%(n)s أساتذة مسندون"
+msgstr "%(n)s enseignants assignés"
+
+#, python-format
+msgid "%(n)s اليوم"
+msgstr "%(n)s aujourd'hui"
+
+#, python-format
+msgid "%(n)s تقييمات بانتظارك"
+msgstr "%(n)s évaluations en attente"
+
+#, python-format
+msgid "%(n)s حصص لم تُقيّم بعد"
+msgstr "%(n)s séances pas encore évaluées"
+
+#, python-format
+msgid "%(n)s غير مقيّمة"
+msgstr "%(n)s non évaluée(s)"
+
+#, python-format
+msgid "%(n)s قادمة"
+msgstr "%(n)s à venir"
+
+#, python-format
+msgid "%(n)s متأخرة"
+msgstr "%(n)s en retard"
+
+msgid "(مؤرشف)"
+msgstr "(archivé)"
+
+#, python-format
+msgid "+%(n)s حصة سابقة أخرى — استخدم عامل التصفية أعلاه لتضييق البحث"
+msgstr "+%(n)s autre séance passée — utilisez le filtre ci-dessus pour affiner"
+
+#, python-format
+msgid "+%(n)s حصة قادمة أخرى"
+msgstr "+%(n)s autre séance à venir"
+
+msgid "اسم الحلقة"
+msgstr "Nom du groupe"
+
+msgid "اسم المعلم المُقيَّم"
+msgstr "Nom de l'enseignant évalué"
+
+#, python-format
+msgid "التلاوة: %(n)s/20"
+msgstr "Récitation : %(n)s/20"
+
+msgid "الحصة لم تنته بعد."
+msgstr "La séance n'est pas encore terminée."
+
+#, python-format
+msgid "الحصة لم تنته بعد، يمكن التقييم بعد الساعة %(heure)s."
+msgstr "La séance n'est pas encore terminée, l'évaluation sera possible après %(heure)s."
+
+#, python-format
+msgid "الحفظ: %(n)s/20"
+msgstr "Mémorisation : %(n)s/20"
+
+msgid "الكفاءات"
+msgstr "Compétences"
+
+msgid "المجموعات المسندة"
+msgstr "Groupes assignés"
+
+#, python-format
+msgid "المراجعة: %(n)s/20"
+msgstr "Révision : %(n)s/20"
+
+#, python-format
+msgid "المواظبة والسلوك: %(n)s/20"
+msgstr "Assiduité et comportement : %(n)s/20"
+
+#, python-format
+msgid "اليوم — %(h)s"
+msgstr "Aujourd'hui — %(h)s"
+
+msgid "انتهت مدة تعديل هذا التقييم (24 ساعة من الإرسال الأول) — لم يعد قابلاً للتعديل."
+msgstr "Le délai de modification de cette évaluation (24 h après le premier envoi) est écoulé — elle n'est plus modifiable."
+
+msgid "بالترتيب الزمني"
+msgstr "Par ordre chronologique"
+
+msgid "تاريخ المراقبة"
+msgstr "Date de l'observation"
+
+msgid "تقييم الأساتذة"
+msgstr "Évaluation des enseignants"
+
+msgid "تقييم الحصة"
+msgstr "Évaluation de la séance"
+
+msgid "تقييم المعلم"
+msgstr "Évaluation de l'enseignant"
+
+msgid "تقييم المعلم 📝"
+msgstr "Évaluer l'enseignant 📝"
+
+msgid "تقييم ←"
+msgstr "Évaluer ←"
+
+#, python-format
+msgid "تم التقييم بتاريخ: %(d)s"
+msgstr "Évalué le : %(d)s"
+
+msgid "تم التقييم ✅"
+msgstr "Évaluée ✅"
+
+msgid "جماعية"
+msgstr "Collectif"
+
+msgid "حسب المعلم"
+msgstr "Par enseignant"
+
+msgid "حصة اليوم"
+msgstr "Séance du jour"
+
+msgid "حفظ التقييم"
+msgstr "Enregistrer l'évaluation"
+
+msgid "حقل \"ملاحظات وتوجيهات\" إلزامي — يرجى تعبئته قبل الحفظ."
+msgstr "Le champ « Remarques et conseils » est obligatoire — veuillez le remplir avant d'enregistrer."
+
+msgid "عدد الحصص هذا الشهر"
+msgstr "Nombre de séances ce mois-ci"
+
+msgid "عدد المتعلمين الحاضرين"
+msgstr "Nombre d'apprenants présents"
+
+msgid "عرض تقييم المعلم 👁"
+msgstr "Voir l'évaluation de l'enseignant 👁"
+
+msgid "عرض حصص اليوم ←"
+msgstr "Voir les séances du jour ←"
+
+msgid "عرض سجل الحصص ←"
+msgstr "Voir l'historique des séances ←"
+
+msgid "غير مقيّمة"
+msgstr "Non évaluée"
+
+msgid "فردية"
+msgstr "Individuel"
+
+msgid "لا توجد تقييمات لهذه الحصة"
+msgstr "Aucune évaluation pour cette séance"
+
+msgid "لا توجد حصص في هذا الشهر"
+msgstr "Aucune séance ce mois-ci"
+
+msgid "لا توجد مجموعات مسندة حاليا"
+msgstr "Aucun groupe assigné pour le moment"
+
+msgid "لا توجد معايير تقييم بعد. يجب على الإدارة إضافتها أولاً من لوحة الإدارة."
+msgstr "Aucun critère d'évaluation pour l'instant. L'administration doit d'abord les ajouter depuis le tableau de bord."
+
+msgid "لا توجد معايير مسجلة لهذا التقييم"
+msgstr "Aucun critère enregistré pour cette évaluation"
+
+msgid "لا توجد نتائج مطابقة"
+msgstr "Aucun résultat correspondant"
+
+msgid "لم تُدرَّس بعد 📌"
+msgstr "Pas encore donnée 📌"
+
+msgid "لم يتم تقييمها بعد ⏳"
+msgstr "Pas encore évaluée ⏳"
+
+msgid "لوحة المؤطر"
+msgstr "Tableau de bord du superviseur"
+
+msgid "مراقبة الحصص والتقييمات"
+msgstr "Suivi des séances et des évaluations"
+
+msgid "ملاحظات وتوجيهات *"
+msgstr "Remarques et conseils *"
+
+msgid "هذا الشهر"
+msgstr "Ce mois-ci"
+
+msgid "هل أنت متأكد من حفظ هذا التقييم؟"
+msgstr "Êtes-vous sûr de vouloir enregistrer cette évaluation ?"
+
+#, python-format
+msgid "يمكن التقييم بعد الساعة %(h)s"
+msgstr "Évaluation possible après %(h)s"
+
+msgid "يوجد تقييم سابق لهذه الحصة. هل أنت متأكد من حفظ هذا التقييم؟ سيتم استبدال التقييم الحالي نهائياً."
+msgstr "Une évaluation existe déjà pour cette séance. Êtes-vous sûr de vouloir enregistrer celle-ci ? L'évaluation actuelle sera remplacée définitivement."
+
+msgid "— اختر —"
+msgstr "— Choisir —"
+
+#, python-format
+msgid "— منذ %(h)s"
+msgstr "— depuis %(h)s"
+
+msgid "← رجوع إلى تفاصيل الحصة"
+msgstr "← Retour aux détails de la séance"
+
+msgid "← رجوع إلى ملفي الشخصي"
+msgstr "← Retour à mon profil"
+
+msgid "⏭ الحصة التالية"
+msgstr "⏭ Séance suivante"
+
+msgid "⏳ الحصة لم تنته بعد"
+msgstr "⏳ La séance n'est pas encore terminée"
+
+msgid "⚠ يجب تعيين أستاذ آخر لهذه المجموعة."
+msgstr "⚠ Un autre enseignant doit être assigné à ce groupe."
+
+msgid "⚠️ هذا الأستاذ مؤرشف. إذا كانت هذه المجموعة لا تزال نشطة، يجب على الإدارة تعيين أستاذ آخر لها."
+msgstr "⚠️ Cet enseignant est archivé. Si ce groupe est toujours actif, l'administration doit lui assigner un autre enseignant."
+
+msgid "⚠️ هذه المجموعة بدون أستاذ حالياً. إذا كانت لا تزال نشطة، يجب على الإدارة تعيين أستاذ لها."
+msgstr "⚠️ Ce groupe n'a pas d'enseignant actuellement. S'il est toujours actif, l'administration doit lui en assigner un."
+
+msgid "✅ كل الحصص مقيّمة"
+msgstr "✅ Toutes les séances sont évaluées"
+
+msgid "📂 السجل السابق"
+msgstr "📂 Historique"
+
+msgid "📅 الحصص"
+msgstr "📅 Séances"
+
+msgid "📌 اليوم"
+msgstr "📌 Aujourd'hui"
+
+msgid "📝 التقييمات"
+msgstr "📝 Évaluations"
+
+msgid "🔒 لم يعد قابلاً للتعديل (تجاوز 24 ساعة)"
+msgstr "🔒 Non modifiable (délai de 24 h dépassé)"
+
+msgid "🔜 القادمة"
+msgstr "🔜 À venir"
+
+msgid "🔴 جارية الآن"
+msgstr "🔴 En cours"
+
+msgid "تحميل الملف ⬇"
+msgstr "Télécharger le fichier ⬇"
+
+msgid "فتح"
+msgstr "Ouvrir"
+
+msgid "فتح الملف ↗"
+msgstr "Ouvrir le fichier ↗"
+
+msgid "فتح ↗"
+msgstr "Ouvrir ↗"
+
+msgid "كل ما يحتاجه الأستاذ لمعرفة قواعد وبرنامج التدريس في المنصة — عرض للاطلاع فقط"
+msgstr "Tout ce dont l'enseignant a besoin pour connaître les règles et le programme d'enseignement de la plateforme — consultation seule"
+
+msgid "ملفات حقيبة الطالب — يديرها المدير والمشرف فقط، ويراها كل طالب معني في \"حقيبتي\" (قراءة فقط)"
+msgstr "Fichiers du cartable de l'élève — gérés uniquement par le directeur et le superviseur, visibles par chaque élève concerné dans « Mon cartable » (lecture seule)"

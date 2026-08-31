@@ -67,12 +67,13 @@ Icône 🔔 "الإشعارات" (Chantier notifications du 2026-08-19, étendu 
 ci-dessus : un panneau déroulant au clic plutôt qu'un lien direct (voir
 dashboard.notifications.__doc__ pour ce que "الإشعارات" représente
 précisément selon le rôle — évaluations/examens/fichiers personnels reçus
-pour eleve/prof, nouvelles demandes d'inscription pour مدير/مشرف, JAMAIS
+pour eleve/prof, nouveaux fichiers حقيبة الأستاذ pour le مؤطر (Chantier du
+2026-08-31), nouvelles demandes d'inscription pour مدير/مشرف, JAMAIS
 les compteurs de tâches qui restent où ils sont déjà, ex: nb_demandes_en_attente
 sur la sidebar مشرف). Passée par dashboard_eleve/dashboard_prof/
-dashboard_admin/dashboard_mshrif (pas superviseur, aucun déclencheur défini
-pour ce rôle) :
-- afficher_notifications : True seulement pour eleve.html/prof.html.
+dashboard_superviseur/dashboard_admin/dashboard_mshrif :
+- afficher_notifications : True pour eleve.html/prof.html/superviseur.html/
+  admin.html/dashboard_mshrif.html.
 - notif_total : nombre réel d'événements non lus (badge).
 - notif_groupes : liste de dicts {icone, label, evenements: [{texte, url,
   date}]} — CHAQUE ligne affichée est par construction non lue (elle

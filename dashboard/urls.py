@@ -17,6 +17,8 @@ urlpatterns = [
     path('eleve/profs/<int:prof_id>/', views.eleve_prof_detail, name='eleve_prof_detail'),
     path('eleve/progression/', views.eleve_progression, name='eleve_progression'),
     path('eleve/cartable/', views.eleve_cartable, name='eleve_cartable'),
+    # Sert un fichier du cartable via le site (jamais un lien Cloudinary direct)
+    path('cartable/fichier/<int:document_id>/', views.eleve_cartable_fichier, name='eleve_cartable_fichier'),
 
     # Prof
     path('prof/groupes/', views.prof_groupes, name='prof_groupes'),
@@ -30,6 +32,9 @@ urlpatterns = [
     path('prof/remuneration/', views.prof_remuneration, name='prof_remuneration'),
     path('prof/charte/', views.prof_charte, name='prof_charte'),
     path('prof/hakiba/', views.prof_hakiba, name='prof_hakiba'),
+    # Sert un fichier de la حقيبة via le site (jamais un lien Cloudinary direct)
+    # — partagé prof / مؤطر / مدير / مشرف, permission vérifiée dans la vue.
+    path('hakiba/fichier/<int:element_id>/', views.hakiba_fichier, name='hakiba_fichier'),
     path('programme-general/', views.programme_general_detail, name='programme_general_detail'),
 
     # Superviseur

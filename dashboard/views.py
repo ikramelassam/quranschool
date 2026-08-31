@@ -279,7 +279,7 @@ def mes_notes_personnelles(request):
     return render(request, 'dashboard/mes_notes_personnelles.html', context)
 
 
-@role_required('eleve', 'prof', 'admin', 'mshrif')
+@role_required('eleve', 'prof', 'superviseur', 'admin', 'mshrif')
 def mes_notifications(request):
     """Page "عرض الكل" du panneau 🔔 الإشعارات (lien en bas du dropdown, voir
     dashboard/_header_raccourcis.html) — mêmes données que le dropdown, sans
@@ -292,8 +292,13 @@ def mes_notifications(request):
     survolant cette liste.
 
     admin/mshrif ajoutés au chantier du 2026-08-24 (voir dashboard.
-    notifications.notifications_direction) — même page, juste une 3e branche."""
-    from dashboard.notifications import notifications_eleve, notifications_prof, notifications_direction, LIMITE_FETCH
+    notifications.notifications_direction) — même page, juste une 3e branche.
+    superviseur ajouté au chantier du 2026-08-31 (voir dashboard.
+    notifications.notifications_superviseur) — 4e branche."""
+    from dashboard.notifications import (
+        notifications_eleve, notifications_prof, notifications_superviseur,
+        notifications_direction, LIMITE_FETCH,
+    )
 
     if request.user.role == 'eleve':
         from accounts.models import Eleve
@@ -305,6 +310,9 @@ def mes_notifications(request):
         prof = get_object_or_404(Prof, user=request.user)
         notif_groupes, notif_total = notifications_prof(prof, request.user, limite=LIMITE_FETCH)
         base_template = 'dashboard/base_prof.html'
+    elif request.user.role == 'superviseur':
+        notif_groupes, notif_total = notifications_superviseur(request.user, limite=LIMITE_FETCH)
+        base_template = 'dashboard/base_superviseur.html'
     else:  # 'admin' ou 'mshrif'
         notif_groupes, notif_total = notifications_direction(request.user, limite=LIMITE_FETCH)
         base_template = _base_template_admin_ou_mshrif(request)
@@ -3708,9 +3716,18 @@ def dashboard_superviseur(request):
     ]
     nb_semaine_courante = a_venir['nb_semaine_courante']
 
+    # Panneau 🔔 الإشعارات (Chantier du 2026-08-31) — calculé UNIQUEMENT ici
+    # (page d'accueil), jamais en context processor global : voir
+    # dashboard.notifications.__doc__. Un seul déclencheur côté مؤطر : un
+    # nouvel élément déposé dans la حقيبة الأستاذ par la direction.
+    from dashboard.notifications import notifications_superviseur
+    notif_groupes, notif_total = notifications_superviseur(request.user)
+
     return render(request, 'dashboard/superviseur.html', {
         'superviseur': superviseur,
         'aujourdhui': aujourdhui,
+        'notif_groupes': notif_groupes,
+        'notif_total': notif_total,
         'total_seances': toutes_seances.count(),
         'nb_retard': seances_retard.count(),
         'nb_seances_mois_courant': nb_seances_mois_courant,
@@ -3974,9 +3991,52 @@ def superviseur_hakiba(request):
     elements = ElementHakiba.objects.select_related('ajoute_par').prefetch_related(
         'profs_cibles__user'
     ).all()
+
+    # Marque le type 'hakiba' comme lu (panneau 🔔 الإشعارات, Chantier du
+    # 2026-08-31) — même clé que côté prof (prof_hakiba), keyée par (user,
+    # cle) donc propre à ce مؤطر. Juste avant le render, jamais avant (la vue
+    # ne redirige jamais plus tôt ici, mais on garde la même précaution que
+    # les autres appelants de marquer_visite).
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'hakiba')
+
     return render(request, 'dashboard/superviseur_hakiba.html', {
         'elements_hakiba': elements,
     })
+
+
+@role_required('prof', 'superviseur', 'admin', 'mshrif')
+def hakiba_fichier(request, element_id):
+    """Sert un fichier de la حقيبة الأستاذ DEPUIS le domaine du site (voir
+    core.media_proxy.__doc__) : affichage dans l'onglet si le navigateur sait
+    le faire, sinon (ou ?dl=1) téléchargement.
+
+    Contrôle d'accès AVANT de révéler le fichier — calqué sur ce que chaque
+    rôle voit déjà sur sa page حقيبة :
+      - prof : uniquement les éléments qui le concernent (tous_les_profs=True
+        OU lui-même dans profs_cibles — voir prof_hakiba) ;
+      - مؤطر/مدير/مشرف : tous les éléments (voir superviseur_hakiba : la
+        حقيبة est un contenu informationnel de l'administration).
+    Un élément hors périmètre renvoie 404, jamais le fichier."""
+    from django.db.models import Q
+    from django.http import Http404
+    from accounts.models import ElementHakiba, Prof
+    from core.media_proxy import servir_fichier_media
+
+    elements = ElementHakiba.objects.all()
+    if request.user.role == 'prof':
+        prof = get_object_or_404(Prof, user=request.user)
+        elements = elements.filter(Q(tous_les_profs=True) | Q(profs_cibles=prof)).distinct()
+
+    element = get_object_or_404(elements, id=element_id)
+    if not element.fichier:
+        raise Http404('Cet élément ne contient pas de fichier.')
+
+    return servir_fichier_media(
+        element.fichier,
+        telecharger=request.GET.get('dl') == '1',
+        nom_telechargement=element.titre or '',
+    )
 
 
 # ==================== ADMIN — SÉANCES ====================
@@ -4262,10 +4322,14 @@ def admin_eleve_cartable_gestion(request):
     """Page centrale "إدارة حقيبة الطالب" (refonte du 2026-08-18 — remplace
     la gestion par fiche élève individuelle : demande explicite du client de
     calquer exactement le patron déjà en place pour la حقيبة الأستاذ, voir
-    admin_hakiba_gestion). Formulaire d'ajout (choix du طالب inclus,
-    contrairement à ElementHakiba qui cible plusieurs profs à la fois — un
-    DocumentEleve appartient toujours à UN SEUL élève) + liste de tous les
-    documents existants, tous élèves confondus.
+    admin_hakiba_gestion). Formulaire d'ajout + liste de tous les documents
+    existants, tous élèves confondus.
+
+    Refonte du 2026-08-30 : un DocumentEleve n'est plus une copie par élève
+    mais UN SEUL enregistrement avec un ciblage recalculé dynamiquement (voir
+    accounts.models.DocumentEleve.__doc__ et pour_eleve()) — un élève inscrit
+    après l'ajout d'un fichier "كل الطلاب"/"فئة معينة" le voit désormais sans
+    action manuelle de مدير/مشرف.
 
     UN SEUL système de sélection des destinataires (correction UX du
     2026-08-18 ter) : le formulaire "ملف جديد" ci-dessous (كل الطلاب / فئة
@@ -4280,7 +4344,8 @@ def admin_eleve_cartable_gestion(request):
     from annonces.services import CANAUX
 
     documents = list(
-        DocumentEleve.objects.select_related('eleve__user', 'ajoute_par').order_by('-date_ajout')
+        DocumentEleve.objects.prefetch_related('eleves_cibles__user')
+        .select_related('ajoute_par').order_by('-date_ajout')
     )
 
     context = {
@@ -4298,34 +4363,35 @@ def admin_eleve_cartable_gestion(request):
 @role_required('admin', 'mshrif')
 @require_POST
 def admin_eleve_cartable_ajouter(request):
-    """Ajoute un fichier au cartable d'un ou plusieurs élèves, depuis la page
-    centrale "إدارة حقيبة الطالب" — 3 modes de ciblage (demande explicite du
-    client, EXACTEMENT le même principe que حقيبة الأستاذ/admin_hakiba_ajouter,
+    """Ajoute un fichier au cartable élève, depuis la page centrale "إدارة
+    حقيبة الطالب" — 3 modes de ciblage (demande explicite du client,
+    EXACTEMENT le même principe que حقيبة الأستاذ/admin_hakiba_ajouter,
     étendu d'un 3e mode) :
-      - 'tous' : tous les élèves actifs (Eleve.actifs), comme
-        ElementHakiba.tous_les_profs=True ;
-      - 'categorie' : tous les élèves actifs appartenant à AU MOINS UN
-        groupe ACTIF dont Groupe.categorie correspond (نساء/رجال/أطفال —
-        mêmes 3 valeurs que les canaux d'annonces, Groupe.categorie
-        réutilise directement Annonce.CIBLE_CHOICES, voir Groupe.categorie
-        __doc__). SOURCE EXPLICITEMENT CONFIRMÉE PAR LE CLIENT :
-        Groupe.categorie (champ saisi par le مدير), PAS
-        Groupe.categorie_collectif (property dérivée du créneau) ni
-        cible_annonce_pour_eleve (déduit de l'âge/sexe de l'élève — c'était
-        la source utilisée par l'ancien filtre de liste, retiré, jamais
-        celle du ciblage d'upload). Un élève sans groupe, ou dont aucun
-        groupe n'a de categorie renseignée, n'apparaît simplement dans
-        aucune catégorie précise (mais reste sélectionnable via 'tous' ou
-        'specifique' — jamais une disparition silencieuse) ;
+      - 'tous' : visible par tous les élèves (comme
+        ElementHakiba.tous_les_profs=True) — y compris ceux inscrits APRÈS
+        cet ajout (Refonte du 2026-08-30, voir accounts.models.DocumentEleve
+        .__doc__ : ciblage recalculé dynamiquement, plus une copie figée par
+        élève au moment de l'ajout) ;
+      - 'categorie' : visible par tout élève ayant au moins un groupe ACTIF
+        dont Groupe.categorie correspond (نساء/رجال/أطفال — mêmes 3 valeurs
+        que les canaux d'annonces, Groupe.categorie réutilise directement
+        Annonce.CIBLE_CHOICES, voir Groupe.categorie__doc__). SOURCE
+        EXPLICITEMENT CONFIRMÉE PAR LE CLIENT : Groupe.categorie (champ
+        saisi par le مدير), PAS Groupe.categorie_collectif (property dérivée
+        du créneau) ni cible_annonce_pour_eleve (déduit de l'âge/sexe de
+        l'élève — c'était la source utilisée par l'ancien filtre de liste,
+        retiré, jamais celle du ciblage d'upload). Contrairement à l'ancien
+        comportement, une catégorie sans AUCUN élève actuellement concerné
+        reste acceptée à l'ajout : le fichier attend simplement les futurs
+        élèves de cette catégorie, cohérent avec le sens même du mode
+        'categorie' recalculé dynamiquement ;
       - 'specifique' : élèves nommés un par un (recherche + sélection
-        multiple), comme "أساتذة محددون" pour حقيبة الأستاذ.
-    DocumentEleve reste une FK simple vers un seul élève (dossier personnel,
-    pas de diffusion par M2M — voir son __doc__) : cibler plusieurs élèves
-    crée donc une ligne PAR élève, chacune avec une copie du même fichier
-    (fichier lu une seule fois, voir ContentFile ci-dessous — le curseur
-    d'un fichier uploadé ne peut être relu qu'une fois avec .save() direct).
-    Réservé à مدير/مشرف (pas le prof, décision confirmée)."""
-    from django.core.files.base import ContentFile
+        multiple, M2M eleves_cibles), comme "أساتذة محددون" pour حقيبة
+        الأستاذ — au moins un élève requis ici, ce mode n'ayant pas de sens
+        vide.
+    Un seul DocumentEleve créé par ajout (plus de boucle par élève depuis la
+    refonte du 2026-08-30). Réservé à مدير/مشرف (pas le prof, décision
+    confirmée)."""
     from accounts.models import Eleve, DocumentEleve
 
     fichier = request.FILES.get('fichier')
@@ -4339,17 +4405,16 @@ def admin_eleve_cartable_ajouter(request):
         return redirect('admin_eleve_cartable_gestion')
 
     cible = request.POST.get('cible', 'specifique')
-    if cible == 'tous':
-        eleves_cibles = list(Eleve.actifs.all())
-    elif cible == 'categorie':
-        categorie = request.POST.get('categorie_cible', '')
-        eleves_cibles = list(
-            Eleve.actifs.filter(groupes__statut='actif', groupes__categorie=categorie).distinct()
-        ) if categorie else []
-        if not eleves_cibles:
-            messages.error(request, 'يرجى اختيار فئة تضم طالباً واحداً على الأقل.')
+    categorie_cible = ''
+    eleves_cibles = []
+
+    if cible == 'categorie':
+        categorie_cible = request.POST.get('categorie_cible', '')
+        if not categorie_cible:
+            messages.error(request, 'يرجى اختيار الفئة المستهدفة.')
             return redirect('admin_eleve_cartable_gestion')
-    else:
+    elif cible != 'tous':
+        cible = 'specifique'
         ids = [i for i in request.POST.getlist('eleves_cibles') if i.isdigit()]
         eleves_cibles = list(Eleve.objects.filter(id__in=ids))
         if not eleves_cibles:
@@ -4357,15 +4422,18 @@ def admin_eleve_cartable_ajouter(request):
             return redirect('admin_eleve_cartable_gestion')
 
     titre = request.POST.get('titre', '').strip()
-    contenu = fichier.read()
-    for eleve in eleves_cibles:
-        DocumentEleve.objects.create(
-            eleve=eleve, titre=titre,
-            fichier=ContentFile(contenu, name=fichier.name),
-            ajoute_par=request.user,
-        )
+    document = DocumentEleve.objects.create(
+        cible_type=cible, categorie_cible=categorie_cible,
+        titre=titre, fichier=fichier, ajoute_par=request.user,
+    )
+    if cible == 'specifique':
+        document.eleves_cibles.set(eleves_cibles)
 
-    if len(eleves_cibles) == 1:
+    if cible == 'tous':
+        messages.success(request, 'تمت إضافة الملف إلى حقيبة جميع الطلاب.')
+    elif cible == 'categorie':
+        messages.success(request, 'تمت إضافة الملف إلى حقيبة الطلاب المعنيين بهذه الفئة.')
+    elif len(eleves_cibles) == 1:
         messages.success(request, f'تمت إضافة الملف إلى حقيبة {eleves_cibles[0].user.get_full_name()}.')
     else:
         messages.success(request, f'تمت إضافة الملف إلى حقيبة {len(eleves_cibles)} طالباً.')
@@ -4389,9 +4457,14 @@ def admin_eleve_cartable_supprimer(request, document_id):
 def eleve_cartable(request):
     """Page de lecture seule de l'élève sur SON PROPRE cartable — équivalent
     de prof_hakiba.html côté prof, même principe (مدير/مشرف déposent, la
-    personne concernée consulte, aucune gestion possible d'ici)."""
+    personne concernée consulte, aucune gestion possible d'ici).
+    DocumentEleve.pour_eleve() (recalculée à chaque appel, voir son
+    __doc__) inclut les documents 'tous'/'categorie' même ajoutés avant
+    l'inscription de cet élève — refonte du 2026-08-30."""
+    from accounts.models import DocumentEleve
+
     eleve = request.user.eleve
-    documents = eleve.documents_cartable.select_related('ajoute_par')
+    documents = DocumentEleve.pour_eleve(eleve).select_related('ajoute_par')
 
     # Marque le type 'cartable' comme lu (panneau 🔔 الإشعارات, Chantier
     # notifications du 2026-08-19) — voir dashboard.notifications.__doc__.
@@ -4399,6 +4472,35 @@ def eleve_cartable(request):
     marquer_visite(request.user, 'cartable')
 
     return render(request, 'dashboard/eleve_cartable.html', {'documents': documents})
+
+
+@role_required('eleve', 'admin', 'mshrif')
+def eleve_cartable_fichier(request, document_id):
+    """Sert un fichier du cartable élève DEPUIS le domaine du site (voir
+    core.media_proxy.__doc__) : affichage dans l'onglet quand le navigateur
+    sait le faire, sinon (ou avec ?dl=1) téléchargement.
+
+    Contrôle d'accès AVANT de révéler le fichier :
+      - élève : uniquement les documents que DocumentEleve.pour_eleve lui
+        rend visibles (mêmes règles que sa page cartable — un document d'un
+        autre élève renvoie 404, jamais le fichier) ;
+      - مدير/مشرف : n'importe quel document (ils gèrent le cartable et
+        ouvrent les fichiers depuis admin_eleve_cartable_gestion).
+    """
+    from accounts.models import DocumentEleve
+    from core.media_proxy import servir_fichier_media
+
+    if request.user.role == 'eleve':
+        visibles = DocumentEleve.pour_eleve(request.user.eleve)
+        document = get_object_or_404(visibles, id=document_id)
+    else:
+        document = get_object_or_404(DocumentEleve, id=document_id)
+
+    return servir_fichier_media(
+        document.fichier,
+        telecharger=request.GET.get('dl') == '1',
+        nom_telechargement=document.titre or '',
+    )
 
 
 @role_required('admin')

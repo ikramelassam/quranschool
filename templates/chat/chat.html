@@ -287,6 +287,12 @@
     .chat-fichier-infos { display: flex; flex-direction: column; min-width: 0; }
     .chat-fichier-nom { font-size: 0.84rem; font-weight: 600; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
     .chat-fichier-taille { font-size: 0.7rem; color: var(--color-text-muted); }
+    /* Lien "تحميل" affiché sous la pièce jointe quand le lien principal ouvre
+       le fichier dans l'onglet (PDF/image/texte) — voir _message_bubbles.html. */
+    .chat-fichier-telecharger {
+        display: inline-block; margin-top: 4px; font-size: 0.74rem; font-weight: 600;
+        color: #8b4b00; text-decoration: none;
+    }
 
     /* Bandeau "accès révoqué" (Point 6 de l'audit du 2026-08-15) — affiché en
        bas du panneau quand les permissions changent pendant que la

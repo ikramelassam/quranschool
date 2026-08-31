@@ -1,6 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.utils import timezone
+# `gettext as _` est proscrit ici : `_` sert déjà de variable jetable dans
+# ce module (update_or_create renvoie `evaluation, _`) — même choix que
+# dashboard/views.py.
+from django.utils.translation import gettext as gettext_
 from accounts.decorators import role_required
 from accounts.models import Superviseur
 from courses.models import Seance, Presence
@@ -86,8 +90,9 @@ def superviseur_evaluer(request, seance_id):
         heure_fin_locale = timezone.localtime(heure_fin).strftime('%H:%M') if heure_fin else ''
         messages.error(
             request,
-            f'الحصة لم تنته بعد، يمكن التقييم بعد الساعة {heure_fin_locale}.' if heure_fin_locale
-            else 'الحصة لم تنته بعد.'
+            gettext_('الحصة لم تنته بعد، يمكن التقييم بعد الساعة %(heure)s.') % {'heure': heure_fin_locale}
+            if heure_fin_locale
+            else gettext_('الحصة لم تنته بعد.')
         )
         return redirect('superviseur_seance_detail', seance_id=seance.id)
 
@@ -95,7 +100,7 @@ def superviseur_evaluer(request, seance_id):
 
     evaluation = Evaluation.objects.filter(seance=seance).first()
     if evaluation and not evaluation.modifiable:
-        messages.error(request, 'انتهت مدة تعديل هذا التقييم (24 ساعة من الإرسال الأول) — لم يعد قابلاً للتعديل.')
+        messages.error(request, gettext_('انتهت مدة تعديل هذا التقييم (24 ساعة من الإرسال الأول) — لم يعد قابلاً للتعديل.'))
         return redirect('superviseur_evaluation_detail', seance_id=seance.id)
 
     notes_existantes = {}
@@ -106,7 +111,7 @@ def superviseur_evaluer(request, seance_id):
         commentaire = request.POST.get('commentaire', '').strip()
 
         if not commentaire:
-            messages.error(request, 'حقل "ملاحظات وتوجيهات" إلزامي — يرجى تعبئته قبل الحفظ.')
+            messages.error(request, gettext_('حقل "ملاحظات وتوجيهات" إلزامي — يرجى تعبئته قبل الحفظ.'))
             criteres_notes = [
                 {
                     'critere': critere,

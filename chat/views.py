@@ -1,5 +1,5 @@
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponseBadRequest, FileResponse
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.http import require_POST, require_GET
@@ -342,22 +342,25 @@ def chat_fichier(request, groupe_id, message_id):
     rejouant cette URL (id de message d'une AUTRE conversation -> 403,
     jamais l'URL réelle du fichier).
 
-    Un vocal (type_message == 'audio') n'est PAS redirigé comme les autres
-    pièces jointes ci-dessous : diagnostiqué le 2026-08-17 (bug remonté
-    "aucun lecteur visible, juste l'icône 🎤 statique") en interrogeant
-    directement le compte Cloudinary réel du projet — Cloudinary comme le
-    module `mimetypes` de Python (vérifié en local) renvoient tous les deux
-    'video/webm' comme Content-Type pour un .webm, jamais 'audio/webm'. Un
-    <audio> à qui le navigateur annonce un Content-Type 'video/*' refuse
-    d'initialiser le moindre lecteur, pour TOUT vocal (envoyé ou reçu), en
-    local comme en production. On relaie donc nous-mêmes le contenu avec le
-    bon Content-Type audio/* (chat.services.content_type_audio, déterminé
-    UNIQUEMENT depuis l'extension, jamais depuis un module de détection
-    générique) plutôt que de rediriger vers l'URL du stockage. Les autres
-    types de pièces jointes (documents, images...) continuent d'être
-    redirigés tels quels : leur Content-Type deviné par le stockage est
-    correct pour ces extensions-là, aucune raison de payer le coût d'un
-    relais supplémentaire."""
+    Depuis le 2026-08-31, un document n'est PLUS redirigé vers l'URL Cloudinary
+    (le navigateur quittait le site pour res.cloudinary.com) : il est relayé
+    par le serveur via core.media_proxy.servir_fichier_media, exactement comme
+    le cartable élève et la حقيبة الأستاذ. ?dl=1 force le téléchargement, sinon
+    le fichier s'affiche dans l'onglet quand le navigateur sait le faire (PDF,
+    image, texte) et se télécharge sinon (Word/Excel/PowerPoint).
+
+    Un vocal (type_message == 'audio') garde son propre chemin : diagnostiqué
+    le 2026-08-17 (bug remonté "aucun lecteur visible, juste l'icône 🎤
+    statique") en interrogeant directement le compte Cloudinary réel du projet
+    — Cloudinary comme le module `mimetypes` de Python (vérifié en local)
+    renvoient tous les deux 'video/webm' comme Content-Type pour un .webm,
+    jamais 'audio/webm'. Un <audio> à qui le navigateur annonce un
+    Content-Type 'video/*' refuse d'initialiser le moindre lecteur, pour TOUT
+    vocal (envoyé ou reçu), en local comme en production. On relaie donc le
+    contenu avec le bon Content-Type audio/* (chat.services.content_type_audio,
+    déterminé UNIQUEMENT depuis l'extension), jamais la table générique de
+    core.media_proxy (qui, elle, mappe .webm -> video/webm, correct pour une
+    vidéo mais pas pour un vocal)."""
     conversation, erreur = _conversation_ou_403(request, groupe_id)
     if erreur:
         return erreur
@@ -371,7 +374,13 @@ def chat_fichier(request, groupe_id, message_id):
             message.fichier.open('rb'),
             content_type=content_type_audio(message.fichier.name),
         )
-    return redirect(message.fichier.url)
+
+    from core.media_proxy import servir_fichier_media
+    return servir_fichier_media(
+        message.fichier,
+        telecharger=request.GET.get('dl') == '1',
+        nom_telechargement=message.nom_fichier_original or '',
+    )
 
 
 @role_required(*ROLES_AVEC_CHAT)

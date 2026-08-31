@@ -298,6 +298,14 @@ class ElementHakiba(models.Model):
     def __str__(self):
         return self.titre or (self.contenu_texte[:40] if self.contenu_texte else 'عنصر بدون عنوان')
 
+    @property
+    def fichier_affichable_navigateur(self):
+        """True si le fichier joint peut s'ouvrir dans l'onglet du navigateur
+        (PDF, image, audio, vidéo, texte) — le template affiche alors "فتح" en
+        plus de "تحميل". Voir core.media_proxy."""
+        from core.media_proxy import est_affichable_navigateur
+        return bool(self.fichier) and est_affichable_navigateur(self.fichier.name)
+
     class Meta:
         ordering = ['-date_ajout']
         verbose_name = "Élément de حقيبة الأستاذ"
@@ -589,16 +597,53 @@ class NotePersonnelle(models.Model):
 
 
 class DocumentEleve(models.Model):
-    """Cartable élève (Tâche du 2026-08-18) — équivalent, côté élève, du
-    accounts.ElementHakiba ("cartable prof") : مدير/مشرف y déposent des fichiers
-    (PDF, images, textes...) pour UN élève précis, visibles par cet élève sur
-    sa propre page (comme prof_hakiba.html pour ElementHakiba). Contrairement à
-    ElementHakiba (un même élément peut cibler tous les profs ou une sélection
-    via M2M — mécanisme de DIFFUSION), un DocumentEleve appartient à un seul
-    élève : simple FK, pas de M2M — mécanisme de DOSSIER PERSONNEL.
+    """Cartable élève (Tâche du 2026-08-18, refondue le 2026-08-30) —
+    équivalent, côté élève, du accounts.ElementHakiba ("cartable prof") :
+    مدير/مشرف y déposent des fichiers (PDF, images, textes...) visibles par
+    le(s) élève(s) concerné(s) sur leur propre page (comme prof_hakiba.html
+    pour ElementHakiba).
+
+    Refonte du 2026-08-30 (demande explicite du client) : à l'origine, un
+    DocumentEleve appartenait à un seul élève (simple FK, "mécanisme de
+    DOSSIER PERSONNEL") — cibler "كل الطلاب"/"فئة معينة" à l'ajout créait
+    donc une COPIE par élève déjà inscrit à ce moment-là. Conséquence non
+    voulue : un élève inscrit APRÈS coup ne voyait jamais ces fichiers tant
+    que مدير/مشرف ne refaisait pas l'ajout manuellement. Désormais UN SEUL
+    enregistrement par fichier ajouté, avec un ciblage RECALCULÉ À CHAQUE
+    AFFICHAGE (voir pour_eleve() ci-dessous) — même principe que
+    ElementHakiba.tous_les_profs/profs_cibles, étendu d'un mode "catégorie"
+    (mêmes 3 modes que l'ancien formulaire d'ajout, voir dashboard.views.
+    admin_eleve_cartable_ajouter) :
+      - 'tous' : visible par tous les élèves, y compris ceux inscrits après
+        l'ajout du fichier ;
+      - 'categorie' : visible par tout élève ayant au moins un groupe ACTIF
+        dont Groupe.categorie == categorie_cible (recalculé à chaque
+        affichage — un élève qui change de groupe change donc aussi ce
+        qu'il voit, pas figé à l'ajout) ;
+      - 'specifique' : visible seulement par les élèves listés dans
+        eleves_cibles (M2M, plusieurs élèves possibles par fichier).
+    Migration 0038 : les DocumentEleve déjà en base (chacun lié à un seul
+    élève via l'ancien FK) sont passés en 'specifique' avec ce même élève
+    dans eleves_cibles — comportement inchangé pour l'existant, seuls les
+    NOUVEAUX ajouts profitent du ciblage dynamique 'tous'/'categorie'.
     Upload/suppression réservés à مدير/مشرف (pas le prof, décision confirmée
     du 2026-08-18, cohérent avec ElementHakiba déjà réservé à مدير/مشرف)."""
-    eleve = models.ForeignKey('accounts.Eleve', on_delete=models.CASCADE, related_name='documents_cartable')
+    CIBLE_TOUS = 'tous'
+    CIBLE_CATEGORIE = 'categorie'
+    CIBLE_SPECIFIQUE = 'specifique'
+    CIBLE_CHOICES = [
+        (CIBLE_TOUS, 'كل الطلاب'),
+        (CIBLE_CATEGORIE, 'فئة معينة'),
+        (CIBLE_SPECIFIQUE, 'طلاب محددون'),
+    ]
+    cible_type = models.CharField(max_length=20, choices=CIBLE_CHOICES, default=CIBLE_SPECIFIQUE)
+    # Rempli seulement si cible_type == 'categorie' — une des 3 valeurs de
+    # annonces.services.CANAUX (même source que Groupe.categorie).
+    categorie_cible = models.CharField(max_length=20, blank=True, default='')
+    # Rempli seulement si cible_type == 'specifique'.
+    eleves_cibles = models.ManyToManyField(
+        'accounts.Eleve', blank=True, related_name='documents_cartable_cibles'
+    )
     titre = models.CharField(max_length=200, blank=True)
     fichier = models.FileField(upload_to='cartable_eleve/%Y/%m/')
     ajoute_par = models.ForeignKey(
@@ -608,6 +653,51 @@ class DocumentEleve(models.Model):
 
     def __str__(self):
         return self.titre or self.fichier.name
+
+    @property
+    def fichier_affichable_navigateur(self):
+        """True si le fichier peut s'ouvrir dans l'onglet du navigateur (PDF,
+        image, audio, vidéo, texte) — le template affiche alors "فتح" en plus
+        de "تحميل". Voir core.media_proxy."""
+        from core.media_proxy import est_affichable_navigateur
+        return bool(self.fichier) and est_affichable_navigateur(self.fichier.name)
+
+    def description_cible(self):
+        """Libellé arabe lisible du ciblage, pour l'affichage dans
+        admin_eleve_cartable_gestion.html (remplace l'ancien doc.eleve.user.
+        get_full_name, qui n'a plus de sens pour un fichier partagé)."""
+        if self.cible_type == self.CIBLE_TOUS:
+            return 'كل الطلاب'
+        if self.cible_type == self.CIBLE_CATEGORIE:
+            from annonces.services import canal_pour_code
+            canal = canal_pour_code(self.categorie_cible)
+            return f'فئة: {canal["nom"]}' if canal else 'فئة معينة'
+        noms = [e.user.get_full_name() for e in self.eleves_cibles.all()]
+        if not noms:
+            return '—'
+        if len(noms) == 1:
+            return noms[0]
+        return f'{len(noms)} طلاب: ' + '، '.join(noms)
+
+    @classmethod
+    def pour_eleve(cls, eleve):
+        """Tous les DocumentEleve visibles par cet élève, tous modes de
+        ciblage confondus — SEULE façon correcte de lister le cartable d'un
+        élève désormais (voir docstring de classe). Recalculée à chaque
+        appel, jamais mise en cache : un fichier 'tous'/'categorie' ajouté
+        avant l'inscription de cet élève apparaît donc dès son premier
+        appel, sans action manuelle de مدير/مشرف."""
+        from django.db.models import Q
+
+        categories = set(
+            eleve.groupes.filter(statut='actif')
+            .exclude(categorie='')
+            .values_list('categorie', flat=True)
+        )
+        q = Q(cible_type=cls.CIBLE_TOUS) | Q(cible_type=cls.CIBLE_SPECIFIQUE, eleves_cibles=eleve)
+        if categories:
+            q |= Q(cible_type=cls.CIBLE_CATEGORIE, categorie_cible__in=categories)
+        return cls.objects.filter(q).distinct()
 
     class Meta:
         ordering = ['-date_ajout']

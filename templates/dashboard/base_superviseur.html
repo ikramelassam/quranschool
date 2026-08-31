@@ -1,12 +1,16 @@
-{% load static chat_extras %}
+{% load static chat_extras i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <link rel="icon" href="{{ logo_url }}" type="{{ logo_mime_type }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}لوحة المؤطر{% endblock %}</title>
+    <title>{% block title %}{% trans "لوحة المؤطر" %}{% endblock %}</title>
+    {% if LANGUAGE_BIDI %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    {% else %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    {% endif %}
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
     <style>
@@ -144,16 +148,17 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-<button type="button" class="sidebar-toggle" onclick="toggleSidebar()" aria-label="فتح القائمة">☰</button>
+<button type="button" class="sidebar-toggle" onclick="toggleSidebar()" aria-label="{% trans 'فتح القائمة' %}">☰</button>
 <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
 <div class="sidebar">
-    {% include 'dashboard/_sidebar_header.html' with subtitle='لوحة المؤطر' %}
+    {% trans "لوحة المؤطر" as sous_titre_sidebar %}
+    {% include 'dashboard/_sidebar_header.html' with subtitle=sous_titre_sidebar %}
     {% include 'dashboard/_sidebar_user_block.html' %}
     <div class="sidebar-menu">
         <a href="{% url 'dashboard_superviseur' %}"
            class="menu-item {% if request.resolver_match.url_name == 'dashboard_superviseur' %}active{% endif %}">
-            <span class="icon">📊</span> لوحة التحكم
+            <span class="icon">📊</span> {% trans "لوحة التحكم" %}
         </a>
         {% comment %} "تقييم الأساتذة" pointe vers dashboard_superviseur (même vue que
            "لوحة التحكم" ci-dessus) mais avec l'ancre #section-passees — c'est
@@ -166,7 +171,7 @@
         {% endcomment %}
         <a href="{% url 'dashboard_superviseur' %}#section-passees"
            class="menu-item {% if request.resolver_match.url_name == 'dashboard_superviseur' %}active{% endif %}">
-            <span class="icon">✅</span> تقييم الأساتذة
+            <span class="icon">✅</span> {% trans "تقييم الأساتذة" %}
         </a>
         {% comment %} جدول أسبوعي لمجموعات الأساتذة المسندين — mirroir de prof_emploi
            (même chantier). Vue distincte : grille horaire de la semaine,
@@ -174,47 +179,48 @@
         {% endcomment %}
         <a href="{% url 'superviseur_emploi' %}"
            class="menu-item {% if request.resolver_match.url_name == 'superviseur_emploi' %}active{% endif %}">
-            <span class="icon">🗓️</span> جدولي
+            <span class="icon">🗓️</span> {% trans "جدولي" %}
         </a>
 
         <a href="{% url 'chat_liste' %}"
            class="menu-item {% if request.resolver_match.url_name == 'chat_liste' or request.resolver_match.url_name == 'chat_conversation' %}active{% endif %}">
-            <span class="icon">💬</span> الرسائل
+            <span class="icon">💬</span> {% trans "الرسائل" %}
             {% if chat_non_lus_total %}<span class="menu-badge" id="chatSidebarBadge">{{ chat_non_lus_total|abrege_badge }}</span>{% endif %}
         </a>
         <a href="{% url 'superviseur_profil' %}"
            class="menu-item {% if request.resolver_match.url_name == 'superviseur_profil' %}active{% endif %}">
-            <span class="icon">👤</span> ملفي الشخصي
+            <span class="icon">👤</span> {% trans "ملفي الشخصي" %}
         </a>
         <a href="{% url 'mes_notes_personnelles' %}"
            class="menu-item {% if request.resolver_match.url_name == 'mes_notes_personnelles' %}active{% endif %}">
-            <span class="icon">📓</span> ملاحظاتي
+            <span class="icon">📓</span> {% trans "ملاحظاتي" %}
         </a>
         {# لعرض فقط — المؤطر يرى اختبارات حلقات أساتذته المسندين إليه، دون تعديل الأسئلة أو النقاط (permissions.get_examens_accessibles). #}
         <a href="{% url 'examens_consultation_liste' %}"
            class="menu-item {% if request.resolver_match.url_name == 'examens_consultation_liste' or request.resolver_match.url_name == 'examens_consultation_detail' or request.resolver_match.url_name == 'examens_consultation_copie' %}active{% endif %}">
-            <span class="icon">📝</span> الاختبارات
+            <span class="icon">📝</span> {% trans "الاختبارات" %}
         </a>
         <a href="{% url 'classement_mensuel_profs' %}"
            class="menu-item {% if request.resolver_match.url_name == 'classement_mensuel_profs' %}active{% endif %}">
-            <span class="icon">🏆</span> الترتيب الشهري للمعلمين
+            <span class="icon">🏆</span> {% trans "الترتيب الشهري للمعلمين" %}
         </a>
         <a href="{% url 'mshrif_charte' %}"
            class="menu-item {% if request.resolver_match.url_name == 'mshrif_charte' %}active{% endif %}">
-            <span class="icon">📜</span> ميثاق التدريس
+            <span class="icon">📜</span> {% trans "ميثاق التدريس" %}
         </a>
         <a href="{% url 'programme_general_detail' %}"
            class="menu-item {% if request.resolver_match.url_name == 'programme_general_detail' %}active{% endif %}">
-            <span class="icon">📘</span> البرنامج العام
+            <span class="icon">📘</span> {% trans "البرنامج العام" %}
         </a>
         <a href="{% url 'superviseur_hakiba' %}"
            class="menu-item {% if request.resolver_match.url_name == 'superviseur_hakiba' %}active{% endif %}">
-            <span class="icon">🎒</span> حقيبة الأستاذ
+            <span class="icon">🎒</span> {% trans "حقيبة الأستاذ" %}
         </a>
         <a href="{% url 'bilans_mensuels' %}"
            class="menu-item {% if request.resolver_match.url_name == 'bilans_mensuels' or request.resolver_match.url_name == 'bilan_mensuel_detail' %}active{% endif %}">
-            <span class="icon">📝</span> تقييم الطلاب
+            <span class="icon">📝</span> {% trans "تقييم الطلاب" %}
         </a>
+        <div style="padding: 14px 20px;">{% include '_language_switcher.html' %}</div>
     </div>
 </div>
 <div class="main-content">

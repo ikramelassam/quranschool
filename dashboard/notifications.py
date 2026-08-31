@@ -6,7 +6,9 @@ ligne par notification individuelle.
 SCOPE VOLONTAIRE : ce module n'est appelé QUE depuis les pages d'accueil de
 chaque rôle — dashboard_eleve/dashboard_prof à l'origine (Chantier du
 2026-08-19), dashboard_admin/dashboard_mshrif depuis le 2026-08-24 (voir
-notifications_direction ci-dessous) — jamais depuis un context processor
+notifications_direction ci-dessous), dashboard_superviseur depuis le
+2026-08-31 (voir notifications_superviseur ci-dessous) — jamais depuis un
+context processor
 global comme chat.context_processors.chat_badge_context ou
 annonces.context_processors.annonces_badge_context, qui eux tournent sur
 CHAQUE page du site. Coût mesuré : 0 requête supplémentaire sur toute page
@@ -56,8 +58,8 @@ def marquer_visite(user, cle):
     """Marque le type `cle` comme lu MAINTENANT pour `user` — à appeler
     depuis chaque vue "page cible" listée dans accounts.models.
     DerniereVisiteNotification.__doc__ (examens_eleve_liste, eleve_seances,
-    eleve_cartable, evaluations_prof_recues, prof_hakiba), juste avant le
-    render final (jamais avant, au cas où la vue redirige plus tôt sans
+    eleve_cartable, evaluations_prof_recues, prof_hakiba, superviseur_hakiba),
+    juste avant le render final (jamais avant, au cas où la vue redirige plus tôt sans
     jamais afficher la page — voir chaque appelant)."""
     from accounts.models import DerniereVisiteNotification
 
@@ -129,6 +131,7 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
     en context processor global."""
     from examens.models import Examen
     from courses.models import Presence
+    from accounts.models import DocumentEleve
 
     seuils = _seuils(user, ['examens', 'notes_seances', 'cartable'])
     groupes_eleve = eleve.groupes.all()
@@ -171,8 +174,11 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
         if _datetime_seance(p.seance) > seuils['notes_seances']
     ]
 
+    # DocumentEleve.pour_eleve() (refonte du 2026-08-30) recalcule le ciblage
+    # dynamique 'tous'/'categorie'/'specifique' à chaque appel — voir son
+    # __doc__ — jamais un simple eleve.documents_cartable figé.
     docs = list(
-        eleve.documents_cartable.filter(date_ajout__gt=seuils['cartable'])
+        DocumentEleve.pour_eleve(eleve).filter(date_ajout__gt=seuils['cartable'])
         .order_by('-date_ajout')[:LIMITE_FETCH]
     )
     evenements_cartable = [
@@ -232,6 +238,42 @@ def notifications_prof(prof, user, limite=LIMITE_PAR_GROUPE):
 
     total = len(evenements_evaluations) + len(evenements_hakiba)
     return groupes, total
+
+
+def notifications_superviseur(user, limite=LIMITE_PAR_GROUPE):
+    """(groupes, total) pour le panneau 🔔 côté مؤطر (superviseur) — Chantier
+    du 2026-08-31. UN SEUL déclencheur : un nouvel élément déposé dans la
+    حقيبة الأستاذ par la direction (مدير/مشرف), exactement comme le groupe
+    'hakiba' de notifications_prof ci-dessus, à une différence près : le مؤطر
+    voit TOUS les éléments sans distinction de ciblage (voir dashboard.views.
+    superviseur_hakiba.__doc__ — la حقيبة est un contenu informationnel de
+    l'administration, pas une donnée rattachée à un prof précis), donc AUCUN
+    filtre Q(tous_les_profs=True) | Q(profs_cibles=...) ici, contrairement au
+    prof.
+
+    `cle` = 'hakiba', LA MÊME que le prof : DerniereVisiteNotification est
+    keyée par (user, cle), pas juste par cle — le repère de lecture du مؤطر
+    reste donc le sien (posé par sa propre visite de superviseur_hakiba, voir
+    marquer_visite là-bas), la visite d'un prof ne le marque jamais lu pour
+    un مؤطر et inversement. 1 requête."""
+    from accounts.models import ElementHakiba
+
+    seuils = _seuils(user, ['hakiba'])
+
+    elements = list(
+        ElementHakiba.objects.filter(date_ajout__gt=seuils['hakiba'])
+        .order_by('-date_ajout')[:LIMITE_FETCH]
+    )
+    evenements_hakiba = [
+        {'texte': _('ملف جديد في حقيبة الأستاذ: %(titre)s') % {'titre': el.titre or _('بدون عنوان')}, 'url': reverse('superviseur_hakiba'), 'date': el.date_ajout}
+        for el in elements
+    ]
+
+    groupes = []
+    if evenements_hakiba:
+        groupes.append({'icone': '📁', 'label': _('ملفات جديدة في حقيبة الأستاذ'), 'evenements': evenements_hakiba[:limite]})
+
+    return groupes, len(evenements_hakiba)
 
 
 def notifications_direction(user, limite=LIMITE_PAR_GROUPE):

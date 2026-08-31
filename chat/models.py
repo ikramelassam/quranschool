@@ -106,6 +106,15 @@ class Message(models.Model):
     def auteur_role_label(self):
         return self.ROLE_LABELS.get(self.auteur_role, '')
 
+    @property
+    def fichier_affichable_navigateur(self):
+        """True si la pièce jointe (type 'fichier') peut s'ouvrir dans l'onglet
+        du navigateur — PDF, image, texte. Un Word/Excel/PowerPoint renvoie
+        False : le template ne propose alors que le téléchargement. Voir
+        core.media_proxy."""
+        from core.media_proxy import est_affichable_navigateur
+        return bool(self.fichier) and est_affichable_navigateur(self.fichier.name)
+
     def __str__(self):
         return f"{self.auteur_nom} — {self.conversation} ({self.date_envoi:%Y-%m-%d %H:%M})"
 

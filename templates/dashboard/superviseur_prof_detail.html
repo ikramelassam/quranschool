@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_superviseur.html' %}
+{% load i18n %}
 {% block title %}{{ prof.user.get_full_name }}{% endblock %}
 {% block content %}
 <div class="page-title">{{ prof.user.get_full_name }}</div>
@@ -8,7 +9,7 @@
     {% include 'dashboard/_prof_infos_readonly.html' with prof=prof couleur_accent='var(--color-role-superviseur-solid)' %}
 
     <div class="mt-4">
-        <a href="{% url 'superviseur_profil' %}" style="color:#888; text-decoration:none;">← رجوع</a>
+        <a href="{% url 'superviseur_profil' %}" style="color:#888; text-decoration:none;">{% trans "← رجوع" %}</a>
     </div>
 </div>
 {% endblock %}

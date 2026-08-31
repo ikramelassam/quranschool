@@ -97,6 +97,19 @@ def _creer_superviseur(email='superviseur_test_suppr@zidni.test'):
     return Superviseur.objects.create(user=u)
 
 
+def _creer_document_cartable(eleve, **kwargs):
+    """Équivalent, pour les tests, de l'ancien DocumentEleve.objects.create(
+    eleve=...) — refonte du 2026-08-30 : DocumentEleve cible désormais un ou
+    plusieurs élèves via cible_type + eleves_cibles (M2M), plus une simple FK
+    (voir accounts.models.DocumentEleve.__doc__). Crée un document en mode
+    'specifique' ciblant UN SEUL élève, comportement équivalent à l'ancien FK
+    pour les tests qui n'ont pas besoin de tester les modes 'tous'/'categorie'
+    eux-mêmes."""
+    doc = DocumentEleve.objects.create(cible_type=DocumentEleve.CIBLE_SPECIFIQUE, **kwargs)
+    doc.eleves_cibles.add(eleve)
+    return doc
+
+
 @override_settings(STORAGES=_STORAGES_TEST)
 class EleveSuppressionDefinitiveTests(TestCase):
     def setUp(self):
@@ -2130,7 +2143,7 @@ class CartableEleveTests(TestCase):
             'cible': 'specifique', 'eleves_cibles': [self.eleve.id], 'titre': 'تقرير', 'fichier': fichier,
         })
         self.assertEqual(r.status_code, 302)
-        self.assertTrue(DocumentEleve.objects.filter(eleve=self.eleve, titre='تقرير').exists())
+        self.assertTrue(DocumentEleve.objects.filter(eleves_cibles=self.eleve, titre='تقرير').exists())
 
     def test_prof_ne_peut_pas_ajouter_de_fichier(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
@@ -2143,7 +2156,7 @@ class CartableEleveTests(TestCase):
             'cible': 'specifique', 'eleves_cibles': [self.eleve.id], 'fichier': fichier,
         })
         self.assertEqual(r.status_code, 302)  # role_required redirige vers son propre dashboard
-        self.assertFalse(DocumentEleve.objects.filter(eleve=self.eleve).exists())
+        self.assertFalse(DocumentEleve.objects.filter(eleves_cibles=self.eleve).exists())
 
     def test_ajout_sans_eleve_choisi_est_refuse(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
@@ -2155,7 +2168,7 @@ class CartableEleveTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertFalse(DocumentEleve.objects.exists())
 
-    def test_cible_tous_ajoute_a_chaque_eleve_actif(self):
+    def test_cible_tous_est_visible_par_tous_les_eleves(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
         from accounts.models import DocumentEleve
 
@@ -2166,8 +2179,30 @@ class CartableEleveTests(TestCase):
             'cible': 'tous', 'titre': 'تعميم', 'fichier': fichier,
         })
         self.assertEqual(r.status_code, 302)
-        self.assertTrue(DocumentEleve.objects.filter(eleve=self.eleve, titre='تعميم').exists())
-        self.assertTrue(DocumentEleve.objects.filter(eleve=autre_eleve, titre='تعميم').exists())
+        # Un SEUL enregistrement créé (plus une copie par élève, refonte du
+        # 2026-08-30), visible dynamiquement par les deux élèves.
+        self.assertEqual(DocumentEleve.objects.filter(titre='تعميم').count(), 1)
+        self.assertTrue(DocumentEleve.pour_eleve(self.eleve).filter(titre='تعميم').exists())
+        self.assertTrue(DocumentEleve.pour_eleve(autre_eleve).filter(titre='تعميم').exists())
+
+    def test_eleve_inscrit_apres_coup_voit_quand_meme_le_fichier_tous(self):
+        """Cœur de la demande client du 2026-08-30 : un fichier ajouté en
+        'كل الطلاب' AVANT l'inscription d'un élève doit quand même apparaître
+        dans son cartable dès sa première connexion — pas besoin que
+        مدير/مشرف le redépose pour lui."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from accounts.models import DocumentEleve
+
+        self.client.force_login(self.admin)
+        fichier = SimpleUploadedFile('reglement.pdf', b'contenu-pdf-factice', content_type='application/pdf')
+        self.client.post(reverse('admin_eleve_cartable_ajouter'), {
+            'cible': 'tous', 'titre': 'نظام داخلي', 'fichier': fichier,
+        })
+        # Élève inscrit APRÈS l'ajout du fichier.
+        nouvel_eleve = _creer_eleve('nouvel_inscrit_apres_upload@zidni.test')
+        self.client.force_login(nouvel_eleve.user)
+        html = self.client.get(reverse('eleve_cartable')).content.decode('utf-8')
+        self.assertIn('نظام داخلي', html)
 
     def test_cible_categorie_ajoute_seulement_aux_eleves_dont_un_groupe_actif_a_cette_categorie(self):
         """Source de la catégorie = Groupe.categorie (champ saisi par le
@@ -2187,10 +2222,10 @@ class CartableEleveTests(TestCase):
             'cible': 'categorie', 'categorie_cible': 'femmes_adultes', 'titre': 'خاص بالنساء', 'fichier': fichier,
         })
         self.assertEqual(r.status_code, 302)
-        self.assertTrue(DocumentEleve.objects.filter(eleve=eleve_femmes, titre='خاص بالنساء').exists())
+        self.assertTrue(DocumentEleve.pour_eleve(eleve_femmes).filter(titre='خاص بالنساء').exists())
         # self.eleve (setUp) n'appartient à aucun groupe -> jamais inclus
         # dans un ciblage par catégorie précise.
-        self.assertFalse(DocumentEleve.objects.filter(eleve=self.eleve, titre='خاص بالنساء').exists())
+        self.assertFalse(DocumentEleve.pour_eleve(self.eleve).filter(titre='خاص بالنساء').exists())
 
     def test_categorie_collectif_du_groupe_est_ignoree(self):
         """Groupe.categorie_collectif (property dérivée du créneau) ne doit
@@ -2211,7 +2246,7 @@ class CartableEleveTests(TestCase):
             'cible': 'categorie', 'categorie_cible': 'femmes_adultes', 'fichier': fichier,
         })
         self.assertEqual(r.status_code, 302)
-        self.assertFalse(DocumentEleve.objects.filter(eleve=eleve).exists())
+        self.assertFalse(DocumentEleve.pour_eleve(eleve).exists())
 
     def test_eleve_avec_groupe_archive_nest_pas_cible_par_categorie(self):
         """Seuls les groupes ACTIFS comptent pour la résolution de catégorie —
@@ -2230,7 +2265,7 @@ class CartableEleveTests(TestCase):
             'cible': 'categorie', 'categorie_cible': 'hommes_adultes', 'fichier': fichier,
         })
         self.assertEqual(r.status_code, 302)
-        self.assertFalse(DocumentEleve.objects.filter(eleve=eleve).exists())
+        self.assertFalse(DocumentEleve.pour_eleve(eleve).exists())
 
     def test_eleve_avec_plusieurs_groupes_matche_si_au_moins_un_correspond(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
@@ -2248,7 +2283,7 @@ class CartableEleveTests(TestCase):
             'cible': 'categorie', 'categorie_cible': 'mineurs', 'fichier': fichier,
         })
         self.assertEqual(r.status_code, 302)
-        self.assertTrue(DocumentEleve.objects.filter(eleve=eleve).exists())
+        self.assertTrue(DocumentEleve.pour_eleve(eleve).exists())
 
     def test_ancien_filtre_de_liste_nest_plus_affiche(self):
         """Correction UX du 2026-08-18 ter — un seul système de sélection des
@@ -2301,8 +2336,8 @@ class CartableEleveTests(TestCase):
         from accounts.models import DocumentEleve
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        DocumentEleve.objects.create(
-            eleve=self.eleve, titre='ملف الطالب',
+        _creer_document_cartable(
+            self.eleve, titre='ملف الطالب',
             fichier=SimpleUploadedFile('doc.pdf', b'contenu-pdf-factice'), ajoute_par=self.admin,
         )
         self.client.force_login(self.eleve.user)
@@ -2314,8 +2349,8 @@ class CartableEleveTests(TestCase):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
         autre_eleve = _creer_eleve('autre_eleve_cartable@zidni.test')
-        DocumentEleve.objects.create(
-            eleve=autre_eleve, titre='ملف الآخر',
+        _creer_document_cartable(
+            autre_eleve, titre='ملف الآخر',
             fichier=SimpleUploadedFile('doc2.pdf', b'contenu-pdf-factice'), ajoute_par=self.admin,
         )
         self.client.force_login(self.eleve.user)
@@ -2326,14 +2361,142 @@ class CartableEleveTests(TestCase):
         from accounts.models import DocumentEleve
         from django.core.files.uploadedfile import SimpleUploadedFile
 
-        doc = DocumentEleve.objects.create(
-            eleve=self.eleve, titre='ملف للحذف',
+        doc = _creer_document_cartable(
+            self.eleve, titre='ملف للحذف',
             fichier=SimpleUploadedFile('doc3.pdf', b'contenu-pdf-factice'), ajoute_par=self.admin,
         )
         self.client.force_login(self.admin)
         r = self.client.post(reverse('admin_eleve_cartable_supprimer', args=[doc.id]))
         self.assertEqual(r.status_code, 302)
         self.assertFalse(DocumentEleve.objects.filter(id=doc.id).exists())
+
+
+# ============================================================================
+# Besoin du 2026-08-31 — les fichiers (cartable élève + حقيبة الأستاذ) s'ouvrent
+# DEPUIS le site, plus par une redirection vers l'URL Cloudinary directe.
+# Vues proxy : dashboard.views.eleve_cartable_fichier / hakiba_fichier.
+# Stockage local en mémoire ici : ces tests ne dépendent pas de Cloudinary
+# (contrairement aux CartableEleveTests ci-dessus qui testent l'upload réel).
+# ============================================================================
+_STORAGES_TEST_MEMOIRE = {
+    **_STORAGES_TEST,
+    'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'},
+}
+
+
+@override_settings(STORAGES=_STORAGES_TEST_MEMOIRE)
+class FichiersServisDepuisLeSiteTests(TestCase):
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.admin = _creer_admin()
+        self.eleve = _creer_eleve('eleve_proxy_fichier@zidni.test')
+        self.autre_eleve = _creer_eleve('autre_eleve_proxy_fichier@zidni.test')
+        self.prof = _creer_prof('prof_proxy_fichier@zidni.test')
+        self.autre_prof = _creer_prof('autre_prof_proxy_fichier@zidni.test')
+        self.superviseur = _creer_superviseur('superviseur_proxy_fichier@zidni.test')
+
+        self.doc_pdf = _creer_document_cartable(
+            self.eleve, titre='الحصة الأولى',
+            fichier=SimpleUploadedFile('cours.pdf', b'%PDF-1.4 factice'),
+            ajoute_par=self.admin,
+        )
+        self.doc_pptx = _creer_document_cartable(
+            self.eleve, titre='عرض',
+            fichier=SimpleUploadedFile('slides.pptx', b'PK\x03\x04 factice'),
+            ajoute_par=self.admin,
+        )
+        self.element_tous = ElementHakiba.objects.create(
+            titre='ميثاق', tous_les_profs=True,
+            fichier=SimpleUploadedFile('charte.pdf', b'%PDF-1.4 charte'),
+        )
+        self.element_autre_prof = ElementHakiba.objects.create(
+            titre='خاص', tous_les_profs=False,
+            fichier=SimpleUploadedFile('prive.pdf', b'%PDF-1.4 prive'),
+        )
+        self.element_autre_prof.profs_cibles.add(self.autre_prof)
+
+    # ---------- Cartable élève ----------
+    def test_eleve_ouvre_son_pdf_dans_longlet(self):
+        self.client.force_login(self.eleve.user)
+        r = self.client.get(reverse('eleve_cartable_fichier', args=[self.doc_pdf.id]))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+        self.assertIn('inline', r['Content-Disposition'])
+        self.assertEqual(b''.join(r.streaming_content), b'%PDF-1.4 factice')
+
+    def test_parametre_dl_force_le_telechargement(self):
+        self.client.force_login(self.eleve.user)
+        r = self.client.get(reverse('eleve_cartable_fichier', args=[self.doc_pdf.id]) + '?dl=1')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('attachment', r['Content-Disposition'])
+        # Le titre sans extension récupère celle du fichier réel.
+        self.assertIn('.pdf', r['Content-Disposition'])
+
+    def test_office_toujours_en_telechargement_meme_sans_dl(self):
+        self.client.force_login(self.eleve.user)
+        r = self.client.get(reverse('eleve_cartable_fichier', args=[self.doc_pptx.id]))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('attachment', r['Content-Disposition'])
+
+    def test_eleve_ne_peut_pas_ouvrir_le_fichier_dun_autre_eleve(self):
+        self.client.force_login(self.autre_eleve.user)
+        r = self.client.get(reverse('eleve_cartable_fichier', args=[self.doc_pdf.id]))
+        self.assertEqual(r.status_code, 404)
+
+    def test_admin_peut_ouvrir_nimporte_quel_fichier_du_cartable(self):
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse('eleve_cartable_fichier', args=[self.doc_pdf.id]))
+        self.assertEqual(r.status_code, 200)
+
+    # ---------- حقيبة الأستاذ ----------
+    def test_prof_ouvre_un_element_qui_le_concerne(self):
+        self.client.force_login(self.prof.user)
+        r = self.client.get(reverse('hakiba_fichier', args=[self.element_tous.id]))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/pdf')
+
+    def test_prof_ne_peut_pas_ouvrir_un_element_ciblant_un_autre_prof(self):
+        self.client.force_login(self.prof.user)
+        r = self.client.get(reverse('hakiba_fichier', args=[self.element_autre_prof.id]))
+        self.assertEqual(r.status_code, 404)
+
+    def test_superviseur_ouvre_nimporte_quel_element(self):
+        self.client.force_login(self.superviseur.user)
+        r = self.client.get(reverse('hakiba_fichier', args=[self.element_autre_prof.id]))
+        self.assertEqual(r.status_code, 200)
+
+    def test_element_sans_fichier_renvoie_404(self):
+        element_texte = ElementHakiba.objects.create(titre='note', contenu_texte='bonjour', tous_les_profs=True)
+        self.client.force_login(self.prof.user)
+        r = self.client.get(reverse('hakiba_fichier', args=[element_texte.id]))
+        self.assertEqual(r.status_code, 404)
+
+
+class MediaProxyHelpersTests(TestCase):
+    """core.media_proxy — briques pures (sans HTTP ni stockage)."""
+
+    def test_extensions_affichables_vs_telechargement(self):
+        from core.media_proxy import est_affichable_navigateur
+
+        for ok in ('a.pdf', 'b.PNG', 'c.mp3', 'd.mp4', 'e.txt'):
+            self.assertTrue(est_affichable_navigateur(ok), ok)
+        for ko in ('a.docx', 'b.xlsx', 'c.pptx', 'd.zip', 'e.inconnu'):
+            self.assertFalse(est_affichable_navigateur(ko), ko)
+
+    def test_content_type_connu_et_repli(self):
+        from core.media_proxy import content_type_pour
+
+        self.assertEqual(content_type_pour('x.pdf'), 'application/pdf')
+        self.assertEqual(content_type_pour('x.png'), 'image/png')
+        self.assertEqual(content_type_pour('x.bizarre'), 'application/octet-stream')
+
+    def test_nom_telechargement_recolle_lextension_manquante(self):
+        from core.media_proxy import _nom_telechargement
+
+        self.assertEqual(_nom_telechargement('الحصة الأولى', 'media/x/abc_qtyuf6.pptx'), 'الحصة الأولى.pptx')
+        self.assertEqual(_nom_telechargement('rapport.pdf', 'media/x/abc.pdf'), 'rapport.pdf')
+        self.assertEqual(_nom_telechargement('', 'media/x/abc.pdf'), 'abc.pdf')
 
 
 # ============================================================================
@@ -2481,7 +2644,7 @@ class NotificationsChantierTests(TestCase):
 
     # ---------- 4c. Cartable élève ----------
     def test_document_cartable_declenche_le_badge_eleve(self):
-        DocumentEleve.objects.create(eleve=self.eleve, titre='جدول التسميع', fichier='cartable_eleve/test.pdf')
+        _creer_document_cartable(self.eleve, titre='جدول التسميع', fichier='cartable_eleve/test.pdf')
         self._connecter_eleve()
         response = self.client.get(reverse('dashboard_eleve'))
         self.assertEqual(response.context['notif_total'], 1)
@@ -2489,7 +2652,7 @@ class NotificationsChantierTests(TestCase):
 
     def test_document_dun_autre_eleve_ne_declenche_pas(self):
         autre_eleve = _creer_eleve(email='notif_autre_eleve@zidni.test')
-        DocumentEleve.objects.create(eleve=autre_eleve, titre='ملف غير معني', fichier='cartable_eleve/x.pdf')
+        _creer_document_cartable(autre_eleve, titre='ملف غير معني', fichier='cartable_eleve/x.pdf')
         self._connecter_eleve()
         response = self.client.get(reverse('dashboard_eleve'))
         self.assertEqual(response.context['notif_total'], 0)
@@ -2528,7 +2691,7 @@ class NotificationsChantierTests(TestCase):
 
     # ---------- Marquer comme lu (par type, pas par élément) ----------
     def test_visiter_la_page_cible_marque_le_type_comme_lu(self):
-        DocumentEleve.objects.create(eleve=self.eleve, titre='ملف', fichier='cartable_eleve/a.pdf')
+        _creer_document_cartable(self.eleve, titre='ملف', fichier='cartable_eleve/a.pdf')
         self._connecter_eleve()
         # Avant la visite : le badge compte le fichier.
         response = self.client.get(reverse('dashboard_eleve'))
@@ -2550,7 +2713,7 @@ class NotificationsChantierTests(TestCase):
         compte tout juste créé — pas seulement l'historique des comptes déjà
         anciens au jour du déploiement (protégés séparément, voir
         accounts/migrations/0037_seed_dernieres_visites_notification.py)."""
-        DocumentEleve.objects.create(eleve=self.eleve, titre='fichier', fichier='cartable_eleve/a.pdf')
+        _creer_document_cartable(self.eleve, titre='fichier', fichier='cartable_eleve/a.pdf')
         self.assertFalse(DerniereVisiteNotification.objects.filter(user=self.eleve.user, cle='cartable').exists())
         self._connecter_eleve()
         response = self.client.get(reverse('dashboard_eleve'))
@@ -2564,7 +2727,7 @@ class NotificationsChantierTests(TestCase):
         contenu plus ANCIEN que ce seuil ne redéclenche jamais le badge —
         c'est cette ligne-ci qui protège réellement les comptes déjà
         existants d'une inondation le jour de la mise en service."""
-        DocumentEleve.objects.create(eleve=self.eleve, titre='ancien fichier', fichier='cartable_eleve/old.pdf')
+        _creer_document_cartable(self.eleve, titre='ancien fichier', fichier='cartable_eleve/old.pdf')
         DerniereVisiteNotification.objects.create(
             user=self.eleve.user, cle='cartable', date_visite=timezone.now() + datetime.timedelta(seconds=1)
         )
@@ -2584,21 +2747,56 @@ class NotificationsChantierTests(TestCase):
         response = self.client.get(reverse('dashboard_prof'))
         self.assertEqual(response.context['notif_total'], 0)
 
-    # ---------- Rôles sans ce déclencheur ----------
-    def test_superviseur_naffiche_jamais_le_panneau_notifications(self):
+    # ---------- 5c. Hakiba côté مؤطر (Chantier du 2026-08-31) ----------
+    def _connecter_superviseur(self):
         self.client.force_login(self.superviseur.user)
+
+    def test_hakiba_declenche_le_badge_superviseur(self):
+        ElementHakiba.objects.create(titre='ميثاق التدريس', contenu_texte='...', tous_les_profs=True)
+        self._connecter_superviseur()
         response = self.client.get(reverse('dashboard_superviseur'))
-        self.assertNotContains(response, 'id="notifWrap"')
+        self.assertEqual(response.context['notif_total'], 1)
+        self.assertContains(response, 'ميثاق التدريس')
+
+    def test_hakiba_ciblant_un_prof_precis_declenche_quand_meme_le_superviseur(self):
+        """Contrairement au prof, le مؤطر voit TOUS les éléments de la حقيبة
+        sans distinction de ciblage (voir dashboard.views.superviseur_hakiba)
+        — un élément ciblé sur un seul prof lève donc quand même son badge."""
+        autre_prof = _creer_prof(email='notif_hakiba_autre_prof@zidni.test')
+        element = ElementHakiba.objects.create(titre='خاص بأستاذ واحد', tous_les_profs=False)
+        element.profs_cibles.add(autre_prof)
+        self._connecter_superviseur()
+        response = self.client.get(reverse('dashboard_superviseur'))
+        self.assertEqual(response.context['notif_total'], 1)
+
+    def test_visiter_hakiba_marque_le_type_comme_lu_pour_le_superviseur(self):
+        ElementHakiba.objects.create(titre='ميثاق', contenu_texte='...', tous_les_profs=True)
+        self._connecter_superviseur()
+        self.assertEqual(self.client.get(reverse('dashboard_superviseur')).context['notif_total'], 1)
+        self.client.get(reverse('superviseur_hakiba'))
+        self.assertEqual(self.client.get(reverse('dashboard_superviseur')).context['notif_total'], 0)
+
+    def test_visite_prof_ne_marque_pas_lu_pour_le_superviseur(self):
+        """DerniereVisiteNotification est keyée par (user, cle) : la visite de
+        prof_hakiba par le prof ne fait jamais retomber le badge du مؤطر."""
+        ElementHakiba.objects.create(titre='ميثاق', contenu_texte='...', tous_les_profs=True)
+        self._connecter_prof()
+        self.client.get(reverse('prof_hakiba'))  # le prof marque SON 'hakiba' lu
+        self._connecter_superviseur()
+        response = self.client.get(reverse('dashboard_superviseur'))
+        self.assertEqual(response.context['notif_total'], 1)
 
     # ---------- Page "عرض الكل" ----------
-    def test_mes_notifications_accessible_eleve_et_prof(self):
+    def test_mes_notifications_accessible_eleve_prof_superviseur(self):
         self._connecter_eleve()
         self.assertEqual(self.client.get(reverse('mes_notifications')).status_code, 200)
         self._connecter_prof()
         self.assertEqual(self.client.get(reverse('mes_notifications')).status_code, 200)
+        self._connecter_superviseur()
+        self.assertEqual(self.client.get(reverse('mes_notifications')).status_code, 200)
 
-    def test_mes_notifications_refuse_autre_role(self):
-        self.client.force_login(self.superviseur.user)
+    def test_mes_notifications_refuse_visiteur_anonyme(self):
+        self.client.logout()
         response = self.client.get(reverse('mes_notifications'))
         self.assertNotEqual(response.status_code, 200)
 
