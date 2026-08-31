@@ -4262,10 +4262,14 @@ def admin_eleve_cartable_gestion(request):
     """Page centrale "إدارة حقيبة الطالب" (refonte du 2026-08-18 — remplace
     la gestion par fiche élève individuelle : demande explicite du client de
     calquer exactement le patron déjà en place pour la حقيبة الأستاذ, voir
-    admin_hakiba_gestion). Formulaire d'ajout (choix du طالب inclus,
-    contrairement à ElementHakiba qui cible plusieurs profs à la fois — un
-    DocumentEleve appartient toujours à UN SEUL élève) + liste de tous les
-    documents existants, tous élèves confondus.
+    admin_hakiba_gestion). Formulaire d'ajout + liste de tous les documents
+    existants, tous élèves confondus.
+
+    Refonte du 2026-08-30 : un DocumentEleve n'est plus une copie par élève
+    mais UN SEUL enregistrement avec un ciblage recalculé dynamiquement (voir
+    accounts.models.DocumentEleve.__doc__ et pour_eleve()) — un élève inscrit
+    après l'ajout d'un fichier "كل الطلاب"/"فئة معينة" le voit désormais sans
+    action manuelle de مدير/مشرف.
 
     UN SEUL système de sélection des destinataires (correction UX du
     2026-08-18 ter) : le formulaire "ملف جديد" ci-dessous (كل الطلاب / فئة
@@ -4280,7 +4284,8 @@ def admin_eleve_cartable_gestion(request):
     from annonces.services import CANAUX
 
     documents = list(
-        DocumentEleve.objects.select_related('eleve__user', 'ajoute_par').order_by('-date_ajout')
+        DocumentEleve.objects.prefetch_related('eleves_cibles__user')
+        .select_related('ajoute_par').order_by('-date_ajout')
     )
 
     context = {
@@ -4298,34 +4303,35 @@ def admin_eleve_cartable_gestion(request):
 @role_required('admin', 'mshrif')
 @require_POST
 def admin_eleve_cartable_ajouter(request):
-    """Ajoute un fichier au cartable d'un ou plusieurs élèves, depuis la page
-    centrale "إدارة حقيبة الطالب" — 3 modes de ciblage (demande explicite du
-    client, EXACTEMENT le même principe que حقيبة الأستاذ/admin_hakiba_ajouter,
+    """Ajoute un fichier au cartable élève, depuis la page centrale "إدارة
+    حقيبة الطالب" — 3 modes de ciblage (demande explicite du client,
+    EXACTEMENT le même principe que حقيبة الأستاذ/admin_hakiba_ajouter,
     étendu d'un 3e mode) :
-      - 'tous' : tous les élèves actifs (Eleve.actifs), comme
-        ElementHakiba.tous_les_profs=True ;
-      - 'categorie' : tous les élèves actifs appartenant à AU MOINS UN
-        groupe ACTIF dont Groupe.categorie correspond (نساء/رجال/أطفال —
-        mêmes 3 valeurs que les canaux d'annonces, Groupe.categorie
-        réutilise directement Annonce.CIBLE_CHOICES, voir Groupe.categorie
-        __doc__). SOURCE EXPLICITEMENT CONFIRMÉE PAR LE CLIENT :
-        Groupe.categorie (champ saisi par le مدير), PAS
-        Groupe.categorie_collectif (property dérivée du créneau) ni
-        cible_annonce_pour_eleve (déduit de l'âge/sexe de l'élève — c'était
-        la source utilisée par l'ancien filtre de liste, retiré, jamais
-        celle du ciblage d'upload). Un élève sans groupe, ou dont aucun
-        groupe n'a de categorie renseignée, n'apparaît simplement dans
-        aucune catégorie précise (mais reste sélectionnable via 'tous' ou
-        'specifique' — jamais une disparition silencieuse) ;
+      - 'tous' : visible par tous les élèves (comme
+        ElementHakiba.tous_les_profs=True) — y compris ceux inscrits APRÈS
+        cet ajout (Refonte du 2026-08-30, voir accounts.models.DocumentEleve
+        .__doc__ : ciblage recalculé dynamiquement, plus une copie figée par
+        élève au moment de l'ajout) ;
+      - 'categorie' : visible par tout élève ayant au moins un groupe ACTIF
+        dont Groupe.categorie correspond (نساء/رجال/أطفال — mêmes 3 valeurs
+        que les canaux d'annonces, Groupe.categorie réutilise directement
+        Annonce.CIBLE_CHOICES, voir Groupe.categorie__doc__). SOURCE
+        EXPLICITEMENT CONFIRMÉE PAR LE CLIENT : Groupe.categorie (champ
+        saisi par le مدير), PAS Groupe.categorie_collectif (property dérivée
+        du créneau) ni cible_annonce_pour_eleve (déduit de l'âge/sexe de
+        l'élève — c'était la source utilisée par l'ancien filtre de liste,
+        retiré, jamais celle du ciblage d'upload). Contrairement à l'ancien
+        comportement, une catégorie sans AUCUN élève actuellement concerné
+        reste acceptée à l'ajout : le fichier attend simplement les futurs
+        élèves de cette catégorie, cohérent avec le sens même du mode
+        'categorie' recalculé dynamiquement ;
       - 'specifique' : élèves nommés un par un (recherche + sélection
-        multiple), comme "أساتذة محددون" pour حقيبة الأستاذ.
-    DocumentEleve reste une FK simple vers un seul élève (dossier personnel,
-    pas de diffusion par M2M — voir son __doc__) : cibler plusieurs élèves
-    crée donc une ligne PAR élève, chacune avec une copie du même fichier
-    (fichier lu une seule fois, voir ContentFile ci-dessous — le curseur
-    d'un fichier uploadé ne peut être relu qu'une fois avec .save() direct).
-    Réservé à مدير/مشرف (pas le prof, décision confirmée)."""
-    from django.core.files.base import ContentFile
+        multiple, M2M eleves_cibles), comme "أساتذة محددون" pour حقيبة
+        الأستاذ — au moins un élève requis ici, ce mode n'ayant pas de sens
+        vide.
+    Un seul DocumentEleve créé par ajout (plus de boucle par élève depuis la
+    refonte du 2026-08-30). Réservé à مدير/مشرف (pas le prof, décision
+    confirmée)."""
     from accounts.models import Eleve, DocumentEleve
 
     fichier = request.FILES.get('fichier')
@@ -4339,17 +4345,16 @@ def admin_eleve_cartable_ajouter(request):
         return redirect('admin_eleve_cartable_gestion')
 
     cible = request.POST.get('cible', 'specifique')
-    if cible == 'tous':
-        eleves_cibles = list(Eleve.actifs.all())
-    elif cible == 'categorie':
-        categorie = request.POST.get('categorie_cible', '')
-        eleves_cibles = list(
-            Eleve.actifs.filter(groupes__statut='actif', groupes__categorie=categorie).distinct()
-        ) if categorie else []
-        if not eleves_cibles:
-            messages.error(request, 'يرجى اختيار فئة تضم طالباً واحداً على الأقل.')
+    categorie_cible = ''
+    eleves_cibles = []
+
+    if cible == 'categorie':
+        categorie_cible = request.POST.get('categorie_cible', '')
+        if not categorie_cible:
+            messages.error(request, 'يرجى اختيار الفئة المستهدفة.')
             return redirect('admin_eleve_cartable_gestion')
-    else:
+    elif cible != 'tous':
+        cible = 'specifique'
         ids = [i for i in request.POST.getlist('eleves_cibles') if i.isdigit()]
         eleves_cibles = list(Eleve.objects.filter(id__in=ids))
         if not eleves_cibles:
@@ -4357,15 +4362,18 @@ def admin_eleve_cartable_ajouter(request):
             return redirect('admin_eleve_cartable_gestion')
 
     titre = request.POST.get('titre', '').strip()
-    contenu = fichier.read()
-    for eleve in eleves_cibles:
-        DocumentEleve.objects.create(
-            eleve=eleve, titre=titre,
-            fichier=ContentFile(contenu, name=fichier.name),
-            ajoute_par=request.user,
-        )
+    document = DocumentEleve.objects.create(
+        cible_type=cible, categorie_cible=categorie_cible,
+        titre=titre, fichier=fichier, ajoute_par=request.user,
+    )
+    if cible == 'specifique':
+        document.eleves_cibles.set(eleves_cibles)
 
-    if len(eleves_cibles) == 1:
+    if cible == 'tous':
+        messages.success(request, 'تمت إضافة الملف إلى حقيبة جميع الطلاب.')
+    elif cible == 'categorie':
+        messages.success(request, 'تمت إضافة الملف إلى حقيبة الطلاب المعنيين بهذه الفئة.')
+    elif len(eleves_cibles) == 1:
         messages.success(request, f'تمت إضافة الملف إلى حقيبة {eleves_cibles[0].user.get_full_name()}.')
     else:
         messages.success(request, f'تمت إضافة الملف إلى حقيبة {len(eleves_cibles)} طالباً.')
@@ -4389,9 +4397,14 @@ def admin_eleve_cartable_supprimer(request, document_id):
 def eleve_cartable(request):
     """Page de lecture seule de l'élève sur SON PROPRE cartable — équivalent
     de prof_hakiba.html côté prof, même principe (مدير/مشرف déposent, la
-    personne concernée consulte, aucune gestion possible d'ici)."""
+    personne concernée consulte, aucune gestion possible d'ici).
+    DocumentEleve.pour_eleve() (recalculée à chaque appel, voir son
+    __doc__) inclut les documents 'tous'/'categorie' même ajoutés avant
+    l'inscription de cet élève — refonte du 2026-08-30."""
+    from accounts.models import DocumentEleve
+
     eleve = request.user.eleve
-    documents = eleve.documents_cartable.select_related('ajoute_par')
+    documents = DocumentEleve.pour_eleve(eleve).select_related('ajoute_par')
 
     # Marque le type 'cartable' comme lu (panneau 🔔 الإشعارات, Chantier
     # notifications du 2026-08-19) — voir dashboard.notifications.__doc__.

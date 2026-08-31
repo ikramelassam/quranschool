@@ -21,6 +21,12 @@ UN SEUL système de sélection des destinataires (correction UX du
 liste des fichiers existants, a été retiré — il faisait doublon avec
 celui-ci et utilisait en plus la mauvaise source de catégorie. Ne PAS le
 réintroduire.
+
+Refonte du 2026-08-30 (demande client) : "كل الطلاب"/"فئة معينة" ne créent
+plus une copie par élève au moment de l'ajout — ciblage recalculé
+dynamiquement à chaque affichage (voir accounts.models.DocumentEleve.
+pour_eleve), un élève inscrit après coup voit donc ces fichiers sans
+action manuelle de مدير/مشرف.
 {% endcomment %}
 <style>
 .hk-card {
@@ -55,7 +61,7 @@ réintroduire.
 </style>
 
 <div class="page-title">{% trans "إدارة حقيبة الطالب" %}</div>
-<div class="page-subtitle">{% trans 'ملفات شخصية لكل طالب — يديرها المدير والمشرف فقط، والطالب المعني يراها في "حقيبتي" (قراءة فقط)' %}</div>
+<div class="page-subtitle">{% trans 'ملفات حقيبة الطالب — يديرها المدير والمشرف فقط، ويراها كل طالب معني في "حقيبتي" (قراءة فقط)' %}</div>
 
 <div class="hk-card">
     <div style="font-weight:700; margin-bottom:14px;">{% trans "ملف جديد" %}</div>
@@ -124,7 +130,7 @@ réintroduire.
         <div style="min-width:0; flex:1;">
             <div style="font-weight:600;">{{ doc.titre|default:doc.fichier.name }}</div>
             <div style="color:#aaa; font-size:0.78rem; margin-top:2px;">
-                {{ doc.eleve.user.get_full_name }}{% if doc.ajoute_par %} — {% trans "بواسطة" %} {{ doc.ajoute_par.get_full_name }}{% endif %} — {{ doc.date_ajout|date:"d-m-Y" }}
+                {{ doc.description_cible }}{% if doc.ajoute_par %} — {% trans "بواسطة" %} {{ doc.ajoute_par.get_full_name }}{% endif %} — {{ doc.date_ajout|date:"d-m-Y" }}
             </div>
         </div>
         <a href="{{ doc.fichier.url }}" target="_blank" rel="noopener" style="flex-shrink:0; color:var(--color-role-admin-solid); font-size:0.85rem; text-decoration:none;">⬇ {% trans "تحميل" %}</a>

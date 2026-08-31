@@ -129,6 +129,7 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
     en context processor global."""
     from examens.models import Examen
     from courses.models import Presence
+    from accounts.models import DocumentEleve
 
     seuils = _seuils(user, ['examens', 'notes_seances', 'cartable'])
     groupes_eleve = eleve.groupes.all()
@@ -171,8 +172,11 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
         if _datetime_seance(p.seance) > seuils['notes_seances']
     ]
 
+    # DocumentEleve.pour_eleve() (refonte du 2026-08-30) recalcule le ciblage
+    # dynamique 'tous'/'categorie'/'specifique' à chaque appel — voir son
+    # __doc__ — jamais un simple eleve.documents_cartable figé.
     docs = list(
-        eleve.documents_cartable.filter(date_ajout__gt=seuils['cartable'])
+        DocumentEleve.pour_eleve(eleve).filter(date_ajout__gt=seuils['cartable'])
         .order_by('-date_ajout')[:LIMITE_FETCH]
     )
     evenements_cartable = [
