@@ -554,6 +554,50 @@ class TypeAbonnementDureeAfficheeTests(TestCase):
             self.assertEqual(abo.label_localise, 'اشتراك جماعي')  # label_en vide -> repli arabe
 
 
+class InscriptionEleveAbonnementLabelTests(TestCase):
+    """Bug 2026-09-01 : les 8 formules groupe seedées partagent toutes le
+    label « الاشتراك الجماعي » et ne se distinguent que par `duree` — sur les
+    fiches candidature/élève, abonnement_label() ne montrait que ce label
+    commun, sans dire au مدير/المشرف quelle formule (1 / 3 / 6 mois) le
+    candidat a choisie. La durée est désormais suffixée (même rendu que la
+    liste des أنواع الاشتراك)."""
+
+    def test_label_inclut_la_duree_quand_renseignee(self):
+        TypeAbonnement.objects.create(
+            code='groupe_test_6mois', label='الاشتراك الجماعي',
+            duree='6mois', type_offre='groupe', prix=420,
+        )
+        ins = InscriptionEleve.objects.create(
+            nom='X', nom_parent='Y', date_naissance='2015-05-01', sexe='homme',
+            telephone='0600000000', email='abo.label.duree@zidni.test',
+            programme='hifz', riwaya='hafs', outil='whatsapp',
+            abonnement='groupe_test_6mois', accepte_conditions=True,
+        )
+        self.assertEqual(ins.abonnement_label(), 'الاشتراك الجماعي — 6 أشهر')
+
+    def test_label_sans_duree_reste_le_label_seul(self):
+        TypeAbonnement.objects.create(
+            code='groupe_test_sans_duree', label='اشتراك خاص',
+            type_offre='groupe', prix=100,
+        )
+        ins = InscriptionEleve.objects.create(
+            nom='X', nom_parent='Y', date_naissance='2015-05-01', sexe='homme',
+            telephone='0600000000', email='abo.label.nodur@zidni.test',
+            programme='hifz', riwaya='hafs', outil='whatsapp',
+            abonnement='groupe_test_sans_duree', accepte_conditions=True,
+        )
+        self.assertEqual(ins.abonnement_label(), 'اشتراك خاص')
+
+    def test_label_retombe_sur_le_code_si_type_supprime(self):
+        ins = InscriptionEleve.objects.create(
+            nom='X', nom_parent='Y', date_naissance='2015-05-01', sexe='homme',
+            telephone='0600000000', email='abo.label.orphelin@zidni.test',
+            programme='hifz', riwaya='hafs', outil='whatsapp',
+            abonnement='code_inexistant', accepte_conditions=True,
+        )
+        self.assertEqual(ins.abonnement_label(), 'code_inexistant')
+
+
 class TypeAbonnementLabelNettoyeTests(TestCase):
     """Correction 4 (2026-08-22, suite au test local de la page مدير) :
     `label` ne doit plus répéter le type d'offre (جماعي/فردي) — c'est la

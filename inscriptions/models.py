@@ -295,9 +295,21 @@ class InscriptionEleve(models.Model):
 
     def abonnement_label(self):
         """Libellé lisible de l'abonnement, lu depuis TypeAbonnement (dynamique).
+
+        Inclut la durée (شهر واحد / 3 أشهر / 6 أشهر / ...) dès que le مدير l'a
+        renseignée — même rendu que la liste des أنواع الاشتراك
+        (_liste_abonnements_section.html) : "الاشتراك الجماعي" seul ne dit pas
+        au مدير/المشرف quelle formule (1 / 3 / 6 mois) le candidat a choisie.
+        get_duree_display() renvoie toute valeur héritée hors DUREE_CHOICES
+        telle quelle (jamais un crash), voir duree_affichee.__doc__.
+
         Retombe sur le code brut si le type a été supprimé depuis."""
         type_abo = TypeAbonnement.objects.filter(code=self.abonnement).first()
-        return type_abo.label_localise if type_abo else self.abonnement
+        if not type_abo:
+            return self.abonnement
+        if type_abo.duree:
+            return f"{type_abo.label_localise} — {type_abo.get_duree_display()}"
+        return type_abo.label_localise
 
     def abonnement_type_offre(self):
         """'individuel' ou 'groupe', lu depuis TypeAbonnement. None si le type
