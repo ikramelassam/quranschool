@@ -101,3 +101,57 @@ class Paiement(models.Model):
         unique_together = ('eleve', 'mois_reference')
         verbose_name = "Paiement"
         verbose_name_plural = "Paiements"
+
+
+class CycleAbonnement(models.Model):
+    """Suivi des échéances de paiement de l'abonnement d'un élève — chantier
+    « relances de paiement » du 2026-09-01.
+
+    RÈGLE D'ÉCHÉANCE (décidée par le client) :
+    - Cycle 1 : créé à la validation de l'inscription (dashboard.views.
+      admin_valider_eleve) ou au désarchivage (admin_eleve_reactiver).
+      `date_debut` = ce jour-là, `date_echeance` = `date_debut +
+      ParametresInscriptions.delai_paiement_jours` (10 par défaut).
+    - Cycle N+1 : créé quand le cycle N est réglé. L'élève paie une « durée
+      libre » via le sélecteur de période de sa page (payments.views.
+      eleve_paiements, INCHANGÉE par ce chantier — un Paiement par mois de la
+      période). La couverture réelle = la suite CONTIGUË de mois ayant un
+      Paiement `valide` à partir du 1er mois du cycle. `date_fin_couverte` =
+      dernier jour du dernier mois couvert ; `date_debut` du cycle suivant =
+      lendemain ; `date_echeance` = `date_fin_couverte + delai_paiement_jours`
+      (« 10 jours après la date finale de paiement »).
+
+    EN RETARD (calculé à la volée, jamais stocké — voir payments.cycles.
+    est_en_retard) : `aujourd'hui > cycle_courant.date_echeance` ET aucun
+    Paiement non-rejeté (`valide` OU `en_attente`) ne couvre encore le 1er mois
+    du cycle. Un Paiement `en_attente` (« j'ai dit que j'ai payé ») suspend la
+    relance sans faire avancer le cycle — seule la validation par le مدير
+    l'avance (payments.cycles.reconcilier, appelée après chaque
+    validation/modification de Paiement).
+
+    PAS de cron / Telegram / e-mail (décision du client) : la notification élève
+    (panneau 🔔) est un ÉTAT permanent recalculé à chaque affichage, elle reste
+    tant que le retard existe. Le مدير voit la liste sur payments.views.
+    paiements_retards avec 2 boutons par ligne : « الانتظار » (aucun effet,
+    cosmétique) et « أرشفة » (archivage réversible, مدير uniquement)."""
+
+    eleve = models.ForeignKey(
+        'accounts.Eleve', on_delete=models.CASCADE, related_name='cycles_abonnement'
+    )
+    numero = models.PositiveIntegerField()
+    date_debut = models.DateField()
+    date_echeance = models.DateField()
+    date_fin_couverte = models.DateField(null=True, blank=True)
+    date_reglement = models.DateField(null=True, blank=True)
+    montant_regle = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    regle = models.BooleanField(default=False)
+
+    def __str__(self):
+        etat = 'réglé' if self.regle else 'à payer'
+        return f"{self.eleve} — cycle {self.numero} ({etat})"
+
+    class Meta:
+        unique_together = ('eleve', 'numero')
+        ordering = ['eleve', 'numero']
+        verbose_name = "Cycle d'abonnement"
+        verbose_name_plural = "Cycles d'abonnement"

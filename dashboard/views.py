@@ -2310,6 +2310,12 @@ def admin_valider_eleve(request, inscription_id):
         inscription.statut = 'valide'
         inscription.save()
 
+        # Ouvre le 1er cycle d'abonnement (échéance = aujourd'hui +
+        # ParametresInscriptions.delai_paiement_jours) — chantier relances de
+        # paiement du 2026-09-01, voir payments.models.CycleAbonnement.
+        from payments.cycles import demarrer_cycles
+        demarrer_cycles(eleve)
+
     if resultat_groupe_choisi:
         etat, nom_groupe, raison = resultat_groupe_choisi
         if etat == 'succes':
@@ -4559,7 +4565,15 @@ def admin_eleve_reactiver(request, eleve_id):
     from accounts.models import Eleve
 
     eleve = get_object_or_404(Eleve, id=eleve_id)
+    etait_archive = eleve.statut == 'archive'
     reactiver_eleve(eleve)
+    # Désarchivage : l'élève repart avec une fenêtre de paiement neuve à
+    # compter d'aujourd'hui (décision du client — chantier relances de paiement
+    # du 2026-09-01). Une simple réactivation depuis 'suspendu' ne touche à
+    # rien : l'échéance courante reste celle d'avant la suspension.
+    if etait_archive:
+        from payments.cycles import redemarrer_cycle_courant
+        redemarrer_cycle_courant(eleve)
     messages.success(request, f'تمت إعادة تفعيل الطالب {eleve.user.get_full_name()}.')
     return redirect('admin_eleve_detail', eleve_id=eleve.id)
 

@@ -412,6 +412,11 @@ def paiement_panel_sauvegarder(request):
         paiement.screenshot = request.FILES['screenshot']
     paiement.save()
 
+    # Chantier relances de paiement (2026-09-01) : toute création/modification
+    # de Paiement peut faire avancer un cycle d'abonnement — voir payments.cycles.
+    from .cycles import reconcilier
+    reconcilier(eleve)
+
     messages.success(request, f'تم حفظ دفعة {eleve.user.get_full_name()}.')
     return redirect(f"{reverse('suivi_paiements_eleves')}?panel_eleve={eleve.id}&panel_mois={mois_str}")
 
@@ -419,12 +424,17 @@ def paiement_panel_sauvegarder(request):
 @role_required('admin')
 def admin_paiement_valider(request, paiement_id):
     from django.utils import timezone
+    from .cycles import reconcilier
 
     paiement = get_object_or_404(Paiement, id=paiement_id)
     paiement.statut = 'valide'
     paiement.valide_par = request.user
     paiement.date_validation = timezone.now()
     paiement.save()
+    # Fait avancer les cycles d'abonnement que ce paiement vient de couvrir
+    # (chantier relances de paiement du 2026-09-01) — voir payments.models.
+    # CycleAbonnement / payments.cycles.
+    reconcilier(paiement.eleve)
     messages.success(request, 'تم قبول الدفعة.')
     return redirect('admin_paiement_detail', paiement_id=paiement.id)
 
@@ -440,3 +450,35 @@ def admin_paiement_rejeter(request, paiement_id):
     paiement.save()
     messages.info(request, 'تم رفض الدفعة.')
     return redirect('admin_paiement_detail', paiement_id=paiement.id)
+
+
+@role_required('admin', 'mshrif')
+def paiements_retards(request):
+    """Liste des élèves actifs en retard de paiement (cycle courant échu, rien
+    de non-rejeté ne le couvre) — page cible du panneau 🔔 du مدير/مشرف (voir
+    dashboard.notifications.notifications_direction). 2 actions par ligne :
+    « الانتظار » (retour, aucun effet — décision du client : les relances
+    continuent) et « أرشفة » (archivage réversible, مدير uniquement — la vue
+    admin_eleve_archiver est @role_required('admin'))."""
+    from django.utils import timezone
+    from .cycles import eleves_en_retard
+
+    aujourdhui = timezone.localdate()
+    lignes = [
+        {
+            'eleve': eleve,
+            'cycle': cycle,
+            'jours_retard': (aujourdhui - cycle.date_echeance).days,
+            'groupes': list(eleve.groupes.all()),
+        }
+        for eleve, cycle in eleves_en_retard()
+    ]
+    lignes.sort(key=lambda l: l['jours_retard'], reverse=True)
+
+    context = {
+        'lignes': lignes,
+        'peut_archiver': request.user.role == 'admin',
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/paiements_retards.html', context)

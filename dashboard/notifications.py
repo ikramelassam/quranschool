@@ -38,6 +38,8 @@ auto_now_add (jamais modifié après coup), jamais un champ auto_now — une
 correction mineure d'un ElementHakiba/DocumentEleve/Evaluation déjà lu ne
 redéclenche donc jamais le badge, seule une VRAIE création le fait.
 """
+import datetime
+
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -186,7 +188,31 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
         for d in docs
     ]
 
+    # Retard de paiement (chantier du 2026-09-01) — VOLONTAIREMENT hors du
+    # mécanisme _seuils/DerniereVisiteNotification : ce n'est pas un évènement
+    # horodaté qui « se lit » en visitant une page, c'est un ÉTAT (le cycle
+    # d'abonnement courant est échu et impayé). Il reste affiché tant que le
+    # retard existe et disparaît de lui-même dès que le مدير valide le paiement
+    # (ou dès que l'élève soumet une preuve, qui met la relance en pause — voir
+    # payments.cycles.est_en_retard). Aucune notion de « 24h » à répéter : la
+    # notification est revue à chaque connexion.
+    from payments.cycles import cycle_courant, est_en_retard
+
+    evenements_retard_paiement = []
+    if est_en_retard(eleve):
+        cycle = cycle_courant(eleve)
+        echeance_dt = timezone.make_aware(
+            datetime.datetime.combine(cycle.date_echeance, datetime.time())
+        )
+        evenements_retard_paiement = [{
+            'texte': _('لقد تأخّرت عن دفع اشتراكك — يرجى إرسال إثبات الدفع في أقرب وقت'),
+            'url': reverse('eleve_paiements'),
+            'date': echeance_dt,
+        }]
+
     groupes = []
+    if evenements_retard_paiement:
+        groupes.append({'icone': '⚠️', 'label': _('دفع متأخر'), 'evenements': evenements_retard_paiement})
     if evenements_examens:
         groupes.append({'icone': '📝', 'label': _('اختبارات جديدة'), 'evenements': evenements_examens[:limite]})
     if evenements_notes:
@@ -194,7 +220,10 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
     if evenements_cartable:
         groupes.append({'icone': '🎒', 'label': _('ملفات جديدة في حقيبتك'), 'evenements': evenements_cartable[:limite]})
 
-    total = len(evenements_examens) + len(evenements_notes) + len(evenements_cartable)
+    total = (
+        len(evenements_retard_paiement)
+        + len(evenements_examens) + len(evenements_notes) + len(evenements_cartable)
+    )
     return groupes, total
 
 
@@ -413,7 +442,29 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
         for d in demandes_changement_halaka
     ]
 
+    # Retard de paiement (chantier du 2026-09-01) — comme côté élève
+    # (notifications_eleve), VOLONTAIREMENT hors _seuils/DerniereVisiteNotification :
+    # c'est un ÉTAT (« X élèves actifs ont un cycle d'abonnement échu et
+    # impayé »), pas un flux d'évènements. Chaque ligne mène à la page
+    # payments.views.paiements_retards (les 2 boutons « الانتظار »/« أرشفة » y
+    # vivent — le panneau 🔔 reste, lui, une simple liste de liens).
+    from payments.cycles import eleves_en_retard
+
+    evenements_retard_paiement = [
+        {
+            'texte': _('%(nom)s متأخر عن دفع الاشتراك') % {'nom': eleve.user.get_full_name()},
+            'url': reverse('paiements_retards'),
+            'date': timezone.make_aware(datetime.datetime.combine(cycle.date_echeance, datetime.time())),
+        }
+        for eleve, cycle in eleves_en_retard()
+    ]
+
     groupes = []
+    if evenements_retard_paiement:
+        groupes.append({
+            'icone': '⚠️', 'label': _('طلاب متأخرون عن دفع الاشتراك'),
+            'evenements': evenements_retard_paiement[:limite],
+        })
     if evenements_demandes:
         groupes.append({
             'icone': '📝', 'label': _('طلبات تسجيل جديدة'), 'evenements': evenements_demandes[:limite],
@@ -433,6 +484,7 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
         })
 
     return groupes, (
-        len(evenements_demandes) + len(evenements_demandes_prof)
+        len(evenements_retard_paiement)
+        + len(evenements_demandes) + len(evenements_demandes_prof)
         + len(evenements_profs_en_attente) + len(evenements_changement_halaka)
     )

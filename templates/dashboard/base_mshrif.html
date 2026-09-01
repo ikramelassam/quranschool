@@ -232,7 +232,7 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' or request.resolver_match.url_name == 'suivi_paiements_eleves' or request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' or request.resolver_match.url_name == 'suivi_paiements_eleves' or request.resolver_match.url_name == 'paiements_retards' or request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' %}open{% endif %}>
             <summary>{% trans "المدفوعات" %}</summary>
             <a href="{% url 'admin_paiements' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_paiements' or request.resolver_match.url_name == 'admin_paiement_detail' %}active{% endif %}">
@@ -241,6 +241,10 @@
             <a href="{% url 'suivi_paiements_eleves' %}"
                class="menu-item {% if request.resolver_match.url_name == 'suivi_paiements_eleves' %}active{% endif %}">
                 <span class="icon">📆</span> {% trans "متابعة مدفوعات الطلاب" %}
+            </a>
+            <a href="{% url 'paiements_retards' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'paiements_retards' %}active{% endif %}">
+                <span class="icon">⚠️</span> {% trans "متأخرون عن الدفع" %}
             </a>
             <a href="{% url 'admin_parametres_abonnements' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_parametres_abonnements' or request.resolver_match.url_name == 'admin_abonnement_ajouter' or request.resolver_match.url_name == 'admin_abonnement_modifier' %}active{% endif %}">

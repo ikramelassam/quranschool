@@ -1,0 +1,41 @@
+{% extends base_template %}
+{% load i18n %}
+{% block title %}{% trans "متأخرون عن دفع الاشتراك" %}{% endblock %}
+{% block content %}
+<div class="page-title">{% trans "متأخرون عن دفع الاشتراك" %}</div>
+<div class="page-subtitle">{% trans "طلاب نشطون تجاوزوا أجل الدفع ولم يُرسلوا بعد أي إثبات — لا تزال الإشعارات تُرسل إليهم" %}</div>
+
+{% trans "هل تريد أرشفة هذا الطالب؟ لن يتمكن من الدخول إلى حسابه، ويمكن إعادة تفعيله لاحقاً." as confirmation_archivage %}
+{% for ligne in lignes %}
+<div style="background:white; border-radius:12px; padding:18px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+        <div>
+            <div style="font-weight:700;">
+                <a href="{% url 'admin_eleve_detail' ligne.eleve.id %}" style="color:inherit;">{{ ligne.eleve.user.get_full_name }}</a>
+            </div>
+            <div style="color:#888; font-size:0.85rem; margin-top:4px;">
+                {% for groupe in ligne.groupes %}{{ groupe.nom }}{% if not forloop.last %} · {% endif %}{% empty %}{% trans "بدون حلقة" %}{% endfor %}
+            </div>
+            <div style="color:#aaa; font-size:0.8rem; margin-top:4px;">
+                {% blocktrans with date=ligne.cycle.date_echeance|date:"d-m-Y" jours=ligne.jours_retard %}أجل الدفع: {{ date }} — متأخر بـ {{ jours }} يوماً{% endblocktrans %}
+            </div>
+        </div>
+        <div class="d-flex gap-2" style="flex-shrink:0;">
+            <a href="{% url 'paiements_retards' %}"
+               style="background:#f0f0f0; color:#666; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.85rem;">
+               {% trans "الانتظار" %}
+            </a>
+            {% if peut_archiver %}
+            <a href="{% url 'admin_eleve_archiver' ligne.eleve.id %}"
+               onclick="return confirm('{{ confirmation_archivage|escapejs }}');"
+               style="background:#dc3545; color:white; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.85rem;">
+               {% trans "أرشفة 🗄" %}
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% empty %}
+<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px;">{% trans "لا يوجد أي طالب متأخر عن الدفع" %}</div>
+{% endfor %}
+{% endblock %}
