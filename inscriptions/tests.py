@@ -227,6 +227,14 @@ class ChampsInscriptionVisiblesTests(TestCase):
             "champ de workflow (en_attente/validee_directeur/valide/rejete) qui "
             "pilote quels boutons/sections s'affichent."
         ),
+        'date_validee_directeur': (
+            "horodatage de workflow posé automatiquement au moment de la "
+            "pré-validation par le مدير (transition vers statut='validee_directeur', "
+            "migrations 0032+0033, chantier notification مشرف du 2026-08-27) — "
+            "consommé uniquement par dashboard.notifications.notifications_direction(), "
+            "jamais affiché comme une valeur libellée sur la fiche candidature. "
+            "Voir le commentaire de InscriptionProf.date_validee_directeur dans models.py."
+        ),
     }
 
     def _creer_inscription_prof(self, **overrides):
@@ -560,4 +568,14 @@ class InscriptionProfCharteTests(TestCase):
         self.assertEqual(reponse.status_code, 200)
         self.assertIn('ميثاق', contenu)
         self.assertNotIn('type="checkbox"', contenu)
-        self.assertNotIn('<form', contenu)
+        # base_prof.html inclut désormais le sélecteur de langue global
+        # (templates/_language_switcher.html, chantier i18n FR/EN) qui rend un
+        # <form> POST vers set_language par langue disponible. On vérifie donc
+        # l'absence de tout formulaire d'acceptation/refus de la charte, pas
+        # l'absence de <form> en général.
+        import re
+        formulaires_hors_langue = [
+            balise for balise in re.findall(r'<form[^>]*>', contenu)
+            if 'setlang' not in balise
+        ]
+        self.assertEqual(formulaires_hors_langue, [])
