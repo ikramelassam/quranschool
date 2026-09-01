@@ -1,5 +1,7 @@
 import json
 
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -68,6 +70,34 @@ def _liens_meet_contexte(creneaux, groupe_exclu=None):
         'liens_meet': liens,
         'liens_meet_json': json.dumps(payload),
     }
+
+
+def _resoudre_lien_meet_pour_formulaire(request):
+    """Détermine le LienMeet retenu par un formulaire de groupe à partir du POST.
+
+    Deux origines possibles, dans cet ordre de priorité :
+      1. `lien_meet_nouveau` : une URL collée à la main par le مدير (champ
+         texte ajouté le 2026-08-31) — absente du pool. On l'y ajoute
+         (get_or_create par url) pour qu'elle emprunte EXACTEMENT le même
+         chemin de validation que n'importe quel lien du pool (verrou
+         select_for_update + description_conflit_lien_meet dans les vues
+         appelantes) et qu'elle devienne réutilisable ensuite ;
+      2. `lien_meet` : l'id d'un LienMeet déjà dans le pool (le <select>).
+
+    Retourne (id_str_ou_None, message_erreur_ou_None). L'id renvoyé pointe
+    toujours vers un LienMeet réel : aucune autre vue n'a besoin de changer.
+    NB : si la sauvegarde échoue ensuite (conflit d'horaire…), le lien créé
+    reste dans le pool, simplement "غير مستخدم حالياً" — c'est un pool
+    réutilisable, pas une réservation."""
+    url_collee = (request.POST.get('lien_meet_nouveau') or '').strip()
+    if url_collee:
+        try:
+            URLValidator()(url_collee)
+        except ValidationError:
+            return None, 'الرابط الذي ألصقته غير صالح. تأكّد من نسخه كاملاً (يبدأ بـ https://).'
+        lien, _cree = LienMeet.objects.get_or_create(url=url_collee)
+        return str(lien.id), None
+    return (request.POST.get('lien_meet') or None), None
 
 
 @role_required('admin', 'mshrif')
@@ -213,6 +243,22 @@ def groupe_ajouter(request):
             })
 
         creneau_obj = get_object_or_404(Creneau, id=creneau_id)
+
+        # Lien Meet retenu : soit un lien du pool (le <select>), soit une URL
+        # collée à la main (champ "lien_meet_nouveau") qui rejoint alors le
+        # pool — voir _resoudre_lien_meet_pour_formulaire. Résolu ICI, avant
+        # l'éventuel ré-affichage pour avertissement prof, pour ne pas perdre
+        # l'URL collée entre deux soumissions.
+        lien_meet_id, erreur_lien_meet = _resoudre_lien_meet_pour_formulaire(request)
+        if erreur_lien_meet:
+            messages.error(request, erreur_lien_meet)
+            return render(request, 'courses/admin_groupe_ajouter.html', {
+                'creneaux': creneaux,
+                'profs': profs,
+                'categorie_choices': Groupe.CATEGORIE_CHOICES,
+                **_liens_meet_contexte(creneaux),
+            })
+
         prof_id = request.POST.get('prof') or None
         confirme = request.POST.get('confirme') == '1'
         avertissements_prof = []
@@ -249,7 +295,7 @@ def groupe_ajouter(request):
                     description_en=request.POST.get('description_en', ''),
                     capacite_max=request.POST.get('max_eleves', 10),
                     type_capacite=request.POST.get('type_capacite', 'groupe'),
-                    lien_meet_id=request.POST.get('lien_meet') or None,
+                    lien_meet_id=lien_meet_id,
                     categorie=request.POST.get('categorie', ''),
                 )
                 return render(request, 'courses/admin_groupe_ajouter.html', {
@@ -261,14 +307,14 @@ def groupe_ajouter(request):
                     **_liens_meet_contexte(creneaux),
                 })
 
-        # Lien Meet (Tâche du 2026-08-17) : UN groupe = AU PLUS UN lien du pool,
-        # jamais une URL libre. Revérifié ICI côté serveur (jamais une confiance
-        # dans le JS du formulaire — section 12 du cahier des charges), sous
-        # verrou sur le LienMeet choisi le temps de la vérification+affectation
-        # pour fermer la fenêtre de course entre deux créations concurrentes
-        # visant le même lien (aucune architecture de concurrence plus lourde
-        # n'est nécessaire pour ce cas).
-        lien_meet_id = request.POST.get('lien_meet') or None
+        # Lien Meet (Tâche du 2026-08-17) : UN groupe = AU PLUS UN lien du pool.
+        # Depuis le 2026-08-31 une URL collée à la main est acceptée mais rejoint
+        # le pool (lien_meet_id résolu plus haut) — elle passe donc par la même
+        # vérification. Revérifié ICI côté serveur (jamais une confiance dans le
+        # JS du formulaire — section 12 du cahier des charges), sous verrou sur
+        # le LienMeet choisi le temps de la vérification+affectation pour fermer
+        # la fenêtre de course entre deux créations concurrentes visant le même
+        # lien (aucune architecture de concurrence plus lourde n'est nécessaire).
         lien_meet_obj = None
         if lien_meet_id:
             with transaction.atomic():
@@ -604,6 +650,20 @@ def groupe_modifier(request, groupe_id):
         creneau_obj = get_object_or_404(Creneau, id=nouveau_creneau_id)
         creneau_a_change = str(groupe.creneau_id) != str(nouveau_creneau_id)
 
+        # Lien Meet retenu : lien du pool (<select>) ou URL collée à la main
+        # (champ "lien_meet_nouveau", qui rejoint alors le pool) — résolu ICI,
+        # avant l'éventuel ré-affichage pour avertissement prof.
+        nouveau_lien_meet_id, erreur_lien_meet = _resoudre_lien_meet_pour_formulaire(request)
+        if erreur_lien_meet:
+            messages.error(request, erreur_lien_meet)
+            return render(request, 'courses/admin_groupe_modifier.html', {
+                'groupe': groupe,
+                'creneaux': creneaux,
+                'profs': profs,
+                'categorie_choices': Groupe.CATEGORIE_CHOICES,
+                **_liens_meet_contexte(creneaux, groupe_exclu=groupe),
+            })
+
         nouveau_prof_id = request.POST.get('prof') or None
         prof_a_change = str(groupe.prof_id) != str(nouveau_prof_id)
         confirme = request.POST.get('confirme') == '1'
@@ -642,7 +702,7 @@ def groupe_modifier(request, groupe_id):
                     statut=request.POST.get('statut'),
                     prof_id=nouveau_prof_id,
                     creneau_id=nouveau_creneau_id,
-                    lien_meet_id=request.POST.get('lien_meet') or None,
+                    lien_meet_id=nouveau_lien_meet_id,
                     categorie=request.POST.get('categorie', ''),
                     cache_du_wizard_public=request.POST.get('cache_du_wizard_public') == 'on',
                 )
@@ -661,7 +721,6 @@ def groupe_modifier(request, groupe_id):
         # groupe (section 8 du cahier des charges : jamais de confiance silencieuse
         # dans un ancien état). Verrou sur le LienMeet choisi le temps de la
         # vérification+affectation (concurrence — même principe que groupe_ajouter).
-        nouveau_lien_meet_id = request.POST.get('lien_meet') or None
         with transaction.atomic():
             nouveau_lien_meet_obj = None
             if nouveau_lien_meet_id:
@@ -1146,9 +1205,18 @@ def lien_meet_attribuer_groupe(request, groupe_id):
     temps de la vérification), sans dupliquer cette logique : c'est un
     raccourci d'UI, pas un second chemin de validation."""
     groupe = get_object_or_404(Groupe, id=groupe_id)
-    lien_meet_id = request.POST.get('lien_meet')
 
-    if request.method != 'POST' or not lien_meet_id:
+    if request.method != 'POST':
+        return redirect('admin_liens_meet')
+
+    # Lien du pool (formulaire "إسناد رابط") OU URL collée à la main (champ
+    # "lien_meet_nouveau"), qui rejoint alors le pool — voir
+    # _resoudre_lien_meet_pour_formulaire. La suite est inchangée.
+    lien_meet_id, erreur_lien_meet = _resoudre_lien_meet_pour_formulaire(request)
+    if erreur_lien_meet:
+        messages.error(request, erreur_lien_meet)
+        return redirect('admin_liens_meet')
+    if not lien_meet_id:
         return redirect('admin_liens_meet')
 
     if not groupe.creneau_id:

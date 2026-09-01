@@ -125,6 +125,11 @@
                 <option value="{{ lien.id }}" {% if groupe.lien_meet == lien %}selected{% endif %}>{{ lien }}</option>
                 {% endfor %}
             </select>
+            <input type="url" name="lien_meet_nouveau" class="form-control" style="margin-top:8px;"
+                   placeholder="{% trans 'أو الصق هنا رابطاً جديداً غير موجود في القائمة' %}">
+            <div style="color:#888; font-size:0.8rem; margin-top:4px;">
+                {% trans "إذا ألصقت رابطاً هنا، يُضاف تلقائياً إلى قائمة الروابط المسجَّلة، ويُتحقق من توفّره لهذا التوقيت، ويُتجاهَل الاختيار من القائمة أعلاه." %}
+            </div>
             <div id="lien_meet_statut" style="color:#888; font-size:0.8rem; margin-top:6px;"></div>
             <div id="lien_meet_alerte" class="d-none" style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:10px 14px; margin-top:10px; font-size:0.85rem; font-weight:600;">
                 {% blocktrans %}لا يوجد رابط Google Meet متاح لهذا التوقيت. عدّل الحلقة أعلاه، أو

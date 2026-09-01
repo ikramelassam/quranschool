@@ -1101,6 +1101,70 @@ class LienMeetVuesGroupeTests(TestCase):
         groupe_legacy.refresh_from_db()
         self.assertEqual(groupe_legacy.lien_reunion, 'https://chat.whatsapp.com/ANCIEN_LIEN')
 
+    def test_creation_avec_lien_colle_a_la_main_lajoute_au_pool_et_lassigne(self):
+        """URL collée dans "lien_meet_nouveau" (absente du pool) : un LienMeet
+        est créé et devient le lien du groupe (2026-08-31)."""
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_groupe_ajouter'), {
+            'nom': 'مجموعة برابط ملصوق', 'creneau': self.creneau_libre.id,
+            'lien_meet': '', 'lien_meet_nouveau': 'https://meet.google.com/zzz-zzzz-zzz',
+            'type_capacite': 'groupe', 'max_eleves': 10,
+        })
+        self.assertEqual(reponse.status_code, 302)
+        groupe = Groupe.objects.get(nom='مجموعة برابط ملصوق')
+        self.assertIsNotNone(groupe.lien_meet)
+        self.assertEqual(groupe.lien_meet.url, 'https://meet.google.com/zzz-zzzz-zzz')
+        self.assertEqual(groupe.lien_reunion, 'https://meet.google.com/zzz-zzzz-zzz')
+        self.assertTrue(LienMeet.objects.filter(url='https://meet.google.com/zzz-zzzz-zzz').exists())
+
+    def test_lien_colle_reutilise_le_lien_existant_si_meme_url(self):
+        """Coller une URL déjà dans le pool ne crée pas de doublon."""
+        client = self._client(self.admin)
+        client.post(reverse('admin_groupe_ajouter'), {
+            'nom': 'مجموعة تعيد استخدام', 'creneau': self.creneau_libre.id,
+            'lien_meet': '', 'lien_meet_nouveau': self.lien1.url,
+            'type_capacite': 'groupe', 'max_eleves': 10,
+        })
+        groupe = Groupe.objects.get(nom='مجموعة تعيد استخدام')
+        self.assertEqual(groupe.lien_meet_id, self.lien1.id)
+        self.assertEqual(LienMeet.objects.filter(url=self.lien1.url).count(), 1)
+
+    def test_lien_colle_invalide_est_refuse(self):
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_groupe_ajouter'), {
+            'nom': 'مجموعة برابط خاطئ', 'creneau': self.creneau_libre.id,
+            'lien_meet': '', 'lien_meet_nouveau': 'pas une url',
+            'type_capacite': 'groupe', 'max_eleves': 10,
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(Groupe.objects.filter(nom='مجموعة برابط خاطئ').exists())
+
+    def test_lien_colle_en_conflit_horaire_est_refuse(self):
+        """Une URL neuve collée passe par la même vérification de conflit que
+        les liens du pool."""
+        client = self._client(self.admin)
+        reponse = client.post(reverse('admin_groupe_ajouter'), {
+            'nom': 'مجموعة ملصوق متعارض', 'creneau': self.creneau_conflit.id,
+            'lien_meet': '', 'lien_meet_nouveau': self.lien1.url,
+            'type_capacite': 'groupe', 'max_eleves': 10,
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(Groupe.objects.filter(nom='مجموعة ملصوق متعارض').exists())
+
+    def test_attribution_rapide_accepte_un_lien_colle(self):
+        """Le raccourci "المجموعات بدون رابط" accepte aussi une URL neuve."""
+        groupe_sans_lien = Groupe.objects.create(
+            nom='مجموعة بلا رابط', creneau=self.creneau_libre, statut='actif',
+        )
+        client = self._client(self.admin)
+        reponse = client.post(
+            reverse('admin_lien_meet_attribuer_groupe', args=[groupe_sans_lien.id]),
+            {'lien_meet_nouveau': 'https://meet.google.com/new-quick-link'},
+        )
+        self.assertEqual(reponse.status_code, 302)
+        groupe_sans_lien.refresh_from_db()
+        self.assertEqual(groupe_sans_lien.lien_meet.url, 'https://meet.google.com/new-quick-link')
+
 
 class LienMeetVuesGestionTests(TestCase):
     """CRUD du pool (liens_meet_list / lien_meet_ajouter / lien_meet_toggle)."""
@@ -1122,6 +1186,18 @@ class LienMeetVuesGestionTests(TestCase):
     def test_mshrif_peut_lister_en_lecture_seule(self):
         reponse = self._client(self.mshrif).get(reverse('admin_liens_meet'))
         self.assertEqual(reponse.status_code, 200)
+
+    def test_liste_rend_le_champ_lien_colle_pour_un_groupe_sans_rabott(self):
+        """Rend la section "يحتاج انتباهك" (groupe sans lien + créneau), qui
+        contient désormais le mini-formulaire "أو الصق رابطاً جديداً"."""
+        creneau = _creer_creneau_horaire(
+            'lun', datetime.time(9, 0), datetime.time(10, 0),
+            'mer', datetime.time(9, 0), datetime.time(10, 0),
+        )
+        Groupe.objects.create(nom='مجموعة تحتاج رابطاً', creneau=creneau, statut='actif')
+        reponse = self._client(self.admin).get(reverse('admin_liens_meet'))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, 'lien_meet_nouveau')
 
     def test_eleve_non_autorise_redirige(self):
         eleve = _creer_eleve('eleve_liens_meet@zidni.test')
