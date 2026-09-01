@@ -904,24 +904,27 @@ def age_correspond_a_categorie(date_naissance, type_age):
 #
 # NE REMPLACE PAS le système enfant/adulte existant (AGE_SEUIL_ADULTE=18,
 # tranche_age_depuis_naissance ci-dessus) : les 3 tranches couvrent
-# exactement 5-18 ans, c'est-à-dire l'INTÉRIEUR de la catégorie "enfant"
+# exactement 5-17 ans, c'est-à-dire l'INTÉRIEUR de la catégorie "enfant"
 # existante (qui reste, elle, la SEULE source de vérité pour l'ouverture des
 # inscriptions par catégorie, le filtrage réel des groupes par Creneau.
 # age_min/age_max, et le choix "بالغ/طفل" de wizard_categorie_age — AUCUN de
 # ces mécanismes n'est modifié ici). Un élève de moins de 5 ans ou de 18 ans
-# et plus (adulte) n'appartient à AUCUNE des 3 tranches (retourne None) —
-# jamais une tranche approximative/erronée pour ces cas hors périmètre.
+# et plus (adulte, AGE_SEUIL_ADULTE) n'appartient à AUCUNE des 3 tranches
+# (retourne None) — jamais une tranche approximative/erronée pour ces cas
+# hors périmètre. En particulier اليافعون s'arrête à 17 ans inclus : 18 ans
+# est déjà un adulte, un créneau adulte (age_min=18) ne doit donc jamais
+# afficher le badge اليافعون.
 TRANCHES_AGE_PRECISES = [
     ('talqin', _('التلقين'), 5, 7),
     ('baraim', _('البراعم'), 8, 13),
-    ('yafiun', _('اليافعون'), 14, 18),
+    ('yafiun', _('اليافعون'), 14, 17),
 ]
 
 
 def tranche_age_precise(date_naissance):
     """(code, label) de la tranche d'âge précise correspondant à
     `date_naissance` aujourd'hui, ou None si l'âge réel ne tombe dans
-    AUCUNE des 3 tranches (hors 5-18 ans). None aussi si date_naissance est
+    AUCUNE des 3 tranches (hors 5-17 ans). None aussi si date_naissance est
     None (élève sans date de naissance renseignée — ne devrait pas arriver
     en pratique, date_naissance étant verrouillée obligatoire, mais jamais
     une exception ici)."""

@@ -379,15 +379,15 @@ class GroupesListFiltreTrancheAgeTests(TestCase):
         self.admin = _creer_admin()
         creneau_talqin = _creer_creneau(age_min=5, age_max=7)
         creneau_baraim = _creer_creneau(age_min=8, age_max=13)
-        creneau_yafiun = _creer_creneau(age_min=14, age_max=18)
+        creneau_yafiun = _creer_creneau(age_min=14, age_max=17)
         # Chevauche 2 tranches (talqin + baraim) — doit apparaître dans les 2.
         creneau_chevauchant = _creer_creneau(age_min=6, age_max=9)
-        # Hors 5-18 ans (adultes) — n'appartient à aucune tranche. age_min=19
-        # (pas 18) : اليافعون couvre 14-18 INCLUS (TRANCHES_AGE_PRECISES), un
-        # créneau démarrant pile à 18 chevaucherait donc encore اليافعون —
-        # même comportement hérité que GroupeTranchesAgeViseesTests.
-        # test_vide_si_creneau_adultes, pas une régression introduite ici.
-        creneau_adulte = _creer_creneau(age_min=19, age_max=60)
+        # Hors 5-17 ans (adultes) — n'appartient à aucune tranche. age_min=18 :
+        # اليافعون s'arrête à 17 inclus (18 ans = déjà un adulte,
+        # AGE_SEUIL_ADULTE), un créneau adulte démarrant pile à 18 ne chevauche
+        # donc plus اليافعون — voir GroupeTranchesAgeViseesTests.
+        # test_vide_si_creneau_adultes.
+        creneau_adulte = _creer_creneau(age_min=18, age_max=60)
 
         self.groupe_talqin = Groupe.objects.create(
             nom='ZZZ_تلقين_تجريبي', type_capacite='groupe', categorie='mineurs', creneau=creneau_talqin,
@@ -2072,7 +2072,10 @@ class TrancheAgePreciseTests(TestCase):
         self.assertEqual(tranche_age_precise(_date_naissance_pour_age(8))[0], 'baraim')
         self.assertEqual(tranche_age_precise(_date_naissance_pour_age(13))[0], 'baraim')
         self.assertEqual(tranche_age_precise(_date_naissance_pour_age(14))[0], 'yafiun')
-        self.assertEqual(tranche_age_precise(_date_naissance_pour_age(18))[0], 'yafiun')
+        self.assertEqual(tranche_age_precise(_date_naissance_pour_age(17))[0], 'yafiun')
+        # 18 ans = déjà un adulte (AGE_SEUIL_ADULTE), n'appartient à aucune
+        # des 3 tranches — اليافعون s'arrête à 17 inclus.
+        self.assertIsNone(tranche_age_precise(_date_naissance_pour_age(18)))
         self.assertIsNone(tranche_age_precise(_date_naissance_pour_age(19)))  # adulte, hors périmètre
 
     def test_none_si_date_naissance_absente(self):
@@ -2152,11 +2155,10 @@ class GroupeTranchesAgeViseesTests(TestCase):
         self.assertEqual(groupe.tranches_age_visees, ['التلقين', 'البراعم', 'اليافعون'])
 
     def test_vide_si_creneau_adultes(self):
-        # age_min=19 (pas 18) : la tranche اليافعون couvre 14-18 INCLUS
-        # (TRANCHES_AGE_PRECISES), un créneau démarrant pile à 18 chevauche
-        # donc encore اليافعون — comportement hérité de tranche_age_precise,
-        # pas une régression de tranches_age_visees.
-        creneau = _creer_creneau(age_min=19, age_max=999)
+        # Correctif du 2026-09-01 : اليافعون couvre 14-17 (18 ans = déjà un
+        # adulte, AGE_SEUIL_ADULTE), un créneau adulte démarrant pile à 18
+        # ne doit donc plus afficher le badge اليافعون.
+        creneau = _creer_creneau(age_min=18, age_max=999)
         groupe = Groupe.objects.create(
             nom='حلقة بالغين', creneau=creneau, statut='actif',
             type_capacite='groupe', capacite_max=10,

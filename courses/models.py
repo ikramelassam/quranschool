@@ -447,7 +447,7 @@ class Groupe(models.Model):
         TRANCHES_AGE_PRECISES) RÉELLEMENT présentes parmi les élèves actifs de
         CE groupe aujourd'hui — jamais stocké, recalculé à chaque lecture
         (même principe que categorie_collectif ci-dessus). Liste vide si
-        aucun élève actif, ou si tous sont hors 5-18 ans (adultes).
+        aucun élève actif, ou si tous sont hors 5-17 ans (adultes).
 
         NON utilisée pour le badge groupe (voir tranches_age_visees) depuis
         la correction du 2026-08-24 : une halaka fraîchement créée ou dont
@@ -481,7 +481,7 @@ class Groupe(models.Model):
         principe de recouvrement par intervalle que categorie_collectif
         ci-dessus (basé sur le créneau, jamais sur les élèves). Liste vide
         si groupe individuel (type_capacite != 'groupe'), aucun créneau
-        assigné, ou créneau entièrement hors 5-18 ans (halaka adultes)."""
+        assigné, ou créneau entièrement hors 5-17 ans (halaka adultes)."""
         if self.type_capacite != 'groupe' or not self.creneau_id:
             return []
         from .utils import TRANCHES_AGE_PRECISES
