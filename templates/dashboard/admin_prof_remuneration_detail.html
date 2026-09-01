@@ -3,7 +3,7 @@
 {% block title %}{% blocktrans with nom=prof.user.get_full_name %}راتب {{ nom }}{% endblocktrans %}{% endblock %}
 {% block content %}
 <div class="page-title">{% blocktrans with nom=prof.user.get_full_name %}راتب {{ nom }}{% endblocktrans %}</div>
-<div class="page-subtitle">{{ mois_reference|mois_annee_ar }} — {% trans "عرض للاطلاع فقط، لا يمكن التعديل من هنا" %}</div>
+<div class="page-subtitle">{{ mois_reference|mois_annee_ar }}</div>
 
 <div style="background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); padding:28px 24px; text-align:center; margin-bottom:20px;">
     <div style="font-size:2.6rem; font-weight:700; line-height:1; color:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif-solid){% else %}var(--color-role-admin-solid){% endif %};">{{ remuneration.total_calcule }}<span style="font-size:1.1rem; color:#b3a08c; font-weight:500;"> {% trans "د.م." %}</span></div>

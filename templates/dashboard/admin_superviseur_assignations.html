@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-title">{% blocktrans with nom=superviseur.user.get_full_name %}المعلمون المُسندون إلى {{ nom }}{% endblocktrans %}</div>
 <div class="page-subtitle">
-    {% if request.user.role == 'mshrif' %}{% trans "عرض للاطلاع فقط — لا يمكن التعديل من هنا" %}{% else %}{% trans "حدد المعلمين الذين يمكن لهذا المؤطر رؤيتهم وتقييمهم" %}{% endif %}
+    {% if request.user.role != 'mshrif' %}{% trans "حدد المعلمين الذين يمكن لهذا المؤطر رؤيتهم وتقييمهم" %}{% endif %}
 </div>
 
 {% comment %}

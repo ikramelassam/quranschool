@@ -34,7 +34,7 @@
 <div class="page-title">{% trans "ميثاق التدريس" %}</div>
 <div class="page-subtitle">
     {% blocktrans with date=charte.date_modification|date:"d-m-Y H:i" %}آخر تعديل: {{ date }}{% endblocktrans %}
-    {% if lecture_stricte %} — {% trans "عرض للاطلاع فقط، التعديل من صلاحية الإدارة أو المشرف فقط" %}{% else %} — {% trans "عدّل النصوص مباشرة. التصميم لن يتغيّر." %}{% endif %}
+    {% if not lecture_stricte %} — {% trans "عدّل النصوص مباشرة. التصميم لن يتغيّر." %}{% endif %}
 </div>
 
 <div class="section-title" style="margin-bottom:10px;">👁 {% trans "المعاينة الحالية" %}</div>

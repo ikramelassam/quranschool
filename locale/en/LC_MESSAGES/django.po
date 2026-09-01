@@ -7317,3 +7317,9 @@ msgstr "Auto-graded"
 
 msgid "مصححة"
 msgstr "Graded"
+
+msgid "تم تقييم هذه الحصة نهائياً، لم يعد بالإمكان تعديله."
+msgstr "This session has been finally evaluated and can no longer be modified."
+
+msgid "التقييمات التي كتبها المؤطر (المشرف) على حصصك — الأحدث أولاً"
+msgstr "The evaluations written by the supervisor on your sessions — most recent first"

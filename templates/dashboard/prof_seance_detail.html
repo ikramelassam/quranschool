@@ -91,7 +91,7 @@
 {% if not seance.modifiable_par_prof %}
     {% if seance.statut == 'terminee' %}
     <div style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:14px 18px; margin-bottom:20px; font-weight:600;">
-        ✅ {% trans "تم تقييم هذه الحصة نهائياً — العرض التالي للاطلاع فقط، لم يعد بالإمكان تعديله." %}
+        ✅ {% trans "تم تقييم هذه الحصة نهائياً، لم يعد بالإمكان تعديله." %}
     </div>
     {% elif seance.statut == 'planifiee' and not seance.evaluable_par_prof %}
     <div style="background:#e8f0fe; color:var(--color-role-prof-solid); border-radius:8px; padding:14px 18px; margin-bottom:20px; font-weight:600;">

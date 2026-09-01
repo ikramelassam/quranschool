@@ -7317,3 +7317,9 @@ msgstr "Corrigée automatiquement"
 
 msgid "مصححة"
 msgstr "Corrigée"
+
+msgid "تم تقييم هذه الحصة نهائياً، لم يعد بالإمكان تعديله."
+msgstr "Cette séance a été évaluée définitivement, il n'est plus possible de la modifier."
+
+msgid "التقييمات التي كتبها المؤطر (المشرف) على حصصك — الأحدث أولاً"
+msgstr "Les évaluations rédigées par le superviseur sur vos séances — les plus récentes d'abord"

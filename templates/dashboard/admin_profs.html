@@ -3,7 +3,7 @@
 {% block title %}{% trans "المعلمون" %}{% endblock %}
 {% block content %}
 <div class="page-title">{% trans "إدارة المعلمين" %}</div>
-<div class="page-subtitle">{% blocktrans with total=profs.paginator.count %}إجمالي المعلمين: {{ total }}{% endblocktrans %}{% if request.user.role == 'mshrif' %} — {% trans "عرض للاطلاع فقط" %}{% endif %}</div>
+<div class="page-subtitle">{% blocktrans with total=profs.paginator.count %}إجمالي المعلمين: {{ total }}{% endblocktrans %}</div>
 
 <form method="GET" style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div class="row g-3 align-items-end">

@@ -7,7 +7,6 @@
         <div class="page-title">{% trans "المؤطرون" %}</div>
         <div class="page-subtitle">
             {% blocktrans with total=superviseurs.paginator.count %}الإجمالي: {{ total }} — كل مؤطر لا يرى ولا يمكنه تقييم إلا المعلمين المُسندين إليه{% endblocktrans %}
-            {% if request.user.role == 'mshrif' %} — {% trans "عرض للاطلاع فقط" %}{% endif %}
         </div>
     </div>
     {% if request.user.role != 'mshrif' %}
