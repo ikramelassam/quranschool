@@ -632,6 +632,32 @@ def nb_slots_repondu(reponses_brutes):
     return None
 
 
+def nb_slots_pour_tarification(donnees):
+    """Nombre de séances/semaine à utiliser pour CALCULER LE PRIX montré à
+    l'élève (registration.utils.prix_effectif / GrillePrixAbonnement) :
+
+    - si une حلقة a déjà été retenue (`groupe_id` non vide dans `donnees` —
+      choix d'un « groupe proche » à l'étape 3 quand aucune combinaison
+      exacte n'existe, ou groupe normal), le nombre RÉEL de séances de cette
+      حلقة (`creneau.slots.count()`) : c'est ce que l'élève suivra vraiment,
+      donc ce qu'il paiera ;
+    - sinon (choix « أنتظر حتى يتم إنشاء الحلقة », ou parcours individuel), le
+      nombre déclaré à l'étape programme (nb_slots_repondu).
+
+    Miroir, côté parcours, de inscriptions.models.InscriptionEleve.
+    prix_a_facturer() : la fiche candidature du مدير affiche exactement le
+    même montant que celui vu ici par l'élève, jamais un 2e calcul qui
+    pourrait diverger. `donnees` au même format que wizard_donnees(request)."""
+    groupe_id = donnees.get('groupe_id')
+    if groupe_id:
+        from courses.models import Groupe
+
+        groupe = Groupe.objects.filter(id=groupe_id).select_related('creneau').first()
+        if groupe is not None and groupe.creneau is not None:
+            return groupe.creneau.slots.count()
+    return nb_slots_repondu(donnees)
+
+
 def valeurs_options_nb_seances_actives():
     """{valeur, ...} des courses.OptionNbSeances actives — LA liste proposée
     comme cases à l'étape 2 du wizard (champ backend='nb_slots'), et LA

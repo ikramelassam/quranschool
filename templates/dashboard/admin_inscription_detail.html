@@ -195,43 +195,31 @@ pas seulement au moment du refus lui-même.
         <span style="font-weight:600;">{{ inscription.abonnement_label }}</span>
     </div>
     {% comment %}
-    Audit du 2026-08-22 (point 6) : السعر المطبَّق فعلياً — registration.
-    utils.prix_effectif, MÊME fonction que le wizard/l'ajout manuel, jamais
-    un calcul dupliqué ici. N'affiche la comparaison avec السعر الافتراضي
-    QUE quand elle diffère réellement (une ligne de grille s'applique) —
-    sinon 2 lignes identiques n'apporteraient rien au مدير.
+    Chantier du 2026-09-01 : UNE seule ligne « المبلغ الشهري » = le montant
+    RÉELLEMENT dû — inscriptions.models.InscriptionEleve.prix_a_facturer()
+    (prix de la حلقة assignée si groupe_choisi, sinon prix du nombre de
+    séances demandé au formulaire). Remplace les 2 anciennes lignes
+    « السعر وقت الاختيار » / « المبلغ الشهري الفعلي لهذه الحلقة » : c'est
+    exactement le prix que l'élève a vu à l'étape Abonnement du wizard
+    (registration.utils.nb_slots_pour_tarification, MÊME règle, jamais un
+    calcul dupliqué). Libellé « ...لهذه الحلقة » tant qu'une حلقة est
+    retenue, « ...وقت الاختيار » sinon (candidat encore en attente de
+    placement). Badge السعر الافتراضي seulement quand le prix effectif
+    diffère du prix de base de l'abonnement.
     {% endcomment %}
-    {% with type_abo=inscription.abonnement_obj prix_effectif=inscription.prix_effectif_calcule %}
-    {% if prix_effectif is not None %}
+    {% with type_abo=inscription.abonnement_obj prix_a_facturer=inscription.prix_a_facturer %}
+    {% if prix_a_facturer is not None %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">{% trans "السعر وقت الاختيار" %}</span>
-        <span style="font-weight:600;">
-            {% blocktrans with montant=prix_effectif %}{{ montant }} درهم{% endblocktrans %}
-            {% if type_abo and prix_effectif != type_abo.prix %}
+        <span style="color:#888;">{% if inscription.groupe_choisi %}{% trans "المبلغ الشهري الفعلي لهذه الحلقة" %}{% else %}{% trans "السعر وقت الاختيار" %}{% endif %}</span>
+        <span style="font-weight:600; color:var(--color-role-admin-solid);">
+            {% blocktrans with montant=prix_a_facturer %}{{ montant }} درهم{% endblocktrans %}
+            {% if type_abo and prix_a_facturer != type_abo.prix %}
             <span style="background:#f0ebe3; color:var(--color-role-admin-solid); border-radius:20px; padding:2px 10px; font-size:0.78rem; font-weight:700; margin-right:8px;">
-                {% blocktrans with n=nb_slots prix=type_abo.prix %}سعر خاص بـ {{ n }} حصص/أسبوع — السعر الافتراضي: {{ prix }} درهم{% endblocktrans %}
+                {% blocktrans with n=inscription.nb_slots_facture prix=type_abo.prix %}سعر خاص بـ {{ n }} حصص/أسبوع — السعر الافتراضي: {{ prix }} درهم{% endblocktrans %}
             </span>
             {% endif %}
         </span>
     </div>
-    {% comment %}
-    Chantier du 2026-08-25 (réordonnancement + montant réel de la halaka) :
-    prix_effectif_halaka_choisie() recalcule le MÊME prix_effectif() mais
-    avec le nombre de séances RÉEL de groupe_choisi (voir inscriptions.
-    models.InscriptionEleve.prix_effectif_halaka_choisie.__doc__) — n'affiche
-    cette 2e ligne que quand elle diffère du prix ci-dessus (sinon 2 lignes
-    identiques n'apporteraient rien au مدير), donc jamais pour une
-    candidature dont la halaka a exactement le même nombre de séances que
-    ce qui avait été choisi au wizard.
-    {% endcomment %}
-    {% with prix_halaka=inscription.prix_effectif_halaka_choisie %}
-    {% if prix_halaka is not None and prix_halaka != prix_effectif %}
-    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
-        <span style="color:#888;">{% trans "المبلغ الشهري الفعلي لهذه الحلقة" %}</span>
-        <span style="font-weight:600; color:var(--color-role-admin-solid);">{% blocktrans with montant=prix_halaka %}{{ montant }} درهم{% endblocktrans %}</span>
-    </div>
-    {% endif %}
-    {% endwith %}
     {% endif %}
     {% endwith %}
     {% endwith %}

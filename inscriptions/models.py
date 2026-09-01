@@ -379,6 +379,32 @@ class InscriptionEleve(models.Model):
             return None
         return prix_effectif(type_abo, self.groupe_choisi.creneau.slots.count())
 
+    def nb_slots_facture(self):
+        """Nombre de séances/semaine correspondant à prix_a_facturer() : celui
+        de la halaka assignée (groupe_choisi.creneau.slots.count()) si elle
+        existe, sinon celui que le candidat a demandé au formulaire
+        (nb_slots_choisi). Sert au libellé « سعر خاص بـ N حصص » de la fiche."""
+        if self.groupe_choisi is not None and self.groupe_choisi.creneau is not None:
+            return self.groupe_choisi.creneau.slots.count()
+        return self.nb_slots_choisi()
+
+    def prix_a_facturer(self):
+        """Montant mensuel RÉELLEMENT dû par l'élève (chantier du 2026-09-01) :
+
+        - prix de la حلقة assignée (prix_effectif_halaka_choisie) dès qu'un
+          groupe_choisi existe — c'est ce que l'élève suit concrètement ;
+        - sinon le prix du nombre de séances demandé au formulaire
+          (prix_effectif_calcule) — candidat encore en attente de placement.
+
+        Unifie les deux méthodes ci-dessus : la fiche candidature affiche UN
+        seul montant, identique à celui que l'élève a vu à l'étape Abonnement
+        du wizard (registration.utils.nb_slots_pour_tarification, même règle).
+        None si l'abonnement a été supprimé depuis (voir abonnement_obj)."""
+        prix_halaka = self.prix_effectif_halaka_choisie()
+        if prix_halaka is not None:
+            return prix_halaka
+        return self.prix_effectif_calcule()
+
     class Meta:
         verbose_name = "Inscription Élève"
         verbose_name_plural = "Inscriptions Élèves"

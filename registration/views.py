@@ -576,14 +576,17 @@ def wizard_abonnement(request):
     TypeAbonnement.type_offre/cible_age) — rien de reconstruit ici, juste
     filtré par les réponses déjà en session.
 
-    Prix affiché (Étape 9, GrillePrixAbonnement, 2026-08-21) : nb_slots est
-    déjà connu à ce stade (répondu à l'étape 2, avant Groupe/Individuel) —
-    abonnements_avec_prix_effectif() pose `.prix_affiche` sur chaque
-    TypeAbonnement, jamais TypeAbonnement.prix affiché brut directement."""
+    Prix affiché (Étape 9, GrillePrixAbonnement, 2026-08-21) : nb_slots_pour_
+    tarification() (chantier du 2026-09-01) — le nombre de séances RÉEL de la
+    حلقة retenue à l'étape 3 si l'élève en a choisi une (y compris un « groupe
+    proche » dont le nombre de séances diffère de ce qu'il avait demandé),
+    sinon le nombre déclaré à l'étape programme. abonnements_avec_prix_
+    effectif() pose `.prix_affiche` sur chaque TypeAbonnement, jamais
+    TypeAbonnement.prix affiché brut directement."""
     from courses.utils import tranche_age_depuis_naissance
     from .utils import (
         abonnements_avec_prix_effectif, abonnements_disponibles, etape_est_active,
-        nb_slots_repondu, prix_est_configure, url_etape_suivante,
+        nb_slots_pour_tarification, prix_est_configure, url_etape_suivante,
     )
 
     donnees = wizard_donnees(request)
@@ -603,7 +606,7 @@ def wizard_abonnement(request):
 
     date_naissance = datetime.date.fromisoformat(donnees['date_naissance'])
     type_age = tranche_age_depuis_naissance(date_naissance)
-    nb_slots = nb_slots_repondu(donnees)
+    nb_slots = nb_slots_pour_tarification(donnees)
 
     # abonnements_disponibles (registration.utils, Étape 7) : même requête que
     # dashboard.views.admin_eleve_ajouter_manuel, jamais 2 versions maintenues
