@@ -60,7 +60,7 @@
         <div style="margin-top:8px; font-size:0.85rem;">
             {% trans "المجموعات غير المهيأة:" %}
             {% for groupe in couverture.groupes_manquants %}
-                <a href="{% url 'admin_groupe_detail' groupe.id %}" style="color:#856404; font-weight:600;">{{ groupe.nom }}</a>{% if not forloop.last %}، {% endif %}
+                <a href="{% url 'admin_groupe_detail' groupe.id %}" style="color:#856404; font-weight:600;">{{ groupe.nom }}</a>{% if not forloop.last %}{% trans "، " %}{% endif %}
             {% endfor %}
         </div>
     {% else %}

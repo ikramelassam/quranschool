@@ -7170,3 +7170,83 @@ msgstr "📅 Afficher les données mensuelles de"
 
 msgid "🧭 المؤطرون"
 msgstr "🧭 Superviseurs"
+
+#, python-format
+msgid "🎯 %(tranche)s فقط"
+msgstr "🎯 %(tranche)s uniquement"
+
+msgid "مثال: 0663394165"
+msgstr "Ex. : 0663394165"
+
+msgid "واتساب، Google Meet، Zoom..."
+msgstr "WhatsApp, Google Meet, Zoom…"
+
+msgid "بواسطة:"
+msgstr "Par :"
+
+msgid "، "
+msgstr ", "
+
+msgid "فتح 👁"
+msgstr "Ouvrir 👁"
+
+msgid "فتح الملف 👁"
+msgstr "Ouvrir le fichier 👁"
+
+msgid "أو الصق هنا رابطاً جديداً غير موجود في القائمة"
+msgstr "Ou collez ici un nouveau lien absent de la liste"
+
+msgid "أو الصق رابطاً جديداً"
+msgstr "Ou collez un nouveau lien"
+
+msgid "الصق رابط Google Meet جديداً"
+msgstr "Collez un nouveau lien Google Meet"
+
+#, python-format
+msgid "بواسطة %(nom)s — "
+msgstr "Par %(nom)s — "
+
+msgid "تم توليد النص العربي تلقائياً عند قبول الأستاذ نهائياً — يمكنك تعديله بحرية، لن يُعاد توليده تلقائياً بعد ذلك."
+msgstr "Le texte arabe a été généré automatiquement lors de la validation définitive du professeur — vous pouvez le modifier librement, il ne sera plus régénéré automatiquement."
+
+msgid "الفرنسية والإنجليزية اختياريتان: إن تُركتا فارغتين، يظهر النص العربي بدلاً منهما."
+msgstr "Le français et l'anglais sont facultatifs : s'ils sont laissés vides, le texte arabe s'affiche à leur place."
+
+msgid "الرسالة الجاهزة للإرسال"
+msgstr "Le message prêt à envoyer"
+
+msgid "متأخرون عن الدفع"
+msgstr "Retards de paiement"
+
+msgid "متأخرون عن دفع الاشتراك"
+msgstr "Retards de paiement d'abonnement"
+
+msgid "طلاب نشطون تجاوزوا أجل الدفع ولم يُرسلوا بعد أي إثبات — لا تزال الإشعارات تُرسل إليهم"
+msgstr "Élèves actifs ayant dépassé le délai de paiement et n'ayant encore envoyé aucun justificatif — les notifications continuent de leur être envoyées"
+
+msgid "هل تريد أرشفة هذا الطالب؟ لن يتمكن من الدخول إلى حسابه، ويمكن إعادة تفعيله لاحقاً."
+msgstr "Voulez-vous archiver cet élève ? Il ne pourra plus accéder à son compte, et pourra être réactivé plus tard."
+
+#, python-format
+msgid "أجل الدفع: %(date)s — متأخر بـ %(jours)s يوماً"
+msgstr "Délai de paiement : %(date)s — en retard de %(jours)s jours"
+
+msgid "الانتظار"
+msgstr "En attente"
+
+msgid "لا يوجد أي طالب متأخر عن الدفع"
+msgstr "Aucun élève en retard de paiement"
+
+msgid "لم يقم المدير بتحديد أي عدد حصص متاح بعد. الرجاء التواصل مع الإدارة."
+msgstr "Le directeur n'a pas encore défini de nombre de séances disponible. Veuillez contacter l'administration."
+
+msgid "⚠️ لم يُحدَّد سعر هذا الاشتراك بعد — تواصل مع الإدارة، أو اختر عدداً آخر من الحصص"
+msgstr "⚠️ Le prix de cet abonnement n'est pas encore défini — contactez l'administration, ou choisissez un autre nombre de séances"
+
+#, python-format
+msgid ""
+"%(configures)s من أصل %(total)s تعرفة \"جماعي\" محددة. الحالات التالية بدون تعرفة —\n"
+"    أي معلم/طالب معني بها لن يُحتسب راتبه عن هذه الحلقة تلقائياً حتى تُحدَّد:"
+msgstr ""
+"%(configures)s tarif(s) « collectif » sur %(total)s défini(s). Les cas suivants n'ont pas de tarif —\n"
+"    tout enseignant/élève concerné ne verra pas son salaire calculé automatiquement pour ce type de halqa tant qu'il n'est pas défini :"

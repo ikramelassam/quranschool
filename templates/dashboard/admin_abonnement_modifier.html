@@ -71,7 +71,7 @@
             ⚠️ {% blocktrans with configures=couverture.configures total=couverture.total prix=type_abonnement.prix %}{{ configures }} من أصل {{ total }} من أعداد الحصص لها سعر خاص. الباقي يستخدم السعر الافتراضي ({{ prix }} درهم).{% endblocktrans %}
             <div style="margin-top:8px; font-size:0.85rem; font-weight:400;">
                 {% trans "أعداد الحصص بدون سعر خاص:" %}
-                {% for n in couverture.nb_slots_manquants %}{{ n }}{% if not forloop.last %}، {% endif %}{% endfor %}
+                {% for n in couverture.nb_slots_manquants %}{{ n }}{% if not forloop.last %}{% trans "، " %}{% endif %}{% endfor %}
             </div>
         </div>
         {% else %}

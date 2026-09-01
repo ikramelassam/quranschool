@@ -115,7 +115,7 @@
             {% if element.tous_les_profs %}
             <div class="hk-badge-cible hk-badge-tous">{% trans "كل الأساتذة" %}</div>
             {% else %}
-            <div class="hk-badge-cible hk-badge-specifique">{% for p in element.profs_cibles.all %}{{ p.user.get_full_name }}{% if not forloop.last %}، {% endif %}{% endfor %}</div>
+            <div class="hk-badge-cible hk-badge-specifique">{% for p in element.profs_cibles.all %}{{ p.user.get_full_name }}{% if not forloop.last %}{% trans "، " %}{% endif %}{% endfor %}</div>
             {% endif %}
         </div>
         <a href="{% url 'admin_hakiba_supprimer' element.id %}"

@@ -7170,3 +7170,83 @@ msgstr "📅 Show monthly data for"
 
 msgid "🧭 المؤطرون"
 msgstr "🧭 Supervisors"
+
+#, python-format
+msgid "🎯 %(tranche)s فقط"
+msgstr "🎯 %(tranche)s only"
+
+msgid "مثال: 0663394165"
+msgstr "E.g. 0663394165"
+
+msgid "واتساب، Google Meet، Zoom..."
+msgstr "WhatsApp, Google Meet, Zoom…"
+
+msgid "بواسطة:"
+msgstr "By:"
+
+msgid "، "
+msgstr ", "
+
+msgid "فتح 👁"
+msgstr "Open 👁"
+
+msgid "فتح الملف 👁"
+msgstr "Open file 👁"
+
+msgid "أو الصق هنا رابطاً جديداً غير موجود في القائمة"
+msgstr "Or paste a new link that is not in the list here"
+
+msgid "أو الصق رابطاً جديداً"
+msgstr "Or paste a new link"
+
+msgid "الصق رابط Google Meet جديداً"
+msgstr "Paste a new Google Meet link"
+
+#, python-format
+msgid "بواسطة %(nom)s — "
+msgstr "By %(nom)s — "
+
+msgid "تم توليد النص العربي تلقائياً عند قبول الأستاذ نهائياً — يمكنك تعديله بحرية، لن يُعاد توليده تلقائياً بعد ذلك."
+msgstr "The Arabic text was generated automatically when the teacher was finally approved — you can edit it freely, it will not be regenerated automatically afterwards."
+
+msgid "الفرنسية والإنجليزية اختياريتان: إن تُركتا فارغتين، يظهر النص العربي بدلاً منهما."
+msgstr "French and English are optional: if left empty, the Arabic text is shown instead."
+
+msgid "الرسالة الجاهزة للإرسال"
+msgstr "The message ready to send"
+
+msgid "متأخرون عن الدفع"
+msgstr "Payment overdue"
+
+msgid "متأخرون عن دفع الاشتراك"
+msgstr "Subscription payment overdue"
+
+msgid "طلاب نشطون تجاوزوا أجل الدفع ولم يُرسلوا بعد أي إثبات — لا تزال الإشعارات تُرسل إليهم"
+msgstr "Active students past the payment deadline who have not yet sent any proof — notifications are still being sent to them"
+
+msgid "هل تريد أرشفة هذا الطالب؟ لن يتمكن من الدخول إلى حسابه، ويمكن إعادة تفعيله لاحقاً."
+msgstr "Do you want to archive this student? They will no longer be able to access their account, and can be reactivated later."
+
+#, python-format
+msgid "أجل الدفع: %(date)s — متأخر بـ %(jours)s يوماً"
+msgstr "Payment deadline: %(date)s — %(jours)s days late"
+
+msgid "الانتظار"
+msgstr "On hold"
+
+msgid "لا يوجد أي طالب متأخر عن الدفع"
+msgstr "No student is overdue on payment"
+
+msgid "لم يقم المدير بتحديد أي عدد حصص متاح بعد. الرجاء التواصل مع الإدارة."
+msgstr "The director has not defined any available number of sessions yet. Please contact the administration."
+
+msgid "⚠️ لم يُحدَّد سعر هذا الاشتراك بعد — تواصل مع الإدارة، أو اختر عدداً آخر من الحصص"
+msgstr "⚠️ The price of this subscription is not set yet — contact the administration, or choose another number of sessions"
+
+#, python-format
+msgid ""
+"%(configures)s من أصل %(total)s تعرفة \"جماعي\" محددة. الحالات التالية بدون تعرفة —\n"
+"    أي معلم/طالب معني بها لن يُحتسب راتبه عن هذه الحلقة تلقائياً حتى تُحدَّد:"
+msgstr ""
+"%(configures)s of %(total)s \"group\" rates defined. The following cases have no rate —\n"
+"    any teacher/student concerned will not have their salary computed automatically for this halqa type until it is defined:"

@@ -31,7 +31,7 @@ canal_detail.html — affiche le bouton إخفاء/إظهار. Jamais sur la pag
     cette publication, pas besoin de lui répéter à qui elle était destinée.
     Rien affiché si tranche_age='' (visait "كل الأطفال").
     {% endcomment %}
-    <div class="pub-auteur">🎯 {{ annonce.get_tranche_age_display }} فقط</div>
+    <div class="pub-auteur">{% blocktrans with tranche=annonce.get_tranche_age_display %}🎯 {{ tranche }} فقط{% endblocktrans %}</div>
     {% endif %}
 
     {% if annonce.contenu %}
