@@ -167,6 +167,14 @@ class RetardsIntegrationTests(TestCase):
         cycle.date_echeance = timezone.localdate() - datetime.timedelta(days=3)
         cycle.save(update_fields=['date_echeance'])
         self.admin = _admin()
+        # Le badge 🔔 suit DerniereVisiteNotification, amorcé à user.date_joined.
+        # On recule celui des 2 comptes pour que l'échéance (reculée de 3 j
+        # ci-dessus) soit bien POSTÉRIEURE au seuil d'amorçage → notif visible
+        # tant que la page cible n'a pas été visitée.
+        vieux = timezone.now() - datetime.timedelta(days=60)
+        User.objects.filter(pk__in=[self.eleve.user_id, self.admin.pk]).update(date_joined=vieux)
+        self.eleve.user.refresh_from_db()
+        self.admin.refresh_from_db()
 
     def test_notification_eleve_contient_le_groupe_retard(self):
         from dashboard.notifications import notifications_eleve
@@ -181,6 +189,28 @@ class RetardsIntegrationTests(TestCase):
         groupes, _total = notifications_direction(self.admin)
         textes = [e['texte'] for g in groupes for e in g['evenements']]
         self.assertTrue(any(self.eleve.user.get_full_name() in t for t in textes))
+
+    def test_badge_eleve_seteint_apres_visite_de_sa_page_paiement(self):
+        from dashboard.notifications import notifications_eleve
+
+        self.client.force_login(self.eleve.user)
+        self.client.get(reverse('eleve_paiements'))
+        groupes, total = notifications_eleve(self.eleve, self.eleve.user)
+        self.assertNotIn('دفع متأخر', [g['label'] for g in groupes])
+        # …mais l'élève reste bien « en retard » (l'état, pas le badge).
+        self.assertTrue(cycles.est_en_retard(self.eleve))
+
+    def test_badge_directeur_seteint_apres_visite_de_la_page_retards(self):
+        from dashboard.notifications import notifications_direction
+
+        self.client.force_login(self.admin)
+        self.client.get(reverse('paiements_retards'))
+        groupes, _total = notifications_direction(self.admin)
+        textes = [e['texte'] for g in groupes for e in g['evenements']]
+        self.assertFalse(any(self.eleve.user.get_full_name() in t for t in textes))
+        # La page dédiée, elle, liste toujours l'élève même badge éteint.
+        reponse = self.client.get(reverse('paiements_retards'))
+        self.assertContains(reponse, self.eleve.user.get_full_name())
 
     def test_page_paiements_retards_liste_leleve(self):
         self.client.force_login(self.admin)

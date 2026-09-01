@@ -129,11 +129,17 @@ class CycleAbonnement(models.Model):
     l'avance (payments.cycles.reconcilier, appelée après chaque
     validation/modification de Paiement).
 
-    PAS de cron / Telegram / e-mail (décision du client) : la notification élève
-    (panneau 🔔) est un ÉTAT permanent recalculé à chaque affichage, elle reste
-    tant que le retard existe. Le مدير voit la liste sur payments.views.
-    paiements_retards avec 2 boutons par ligne : « الانتظار » (aucun effet,
-    cosmétique) et « أرشفة » (archivage réversible, مدير uniquement)."""
+    PAS de cron / Telegram / e-mail (décision du client) : uniquement le
+    panneau 🔔. Le badge 🔔 suit le mécanisme habituel DerniereVisiteNotification
+    (clés 'paiements_retard' côté élève, 'paiements_retard_eleves' côté
+    مدير/مشرف) : « nouveau » tant que la page cible (eleve_paiements /
+    paiements_retards) n'a pas été visitée DEPUIS que le cycle est devenu échu ;
+    visiter cette page éteint le badge. Un NOUVEAU cycle qui repasse en retard
+    plus tard relance la notification. L'ÉTAT « en retard » lui-même, lui,
+    reste toujours visible sur ces pages (badge éteint ou non). Le مدير voit la
+    liste sur payments.views.paiements_retards avec 2 boutons par ligne :
+    « الانتظار » (aucun effet, cosmétique) et « أرشفة » (archivage réversible,
+    مدير uniquement)."""
 
     eleve = models.ForeignKey(
         'accounts.Eleve', on_delete=models.CASCADE, related_name='cycles_abonnement'

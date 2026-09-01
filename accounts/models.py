@@ -899,8 +899,11 @@ class DerniereVisiteNotification(models.Model):
     'profs_en_attente_validation'
     (mshrif_inscriptions_profs, مشرف uniquement — Fonctionnalité 3,
     2026-08-27), 'demandes_changement_halaka' (admin_demandes_changement_
-    halaka, مدير ET مشرف — Fonctionnalité 4, 2026-08-27). Voir dashboard.
-    notifications pour le calcul complet."""
+    halaka, مدير ET مشرف — Fonctionnalité 4, 2026-08-27),
+    'paiements_retard' (eleve_paiements, élève — retard de paiement de son
+    abonnement, chantier du 2026-09-01), 'paiements_retard_eleves'
+    (paiements_retards, مدير ET مشرف — élèves en retard de paiement).
+    Voir dashboard.notifications pour le calcul complet."""
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='dernieres_visites_notification'
     )

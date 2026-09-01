@@ -135,7 +135,7 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
     from courses.models import Presence
     from accounts.models import DocumentEleve
 
-    seuils = _seuils(user, ['examens', 'notes_seances', 'cartable'])
+    seuils = _seuils(user, ['examens', 'notes_seances', 'cartable', 'paiements_retard'])
     groupes_eleve = eleve.groupes.all()
 
     examens = list(
@@ -188,14 +188,17 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
         for d in docs
     ]
 
-    # Retard de paiement (chantier du 2026-09-01) — VOLONTAIREMENT hors du
-    # mécanisme _seuils/DerniereVisiteNotification : ce n'est pas un évènement
-    # horodaté qui « se lit » en visitant une page, c'est un ÉTAT (le cycle
-    # d'abonnement courant est échu et impayé). Il reste affiché tant que le
-    # retard existe et disparaît de lui-même dès que le مدير valide le paiement
-    # (ou dès que l'élève soumet une preuve, qui met la relance en pause — voir
-    # payments.cycles.est_en_retard). Aucune notion de « 24h » à répéter : la
-    # notification est revue à chaque connexion.
+    # Retard de paiement (chantier du 2026-09-01) — traité comme les autres
+    # types : « nouveau » tant que l'élève n'a pas visité sa page de paiement
+    # DEPUIS que le cycle est devenu échu (payments.views.eleve_paiements
+    # appelle marquer_visite(user, 'paiements_retard')). L'évènement est
+    # horodaté à `cycle.date_echeance` : visiter la page marque le seuil à
+    # maintenant -> l'échéance (passée) repasse sous le seuil -> le badge se
+    # vide. Un NOUVEAU cycle qui repasse en retard plus tard (élève toujours
+    # pas à jour) relance la notification, exactement comme un nouvel examen
+    # ou un nouveau fichier. L'état « en retard » lui-même reste visible en
+    # permanence sur la page de paiement / la page متأخرون عن الدفع (مدير),
+    # ce n'est que le badge 🔔 qui s'éteint après lecture.
     from payments.cycles import cycle_courant, cycle_est_en_retard
 
     cycle_paiement = cycle_courant(eleve)
@@ -204,11 +207,12 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
         echeance_dt = timezone.make_aware(
             datetime.datetime.combine(cycle_paiement.date_echeance, datetime.time())
         )
-        evenements_retard_paiement = [{
-            'texte': _('لقد تأخّرت عن دفع اشتراكك — يرجى إرسال إثبات الدفع في أقرب وقت'),
-            'url': reverse('eleve_paiements'),
-            'date': echeance_dt,
-        }]
+        if echeance_dt > seuils['paiements_retard']:
+            evenements_retard_paiement = [{
+                'texte': _('لقد تأخّرت عن دفع اشتراكك — يرجى إرسال إثبات الدفع في أقرب وقت'),
+                'url': reverse('eleve_paiements'),
+                'date': echeance_dt,
+            }]
 
     groupes = []
     if evenements_retard_paiement:
@@ -371,7 +375,7 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
     from inscriptions.models import InscriptionEleve, InscriptionProf
     from courses.models import DemandeChangementHalaka
 
-    cles = ['demandes_inscription', 'demandes_changement_halaka']
+    cles = ['demandes_inscription', 'demandes_changement_halaka', 'paiements_retard_eleves']
     if user.role == 'mshrif':
         cles.append('profs_en_attente_validation')
     if user.role == 'admin':
@@ -442,22 +446,30 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
         for d in demandes_changement_halaka
     ]
 
-    # Retard de paiement (chantier du 2026-09-01) — comme côté élève
-    # (notifications_eleve), VOLONTAIREMENT hors _seuils/DerniereVisiteNotification :
-    # c'est un ÉTAT (« X élèves actifs ont un cycle d'abonnement échu et
-    # impayé »), pas un flux d'évènements. Chaque ligne mène à la page
-    # payments.views.paiements_retards (les 2 boutons « الانتظار »/« أرشفة » y
-    # vivent — le panneau 🔔 reste, lui, une simple liste de liens).
+    # Retard de paiement (chantier du 2026-09-01) — comme les autres types :
+    # un élève « nouvellement » en retard (échéance de son cycle courant
+    # postérieure à la dernière visite de la page متأخرون عن الدفع) apparaît
+    # dans le badge ; visiter payments.views.paiements_retards appelle
+    # marquer_visite(user, 'paiements_retard_eleves') et vide le badge. La
+    # LISTE complète des retards, elle, reste toujours visible sur cette page
+    # dédiée (comme admin_inscriptions garde toutes les demandes en attente
+    # même quand le badge est éteint) — seul le compteur 🔔 s'éteint après
+    # lecture. Chaque ligne du panneau mène à cette page (les 2 boutons
+    # « الانتظار »/« أرشفة » y vivent).
     from payments.cycles import eleves_en_retard
 
-    evenements_retard_paiement = [
-        {
-            'texte': _('%(nom)s متأخر عن دفع الاشتراك') % {'nom': eleve.user.get_full_name()},
-            'url': reverse('paiements_retards'),
-            'date': timezone.make_aware(datetime.datetime.combine(cycle.date_echeance, datetime.time())),
-        }
-        for eleve, cycle in eleves_en_retard()
-    ]
+    seuil_retard_paiement = seuils['paiements_retard_eleves']
+    evenements_retard_paiement = []
+    for eleve, cycle in eleves_en_retard():
+        echeance_dt = timezone.make_aware(
+            datetime.datetime.combine(cycle.date_echeance, datetime.time())
+        )
+        if echeance_dt > seuil_retard_paiement:
+            evenements_retard_paiement.append({
+                'texte': _('%(nom)s متأخر عن دفع الاشتراك') % {'nom': eleve.user.get_full_name()},
+                'url': reverse('paiements_retards'),
+                'date': echeance_dt,
+            })
 
     groupes = []
     if evenements_retard_paiement:

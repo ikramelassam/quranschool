@@ -170,6 +170,12 @@ def eleve_paiements(request):
         return redirect('eleve_paiements')
 
     paiements = Paiement.objects.filter(eleve=eleve).order_by('-mois_reference')
+    # Page cible du groupe 🔔 « دفع متأخر » (chantier relances de paiement du
+    # 2026-09-01) — marque ce type comme lu : le badge s'éteint jusqu'à ce
+    # qu'un NOUVEAU cycle repasse en retard. L'état « en retard » lui-même
+    # reste affiché sur cette page tant que le paiement n'est pas fait.
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'paiements_retard')
     return render(request, 'dashboard/eleve_paiements.html', {
         'eleve': eleve,
         'paiements': paginer(request, paiements, 10),
@@ -481,4 +487,10 @@ def paiements_retards(request):
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
+    # Page cible du groupe 🔔 « طلاب متأخرون عن الدفع » — éteint le badge (mais
+    # la liste ci-dessus reste toujours affichée, même badge éteint). Juste
+    # avant le render, jamais avant (même précaution que les autres appelants
+    # de marquer_visite : au cas où la vue redirigerait plus tôt un jour).
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'paiements_retard_eleves')
     return render(request, 'dashboard/paiements_retards.html', context)
