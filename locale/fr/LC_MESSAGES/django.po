@@ -7250,3 +7250,70 @@ msgid ""
 msgstr ""
 "%(configures)s tarif(s) « collectif » sur %(total)s défini(s). Les cas suivants n'ont pas de tarif —\n"
 "    tout enseignant/élève concerné ne verra pas son salaire calculé automatiquement pour ce type de halqa tant qu'il n'est pas défini :"
+
+msgid "مؤطر"
+msgstr "Superviseur"
+
+msgid "المشرف"
+msgstr "Adjoint"
+
+msgid "إنذار أول ← إنذار ثاني ← خصم من الراتب"
+msgstr "1er avertissement → 2e avertissement → retenue sur salaire"
+
+msgid "دفع متأخر"
+msgstr "Paiement en retard"
+
+msgid "طلاب متأخرون عن دفع الاشتراك"
+msgstr "Élèves en retard de paiement d'abonnement"
+
+msgid "لقد تأخّرت عن دفع اشتراكك — يرجى إرسال إثبات الدفع في أقرب وقت"
+msgstr "Vous êtes en retard sur le paiement de votre abonnement — merci d'envoyer un justificatif de paiement au plus vite"
+
+#, python-format
+msgid "%(nom)s متأخر عن دفع الاشتراك"
+msgstr "%(nom)s est en retard de paiement d'abonnement"
+
+msgid "قيد الانتظار"
+msgstr "En attente"
+
+msgid "موافَق عليها"
+msgstr "Approuvée"
+
+msgid "مرفوضة"
+msgstr "Refusée"
+
+msgid "مقبولة"
+msgstr "Acceptée"
+
+msgid "الجميع"
+msgstr "Les deux"
+
+msgid "مقبول من المدير — بانتظار تصديق المشرف"
+msgstr "Accepté par le Directeur — en attente de validation de l'Adjoint"
+
+msgid "مقبول نهائياً"
+msgstr "Accepté définitivement"
+
+msgid "رفض طلب طالب (المدير)"
+msgstr "Refus d'une demande d'élève (Directeur)"
+
+msgid "رفض طلب أستاذ - المرحلة الأولى (المدير)"
+msgstr "Refus d'une demande d'enseignant — étape 1 (Directeur)"
+
+msgid "رفض طلب أستاذ - المرحلة الثانية (المشرف)"
+msgstr "Refus d'une demande d'enseignant — étape 2 (Adjoint)"
+
+msgid "الطالبات البالغات"
+msgstr "Femmes adultes"
+
+msgid "ملف صوتي"
+msgstr "Fichier audio"
+
+msgid "مُقدَّمة"
+msgstr "Soumise"
+
+msgid "مصححة تلقائياً"
+msgstr "Corrigée automatiquement"
+
+msgid "مصححة"
+msgstr "Corrigée"

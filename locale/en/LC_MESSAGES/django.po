@@ -7250,3 +7250,70 @@ msgid ""
 msgstr ""
 "%(configures)s of %(total)s \"group\" rates defined. The following cases have no rate —\n"
 "    any teacher/student concerned will not have their salary computed automatically for this halqa type until it is defined:"
+
+msgid "مؤطر"
+msgstr "Supervisor"
+
+msgid "المشرف"
+msgstr "Deputy"
+
+msgid "إنذار أول ← إنذار ثاني ← خصم من الراتب"
+msgstr "First warning → second warning → salary deduction"
+
+msgid "دفع متأخر"
+msgstr "Late payment"
+
+msgid "طلاب متأخرون عن دفع الاشتراك"
+msgstr "Students overdue on subscription payment"
+
+msgid "لقد تأخّرت عن دفع اشتراكك — يرجى إرسال إثبات الدفع في أقرب وقت"
+msgstr "You are late paying your subscription — please send a payment proof as soon as possible"
+
+#, python-format
+msgid "%(nom)s متأخر عن دفع الاشتراك"
+msgstr "%(nom)s is overdue on subscription payment"
+
+msgid "قيد الانتظار"
+msgstr "Pending"
+
+msgid "موافَق عليها"
+msgstr "Approved"
+
+msgid "مرفوضة"
+msgstr "Rejected"
+
+msgid "مقبولة"
+msgstr "Accepted"
+
+msgid "الجميع"
+msgstr "Both"
+
+msgid "مقبول من المدير — بانتظار تصديق المشرف"
+msgstr "Approved by the Director — awaiting Deputy validation"
+
+msgid "مقبول نهائياً"
+msgstr "Finally approved"
+
+msgid "رفض طلب طالب (المدير)"
+msgstr "Rejection of a student request (Director)"
+
+msgid "رفض طلب أستاذ - المرحلة الأولى (المدير)"
+msgstr "Rejection of a teacher request — step 1 (Director)"
+
+msgid "رفض طلب أستاذ - المرحلة الثانية (المشرف)"
+msgstr "Rejection of a teacher request — step 2 (Deputy)"
+
+msgid "الطالبات البالغات"
+msgstr "Adult women"
+
+msgid "ملف صوتي"
+msgstr "Audio file"
+
+msgid "مُقدَّمة"
+msgstr "Submitted"
+
+msgid "مصححة تلقائياً"
+msgstr "Auto-graded"
+
+msgid "مصححة"
+msgstr "Graded"
