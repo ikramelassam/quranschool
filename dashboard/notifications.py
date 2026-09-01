@@ -196,13 +196,13 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
     # (ou dès que l'élève soumet une preuve, qui met la relance en pause — voir
     # payments.cycles.est_en_retard). Aucune notion de « 24h » à répéter : la
     # notification est revue à chaque connexion.
-    from payments.cycles import cycle_courant, est_en_retard
+    from payments.cycles import cycle_courant, cycle_est_en_retard
 
+    cycle_paiement = cycle_courant(eleve)
     evenements_retard_paiement = []
-    if est_en_retard(eleve):
-        cycle = cycle_courant(eleve)
+    if cycle_est_en_retard(cycle_paiement):
         echeance_dt = timezone.make_aware(
-            datetime.datetime.combine(cycle.date_echeance, datetime.time())
+            datetime.datetime.combine(cycle_paiement.date_echeance, datetime.time())
         )
         evenements_retard_paiement = [{
             'texte': _('لقد تأخّرت عن دفع اشتراكك — يرجى إرسال إثبات الدفع في أقرب وقت'),

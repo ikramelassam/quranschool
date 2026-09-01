@@ -153,5 +153,11 @@ class CycleAbonnement(models.Model):
     class Meta:
         unique_together = ('eleve', 'numero')
         ordering = ['eleve', 'numero']
+        # Requête chaude : payments.cycles.cycles_ouverts_en_retard() tourne à
+        # chaque affichage de la page d'accueil مدير/مشرف (panneau 🔔) et de la
+        # page paiements_retards — filtre (regle=False, date_echeance < today).
+        indexes = [
+            models.Index(fields=['regle', 'date_echeance'], name='cycle_abo_retard_idx'),
+        ]
         verbose_name = "Cycle d'abonnement"
         verbose_name_plural = "Cycles d'abonnement"

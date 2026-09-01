@@ -471,7 +471,7 @@ def paiements_retards(request):
             'jours_retard': (aujourdhui - cycle.date_echeance).days,
             'groupes': list(eleve.groupes.all()),
         }
-        for eleve, cycle in eleves_en_retard()
+        for eleve, cycle in eleves_en_retard(avec_groupes=True)
     ]
     lignes.sort(key=lambda l: l['jours_retard'], reverse=True)
 

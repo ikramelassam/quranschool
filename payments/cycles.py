@@ -56,6 +56,19 @@ def _mois_payes(eleve, statuts):
     }
 
 
+def _mois_couvrants_par_eleve(eleve_ids, statuts=('valide', 'en_attente')):
+    """{eleve_id: {(année, mois), ...}} pour une LISTE d'élèves, en UNE requête
+    (voir cycles_ouverts_en_retard) — jamais une requête par élève."""
+    from .models import Paiement
+
+    couverture = {}
+    for eid, a, m in Paiement.objects.filter(
+        eleve_id__in=list(eleve_ids), statut__in=statuts,
+    ).values_list('eleve_id', 'mois_reference__year', 'mois_reference__month'):
+        couverture.setdefault(eid, set()).add((a, m))
+    return couverture
+
+
 def _fin_couverte_contigue(mois_payes, depuis):
     """Dernier jour du dernier mois d'une suite CONTIGUË de mois présents dans
     `mois_payes`, en partant du mois de `depuis`. None si le mois de départ
@@ -145,37 +158,74 @@ def reconcilier(eleve):
         )
 
 
-def est_en_retard(eleve, aujourdhui=None):
-    """True si le cycle courant a dépassé son échéance ET rien de non-rejeté ne
-    le couvre encore (un Paiement `en_attente` sur le 1er mois du cycle suspend
-    la relance sans faire avancer le cycle)."""
-    cycle = cycle_courant(eleve)
-    if cycle is None:
+def cycle_est_en_retard(cycle, aujourdhui=None):
+    """True si CE cycle (déjà chargé) est ouvert, échu, et non couvert par un
+    Paiement `valide`/`en_attente` sur son 1er mois — 1 requête (`.exists()`).
+    Un Paiement `en_attente` suspend la relance sans faire avancer le cycle."""
+    if cycle is None or cycle.regle:
         return False
     aujourdhui = aujourdhui or timezone.localdate()
     if aujourdhui <= cycle.date_echeance:
         return False
-    mois_couvrants = _mois_payes(eleve, ['valide', 'en_attente'])
-    return (cycle.date_debut.year, cycle.date_debut.month) not in mois_couvrants
+    from .models import Paiement
+
+    return not Paiement.objects.filter(
+        eleve_id=cycle.eleve_id,
+        statut__in=('valide', 'en_attente'),
+        mois_reference__year=cycle.date_debut.year,
+        mois_reference__month=cycle.date_debut.month,
+    ).exists()
 
 
-def eleves_en_retard():
-    """Générateur de (Eleve, CycleAbonnement) pour chaque élève ACTIF en retard.
+def est_en_retard(eleve, aujourdhui=None):
+    """Idem pour un élève dont on ne connaît pas encore le cycle courant —
+    2 requêtes (cycle courant + `.exists()`). Pour une LISTE d'élèves, ne
+    jamais boucler là-dessus : utiliser eleves_en_retard() (2 requêtes au
+    total, voir sa docstring)."""
+    return cycle_est_en_retard(cycle_courant(eleve), aujourdhui)
 
-    Coût : ~2 requêtes par élève actif (cycle courant + mois payés). Acceptable
-    ici — appelé uniquement depuis la page d'accueil du مدير (dashboard.
-    notifications.notifications_direction) et la page payments.views.
-    paiements_retards, jamais sur chaque page (voir dashboard.notifications.
-    __doc__). À revoir si le nombre d'élèves actifs devient très grand."""
-    from accounts.models import Eleve
+
+def cycles_ouverts_en_retard(avec_groupes=False):
+    """Liste des CycleAbonnement réellement en retard (ouvert + échu + élève
+    non archivé + 1er mois non couvert par un Paiement valide/en_attente).
+
+    **Nombre de requêtes CONSTANT**, quel que soit le nombre d'élèves — jamais
+    de boucle par élève (c'était le point chaud des pages 🔔 مدير / de la page
+    paiements_retards, corrigé le 2026-09-01) :
+      1. tous les cycles ouverts échus des élèves non archivés, `eleve__user`
+         en select_related ;
+      2. les mois `valide`/`en_attente` de ces seuls élèves, en un lot ;
+      (3. si `avec_groupes` : les halqas de ces élèves, en un lot — utile
+          UNIQUEMENT à la page paiements_retards qui les affiche ; le panneau
+          🔔 n'en a pas besoin.)
+    Index dédié : payments_cycleabonnement (regle, date_echeance).
+
+    Invariant : au plus UN cycle ouvert par élève (reconcilier / demarrer_
+    cycles / redemarrer_cycle_courant le garantissent), donc aucun dédoublon
+    à gérer ici."""
+    from .models import CycleAbonnement
 
     aujourdhui = timezone.localdate()
-    for eleve in Eleve.actifs.select_related('user').prefetch_related('cycles_abonnement'):
-        cycle = next(
-            (c for c in sorted(eleve.cycles_abonnement.all(), key=lambda c: c.numero) if not c.regle),
-            None,
-        )
-        if cycle is None or aujourdhui <= cycle.date_echeance:
-            continue
-        if est_en_retard(eleve, aujourdhui=aujourdhui):
-            yield eleve, cycle
+    qs = (
+        CycleAbonnement.objects.filter(regle=False, date_echeance__lt=aujourdhui)
+        .exclude(eleve__statut='archive')
+        .select_related('eleve__user')
+    )
+    if avec_groupes:
+        qs = qs.prefetch_related('eleve__groupes')
+    candidats = list(qs)
+    if not candidats:
+        return []
+
+    couverture = _mois_couvrants_par_eleve([c.eleve_id for c in candidats])
+    return [
+        c for c in candidats
+        if (c.date_debut.year, c.date_debut.month) not in couverture.get(c.eleve_id, ())
+    ]
+
+
+def eleves_en_retard(avec_groupes=False):
+    """(Eleve, CycleAbonnement) pour chaque élève en retard — voir
+    cycles_ouverts_en_retard() (nombre de requêtes constant, aucune boucle
+    par élève)."""
+    return [(c.eleve, c) for c in cycles_ouverts_en_retard(avec_groupes=avec_groupes)]

@@ -137,6 +137,26 @@ class CycleAbonnementTests(TestCase):
         self.eleve.save(update_fields=['statut'])
         self.assertNotIn(self.eleve.id, [e.id for e, c in cycles.eleves_en_retard()])
 
+    def test_eleves_en_retard_nombre_de_requetes_borne_independamment_du_nombre_deleves(self):
+        # Perf : jamais O(nombre d'élèves) — 2 requêtes quel que soit l'effectif
+        # (voir cycles.cycles_ouverts_en_retard). Ici on en met 12 en retard.
+        for i in range(12):
+            e = _creer_eleve(f'perf_retard_{i}@zidni.test')
+            cycles.demarrer_cycles(e)
+            c = cycles.cycle_courant(e)
+            c.date_echeance = timezone.localdate() - datetime.timedelta(days=2)
+            c.save(update_fields=['date_echeance'])
+        with self.assertNumQueries(2):  # cycles+users, puis paiements — jamais O(élèves)
+            resultat = cycles.eleves_en_retard()
+        self.assertEqual(len(resultat), 12)
+        with self.assertNumQueries(3):  # + prefetch groupes pour la page dédiée
+            self.assertEqual(len(cycles.eleves_en_retard(avec_groupes=True)), 12)
+
+    def test_eleves_en_retard_une_seule_requete_si_aucun_candidat(self):
+        cycles.demarrer_cycles(self.eleve)  # pas échu
+        with self.assertNumQueries(1):
+            self.assertEqual(cycles.eleves_en_retard(), [])
+
 
 @override_settings(STORAGES=_STORAGES_TEST)
 class RetardsIntegrationTests(TestCase):
