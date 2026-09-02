@@ -8,10 +8,18 @@ lien en bas du dropdown, voir dashboard/_header_raccourcis.html. Même
 structure visuelle que le dropdown.
 - élève/prof/مؤطر : groupé par type, chaque ligne est par construction non lue
   (elle disparaît dès que son type est visité).
-- direction (مدير/مشرف) : liste plate triée par date ; le panneau liste TOUTE
-  demande en attente (lue ou non), `evt.non_lu` marque celles arrivées depuis
-  la dernière visite de la page cible. Voir notifications_direction.
+- direction (مدير/مشرف) : liste plate triée par date = HISTORIQUE ; chaque
+  demande (en attente OU traitée) apparaît avec sa pastille `evt.statut_label` ;
+  `evt.non_lu` marque celles encore actionnables arrivées depuis la dernière
+  visite de la page cible. Voir notifications_direction.
 {% endcomment %}
+<style>
+    .notif-statut { display:inline-block; margin-inline-start:6px; padding:1px 7px; border-radius:10px; font-size:0.72em; font-weight:700; white-space:nowrap; vertical-align:middle; }
+    .notif-statut--attente { background:#FDF0D5; color:#8A5D00; }
+    .notif-statut--ok { background:#E3F4E4; color:#1E7B33; }
+    .notif-statut--ko { background:#FBE4E4; color:#B42318; }
+    .notif-statut--neutre { background:#ECECEC; color:#5B5B5B; }
+</style>
 <div class="page-title">{% trans "الإشعارات" %}</div>
 {% comment %}
 Sous-titre par rôle (chantier du 2026-08-24, ajout مدير/مشرف) — le texte
@@ -45,7 +53,7 @@ dashboard.notifications.notifications_direction) : pas d'en-tête, icône
     {% endif %}
     {% for evt in groupe.evenements %}
     <a href="{{ evt.url }}" style="display:flex; justify-content:space-between; align-items:baseline; gap:14px; padding:12px 20px; text-decoration:none; color:inherit; border-top:1px solid #f1e7d6;{% if evt.non_lu %} background:#FFFBF0;{% endif %}">
-        <span style="font-weight:600; font-size:0.92rem;">{% if evt.non_lu %}<span aria-hidden="true" style="color:var(--color-danger); font-size:0.55em; vertical-align:middle; margin-inline-end:6px;">●</span>{% endif %}{% if evt.icone %}<span aria-hidden="true">{{ evt.icone }}</span> {% endif %}{{ evt.texte }}</span>
+        <span style="font-weight:600; font-size:0.92rem;">{% if evt.non_lu %}<span aria-hidden="true" style="color:var(--color-danger); font-size:0.55em; vertical-align:middle; margin-inline-end:6px;">●</span>{% endif %}{% if evt.icone %}<span aria-hidden="true">{{ evt.icone }}</span> {% endif %}{{ evt.texte }}{% if evt.statut_label %}<span class="notif-statut notif-statut--{{ evt.statut_ton }}">{{ evt.statut_label }}</span>{% endif %}</span>
         <span style="color:#888; font-size:0.78rem; white-space:nowrap; flex-shrink:0;">{{ evt.date|depuis_relatif }}</span>
     </a>
     {% endfor %}

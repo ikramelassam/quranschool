@@ -328,96 +328,65 @@ def notifications_superviseur(user, limite=LIMITE_PAR_GROUPE):
 
 
 def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
-    """(groupes, total) pour le panneau 🔔 côté مدير/مشرف (Chantier du
-    2026-08-24 ; refonte de la présentation le 2026-09-02).
+    """(groupes, total) pour la cloche 🔔 côté مدير/مشرف (Chantier du
+    2026-08-24 ; refontes successives des 2026-09-02).
 
-    PRÉSENTATION — LISTE PLATE (révision du 2026-09-02, option (iii) validée
-    explicitement) : `groupes` contient AU PLUS UN pseudo-groupe sans `label`,
-    dont `evenements` est la fusion de TOUS les types ci-dessous, triée par
-    `date` STRICTEMENT décroissante (le plus récent en tête). Chaque évènement
-    porte une clé `icone` (rendue en tête de ligne côté template). AUCUN
-    regroupement par type — décision prise pour garantir à la fois « le plus
-    récent d'abord » ET « aucune demande ancienne reléguée hors de vue dans un
-    groupe du bas » (le regroupement + tri par récence du groupe enterrait les
-    inscriptions anciennes non traitées, cf. incident du 2026-09-02). Les
-    panneaux élève/prof/مؤطر, eux, restent groupés par type
-    (_trier_groupes_par_recence).
+    CENTRE DE NOTIFICATIONS AVEC HISTORIQUE (révision du 2026-09-02, option
+    validée explicitement) :
 
-    BADGE ≠ PANNEAU (révision du 2026-09-02, décision explicite) — la cloche
-    direction est un vrai CENTRE de notifications, pas un simple flux
-    d'inédits :
-      * `total` (le badge rouge sur l'icône) = uniquement les évènements NON
-        LUS, c.-à-d. postérieurs à la dernière visite de leur page cible
-        (marquer_visite). Visiter la page vide donc le badge de ce type.
-      * `groupes[0]['evenements']` (le contenu du panneau) = TOUTE demande
-        encore en attente, lue ou non, triée par date. Le panneau ne se vide
-        JAMAIS tant qu'il reste quelque chose à traiter ; visiter la page ne
-        retire rien de la liste (contrairement aux panneaux élève/prof, où
-        chaque évènement est par construction non lu). Chaque évènement porte
-        `non_lu` (bool) pour un marquage visuel côté template.
+      * `groupes` contient AU PLUS UN pseudo-groupe sans `label` — le template
+        rend alors une LISTE PLATE (pas d'en-tête de type), triée par `date`
+        STRICTEMENT décroissante (le plus récent en tête).
 
-    ÉVÉNEMENTS FUSIONNÉS — 2 événements possibles :
+      * Le panneau montre l'HISTORIQUE : chaque demande d'inscription élève /
+        candidature prof / changement de halaka apparaît, qu'elle soit encore
+        en attente OU déjà traitée (acceptée/refusée). Chaque évènement porte :
+          - `icone`       : 📝 / 👨‍🏫 / 🔄 / ⚠️ (type)
+          - `statut_label`, `statut_ton` : pastille de statut côté template
+            ('attente' ambre, 'ok' vert, 'ko' rouge, 'neutre' gris)
+          - `non_lu`      : True UNIQUEMENT si l'évènement est encore
+            actionnable par CE rôle ET postérieur à la dernière visite de sa
+            page cible (marquer_visite). C'est `non_lu` qui alimente le badge.
 
-    1. Nouvelle demande d'inscription élève (InscriptionEleve.
-    date_soumission, auto_now_add — même garantie anti-fausse-notification
-    que le reste du module, voir docstring en tête de fichier), qu'elle
-    vienne du wizard public (registration.views, cree_par=None) OU de
-    l'ajout manuel Directeur/مشرف (dashboard.views.admin_eleve_ajouter_
-    manuel, cree_par=request.user) — inscrire_eleve() est le point de
-    création UNIQUE pour les deux chemins (voir registration.utils.
-    inscrire_eleve.__doc__), donc AUCUNE distinction de source n'est
-    nécessaire ici : une seule requête couvre les deux.
+      * `total` (le badge rouge) = nombre de `non_lu`. Visiter la page cible
+        d'un type (marquer_visite) éteint le badge de ce type MAIS ne retire
+        RIEN de la liste — les demandes restent visibles, juste sans surlignage.
 
-    Un seul `cle` ('demandes_inscription') PARTAGÉ par مدير ET مشرف : les
-    deux rôles pointent vers la même page cible (admin_inscriptions, voir
-    dashboard.views.admin_inscriptions) et le même besoin — chacun garde
-    NÉANMOINS son propre repère de lecture individuel, DerniereVisiteNotification
-    étant déjà keyée par (user, cle) et pas juste par cle : la visite de
-    l'un ne marque jamais "lu" pour l'autre.
+      * Profondeur : les LIMITE_FETCH évènements les plus récents par source,
+        fusionnés puis retriés ; le dropdown en affiche `limite`
+        (LIMITE_LISTE_PLATE), la page « عرض الكل » LIMITE_FETCH.
 
-    1bis. Nouvelle candidature PROF encore en attente de la pré-validation
-    étape 1 (InscriptionProf.statut='en_attente', date_soumission
-    auto_now_add — même garantie anti-fausse-notification que le reste du
-    module). مدير UNIQUEMENT : cette pré-validation est @role_required('admin')
-    (voir admin_valider_prof/admin_rejeter_prof), le مشرف n'agit qu'à
-    l'étape 2 sur les 'validee_directeur' (groupe 2 ci-dessous) — lui
-    montrer aussi les 'en_attente' serait du bruit sur lequel il ne peut
-    rien faire. `cle` DÉDIÉE 'demandes_inscription_prof', PAS la
-    'demandes_inscription' des élèves : repère de lecture distinct, pour
-    que visiter la fiche d'un élève ne fasse pas disparaître les
-    notifications profs et inversement (même précision que le correctif du
-    2026-08-25). Marquée lue par admin_inscriptions (liste mixte) ET
-    admin_inscription_prof_detail (fiche), exactement comme le couple
-    liste/fiche du groupe 1. Mène vers la fiche (admin_inscription_prof_
-    detail), comme le groupe 1.
+    Les panneaux élève/prof/مؤطر, eux, restent un simple flux d'inédits
+    groupé par type (chaque ligne par construction non lue) — voir
+    _trier_groupes_par_recence.
 
-    2. Candidature prof pré-validée par le مدير, en attente de la
-    validation finale du مشرف (InscriptionProf.statut='validee_directeur')
-    — Fonctionnalité 3 (2026-08-27, chantier annoncé mais volontairement
-    reporté au 2026-08-24, voir l'ancienne version de cette docstring).
-    مشرف UNIQUEMENT (jamais مدير : c'est lui qui déclenche cette transition,
-    rien ne l'attend en retour) — filtré ici sur `user.role`, pas sur un
-    `cle` séparé par rôle (inutile, un seul rôle le voit jamais). Repose sur
-    InscriptionProf.date_validee_directeur, un horodatage DÉDIÉ posé par
-    dashboard.views.admin_valider_prof/admin_prof_ajouter_manuel au moment
-    exact de la transition (voir son docstring : jamais date_soumission,
-    souvent bien antérieur si le dossier traînait en 'en_attente'). Mène vers
-    la FICHE du candidat concerné (mshrif_inscription_prof_detail), comme le
-    groupe 1 et le groupe 1bis ci-dessus — révision du 2026-09-02 (avant :
-    lien vers la liste mshrif_inscriptions_profs, jugé trop indirect). La
-    fiche détail appelle marquer_visite(user, 'profs_en_attente_validation')
-    au même titre que la liste, donc lire la fiche vide bien le badge.
+    SOURCES :
 
-    3. Demande de changement de halaka par un élève (courses.models.
-    DemandeChangementHalaka, statut='en_attente') — Fonctionnalité 4
-    (2026-08-27). Visible par مدير ET مشرف (contrairement au groupe 2 :
-    "un seul des deux rôles suffit pour trancher, peu importe lequel" —
-    décision explicite du client), même `cle` partagée que le groupe 1
-    ('demandes_inscription' NON réutilisée ici, un `cle` dédié
-    'demandes_changement_halaka' — repère de lecture distinct, une visite
-    de admin_inscriptions ne doit jamais marquer celui-ci comme lu). Mène
-    vers la LISTE (admin_demandes_changement_halaka), même décision que le
-    groupe 2 ci-dessus."""
+    1. InscriptionEleve — TOUT statut (en_attente / valide / rejete). `cle`
+    de lecture 'demandes_inscription', partagée مدير+مشرف (repère individuel
+    par (user, cle)). `non_lu` sur 'en_attente' seulement. Lien : la fiche
+    admin_inscription_eleve_detail (accepte tous les statuts).
+
+    2. InscriptionProf — TOUT statut.
+       - مدير : voit tous les statuts, `non_lu` sur 'en_attente' (`cle`
+         'demandes_inscription_prof'). Lien : admin_inscription_prof_detail
+         (aucune garde de statut).
+       - مشرف : voit 'validee_directeur' + finaux, MASQUE 'en_attente' (pas
+         encore de son ressort). `non_lu` sur 'validee_directeur' (`cle`
+         'profs_en_attente_validation', horodatage date_validee_directeur).
+         Lien : mshrif_inscription_prof_detail pour 'validee_directeur'
+         (seul statut que cette vue accepte), sinon la liste
+         mshrif_inscriptions_profs.
+
+    3. DemandeChangementHalaka — TOUT statut (en_attente / validee / refusee),
+    مدير + مشرف, `cle` 'demandes_changement_halaka'. `non_lu` sur 'en_attente'.
+    Lien : la liste admin_demandes_changement_halaka.
+
+    4. Élèves en retard de paiement (payments.cycles.eleves_en_retard) — pas
+    d'historique propre (un élève quitte la liste dès qu'il paie), donc
+    seulement l'état courant. `non_lu` = échéance postérieure à la dernière
+    visite de paiements_retards (`cle` 'paiements_retard_eleves'). Pas de
+    pastille de statut."""
     from inscriptions.models import InscriptionEleve, InscriptionProf
     from courses.models import DemandeChangementHalaka
     from payments.cycles import eleves_en_retard
@@ -429,77 +398,90 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
         cles.append('demandes_inscription_prof')
     seuils = _seuils(user, cles)
 
-    # Chaque évènement : {texte, url, date, icone, non_lu}. `non_lu` = créé /
-    # transité APRÈS la dernière visite de sa page cible (seuil) — c'est LUI
-    # qui alimente le badge. Le panneau, lui, liste TOUT ce qui est encore en
-    # attente, lu ou non (voir docstring : BADGE ≠ PANNEAU).
+    est_mshrif = user.role == 'mshrif'
+
+    # (libellé, ton) de pastille par statut — construits ici (jamais au niveau
+    # module : `_` = gettext non-lazy, doit être résolu à chaque requête). Tous
+    # les libellés réutilisent des msgid DÉJÀ traduits FR/EN (voir catalogue).
+    statut_eleve = {
+        'en_attente': (_('قيد الانتظار'), 'attente'),
+        'valide': (_('مقبول'), 'ok'),
+        'rejete': (_('مرفوض'), 'ko'),
+    }
+    statut_prof = {
+        'en_attente': (_('قيد الانتظار'), 'attente'),
+        'validee_directeur': (_('قيد الانتظار'), 'attente'),
+        'valide': (_('مقبول نهائياً'), 'ok'),
+        'rejete': (_('مرفوض'), 'ko'),
+    }
+    statut_halaka = {
+        'en_attente': (_('قيد الانتظار'), 'attente'),
+        'validee': (_('مقبولة'), 'ok'),
+        'refusee': (_('مرفوضة'), 'ko'),
+    }
+
     evenements = []
 
-    # 1. Demandes d'inscription élève en attente (مدير + مشرف).
-    for d in (
-        InscriptionEleve.objects.filter(statut='en_attente')
-        .order_by('-date_soumission')[:LIMITE_FETCH]
-    ):
+    # 1. Inscriptions élève — historique complet.
+    for d in InscriptionEleve.objects.order_by('-date_soumission')[:LIMITE_FETCH]:
+        libelle, ton = statut_eleve.get(d.statut, (d.get_statut_display(), 'neutre'))
         evenements.append({
             'texte': _('طلب تسجيل جديد: %(nom)s') % {'nom': d.nom},
             'url': reverse('admin_inscription_eleve_detail', args=[d.id]),
             'date': d.date_soumission,
             'icone': '📝',
-            'non_lu': d.date_soumission > seuils['demandes_inscription'],
+            'statut_label': libelle,
+            'statut_ton': ton,
+            'non_lu': d.statut == 'en_attente' and d.date_soumission > seuils['demandes_inscription'],
         })
 
-    # 1bis. Nouvelles candidatures prof en attente de pré-validation étape 1,
-    # مدير UNIQUEMENT (voir docstring).
-    if user.role == 'admin':
-        for p in (
-            InscriptionProf.objects.filter(statut='en_attente')
-            .order_by('-date_soumission')[:LIMITE_FETCH]
-        ):
-            evenements.append({
-                'texte': _('طلب تسجيل أستاذ جديد: %(nom)s %(prenom)s') % {'nom': p.nom, 'prenom': p.prenom},
-                'url': reverse('admin_inscription_prof_detail', args=[p.id]),
-                'date': p.date_soumission,
-                'icone': '👨‍🏫',
-                'non_lu': p.date_soumission > seuils['demandes_inscription_prof'],
-            })
+    # 2. Candidatures prof — historique complet. مشرف masque 'en_attente'.
+    url_liste_profs_mshrif = reverse('mshrif_inscriptions_profs')
+    for p in InscriptionProf.objects.order_by('-date_soumission')[:LIMITE_FETCH]:
+        if est_mshrif and p.statut == 'en_attente':
+            continue
+        libelle, ton = statut_prof.get(p.statut, (p.get_statut_display(), 'neutre'))
+        if est_mshrif:
+            non_lu = bool(
+                p.statut == 'validee_directeur'
+                and p.date_validee_directeur
+                and p.date_validee_directeur > seuils['profs_en_attente_validation']
+            )
+            url = (
+                reverse('mshrif_inscription_prof_detail', args=[p.id])
+                if p.statut == 'validee_directeur' else url_liste_profs_mshrif
+            )
+        else:
+            non_lu = p.statut == 'en_attente' and p.date_soumission > seuils['demandes_inscription_prof']
+            url = reverse('admin_inscription_prof_detail', args=[p.id])
+        evenements.append({
+            'texte': _('طلب تسجيل أستاذ جديد: %(nom)s %(prenom)s') % {'nom': p.nom, 'prenom': p.prenom},
+            'url': url,
+            'date': p.date_soumission,
+            'icone': '👨‍🏫',
+            'statut_label': libelle,
+            'statut_ton': ton,
+            'non_lu': non_lu,
+        })
 
-    # 2. Candidatures prof pré-validées par le مدير, en attente du تصديق final
-    # du مشرف, مشرف UNIQUEMENT (voir docstring). date_validee_directeur peut
-    # être NULL sur d'anciens dossiers -> repli sur date_soumission pour le
-    # tri d'affichage, et jamais « non lu » dans ce cas (rien de daté à comparer).
-    if user.role == 'mshrif':
-        for p in (
-            InscriptionProf.objects.filter(statut='validee_directeur')
-            .order_by('-date_validee_directeur', '-date_soumission')[:LIMITE_FETCH]
-        ):
-            evenements.append({
-                'texte': _('طلب أستاذ بانتظار تصديقك: %(nom)s %(prenom)s') % {'nom': p.nom, 'prenom': p.prenom},
-                'url': reverse('mshrif_inscription_prof_detail', args=[p.id]),
-                'date': p.date_validee_directeur or p.date_soumission,
-                'icone': '👨‍🏫',
-                'non_lu': bool(
-                    p.date_validee_directeur
-                    and p.date_validee_directeur > seuils['profs_en_attente_validation']
-                ),
-            })
-
-    # 3. Demandes de changement de halaka en attente (مدير + مشرف).
+    # 3. Demandes de changement de halaka — historique complet.
     url_changement_halaka = reverse('admin_demandes_changement_halaka')
     for d in (
-        DemandeChangementHalaka.objects.filter(statut='en_attente')
-        .select_related('eleve__user').order_by('-date_demande')[:LIMITE_FETCH]
+        DemandeChangementHalaka.objects.select_related('eleve__user')
+        .order_by('-date_demande')[:LIMITE_FETCH]
     ):
+        libelle, ton = statut_halaka.get(d.statut, (d.get_statut_display(), 'neutre'))
         evenements.append({
             'texte': _('طلب تغيير حلقة: %(nom)s') % {'nom': d.eleve.user.get_full_name()},
             'url': url_changement_halaka,
             'date': d.date_demande,
             'icone': '🔄',
-            'non_lu': d.date_demande > seuils['demandes_changement_halaka'],
+            'statut_label': libelle,
+            'statut_ton': ton,
+            'non_lu': d.statut == 'en_attente' and d.date_demande > seuils['demandes_changement_halaka'],
         })
 
-    # 4. Élèves en retard de paiement (مدير + مشرف). eleves_en_retard() renvoie
-    # déjà la liste complète ; on la garde entière, `non_lu` = échéance
-    # postérieure à la dernière visite de la page متأخرون عن الدفع.
+    # 4. Élèves en retard de paiement (état courant seulement, pas d'historique).
     url_retards = reverse('paiements_retards')
     for eleve, cycle in eleves_en_retard():
         echeance_dt = timezone.make_aware(
@@ -510,13 +492,13 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
             'url': url_retards,
             'date': echeance_dt,
             'icone': '⚠️',
+            'statut_label': '',
+            'statut_ton': '',
             'non_lu': echeance_dt > seuils['paiements_retard_eleves'],
         })
 
     evenements.sort(key=lambda e: e['date'], reverse=True)
 
-    # Badge = uniquement les non-lus (se vide quand toutes les pages cibles ont
-    # été visitées). Panneau = toute la liste triée, plafonnée à `limite`.
     total = sum(1 for e in evenements if e['non_lu'])
     groupes = (
         [{'icone': '', 'label': '', 'evenements': evenements[:limite]}]
