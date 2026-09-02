@@ -170,6 +170,7 @@ urlpatterns = [
     path('admin/gestion-inscriptions/', views.admin_gestion_inscriptions, name='admin_gestion_inscriptions'),
     path('admin/reglage-lien-seance/', views.admin_reglage_lien_seance, name='admin_reglage_lien_seance'),
     path('admin/reglage-retention-chat/', views.admin_reglage_retention_chat, name='admin_reglage_retention_chat'),
+    path('admin/reglage-relance-whatsapp/', views.admin_reglage_relance_whatsapp, name='admin_reglage_relance_whatsapp'),
     path('seances/<int:seance_id>/rejoindre/', views.rejoindre_seance, name='rejoindre_seance'),
 
     # Bilans mensuels élèves (prof: saisie ; مدير/مؤطر/مشرف: lecture seule)

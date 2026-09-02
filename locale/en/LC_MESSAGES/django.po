@@ -8337,3 +8337,33 @@ msgstr "With {personne}"
 
 msgid "لا يوجد رقم هاتف مسجَّل لهذا {personne}"
 msgstr "No phone number on record — {personne}"
+
+msgid "رسالة التذكير عبر واتساب"
+msgstr "WhatsApp reminder message"
+
+msgid "النص المقترح تلقائياً عند النقر على أيقونة واتساب في صفحة « متأخرون عن دفع الاشتراك »"
+msgstr "Text pre-filled when clicking the WhatsApp icon on the « Subscription payment overdue » page"
+
+msgid "يمكنك استعمال العناصر التالية وسيتم استبدالها تلقائياً لكل طالب:"
+msgstr "You can use the following placeholders, replaced automatically for each student:"
+
+msgid "اسم الطالب"
+msgstr "Student's name"
+
+msgid "تاريخ أجل الدفع"
+msgstr "Payment due date"
+
+msgid "عدد أيام التأخر"
+msgstr "Number of days overdue"
+
+msgid "لا تُرسل المنصة أي رسالة تلقائياً — النقر يفتح فقط محادثة واتساب بالنص جاهزاً، والإرسال يبقى يدوياً."
+msgstr "The platform never sends any message automatically — clicking only opens the WhatsApp conversation with the text ready; sending stays manual."
+
+msgid "تعديل نص رسالة التذكير عبر واتساب"
+msgstr "Edit the WhatsApp reminder message text"
+
+msgid "لا يمكن ترك نص الرسالة فارغاً."
+msgstr "The message text cannot be empty."
+
+msgid "تم تحديث نص رسالة التذكير بنجاح."
+msgstr "The reminder message text has been updated."

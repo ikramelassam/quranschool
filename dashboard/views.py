@@ -742,6 +742,35 @@ def admin_reglage_retention_chat(request):
     })
 
 
+@role_required('admin', 'mshrif')
+def admin_reglage_relance_whatsapp(request):
+    """Message WhatsApp pré-rempli proposé sur chaque ligne de la page
+    « متأخرون عن دفع الاشتراك » (payments.views.paiements_retards) — مدير ET
+    مشرف (les deux voient déjà cette page), même patron que
+    admin_reglage_lien_seance. Le texte peut contenir les espaces réservés
+    {nom}, {date_echeance} et {jours_retard}, remplacés à l'affichage."""
+    from payments.models import get_reglage_relance_whatsapp
+
+    reglage = get_reglage_relance_whatsapp()
+    if request.method == 'POST':
+        message = (request.POST.get('message') or '').strip()
+        if not message:
+            messages.error(request, gettext_('لا يمكن ترك نص الرسالة فارغاً.'))
+            return redirect('admin_reglage_relance_whatsapp')
+        reglage.message = message
+        reglage.derniere_modification_par = request.user
+        reglage.save()
+        messages.success(request, gettext_('تم تحديث نص رسالة التذكير بنجاح.'))
+        return redirect('admin_reglage_relance_whatsapp')
+
+    context = {
+        'reglage': reglage,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_reglage_relance_whatsapp.html', context)
+
+
 @role_required('admin', 'mshrif', 'superviseur', 'prof', 'eleve')
 def rejoindre_seance(request, seance_id):
     """Passerelle serveur pour le lien de réunion d'une séance — jamais un

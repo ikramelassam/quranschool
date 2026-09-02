@@ -4,6 +4,13 @@
 {% block content %}
 <div class="page-title">{% trans "متأخرون عن دفع الاشتراك" %}</div>
 <div class="page-subtitle">{% trans "طلاب نشطون تجاوزوا أجل الدفع ولم يُرسلوا بعد أي إثبات — لا تزال الإشعارات تُرسل إليهم" %}</div>
+{% if lignes %}
+<div style="margin-bottom:16px;">
+    <a href="{% url 'admin_reglage_relance_whatsapp' %}" style="color:#25644a; font-size:0.85rem; text-decoration:none;">
+        ✏️ {% trans "تعديل نص رسالة التذكير عبر واتساب" %}
+    </a>
+</div>
+{% endif %}
 
 {% trans "هل تريد أرشفة هذا الطالب؟ لن يتمكن من الدخول إلى حسابه، ويمكن إعادة تفعيله لاحقاً." as confirmation_archivage %}
 {% for ligne in lignes %}
@@ -20,7 +27,8 @@
                 {% blocktrans with date=ligne.cycle.date_echeance|date:"d-m-Y" jours=ligne.jours_retard %}أجل الدفع: {{ date }} — متأخر بـ {{ jours }} يوماً{% endblocktrans %}
             </div>
         </div>
-        <div class="d-flex gap-2" style="flex-shrink:0;">
+        <div class="d-flex gap-2" style="flex-shrink:0; align-items:center;">
+            {% include 'dashboard/_whatsapp_icon.html' with telephone=ligne.eleve.user.telephone texte=ligne.message_whatsapp %}
             <a href="{% url 'paiements_retards' %}"
                style="background:#f0f0f0; color:#666; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.85rem;">
                {% trans "الانتظار" %}

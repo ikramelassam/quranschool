@@ -167,3 +167,50 @@ class CycleAbonnement(models.Model):
         ]
         verbose_name = "Cycle d'abonnement"
         verbose_name_plural = "Cycles d'abonnement"
+
+
+# Espaces réservés remplacés à l'affichage de chaque ligne de la page
+# paiements_retards (voir payments.views._message_relance_whatsapp).
+MESSAGE_RELANCE_WHATSAPP_DEFAUT = (
+    'السلام عليكم ورحمة الله وبركاته\n'
+    'نذكّركم بأن اشتراك الطالب {nom} قد تجاوز أجل الدفع بتاريخ {date_echeance} '
+    '(متأخر بـ {jours_retard} يوماً).\n'
+    'نرجو تسوية الوضعية في أقرب وقت وجزاكم الله خيراً.'
+)
+
+
+class ReglageRelanceWhatsApp(models.Model):
+    """Message WhatsApp pré-rempli proposé sur chaque ligne de la page
+    « متأخرون عن دفع الاشتراك » (payments.views.paiements_retards) — modifiable
+    par le مدير ET le مشرف (dashboard.views.admin_reglage_relance_whatsapp),
+    même patron singleton que courses.models.ReglageLienSeance.
+
+    La plateforme n'envoie JAMAIS ce message : le clic sur l'icône ouvre
+    seulement la conversation WhatsApp avec le texte pré-saisi (paramètre
+    ?text= de wa.me — voir templates/dashboard/_whatsapp_icon.html), l'envoi
+    reste 100 % manuel. Espaces réservés remplacés à l'affichage :
+    {nom}, {date_echeance}, {jours_retard} (voir
+    payments.views._message_relance_whatsapp)."""
+
+    message = models.TextField(blank=True)
+    derniere_modification_par = models.ForeignKey(
+        'accounts.User', null=True, blank=True, on_delete=models.SET_NULL, related_name='+'
+    )
+    date_modification = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "رسالة تذكير الدفع عبر واتساب"
+
+    class Meta:
+        verbose_name = "Réglage relance WhatsApp"
+        verbose_name_plural = "Réglage relance WhatsApp"
+
+
+def get_reglage_relance_whatsapp():
+    """Renvoie l'unique instance de ReglageRelanceWhatsApp, en la créant avec le
+    message par défaut si elle n'existe pas encore — même patron singleton que
+    courses.models.get_reglage_lien_seance()."""
+    reglage, _cree = ReglageRelanceWhatsApp.objects.get_or_create(
+        pk=1, defaults={'message': MESSAGE_RELANCE_WHATSAPP_DEFAUT}
+    )
+    return reglage
