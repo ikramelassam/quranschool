@@ -7,6 +7,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as gettext_
 from accounts.decorators import role_required
 from core.utils import paginer
 from .models import Groupe, Creneau, HistoriqueGroupeEleve, LienMeet
@@ -94,7 +95,7 @@ def _resoudre_lien_meet_pour_formulaire(request):
         try:
             URLValidator()(url_collee)
         except ValidationError:
-            return None, 'الرابط الذي ألصقته غير صالح. تأكّد من نسخه كاملاً (يبدأ بـ https://).'
+            return None, gettext_('الرابط الذي ألصقته غير صالح. تأكّد من نسخه كاملاً (يبدأ بـ https://).')
         lien, _cree = LienMeet.objects.get_or_create(url=url_collee)
         return str(lien.id), None
     return (request.POST.get('lien_meet') or None), None
@@ -234,7 +235,7 @@ def groupe_ajouter(request):
 
         creneau_id = request.POST.get('creneau')
         if not creneau_id:
-            messages.error(request, 'يجب اختيار حلقة قبل إنشاء المجموعة. أنشئ حلقة أولاً إذا لم تتوفر أي حلقة.')
+            messages.error(request, gettext_('يجب اختيار حلقة قبل إنشاء المجموعة. أنشئ حلقة أولاً إذا لم تتوفر أي حلقة.'))
             return render(request, 'courses/admin_groupe_ajouter.html', {
                 'creneaux': creneaux,
                 'profs': profs,
@@ -268,7 +269,7 @@ def groupe_ajouter(request):
             # id manipulé (chantier d'archivage du 2026-08-03).
             prof_obj = get_object_or_404(Prof, id=prof_id)
             if prof_obj.statut == 'archive':
-                messages.error(request, f'تعذّر إسناد {prof_obj.user.get_full_name()}: هذا الأستاذ مؤرشف.')
+                messages.error(request, gettext_('تعذّر إسناد %(v0)s: هذا الأستاذ مؤرشف.') % {'v0': prof_obj.user.get_full_name()})
                 return render(request, 'courses/admin_groupe_ajouter.html', {
                     'creneaux': creneaux,
                     'profs': profs,
@@ -320,7 +321,7 @@ def groupe_ajouter(request):
             with transaction.atomic():
                 lien_meet_obj = get_object_or_404(LienMeet.objects.select_for_update(), id=lien_meet_id)
                 if not lien_meet_obj.est_actif:
-                    messages.error(request, 'هذا الرابط معطّل حالياً — اختر رابطاً آخر.')
+                    messages.error(request, gettext_('هذا الرابط معطّل حالياً — اختر رابطاً آخر.'))
                     return render(request, 'courses/admin_groupe_ajouter.html', {
                         'creneaux': creneaux,
                         'profs': profs,
@@ -329,7 +330,7 @@ def groupe_ajouter(request):
                     })
                 conflit = description_conflit_lien_meet(lien_meet_obj, creneau_obj)
                 if conflit:
-                    messages.error(request, f'تعذّر استخدام "{lien_meet_obj}" لهذا التوقيت: {conflit}')
+                    messages.error(request, gettext_('تعذّر استخدام "%(v0)s" لهذا التوقيت: %(v1)s') % {'v0': lien_meet_obj, 'v1': conflit})
                     return render(request, 'courses/admin_groupe_ajouter.html', {
                         'creneaux': creneaux,
                         'profs': profs,
@@ -356,7 +357,7 @@ def groupe_ajouter(request):
         regenerer_pour_nouveau_creneau(groupe)
         for avertissement in avertissements_prof:
             messages.warning(request, avertissement)
-        messages.success(request, 'تمت إضافة المجموعة وتوليد حصصها تلقائياً بنجاح.')
+        messages.success(request, gettext_('تمت إضافة المجموعة وتوليد حصصها تلقائياً بنجاح.'))
         return redirect('admin_groupes')
 
     return render(request, 'courses/admin_groupe_ajouter.html', {
@@ -519,17 +520,17 @@ def groupe_definir_critere(request, groupe_id, critere_id):
     critere = get_object_or_404(Critere, id=critere_id)
 
     if critere.backend != 'eav':
-        messages.error(request, 'هذا المعيار مشتق تلقائياً ولا يمكن تعديله يدوياً من هنا.')
+        messages.error(request, gettext_('هذا المعيار مشتق تلقائياً ولا يمكن تعديله يدوياً من هنا.'))
         return redirect('admin_groupe_detail', groupe.id)
 
     codes = request.POST.getlist('options')
     options = list(critere.options.filter(est_actif=True, code__in=codes))
     if len(options) != len(set(codes)):
-        messages.error(request, 'أحد الخيارات المرسلة غير صالح لهذا المعيار.')
+        messages.error(request, gettext_('أحد الخيارات المرسلة غير صالح لهذا المعيار.'))
         return redirect('admin_groupe_detail', groupe.id)
 
     definir_valeurs_groupe(groupe, critere, options)
-    messages.success(request, f'تم تحديث "{critere.label}" لهذه المجموعة.')
+    messages.success(request, gettext_('تم تحديث "%(v0)s" لهذه المجموعة.') % {'v0': critere.label})
     return redirect('admin_groupe_detail', groupe.id)
 
 
@@ -542,7 +543,7 @@ def groupe_ajouter_eleve(request, groupe_id):
         eleve = get_object_or_404(Eleve, id=eleve_id)
         raison = raison_incompatibilite_groupe(eleve, groupe)
         if raison:
-            messages.error(request, f'تعذّرت إضافة الطالب إلى المجموعة: {raison}')
+            messages.error(request, gettext_('تعذّرت إضافة الطالب إلى المجموعة: %(v0)s') % {'v0': raison})
         else:
             avertissements = avertissements_groupe(eleve, groupe)
             if avertissements and not confirme:
@@ -552,7 +553,7 @@ def groupe_ajouter_eleve(request, groupe_id):
                 _ajouter_eleve_au_groupe(eleve, groupe)
             for avertissement in avertissements:
                 messages.warning(request, avertissement)
-            messages.success(request, 'تمت إضافة الطالب إلى المجموعة.')
+            messages.success(request, gettext_('تمت إضافة الطالب إلى المجموعة.'))
     return redirect('admin_groupe_detail', groupe_id=groupe_id)
 
 
@@ -563,7 +564,7 @@ def groupe_retirer_eleve(request, groupe_id, eleve_id):
     if request.method == 'POST':
         with transaction.atomic():
             _retirer_eleve_du_groupe(eleve, groupe)
-        messages.success(request, f'تمت إزالة {eleve.user.get_full_name()} من المجموعة (سجل حصصه وتقييماته محفوظ).')
+        messages.success(request, gettext_('تمت إزالة %(v0)s من المجموعة (سجل حصصه وتقييماته محفوظ).') % {'v0': eleve.user.get_full_name()})
     return redirect('admin_groupe_detail', groupe_id=groupe_id)
 
 
@@ -575,13 +576,13 @@ def groupe_transferer_eleve(request, groupe_id, eleve_id):
     confirme = request.POST.get('confirme') == '1'
 
     if not destination_id:
-        messages.error(request, 'يجب اختيار مجموعة الوجهة قبل النقل.')
+        messages.error(request, gettext_('يجب اختيار مجموعة الوجهة قبل النقل.'))
         return redirect('admin_groupe_detail', groupe_id=groupe_id)
 
     destination = get_object_or_404(Groupe, id=destination_id)
     raison = raison_incompatibilite_groupe(eleve, destination)
     if raison:
-        messages.error(request, f'تعذّر نقل الطالب: {raison}')
+        messages.error(request, gettext_('تعذّر نقل الطالب: %(v0)s') % {'v0': raison})
         return redirect('admin_groupe_detail', groupe_id=groupe_id)
 
     avertissements = avertissements_groupe(eleve, destination)
@@ -597,7 +598,7 @@ def groupe_transferer_eleve(request, groupe_id, eleve_id):
         _ajouter_eleve_au_groupe(eleve, destination)
     for avertissement in avertissements:
         messages.warning(request, avertissement)
-    messages.success(request, f'تم نقل {eleve.user.get_full_name()} إلى مجموعة {destination.nom} (سجل حصصه وتقييماته في المجموعة السابقة محفوظ).')
+    messages.success(request, gettext_('تم نقل %(v0)s إلى مجموعة %(v1)s (سجل حصصه وتقييماته في المجموعة السابقة محفوظ).') % {'v0': eleve.user.get_full_name(), 'v1': destination.nom})
     return redirect('admin_groupe_detail', groupe_id=groupe_id)
 
 @role_required('admin')
@@ -638,7 +639,7 @@ def groupe_modifier(request, groupe_id):
 
         nouveau_creneau_id = request.POST.get('creneau')
         if not nouveau_creneau_id:
-            messages.error(request, 'يجب اختيار حلقة للمجموعة.')
+            messages.error(request, gettext_('يجب اختيار حلقة للمجموعة.'))
             return render(request, 'courses/admin_groupe_modifier.html', {
                 'groupe': groupe,
                 'creneaux': creneaux,
@@ -677,7 +678,7 @@ def groupe_modifier(request, groupe_id):
             # prof déjà en place — voir plus haut) — se protège contre un POST
             # direct choisissant un AUTRE prof archivé que celui déjà assigné.
             if prof_a_change and prof_obj.statut == 'archive':
-                messages.error(request, f'تعذّر إسناد {prof_obj.user.get_full_name()}: هذا الأستاذ مؤرشف.')
+                messages.error(request, gettext_('تعذّر إسناد %(v0)s: هذا الأستاذ مؤرشف.') % {'v0': prof_obj.user.get_full_name()})
                 return render(request, 'courses/admin_groupe_modifier.html', {
                     'groupe': groupe,
                     'creneaux': creneaux,
@@ -726,7 +727,7 @@ def groupe_modifier(request, groupe_id):
             if nouveau_lien_meet_id:
                 nouveau_lien_meet_obj = get_object_or_404(LienMeet.objects.select_for_update(), id=nouveau_lien_meet_id)
                 if not nouveau_lien_meet_obj.est_actif:
-                    messages.error(request, 'هذا الرابط معطّل حالياً — اختر رابطاً آخر.')
+                    messages.error(request, gettext_('هذا الرابط معطّل حالياً — اختر رابطاً آخر.'))
                     return render(request, 'courses/admin_groupe_modifier.html', {
                         'groupe': groupe,
                         'creneaux': creneaux,
@@ -736,7 +737,7 @@ def groupe_modifier(request, groupe_id):
                     })
                 conflit = description_conflit_lien_meet(nouveau_lien_meet_obj, creneau_obj, groupe_exclu=groupe)
                 if conflit:
-                    messages.error(request, f'تعذّر استخدام "{nouveau_lien_meet_obj}" لهذا التوقيت: {conflit}')
+                    messages.error(request, gettext_('تعذّر استخدام "%(v0)s" لهذا التوقيت: %(v1)s') % {'v0': nouveau_lien_meet_obj, 'v1': conflit})
                     return render(request, 'courses/admin_groupe_modifier.html', {
                         'groupe': groupe,
                         'creneaux': creneaux,
@@ -785,9 +786,9 @@ def groupe_modifier(request, groupe_id):
             messages.warning(request, avertissement)
         if creneau_a_change:
             regenerer_pour_nouveau_creneau(groupe)
-            messages.success(request, 'تم تعديل المجموعة وإعادة توليد حصصها حسب الحلقة الجديدة.')
+            messages.success(request, gettext_('تم تعديل المجموعة وإعادة توليد حصصها حسب الحلقة الجديدة.'))
         else:
-            messages.success(request, 'تم تعديل المجموعة بنجاح.')
+            messages.success(request, gettext_('تم تعديل المجموعة بنجاح.'))
         return redirect('admin_groupe_detail', groupe_id=groupe.id)
 
     return render(request, 'courses/admin_groupe_modifier.html', {
@@ -873,7 +874,7 @@ def creneau_ajouter(request):
     if request.method == 'POST':
         slots = _slots_depuis_post(request)
         if not slots:
-            messages.error(request, 'يجب إضافة حصة واحدة على الأقل.')
+            messages.error(request, gettext_('يجب إضافة حصة واحدة على الأقل.'))
             return render(request, 'courses/admin_creneau_ajouter.html')
 
         creneau = Creneau.objects.create(
@@ -887,7 +888,7 @@ def creneau_ajouter(request):
             age_max=request.POST.get('age_max'),
         )
         remplacer_slots_creneau(creneau, slots)
-        messages.success(request, 'تمت إضافة الحلقة بنجاح.')
+        messages.success(request, gettext_('تمت إضافة الحلقة بنجاح.'))
         return redirect('admin_creneaux')
 
     return render(request, 'courses/admin_creneau_ajouter.html')
@@ -905,7 +906,7 @@ def creneau_modifier(request, creneau_id):
 
         slots = _slots_depuis_post(request)
         if not slots:
-            messages.error(request, 'يجب إضافة حصة واحدة على الأقل.')
+            messages.error(request, gettext_('يجب إضافة حصة واحدة على الأقل.'))
             return render(request, 'courses/admin_creneau_modifier.html', {'creneau': creneau})
 
         creneau.nom = request.POST.get('nom', '').strip()
@@ -935,9 +936,9 @@ def creneau_modifier(request, creneau_id):
             with transaction.atomic():
                 for groupe in creneau.groupes.all():
                     regenerer_pour_nouveau_creneau(groupe)
-            messages.success(request, 'تم تعديل الحلقة وإعادة توليد حصص جميع المجموعات المرتبطة بها حسب التوقيت الجديد.')
+            messages.success(request, gettext_('تم تعديل الحلقة وإعادة توليد حصص جميع المجموعات المرتبطة بها حسب التوقيت الجديد.'))
         else:
-            messages.success(request, 'تم تعديل الحلقة بنجاح.')
+            messages.success(request, gettext_('تم تعديل الحلقة بنجاح.'))
         return redirect('admin_creneaux')
 
     return render(request, 'courses/admin_creneau_modifier.html', {
@@ -957,7 +958,7 @@ def creneau_toggle(request, creneau_id):
     creneau = get_object_or_404(Creneau, id=creneau_id)
     creneau.est_actif = not creneau.est_actif
     creneau.save()
-    messages.info(request, 'تمت إعادة تفعيل الحلقة.' if creneau.est_actif else 'تمت أرشفة الحلقة — لن تظهر في القوائم إلا عبر تصفية "الحالة".')
+    messages.info(request, gettext_('تمت إعادة تفعيل الحلقة.') if creneau.est_actif else gettext_('تمت أرشفة الحلقة — لن تظهر في القوائم إلا عبر تصفية "الحالة".'))
     return redirect('admin_creneaux')
 
 
@@ -973,7 +974,7 @@ def creneau_supprimer(request, creneau_id):
     if not creneau_peut_etre_supprime(creneau):
         messages.error(
             request,
-            'تعذّر الحذف: هذه الحلقة مرتبطة بمجموعة أو طلب تسجيل — يمكنك تعطيلها بدلاً من ذلك.'
+            gettext_('تعذّر الحذف: هذه الحلقة مرتبطة بمجموعة أو طلب تسجيل — يمكنك تعطيلها بدلاً من ذلك.')
         )
         return redirect('admin_creneaux')
 
@@ -982,7 +983,7 @@ def creneau_supprimer(request, creneau_id):
 
     label = str(creneau)
     creneau.delete()
-    messages.success(request, f'تم حذف الحلقة "{label}" نهائياً.')
+    messages.success(request, gettext_('تم حذف الحلقة "%(v0)s" نهائياً.') % {'v0': label})
     return redirect('admin_creneaux')
 
 
@@ -996,7 +997,7 @@ def groupe_supprimer(request, groupe_id):
     if not groupe_peut_etre_supprime(groupe):
         messages.error(
             request,
-            'تعذّر الحذف: هذه المجموعة مرتبطة بحصص أو طلاب أو سجل تاريخي — يمكنك أرشفتها بدلاً من ذلك (تعديل ← الحالة).'
+            gettext_('تعذّر الحذف: هذه المجموعة مرتبطة بحصص أو طلاب أو سجل تاريخي — يمكنك أرشفتها بدلاً من ذلك (تعديل ← الحالة).')
         )
         return redirect('admin_groupe_detail', groupe_id=groupe.id)
 
@@ -1005,7 +1006,7 @@ def groupe_supprimer(request, groupe_id):
 
     nom = groupe.nom
     groupe.delete()
-    messages.success(request, f'تم حذف المجموعة "{nom}" نهائياً.')
+    messages.success(request, gettext_('تم حذف المجموعة "%(v0)s" نهائياً.') % {'v0': nom})
     return redirect('admin_groupes')
 
 
@@ -1022,7 +1023,7 @@ def groupe_archiver(request, groupe_id):
     groupe = get_object_or_404(Groupe, id=groupe_id)
     groupe.statut = 'archive'
     groupe.save(update_fields=['statut'])
-    messages.info(request, f'تمت أرشفة المجموعة "{groupe.nom}" — لن تظهر في القوائم إلا عبر تصفية "الحالة". سجلها الكامل يبقى محفوظاً.')
+    messages.info(request, gettext_('تمت أرشفة المجموعة "%(v0)s" — لن تظهر في القوائم إلا عبر تصفية "الحالة". سجلها الكامل يبقى محفوظاً.') % {'v0': groupe.nom})
     return redirect('admin_groupe_detail', groupe_id=groupe.id)
 
 
@@ -1031,7 +1032,7 @@ def groupe_reactiver(request, groupe_id):
     groupe = get_object_or_404(Groupe, id=groupe_id)
     groupe.statut = 'actif'
     groupe.save(update_fields=['statut'])
-    messages.success(request, f'تمت إعادة تفعيل المجموعة "{groupe.nom}".')
+    messages.success(request, gettext_('تمت إعادة تفعيل المجموعة "%(v0)s".') % {'v0': groupe.nom})
     return redirect('admin_groupe_detail', groupe_id=groupe.id)
 
 
@@ -1056,7 +1057,7 @@ def groupe_supprimer_definitivement(request, groupe_id):
 
     confirmation_nom = request.POST.get('confirmation_nom', '').strip()
     if confirmation_nom != groupe.nom:
-        messages.error(request, 'الاسم المُدخل لا يطابق اسم المجموعة بالضبط — لم يتم حذف أي شيء.')
+        messages.error(request, gettext_('الاسم المُدخل لا يطابق اسم المجموعة بالضبط — لم يتم حذف أي شيء.'))
         return redirect('admin_groupe_detail', groupe_id=groupe.id)
 
     nb_seances = groupe.seances.count()
@@ -1068,7 +1069,7 @@ def groupe_supprimer_definitivement(request, groupe_id):
 
     messages.success(
         request,
-        f'تم حذف المجموعة "{nom}" نهائياً مع كامل سجلها ({nb_seances} حصة، {nb_presences} حضور).'
+        gettext_('تم حذف المجموعة "%(v0)s" نهائياً مع كامل سجلها (%(v1)s حصة، %(v2)s حضور).') % {'v0': nom, 'v1': nb_seances, 'v2': nb_presences}
     )
     return redirect('admin_groupes')
 
@@ -1091,13 +1092,13 @@ def creneau_supprimer_definitivement(request, creneau_id):
     label = str(creneau)
     confirmation_nom = request.POST.get('confirmation_nom', '').strip()
     if confirmation_nom != label:
-        messages.error(request, 'النص المُدخل لا يطابق اسم الحلقة بالضبط — لم يتم حذف أي شيء.')
+        messages.error(request, gettext_('النص المُدخل لا يطابق اسم الحلقة بالضبط — لم يتم حذف أي شيء.'))
         return redirect('admin_creneaux')
 
     with transaction.atomic():
         creneau.delete()
 
-    messages.success(request, f'تم حذف الحلقة "{label}" نهائياً.')
+    messages.success(request, gettext_('تم حذف الحلقة "%(v0)s" نهائياً.') % {'v0': label})
     return redirect('admin_creneaux')
 
 
@@ -1187,12 +1188,12 @@ def lien_meet_ajouter(request):
         libelle_fr = request.POST.get('libelle_fr', '').strip()
         libelle_en = request.POST.get('libelle_en', '').strip()
         if not url:
-            messages.error(request, 'يجب إدخال رابط.')
+            messages.error(request, gettext_('يجب إدخال رابط.'))
         elif LienMeet.objects.filter(url=url).exists():
-            messages.error(request, 'هذا الرابط مسجَّل مسبقاً في القائمة.')
+            messages.error(request, gettext_('هذا الرابط مسجَّل مسبقاً في القائمة.'))
         else:
             LienMeet.objects.create(url=url, libelle=libelle, libelle_fr=libelle_fr, libelle_en=libelle_en)
-            messages.success(request, 'تمت إضافة الرابط بنجاح.')
+            messages.success(request, gettext_('تمت إضافة الرابط بنجاح.'))
     return redirect('admin_liens_meet')
 
 
@@ -1220,25 +1221,25 @@ def lien_meet_attribuer_groupe(request, groupe_id):
         return redirect('admin_liens_meet')
 
     if not groupe.creneau_id:
-        messages.error(request, 'تعذّر إسناد الرابط: هذه المجموعة بدون حلقة (جدول) محددة.')
+        messages.error(request, gettext_('تعذّر إسناد الرابط: هذه المجموعة بدون حلقة (جدول) محددة.'))
         return redirect('admin_liens_meet')
 
     with transaction.atomic():
         lien_meet_obj = get_object_or_404(LienMeet.objects.select_for_update(), id=lien_meet_id)
         if not lien_meet_obj.est_actif:
-            messages.error(request, 'هذا الرابط معطّل حالياً — اختر رابطاً آخر.')
+            messages.error(request, gettext_('هذا الرابط معطّل حالياً — اختر رابطاً آخر.'))
             return redirect('admin_liens_meet')
 
         conflit = description_conflit_lien_meet(lien_meet_obj, groupe.creneau, groupe_exclu=groupe)
         if conflit:
-            messages.error(request, f'تعذّر إسناد "{lien_meet_obj}" لمجموعة "{groupe.nom}": {conflit}')
+            messages.error(request, gettext_('تعذّر إسناد "%(v0)s" لمجموعة "%(v1)s": %(v2)s') % {'v0': lien_meet_obj, 'v1': groupe.nom, 'v2': conflit})
             return redirect('admin_liens_meet')
 
         groupe.lien_meet = lien_meet_obj
         groupe.lien_reunion = lien_meet_obj.url
         groupe.save(update_fields=['lien_meet', 'lien_reunion'])
 
-    messages.success(request, f'تم إسناد "{lien_meet_obj}" إلى مجموعة "{groupe.nom}".')
+    messages.success(request, gettext_('تم إسناد "%(v0)s" إلى مجموعة "%(v1)s".') % {'v0': lien_meet_obj, 'v1': groupe.nom})
     return redirect('admin_liens_meet')
 
 
@@ -1254,7 +1255,7 @@ def lien_meet_toggle(request, lien_id):
     lien.est_actif = not lien.est_actif
     lien.save()
     if lien.est_actif:
-        messages.info(request, 'تمت إعادة تفعيل الرابط.')
+        messages.info(request, gettext_('تمت إعادة تفعيل الرابط.'))
     else:
-        messages.info(request, 'تم تعطيل الرابط — لن يُقترح للمجموعات الجديدة. المجموعات التي تستخدمه حالياً غير متأثرة.')
+        messages.info(request, gettext_('تم تعطيل الرابط — لن يُقترح للمجموعات الجديدة. المجموعات التي تستخدمه حالياً غير متأثرة.'))
     return redirect('admin_liens_meet')

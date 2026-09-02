@@ -210,9 +210,9 @@ def ajouter_note_personnelle(request, user_id):
             NotePersonnelle.objects.create(
                 profil_user=profil_user, auteur=request.user, titre=titre, contenu=contenu
             )
-            messages.success(request, 'تمت إضافة الملاحظة.')
+            messages.success(request, gettext_('تمت إضافة الملاحظة.'))
         else:
-            messages.error(request, 'لا يمكن إضافة ملاحظة فارغة.')
+            messages.error(request, gettext_('لا يمكن إضافة ملاحظة فارغة.'))
     return redirect(_next_valide(request, defaut='admin_eleves'))
 
 
@@ -236,9 +236,9 @@ def modifier_note_personnelle(request, note_id):
         note.titre = titre
         note.contenu = contenu
         note.save(update_fields=['titre', 'contenu', 'date_modification'])
-        messages.success(request, 'تم تعديل الملاحظة.')
+        messages.success(request, gettext_('تم تعديل الملاحظة.'))
     else:
-        messages.error(request, 'لا يمكن أن تكون الملاحظة فارغة.')
+        messages.error(request, gettext_('لا يمكن أن تكون الملاحظة فارغة.'))
     return redirect(_next_valide(request, defaut='admin_eleves'))
 
 
@@ -255,7 +255,7 @@ def supprimer_note_personnelle(request, note_id):
         return HttpResponseForbidden('لا يمكنك حذف ملاحظة كتبها شخص آخر.')
 
     note.delete()
-    messages.success(request, 'تم حذف الملاحظة.')
+    messages.success(request, gettext_('تم حذف الملاحظة.'))
     return redirect(_next_valide(request, defaut='admin_eleves'))
 
 
@@ -689,16 +689,16 @@ def admin_reglage_lien_seance(request):
             marge_avant = int(request.POST.get('marge_avant_minutes', 0))
             marge_apres = int(request.POST.get('marge_apres_minutes', 0))
         except ValueError:
-            messages.error(request, 'يرجى إدخال أرقام صحيحة.')
+            messages.error(request, gettext_('يرجى إدخال أرقام صحيحة.'))
             return redirect('admin_reglage_lien_seance')
         if marge_avant < 0 or marge_apres < 0:
-            messages.error(request, 'لا يمكن أن يكون الهامش رقماً سالباً.')
+            messages.error(request, gettext_('لا يمكن أن يكون الهامش رقماً سالباً.'))
             return redirect('admin_reglage_lien_seance')
         reglage.marge_avant_minutes = marge_avant
         reglage.marge_apres_minutes = marge_apres
         reglage.derniere_modification_par = request.user
         reglage.save()
-        messages.success(request, 'تم تحديث إعدادات هامش رابط الحصص بنجاح.')
+        messages.success(request, gettext_('تم تحديث إعدادات هامش رابط الحصص بنجاح.'))
         return redirect('admin_reglage_lien_seance')
 
     context = {
@@ -724,15 +724,15 @@ def admin_reglage_retention_chat(request):
         try:
             duree = int(request.POST.get('duree_retention_jours', 0))
         except ValueError:
-            messages.error(request, 'يرجى إدخال رقم صحيح.')
+            messages.error(request, gettext_('يرجى إدخال رقم صحيح.'))
             return redirect('admin_reglage_retention_chat')
         if duree < 1:
-            messages.error(request, 'يجب أن تكون المدة يوماً واحداً على الأقل.')
+            messages.error(request, gettext_('يجب أن تكون المدة يوماً واحداً على الأقل.'))
             return redirect('admin_reglage_retention_chat')
         config.duree_retention_jours = duree
         config.derniere_modification_par = request.user
         config.save()
-        messages.success(request, 'تم تحديث مدة الاحتفاظ برسائل الدردشة بنجاح.')
+        messages.success(request, gettext_('تم تحديث مدة الاحتفاظ برسائل الدردشة بنجاح.'))
         return redirect('admin_reglage_retention_chat')
 
     return render(request, 'dashboard/admin_reglage_retention_chat.html', {
@@ -872,11 +872,11 @@ def prof_presence_sauvegarder(request, seance_id):
 
     if not seance.modifiable_par_prof:
         if seance.statut == 'terminee':
-            messages.error(request, 'تم تقييم هذه الحصة بالفعل — لم يعد بالإمكان تعديلها.')
+            messages.error(request, gettext_('تم تقييم هذه الحصة بالفعل — لم يعد بالإمكان تعديلها.'))
         elif not seance.evaluable_par_prof:
-            messages.error(request, 'لم تنتهِ هذه الحصة بعد — لا يمكن تقييمها قبل انتهائها فعلياً.')
+            messages.error(request, gettext_('لم تنتهِ هذه الحصة بعد — لا يمكن تقييمها قبل انتهائها فعلياً.'))
         else:
-            messages.error(request, 'انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يعد بالإمكان تقييمها.')
+            messages.error(request, gettext_('انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يعد بالإمكان تقييمها.'))
         return redirect('prof_seance_detail', seance_id=seance.id)
 
     if request.method == 'POST':
@@ -940,28 +940,22 @@ def prof_presence_sauvegarder(request, seance_id):
             ligne_invalide = False
             if _ayah_incoherentes(ayah_debut_memorisation, ayah_fin_memorisation):
                 erreurs.append(
-                    f'{eleve.user.get_full_name()}: آية نهاية الحفظ ({ayah_fin_memorisation}) '
-                    f'يجب أن تكون أكبر من أو تساوي آية البداية ({ayah_debut_memorisation}).'
+                    gettext_('%(v0)s: آية نهاية الحفظ (%(v1)s) يجب أن تكون أكبر من أو تساوي آية البداية (%(v2)s).') % {'v0': eleve.user.get_full_name(), 'v1': ayah_fin_memorisation, 'v2': ayah_debut_memorisation}
                 )
                 ligne_invalide = True
             elif _ayah_depasse_sourate(sourate_memorisee, ayah_fin_memorisation):
                 erreurs.append(
-                    f'{eleve.user.get_full_name()}: آية نهاية الحفظ ({ayah_fin_memorisation}) '
-                    f'تتجاوز عدد آيات {_nom_sourate(sourate_memorisee)} '
-                    f'({_total_ayat_sourate(sourate_memorisee)} آية).'
+                    gettext_('%(v0)s: آية نهاية الحفظ (%(v1)s) تتجاوز عدد آيات %(v2)s (%(v3)s آية).') % {'v0': eleve.user.get_full_name(), 'v1': ayah_fin_memorisation, 'v2': _nom_sourate(sourate_memorisee), 'v3': _total_ayat_sourate(sourate_memorisee)}
                 )
                 ligne_invalide = True
             if _ayah_incoherentes(ayah_debut_revision, ayah_fin_revision):
                 erreurs.append(
-                    f'{eleve.user.get_full_name()}: آية نهاية المراجعة ({ayah_fin_revision}) '
-                    f'يجب أن تكون أكبر من أو تساوي آية البداية ({ayah_debut_revision}).'
+                    gettext_('%(v0)s: آية نهاية المراجعة (%(v1)s) يجب أن تكون أكبر من أو تساوي آية البداية (%(v2)s).') % {'v0': eleve.user.get_full_name(), 'v1': ayah_fin_revision, 'v2': ayah_debut_revision}
                 )
                 ligne_invalide = True
             elif _ayah_depasse_sourate(sourate_revisee, ayah_fin_revision):
                 erreurs.append(
-                    f'{eleve.user.get_full_name()}: آية نهاية المراجعة ({ayah_fin_revision}) '
-                    f'تتجاوز عدد آيات {_nom_sourate(sourate_revisee)} '
-                    f'({_total_ayat_sourate(sourate_revisee)} آية).'
+                    gettext_('%(v0)s: آية نهاية المراجعة (%(v1)s) تتجاوز عدد آيات %(v2)s (%(v3)s آية).') % {'v0': eleve.user.get_full_name(), 'v1': ayah_fin_revision, 'v2': _nom_sourate(sourate_revisee), 'v3': _total_ayat_sourate(sourate_revisee)}
                 )
                 ligne_invalide = True
 
@@ -973,25 +967,25 @@ def prof_presence_sauvegarder(request, seance_id):
                 for critere in criteres_actifs:
                     valeur_brute = notes_brutes[critere.id]
                     if not valeur_brute:
-                        erreurs.append(f'{eleve.user.get_full_name()}: يجب إدخال علامة {critere.nom_ar}.')
+                        erreurs.append(gettext_('%(v0)s: يجب إدخال علامة %(v1)s.') % {'v0': eleve.user.get_full_name(), 'v1': critere.nom_ar})
                         ligne_invalide = True
                         continue
                     try:
                         valeur = int(valeur_brute)
                     except ValueError:
-                        erreurs.append(f'{eleve.user.get_full_name()}: علامة {critere.nom_ar} غير صحيحة.')
+                        erreurs.append(gettext_('%(v0)s: علامة %(v1)s غير صحيحة.') % {'v0': eleve.user.get_full_name(), 'v1': critere.nom_ar})
                         ligne_invalide = True
                         continue
                     if not (1 <= valeur <= 20):
-                        erreurs.append(f'{eleve.user.get_full_name()}: علامة {critere.nom_ar} يجب أن تكون بين 1 و20.')
+                        erreurs.append(gettext_('%(v0)s: علامة %(v1)s يجب أن تكون بين 1 و20.') % {'v0': eleve.user.get_full_name(), 'v1': critere.nom_ar})
                         ligne_invalide = True
                         continue
                     notes_validees[critere.id] = valeur
                 if not consigne_memorisation.strip():
-                    erreurs.append(f'{eleve.user.get_full_name()}: يجب تحديد "المطلوب حفظه".')
+                    erreurs.append(gettext_('%(v0)s: يجب تحديد "المطلوب حفظه".') % {'v0': eleve.user.get_full_name()})
                     ligne_invalide = True
                 if not consigne_revision.strip():
-                    erreurs.append(f'{eleve.user.get_full_name()}: يجب تحديد "المطلوب مراجعته".')
+                    erreurs.append(gettext_('%(v0)s: يجب تحديد "المطلوب مراجعته".') % {'v0': eleve.user.get_full_name()})
                     ligne_invalide = True
             else:
                 # notes_validees reste vide -> toute note existante est effacée
@@ -1036,13 +1030,13 @@ def prof_presence_sauvegarder(request, seance_id):
         if erreurs:
             for erreur in erreurs:
                 messages.error(request, erreur)
-            messages.warning(request, 'تم حفظ باقي الطلاب. صحّح الآيات أعلاه ثم احفظ مجدداً لإتمام حصة الطلاب المذكورين.')
+            messages.warning(request, gettext_('تم حفظ باقي الطلاب. صحّح الآيات أعلاه ثم احفظ مجدداً لإتمام حصة الطلاب المذكورين.'))
             return redirect('prof_seance_detail', seance_id=seance.id)
 
         seance.remarque_generale = request.POST.get('remarque_generale', '')
         seance.statut = 'terminee'
         seance.save()
-        messages.success(request, 'تم حفظ الحضور والتقييمات بنجاح.')
+        messages.success(request, gettext_('تم حفظ الحضور والتقييمات بنجاح.'))
         return redirect('prof_seances')
 
     return redirect('prof_seance_detail', seance_id=seance_id)
@@ -1347,7 +1341,7 @@ def admin_programme_general(request):
             setattr(programme, f'{champ}_fr', request.POST.get(f'{champ}_fr', ''))
             setattr(programme, f'{champ}_en', request.POST.get(f'{champ}_en', ''))
         programme.save()
-        messages.success(request, 'تم تحديث البرنامج العام بنجاح.')
+        messages.success(request, gettext_('تم تحديث البرنامج العام بنجاح.'))
         return redirect('admin_programme_general')
 
     context = {
@@ -1381,7 +1375,7 @@ def admin_visibilite_prof(request):
         for champ in CHAMPS:
             setattr(visibilite, champ, request.POST.get(champ) == '1')
         visibilite.save()
-        messages.success(request, 'تم تحديث إعدادات الظهور بنجاح.')
+        messages.success(request, gettext_('تم تحديث إعدادات الظهور بنجاح.'))
         return redirect('admin_visibilite_prof')
 
     context = {
@@ -1420,17 +1414,17 @@ def admin_gestion_inscriptions(request):
             delai_paiement = int(request.POST.get('delai_paiement_jours', 0))
             delai_contact = int(request.POST.get('delai_contact_heures', 0))
         except ValueError:
-            messages.error(request, 'يرجى إدخال أرقام صحيحة للمهل الزمنية.')
+            messages.error(request, gettext_('يرجى إدخال أرقام صحيحة للمهل الزمنية.'))
             return redirect('admin_gestion_inscriptions')
         if delai_paiement < 1 or delai_contact < 1:
-            messages.error(request, 'يجب أن تكون كل مهلة زمنية يوماً/ساعة واحدة على الأقل.')
+            messages.error(request, gettext_('يجب أن تكون كل مهلة زمنية يوماً/ساعة واحدة على الأقل.'))
             return redirect('admin_gestion_inscriptions')
         parametres.delai_paiement_jours = delai_paiement
         parametres.delai_contact_heures = delai_contact
 
         parametres.derniere_modification_par = request.user
         parametres.save()
-        messages.success(request, 'تم تحديث إعدادات التسجيل بنجاح.')
+        messages.success(request, gettext_('تم تحديث إعدادات التسجيل بنجاح.'))
         return redirect('admin_gestion_inscriptions')
 
     context = {
@@ -1627,7 +1621,7 @@ def bilan_mensuel_detail(request, eleve_id, mois):
         bilan.revision = request.POST.get('revision', '')
         bilan.remarques_discipline = request.POST.get('remarques_discipline', '')
         bilan.save()
-        messages.success(request, 'تم حفظ البيان الشهري بنجاح.')
+        messages.success(request, gettext_('تم حفظ البيان الشهري بنجاح.'))
         return redirect('bilan_mensuel_detail', eleve_id=eleve.id, mois=mois)
 
     BASE_TEMPLATE_PAR_ROLE = {
@@ -2208,21 +2202,17 @@ def admin_valider_eleve(request, inscription_id):
             if conflit['orphelin']:
                 messages.error(
                     request,
-                    f'تعذر القبول: يوجد حساب بهذا البريد الإلكتروني ({inscription.email}) '
-                    f'بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). '
-                    f'احذف الحساب اليتيم أولاً ثم أعد المحاولة.'
+                    gettext_('تعذر القبول: يوجد حساب بهذا البريد الإلكتروني (%(v0)s) بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). احذف الحساب اليتيم أولاً ثم أعد المحاولة.') % {'v0': inscription.email}
                 )
             elif conflit['archive']:
                 messages.error(
                     request,
-                    f'تعذر القبول: يوجد حساب مؤرشف بهذا البريد الإلكتروني ({inscription.email}). '
-                    f'يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول طلب جديد بنفس البريد.'
+                    gettext_('تعذر القبول: يوجد حساب مؤرشف بهذا البريد الإلكتروني (%(v0)s). يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول طلب جديد بنفس البريد.') % {'v0': inscription.email}
                 )
             else:
                 messages.error(
                     request,
-                    f'تعذر القبول: يوجد حساب نشط بهذا البريد الإلكتروني ({inscription.email}) '
-                    f'مرتبط بملف شخصي آخر (غير طالب) — التعارض يجب حله يدوياً قبل المتابعة.'
+                    gettext_('تعذر القبول: يوجد حساب نشط بهذا البريد الإلكتروني (%(v0)s) مرتبط بملف شخصي آخر (غير طالب) — التعارض يجب حله يدوياً قبل المتابعة.') % {'v0': inscription.email}
                 )
             return redirect('admin_inscription_eleve_detail', inscription_id=inscription.id)
 
@@ -2319,12 +2309,11 @@ def admin_valider_eleve(request, inscription_id):
     if resultat_groupe_choisi:
         etat, nom_groupe, raison = resultat_groupe_choisi
         if etat == 'succes':
-            messages.success(request, f'تم إلحاق الطالب تلقائياً بالمجموعة التي اختارها عند التسجيل: "{nom_groupe}".')
+            messages.success(request, gettext_('تم إلحاق الطالب تلقائياً بالمجموعة التي اختارها عند التسجيل: "%(v0)s".') % {'v0': nom_groupe})
         else:
             messages.warning(
                 request,
-                f'الطالب كان قد اختار مجموعة "{nom_groupe}" عند التسجيل، لكن لم يعد بالإمكان إلحاقه بها تلقائياً '
-                f'({raison}) — يرجى إضافته يدوياً إلى مجموعة مناسبة.'
+                gettext_('الطالب كان قد اختار مجموعة "%(v0)s" عند التسجيل، لكن لم يعد بالإمكان إلحاقه بها تلقائياً (%(v1)s) — يرجى إضافته يدوياً إلى مجموعة مناسبة.') % {'v0': nom_groupe, 'v1': raison}
             )
 
     envoyer_email_bienvenue(request, inscription.email, password_temp, inscription.nom)
@@ -2391,7 +2380,7 @@ def admin_rejeter_eleve(request, inscription_id):
     if inscription.statut != 'en_attente':
         messages.error(
             request,
-            f'تعذر الرفض: طلب {inscription.nom} لم يعد قيد الانتظار (تمت معالجته بالفعل).'
+            gettext_('تعذر الرفض: طلب %(v0)s لم يعد قيد الانتظار (تمت معالجته بالفعل).') % {'v0': inscription.nom}
         )
         return redirect('admin_inscriptions')
 
@@ -2417,7 +2406,7 @@ def admin_rejeter_eleve(request, inscription_id):
                 'base_template': 'dashboard/base_admin.html',
             }
             return redirect('refus_confirme')
-        messages.error(request, 'يجب كتابة سبب الرفض قبل التأكيد.')
+        messages.error(request, gettext_('يجب كتابة سبب الرفض قبل التأكيد.'))
 
     context = {
         'inscription': inscription,
@@ -2588,19 +2577,18 @@ def admin_supprimer_user_orphelin(request, user_id):
     if user.role in ('admin', 'mshrif'):
         messages.error(
             request,
-            f'تعذر الحذف: هذا الحساب ({user.email}) هو حساب مدير أو مشرف — '
-            f'لا يمكن حذفه من هنا مهما كانت حالته.'
+            gettext_('تعذر الحذف: هذا الحساب (%(v0)s) هو حساب مدير أو مشرف — لا يمكن حذفه من هنا مهما كانت حالته.') % {'v0': user.email}
         )
         return redirect(request.GET.get('next') or 'admin_inscriptions')
 
     a_un_profil = Eleve.objects.filter(user=user).exists() or Prof.objects.filter(user=user).exists()
 
     if a_un_profil:
-        messages.error(request, 'تعذر الحذف: هذا الحساب مرتبط بملف شخصي نشط.')
+        messages.error(request, gettext_('تعذر الحذف: هذا الحساب مرتبط بملف شخصي نشط.'))
     else:
         email = user.email
         user.delete()
-        messages.success(request, f'تم حذف الحساب اليتيم ({email}). يمكنك الآن إعادة محاولة القبول.')
+        messages.success(request, gettext_('تم حذف الحساب اليتيم (%(v0)s). يمكنك الآن إعادة محاولة القبول.') % {'v0': email})
 
     next_url = request.GET.get('next') or 'admin_inscriptions'
     return redirect(next_url)
@@ -2625,7 +2613,7 @@ def admin_valider_prof(request, inscription_id):
     inscription.save()
     messages.success(
         request,
-        f'تم قبول طلب {inscription.nom} مبدئياً — بانتظار التصديق النهائي من المشرف قبل إنشاء الحساب.'
+        gettext_('تم قبول طلب %(v0)s مبدئياً — بانتظار التصديق النهائي من المشرف قبل إنشاء الحساب.') % {'v0': inscription.nom}
     )
     return redirect('admin_inscriptions')
 
@@ -2646,8 +2634,7 @@ def admin_rejeter_prof(request, inscription_id):
     if inscription.statut not in ('en_attente', 'validee_directeur'):
         messages.error(
             request,
-            f'تعذر الرفض: طلب {inscription.nom} لم يعد قابلاً للرفض '
-            f'(الحالة الحالية: {inscription.get_statut_display()}).'
+            gettext_('تعذر الرفض: طلب %(v0)s لم يعد قابلاً للرفض (الحالة الحالية: %(v1)s).') % {'v0': inscription.nom, 'v1': inscription.get_statut_display()}
         )
         return redirect('admin_inscriptions')
 
@@ -2672,7 +2659,7 @@ def admin_rejeter_prof(request, inscription_id):
                 'base_template': 'dashboard/base_admin.html',
             }
             return redirect('refus_confirme')
-        messages.error(request, 'يجب كتابة سبب الرفض قبل التأكيد.')
+        messages.error(request, gettext_('يجب كتابة سبب الرفض قبل التأكيد.'))
 
     context = {
         'inscription': inscription,
@@ -2758,8 +2745,7 @@ def mshrif_inscription_prof_detail(request, inscription_id):
     if inscription.statut != 'validee_directeur':
         messages.error(
             request,
-            f'تعذر عرض هذا الطلب: حالة طلب {inscription.nom} ليست "بانتظار التصديق النهائي" '
-            f'(الحالة الحالية: {inscription.get_statut_display()}).'
+            gettext_('تعذر عرض هذا الطلب: حالة طلب %(v0)s ليست "بانتظار التصديق النهائي" (الحالة الحالية: %(v1)s).') % {'v0': inscription.nom, 'v1': inscription.get_statut_display()}
         )
         return redirect('mshrif_inscriptions_profs')
 
@@ -2807,8 +2793,7 @@ def mshrif_valider_prof_final(request, inscription_id):
     if inscription.statut != 'validee_directeur':
         messages.error(
             request,
-            f'تعذر القبول النهائي: حالة طلب {inscription.nom} تغيّرت منذ فتح هذه الصفحة '
-            f'(الحالة الحالية: {inscription.get_statut_display()}). لم يتم إنشاء أي حساب.'
+            gettext_('تعذر القبول النهائي: حالة طلب %(v0)s تغيّرت منذ فتح هذه الصفحة (الحالة الحالية: %(v1)s). لم يتم إنشاء أي حساب.') % {'v0': inscription.nom, 'v1': inscription.get_statut_display()}
         )
         return redirect('mshrif_inscriptions_profs')
 
@@ -2817,21 +2802,17 @@ def mshrif_valider_prof_final(request, inscription_id):
         if conflit['orphelin']:
             messages.error(
                 request,
-                f'تعذر القبول: يوجد حساب بهذا البريد الإلكتروني ({inscription.email}) '
-                f'بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). '
-                f'احذف الحساب اليتيم أولاً ثم أعد المحاولة.'
+                gettext_('تعذر القبول: يوجد حساب بهذا البريد الإلكتروني (%(v0)s) بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). احذف الحساب اليتيم أولاً ثم أعد المحاولة.') % {'v0': inscription.email}
             )
         elif conflit['archive']:
             messages.error(
                 request,
-                f'تعذر القبول: يوجد حساب مؤرشف بهذا البريد الإلكتروني ({inscription.email}). '
-                f'يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول طلب جديد بنفس البريد.'
+                gettext_('تعذر القبول: يوجد حساب مؤرشف بهذا البريد الإلكتروني (%(v0)s). يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول طلب جديد بنفس البريد.') % {'v0': inscription.email}
             )
         else:
             messages.error(
                 request,
-                f'تعذر القبول: يوجد حساب نشط بهذا البريد الإلكتروني ({inscription.email}) '
-                f'مرتبط بملف شخصي آخر — التعارض يجب حله يدوياً قبل المتابعة.'
+                gettext_('تعذر القبول: يوجد حساب نشط بهذا البريد الإلكتروني (%(v0)s) مرتبط بملف شخصي آخر — التعارض يجب حله يدوياً قبل المتابعة.') % {'v0': inscription.email}
             )
         return redirect('mshrif_inscription_prof_detail', inscription_id=inscription.id)
 
@@ -2862,8 +2843,7 @@ def mshrif_rejeter_prof(request, inscription_id):
     if inscription.statut != 'validee_directeur':
         messages.error(
             request,
-            f'تعذر الرفض: حالة طلب {inscription.nom} تغيّرت منذ فتح هذه الصفحة '
-            f'(الحالة الحالية: {inscription.get_statut_display()}).'
+            gettext_('تعذر الرفض: حالة طلب %(v0)s تغيّرت منذ فتح هذه الصفحة (الحالة الحالية: %(v1)s).') % {'v0': inscription.nom, 'v1': inscription.get_statut_display()}
         )
         return redirect('mshrif_inscriptions_profs')
 
@@ -2889,7 +2869,7 @@ def mshrif_rejeter_prof(request, inscription_id):
                 'base_template': 'dashboard/base_mshrif.html',
             }
             return redirect('refus_confirme')
-        messages.error(request, 'يجب كتابة سبب الرفض قبل التأكيد.')
+        messages.error(request, gettext_('يجب كتابة سبب الرفض قبل التأكيد.'))
 
     context = {
         'inscription': inscription,
@@ -3143,7 +3123,7 @@ def mshrif_charte(request):
                     severite=severite,
                 )
 
-        messages.success(request, 'تم تحديث ميثاق التدريس بنجاح.')
+        messages.success(request, gettext_('تم تحديث ميثاق التدريس بنجاح.'))
         return redirect('mshrif_charte')
 
     BASE_TEMPLATE_PAR_ROLE = {
@@ -3183,15 +3163,15 @@ def mshrif_logo(request):
     if request.method == 'POST':
         fichier = request.FILES.get('logo')
         if not fichier:
-            messages.error(request, 'يرجى اختيار ملف صورة.')
+            messages.error(request, gettext_('يرجى اختيار ملف صورة.'))
             return redirect('mshrif_logo')
 
         if not fichier.name.lower().endswith(EXTENSIONS_LOGO_VALIDES):
-            messages.error(request, 'صيغة الملف غير مدعومة — استعمل PNG أو JPEG أو WEBP أو GIF.')
+            messages.error(request, gettext_('صيغة الملف غير مدعومة — استعمل PNG أو JPEG أو WEBP أو GIF.'))
             return redirect('mshrif_logo')
 
         if fichier.size > TAILLE_MAX_LOGO_OCTETS:
-            messages.error(request, 'حجم الملف كبير جداً — الحد الأقصى 2 ميغابايت.')
+            messages.error(request, gettext_('حجم الملف كبير جداً — الحد الأقصى 2 ميغابايت.'))
             return redirect('mshrif_logo')
 
         try:
@@ -3199,13 +3179,13 @@ def mshrif_logo(request):
             image.verify()
             fichier.seek(0)  # verify() consomme le curseur du fichier, on le remet au début avant de sauvegarder
         except Exception:
-            messages.error(request, 'الملف المرفوع ليس صورة صالحة.')
+            messages.error(request, gettext_('الملف المرفوع ليس صورة صالحة.'))
             return redirect('mshrif_logo')
 
         config.logo = fichier
         config.save()
         invalider_cache_logo_config()
-        messages.success(request, 'تم تحديث شعار المنصة بنجاح — سيظهر الشعار الجديد في كل الصفحات.')
+        messages.success(request, gettext_('تم تحديث شعار المنصة بنجاح — سيظهر الشعار الجديد في كل الصفحات.'))
         return redirect('mshrif_logo')
 
     return render(request, 'dashboard/mshrif_logo.html', {'config': config})
@@ -3456,14 +3436,14 @@ def eleve_demande_changement_halaka(request):
 
     if request.method == 'POST':
         if demande_en_attente:
-            messages.error(request, 'لديك بالفعل طلب تغيير حلقة قيد الانتظار — يجب معالجته أولاً قبل إرسال طلب جديد.')
+            messages.error(request, gettext_('لديك بالفعل طلب تغيير حلقة قيد الانتظار — يجب معالجته أولاً قبل إرسال طلب جديد.'))
             return redirect('eleve_profil')
 
         groupes_valides = {g.id: g for g in groupes_compatibles_sexe_age_pour_changement(eleve)}
         groupe_demande_id = request.POST.get('groupe_demande', '')
         groupe_demande = groupes_valides.get(int(groupe_demande_id)) if groupe_demande_id.isdigit() else None
         if not groupe_demande:
-            messages.error(request, 'يجب اختيار حلقة صالحة من القائمة المقترحة.')
+            messages.error(request, gettext_('يجب اختيار حلقة صالحة من القائمة المقترحة.'))
             return redirect('eleve_demande_changement_halaka')
 
         DemandeChangementHalaka.objects.create(
@@ -3471,7 +3451,7 @@ def eleve_demande_changement_halaka(request):
             groupe_actuel=eleve.groupes.first(),
             groupe_demande=groupe_demande,
         )
-        messages.success(request, 'تم إرسال طلبك بنجاح — بانتظار معالجته من طرف الإدارة.')
+        messages.success(request, gettext_('تم إرسال طلبك بنجاح — بانتظار معالجته من طرف الإدارة.'))
         return redirect('eleve_profil')
 
     return render(request, 'dashboard/eleve_demande_changement_halaka.html', {
@@ -4149,12 +4129,12 @@ def admin_seance_annuler(request, seance_id):
     if seance.statut != 'planifiee':
         messages.error(
             request,
-            f'تعذر الإلغاء: هذه الحصة ليست في حالة "مبرمجة" حالياً (الحالة: {seance.get_statut_display()}).'
+            gettext_('تعذر الإلغاء: هذه الحصة ليست في حالة "مبرمجة" حالياً (الحالة: %(v0)s).') % {'v0': seance.get_statut_display()}
         )
         return redirect('admin_seances')
     seance.statut = 'annulee'
     seance.save()
-    messages.info(request, 'تم إلغاء الحصة.')
+    messages.info(request, gettext_('تم إلغاء الحصة.'))
     return redirect('admin_seances')
 
 
@@ -4226,12 +4206,12 @@ def admin_seance_deplacer(request, seance_id):
                 lien_obj = get_object_or_404(LienMeet.objects.select_for_update(), id=lien_meet_exceptionnel_id)
                 jour_code, heure_debut, heure_fin = horaire_reel_seance(seance)
                 if not lien_obj.est_actif or groupes_en_conflit_pour_lien_a_horaire_reel(lien_obj, jour_code, heure_debut, heure_fin):
-                    messages.error(request, f'تعذّر استخدام "{lien_obj}" لهذا الموعد — لم يعد متاحاً. أعد المحاولة.')
+                    messages.error(request, gettext_('تعذّر استخدام "%(v0)s" لهذا الموعد — لم يعد متاحاً. أعد المحاولة.') % {'v0': lien_obj})
                     return _reafficher_conflit(nouvelle_date, nouvelle_heure, remarque)
                 seance.lien_meet_exceptionnel = lien_obj
                 seance.remarque = remarque
                 seance.save()
-            messages.success(request, f'تم تأجيل الحصة، مع استخدام "{lien_obj}" كرابط استثنائي لهذه الحصة فقط.')
+            messages.success(request, gettext_('تم تأجيل الحصة، مع استخدام "%(v0)s" كرابط استثنائي لهذه الحصة فقط.') % {'v0': lien_obj})
             return redirect('admin_seances')
 
         # Aucun lien alternatif choisi : le lien EFFECTIF actuel de la séance
@@ -4246,7 +4226,7 @@ def admin_seance_deplacer(request, seance_id):
         # défaut du groupe conservé automatiquement — rien à demander au مدير.
         seance.remarque = remarque
         seance.save()
-        messages.success(request, 'تم تأجيل الحصة إلى الموعد الجديد.')
+        messages.success(request, gettext_('تم تأجيل الحصة إلى الموعد الجديد.'))
         return redirect('admin_seances')
 
     return render(request, 'dashboard/admin_seance_deplacer.html', {
@@ -4428,7 +4408,7 @@ def admin_eleve_cartable_ajouter(request):
 
     fichier = request.FILES.get('fichier')
     if not fichier:
-        messages.error(request, 'يجب إرفاق ملف.')
+        messages.error(request, gettext_('يجب إرفاق ملف.'))
         return redirect('admin_eleve_cartable_gestion')
 
     erreur = _valider_fichier_hakiba(fichier)
@@ -4443,14 +4423,14 @@ def admin_eleve_cartable_ajouter(request):
     if cible == 'categorie':
         categorie_cible = request.POST.get('categorie_cible', '')
         if not categorie_cible:
-            messages.error(request, 'يرجى اختيار الفئة المستهدفة.')
+            messages.error(request, gettext_('يرجى اختيار الفئة المستهدفة.'))
             return redirect('admin_eleve_cartable_gestion')
     elif cible != 'tous':
         cible = 'specifique'
         ids = [i for i in request.POST.getlist('eleves_cibles') if i.isdigit()]
         eleves_cibles = list(Eleve.objects.filter(id__in=ids))
         if not eleves_cibles:
-            messages.error(request, 'يرجى اختيار طالب واحد على الأقل.')
+            messages.error(request, gettext_('يرجى اختيار طالب واحد على الأقل.'))
             return redirect('admin_eleve_cartable_gestion')
 
     titre = request.POST.get('titre', '').strip()
@@ -4465,13 +4445,13 @@ def admin_eleve_cartable_ajouter(request):
         document.eleves_cibles.set(eleves_cibles)
 
     if cible == 'tous':
-        messages.success(request, 'تمت إضافة الملف إلى حقيبة جميع الطلاب.')
+        messages.success(request, gettext_('تمت إضافة الملف إلى حقيبة جميع الطلاب.'))
     elif cible == 'categorie':
-        messages.success(request, 'تمت إضافة الملف إلى حقيبة الطلاب المعنيين بهذه الفئة.')
+        messages.success(request, gettext_('تمت إضافة الملف إلى حقيبة الطلاب المعنيين بهذه الفئة.'))
     elif len(eleves_cibles) == 1:
-        messages.success(request, f'تمت إضافة الملف إلى حقيبة {eleves_cibles[0].user.get_full_name()}.')
+        messages.success(request, gettext_('تمت إضافة الملف إلى حقيبة %(v0)s.') % {'v0': eleves_cibles[0].user.get_full_name()})
     else:
-        messages.success(request, f'تمت إضافة الملف إلى حقيبة {len(eleves_cibles)} طالباً.')
+        messages.success(request, gettext_('تمت إضافة الملف إلى حقيبة %(v0)s طالباً.') % {'v0': len(eleves_cibles)})
     return redirect('admin_eleve_cartable_gestion')
 
 
@@ -4484,7 +4464,7 @@ def admin_eleve_cartable_supprimer(request, document_id):
     if document.fichier:
         document.fichier.delete(save=False)
     document.delete()
-    messages.success(request, 'تم حذف الملف من حقيبة الطالب.')
+    messages.success(request, gettext_('تم حذف الملف من حقيبة الطالب.'))
     return redirect('admin_eleve_cartable_gestion')
 
 
@@ -4554,7 +4534,7 @@ def admin_eleve_suspendre(request, eleve_id):
     eleve.statut = 'suspendu'
     eleve.date_suspension = timezone.localdate()
     eleve.save(update_fields=['statut', 'date_suspension'])
-    messages.info(request, f'تم إيقاف الطالب {eleve.user.get_full_name()}.')
+    messages.info(request, gettext_('تم إيقاف الطالب %(v0)s.') % {'v0': eleve.user.get_full_name()})
     return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
 
@@ -4574,7 +4554,7 @@ def admin_eleve_reactiver(request, eleve_id):
     if etait_archive:
         from payments.cycles import redemarrer_cycle_courant
         redemarrer_cycle_courant(eleve)
-    messages.success(request, f'تمت إعادة تفعيل الطالب {eleve.user.get_full_name()}.')
+    messages.success(request, gettext_('تمت إعادة تفعيل الطالب %(v0)s.') % {'v0': eleve.user.get_full_name()})
     return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
 
@@ -4590,7 +4570,7 @@ def admin_eleve_archiver(request, eleve_id):
 
     eleve = get_object_or_404(Eleve, id=eleve_id)
     archiver_eleve(eleve, request=request)
-    messages.info(request, f'تمت أرشفة الطالب {eleve.user.get_full_name()} — لن يتمكن من تسجيل الدخول بعد الآن.')
+    messages.info(request, gettext_('تمت أرشفة الطالب %(v0)s — لن يتمكن من تسجيل الدخول بعد الآن.') % {'v0': eleve.user.get_full_name()})
     return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
 
@@ -4638,14 +4618,14 @@ def eleve_supprimer_definitivement(request, eleve_id):
 
     confirmation = request.POST.get('confirmation_nom', '').strip()
     if confirmation != eleve.user.email:
-        messages.error(request, 'البريد الإلكتروني المُدخل لا يطابق بالضبط — لم يتم حذف أي شيء.')
+        messages.error(request, gettext_('البريد الإلكتروني المُدخل لا يطابق بالضبط — لم يتم حذف أي شيء.'))
         return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
     nom = eleve.user.get_full_name()
     with transaction.atomic():
         eleve.user.delete()
 
-    messages.success(request, f'تم حذف حساب الطالب {nom} نهائياً.')
+    messages.success(request, gettext_('تم حذف حساب الطالب %(v0)s نهائياً.') % {'v0': nom})
     return redirect('admin_eleves')
 
 
@@ -4659,10 +4639,10 @@ def admin_eleve_disponibilites(request, eleve_id):
 
     if request.method == 'POST':
         if eleve.statut == 'archive':
-            messages.error(request, 'تعذر التعديل: هذا الطالب مؤرشف.')
+            messages.error(request, gettext_('تعذر التعديل: هذا الطالب مؤرشف.'))
             return redirect('admin_eleve_detail', eleve_id=eleve.id)
         matrice_vers_lignes_eleve(eleve, request.POST.getlist('dispo'))
-        messages.success(request, f'تم تحديث جدول تفرغ {eleve.user.get_full_name()}.')
+        messages.success(request, gettext_('تم تحديث جدول تفرغ %(v0)s.') % {'v0': eleve.user.get_full_name()})
         return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
     valeurs_form = set(
@@ -4762,7 +4742,7 @@ def admin_prof_archiver(request, prof_id):
 
     prof = get_object_or_404(Prof, id=prof_id)
     archiver_prof(prof, request=request)
-    messages.info(request, f'تمت أرشفة الأستاذ {prof.user.get_full_name()} — لن يتمكن من تسجيل الدخول بعد الآن.')
+    messages.info(request, gettext_('تمت أرشفة الأستاذ %(v0)s — لن يتمكن من تسجيل الدخول بعد الآن.') % {'v0': prof.user.get_full_name()})
     return redirect('admin_prof_detail', prof_id=prof.id)
 
 
@@ -4775,7 +4755,7 @@ def admin_prof_reactiver(request, prof_id):
 
     prof = get_object_or_404(Prof, id=prof_id)
     reactiver_prof(prof)
-    messages.success(request, f'تمت إعادة تفعيل الأستاذ {prof.user.get_full_name()}.')
+    messages.success(request, gettext_('تمت إعادة تفعيل الأستاذ %(v0)s.') % {'v0': prof.user.get_full_name()})
     return redirect('admin_prof_detail', prof_id=prof.id)
 
 
@@ -4808,14 +4788,14 @@ def prof_supprimer_definitivement(request, prof_id):
 
     confirmation = request.POST.get('confirmation_nom', '').strip()
     if confirmation != prof.user.email:
-        messages.error(request, 'البريد الإلكتروني المُدخل لا يطابق بالضبط — لم يتم حذف أي شيء.')
+        messages.error(request, gettext_('البريد الإلكتروني المُدخل لا يطابق بالضبط — لم يتم حذف أي شيء.'))
         return redirect('admin_prof_detail', prof_id=prof.id)
 
     nom = prof.user.get_full_name()
     with transaction.atomic():
         prof.user.delete()
 
-    messages.success(request, f'تم حذف حساب الأستاذ {nom} نهائياً.')
+    messages.success(request, gettext_('تم حذف حساب الأستاذ %(v0)s نهائياً.') % {'v0': nom})
     return redirect('admin_profs')
 
 
@@ -4833,7 +4813,7 @@ def admin_prof_infos_complementaires_modifier(request, prof_id):
         date_debut = request.POST.get('date_debut_effectif', '').strip()
         prof.date_debut_effectif = date_debut or None
         prof.save()
-        messages.success(request, 'تم تحديث المعلومات الإضافية بنجاح.')
+        messages.success(request, gettext_('تم تحديث المعلومات الإضافية بنجاح.'))
         return redirect('admin_prof_detail', prof_id=prof.id)
 
     context = {
@@ -4873,9 +4853,9 @@ def _valider_fichier_hakiba(fichier):
     import os
     extension = os.path.splitext(fichier.name)[1].lower()
     if extension not in EXTENSIONS_HAKIBA_AUTORISEES:
-        return f'صيغة الملف "{extension}" غير مقبولة.'
+        return gettext_('صيغة الملف "%(v0)s" غير مقبولة.') % {'v0': extension}
     if fichier.size > TAILLE_MAX_HAKIBA_OCTETS:
-        return f'حجم الملف كبير جداً ({fichier.size // (1024 * 1024)} م.ب). الحد الأقصى 20 م.ب.'
+        return gettext_('حجم الملف كبير جداً (%(v0)s م.ب). الحد الأقصى 20 م.ب.') % {'v0': fichier.size // (1024 * 1024)}
     return None
 
 
@@ -4917,7 +4897,7 @@ def admin_hakiba_ajouter(request):
     # avec un titre) est refusé, conformément à la consigne explicite du
     # 2026-08-05.
     if not contenu_texte and not fichier:
-        messages.error(request, 'يجب إدخال نص أو إرفاق ملف على الأقل.')
+        messages.error(request, gettext_('يجب إدخال نص أو إرفاق ملف على الأقل.'))
         return redirect('admin_hakiba_gestion')
 
     if fichier:
@@ -4932,7 +4912,7 @@ def admin_hakiba_ajouter(request):
         ids = [i for i in request.POST.getlist('profs_cibles') if i.isdigit()]
         profs_selectionnes = list(Prof.objects.filter(id__in=ids))
         if not profs_selectionnes:
-            messages.error(request, 'يرجى اختيار أستاذ واحد على الأقل عند اختيار "أساتذة محددون".')
+            messages.error(request, gettext_('يرجى اختيار أستاذ واحد على الأقل عند اختيار "أساتذة محددون".'))
             return redirect('admin_hakiba_gestion')
 
     element = ElementHakiba(
@@ -4951,7 +4931,7 @@ def admin_hakiba_ajouter(request):
     if not tous_les_profs:
         element.profs_cibles.set(profs_selectionnes)
 
-    messages.success(request, 'تمت إضافة العنصر إلى حقيبة الأستاذ بنجاح.')
+    messages.success(request, gettext_('تمت إضافة العنصر إلى حقيبة الأستاذ بنجاح.'))
     return redirect('admin_hakiba_gestion')
 
 
@@ -4963,7 +4943,7 @@ def admin_hakiba_supprimer(request, element_id):
     if element.fichier:
         element.fichier.delete(save=False)
     element.delete()
-    messages.success(request, 'تم حذف العنصر من حقيبة الأستاذ.')
+    messages.success(request, gettext_('تم حذف العنصر من حقيبة الأستاذ.'))
     return redirect('admin_hakiba_gestion')
 
 
@@ -4991,7 +4971,7 @@ def admin_prof_donnees_actuelles_modifier(request, prof_id):
         prof.outils_maitrises = request.POST.getlist('outils_maitrises')
         prof.type_eleve_preference = request.POST.getlist('type_eleve_preference')
         prof.save()
-        messages.success(request, 'تم تحديث البيانات الحالية للمعلم بنجاح.')
+        messages.success(request, gettext_('تم تحديث البيانات الحالية للمعلم بنجاح.'))
         return redirect('admin_prof_detail', prof_id=prof.id)
 
     context = {
@@ -5009,12 +4989,12 @@ def admin_prof_majoration_modifier(request, prof_id):
 
     if request.method == 'POST':
         if prof.statut == 'archive':
-            messages.error(request, 'تعذر التعديل: هذا الأستاذ مؤرشف.')
+            messages.error(request, gettext_('تعذر التعديل: هذا الأستاذ مؤرشف.'))
             return redirect('admin_prof_detail', prof_id=prof.id)
         majoration = request.POST.get('majoration_mensuelle', '').strip()
         prof.majoration_mensuelle = majoration or None
         prof.save()
-        messages.success(request, 'تم تحديث المنحة الشهرية.')
+        messages.success(request, gettext_('تم تحديث المنحة الشهرية.'))
 
     return redirect('admin_prof_detail', prof_id=prof.id)
 
@@ -5031,10 +5011,10 @@ def admin_prof_disponibilites(request, prof_id):
 
     if request.method == 'POST' and request.user.role == 'admin':
         if prof.statut == 'archive':
-            messages.error(request, 'تعذر التعديل: هذا الأستاذ مؤرشف.')
+            messages.error(request, gettext_('تعذر التعديل: هذا الأستاذ مؤرشف.'))
             return redirect('admin_prof_detail', prof_id=prof.id)
         matrice_vers_lignes(prof, request.POST.getlist('dispo'))
-        messages.success(request, f'تم تحديث جدول تفرغ {prof.user.get_full_name()}.')
+        messages.success(request, gettext_('تم تحديث جدول تفرغ %(v0)s.') % {'v0': prof.user.get_full_name()})
         return redirect('admin_prof_detail', prof_id=prof.id)
 
     valeurs_form = set(
@@ -5098,7 +5078,7 @@ def admin_demande_disponibilite_approuver(request, demande_id):
     demande.statut = 'approuvee'
     demande.date_traitement = timezone.now()
     demande.save()
-    messages.success(request, f'تم قبول تعديل جدول تفرغ {demande.prof.user.get_full_name()}.')
+    messages.success(request, gettext_('تم قبول تعديل جدول تفرغ %(v0)s.') % {'v0': demande.prof.user.get_full_name()})
     return redirect('admin_demandes_disponibilite')
 
 
@@ -5111,7 +5091,7 @@ def admin_demande_disponibilite_rejeter(request, demande_id):
     demande.statut = 'rejetee'
     demande.date_traitement = timezone.now()
     demande.save()
-    messages.info(request, f'تم رفض طلب تعديل جدول تفرغ {demande.prof.user.get_full_name()}.')
+    messages.info(request, gettext_('تم رفض طلب تعديل جدول تفرغ %(v0)s.') % {'v0': demande.prof.user.get_full_name()})
     return redirect('admin_demandes_disponibilite')
 
 
@@ -5166,16 +5146,16 @@ def admin_demande_changement_halaka_valider(request, demande_id):
 
     demande = get_object_or_404(DemandeChangementHalaka, id=demande_id)
     if demande.statut != 'en_attente':
-        messages.error(request, 'هذا الطلب لم يعد قيد الانتظار.')
+        messages.error(request, gettext_('هذا الطلب لم يعد قيد الانتظار.'))
         return redirect('admin_demandes_changement_halaka')
 
     if not demande.groupe_demande:
-        messages.error(request, 'تعذّر قبول الطلب: الحلقة المطلوبة لم تعد موجودة.')
+        messages.error(request, gettext_('تعذّر قبول الطلب: الحلقة المطلوبة لم تعد موجودة.'))
         return redirect('admin_demandes_changement_halaka')
 
     raison = raison_incompatibilite_groupe(demande.eleve, demande.groupe_demande)
     if raison:
-        messages.error(request, f'تعذّر قبول الطلب: {raison}')
+        messages.error(request, gettext_('تعذّر قبول الطلب: %(v0)s') % {'v0': raison})
         return redirect('admin_demandes_changement_halaka')
 
     with transaction.atomic():
@@ -5188,7 +5168,7 @@ def admin_demande_changement_halaka_valider(request, demande_id):
         demande.save()
     messages.success(
         request,
-        f'تم قبول طلب {demande.eleve.user.get_full_name()} ونقله إلى حلقة {demande.groupe_demande.nom}.'
+        gettext_('تم قبول طلب %(v0)s ونقله إلى حلقة %(v1)s.') % {'v0': demande.eleve.user.get_full_name(), 'v1': demande.groupe_demande.nom}
     )
     return redirect('admin_demandes_changement_halaka')
 
@@ -5200,14 +5180,14 @@ def admin_demande_changement_halaka_refuser(request, demande_id):
 
     demande = get_object_or_404(DemandeChangementHalaka, id=demande_id)
     if demande.statut != 'en_attente':
-        messages.error(request, 'هذا الطلب لم يعد قيد الانتظار.')
+        messages.error(request, gettext_('هذا الطلب لم يعد قيد الانتظار.'))
         return redirect('admin_demandes_changement_halaka')
 
     demande.statut = 'refusee'
     demande.date_traitement = timezone.now()
     demande.traite_par = request.user
     demande.save()
-    messages.info(request, f'تم رفض طلب {demande.eleve.user.get_full_name()}.')
+    messages.info(request, gettext_('تم رفض طلب %(v0)s.') % {'v0': demande.eleve.user.get_full_name()})
     return redirect('admin_demandes_changement_halaka')
 
 
@@ -5349,15 +5329,15 @@ def admin_abonnement_ajouter(request):
 
         erreurs = []
         if not code:
-            erreurs.append('الرمز إلزامي.')
+            erreurs.append(gettext_('الرمز إلزامي.'))
         elif TypeAbonnement.objects.filter(code=code).exists():
-            erreurs.append(f'الرمز "{code}" مستخدم مسبقاً.')
+            erreurs.append(gettext_('الرمز "%(v0)s" مستخدم مسبقاً.') % {'v0': code})
         if type_offre not in ('groupe', 'individuel'):
-            erreurs.append('يجب اختيار النوع (جماعي/فردي).')
+            erreurs.append(gettext_('يجب اختيار النوع (جماعي/فردي).'))
         if not label:
-            erreurs.append('الاسم المعروض إلزامي.')
+            erreurs.append(gettext_('الاسم المعروض إلزامي.'))
         if duree not in dict(TypeAbonnement.DUREE_CHOICES):
-            erreurs.append('يجب اختيار مدة صالحة.')
+            erreurs.append(gettext_('يجب اختيار مدة صالحة.'))
 
         prix_par_nb_slots = {}
         for nb_slots in valeurs_nb_slots:
@@ -5366,9 +5346,9 @@ def admin_abonnement_ajouter(request):
                 try:
                     prix_par_nb_slots[nb_slots] = float(valeur_postee)
                 except ValueError:
-                    erreurs.append(f'السعر المدخل لعدد الحصص {nb_slots} غير صالح.')
+                    erreurs.append(gettext_('السعر المدخل لعدد الحصص %(v0)s غير صالح.') % {'v0': nb_slots})
         if not prix_par_nb_slots:
-            erreurs.append('يجب تحديد سعر واحد على الأقل لعدد حصص معين.')
+            erreurs.append(gettext_('يجب تحديد سعر واحد على الأقل لعدد حصص معين.'))
 
         if erreurs:
             for erreur in erreurs:
@@ -5384,7 +5364,7 @@ def admin_abonnement_ajouter(request):
                 )
                 for nb_slots, prix in prix_par_nb_slots.items():
                     GrillePrixAbonnement.objects.create(type_abonnement=abonnement, nb_slots=nb_slots, prix=prix)
-            messages.success(request, 'تمت إضافة نوع الاشتراك بنجاح.')
+            messages.success(request, gettext_('تمت إضافة نوع الاشتراك بنجاح.'))
             return redirect('admin_parametres_abonnements')
 
     return render(request, 'dashboard/admin_abonnement_ajouter.html', {
@@ -5464,7 +5444,7 @@ def admin_abonnement_modifier(request, abonnement_id):
                     type_abonnement=type_abonnement, nb_slots=nb_slots,
                     defaults={'prix': valeur_postee, 'est_actif': request.POST.get(f'actif_{nb_slots}') == 'on'},
                 )
-        messages.success(request, 'تم تعديل نوع الاشتراك بنجاح.')
+        messages.success(request, gettext_('تم تعديل نوع الاشتراك بنجاح.'))
         return redirect('admin_parametres_abonnements')
 
     lignes = list(type_abonnement.grille_prix.order_by('nb_slots'))
@@ -5492,7 +5472,7 @@ def admin_abonnement_toggle(request, abonnement_id):
     type_abonnement = get_object_or_404(TypeAbonnement, id=abonnement_id)
     type_abonnement.est_actif = not type_abonnement.est_actif
     type_abonnement.save()
-    messages.info(request, 'تم إعادة تفعيل نوع الاشتراك.' if type_abonnement.est_actif else 'تم أرشفة نوع الاشتراك — لن يظهر في استمارات التسجيل الجديدة.')
+    messages.info(request, gettext_('تم إعادة تفعيل نوع الاشتراك.') if type_abonnement.est_actif else gettext_('تم أرشفة نوع الاشتراك — لن يظهر في استمارات التسجيل الجديدة.'))
     return redirect('admin_parametres_abonnements')
 
 
@@ -5567,13 +5547,13 @@ def admin_tarif_remuneration_groupe_ajouter(request):
         except (TypeError, ValueError):
             nb_slots = None
         if tranche_age not in ('enfant', 'adulte') or nb_slots not in valeurs_actives or not montant:
-            messages.error(request, 'بيانات غير صالحة — تحقق من الفئة العمرية وعدد الحصص والمبلغ.')
+            messages.error(request, gettext_('بيانات غير صالحة — تحقق من الفئة العمرية وعدد الحصص والمبلغ.'))
         else:
             TarifRemunerationGroupe.objects.update_or_create(
                 tranche_age=tranche_age, nb_slots=nb_slots,
                 defaults={'montant': montant, 'est_actif': True},
             )
-            messages.success(request, 'تمت إضافة التعرفة بنجاح.')
+            messages.success(request, gettext_('تمت إضافة التعرفة بنجاح.'))
     return redirect('admin_tarifs_remuneration')
 
 
@@ -5586,7 +5566,7 @@ def admin_tarif_remuneration_groupe_modifier(request, tarif_id):
         tarif.montant = request.POST.get('montant')
         tarif.est_actif = request.POST.get('est_actif') == 'on'
         tarif.save()
-        messages.success(request, 'تم تعديل التعرفة بنجاح.')
+        messages.success(request, gettext_('تم تعديل التعرفة بنجاح.'))
         return redirect('admin_tarifs_remuneration')
 
     return render(request, 'dashboard/admin_tarif_remuneration_groupe_modifier.html', {
@@ -5604,7 +5584,7 @@ def admin_tarif_remuneration_individuel_modifier(request, tarif_id):
     if request.method == 'POST':
         tarif.montant = request.POST.get('montant')
         tarif.save()
-        messages.success(request, 'تم تعديل التعرفة بنجاح.')
+        messages.success(request, gettext_('تم تعديل التعرفة بنجاح.'))
         return redirect('admin_tarifs_remuneration')
 
     return render(request, 'dashboard/admin_tarif_remuneration_individuel_modifier.html', {
@@ -5644,15 +5624,14 @@ def admin_option_nb_seances_ajouter(request):
         except (TypeError, ValueError):
             valeur = None
         if not valeur or valeur < 1:
-            messages.error(request, 'عدد الحصص يجب أن يكون رقماً صحيحاً موجباً.')
+            messages.error(request, gettext_('عدد الحصص يجب أن يكون رقماً صحيحاً موجباً.'))
         elif OptionNbSeances.objects.filter(valeur=valeur).exists():
-            messages.error(request, f'العدد {valeur} موجود مسبقاً.')
+            messages.error(request, gettext_('العدد %(v0)s موجود مسبقاً.') % {'v0': valeur})
         else:
             OptionNbSeances.objects.create(valeur=valeur, ordre=valeur)
             messages.success(
                 request,
-                f'تمت إضافة الحالة "{valeur} حصص/أسبوع" — لن تصبح قابلة للاستخدام في أي '
-                'اشتراك أو تعرفة راتب قبل تحديد سعر/تعرفة خاصة بها.',
+                gettext_('تمت إضافة الحالة "%(v0)s حصص/أسبوع" — لن تصبح قابلة للاستخدام في أي اشتراك أو تعرفة راتب قبل تحديد سعر/تعرفة خاصة بها.') % {'v0': valeur},
             )
     return redirect('admin_options_nb_seances')
 
@@ -5663,7 +5642,7 @@ def admin_option_nb_seances_toggle(request, option_id):
     option = get_object_or_404(OptionNbSeances, id=option_id)
     option.est_actif = not option.est_actif
     option.save()
-    messages.info(request, 'تم تفعيل الحالة.' if option.est_actif else 'تم تعطيل الحالة.')
+    messages.info(request, gettext_('تم تفعيل الحالة.') if option.est_actif else gettext_('تم تعطيل الحالة.'))
     return redirect('admin_options_nb_seances')
 
 
@@ -5699,7 +5678,7 @@ def admin_critere_ajouter(request):
             nom_en=request.POST.get('nom_en', '').strip(),
             ordre=request.POST.get('ordre', 0),
         )
-        messages.success(request, 'تمت إضافة المعيار بنجاح.')
+        messages.success(request, gettext_('تمت إضافة المعيار بنجاح.'))
         return redirect('admin_criteres')
 
     return render(request, 'dashboard/admin_critere_ajouter.html')
@@ -5716,7 +5695,7 @@ def admin_critere_modifier(request, critere_id):
         critere.nom_en = request.POST.get('nom_en', '').strip()
         critere.ordre = request.POST.get('ordre', 0)
         critere.save()
-        messages.success(request, 'تم تعديل المعيار بنجاح.')
+        messages.success(request, gettext_('تم تعديل المعيار بنجاح.'))
         return redirect('admin_criteres')
 
     return render(request, 'dashboard/admin_critere_modifier.html', {
@@ -5730,7 +5709,7 @@ def admin_critere_toggle(request, critere_id):
     critere = get_object_or_404(Critere, id=critere_id)
     critere.est_actif = not critere.est_actif
     critere.save()
-    messages.info(request, 'تم تفعيل المعيار.' if critere.est_actif else 'تم تعطيل المعيار.')
+    messages.info(request, gettext_('تم تفعيل المعيار.') if critere.est_actif else gettext_('تم تعطيل المعيار.'))
     return redirect('admin_criteres')
 
 
@@ -5742,13 +5721,12 @@ def admin_critere_supprimer(request, critere_id):
     if NoteEvaluation.objects.filter(critere=critere).exists():
         messages.error(
             request,
-            f'تعذر حذف "{critere.nom_ar}": هذا المعيار استُخدم في تقييمات سابقة. '
-            f'يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.'
+            gettext_('تعذر حذف "%(v0)s": هذا المعيار استُخدم في تقييمات سابقة. يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.') % {'v0': critere.nom_ar}
         )
     else:
         nom = critere.nom_ar
         critere.delete()
-        messages.success(request, f'تم حذف المعيار "{nom}".')
+        messages.success(request, gettext_('تم حذف المعيار "%(v0)s".') % {'v0': nom})
 
     return redirect('admin_criteres')
 
@@ -5784,7 +5762,7 @@ def admin_critere_eleve_ajouter(request):
             nom_en=request.POST.get('nom_en', '').strip(),
             ordre=request.POST.get('ordre', 0),
         )
-        messages.success(request, 'تمت إضافة المعيار بنجاح.')
+        messages.success(request, gettext_('تمت إضافة المعيار بنجاح.'))
         return redirect('admin_criteres_eleves')
 
     return render(request, 'dashboard/admin_critere_eleve_ajouter.html')
@@ -5801,7 +5779,7 @@ def admin_critere_eleve_modifier(request, critere_id):
         critere.nom_en = request.POST.get('nom_en', '').strip()
         critere.ordre = request.POST.get('ordre', 0)
         critere.save()
-        messages.success(request, 'تم تعديل المعيار بنجاح.')
+        messages.success(request, gettext_('تم تعديل المعيار بنجاح.'))
         return redirect('admin_criteres_eleves')
 
     return render(request, 'dashboard/admin_critere_eleve_modifier.html', {
@@ -5815,7 +5793,7 @@ def admin_critere_eleve_toggle(request, critere_id):
     critere = get_object_or_404(CritereEleve, id=critere_id)
     critere.est_actif = not critere.est_actif
     critere.save()
-    messages.info(request, 'تم تفعيل المعيار.' if critere.est_actif else 'تم تعطيل المعيار.')
+    messages.info(request, gettext_('تم تفعيل المعيار.') if critere.est_actif else gettext_('تم تعطيل المعيار.'))
     return redirect('admin_criteres_eleves')
 
 
@@ -5827,13 +5805,12 @@ def admin_critere_eleve_supprimer(request, critere_id):
     if NotePresence.objects.filter(critere=critere).exists():
         messages.error(
             request,
-            f'تعذر حذف "{critere.nom_ar}": هذا المعيار استُخدم في تقييمات سابقة. '
-            f'يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.'
+            gettext_('تعذر حذف "%(v0)s": هذا المعيار استُخدم في تقييمات سابقة. يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.') % {'v0': critere.nom_ar}
         )
     else:
         nom = critere.nom_ar
         critere.delete()
-        messages.success(request, f'تم حذف المعيار "{nom}".')
+        messages.success(request, gettext_('تم حذف المعيار "%(v0)s".') % {'v0': nom})
 
     return redirect('admin_criteres_eleves')
 
@@ -6017,7 +5994,7 @@ def classement_mensuel_commentaire(request, prof_id):
 
     prof = get_object_or_404(Prof, id=prof_id)
     if prof.statut == 'archive':
-        messages.error(request, f'تعذر الحفظ: {prof.user.get_full_name()} مؤرشف.')
+        messages.error(request, gettext_('تعذر الحفظ: %(v0)s مؤرشف.') % {'v0': prof.user.get_full_name()})
         return redirect('classement_mensuel_profs')
     mois = request.POST.get('mois', '')
     annee, _, num_mois = mois.partition('-')
@@ -6031,7 +6008,7 @@ def classement_mensuel_commentaire(request, prof_id):
             'redige_par': request.user,
         },
     )
-    messages.success(request, 'تم حفظ الملاحظة.')
+    messages.success(request, gettext_('تم حفظ الملاحظة.'))
     return redirect(f"{reverse('classement_mensuel_profs')}?mois={mois}")
 
 
@@ -6104,7 +6081,7 @@ def admin_superviseur_ajouter(request):
         if _email_deja_utilise(email):
             messages.error(
                 request,
-                f'تعذر الإضافة: البريد الإلكتروني {email} مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد الدراسة.'
+                gettext_('تعذر الإضافة: البريد الإلكتروني %(v0)s مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد الدراسة.') % {'v0': email}
             )
             return render(request, 'dashboard/admin_superviseur_ajouter.html', {
                 'old_nom': nom, 'old_email': email, 'old_telephone': telephone,
@@ -6201,7 +6178,7 @@ def admin_superviseur_assignations(request, superviseur_id):
         ids_valides = {str(p.id) for p in tous_les_profs}
         profs_selectionnes = [pid for pid in request.POST.getlist('profs') if pid in ids_valides]
         superviseur.profs_assignes.set(profs_selectionnes)
-        messages.success(request, f'تم تحديث المعلمين المُسندين إلى {superviseur.user.get_full_name()}.')
+        messages.success(request, gettext_('تم تحديث المعلمين المُسندين إلى %(v0)s.') % {'v0': superviseur.user.get_full_name()})
         return redirect('admin_superviseurs')
 
     profs_assignes_ids = set(superviseur.profs_assignes.values_list('id', flat=True))
@@ -6249,14 +6226,14 @@ def superviseur_supprimer_definitivement(request, superviseur_id):
 
     confirmation = request.POST.get('confirmation_nom', '').strip()
     if confirmation != superviseur.user.email:
-        messages.error(request, 'البريد الإلكتروني المُدخل لا يطابق بالضبط — لم يتم حذف أي شيء.')
+        messages.error(request, gettext_('البريد الإلكتروني المُدخل لا يطابق بالضبط — لم يتم حذف أي شيء.'))
         return redirect('admin_superviseurs')
 
     nom = superviseur.user.get_full_name()
     with transaction.atomic():
         superviseur.user.delete()
 
-    messages.success(request, f'تم حذف حساب المؤطر {nom} نهائياً.')
+    messages.success(request, gettext_('تم حذف حساب المؤطر %(v0)s نهائياً.') % {'v0': nom})
     return redirect('admin_superviseurs')
 
 
@@ -6290,20 +6267,20 @@ def admin_utilisateur_modifier_email(request, user_id):
         portee = request.POST.get('portee')
 
         if not nouvel_email or nouvel_email != confirmation_email:
-            messages.error(request, 'البريدان الإلكترونيان غير متطابقين.')
+            messages.error(request, gettext_('البريدان الإلكترونيان غير متطابقين.'))
             return render(request, 'dashboard/admin_utilisateur_modifier_email.html', {
                 'utilisateur': utilisateur,
                 'next': next_url,
             })
 
         if nouvel_email == utilisateur.email:
-            messages.info(request, 'لم يتغير البريد الإلكتروني.')
+            messages.info(request, gettext_('لم يتغير البريد الإلكتروني.'))
             return redirect(next_url)
 
         if _email_deja_utilise(nouvel_email, exclure_user_id=utilisateur.id):
             messages.error(
                 request,
-                f'تعذر التغيير: البريد الإلكتروني {nouvel_email} مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد الدراسة.'
+                gettext_('تعذر التغيير: البريد الإلكتروني %(v0)s مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد الدراسة.') % {'v0': nouvel_email}
             )
             return render(request, 'dashboard/admin_utilisateur_modifier_email.html', {
                 'utilisateur': utilisateur,
@@ -6520,7 +6497,7 @@ def admin_utilisateur_reinitialiser_mot_de_passe(request, user_id):
     next_url = _next_valide(request)
 
     if utilisateur.role not in ('eleve', 'prof', 'superviseur'):
-        messages.error(request, 'لا يمكن إعادة تعيين كلمة مرور حساب مدير أو مشرف من هنا.')
+        messages.error(request, gettext_('لا يمكن إعادة تعيين كلمة مرور حساب مدير أو مشرف من هنا.'))
         return redirect(next_url)
 
     if request.method == 'POST':
@@ -6602,13 +6579,13 @@ def _traiter_changement_email_compte(request):
     confirmation_email = request.POST.get('confirmation_email', '').strip()
 
     if not request.user.check_password(mot_de_passe):
-        messages.error(request, 'كلمة المرور غير صحيحة.')
+        messages.error(request, gettext_('كلمة المرور غير صحيحة.'))
     elif not nouvel_email or nouvel_email != confirmation_email:
-        messages.error(request, 'البريدان الإلكترونيان غير متطابقين.')
+        messages.error(request, gettext_('البريدان الإلكترونيان غير متطابقين.'))
     elif nouvel_email == request.user.email:
-        messages.info(request, 'لم يتغير البريد الإلكتروني.')
+        messages.info(request, gettext_('لم يتغير البريد الإلكتروني.'))
     elif _email_deja_utilise(nouvel_email, exclure_user_id=request.user.id):
-        messages.error(request, f'تعذر التغيير: البريد الإلكتروني {nouvel_email} مستخدم بالفعل.')
+        messages.error(request, gettext_('تعذر التغيير: البريد الإلكتروني %(v0)s مستخدم بالفعل.') % {'v0': nouvel_email})
     else:
         ancien_email = request.user.email
         request.user.email = nouvel_email
@@ -6617,9 +6594,9 @@ def _traiter_changement_email_compte(request):
         _invalider_sessions_utilisateur(request.user, request=request)
         email_envoye = envoyer_email_notification_changement_email(request, ancien_email, nouvel_email, request.user.get_full_name())
         if email_envoye:
-            messages.success(request, f'تم تغيير بريدك الإلكتروني إلى {nouvel_email} بنجاح.')
+            messages.success(request, gettext_('تم تغيير بريدك الإلكتروني إلى %(v0)s بنجاح.') % {'v0': nouvel_email})
         else:
-            messages.warning(request, f'تم تغيير بريدك الإلكتروني إلى {nouvel_email} بنجاح، لكن تعذر إرسال بريد الإشعار.')
+            messages.warning(request, gettext_('تم تغيير بريدك الإلكتروني إلى %(v0)s بنجاح، لكن تعذر إرسال بريد الإشعار.') % {'v0': nouvel_email})
 
 
 @role_required('admin')
@@ -6633,8 +6610,7 @@ def admin_mon_compte(request):
         if whatsapp_brut and not (9 <= len(chiffres_whatsapp) <= 15):
             messages.error(
                 request,
-                'رقم الواتساب غير صالح — يجب أن يحتوي على عدد أرقام صحيح '
-                '(مثال: 0663394165 أو 212663394165).'
+                gettext_('رقم الواتساب غير صالح — يجب أن يحتوي على عدد أرقام صحيح (مثال: 0663394165 أو 212663394165).')
             )
             return redirect('admin_mon_compte')
 
@@ -6643,7 +6619,7 @@ def admin_mon_compte(request):
         request.user.description_courte = description_courte
         request.user.telephone = whatsapp_brut
         request.user.save(update_fields=['first_name', 'last_name', 'description_courte', 'telephone'])
-        messages.success(request, 'تم تحديث معلومات التواصل بنجاح.')
+        messages.success(request, gettext_('تم تحديث معلومات التواصل بنجاح.'))
         return redirect('admin_mon_compte')
 
     if request.method == 'POST' and request.POST.get('action') == 'email':
@@ -6658,16 +6634,16 @@ def admin_mon_compte(request):
         confirmation = request.POST.get('confirmation')
 
         if not request.user.check_password(ancien):
-            messages.error(request, 'كلمة المرور الحالية غير صحيحة.')
+            messages.error(request, gettext_('كلمة المرور الحالية غير صحيحة.'))
         elif nouveau != confirmation:
-            messages.error(request, 'كلمتا المرور الجديدتان غير متطابقتين.')
+            messages.error(request, gettext_('كلمتا المرور الجديدتان غير متطابقتين.'))
         elif len(nouveau) < 8:
-            messages.error(request, 'يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل.')
+            messages.error(request, gettext_('يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل.'))
         else:
             request.user.set_password(nouveau)
             request.user.save()
             update_session_auth_hash(request, request.user)
-            messages.success(request, 'تم تغيير كلمة المرور بنجاح.')
+            messages.success(request, gettext_('تم تغيير كلمة المرور بنجاح.'))
         return redirect('admin_mon_compte')
 
     return render(request, 'dashboard/admin_mon_compte.html')
@@ -6700,16 +6676,16 @@ def mshrif_mon_compte(request):
         confirmation = request.POST.get('confirmation')
 
         if not request.user.check_password(ancien):
-            messages.error(request, 'كلمة المرور الحالية غير صحيحة.')
+            messages.error(request, gettext_('كلمة المرور الحالية غير صحيحة.'))
         elif nouveau != confirmation:
-            messages.error(request, 'كلمتا المرور الجديدتان غير متطابقتين.')
+            messages.error(request, gettext_('كلمتا المرور الجديدتان غير متطابقتين.'))
         elif len(nouveau) < 8:
-            messages.error(request, 'يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل.')
+            messages.error(request, gettext_('يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل.'))
         else:
             request.user.set_password(nouveau)
             request.user.save()
             update_session_auth_hash(request, request.user)
-            messages.success(request, 'تم تغيير كلمة المرور بنجاح.')
+            messages.success(request, gettext_('تم تغيير كلمة المرور بنجاح.'))
         return redirect('mshrif_mon_compte')
 
     return render(request, 'dashboard/mshrif_mon_compte.html')
@@ -6783,7 +6759,7 @@ def admin_critere_inscription_ajouter(request):
     if request.method == 'POST':
         code = request.POST.get('code', '').strip()
         if not code or Critere.objects.filter(code=code).exists():
-            messages.error(request, 'الرمز إلزامي ويجب أن يكون فريداً — تحقق من عدم استخدامه من قبل.')
+            messages.error(request, gettext_('الرمز إلزامي ويجب أن يكون فريداً — تحقق من عدم استخدامه من قبل.'))
             return render(request, 'dashboard/admin_critere_inscription_ajouter.html', {
                 'base_template': _base_template_admin_ou_mshrif(request),
                 'valeurs_form': request.POST,
@@ -6800,7 +6776,7 @@ def admin_critere_inscription_ajouter(request):
         # modifier ne le touche jamais après coup, voir sa docstring).
         if backend == 'champ_groupe':
             if not champ_modele_groupe:
-                messages.error(request, 'الرجاء تحديد اسم الحقل الحقيقي في نموذج المجموعة (Groupe).')
+                messages.error(request, gettext_('الرجاء تحديد اسم الحقل الحقيقي في نموذج المجموعة (Groupe).'))
                 return render(request, 'dashboard/admin_critere_inscription_ajouter.html', {
                     'base_template': _base_template_admin_ou_mshrif(request),
                     'valeurs_form': request.POST,
@@ -6810,8 +6786,7 @@ def admin_critere_inscription_ajouter(request):
             except FieldDoesNotExist:
                 messages.error(
                     request,
-                    f'الحقل "{champ_modele_groupe}" غير موجود فعلياً في نموذج المجموعة (Groupe) — '
-                    f'تحقق من الاسم (حساس لحالة الأحرف).'
+                    gettext_('الحقل "%(v0)s" غير موجود فعلياً في نموذج المجموعة (Groupe) — تحقق من الاسم (حساس لحالة الأحرف).') % {'v0': champ_modele_groupe}
                 )
                 return render(request, 'dashboard/admin_critere_inscription_ajouter.html', {
                     'base_template': _base_template_admin_ou_mshrif(request),
@@ -6830,7 +6805,7 @@ def admin_critere_inscription_ajouter(request):
             bloquant=request.POST.get('bloquant') == 'on',
             ordre=request.POST.get('ordre') or 0,
         )
-        messages.success(request, f'تمت إضافة المعيار "{critere.label}" بنجاح.')
+        messages.success(request, gettext_('تمت إضافة المعيار "%(v0)s" بنجاح.') % {'v0': critere.label})
         return redirect('admin_critere_inscription_detail', critere.id)
 
     return render(request, 'dashboard/admin_critere_inscription_ajouter.html', {
@@ -6902,7 +6877,7 @@ def admin_critere_inscription_modifier(request, critere_id):
         critere.ordre = request.POST.get('ordre') or 0
         critere.est_actif = request.POST.get('est_actif') == 'on'
         critere.save()
-        messages.success(request, f'تم تعديل المعيار "{critere.label}" بنجاح.')
+        messages.success(request, gettext_('تم تعديل المعيار "%(v0)s" بنجاح.') % {'v0': critere.label})
         return redirect('admin_critere_inscription_detail', critere.id)
 
     return render(request, 'dashboard/admin_critere_inscription_modifier.html', {
@@ -6917,7 +6892,7 @@ def admin_critere_inscription_toggle(request, critere_id):
     critere = get_object_or_404(Critere, id=critere_id)
     critere.est_actif = not critere.est_actif
     critere.save()
-    messages.info(request, 'تم تفعيل المعيار.' if critere.est_actif else 'تم تعطيل المعيار — لن يظهر في نموذج التسجيل.')
+    messages.info(request, gettext_('تم تفعيل المعيار.') if critere.est_actif else gettext_('تم تعطيل المعيار — لن يظهر في نموذج التسجيل.'))
     return redirect('admin_criteres_inscription')
 
 
@@ -6930,12 +6905,11 @@ def admin_critere_inscription_supprimer(request, critere_id):
     label = critere.label
     try:
         critere.delete()
-        messages.success(request, f'تم حذف المعيار "{label}".')
+        messages.success(request, gettext_('تم حذف المعيار "%(v0)s".') % {'v0': label})
     except ProtectedError:
         messages.error(
             request,
-            f'تعذر حذف "{label}": هذا المعيار مستخدم بالفعل (في نموذج التسجيل، أو في إجابات/مجموعات '
-            f'سابقة). يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.'
+            gettext_('تعذر حذف "%(v0)s": هذا المعيار مستخدم بالفعل (في نموذج التسجيل، أو في إجابات/مجموعات سابقة). يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.') % {'v0': label}
         )
     return redirect('admin_criteres_inscription')
 
@@ -6961,11 +6935,11 @@ def admin_critere_inscription_detacher_groupe(request, critere_id, groupe_id):
     critere = get_object_or_404(Critere, id=critere_id)
     groupe = get_object_or_404(Groupe, id=groupe_id)
     if critere.backend != 'eav':
-        messages.error(request, 'هذا المعيار مشتق تلقائياً ولا يمكن فك ارتباطه يدوياً.')
+        messages.error(request, gettext_('هذا المعيار مشتق تلقائياً ولا يمكن فك ارتباطه يدوياً.'))
         return redirect('admin_critere_inscription_detail', critere.id)
 
     definir_valeurs_groupe(groupe, critere, [])
-    messages.success(request, f'تم فك ارتباط "{critere.label}" عن مجموعة "{groupe.nom}".')
+    messages.success(request, gettext_('تم فك ارتباط "%(v0)s" عن مجموعة "%(v1)s".') % {'v0': critere.label, 'v1': groupe.nom})
     return redirect('admin_critere_inscription_detail', critere.id)
 
 
@@ -6979,7 +6953,7 @@ def admin_critere_option_ajouter(request, critere_id):
     if request.method == 'POST':
         code = request.POST.get('code', '').strip()
         if not code or CritereOption.objects.filter(critere=critere, code=code).exists():
-            messages.error(request, 'رمز الخيار إلزامي ويجب أن يكون فريداً ضمن هذا المعيار.')
+            messages.error(request, gettext_('رمز الخيار إلزامي ويجب أن يكون فريداً ضمن هذا المعيار.'))
             return redirect('admin_critere_inscription_detail', critere.id)
 
         CritereOption.objects.create(
@@ -6989,7 +6963,7 @@ def admin_critere_option_ajouter(request, critere_id):
             label_en=request.POST.get('label_en', '').strip(),
             ordre=request.POST.get('ordre') or 0,
         )
-        messages.success(request, 'تمت إضافة الخيار بنجاح.')
+        messages.success(request, gettext_('تمت إضافة الخيار بنجاح.'))
     return redirect('admin_critere_inscription_detail', critere.id)
 
 
@@ -7004,7 +6978,7 @@ def admin_critere_option_modifier(request, option_id):
         option.label_en = request.POST.get('label_en', '').strip()
         option.ordre = request.POST.get('ordre') or 0
         option.save()
-        messages.success(request, 'تم تعديل الخيار بنجاح.')
+        messages.success(request, gettext_('تم تعديل الخيار بنجاح.'))
         return redirect('admin_critere_inscription_detail', option.critere_id)
 
     return render(request, 'dashboard/admin_critere_option_modifier.html', {
@@ -7019,7 +6993,7 @@ def admin_critere_option_toggle(request, option_id):
     option = get_object_or_404(CritereOption, id=option_id)
     option.est_actif = not option.est_actif
     option.save()
-    messages.info(request, 'تم تفعيل الخيار.' if option.est_actif else 'تم تعطيل الخيار.')
+    messages.info(request, gettext_('تم تفعيل الخيار.') if option.est_actif else gettext_('تم تعطيل الخيار.'))
     return redirect('admin_critere_inscription_detail', option.critere_id)
 
 
@@ -7033,12 +7007,11 @@ def admin_critere_option_supprimer(request, option_id):
     label = option.label
     try:
         option.delete()
-        messages.success(request, f'تم حذف الخيار "{label}".')
+        messages.success(request, gettext_('تم حذف الخيار "%(v0)s".') % {'v0': label})
     except ProtectedError:
         messages.error(
             request,
-            f'تعذر حذف "{label}": هذا الخيار مستخدم بالفعل (في إجابات أو مجموعات سابقة). '
-            f'يمكنك تعطيله بدلاً من حذفه.'
+            gettext_('تعذر حذف "%(v0)s": هذا الخيار مستخدم بالفعل (في إجابات أو مجموعات سابقة). يمكنك تعطيله بدلاً من حذفه.') % {'v0': label}
         )
     return redirect('admin_critere_inscription_detail', critere_id)
 
@@ -7069,7 +7042,7 @@ def admin_etape_inscription_ajouter(request):
     if request.method == 'POST':
         code = request.POST.get('code', '').strip()
         if not code or EtapeInscription.objects.filter(code=code).exists():
-            messages.error(request, 'الرمز إلزامي ويجب أن يكون فريداً.')
+            messages.error(request, gettext_('الرمز إلزامي ويجب أن يكون فريداً.'))
             return render(request, 'dashboard/admin_etape_inscription_ajouter.html', {
                 'base_template': _base_template_admin_ou_mshrif(request),
                 'valeurs_form': request.POST,
@@ -7081,7 +7054,7 @@ def admin_etape_inscription_ajouter(request):
             titre_en=request.POST.get('titre_en', '').strip(),
             ordre=request.POST.get('ordre') or 0,
         )
-        messages.success(request, f'تمت إضافة المرحلة "{etape.titre}" بنجاح.')
+        messages.success(request, gettext_('تمت إضافة المرحلة "%(v0)s" بنجاح.') % {'v0': etape.titre})
         return redirect('admin_etape_inscription_detail', etape.id)
 
     return render(request, 'dashboard/admin_etape_inscription_ajouter.html', {
@@ -7141,7 +7114,7 @@ def admin_etape_inscription_modifier(request, etape_id):
         if not verrouillee:
             etape.est_actif = request.POST.get('est_actif') == 'on'
         etape.save()
-        messages.success(request, f'تم تعديل المرحلة "{etape.titre}" بنجاح.')
+        messages.success(request, gettext_('تم تعديل المرحلة "%(v0)s" بنجاح.') % {'v0': etape.titre})
         return redirect('admin_etape_inscription_detail', etape.id)
 
     return render(request, 'dashboard/admin_etape_inscription_modifier.html', {
@@ -7158,12 +7131,12 @@ def admin_etape_inscription_toggle(request, etape_id):
     if etape.est_verrouillee:
         messages.error(
             request,
-            f'"{etape.titre}" مرحلة أساسية للتسجيل ولا يمكن تعطيلها — راجع تفاصيل المرحلة لمعرفة السبب.'
+            gettext_('"%(v0)s" مرحلة أساسية للتسجيل ولا يمكن تعطيلها — راجع تفاصيل المرحلة لمعرفة السبب.') % {'v0': etape.titre}
         )
         return redirect('admin_etapes_inscription')
     etape.est_actif = not etape.est_actif
     etape.save()
-    messages.info(request, 'تم تفعيل المرحلة.' if etape.est_actif else 'تم تعطيل المرحلة — لن تظهر في نموذج التسجيل.')
+    messages.info(request, gettext_('تم تفعيل المرحلة.') if etape.est_actif else gettext_('تم تعطيل المرحلة — لن تظهر في نموذج التسجيل.'))
     return redirect('admin_etapes_inscription')
 
 
@@ -7182,15 +7155,15 @@ def admin_etape_inscription_supprimer(request, etape_id):
         # générique) — ProtectedError ne se déclencherait donc jamais pour
         # elles, un vrai risque de suppression silencieuse sans ce garde
         # explicite.
-        messages.error(request, f'"{titre}" مرحلة أساسية للتسجيل ولا يمكن حذفها.')
+        messages.error(request, gettext_('"%(v0)s" مرحلة أساسية للتسجيل ولا يمكن حذفها.') % {'v0': titre})
         return redirect('admin_etapes_inscription')
     try:
         etape.delete()
-        messages.success(request, f'تم حذف المرحلة "{titre}".')
+        messages.success(request, gettext_('تم حذف المرحلة "%(v0)s".') % {'v0': titre})
     except ProtectedError:
         messages.error(
             request,
-            f'تعذر حذف "{titre}": هذه المرحلة تحتوي على حقول. احذف/انقل الحقول أولاً، أو عطّل المرحلة بدلاً من حذفها.'
+            gettext_('تعذر حذف "%(v0)s": هذه المرحلة تحتوي على حقول. احذف/انقل الحقول أولاً، أو عطّل المرحلة بدلاً من حذفها.') % {'v0': titre}
         )
     return redirect('admin_etapes_inscription')
 
@@ -7227,9 +7200,7 @@ def admin_champ_inscription_ajouter(request, etape_id):
         if not etape.accepte_champs_generiques:
             messages.error(
                 request,
-                f'تعذرت الإضافة: مرحلة "{etape.titre}" لا تعرض أي حقل عام على نموذج التسجيل العلني '
-                f'(لديها شاشتها الخاصة المبنية في الكود). أي حقل يُضاف هنا لن يظهر أبداً للمترشح — '
-                f'استخدم مرحلة "المعلومات الشخصية" أو "اختيار البرنامج" أو أنشئ مرحلة مخصصة جديدة بدلاً من ذلك.'
+                gettext_('تعذرت الإضافة: مرحلة "%(v0)s" لا تعرض أي حقل عام على نموذج التسجيل العلني (لديها شاشتها الخاصة المبنية في الكود). أي حقل يُضاف هنا لن يظهر أبداً للمترشح — استخدم مرحلة "المعلومات الشخصية" أو "اختيار البرنامج" أو أنشئ مرحلة مخصصة جديدة بدلاً من ذلك.') % {'v0': etape.titre}
             )
             return redirect('admin_etape_inscription_detail', etape.id)
 
@@ -7253,7 +7224,7 @@ def admin_champ_inscription_ajouter(request, etape_id):
             obligatoire=request.POST.get('obligatoire') == 'on',
             ordre=request.POST.get('ordre') or 0,
         )
-        messages.success(request, 'تمت إضافة الحقل بنجاح.')
+        messages.success(request, gettext_('تمت إضافة الحقل بنجاح.'))
     return redirect('admin_etape_inscription_detail', etape.id)
 
 
@@ -7301,7 +7272,7 @@ def admin_champ_inscription_modifier(request, champ_id):
                 champ.valeur_min = None
                 champ.valeur_max = None
         champ.save()
-        messages.success(request, 'تم تعديل الحقل بنجاح.')
+        messages.success(request, gettext_('تم تعديل الحقل بنجاح.'))
         return redirect('admin_etape_inscription_detail', champ.etape_id)
 
     return render(request, 'dashboard/admin_champ_inscription_modifier.html', {
@@ -7316,7 +7287,7 @@ def admin_champ_inscription_toggle(request, champ_id):
     champ = get_object_or_404(ChampInscription, id=champ_id)
     champ.est_actif = not champ.est_actif
     champ.save()
-    messages.info(request, 'تم تفعيل الحقل.' if champ.est_actif else 'تم تعطيل الحقل.')
+    messages.info(request, gettext_('تم تفعيل الحقل.') if champ.est_actif else gettext_('تم تعطيل الحقل.'))
     return redirect('admin_etape_inscription_detail', champ.etape_id)
 
 
@@ -7330,12 +7301,11 @@ def admin_champ_inscription_supprimer(request, champ_id):
     label = champ.label
     try:
         champ.delete()
-        messages.success(request, f'تم حذف الحقل "{label}".')
+        messages.success(request, gettext_('تم حذف الحقل "%(v0)s".') % {'v0': label})
     except ProtectedError:
         messages.error(
             request,
-            f'تعذر حذف "{label}": هذا الحقل استُخدم بالفعل في طلبات تسجيل سابقة. '
-            f'يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.'
+            gettext_('تعذر حذف "%(v0)s": هذا الحقل استُخدم بالفعل في طلبات تسجيل سابقة. يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي.') % {'v0': label}
         )
     return redirect('admin_etape_inscription_detail', etape_id)
 
@@ -7386,7 +7356,7 @@ def admin_champ_structurel_modifier(request, config_id):
                 config.message_erreur_regex_fr = request.POST.get('message_erreur_regex_fr', '').strip()
                 config.message_erreur_regex_en = request.POST.get('message_erreur_regex_en', '').strip()
         config.save()
-        messages.success(request, f'تم تعديل الحقل البنيوي "{config.label}" بنجاح.')
+        messages.success(request, gettext_('تم تعديل الحقل البنيوي "%(v0)s" بنجاح.') % {'v0': config.label})
         return redirect('admin_etape_inscription_detail', config.etape_id)
 
     context = {
@@ -7425,7 +7395,7 @@ def admin_moyen_paiement_ajouter(request):
     if request.method == 'POST':
         code = request.POST.get('code', '').strip()
         if not code or MoyenPaiement.objects.filter(code=code).exists():
-            messages.error(request, 'الرمز إلزامي ويجب أن يكون فريداً.')
+            messages.error(request, gettext_('الرمز إلزامي ويجب أن يكون فريداً.'))
             return render(request, 'dashboard/admin_moyen_paiement_ajouter.html', {
                 'base_template': _base_template_admin_ou_mshrif(request),
                 'valeurs_form': request.POST,
@@ -7440,7 +7410,7 @@ def admin_moyen_paiement_ajouter(request):
             coordonnees_en=request.POST.get('coordonnees_en', '').strip(),
             ordre=request.POST.get('ordre') or 0,
         )
-        messages.success(request, 'تمت إضافة طريقة الدفع بنجاح.')
+        messages.success(request, gettext_('تمت إضافة طريقة الدفع بنجاح.'))
         return redirect('admin_moyens_paiement')
 
     return render(request, 'dashboard/admin_moyen_paiement_ajouter.html', {
@@ -7462,7 +7432,7 @@ def admin_moyen_paiement_modifier(request, moyen_id):
         moyen.coordonnees_en = request.POST.get('coordonnees_en', '').strip()
         moyen.ordre = request.POST.get('ordre') or 0
         moyen.save()
-        messages.success(request, 'تم تعديل طريقة الدفع بنجاح.')
+        messages.success(request, gettext_('تم تعديل طريقة الدفع بنجاح.'))
         return redirect('admin_moyens_paiement')
 
     return render(request, 'dashboard/admin_moyen_paiement_modifier.html', {
@@ -7477,7 +7447,7 @@ def admin_moyen_paiement_toggle(request, moyen_id):
     moyen = get_object_or_404(MoyenPaiement, id=moyen_id)
     moyen.est_actif = not moyen.est_actif
     moyen.save()
-    messages.info(request, 'تم تفعيل طريقة الدفع.' if moyen.est_actif else 'تم تعطيل طريقة الدفع.')
+    messages.info(request, gettext_('تم تفعيل طريقة الدفع.') if moyen.est_actif else gettext_('تم تعطيل طريقة الدفع.'))
     return redirect('admin_moyens_paiement')
 
 
@@ -7509,7 +7479,7 @@ def admin_presentation_inscription(request):
         # PresentationInscription.afficher_disponibilites_si_attente.__doc__).
         presentation.afficher_disponibilites_si_attente = request.POST.get('afficher_disponibilites_si_attente') == '1'
         presentation.save()
-        messages.success(request, 'تم تحديث صفحة تقديم التسجيل بنجاح.')
+        messages.success(request, gettext_('تم تحديث صفحة تقديم التسجيل بنجاح.'))
         return redirect('admin_presentation_inscription')
 
     context = {
@@ -7708,7 +7678,7 @@ def admin_demande_non_satisfaite_supprimer(request, demande_id):
 
     demande = get_object_or_404(DemandeNonSatisfaite, id=demande_id)
     demande.delete()
-    messages.success(request, 'تم حذف الطلب.')
+    messages.success(request, gettext_('تم حذف الطلب.'))
     return redirect('admin_demandes_non_satisfaites')
 
 
@@ -8009,8 +7979,7 @@ def admin_eleve_ajouter_manuel(request):
         if statut_compat == 'contournable':
             messages.warning(
                 request,
-                'المجموعة المختارة لا تتوافق تماماً مع أحد المعايير غير الإلزامية — '
-                'يمكنك تأكيد التسجيل رغم ذلك، أو اختيار مجموعة أخرى.',
+                gettext_('المجموعة المختارة لا تتوافق تماماً مع أحد المعايير غير الإلزامية — يمكنك تأكيد التسجيل رغم ذلك، أو اختيار مجموعة أخرى.'),
             )
             return _rendre_round_confirmation(avertissement=True)
 
@@ -8022,7 +7991,7 @@ def admin_eleve_ajouter_manuel(request):
 
     messages.success(
         request,
-        f'تم إنشاء طلب تسجيل "{inscription.nom}" بنجاح. راجع الطلب ثم اضغط "قبول الطلب" لإتمام إنشاء الحساب.',
+        gettext_('تم إنشاء طلب تسجيل "%(v0)s" بنجاح. راجع الطلب ثم اضغط "قبول الطلب" لإتمام إنشاء الحساب.') % {'v0': inscription.nom},
     )
     return redirect('admin_inscription_eleve_detail', inscription_id=inscription.id)
 
@@ -8112,13 +8081,13 @@ def admin_prof_ajouter_manuel(request):
         # l'audio/aux disponibilités avant ce chantier, voir docstring de la vue).
         erreurs = []
         if not nom:
-            erreurs.append('الاسم إلزامي.')
+            erreurs.append(gettext_('الاسم إلزامي.'))
         if not prenom:
-            erreurs.append('اللقب إلزامي.')
+            erreurs.append(gettext_('اللقب إلزامي.'))
         if date_naissance_invalide:
-            erreurs.append('تاريخ الميلاد غير صالح.')
+            erreurs.append(gettext_('تاريخ الميلاد غير صالح.'))
         if not email:
-            erreurs.append('البريد الإلكتروني إلزامي.')
+            erreurs.append(gettext_('البريد الإلكتروني إلزامي.'))
         elif _email_deja_utilise(email):
             erreurs.append(MESSAGE_EMAIL_DEJA_UTILISE)
 
@@ -8192,8 +8161,7 @@ def admin_prof_ajouter_manuel(request):
 
         messages.success(
             request,
-            f'تم إنشاء طلب الأستاذ "{inscription.nom} {inscription.prenom}" بنجاح — '
-            f'بانتظار التصديق النهائي من المشرف قبل إنشاء الحساب.',
+            gettext_('تم إنشاء طلب الأستاذ "%(v0)s %(v1)s" بنجاح — بانتظار التصديق النهائي من المشرف قبل إنشاء الحساب.') % {'v0': inscription.nom, 'v1': inscription.prenom},
         )
         return redirect('admin_inscription_prof_detail', inscription_id=inscription.id)
 
@@ -8233,7 +8201,7 @@ def admin_prof_presentation_modifier(request, prof_id):
         prof.presentation_publique_fr = request.POST.get('presentation_publique_fr', '').strip()
         prof.presentation_publique_en = request.POST.get('presentation_publique_en', '').strip()
         prof.save(update_fields=['presentation_publique', 'presentation_publique_fr', 'presentation_publique_en'])
-        messages.success(request, 'تم تحديث نبذة التقديم بنجاح.')
+        messages.success(request, gettext_('تم تحديث نبذة التقديم بنجاح.'))
         return redirect('admin_prof_detail', prof_id=prof.id)
 
     context = {
@@ -8281,7 +8249,7 @@ def admin_telegram_abonne_valider(request, abonne_id):
         abonne.chat_id,
         '✅ تمت الموافقة على اشتراكك. ستبدأ في استقبال إشعارات منصة زدني علماً الآن.'
     )
-    messages.success(request, f'تم قبول اشتراك {abonne} — سيبدأ في استقبال الإشعارات.')
+    messages.success(request, gettext_('تم قبول اشتراك %(v0)s — سيبدأ في استقبال الإشعارات.') % {'v0': abonne})
     return redirect('admin_telegram_abonnes')
 
 
@@ -8293,7 +8261,7 @@ def admin_telegram_abonne_rejeter(request, abonne_id):
     abonne.est_actif = False
     abonne.en_attente_validation = False
     abonne.save(update_fields=['est_actif', 'en_attente_validation'])
-    messages.info(request, f'تم رفض اشتراك {abonne}.')
+    messages.info(request, gettext_('تم رفض اشتراك %(v0)s.') % {'v0': abonne})
     return redirect('admin_telegram_abonnes')
 
 
@@ -8310,5 +8278,5 @@ def admin_telegram_abonne_desactiver(request, abonne_id):
     abonne.est_actif = False
     abonne.date_desabonnement = timezone.now()
     abonne.save(update_fields=['est_actif', 'date_desabonnement'])
-    messages.info(request, f'تم إلغاء تفعيل اشتراك {abonne}.')
+    messages.info(request, gettext_('تم إلغاء تفعيل اشتراك %(v0)s.') % {'v0': abonne})
     return redirect('admin_telegram_abonnes')

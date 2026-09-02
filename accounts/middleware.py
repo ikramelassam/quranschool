@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import redirect
+from django.utils.translation import gettext as gettext_
 
 
 class ForcerChangementMotDePasseMiddleware:
@@ -50,8 +51,7 @@ class ForcerChangementMotDePasseMiddleware:
         ):
             messages.warning(
                 request,
-                'يجب عليك تغيير كلمة مرورك أولاً قبل القيام بأي إجراء آخر — '
-                'الإجراء الذي حاولت القيام به لم يُنفَّذ.'
+                gettext_('يجب عليك تغيير كلمة مرورك أولاً قبل القيام بأي إجراء آخر — الإجراء الذي حاولت القيام به لم يُنفَّذ.')
             )
             return redirect('password_change')
         return self.get_response(request)

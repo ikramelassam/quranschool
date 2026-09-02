@@ -2,6 +2,7 @@ import datetime
 
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext as gettext_
 
 JOUR_INDEX = {'lun': 0, 'mar': 1, 'mer': 2, 'jeu': 3, 'ven': 4, 'sam': 5, 'dim': 6}
 JOUR_INDEX_INVERSE = {valeur: code for code, valeur in JOUR_INDEX.items()}
@@ -166,29 +167,29 @@ def raison_incompatibilite_groupe(eleve, groupe):
     le seul point de passage commun à l'ajout, au transfert et à la confirmation
     malgré avertissement, donc le bon (et unique) endroit pour l'interdire."""
     if eleve.statut == 'archive':
-        return "الطالب مؤرشف — يجب إعادة تفعيله أولاً قبل إضافته إلى مجموعة."
+        return gettext_('الطالب مؤرشف — يجب إعادة تفعيله أولاً قبل إضافته إلى مجموعة.')
 
     if groupe.eleves.filter(id=eleve.id).exists():
-        return "الطالب منضم بالفعل إلى هذه المجموعة."
+        return gettext_('الطالب منضم بالفعل إلى هذه المجموعة.')
 
     if groupe.eleves.count() >= groupe.capacite_max:
-        return "المجموعة مكتملة العدد."
+        return gettext_('المجموعة مكتملة العدد.')
 
     creneau = groupe.creneau
     if not creneau:
-        return "لا يوجد جدول زمني محدد لهذه المجموعة."
+        return gettext_('لا يوجد جدول زمني محدد لهذه المجموعة.')
 
     inscription = eleve.inscription
     if not inscription:
-        return "لا يوجد ملف تسجيل مرتبط بهذا الطالب لمقارنة المعايير."
+        return gettext_('لا يوجد ملف تسجيل مرتبط بهذا الطالب لمقارنة المعايير.')
 
     age = _age_depuis_naissance(inscription.date_naissance)
     if age < creneau.age_min or age > creneau.age_max:
-        return "عمر الطالب لا يقع ضمن الفئة العمرية لهذه الحلقة."
+        return gettext_('عمر الطالب لا يقع ضمن الفئة العمرية لهذه الحلقة.')
 
     type_offre = inscription.abonnement_type_offre()
     if type_offre and type_offre != groupe.type_capacite:
-        return "نوع الاشتراك (فردي/جماعي) لا يتوافق مع نوع هذه المجموعة."
+        return gettext_('نوع الاشتراك (فردي/جماعي) لا يتوافق مع نوع هذه المجموعة.')
 
     return None
 
@@ -217,19 +218,18 @@ def avertissements_groupe(eleve, groupe):
 
     avertissements = []
     if inscription.programme != creneau.type_seance:
-        avertissements.append("نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب.")
+        avertissements.append(gettext_('نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب.'))
     if inscription.riwaya != creneau.riwaya:
-        avertissements.append("رواية الحلقة لا تتوافق مع رواية الطالب.")
+        avertissements.append(gettext_('رواية الحلقة لا تتوافق مع رواية الطالب.'))
     if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
-        avertissements.append("جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة.")
+        avertissements.append(gettext_('جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة.'))
 
     manquants = creneaux_manquants_pour_eleve(eleve, creneau)
     if manquants and eleve.disponibilites.exists():
         jours_dict = dict(Creneau.JOUR_CHOICES)
         details = '، '.join(f'{jours_dict.get(j, j)} {h.strftime("%H:%M")}' for j, h in manquants)
         avertissements.append(
-            f'تنبيه: التوقيت المختار لا يتوافق بالكامل مع جدول تفرغ هذا الطالب المصرَّح به عند تسجيله — '
-            f'غير متفرغ حسب تصريحه في: {details}.'
+            gettext_('تنبيه: التوقيت المختار لا يتوافق بالكامل مع جدول تفرغ هذا الطالب المصرَّح به عند تسجيله — غير متفرغ حسب تصريحه في: %(v0)s.') % {'v0': details}
         )
     return avertissements
 
@@ -242,23 +242,23 @@ def raison_incompatibilite_groupe_inscription(inscription, groupe):
     Programme/riwaya/sexe ne sont plus bloquants depuis la Tâche 14 — voir
     avertissements_groupe_inscription."""
     if groupe.eleves.count() >= groupe.capacite_max:
-        return "المجموعة مكتملة العدد."
+        return gettext_('المجموعة مكتملة العدد.')
 
     creneau = groupe.creneau
     if not creneau:
-        return "لا يوجد جدول زمني محدد لهذه المجموعة."
+        return gettext_('لا يوجد جدول زمني محدد لهذه المجموعة.')
 
     age = _age_depuis_naissance(inscription.date_naissance)
     if age < creneau.age_min or age > creneau.age_max:
-        return "عمر الطالب لا يقع ضمن الفئة العمرية لهذه الحلقة."
+        return gettext_('عمر الطالب لا يقع ضمن الفئة العمرية لهذه الحلقة.')
 
     type_offre = inscription.abonnement_type_offre()
     if type_offre and type_offre != groupe.type_capacite:
-        return "نوع الاشتراك (فردي/جماعي) لا يتوافق مع نوع هذه المجموعة."
+        return gettext_('نوع الاشتراك (فردي/جماعي) لا يتوافق مع نوع هذه المجموعة.')
 
     manquants = creneaux_manquants_pour_matrice(inscription.disponibilites, creneau)
     if manquants:
-        return "جدول تفرغ الطالب لا يغطي كامل مواعيد هذه الحلقة."
+        return gettext_('جدول تفرغ الطالب لا يغطي كامل مواعيد هذه الحلقة.')
 
     return None
 
@@ -272,11 +272,11 @@ def avertissements_groupe_inscription(inscription, groupe):
 
     avertissements = []
     if inscription.programme != creneau.type_seance:
-        avertissements.append("نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب.")
+        avertissements.append(gettext_('نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب.'))
     if inscription.riwaya != creneau.riwaya:
-        avertissements.append("رواية الحلقة لا تتوافق مع رواية الطالب.")
+        avertissements.append(gettext_('رواية الحلقة لا تتوافق مع رواية الطالب.'))
     if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
-        avertissements.append("جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة.")
+        avertissements.append(gettext_('جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة.'))
     return avertissements
 
 
@@ -327,18 +327,17 @@ def avertissements_prof_creneau(prof, creneau):
         jours_dict = dict(Creneau.JOUR_CHOICES)
         details = '، '.join(f'{jours_dict.get(j, j)} {h.strftime("%H:%M")}' for j, h in manquants)
         avertissements.append(
-            f'تنبيه: التوقيت المختار لا يتوافق بالكامل مع جدول تفرغ هذا الأستاذ المصرَّح به عند تسجيله — '
-            f'غير متفرغ حسب تصريحه في: {details}.'
+            gettext_('تنبيه: التوقيت المختار لا يتوافق بالكامل مع جدول تفرغ هذا الأستاذ المصرَّح به عند تسجيله — غير متفرغ حسب تصريحه في: %(v0)s.') % {'v0': details}
         )
 
     categorie = _categorie_age_creneau(creneau)
     if categorie != 'mixte' and prof.type_eleve_preference:
         if categorie not in prof.type_eleve_preference and 'les_deux' not in prof.type_eleve_preference:
-            avertissements.append("الفئة العمرية المستهدفة لهذه الحلقة لا تتوافق مع تفضيل المعلم المصرَّح به عند تسجيله.")
+            avertissements.append(gettext_('الفئة العمرية المستهدفة لهذه الحلقة لا تتوافق مع تفضيل المعلم المصرَّح به عند تسجيله.'))
 
     if creneau.sexe_cible != 'mixte' and prof.contrainte_genre:
         if creneau.sexe_cible not in prof.contrainte_genre and 'mixte' not in prof.contrainte_genre:
-            avertissements.append("جنس الفئة المستهدفة لهذه الحلقة لا يتوافق مع تفضيل المعلم المصرَّح به عند تسجيله.")
+            avertissements.append(gettext_('جنس الفئة المستهدفة لهذه الحلقة لا يتوافق مع تفضيل المعلم المصرَّح به عند تسجيله.'))
 
     return avertissements
 
@@ -1944,15 +1943,15 @@ def valider_photo_groupe(fichier):
     from PIL import Image
 
     if not fichier.name.lower().endswith(EXTENSIONS_PHOTO_GROUPE_VALIDES):
-        return 'صيغة الملف غير مدعومة — استعمل PNG أو JPEG أو WEBP أو GIF.'
+        return gettext_('صيغة الملف غير مدعومة — استعمل PNG أو JPEG أو WEBP أو GIF.')
     if fichier.size > TAILLE_MAX_PHOTO_GROUPE_OCTETS:
-        return 'حجم الملف كبير جداً — الحد الأقصى 5 ميغابايت.'
+        return gettext_('حجم الملف كبير جداً — الحد الأقصى 5 ميغابايت.')
     try:
         image = Image.open(fichier)
         image.verify()
         fichier.seek(0)  # verify() consomme le curseur du fichier, on le remet au début avant de sauvegarder
     except Exception:
-        return 'الملف المرفوع ليس صورة صالحة.'
+        return gettext_('الملف المرفوع ليس صورة صالحة.')
     return None
 
 
