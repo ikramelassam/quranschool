@@ -1443,14 +1443,31 @@ def admin_gestion_inscriptions(request):
         try:
             delai_paiement = int(request.POST.get('delai_paiement_jours', 0))
             delai_contact = int(request.POST.get('delai_contact_heures', 0))
+            grace_nouvel_eleve = int(request.POST.get('delai_grace_nouvel_eleve_mois', 0))
         except ValueError:
             messages.error(request, gettext_('يرجى إدخال أرقام صحيحة للمهل الزمنية.'))
             return redirect('admin_gestion_inscriptions')
-        if delai_paiement < 1 or delai_contact < 1:
+        if delai_paiement < 1 or delai_contact < 1 or grace_nouvel_eleve < 1:
             messages.error(request, gettext_('يجب أن تكون كل مهلة زمنية يوماً/ساعة واحدة على الأقل.'))
+            return redirect('admin_gestion_inscriptions')
+        # Heure de réarmement quotidien de la relance de paiement dans la
+        # cloche 🔔 de l'élève (chantier du 2026-09-02) — champ <input type=time>,
+        # au format "HH:MM" (parfois "HH:MM:SS").
+        heure_brute = (request.POST.get('heure_relance_paiement') or '').strip()
+        heure_relance = None
+        for fmt in ('%H:%M', '%H:%M:%S'):
+            try:
+                heure_relance = datetime.datetime.strptime(heure_brute, fmt).time()
+                break
+            except ValueError:
+                continue
+        if heure_relance is None:
+            messages.error(request, gettext_('يرجى إدخال ساعة تذكير صحيحة (HH:MM).'))
             return redirect('admin_gestion_inscriptions')
         parametres.delai_paiement_jours = delai_paiement
         parametres.delai_contact_heures = delai_contact
+        parametres.delai_grace_nouvel_eleve_mois = grace_nouvel_eleve
+        parametres.heure_relance_paiement = heure_relance
 
         parametres.derniere_modification_par = request.user
         parametres.save()

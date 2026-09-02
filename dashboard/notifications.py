@@ -206,31 +206,55 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
         for d in docs
     ]
 
-    # Retard de paiement (chantier du 2026-09-01) — traité comme les autres
-    # types : « nouveau » tant que l'élève n'a pas visité sa page de paiement
-    # DEPUIS que le cycle est devenu échu (payments.views.eleve_paiements
-    # appelle marquer_visite(user, 'paiements_retard')). L'évènement est
-    # horodaté à `cycle.date_echeance` : visiter la page marque le seuil à
-    # maintenant -> l'échéance (passée) repasse sous le seuil -> le badge se
-    # vide. Un NOUVEAU cycle qui repasse en retard plus tard (élève toujours
-    # pas à jour) relance la notification, exactement comme un nouvel examen
-    # ou un nouveau fichier. L'état « en retard » lui-même reste visible en
-    # permanence sur la page de paiement / la page متأخرون عن الدفع (مدير),
-    # ce n'est que le badge 🔔 qui s'éteint après lecture.
-    from payments.cycles import cycle_courant, cycle_est_en_retard
+    # Retard de paiement — chantier du 2026-09-01, escalade + relance
+    # QUOTIDIENNE ajoutées le 2026-09-02.
+    #
+    # RÉARMEMENT QUOTIDIEN : l'évènement est horodaté à « aujourd'hui à
+    # ParametresInscriptions.heure_relance_paiement » dès que cette heure est
+    # passée (sinon à hier à cette heure). Visiter la page paiement
+    # (payments.views.eleve_paiements → marquer_visite(user,
+    # 'paiements_retard')) marque le seuil à maintenant -> l'évènement du jour
+    # repasse sous le seuil -> le badge se vide, jusqu'au réarmement du
+    # lendemain à cette même heure. Aucune tâche planifiée : la notif
+    # réapparaît au 1er accès de l'élève après l'heure de relance.
+    #
+    # ESCALADE : le TEXTE monte en intensité selon les jours de retard
+    # (payments.cycles.phase_relance_eleve) — un nouvel élève reste silencieux
+    # jusqu'à J+5, puis rappel simple, puis « dans 2 jours » (J+8), « il reste
+    # 1 jour » (J+9), « imminent » (J+10+). L'état « en retard » lui-même
+    # reste visible en permanence sur la page paiement / la page متأخرون عن
+    # الدفع (مدير), ce n'est que le badge 🔔 qui s'éteint après lecture.
+    from payments.cycles import (
+        cycle_courant, cycle_est_en_retard, phase_relance_eleve,
+        PHASE_SILENCE, PHASE_SIMPLE, PHASE_AVERT_2J, PHASE_AVERT_1J, PHASE_CRITIQUE,
+    )
+    from inscriptions.models import get_parametres_inscriptions
+
+    textes_relance = {
+        PHASE_SIMPLE: _('لقد تأخّرت عن دفع اشتراكك — يرجى إرسال إثبات الدفع في أقرب وقت'),
+        PHASE_AVERT_2J: _('تنبيه: خلال يومين سيتم إيقاف حسابك إن لم تُسدّد اشتراكك'),
+        PHASE_AVERT_1J: _('تنبيه أخير: يبقى يوم واحد قبل إيقاف حسابك بسبب عدم الدفع'),
+        PHASE_CRITIQUE: _('حسابك على وشك الإيقاف بسبب عدم دفع الاشتراك — يرجى التواصل مع الإدارة فوراً'),
+    }
 
     cycle_paiement = cycle_courant(eleve)
     evenements_retard_paiement = []
     if cycle_est_en_retard(cycle_paiement):
-        echeance_dt = timezone.make_aware(
-            datetime.datetime.combine(cycle_paiement.date_echeance, datetime.time())
-        )
-        if echeance_dt > seuils['paiements_retard']:
-            evenements_retard_paiement = [{
-                'texte': _('لقد تأخّرت عن دفع اشتراكك — يرجى إرسال إثبات الدفع في أقرب وقت'),
-                'url': reverse('eleve_paiements'),
-                'date': echeance_dt,
-            }]
+        phase = phase_relance_eleve(eleve, cycle_paiement)
+        if phase != PHASE_SILENCE:
+            heure_relance = get_parametres_inscriptions().heure_relance_paiement
+            maintenant = timezone.localtime()
+            ancre = timezone.make_aware(
+                datetime.datetime.combine(maintenant.date(), heure_relance)
+            )
+            if ancre > maintenant:
+                ancre -= datetime.timedelta(days=1)
+            if ancre > seuils['paiements_retard']:
+                evenements_retard_paiement = [{
+                    'texte': textes_relance[phase],
+                    'url': reverse('eleve_paiements'),
+                    'date': ancre,
+                }]
 
     groupes = []
     if evenements_retard_paiement:
