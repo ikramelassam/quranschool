@@ -205,9 +205,18 @@ class RetardsIntegrationTests(TestCase):
 
         self.client.force_login(self.admin)
         self.client.get(reverse('paiements_retards'))
-        groupes, _total = notifications_direction(self.admin)
-        textes = [e['texte'] for g in groupes for e in g['evenements']]
-        self.assertFalse(any(self.eleve.user.get_full_name() in t for t in textes))
+        groupes, total = notifications_direction(self.admin)
+        # Depuis le passage de la cloche direction en « centre de notifications
+        # avec historique » (commit ef9e14e) : visiter la page cible éteint le
+        # BADGE (non_lu / total) mais ne retire RIEN du panneau — l'élève en
+        # retard reste listé, juste sans surlignage « non lu ».
+        evenements = [e for g in groupes for e in g['evenements']]
+        ligne_eleve = [
+            e for e in evenements if self.eleve.user.get_full_name() in e['texte']
+        ]
+        self.assertTrue(ligne_eleve)                  # toujours dans le panneau
+        self.assertFalse(ligne_eleve[0]['non_lu'])    # mais plus « non lu »
+        self.assertEqual(total, 0)                    # badge éteint
         # La page dédiée, elle, liste toujours l'élève même badge éteint.
         reponse = self.client.get(reverse('paiements_retards'))
         self.assertContains(reponse, self.eleve.user.get_full_name())
