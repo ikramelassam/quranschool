@@ -52,6 +52,12 @@ from django.contrib.postgres.search import TrigramSimilarity
 from django.db.models import BooleanField, Case, CharField, F, Q, Value, When
 from django.db.models.functions import Concat, Coalesce, Greatest, NullIf, Trim
 from django.urls import reverse
+# gettext_lazy (pas "_" : ce module utilise "_" comme variable jetable dans
+# plusieurs boucles, ex: `for _, _, fonction, _ in CATEGORIES`) — les libellés
+# de CATEGORIES sont construits une seule fois à l'import, un gettext_ eager
+# figerait la langue. Résolus à la sérialisation JSON (DjangoJSONEncoder gère
+# les proxies gettext_lazy), donc dans la langue de la requête.
+from django.utils.translation import gettext_lazy
 
 LIMITE_PAR_CATEGORIE = 5
 
@@ -202,16 +208,16 @@ def _projection_groupes(q, limite):
     )
 
 
-# (clé, libellé arabe, fonction de projection, url de "voir tout" avec ?q= —
-# None si la page cible ne sait pas encore filtrer par q)
+# (clé, libellé traduisible, fonction de projection, url de "voir tout" avec ?q=
+# — None si la page cible ne sait pas encore filtrer par q)
 CATEGORIES = [
-    ('eleves', 'الطلاب', _projection_eleves, 'admin_eleves'),
-    ('profs', 'الأساتذة', _projection_profs, 'admin_profs'),
-    ('superviseurs', 'المؤطرون', _projection_superviseurs, 'admin_superviseurs'),
+    ('eleves', gettext_lazy('الطلاب'), _projection_eleves, 'admin_eleves'),
+    ('profs', gettext_lazy('الأساتذة'), _projection_profs, 'admin_profs'),
+    ('superviseurs', gettext_lazy('المؤطرون'), _projection_superviseurs, 'admin_superviseurs'),
     # groupes_list filtre désormais par ?q= (courses.views.groupes_list,
     # correction du 2026-08-14 — même filtre icontains+trigram_similar sur
     # Groupe.nom que ce module, pas une 2e logique recodée à part).
-    ('groupes', 'المجموعات', _projection_groupes, 'admin_groupes'),
+    ('groupes', gettext_lazy('المجموعات'), _projection_groupes, 'admin_groupes'),
 ]
 
 URL_PAR_CATEGORIE = {
