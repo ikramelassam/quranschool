@@ -86,11 +86,22 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    # LocaleMiddleware DOIT venir après SessionMiddleware (lit la langue en
-    # session) et avant CommonMiddleware (qui s'en sert déjà pour certaines
-    # redirections) — ordre documenté par Django. Active {% trans %} côté
-    # requête : détecte la langue via session -> cookie -> Accept-Language du
-    # navigateur -> LANGUAGE_CODE par défaut (voir set_language, core/urls.py).
+    # LangueParDefautArabeMiddleware DOIT venir juste avant LocaleMiddleware :
+    # il vide l'en-tête Accept-Language de la requête tant que le visiteur n'a
+    # pas de cookie de langue, pour que LocaleMiddleware (lu juste après)
+    # retombe sur LANGUAGE_CODE='ar' au lieu de la langue du téléphone. Le
+    # sélecteur de langue du site (set_language) continue de fonctionner : dès
+    # qu'un choix est fait, le cookie est posé et ce middleware ne fait plus
+    # rien. Voir core/middleware.py pour le détail.
+    'core.middleware.LangueParDefautArabeMiddleware',
+    # LocaleMiddleware DOIT venir après SessionMiddleware et avant
+    # CommonMiddleware (qui s'en sert déjà pour certaines redirections) — ordre
+    # documenté par Django. Active {% trans %} côté requête : détecte la langue
+    # via cookie LANGUAGE_COOKIE_NAME -> Accept-Language du navigateur ->
+    # LANGUAGE_CODE par défaut. L'étape Accept-Language est neutralisée en
+    # amont par LangueParDefautArabeMiddleware pour tout visiteur sans cookie
+    # de langue (voir set_language, core/urls.py, et le sélecteur dans
+    # templates/_language_switcher.html).
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -196,6 +207,14 @@ LANGUAGES = [
     ('fr', 'Français'),
     ('en', 'English'),
 ]
+
+# Sans ça, LANGUAGE_COOKIE_AGE vaut None -> le cookie de langue posé par le
+# sélecteur (vue set_language) est un cookie de SESSION, effacé dès que
+# l'utilisateur ferme complètement son navigateur : il reverrait alors le site
+# en arabe (LANGUAGE_CODE, via LangueParDefautArabeMiddleware) à sa visite
+# suivante, son choix manuel perdu. 1 an, reconduit à chaque nouveau passage
+# dans set_language.
+LANGUAGE_COOKIE_AGE = 60 * 60 * 24 * 365
 
 LOCALE_PATHS = [BASE_DIR / 'locale']
 
