@@ -147,6 +147,18 @@ DATABASES = {
 # que de laisser planter la requête suivante avec une connexion morte.
 DATABASES['default']['CONN_MAX_AGE'] = 60
 DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+# Correctif perf (audit du 2026-09-02) : le port 6543 ci-dessus est le
+# transaction pooler PgBouncer/Supavisor de Supabase — CHAQUE requête peut
+# atterrir sur une connexion Postgres physique différente d'une requête SQL à
+# l'autre, y compris DANS une même transaction Django. Les curseurs côté
+# serveur (utilisés par défaut par Django pour QuerySet.iterator() et certains
+# ORM internes) reposent sur des prepared statements liés à UNE connexion
+# physique précise : en mode transaction pooling, ça casse silencieusement ou
+# lève "prepared statement ... does not exist" / "already exists" selon le
+# provider. DISABLE_SERVER_SIDE_CURSORS=True est la configuration officielle
+# Django pour PgBouncer en mode transaction (voir docs Django "Transaction
+# pooling" et docs Supabase "Connecting with Django").
+DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
 
 
 # Password validation

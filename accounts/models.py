@@ -55,6 +55,16 @@ class User(AbstractUser):
             GinIndex(fields=['last_name'], name='accounts_user_ln_trgm', opclasses=['gin_trgm_ops']),
             GinIndex(fields=['email'], name='accounts_user_email_trgm', opclasses=['gin_trgm_ops']),
             GinIndex(fields=['telephone'], name='accounts_user_tel_trgm', opclasses=['gin_trgm_ops']),
+            # Correctif perf (audit du 2026-09-02) : le GIN trigram ci-dessus sert
+            # la recherche floue (dashboard.recherche), pas l'égalité stricte —
+            # Postgres ne l'utilise jamais pour un simple `WHERE email = ...`. Or
+            # accounts.backend.EmailBackend.authenticate() (donc CHAQUE connexion,
+            # accounts.views.login_view) fait exactement ça. Sans index btree
+            # dédié, EXPLAIN ANALYZE confirme un Seq Scan sur toute la table à
+            # chaque login. Pas unique=True : plusieurs comptes peuvent
+            # légitimement partager le même email (voir docstring EmailBackend,
+            # chantier du 2026-08-10).
+            models.Index(fields=['email'], name='accounts_user_email_btree'),
         ]
 
 
