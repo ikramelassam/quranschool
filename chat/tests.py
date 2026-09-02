@@ -630,6 +630,27 @@ class EnvoiMessagesTests(TestCase):
         self.assertEqual(b''.join(reponse.streaming_content), b'\x1a\x45\xdf\xa3contenu-audio-factice')
         message.fichier.delete(save=False)
 
+    def test_audio_pas_encore_disponible_renvoie_503_reessayable(self):
+        """Juste après l'upload, le stockage peut ne pas encore servir le
+        fichier vocal (latence de propagation Cloudinary). chat_fichier doit
+        alors répondre 503 + Retry-After (signal de réessai propre pour le
+        client, voir templates/chat/chat.html reessayerAudioEnErreur) plutôt
+        que de laisser remonter une 500 non gérée. Simulé ici sans mock en
+        pointant le champ fichier sur un chemin de stockage inexistant."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        fichier = SimpleUploadedFile('voice.webm', b'\x1a\x45\xdf\xa3factice', content_type='audio/webm')
+        self.client.post(f'/chat/{self.groupe.id}/envoyer/', {
+            'contenu': '', 'type_message': 'audio', 'fichier': fichier,
+        })
+        message = self.groupe.conversation.messages.first()
+        message.fichier.delete(save=False)
+        message.fichier.name = 'chat/introuvable-pas-encore-propage.webm'
+        message.save(update_fields=['fichier'])
+
+        reponse = self.client.get(f'/chat/{self.groupe.id}/fichier/{message.id}/')
+        self.assertEqual(reponse.status_code, 503)
+        self.assertEqual(reponse['Retry-After'], '3')
+
 
 class ReessaiAudioEnErreurJsRenduTests(TestCase):
     """Chantier du 2026-08-27 — bug remonté côté prof ("vocal inaudible
@@ -660,6 +681,10 @@ class ReessaiAudioEnErreurJsRenduTests(TestCase):
         contenu = response.content.decode('utf-8')
         self.assertIn('function reessayerAudioEnErreur', contenu)
         self.assertIn("addEventListener('error'", contenu)
+        # Élargissement du 2026-09-02 : plusieurs réessais en approche
+        # progressive (plus un seul), et reprise auto de la lecture.
+        self.assertIn('DELAIS_REESSAI_AUDIO_MS', contenu)
+        self.assertIn('lectureVoulue', contenu)
 
 
 class NotificationsNonLusTests(TestCase):

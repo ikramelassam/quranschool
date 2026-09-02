@@ -611,27 +611,53 @@ en JS selon le type (image/vidéo/audio/PDF) — voir initMediaViewer().
         reessayerAudioEnErreur(audioEl);
     }
 
-    // Chantier du 2026-08-27 — bug remonté ("vocal inaudible jusqu'à
-    // reconnexion") : confirmé par le client, un simple rafraîchissement de
-    // la page (pas besoin de se déconnecter) corrige le problème. Cause la
-    // plus probable : un <audio preload="metadata"> FRAÎCHEMENT inséré
-    // (juste après l'envoi, ou via poll() côté destinataire) lance sa 1ère
-    // requête immédiatement — si le fichier n'est pas encore réellement
-    // disponible côté stockage à cet instant précis (latence Cloudinary
-    // après upload), cette requête échoue, et un <audio> qui a déjà essuyé
-    // une erreur ne réessaie JAMAIS tout seul (contrairement à un
-    // rechargement complet de la page, qui crée un NOUVEL élément et relance
-    // donc une requête fraîche — qui réussit, le fichier ayant eu le temps
-    // de devenir disponible entre-temps). Un seul réessai après un court
-    // délai reproduit cet effet sans exiger de rechargement. dataset.
-    // reessaiAudio évite toute boucle si le fichier est réellement absent
-    // (échec définitif, ex: message supprimé) — un seul réessai, jamais plus.
+    // Chantier du 2026-08-27, ÉLARGI le 2026-09-02 — bug remonté ("vocal
+    // inaudible jusqu'à rafraîchissement de la page"), toujours signalé par le
+    // client APRÈS le 1er correctif. Cause : un <audio preload="metadata">
+    // FRAÎCHEMENT inséré (juste après l'envoi, ou via poll() côté destinataire)
+    // lance sa 1ère requête immédiatement — si le fichier n'est pas encore
+    // servable par le stockage à cet instant (latence de propagation Cloudinary
+    // pour une ressource raw, plusieurs secondes possibles), cette requête
+    // échoue, et un <audio> qui a déjà essuyé une erreur ne réessaie JAMAIS
+    // tout seul (contrairement à un rechargement complet de la page, qui crée
+    // un NOUVEL élément et relance une requête fraîche — qui réussit, le
+    // fichier ayant eu le temps de devenir disponible). Le 1er correctif ne
+    // faisait qu'UN réessai après 1,5 s : trop court et trop peu. Désormais
+    // plusieurs réessais en approche progressive (≈ 30 s au total) ; et si
+    // l'utilisateur avait déjà cliqué « lecture » au moment de l'erreur, la
+    // lecture reprend d'elle-même dès que le fichier est disponible (plus
+    // besoin de re-cliquer). Le fichier stocké n'est jamais touché. Les
+    // réessais s'arrêtent au succès (compteur remis à 0, une coupure réseau
+    // ultérieure redéclenche donc un cycle complet) ou après le dernier palier
+    // (fichier réellement absent, ex: message supprimé) — jamais de boucle.
+    var DELAIS_REESSAI_AUDIO_MS = [1000, 2000, 4000, 6000, 8000, 10000];
     function reessayerAudioEnErreur(audioEl) {
-        audioEl.addEventListener('error', function onError() {
-            if (audioEl.dataset.reessaiAudio) { return; }
-            audioEl.dataset.reessaiAudio = '1';
-            setTimeout(function () { audioEl.load(); }, 1500);
-        });
+        var timer = null;
+        function planifierReessai() {
+            var etape = parseInt(audioEl.dataset.reessaiAudio || '0', 10);
+            if (etape >= DELAIS_REESSAI_AUDIO_MS.length) { return; }
+            audioEl.dataset.reessaiAudio = String(etape + 1);
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+                var reprendreLecture = audioEl.dataset.lectureVoulue === '1';
+                audioEl.load();
+                if (reprendreLecture) {
+                    audioEl.addEventListener('canplay', function onCanPlay() {
+                        audioEl.removeEventListener('canplay', onCanPlay);
+                        var p = audioEl.play();
+                        if (p && p.catch) { p.catch(function () {}); }
+                    }, { once: true });
+                }
+            }, DELAIS_REESSAI_AUDIO_MS[etape]);
+        }
+        audioEl.addEventListener('play', function () { audioEl.dataset.lectureVoulue = '1'; });
+        audioEl.addEventListener('pause', function () { audioEl.dataset.lectureVoulue = ''; });
+        audioEl.addEventListener('ended', function () { audioEl.dataset.lectureVoulue = ''; });
+        audioEl.addEventListener('error', planifierReessai);
+        audioEl.addEventListener('canplaythrough', function () { audioEl.dataset.reessaiAudio = '0'; });
+        // L'élément peut déjà être en erreur si sa requête a échoué avant que
+        // cet écouteur ne soit rattaché (insertion synchrone très rapide).
+        if (audioEl.error) { planifierReessai(); }
     }
     function corrigerDureesAudio(container) {
         if (!container) { return; }
