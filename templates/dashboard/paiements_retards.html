@@ -26,6 +26,11 @@
             <div style="color:#aaa; font-size:0.8rem; margin-top:4px;">
                 {% blocktrans with date=ligne.cycle.date_echeance|date:"d-m-Y" jours=ligne.jours_retard %}أجل الدفع: {{ date }} — متأخر بـ {{ jours }} يوماً{% endblocktrans %}
             </div>
+            {% if ligne.urgent %}
+            <div style="margin-top:8px; display:inline-block; background:#fde8e8; color:#b91c1c; border:1px solid #f5c2c2; border-radius:6px; padding:3px 10px; font-size:0.8rem; font-weight:700;">
+                ⚠️ {% trans "الطالب يتلقّى تحذيراً بإيقاف الحساب — حان وقت الأرشفة" %}
+            </div>
+            {% endif %}
         </div>
         <div class="d-flex gap-2" style="flex-shrink:0; align-items:center;">
             {% include 'dashboard/_whatsapp_icon.html' with telephone=ligne.eleve.user.telephone texte=ligne.message_whatsapp %}

@@ -111,6 +111,31 @@
                 <span style="color:var(--color-text-muted); font-size:0.85rem;">{% trans "ساعة" %}</span>
             </div>
         </div>
+        <div class="gi-field">
+            <div>
+                <div class="gi-field-label">{% trans "ساعة تذكير الطالب المتأخر عن الدفع" %}</div>
+                <div style="color:var(--color-text-muted); font-size:0.8rem; margin-top:4px;">
+                    {% trans "يُعاد إظهار إشعار التأخّر في جرس الطالب كل يوم عند هذه الساعة، إلى أن يسدّد." %}
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <input type="time" name="heure_relance_paiement" class="form-control" style="width:120px;"
+                       value="{{ parametres.heure_relance_paiement|time:'H:i' }}">
+            </div>
+        </div>
+        <div class="gi-field">
+            <div>
+                <div class="gi-field-label">{% trans "مدّة اعتبار الطالب « جديداً »" %}</div>
+                <div style="color:var(--color-text-muted); font-size:0.8rem; margin-top:4px;">
+                    {% trans "خلال هذه المدّة الأولى من التسجيل، تبدأ تذكيرات التأخّر في اليوم الخامس بعد الأجل بدل اليوم الأول." %}
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <input type="number" name="delai_grace_nouvel_eleve_mois" min="1" class="form-control" style="width:90px;"
+                       value="{{ parametres.delai_grace_nouvel_eleve_mois }}">
+                <span style="color:var(--color-text-muted); font-size:0.85rem;">{% trans "شهر" %}</span>
+            </div>
+        </div>
     </div>
 
     <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">{% trans "حفظ التعديلات ✅" %}</button>

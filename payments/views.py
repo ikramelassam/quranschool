@@ -483,7 +483,7 @@ def paiements_retards(request):
     Tâche du 2026-09-02 — la vue admin_eleve_archiver est
     @role_required('admin', 'mshrif'))."""
     from django.utils import timezone
-    from .cycles import eleves_en_retard
+    from .cycles import eleves_en_retard, RELANCE_JOUR_AVERT_2J
     from .models import get_reglage_relance_whatsapp
 
     aujourdhui = timezone.localdate()
@@ -495,6 +495,11 @@ def paiements_retards(request):
             'eleve': eleve,
             'cycle': cycle,
             'jours_retard': jours_retard,
+            # À partir de J+8 l'élève voit un avertissement de désactivation
+            # imminente dans sa cloche 🔔 (payments.cycles.phase_relance_eleve) :
+            # on le signale ici en rouge pour que la direction sache qu'il est
+            # temps d'archiver (l'archivage reste MANUEL — bouton أرشفة).
+            'urgent': jours_retard >= RELANCE_JOUR_AVERT_2J,
             'groupes': list(eleve.groupes.all()),
             'message_whatsapp': _message_relance_whatsapp(
                 modele_message, eleve, cycle, jours_retard

@@ -1,3 +1,5 @@
+import datetime
+
 from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
@@ -547,6 +549,18 @@ class ParametresInscriptions(models.Model):
     # PresentationInscription.message_bienvenue) : "l'équipe vous contactera sous
     # {delai_contact_heures}h" — injecté au rendu, jamais recopié en dur dans le texte.
     delai_contact_heures = models.PositiveIntegerField(default=24)
+    # Chantier « relances de paiement quotidiennes » du 2026-09-02.
+    # heure_relance_paiement : heure à laquelle la notification de retard de
+    # paiement se RÉARME chaque jour dans la cloche 🔔 de l'élève (elle
+    # disparaît quand l'élève ouvre sa page paiement, puis revient le
+    # lendemain à cette heure tant qu'il n'a pas réglé). Aucune tâche
+    # planifiée : la notif réapparaît au 1er accès de l'élève après cette
+    # heure — voir dashboard.notifications.notifications_eleve.
+    heure_relance_paiement = models.TimeField(default=datetime.time(20, 0))
+    # En dessous de cette ancienneté d'inscription (user.date_joined), l'élève
+    # est « nouveau » : sa relance ne démarre qu'à J+5 de retard au lieu de
+    # J+1 — voir payments.cycles.est_nouvel_eleve / phase_relance_eleve.
+    delai_grace_nouvel_eleve_mois = models.PositiveIntegerField(default=2)
     derniere_modification_par = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True, blank=True,

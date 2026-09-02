@@ -22,6 +22,25 @@ from django.utils import timezone
 
 DELAI_PAIEMENT_DEFAUT = 10
 
+# Escalade de la relance élève (chantier du 2026-09-02) — jours de retard
+# comptés APRÈS `cycle.date_echeance` (J+1 = lendemain de l'échéance).
+# Un « nouvel élève » (inscrit depuis moins de ParametresInscriptions.
+# delai_grace_nouvel_eleve_mois mois) n'est relancé qu'à partir de J+5 ;
+# un ancien élève dès J+1. À partir de J+8 les deux suivent le même
+# décompte (« dans 2 jours »… « il reste 1 jour »… « imminent »).
+RELANCE_JOUR_DEBUT_NOUVEL_ELEVE = 5
+RELANCE_JOUR_DEBUT_ANCIEN_ELEVE = 1
+RELANCE_JOUR_AVERT_2J = 8
+RELANCE_JOUR_AVERT_1J = 9
+RELANCE_JOUR_CRITIQUE = 10
+GRACE_NOUVEL_ELEVE_MOIS_DEFAUT = 2
+
+PHASE_SILENCE = 'silence'      # rien dans la cloche (phase de grâce)
+PHASE_SIMPLE = 'simple'        # rappel simple, répété chaque jour
+PHASE_AVERT_2J = 'avert_2j'    # J+8 : « dans 2 jours votre compte sera désactivé »
+PHASE_AVERT_1J = 'avert_1j'    # J+9 : « il reste 1 jour »
+PHASE_CRITIQUE = 'critique'    # J+10 et au-delà : désactivation imminente
+
 
 def _delai_jours():
     """ParametresInscriptions.delai_paiement_jours (10 par défaut) — la MÊME
@@ -183,6 +202,59 @@ def est_en_retard(eleve, aujourdhui=None):
     jamais boucler là-dessus : utiliser eleves_en_retard() (2 requêtes au
     total, voir sa docstring)."""
     return cycle_est_en_retard(cycle_courant(eleve), aujourdhui)
+
+
+def jours_de_retard(cycle, aujourdhui=None):
+    """Nombre de jours écoulés depuis `cycle.date_echeance` (0 le jour même de
+    l'échéance, 1 le lendemain…). Négatif si l'échéance est encore à venir."""
+    aujourdhui = aujourdhui or timezone.localdate()
+    return (aujourdhui - cycle.date_echeance).days
+
+
+def _grace_nouvel_eleve_mois():
+    from inscriptions.models import get_parametres_inscriptions
+
+    return (
+        get_parametres_inscriptions().delai_grace_nouvel_eleve_mois
+        or GRACE_NOUVEL_ELEVE_MOIS_DEFAUT
+    )
+
+
+def est_nouvel_eleve(eleve):
+    """True si l'élève est inscrit depuis moins de `delai_grace_nouvel_eleve_
+    mois` mois (ParametresInscriptions) — sa relance de paiement ne démarre
+    qu'à J+5 de retard au lieu de J+1. Référence : `user.date_joined`, comme
+    l'amorçage des seuils de notification (dashboard.notifications._seuils)."""
+    limite = timezone.now() - datetime.timedelta(days=30 * _grace_nouvel_eleve_mois())
+    return eleve.user.date_joined >= limite
+
+
+def jour_debut_relance(eleve):
+    """J+1 pour un ancien élève, J+5 pour un nouvel élève (voir est_nouvel_eleve)."""
+    return (
+        RELANCE_JOUR_DEBUT_NOUVEL_ELEVE if est_nouvel_eleve(eleve)
+        else RELANCE_JOUR_DEBUT_ANCIEN_ELEVE
+    )
+
+
+def phase_relance_eleve(eleve, cycle, aujourdhui=None):
+    """Phase d'escalade de la relance affichée à l'élève dans la cloche 🔔,
+    en fonction des jours de retard et de l'ancienneté de l'élève. Renvoie
+    l'une des constantes PHASE_* (le libellé texte, lui, vit dans
+    dashboard.notifications — ce module ne fait aucun affichage).
+
+    N'a de sens que pour un cycle réellement en retard (cycle_est_en_retard) —
+    l'appelant fait ce test d'abord."""
+    j = jours_de_retard(cycle, aujourdhui)
+    if j < jour_debut_relance(eleve):
+        return PHASE_SILENCE
+    if j >= RELANCE_JOUR_CRITIQUE:
+        return PHASE_CRITIQUE
+    if j == RELANCE_JOUR_AVERT_1J:
+        return PHASE_AVERT_1J
+    if j == RELANCE_JOUR_AVERT_2J:
+        return PHASE_AVERT_2J
+    return PHASE_SIMPLE
 
 
 def cycles_ouverts_en_retard(avec_groupes=False):
