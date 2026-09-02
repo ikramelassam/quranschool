@@ -8337,3 +8337,33 @@ msgstr "Avec {personne}"
 
 msgid "لا يوجد رقم هاتف مسجَّل لهذا {personne}"
 msgstr "Aucun numéro de téléphone enregistré — {personne}"
+
+msgid "رسالة التذكير عبر واتساب"
+msgstr "Message de relance par WhatsApp"
+
+msgid "النص المقترح تلقائياً عند النقر على أيقونة واتساب في صفحة « متأخرون عن دفع الاشتراك »"
+msgstr "Texte proposé automatiquement au clic sur l'icône WhatsApp de la page « Retards de paiement de l'abonnement »"
+
+msgid "يمكنك استعمال العناصر التالية وسيتم استبدالها تلقائياً لكل طالب:"
+msgstr "Vous pouvez utiliser les éléments suivants, remplacés automatiquement pour chaque élève :"
+
+msgid "اسم الطالب"
+msgstr "Nom de l'élève"
+
+msgid "تاريخ أجل الدفع"
+msgstr "Date d'échéance du paiement"
+
+msgid "عدد أيام التأخر"
+msgstr "Nombre de jours de retard"
+
+msgid "لا تُرسل المنصة أي رسالة تلقائياً — النقر يفتح فقط محادثة واتساب بالنص جاهزاً، والإرسال يبقى يدوياً."
+msgstr "La plateforme n'envoie aucun message automatiquement — le clic ouvre seulement la conversation WhatsApp avec le texte prêt, l'envoi reste manuel."
+
+msgid "تعديل نص رسالة التذكير عبر واتساب"
+msgstr "Modifier le texte du message de relance WhatsApp"
+
+msgid "لا يمكن ترك نص الرسالة فارغاً."
+msgstr "Le texte du message ne peut pas être vide."
+
+msgid "تم تحديث نص رسالة التذكير بنجاح."
+msgstr "Le texte du message de relance a bien été mis à jour."

@@ -382,7 +382,7 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'admin_gestion_inscriptions' or request.resolver_match.url_name == 'admin_reglage_lien_seance' or request.resolver_match.url_name == 'admin_reglage_retention_chat' or request.resolver_match.url_name == 'admin_hakiba_gestion' or request.resolver_match.url_name == 'admin_telegram_abonnes' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'mshrif_charte' or request.resolver_match.url_name == 'admin_programme_general' or request.resolver_match.url_name == 'admin_visibilite_prof' or request.resolver_match.url_name == 'admin_gestion_inscriptions' or request.resolver_match.url_name == 'admin_reglage_lien_seance' or request.resolver_match.url_name == 'admin_reglage_retention_chat' or request.resolver_match.url_name == 'admin_reglage_relance_whatsapp' or request.resolver_match.url_name == 'admin_hakiba_gestion' or request.resolver_match.url_name == 'admin_telegram_abonnes' %}open{% endif %}>
             <summary>{% trans "حقيبة الإدارة" %}</summary>
             <a href="{% url 'admin_telegram_abonnes' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_telegram_abonnes' %}active{% endif %}">
@@ -411,6 +411,10 @@
             <a href="{% url 'admin_reglage_retention_chat' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_reglage_retention_chat' %}active{% endif %}">
                 <span class="icon">⏳</span> {% trans "مدة الاحتفاظ برسائل الدردشة" %}
+            </a>
+            <a href="{% url 'admin_reglage_relance_whatsapp' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_reglage_relance_whatsapp' %}active{% endif %}">
+                <span class="icon">💬</span> {% trans "رسالة التذكير عبر واتساب" %}
             </a>
             <a href="{% url 'admin_hakiba_gestion' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_hakiba_gestion' %}active{% endif %}">

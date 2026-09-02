@@ -222,6 +222,93 @@ class RetardsIntegrationTests(TestCase):
         self.client.force_login(self.eleve.user)
         self.assertEqual(self.client.get(reverse('paiements_retards')).status_code, 302)
 
+
+def _mshrif(email='mshrif_wa_test@zidni.test'):
+    return User.objects.create_user(
+        username=email, email=email, password='xX!test12345',
+        first_name='مشرف', role='mshrif', doit_changer_mot_de_passe=False,
+    )
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class RelanceWhatsAppTests(TestCase):
+    """Icône WhatsApp + message pré-rempli éditable (Tâche du 2026-09-02)."""
+
+    def setUp(self):
+        self.eleve = _creer_eleve('eleve_wa_test@zidni.test')
+        self.eleve.user.first_name = 'سمية'
+        self.eleve.user.last_name = 'العلوي'
+        self.eleve.user.telephone = '0663394165'
+        self.eleve.user.save()
+        cycles.demarrer_cycles(self.eleve)
+        cycle = cycles.cycle_courant(self.eleve)
+        self.echeance = timezone.localdate() - datetime.timedelta(days=4)
+        cycle.date_echeance = self.echeance
+        cycle.save(update_fields=['date_echeance'])
+        self.admin = _admin('admin_wa_test@zidni.test')
+        self.mshrif = _mshrif()
+
+    def test_get_reglage_cree_le_singleton_avec_message_par_defaut(self):
+        from payments.models import get_reglage_relance_whatsapp, MESSAGE_RELANCE_WHATSAPP_DEFAUT
+
+        reglage = get_reglage_relance_whatsapp()
+        self.assertEqual(reglage.pk, 1)
+        self.assertEqual(reglage.message, MESSAGE_RELANCE_WHATSAPP_DEFAUT)
+
+    def test_lien_whatsapp_present_avec_placeholders_remplaces(self):
+        self.client.force_login(self.admin)
+        reponse = self.client.get(reverse('paiements_retards'))
+        self.assertContains(reponse, 'wa.me/212663394165')
+        contenu = reponse.content.decode()
+        self.assertIn('%D8%B3%D9%85%D9%8A%D8%A9', contenu)  # « سمية » urlencodé
+        self.assertIn(self.echeance.strftime('%d-%m-%Y'), contenu)
+        self.assertIn('4', contenu)
+        self.assertNotIn('{nom}', contenu)
+        self.assertNotIn('{jours_retard}', contenu)
+
+    def test_lien_absent_si_eleve_sans_telephone(self):
+        self.eleve.user.telephone = ''
+        self.eleve.user.save()
+        self.client.force_login(self.admin)
+        reponse = self.client.get(reverse('paiements_retards'))
+        self.assertNotContains(reponse, 'wa.me/')
+
+    def test_mshrif_peut_modifier_le_message_et_il_apparait_dans_le_lien(self):
+        self.client.force_login(self.mshrif)
+        self.assertEqual(self.client.get(reverse('admin_reglage_relance_whatsapp')).status_code, 200)
+        reponse = self.client.post(
+            reverse('admin_reglage_relance_whatsapp'),
+            {'message': 'تذكير: {nom} متأخر {jours_retard} يوماً'},
+            follow=True,
+        )
+        self.assertEqual(reponse.status_code, 200)
+        from payments.models import ReglageRelanceWhatsApp
+        reglage = ReglageRelanceWhatsApp.objects.get(pk=1)
+        self.assertEqual(reglage.message, 'تذكير: {nom} متأخر {jours_retard} يوماً')
+        self.assertEqual(reglage.derniere_modification_par, self.mshrif)
+
+    def test_message_vide_refuse(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse('admin_reglage_relance_whatsapp'), {'message': '   '})
+        from payments.models import ReglageRelanceWhatsApp, MESSAGE_RELANCE_WHATSAPP_DEFAUT
+        self.assertEqual(ReglageRelanceWhatsApp.objects.get(pk=1).message, MESSAGE_RELANCE_WHATSAPP_DEFAUT)
+
+    def test_page_reglage_interdite_a_leleve(self):
+        self.client.force_login(self.eleve.user)
+        self.assertEqual(
+            self.client.get(reverse('admin_reglage_relance_whatsapp')).status_code, 302
+        )
+
+    def test_accolades_isolees_dans_le_message_ne_plantent_pas(self):
+        from payments.models import get_reglage_relance_whatsapp
+
+        reglage = get_reglage_relance_whatsapp()
+        reglage.message = 'مرحبا { غير مكتمل {nom}'
+        reglage.save()
+        self.client.force_login(self.admin)
+        reponse = self.client.get(reverse('paiements_retards'))
+        self.assertEqual(reponse.status_code, 200)
+
     def test_validation_paiement_fait_disparaitre_le_retard(self):
         cycle = cycles.cycle_courant(self.eleve)
         paiement = Paiement.objects.create(

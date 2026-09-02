@@ -458,6 +458,21 @@ def admin_paiement_rejeter(request, paiement_id):
     return redirect('admin_paiement_detail', paiement_id=paiement.id)
 
 
+def _message_relance_whatsapp(modele, eleve, cycle, jours_retard):
+    """Remplit les espaces réservés du message de relance WhatsApp
+    (ReglageRelanceWhatsApp.message, modifiable par مدير/مشرف). `str.replace`
+    et non `str.format` : le texte est libre et peut contenir des accolades
+    isolées ou un espace réservé inconnu — aucun de ces cas ne doit lever."""
+    remplacements = {
+        '{nom}': eleve.user.get_full_name(),
+        '{date_echeance}': cycle.date_echeance.strftime('%d-%m-%Y'),
+        '{jours_retard}': str(jours_retard),
+    }
+    for cle, valeur in remplacements.items():
+        modele = modele.replace(cle, valeur)
+    return modele
+
+
 @role_required('admin', 'mshrif')
 def paiements_retards(request):
     """Liste des élèves actifs en retard de paiement (cycle courant échu, rien
@@ -469,17 +484,22 @@ def paiements_retards(request):
     @role_required('admin', 'mshrif'))."""
     from django.utils import timezone
     from .cycles import eleves_en_retard
+    from .models import get_reglage_relance_whatsapp
 
     aujourdhui = timezone.localdate()
-    lignes = [
-        {
+    modele_message = get_reglage_relance_whatsapp().message
+    lignes = []
+    for eleve, cycle in eleves_en_retard(avec_groupes=True):
+        jours_retard = (aujourdhui - cycle.date_echeance).days
+        lignes.append({
             'eleve': eleve,
             'cycle': cycle,
-            'jours_retard': (aujourdhui - cycle.date_echeance).days,
+            'jours_retard': jours_retard,
             'groupes': list(eleve.groupes.all()),
-        }
-        for eleve, cycle in eleves_en_retard(avec_groupes=True)
-    ]
+            'message_whatsapp': _message_relance_whatsapp(
+                modele_message, eleve, cycle, jours_retard
+            ),
+        })
     lignes.sort(key=lambda l: l['jours_retard'], reverse=True)
 
     context = {
