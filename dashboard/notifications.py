@@ -54,6 +54,11 @@ LIMITE_FETCH = 50
 # zone "🔔 الإشعارات" supprimée (Chantier UX du 2026-08-16), qui plafonnait
 # déjà à 5.
 LIMITE_PAR_GROUPE = 5
+# Lignes affichées dans le panneau déroulant de la DIRECTION (liste plate, pas
+# groupée par type — voir notifications_direction) : un plafond global, pas
+# par groupe. Plus large que LIMITE_PAR_GROUPE parce qu'il n'y a plus qu'une
+# seule liste ; la page « عرض الكل » reste, elle, à LIMITE_FETCH.
+LIMITE_LISTE_PLATE = 15
 
 
 def _trier_groupes_par_recence(groupes):
@@ -322,10 +327,23 @@ def notifications_superviseur(user, limite=LIMITE_PAR_GROUPE):
     return _trier_groupes_par_recence(groupes), len(evenements_hakiba)
 
 
-def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
+def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     """(groupes, total) pour le panneau 🔔 côté مدير/مشرف (Chantier du
-    2026-08-24) — même patron que notifications_eleve/notifications_prof
-    ci-dessus. 2 événements possibles :
+    2026-08-24 ; refonte de la présentation le 2026-09-02).
+
+    PRÉSENTATION — LISTE PLATE (révision du 2026-09-02, option (iii) validée
+    explicitement) : `groupes` contient AU PLUS UN pseudo-groupe sans `label`,
+    dont `evenements` est la fusion de TOUS les types ci-dessous, triée par
+    `date` STRICTEMENT décroissante (le plus récent en tête). Chaque évènement
+    porte une clé `icone` (rendue en tête de ligne côté template). AUCUN
+    regroupement par type — décision prise pour garantir à la fois « le plus
+    récent d'abord » ET « aucune demande ancienne reléguée hors de vue dans un
+    groupe du bas » (le regroupement + tri par récence du groupe enterrait les
+    inscriptions anciennes non traitées, cf. incident du 2026-09-02). Les
+    panneaux élève/prof/مؤطر, eux, restent groupés par type
+    (_trier_groupes_par_recence).
+
+    ÉVÉNEMENTS FUSIONNÉS — 2 événements possibles :
 
     1. Nouvelle demande d'inscription élève (InscriptionEleve.
     date_soumission, auto_now_add — même garantie anti-fausse-notification
@@ -485,32 +503,29 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
                 'date': echeance_dt,
             })
 
-    groupes = []
-    if evenements_retard_paiement:
-        groupes.append({
-            'icone': '⚠️', 'label': _('طلاب متأخرون عن دفع الاشتراك'),
-            'evenements': evenements_retard_paiement[:limite],
-        })
-    if evenements_demandes:
-        groupes.append({
-            'icone': '📝', 'label': _('طلبات تسجيل جديدة'), 'evenements': evenements_demandes[:limite],
-        })
-    if evenements_demandes_prof:
-        groupes.append({
-            'icone': '👨‍🏫', 'label': _('طلبات تسجيل أساتذة جديدة'), 'evenements': evenements_demandes_prof[:limite],
-        })
-    if evenements_profs_en_attente:
-        groupes.append({
-            'icone': '👨‍🏫', 'label': _('طلبات أساتذة بانتظار تصديقك'),
-            'evenements': evenements_profs_en_attente[:limite],
-        })
-    if evenements_changement_halaka:
-        groupes.append({
-            'icone': '🔄', 'label': _('طلبات تغيير حلقة'), 'evenements': evenements_changement_halaka[:limite],
-        })
+    # LISTE PLATE : on étiquette chaque évènement de son icône de type, on
+    # fusionne tout, on trie par date décroissante (voir docstring). Les
+    # libellés de groupe (« طلبات تسجيل جديدة » etc.) disparaissent — l'icône
+    # par ligne suffit à lire le type.
+    def _avec_icone(evenements, icone):
+        for e in evenements:
+            e['icone'] = icone
+        return evenements
 
-    return _trier_groupes_par_recence(groupes), (
-        len(evenements_retard_paiement)
-        + len(evenements_demandes) + len(evenements_demandes_prof)
-        + len(evenements_profs_en_attente) + len(evenements_changement_halaka)
+    tous_les_evenements = (
+        _avec_icone(evenements_retard_paiement, '⚠️')
+        + _avec_icone(evenements_demandes, '📝')
+        + _avec_icone(evenements_demandes_prof, '👨‍🏫')
+        + _avec_icone(evenements_profs_en_attente, '👨‍🏫')
+        + _avec_icone(evenements_changement_halaka, '🔄')
     )
+    tous_les_evenements.sort(key=lambda e: e['date'], reverse=True)
+
+    total = len(tous_les_evenements)
+    # Un seul pseudo-groupe, sans label : le template rend alors la liste à
+    # plat (pas d'en-tête de groupe), avec l'icône en tête de chaque ligne.
+    groupes = (
+        [{'icone': '', 'label': '', 'evenements': tous_les_evenements[:limite]}]
+        if tous_les_evenements else []
+    )
+    return groupes, total

@@ -3214,9 +3214,10 @@ class NotificationsNouvelleCandidatureProfDirectionTests(TestCase):
 
 
 class NotificationsOrdreGroupesTests(TestCase):
-    """Le panneau 🔔 trie ses groupes de la notification la PLUS RÉCENTE à la
-    plus ancienne (voir dashboard.notifications._trier_groupes_par_recence) —
-    plus d'ordre figé par type."""
+    """Ordre du panneau 🔔, de la notification la PLUS RÉCENTE à la plus
+    ancienne : panneaux élève/prof/مؤطر = groupes triés entre eux
+    (_trier_groupes_par_recence) ; panneau direction = liste plate triée
+    strictement par date (option iii du 2026-09-02)."""
 
     def setUp(self):
         from django.utils import timezone
@@ -3241,7 +3242,10 @@ class NotificationsOrdreGroupesTests(TestCase):
         ordre = [g['label'] for g in _trier_groupes_par_recence([ancien, recent, milieu])]
         self.assertEqual(ordre, ['recent', 'milieu', 'ancien'])
 
-    def test_groupes_direction_ordonnes_du_plus_recent_au_plus_ancien(self):
+    def test_panneau_direction_est_une_liste_plate_triee_par_date(self):
+        """Panneau direction = liste plate (option iii du 2026-09-02) : un
+        seul pseudo-groupe sans label, évènements de tous types fusionnés et
+        triés strictement du plus récent au plus ancien."""
         from django.utils import timezone
 
         # Demande d'inscription élève plus ANCIENNE que la candidature prof
@@ -3269,20 +3273,25 @@ class NotificationsOrdreGroupesTests(TestCase):
 
         self.client.force_login(self.mshrif)
         groupes = self.client.get(reverse('dashboard_mshrif')).context['notif_groupes']
-        labels = [g['label'] for g in groupes]
-        self.assertIn('طلبات أساتذة بانتظار تصديقك', labels)
-        self.assertIn('طلبات تسجيل جديدة', labels)
-        # Le groupe le plus récent (prof à l'instant) passe avant l'ancien (élève il y a 10 j).
-        self.assertLess(
-            labels.index('طلبات أساتذة بانتظار تصديقك'),
-            labels.index('طلبات تسجيل جديدة'),
-        )
+        # Un seul pseudo-groupe, sans label.
+        self.assertEqual(len(groupes), 1)
+        self.assertFalse(groupes[0]['label'])
+        evts = groupes[0]['evenements']
+        self.assertEqual(len(evts), 2)
+        # Tri strictement décroissant par date : prof (à l'instant) avant élève (il y a 10 j).
+        self.assertGreater(evts[0]['date'], evts[1]['date'])
+        self.assertTrue(evts[0]['texte'].startswith('طلب أستاذ بانتظار تصديقك'))
+        self.assertTrue(evts[1]['texte'].startswith('طلب تسجيل جديد'))
+        # Chaque ligne porte son icône de type.
+        self.assertEqual(evts[0]['icone'], '👨‍🏫')
+        self.assertEqual(evts[1]['icone'], '📝')
 
 
 class BadgeSidebarGestionUtilisateursTests(TestCase):
-    """Le badge du nombre de demandes en attente est visible sur l'item de
-    menu PARENT « إدارة المستخدمين » lui-même, sans déplier le sous-menu
-    (voir dashboard.context_processors.badges_sidebar_direction)."""
+    """Badges du groupe « إدارة المستخدمين » (voir dashboard.context_processors.
+    badges_sidebar_direction) : item PARENT = somme, + un badge propre sur
+    chaque sous-item (« طلبات التسجيل » = inscriptions en_attente élèves+profs,
+    « طلبات الأساتذة » مشرف = profs validee_directeur)."""
 
     def setUp(self):
         self.admin = _creer_admin()
@@ -3302,26 +3311,41 @@ class BadgeSidebarGestionUtilisateursTests(TestCase):
             nom='أستاذ', prenom='تجريبي', telephone='0600000041', email=email, statut=statut,
         )
 
-    def test_badge_parent_directeur_cumule_eleves_et_profs_en_attente(self):
+    def test_directeur_parent_et_sous_item_egaux_aux_inscriptions_en_attente(self):
         self._inscription_eleve('badge_dir_eleve@zidni.test')
-        self._inscription_prof('badge_dir_prof@zidni.test')
+        self._inscription_prof('badge_dir_prof@zidni.test')  # en_attente
         self.client.force_login(self.admin)
         reponse = self.client.get(reverse('dashboard_admin'))
+        # مدير : parent == sous-item « طلبات التسجيل » (pas d'autre sous-item).
+        self.assertEqual(reponse.context['nb_inscriptions_attente'], 2)
         self.assertEqual(reponse.context['badge_gestion_utilisateurs'], 2)
-        self.assertEqual(reponse.context['badge_inscriptions_en_attente'], 2)
         self.assertContains(reponse, 'menu-cat-titre')
 
-    def test_badge_parent_mshrif_compte_les_candidatures_a_valider(self):
-        self._inscription_prof('badge_mshrif_prof@zidni.test', statut='validee_directeur')
+    def test_mshrif_parent_est_la_somme_inscriptions_plus_profs_a_valider(self):
+        self._inscription_eleve('badge_mshrif_eleve@zidni.test')                       # +1 inscription
+        self._inscription_prof('badge_mshrif_prof_att@zidni.test')                     # +1 inscription (prof en_attente)
+        self._inscription_prof('badge_mshrif_prof_dir@zidni.test', statut='validee_directeur')  # +1 à valider
         self.client.force_login(self.mshrif)
         reponse = self.client.get(reverse('dashboard_mshrif'))
-        self.assertEqual(reponse.context['badge_gestion_utilisateurs'], 1)
+        self.assertEqual(reponse.context['nb_inscriptions_attente'], 2)
+        self.assertEqual(reponse.context['nb_profs_a_valider'], 1)
+        # Parent = somme des 2 sous-badges visibles une fois déplié.
+        self.assertEqual(reponse.context['badge_gestion_utilisateurs'], 3)
+
+    def test_mshrif_badge_sous_item_profs_inchange(self):
+        """« طلبات الأساتذة » garde son badge historique nb_demandes_en_attente
+        (profs validee_directeur) — non touché par ce chantier."""
+        self._inscription_prof('badge_mshrif_hist@zidni.test', statut='validee_directeur')
+        self.client.force_login(self.mshrif)
+        reponse = self.client.get(reverse('dashboard_mshrif'))
+        self.assertEqual(reponse.context['nb_demandes_en_attente'], 1)
 
     def test_pas_de_badge_pour_les_autres_roles(self):
         eleve = _creer_eleve(email='badge_neutre_eleve@zidni.test')
         self.client.force_login(eleve.user)
         reponse = self.client.get(reverse('dashboard_eleve'))
         self.assertNotIn('badge_gestion_utilisateurs', reponse.context)
+        self.assertNotIn('nb_inscriptions_attente', reponse.context)
 
 
 class DepuisRelatifFiltreTests(TestCase):

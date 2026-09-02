@@ -185,6 +185,7 @@
             <a href="{% url 'admin_inscriptions' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_inscriptions' %}active{% endif %}">
                 <span class="icon">📋</span> {% trans "طلبات التسجيل" %}
+                {% if nb_inscriptions_attente %}<span class="menu-badge">{{ nb_inscriptions_attente }}</span>{% endif %}
             </a>
             <a href="{% url 'admin_eleve_ajouter_manuel' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_eleve_ajouter_manuel' %}active{% endif %}">

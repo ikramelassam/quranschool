@@ -128,15 +128,24 @@ dashboard_superviseur/dashboard_admin/dashboard_mshrif :
                 <div class="notif-dropdown" id="notifDropdown" role="menu" hidden>
                     {% if notif_groupes %}
                     <div class="notif-liste">
+                        {% comment %}
+                        Un groupe sans `label` = liste plate (panneau direction,
+                        voir dashboard.notifications.notifications_direction) :
+                        pas d'en-tête, chaque ligne porte son icône `evt.icone`.
+                        Un groupe avec `label` = affichage groupé par type
+                        (élève/prof/مؤطر), icône sur l'en-tête comme avant.
+                        {% endcomment %}
                         {% for groupe in notif_groupes %}
-                        <div class="notif-groupe">
+                        <div class="notif-groupe{% if not groupe.label %} notif-groupe--plat{% endif %}">
+                            {% if groupe.label %}
                             <div class="notif-groupe-titre">
                                 <span aria-hidden="true">{{ groupe.icone }}</span>
                                 <span>{{ groupe.label }}</span>
                             </div>
+                            {% endif %}
                             {% for evt in groupe.evenements %}
                             <a href="{{ evt.url }}" class="notif-item" role="menuitem">
-                                <span class="notif-item-texte">{{ evt.texte }}</span>
+                                <span class="notif-item-texte">{% if evt.icone %}<span aria-hidden="true">{{ evt.icone }}</span> {% endif %}{{ evt.texte }}</span>
                                 <span class="notif-item-temps">{{ evt.date|depuis_relatif }}</span>
                             </a>
                             {% endfor %}
@@ -264,6 +273,9 @@ dashboard_superviseur/dashboard_admin/dashboard_mshrif :
 
     .notif-groupe { border-bottom: 1px solid #F1E7D6; }
     .notif-groupe:last-child { border-bottom: none; }
+    /* Liste plate (panneau direction) : pas d'en-tête de groupe, on sépare
+       donc les lignes entre elles par un filet léger pour garder la lisibilité. */
+    .notif-groupe--plat .notif-item + .notif-item { border-top: 1px solid #F1E7D6; }
     .notif-groupe-titre {
         display: flex; align-items: center; gap: 8px;
         padding: 12px 18px 7px; font-size: 0.78rem; font-weight: 700;
