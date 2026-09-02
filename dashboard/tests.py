@@ -3287,6 +3287,65 @@ class NotificationsOrdreGroupesTests(TestCase):
         self.assertEqual(evts[1]['icone'], '📝')
 
 
+class NotificationsDirectionBadgeVsPanneauTests(TestCase):
+    """Cloche direction = centre de notifications (révision 2026-09-02) :
+    le BADGE (notif_total) ne compte que les non-lus et se vide à la visite
+    de la page cible ; le PANNEAU (notif_groupes) liste TOUTE demande encore
+    en attente, lue ou non, et ne se vide jamais tant qu'il reste à traiter."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+
+    def _inscription_eleve(self, email, nom='مرشح'):
+        return InscriptionEleve.objects.create(
+            nom=nom, date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+            telephone='0600000050', email=email,
+            programme='hifz', riwaya='hafs', outil='whatsapp', abonnement='groupe_1mois',
+            statut='en_attente',
+        )
+
+    def test_visite_vide_le_badge_mais_pas_le_panneau(self):
+        self._inscription_eleve('badge_panneau_1@zidni.test', nom='بشير')
+        self.client.force_login(self.admin)
+
+        r1 = self.client.get(reverse('dashboard_admin'))
+        self.assertEqual(r1.context['notif_total'], 1)
+        self.assertEqual(len(r1.context['notif_groupes'][0]['evenements']), 1)
+        self.assertTrue(r1.context['notif_groupes'][0]['evenements'][0]['non_lu'])
+
+        # Visite de la page cible.
+        self.client.get(reverse('admin_inscriptions'))
+
+        r2 = self.client.get(reverse('dashboard_admin'))
+        # Badge éteint...
+        self.assertEqual(r2.context['notif_total'], 0)
+        # ...mais la demande, toujours en attente, reste dans le panneau.
+        evts = r2.context['notif_groupes'][0]['evenements']
+        self.assertEqual(len(evts), 1)
+        self.assertIn('بشير', evts[0]['texte'])
+        self.assertFalse(evts[0]['non_lu'])
+
+    def test_badge_ne_compte_que_les_non_lus_dans_une_liste_mixte(self):
+        from django.utils import timezone
+        # 1 ancienne demande (sera « lue » après visite)...
+        vieille = self._inscription_eleve('badge_mixte_vieux@zidni.test', nom='قديم')
+        InscriptionEleve.objects.filter(pk=vieille.pk).update(
+            date_soumission=timezone.now() - datetime.timedelta(days=5)
+        )
+        self.client.force_login(self.admin)
+        self.client.get(reverse('admin_inscriptions'))  # marque tout lu
+
+        # ...puis 2 nouvelles demandes arrivées APRÈS la visite.
+        self._inscription_eleve('badge_mixte_neuf1@zidni.test', nom='جديد١')
+        self._inscription_eleve('badge_mixte_neuf2@zidni.test', nom='جديد٢')
+
+        r = self.client.get(reverse('dashboard_admin'))
+        # Panneau : les 3 demandes en attente.
+        self.assertEqual(len(r.context['notif_groupes'][0]['evenements']), 3)
+        # Badge : seulement les 2 non lues.
+        self.assertEqual(r.context['notif_total'], 2)
+
+
 class BadgeSidebarGestionUtilisateursTests(TestCase):
     """Badges du groupe « إدارة المستخدمين » (voir dashboard.context_processors.
     badges_sidebar_direction) : item PARENT = somme, + un badge propre sur

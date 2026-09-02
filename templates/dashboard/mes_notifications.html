@@ -5,10 +5,12 @@
 {% comment %}
 "عرض الكل" du panneau 🔔 الإشعارات (Chantier notifications du 2026-08-19) —
 lien en bas du dropdown, voir dashboard/_header_raccourcis.html. Même
-structure visuelle que le dropdown (groupé par type, aucune ligne
-individuelle marquée "lu/non-lu" — voir dashboard.views.mes_notifications
-et dashboard.notifications.__doc__ : chaque ligne est par construction non
-lue, elle disparaît d'elle-même dès que son type est visité).
+structure visuelle que le dropdown.
+- élève/prof/مؤطر : groupé par type, chaque ligne est par construction non lue
+  (elle disparaît dès que son type est visité).
+- direction (مدير/مشرف) : liste plate triée par date ; le panneau liste TOUTE
+  demande en attente (lue ou non), `evt.non_lu` marque celles arrivées depuis
+  la dernière visite de la page cible. Voir notifications_direction.
 {% endcomment %}
 <div class="page-title">{% trans "الإشعارات" %}</div>
 {% comment %}
@@ -42,8 +44,8 @@ dashboard.notifications.notifications_direction) : pas d'en-tête, icône
     </div>
     {% endif %}
     {% for evt in groupe.evenements %}
-    <a href="{{ evt.url }}" style="display:flex; justify-content:space-between; align-items:baseline; gap:14px; padding:12px 20px; text-decoration:none; color:inherit; border-top:1px solid #f1e7d6;">
-        <span style="font-weight:600; font-size:0.92rem;">{% if evt.icone %}<span aria-hidden="true">{{ evt.icone }}</span> {% endif %}{{ evt.texte }}</span>
+    <a href="{{ evt.url }}" style="display:flex; justify-content:space-between; align-items:baseline; gap:14px; padding:12px 20px; text-decoration:none; color:inherit; border-top:1px solid #f1e7d6;{% if evt.non_lu %} background:#FFFBF0;{% endif %}">
+        <span style="font-weight:600; font-size:0.92rem;">{% if evt.non_lu %}<span aria-hidden="true" style="color:var(--color-danger); font-size:0.55em; vertical-align:middle; margin-inline-end:6px;">●</span>{% endif %}{% if evt.icone %}<span aria-hidden="true">{{ evt.icone }}</span> {% endif %}{{ evt.texte }}</span>
         <span style="color:#888; font-size:0.78rem; white-space:nowrap; flex-shrink:0;">{{ evt.date|depuis_relatif }}</span>
     </a>
     {% endfor %}
