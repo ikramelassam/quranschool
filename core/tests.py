@@ -157,3 +157,61 @@ class CsrfFailureViewTests(TestCase):
         # Le bouton de réessai recharge la MÊME page (request.path), jamais
         # un lien générique vers l'accueil qui ferait perdre où était l'utilisateur.
         self.assertIn(reverse('wizard_categorie_age'), html)
+
+
+# Chantier du 2026-09-02 — la langue du site ne doit JAMAIS être décidée par la
+# langue du téléphone/navigateur du visiteur : l'arabe prime pour tout le monde
+# tant qu'un choix explicite n'a pas été fait via le sélecteur de langue, et ce
+# choix est alors mémorisé (cookie LANGUAGE_COOKIE_NAME, 1 an). Voir
+# core/middleware.py:LangueParDefautArabeMiddleware et core/settings.py.
+@override_settings(STORAGES=_STORAGES_TEST_CORE)
+class LangueParDefautArabeTests(TestCase):
+
+    def test_nouveau_visiteur_navigateur_francais_voit_le_site_en_arabe(self):
+        """Aucun cookie de langue + Accept-Language: fr -> la requête est servie
+        en arabe (Content-Language posé par LocaleMiddleware)."""
+        reponse = Client().get(
+            reverse('login'), HTTP_ACCEPT_LANGUAGE='fr-FR,fr;q=0.9,en;q=0.8'
+        )
+        self.assertEqual(reponse['Content-Language'], 'ar')
+
+    def test_nouveau_visiteur_navigateur_anglais_voit_le_site_en_arabe(self):
+        reponse = Client().get(
+            reverse('login'), HTTP_ACCEPT_LANGUAGE='en-US,en;q=0.9'
+        )
+        self.assertEqual(reponse['Content-Language'], 'ar')
+
+    def test_choix_manuel_francais_est_respecte_et_memorise(self):
+        """Après un POST vers set_language, le cookie de langue est posé (durée
+        ~1 an) et les requêtes suivantes — même avec un Accept-Language arabe —
+        sont servies en français."""
+        client = Client()
+
+        reponse_set = client.post(
+            reverse('set_language'),
+            {'language': 'fr', 'next': reverse('login')},
+            HTTP_ACCEPT_LANGUAGE='ar',
+        )
+        self.assertEqual(reponse_set.status_code, 302)
+
+        cookie = client.cookies[settings.LANGUAGE_COOKIE_NAME]
+        self.assertEqual(cookie.value, 'fr')
+        # Cookie persistant (pas un cookie de session) : max-age proche d'un an.
+        self.assertGreater(int(cookie['max-age']), 60 * 60 * 24 * 300)
+
+        # Le client renvoie automatiquement le cookie sur la requête suivante.
+        reponse = client.get(reverse('login'), HTTP_ACCEPT_LANGUAGE='ar')
+        self.assertEqual(reponse['Content-Language'], 'fr')
+
+    def test_choix_manuel_arabe_reste_en_arabe_meme_navigateur_francais(self):
+        client = Client()
+        client.post(
+            reverse('set_language'),
+            {'language': 'ar', 'next': reverse('login')},
+            HTTP_ACCEPT_LANGUAGE='fr',
+        )
+        reponse = client.get(reverse('login'), HTTP_ACCEPT_LANGUAGE='fr')
+        self.assertEqual(reponse['Content-Language'], 'ar')
+        self.assertEqual(
+            client.cookies[settings.LANGUAGE_COOKIE_NAME].value, 'ar'
+        )
