@@ -343,6 +343,19 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     panneaux élève/prof/مؤطر, eux, restent groupés par type
     (_trier_groupes_par_recence).
 
+    BADGE ≠ PANNEAU (révision du 2026-09-02, décision explicite) — la cloche
+    direction est un vrai CENTRE de notifications, pas un simple flux
+    d'inédits :
+      * `total` (le badge rouge sur l'icône) = uniquement les évènements NON
+        LUS, c.-à-d. postérieurs à la dernière visite de leur page cible
+        (marquer_visite). Visiter la page vide donc le badge de ce type.
+      * `groupes[0]['evenements']` (le contenu du panneau) = TOUTE demande
+        encore en attente, lue ou non, triée par date. Le panneau ne se vide
+        JAMAIS tant qu'il reste quelque chose à traiter ; visiter la page ne
+        retire rien de la liste (contrairement aux panneaux élève/prof, où
+        chaque évènement est par construction non lu). Chaque évènement porte
+        `non_lu` (bool) pour un marquage visuel côté template.
+
     ÉVÉNEMENTS FUSIONNÉS — 2 événements possibles :
 
     1. Nouvelle demande d'inscription élève (InscriptionEleve.
@@ -407,6 +420,7 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     groupe 2 ci-dessus."""
     from inscriptions.models import InscriptionEleve, InscriptionProf
     from courses.models import DemandeChangementHalaka
+    from payments.cycles import eleves_en_retard
 
     cles = ['demandes_inscription', 'demandes_changement_halaka', 'paiements_retard_eleves']
     if user.role == 'mshrif':
@@ -415,117 +429,97 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
         cles.append('demandes_inscription_prof')
     seuils = _seuils(user, cles)
 
-    demandes = list(
-        InscriptionEleve.objects.filter(
-            statut='en_attente', date_soumission__gt=seuils['demandes_inscription'],
-        ).order_by('-date_soumission')[:LIMITE_FETCH]
-    )
-    evenements_demandes = [
-        {
+    # Chaque évènement : {texte, url, date, icone, non_lu}. `non_lu` = créé /
+    # transité APRÈS la dernière visite de sa page cible (seuil) — c'est LUI
+    # qui alimente le badge. Le panneau, lui, liste TOUT ce qui est encore en
+    # attente, lu ou non (voir docstring : BADGE ≠ PANNEAU).
+    evenements = []
+
+    # 1. Demandes d'inscription élève en attente (مدير + مشرف).
+    for d in (
+        InscriptionEleve.objects.filter(statut='en_attente')
+        .order_by('-date_soumission')[:LIMITE_FETCH]
+    ):
+        evenements.append({
             'texte': _('طلب تسجيل جديد: %(nom)s') % {'nom': d.nom},
             'url': reverse('admin_inscription_eleve_detail', args=[d.id]),
             'date': d.date_soumission,
-        }
-        for d in demandes
-    ]
+            'icone': '📝',
+            'non_lu': d.date_soumission > seuils['demandes_inscription'],
+        })
 
-    # 1bis — nouvelle candidature prof en attente de pré-validation étape 1,
-    # مدير uniquement (voir docstring). Même patron que le groupe 1 élève.
-    evenements_demandes_prof = []
+    # 1bis. Nouvelles candidatures prof en attente de pré-validation étape 1,
+    # مدير UNIQUEMENT (voir docstring).
     if user.role == 'admin':
-        demandes_prof = list(
-            InscriptionProf.objects.filter(
-                statut='en_attente', date_soumission__gt=seuils['demandes_inscription_prof'],
-            ).order_by('-date_soumission')[:LIMITE_FETCH]
-        )
-        evenements_demandes_prof = [
-            {
+        for p in (
+            InscriptionProf.objects.filter(statut='en_attente')
+            .order_by('-date_soumission')[:LIMITE_FETCH]
+        ):
+            evenements.append({
                 'texte': _('طلب تسجيل أستاذ جديد: %(nom)s %(prenom)s') % {'nom': p.nom, 'prenom': p.prenom},
                 'url': reverse('admin_inscription_prof_detail', args=[p.id]),
                 'date': p.date_soumission,
-            }
-            for p in demandes_prof
-        ]
+                'icone': '👨‍🏫',
+                'non_lu': p.date_soumission > seuils['demandes_inscription_prof'],
+            })
 
-    evenements_profs_en_attente = []
+    # 2. Candidatures prof pré-validées par le مدير, en attente du تصديق final
+    # du مشرف, مشرف UNIQUEMENT (voir docstring). date_validee_directeur peut
+    # être NULL sur d'anciens dossiers -> repli sur date_soumission pour le
+    # tri d'affichage, et jamais « non lu » dans ce cas (rien de daté à comparer).
     if user.role == 'mshrif':
-        profs_en_attente = list(
-            InscriptionProf.objects.filter(
-                statut='validee_directeur', date_validee_directeur__gt=seuils['profs_en_attente_validation'],
-            ).order_by('-date_validee_directeur')[:LIMITE_FETCH]
-        )
-        evenements_profs_en_attente = [
-            {
+        for p in (
+            InscriptionProf.objects.filter(statut='validee_directeur')
+            .order_by('-date_validee_directeur', '-date_soumission')[:LIMITE_FETCH]
+        ):
+            evenements.append({
                 'texte': _('طلب أستاذ بانتظار تصديقك: %(nom)s %(prenom)s') % {'nom': p.nom, 'prenom': p.prenom},
                 'url': reverse('mshrif_inscription_prof_detail', args=[p.id]),
-                'date': p.date_validee_directeur,
-            }
-            for p in profs_en_attente
-        ]
+                'date': p.date_validee_directeur or p.date_soumission,
+                'icone': '👨‍🏫',
+                'non_lu': bool(
+                    p.date_validee_directeur
+                    and p.date_validee_directeur > seuils['profs_en_attente_validation']
+                ),
+            })
 
-    demandes_changement_halaka = list(
-        DemandeChangementHalaka.objects.filter(
-            statut='en_attente', date_demande__gt=seuils['demandes_changement_halaka'],
-        ).select_related('eleve__user').order_by('-date_demande')[:LIMITE_FETCH]
-    )
-    url_liste_changement_halaka = reverse('admin_demandes_changement_halaka')
-    evenements_changement_halaka = [
-        {
+    # 3. Demandes de changement de halaka en attente (مدير + مشرف).
+    url_changement_halaka = reverse('admin_demandes_changement_halaka')
+    for d in (
+        DemandeChangementHalaka.objects.filter(statut='en_attente')
+        .select_related('eleve__user').order_by('-date_demande')[:LIMITE_FETCH]
+    ):
+        evenements.append({
             'texte': _('طلب تغيير حلقة: %(nom)s') % {'nom': d.eleve.user.get_full_name()},
-            'url': url_liste_changement_halaka,
+            'url': url_changement_halaka,
             'date': d.date_demande,
-        }
-        for d in demandes_changement_halaka
-    ]
+            'icone': '🔄',
+            'non_lu': d.date_demande > seuils['demandes_changement_halaka'],
+        })
 
-    # Retard de paiement (chantier du 2026-09-01) — comme les autres types :
-    # un élève « nouvellement » en retard (échéance de son cycle courant
-    # postérieure à la dernière visite de la page متأخرون عن الدفع) apparaît
-    # dans le badge ; visiter payments.views.paiements_retards appelle
-    # marquer_visite(user, 'paiements_retard_eleves') et vide le badge. La
-    # LISTE complète des retards, elle, reste toujours visible sur cette page
-    # dédiée (comme admin_inscriptions garde toutes les demandes en attente
-    # même quand le badge est éteint) — seul le compteur 🔔 s'éteint après
-    # lecture. Chaque ligne du panneau mène à cette page (les 2 boutons
-    # « الانتظار »/« أرشفة » y vivent).
-    from payments.cycles import eleves_en_retard
-
-    seuil_retard_paiement = seuils['paiements_retard_eleves']
-    evenements_retard_paiement = []
+    # 4. Élèves en retard de paiement (مدير + مشرف). eleves_en_retard() renvoie
+    # déjà la liste complète ; on la garde entière, `non_lu` = échéance
+    # postérieure à la dernière visite de la page متأخرون عن الدفع.
+    url_retards = reverse('paiements_retards')
     for eleve, cycle in eleves_en_retard():
         echeance_dt = timezone.make_aware(
             datetime.datetime.combine(cycle.date_echeance, datetime.time())
         )
-        if echeance_dt > seuil_retard_paiement:
-            evenements_retard_paiement.append({
-                'texte': _('%(nom)s متأخر عن دفع الاشتراك') % {'nom': eleve.user.get_full_name()},
-                'url': reverse('paiements_retards'),
-                'date': echeance_dt,
-            })
+        evenements.append({
+            'texte': _('%(nom)s متأخر عن دفع الاشتراك') % {'nom': eleve.user.get_full_name()},
+            'url': url_retards,
+            'date': echeance_dt,
+            'icone': '⚠️',
+            'non_lu': echeance_dt > seuils['paiements_retard_eleves'],
+        })
 
-    # LISTE PLATE : on étiquette chaque évènement de son icône de type, on
-    # fusionne tout, on trie par date décroissante (voir docstring). Les
-    # libellés de groupe (« طلبات تسجيل جديدة » etc.) disparaissent — l'icône
-    # par ligne suffit à lire le type.
-    def _avec_icone(evenements, icone):
-        for e in evenements:
-            e['icone'] = icone
-        return evenements
+    evenements.sort(key=lambda e: e['date'], reverse=True)
 
-    tous_les_evenements = (
-        _avec_icone(evenements_retard_paiement, '⚠️')
-        + _avec_icone(evenements_demandes, '📝')
-        + _avec_icone(evenements_demandes_prof, '👨‍🏫')
-        + _avec_icone(evenements_profs_en_attente, '👨‍🏫')
-        + _avec_icone(evenements_changement_halaka, '🔄')
-    )
-    tous_les_evenements.sort(key=lambda e: e['date'], reverse=True)
-
-    total = len(tous_les_evenements)
-    # Un seul pseudo-groupe, sans label : le template rend alors la liste à
-    # plat (pas d'en-tête de groupe), avec l'icône en tête de chaque ligne.
+    # Badge = uniquement les non-lus (se vide quand toutes les pages cibles ont
+    # été visitées). Panneau = toute la liste triée, plafonnée à `limite`.
+    total = sum(1 for e in evenements if e['non_lu'])
     groupes = (
-        [{'icone': '', 'label': '', 'evenements': tous_les_evenements[:limite]}]
-        if tous_les_evenements else []
+        [{'icone': '', 'label': '', 'evenements': evenements[:limite]}]
+        if evenements else []
     )
     return groupes, total

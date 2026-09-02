@@ -144,7 +144,13 @@ dashboard_superviseur/dashboard_admin/dashboard_mshrif :
                             </div>
                             {% endif %}
                             {% for evt in groupe.evenements %}
-                            <a href="{{ evt.url }}" class="notif-item" role="menuitem">
+                            {% comment %}
+                            `evt.non_lu` (panneau direction seulement) : demande arrivée
+                            depuis la dernière visite de sa page cible — pastille + fond
+                            léger. Le panneau liste TOUT ce qui est en attente ; seul le
+                            badge de l'icône compte les non-lus (voir notifications_direction).
+                            {% endcomment %}
+                            <a href="{{ evt.url }}" class="notif-item{% if evt.non_lu %} notif-item--neuf{% endif %}" role="menuitem">
                                 <span class="notif-item-texte">{% if evt.icone %}<span aria-hidden="true">{{ evt.icone }}</span> {% endif %}{{ evt.texte }}</span>
                                 <span class="notif-item-temps">{{ evt.date|depuis_relatif }}</span>
                             </a>
@@ -276,6 +282,13 @@ dashboard_superviseur/dashboard_admin/dashboard_mshrif :
     /* Liste plate (panneau direction) : pas d'en-tête de groupe, on sépare
        donc les lignes entre elles par un filet léger pour garder la lisibilité. */
     .notif-groupe--plat .notif-item + .notif-item { border-top: 1px solid #F1E7D6; }
+    /* Ligne « non lue » (arrivée depuis la dernière visite de la page cible) :
+       fond légèrement teinté + pastille rouge en tête de texte. */
+    .notif-item--neuf { background: #FFFBF0; }
+    .notif-item--neuf .notif-item-texte::before {
+        content: '●'; color: var(--color-danger); font-size: 0.55em;
+        vertical-align: middle; margin-inline-end: 6px;
+    }
     .notif-groupe-titre {
         display: flex; align-items: center; gap: 8px;
         padding: 12px 18px 7px; font-size: 0.78rem; font-weight: 700;
