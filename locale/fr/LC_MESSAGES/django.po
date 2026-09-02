@@ -8331,3 +8331,9 @@ msgstr "Vous devez saisir au moins deux propositions."
 
 msgid "يجب تحديد إجابة صحيحة واحدة من بين المقترحات المدخلة."
 msgstr "Vous devez désigner une seule bonne réponse parmi les propositions saisies."
+
+msgid "مع {personne}"
+msgstr "Avec {personne}"
+
+msgid "لا يوجد رقم هاتف مسجَّل لهذا {personne}"
+msgstr "Aucun numéro de téléphone enregistré — {personne}"

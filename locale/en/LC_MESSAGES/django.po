@@ -8331,3 +8331,9 @@ msgstr "You must enter at least two options."
 
 msgid "يجب تحديد إجابة صحيحة واحدة من بين المقترحات المدخلة."
 msgstr "You must designate exactly one correct answer among the options entered."
+
+msgid "مع {personne}"
+msgstr "With {personne}"
+
+msgid "لا يوجد رقم هاتف مسجَّل لهذا {personne}"
+msgstr "No phone number on record — {personne}"

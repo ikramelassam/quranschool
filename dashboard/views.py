@@ -13,6 +13,7 @@ from django.db import transaction
 # — un import "gettext as _" serait silencieusement écrasé dans ces
 # fonctions et casserait tout appel _() placé après ce genre de ligne.
 from django.utils.translation import gettext as gettext_, gettext_lazy as gettext_lazy_, get_language
+from django.utils.text import format_lazy
 
 
 def _critere_nom_localise(nom_ar, nom_fr, nom_en):
@@ -2103,8 +2104,14 @@ def confirmation_creation_compte(request):
     context = {
         'info': info,
         'message_pret_a_envoyer': message_pret_a_envoyer,
-        'libelle_personne_contact': f"مع {LIBELLE_PERSONNE_CONTACT.get(info['type_compte'], '')}",
-        'texte_absence_personne': f"لا يوجد رقم هاتف مسجَّل لهذا {LIBELLE_PERSONNE_CONTACT.get(info['type_compte'], 'الحساب')}",
+        'libelle_personne_contact': format_lazy(
+            gettext_lazy_('مع {personne}'),
+            personne=LIBELLE_PERSONNE_CONTACT.get(info['type_compte'], ''),
+        ),
+        'texte_absence_personne': format_lazy(
+            gettext_lazy_('لا يوجد رقم هاتف مسجَّل لهذا {personne}'),
+            personne=LIBELLE_PERSONNE_CONTACT.get(info['type_compte'], gettext_lazy_('الحساب')),
+        ),
         # Bouton "تواصل مع المدير" : affiché pour prof (مشرف valide, informe
         # مدير) ET مؤطر (Tâche du 2026-08-06, point 4 — même écran désormais
         # réutilisé pour la création مؤطر). Jamais pour eleve (مدير valide
@@ -2166,7 +2173,7 @@ def refus_confirme(request):
         'titre_refus': info['titre_refus'],
         'telephone_personne': inscription.telephone,
         'message': message,
-        'libelle_personne': f"مع {info['nom_complet']}",
+        'libelle_personne': format_lazy(gettext_lazy_('مع {personne}'), personne=info['nom_complet']),
         'admins': [admin_contact] if admin_contact else [],
         'redirect_url_name': info['redirect_url_name'],
         'base_template': info['base_template'],
@@ -6390,7 +6397,10 @@ def confirmation_modification_email(request):
     context = {
         'info': info,
         'message_pret_a_envoyer': message_pret_a_envoyer,
-        'libelle_personne_contact': f"مع {LIBELLE_PERSONNE_CONTACT.get(info['role'], '')}",
+        'libelle_personne_contact': format_lazy(
+            gettext_lazy_('مع {personne}'),
+            personne=LIBELLE_PERSONNE_CONTACT.get(info['role'], ''),
+        ),
     }
     return render(request, 'dashboard/confirmation_modification_email.html', context)
 
@@ -6402,7 +6412,14 @@ def confirmation_modification_email(request):
 # — voir le bug ci-dessous) + boutons WhatsApp (point 5) + libellé de rôle
 # partagé avec confirmation_creation_compte et confirmation_modification_email.
 
-LIBELLE_PERSONNE_CONTACT = {'eleve': 'الطالب', 'prof': 'المعلم', 'superviseur': 'المؤطر'}
+# Libellés de rôle traduisibles (gettext_lazy : évalués à l'affichage, langue de
+# la requête) — servent à composer "مع <rôle>" / "لا يوجد رقم هاتف ... لهذا <rôle>"
+# via format_lazy dans les écrans de contact WhatsApp (voir _contacts_whatsapp.html).
+LIBELLE_PERSONNE_CONTACT = {
+    'eleve': gettext_lazy_('الطالب'),
+    'prof': gettext_lazy_('المعلم'),
+    'superviseur': gettext_lazy_('المؤطر'),
+}
 
 
 def construire_message_acceptation_whatsapp(nom, email, mot_de_passe):
@@ -6554,7 +6571,10 @@ def admin_utilisateur_reinitialiser_mot_de_passe(request, user_id):
         'next': next_url,
         'mdp_genere': mot_de_passe_affiche,
         'message_pret_a_envoyer': message_pret_a_envoyer,
-        'libelle_personne_contact': f"مع {LIBELLE_PERSONNE_CONTACT.get(utilisateur.role, '')}",
+        'libelle_personne_contact': format_lazy(
+            gettext_lazy_('مع {personne}'),
+            personne=LIBELLE_PERSONNE_CONTACT.get(utilisateur.role, ''),
+        ),
         # Correction du 2026-08-14 (même bug qu'ailleurs, confirmé en test
         # manuel) : UN SEUL contact مدير résolu via _contact_admin_fixe() (le
         # plus ancien compte role='admin' avec téléphone renseigné) — pas TOUS

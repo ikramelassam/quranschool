@@ -4,9 +4,11 @@ Bloc identité + déconnexion, en HAUT de la sidebar (Tâche du 2026-08-12,
 redesign du 2026-08-15 — demande client : bouton pas assez repérable en test
 manuel mobile) — remplace l'ancien lien "تسجيل الخروج" isolé en bas de page
 (hors zone visible sans scroll sur mobile). Un seul fichier partagé par les 5
-bases (admin, mshrif, prof, eleve, superviseur) : garantit un traitement
-RIGOUREUSEMENT identique pour les 5 rôles — pas 5 copies qui pourraient
-diverger avec le temps. Les classes CSS (.sidebar-user-block,
+bases (admin, mshrif, prof, eleve, superviseur) : structure et déconnexion
+RIGOUREUSEMENT identiques pour les 5 rôles — pas 5 copies qui pourraient
+diverger avec le temps. Seul le LIBELLE d'identité diffère (voir le bloc
+{% if %} plus bas : rôle traduit pour admin/مشرف, nom de personne sinon).
+Les classes CSS (.sidebar-user-block,
 .sidebar-user-avatar, .btn-logout-top, ...) sont définies dans CHAQUE
 base_*.html (même patron que .compact-card/.section-title déjà dupliquées
 ainsi dans les 5 bases).
@@ -28,11 +30,29 @@ request.user est toujours disponible ici (déjà utilisé tel quel ailleurs,
 ex: admin_superviseur_assignations.html avec request.user.role) — pas besoin
 de le passer explicitement depuis chaque vue.
 {% endcomment %}
+{% comment %}
+Libellé affiché : les comptes institutionnels admin (« الإدارة ») et مشرف
+(« المشرف ») ont leur first_name saisi en dur = le mot de rôle arabe — donc
+jamais traduit quand l'utilisateur passe le site en FR/EN. Pour ces 2 rôles on
+affiche get_role_display (ROLE_CHOICES, wrappé gettext_lazy → traduit selon la
+langue active) plutôt que le nom stocké. Les autres rôles portent un vrai nom
+de personne : get_full_name / initiales inchangés.
+{% endcomment %}
+{% if request.user.role == 'admin' or request.user.role == 'mshrif' %}
+    {% with nom_affiche=request.user.get_role_display initiales=request.user.get_role_display|first|upper %}
+<div class="sidebar-user-block">
+    <div class="sidebar-user-info">
+        <div class="sidebar-user-avatar">{{ initiales }}</div>
+        <div class="sidebar-user-name">{{ nom_affiche }}</div>
+    </div>
+    {% endwith %}
+{% else %}
 <div class="sidebar-user-block">
     <div class="sidebar-user-info">
         <div class="sidebar-user-avatar">{{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}</div>
         <div class="sidebar-user-name">{{ request.user.get_full_name }}</div>
     </div>
+{% endif %}
     {% trans "هل تريد تسجيل الخروج؟" as confirmation_deconnexion %}
     {% trans "تسجيل الخروج" as libelle_deconnexion %}
     <a href="{% url 'logout' %}" class="btn-logout-top" onclick="return confirm('{{ confirmation_deconnexion|escapejs }}');" aria-label="{{ libelle_deconnexion }}" title="{{ libelle_deconnexion }}">
