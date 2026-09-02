@@ -4547,10 +4547,13 @@ def admin_eleve_suspendre(request, eleve_id):
     return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_eleve_reactiver(request, eleve_id):
     """Réactive un élève suspendu ou un élève archivé — même action de retour
-    à 'actif' dans les deux cas, la seule différence étant l'état de départ."""
+    à 'actif' dans les deux cas, la seule différence étant l'état de départ.
+    Ouvert au مشرف comme admin_eleve_archiver (Tâche du 2026-09-02) : il peut
+    défaire son propre archivage. L'arrêt (admin_eleve_suspendre) reste مدير
+    seul."""
     from accounts.models import Eleve
 
     eleve = get_object_or_404(Eleve, id=eleve_id)
@@ -4567,14 +4570,16 @@ def admin_eleve_reactiver(request, eleve_id):
     return redirect('admin_eleve_detail', eleve_id=eleve.id)
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def admin_eleve_archiver(request, eleve_id):
     """Archive un élève — remplace toute suppression définitive: le compte,
     l'historique des séances/présences/paiements/évaluations restent intacts
     et interrogeables, seulement exclus des listes actives par défaut (voir
     filtre 'afficher les archivés' sur admin_eleves). Bloque aussi désormais la
     connexion et invalide immédiatement toute session en cours — voir
-    accounts.services.archiver_eleve (chantier du 2026-08-03)."""
+    accounts.services.archiver_eleve (chantier du 2026-08-03). Ouvert au مشرف
+    en plus du مدير depuis la Tâche du 2026-09-02 (voir admin_eleve_reactiver,
+    ouvert au même moment ; l'arrêt admin_eleve_suspendre reste مدير seul)."""
     from accounts.models import Eleve
 
     eleve = get_object_or_404(Eleve, id=eleve_id)

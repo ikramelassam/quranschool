@@ -24,10 +24,10 @@
     <div class="d-flex gap-2">
         {% comment %}
         Tâche du 2026-08-08 : أرشفة/إعادة تفعيل accessible مدير + مشرف
-        (demande explicite de ce chantier — contrairement à
-        admin_prof_archiver/admin_eleve_archiver qui restent مدير
-        uniquement). Confirmation classique (confirm() JS), même patron
-        que ces 2 pages.
+        (demande explicite de ce chantier — comme admin_eleve_archiver
+        depuis la Tâche du 2026-09-02 ; admin_prof_archiver, lui, reste
+        مدير uniquement). Confirmation classique (confirm() JS), même
+        patron que ces pages.
         {% endcomment %}
         {% if groupe.statut == 'archive' %}
         {% blocktrans asvar confirmer_reactivation with nom=groupe.nom %}هل تريد إعادة تفعيل مجموعة '{{ nom }}'؟{% endblocktrans %}
