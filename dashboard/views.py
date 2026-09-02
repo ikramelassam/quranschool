@@ -2770,6 +2770,15 @@ def mshrif_inscription_prof_detail(request, inscription_id):
         'valeurs_dispo': set(inscription.disponibilites),
     }
     context.update(_contexte_base_mshrif(request))
+    # 2e "page cible" du groupe 🔔 'profs_en_attente_validation' (مشرف, voir
+    # dashboard.notifications.notifications_direction) — depuis le 2026-09-02
+    # chaque ligne du panneau pointe vers CETTE fiche (et non plus la liste),
+    # il faut donc que la consulter vide le badge, exactement comme le fait
+    # déjà mshrif_inscriptions_profs. Juste avant le render, jamais avant : le
+    # guard ci-dessus peut rediriger sans afficher la fiche (même précaution
+    # que les autres appelants de marquer_visite).
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'profs_en_attente_validation')
     return render(request, 'dashboard/mshrif_inscription_prof_detail.html', context)
 
 

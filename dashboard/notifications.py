@@ -56,6 +56,19 @@ LIMITE_FETCH = 50
 LIMITE_PAR_GROUPE = 5
 
 
+def _trier_groupes_par_recence(groupes):
+    """Trie les groupes du panneau 🔔 de la PLUS RÉCENTE à la plus ancienne
+    notification (antichronologique global) — le groupe dont l'évènement le
+    plus récent est le plus récent passe en tête. Les évènements DANS chaque
+    groupe sont déjà triés récent -> ancien par la requête qui les produit
+    (order_by('-date…') / '-date_soumission' / '-date_ajout'…), donc
+    groupe['evenements'][0]['date'] est bien le plus récent du groupe. Chaque
+    groupe est par construction non vide (append gardé par `if evenements_*`).
+    Modifie sur place et renvoie la liste."""
+    groupes.sort(key=lambda g: g['evenements'][0]['date'], reverse=True)
+    return groupes
+
+
 def marquer_visite(user, cle):
     """Marque le type `cle` comme lu MAINTENANT pour `user` — à appeler
     depuis chaque vue "page cible" listée dans accounts.models.
@@ -228,7 +241,7 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
         len(evenements_retard_paiement)
         + len(evenements_examens) + len(evenements_notes) + len(evenements_cartable)
     )
-    return groupes, total
+    return _trier_groupes_par_recence(groupes), total
 
 
 def notifications_prof(prof, user, limite=LIMITE_PAR_GROUPE):
@@ -270,7 +283,7 @@ def notifications_prof(prof, user, limite=LIMITE_PAR_GROUPE):
         groupes.append({'icone': '📁', 'label': _('ملفات جديدة في حقيبة الأستاذ'), 'evenements': evenements_hakiba[:limite]})
 
     total = len(evenements_evaluations) + len(evenements_hakiba)
-    return groupes, total
+    return _trier_groupes_par_recence(groupes), total
 
 
 def notifications_superviseur(user, limite=LIMITE_PAR_GROUPE):
@@ -306,7 +319,7 @@ def notifications_superviseur(user, limite=LIMITE_PAR_GROUPE):
     if evenements_hakiba:
         groupes.append({'icone': '📁', 'label': _('ملفات جديدة في حقيبة الأستاذ'), 'evenements': evenements_hakiba[:limite]})
 
-    return groupes, len(evenements_hakiba)
+    return _trier_groupes_par_recence(groupes), len(evenements_hakiba)
 
 
 def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
@@ -357,10 +370,12 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
     InscriptionProf.date_validee_directeur, un horodatage DÉDIÉ posé par
     dashboard.views.admin_valider_prof/admin_prof_ajouter_manuel au moment
     exact de la transition (voir son docstring : jamais date_soumission,
-    souvent bien antérieur si le dossier traînait en 'en_attente'). Mène
-    vers la LISTE (mshrif_inscriptions_profs), pas vers chaque fiche
-    individuelle (décision explicite de ce chantier, contrairement au
-    groupe 1 ci-dessus qui pointe chaque évènement vers sa propre fiche).
+    souvent bien antérieur si le dossier traînait en 'en_attente'). Mène vers
+    la FICHE du candidat concerné (mshrif_inscription_prof_detail), comme le
+    groupe 1 et le groupe 1bis ci-dessus — révision du 2026-09-02 (avant :
+    lien vers la liste mshrif_inscriptions_profs, jugé trop indirect). La
+    fiche détail appelle marquer_visite(user, 'profs_en_attente_validation')
+    au même titre que la liste, donc lire la fiche vide bien le badge.
 
     3. Demande de changement de halaka par un élève (courses.models.
     DemandeChangementHalaka, statut='en_attente') — Fonctionnalité 4
@@ -421,11 +436,10 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
                 statut='validee_directeur', date_validee_directeur__gt=seuils['profs_en_attente_validation'],
             ).order_by('-date_validee_directeur')[:LIMITE_FETCH]
         )
-        url_liste_profs = reverse('mshrif_inscriptions_profs')
         evenements_profs_en_attente = [
             {
                 'texte': _('طلب أستاذ بانتظار تصديقك: %(nom)s %(prenom)s') % {'nom': p.nom, 'prenom': p.prenom},
-                'url': url_liste_profs,
+                'url': reverse('mshrif_inscription_prof_detail', args=[p.id]),
                 'date': p.date_validee_directeur,
             }
             for p in profs_en_attente
@@ -495,7 +509,7 @@ def notifications_direction(user, limite=LIMITE_PAR_GROUPE):
             'icone': '🔄', 'label': _('طلبات تغيير حلقة'), 'evenements': evenements_changement_halaka[:limite],
         })
 
-    return groupes, (
+    return _trier_groupes_par_recence(groupes), (
         len(evenements_retard_paiement)
         + len(evenements_demandes) + len(evenements_demandes_prof)
         + len(evenements_profs_en_attente) + len(evenements_changement_halaka)

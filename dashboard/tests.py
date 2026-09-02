@@ -3052,14 +3052,19 @@ class NotificationsProfEnAttenteDirectionTests(TestCase):
         reponse_mshrif = self.client.get(reverse('dashboard_mshrif'))
         self.assertEqual(reponse_mshrif.context['notif_total'], 0)
 
-    def test_lien_notification_pointe_vers_la_liste_mshrif(self):
+    def test_lien_notification_pointe_vers_la_fiche_du_candidat(self):
+        """Révision du 2026-09-02 : chaque ligne du panneau mène désormais à
+        la FICHE du candidat concerné (mshrif_inscription_prof_detail), plus
+        vers la liste."""
         inscription = self._inscription_en_attente()
         self.client.force_login(self.admin)
         self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
 
         self.client.force_login(self.mshrif)
         reponse = self.client.get(reverse('dashboard_mshrif'))
-        self.assertContains(reponse, reverse('mshrif_inscriptions_profs'))
+        self.assertContains(
+            reponse, reverse('mshrif_inscription_prof_detail', args=[inscription.id])
+        )
 
     def test_visiter_mshrif_inscriptions_profs_marque_comme_lu(self):
         inscription = self._inscription_en_attente()
@@ -3069,6 +3074,19 @@ class NotificationsProfEnAttenteDirectionTests(TestCase):
         self.client.force_login(self.mshrif)
         self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 1)
         self.client.get(reverse('mshrif_inscriptions_profs'))
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 0)
+
+    def test_visiter_la_fiche_candidat_marque_comme_lu(self):
+        """La fiche détail étant la nouvelle cible du lien (voir
+        test_lien_notification_pointe_vers_la_fiche_du_candidat), la consulter
+        doit vider le badge exactement comme la liste."""
+        inscription = self._inscription_en_attente()
+        self.client.force_login(self.admin)
+        self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
+
+        self.client.force_login(self.mshrif)
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 1)
+        self.client.get(reverse('mshrif_inscription_prof_detail', args=[inscription.id]))
         self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 0)
 
     def test_prof_deja_valide_ne_declenche_pas(self):
@@ -3147,6 +3165,117 @@ class NotificationsNouvelleCandidatureProfDirectionTests(TestCase):
         reponse = self.client.get(reverse('dashboard_admin'))
         self.assertEqual(reponse.context['notif_total'], 1)
         self.assertContains(reponse, 'طلب تسجيل أستاذ جديد')
+
+
+class NotificationsOrdreGroupesTests(TestCase):
+    """Le panneau 🔔 trie ses groupes de la notification la PLUS RÉCENTE à la
+    plus ancienne (voir dashboard.notifications._trier_groupes_par_recence) —
+    plus d'ordre figé par type."""
+
+    def setUp(self):
+        from django.utils import timezone
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+        # Recule le seuil d'amorçage des notifications (dashboard.notifications.
+        # _seuils amorce toute cle jamais visitée à user.date_joined) bien dans
+        # le passé, pour que des évènements datés « il y a 10 jours » restent
+        # au-dessus du seuil et apparaissent donc dans le panneau.
+        User.objects.filter(pk__in=[self.admin.pk, self.mshrif.pk]).update(
+            date_joined=timezone.now() - datetime.timedelta(days=90)
+        )
+
+    def test_trier_groupes_par_recence_ordonne_du_plus_recent_au_plus_ancien(self):
+        from django.utils import timezone
+        from dashboard.notifications import _trier_groupes_par_recence
+
+        t0 = timezone.now()
+        ancien = {'label': 'ancien', 'evenements': [{'date': t0 - datetime.timedelta(days=10)}]}
+        recent = {'label': 'recent', 'evenements': [{'date': t0 - datetime.timedelta(hours=1)}]}
+        milieu = {'label': 'milieu', 'evenements': [{'date': t0 - datetime.timedelta(days=2)}]}
+        ordre = [g['label'] for g in _trier_groupes_par_recence([ancien, recent, milieu])]
+        self.assertEqual(ordre, ['recent', 'milieu', 'ancien'])
+
+    def test_groupes_direction_ordonnes_du_plus_recent_au_plus_ancien(self):
+        from django.utils import timezone
+
+        # Demande d'inscription élève plus ANCIENNE que la candidature prof
+        # ci-dessous (date_soumission = auto_now_add, réécrite via .update()
+        # qui bypasse auto_now_add) mais postérieure au seuil (date_joined
+        # reculé de 90 j dans setUp).
+        ins_eleve = InscriptionEleve.objects.create(
+            nom='مرشح قديم', date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+            telephone='0600000030', email='notif_ordre_eleve@zidni.test',
+            programme='hifz', riwaya='hafs', outil='whatsapp', abonnement='groupe_1mois',
+            statut='en_attente',
+        )
+        InscriptionEleve.objects.filter(pk=ins_eleve.pk).update(
+            date_soumission=timezone.now() - datetime.timedelta(days=10)
+        )
+
+        # Candidature prof pré-validée à l'instant -> notification RÉCENTE pour le مشرف.
+        from inscriptions.models import InscriptionProf
+        ins_prof = InscriptionProf.objects.create(
+            nom='مرشح حديث', prenom='تجريبي', telephone='0600000031',
+            email='notif_ordre_prof@zidni.test', statut='en_attente',
+        )
+        self.client.force_login(self.admin)
+        self.client.get(reverse('admin_valider_prof', args=[ins_prof.id]))
+
+        self.client.force_login(self.mshrif)
+        groupes = self.client.get(reverse('dashboard_mshrif')).context['notif_groupes']
+        labels = [g['label'] for g in groupes]
+        self.assertIn('طلبات أساتذة بانتظار تصديقك', labels)
+        self.assertIn('طلبات تسجيل جديدة', labels)
+        # Le groupe le plus récent (prof à l'instant) passe avant l'ancien (élève il y a 10 j).
+        self.assertLess(
+            labels.index('طلبات أساتذة بانتظار تصديقك'),
+            labels.index('طلبات تسجيل جديدة'),
+        )
+
+
+class BadgeSidebarGestionUtilisateursTests(TestCase):
+    """Le badge du nombre de demandes en attente est visible sur l'item de
+    menu PARENT « إدارة المستخدمين » lui-même, sans déplier le sous-menu
+    (voir dashboard.context_processors.badges_sidebar_direction)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def _inscription_eleve(self, email, statut='en_attente'):
+        return InscriptionEleve.objects.create(
+            nom='مرشح', date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+            telephone='0600000040', email=email,
+            programme='hifz', riwaya='hafs', outil='whatsapp', abonnement='groupe_1mois',
+            statut=statut,
+        )
+
+    def _inscription_prof(self, email, statut='en_attente'):
+        from inscriptions.models import InscriptionProf
+        return InscriptionProf.objects.create(
+            nom='أستاذ', prenom='تجريبي', telephone='0600000041', email=email, statut=statut,
+        )
+
+    def test_badge_parent_directeur_cumule_eleves_et_profs_en_attente(self):
+        self._inscription_eleve('badge_dir_eleve@zidni.test')
+        self._inscription_prof('badge_dir_prof@zidni.test')
+        self.client.force_login(self.admin)
+        reponse = self.client.get(reverse('dashboard_admin'))
+        self.assertEqual(reponse.context['badge_gestion_utilisateurs'], 2)
+        self.assertEqual(reponse.context['badge_inscriptions_en_attente'], 2)
+        self.assertContains(reponse, 'menu-cat-titre')
+
+    def test_badge_parent_mshrif_compte_les_candidatures_a_valider(self):
+        self._inscription_prof('badge_mshrif_prof@zidni.test', statut='validee_directeur')
+        self.client.force_login(self.mshrif)
+        reponse = self.client.get(reverse('dashboard_mshrif'))
+        self.assertEqual(reponse.context['badge_gestion_utilisateurs'], 1)
+
+    def test_pas_de_badge_pour_les_autres_roles(self):
+        eleve = _creer_eleve(email='badge_neutre_eleve@zidni.test')
+        self.client.force_login(eleve.user)
+        reponse = self.client.get(reverse('dashboard_eleve'))
+        self.assertNotIn('badge_gestion_utilisateurs', reponse.context)
 
 
 class DepuisRelatifFiltreTests(TestCase):
