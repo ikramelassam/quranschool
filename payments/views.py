@@ -464,8 +464,9 @@ def paiements_retards(request):
     de non-rejeté ne le couvre) — page cible du panneau 🔔 du مدير/مشرف (voir
     dashboard.notifications.notifications_direction). 2 actions par ligne :
     « الانتظار » (retour, aucun effet — décision du client : les relances
-    continuent) et « أرشفة » (archivage réversible, مدير uniquement — la vue
-    admin_eleve_archiver est @role_required('admin'))."""
+    continuent) et « أرشفة » (archivage réversible, مدير + مشرف depuis la
+    Tâche du 2026-09-02 — la vue admin_eleve_archiver est
+    @role_required('admin', 'mshrif'))."""
     from django.utils import timezone
     from .cycles import eleves_en_retard
 
@@ -483,7 +484,7 @@ def paiements_retards(request):
 
     context = {
         'lignes': lignes,
-        'peut_archiver': request.user.role == 'admin',
+        'peut_archiver': request.user.role in ('admin', 'mshrif'),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))

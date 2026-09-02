@@ -230,6 +230,52 @@ class EleveSuppressionDefinitiveTests(TestCase):
         self.assertFalse(Eleve.objects.filter(id=eleve.id).exists())
 
 
+class EleveArchiverPermissionsTests(TestCase):
+    """Tâche du 2026-09-02 : أرشفة + إعادة تفعيل d'un élève ouvertes au مشرف
+    en plus du مدير. L'arrêt (admin_eleve_suspendre) reste مدير seul, et un
+    rôle sans droit (prof) ne peut toujours rien changer."""
+
+    def test_mshrif_peut_archiver_un_eleve(self):
+        self.client.force_login(_creer_mshrif())
+        eleve = _creer_eleve()
+        response = self.client.get(reverse('admin_eleve_archiver', args=[eleve.id]))
+        self.assertRedirects(response, reverse('admin_eleve_detail', args=[eleve.id]))
+        eleve.refresh_from_db()
+        self.assertEqual(eleve.statut, 'archive')
+
+    def test_mshrif_peut_reactiver_un_eleve_archive(self):
+        self.client.force_login(_creer_mshrif())
+        eleve = _creer_eleve()
+        eleve.statut = 'archive'
+        eleve.save(update_fields=['statut'])
+        response = self.client.get(reverse('admin_eleve_reactiver', args=[eleve.id]))
+        self.assertRedirects(response, reverse('admin_eleve_detail', args=[eleve.id]))
+        eleve.refresh_from_db()
+        self.assertEqual(eleve.statut, 'actif')
+
+    def test_mshrif_ne_peut_toujours_pas_suspendre(self):
+        self.client.force_login(_creer_mshrif())
+        eleve = _creer_eleve()
+        self.client.get(reverse('admin_eleve_suspendre', args=[eleve.id]))
+        eleve.refresh_from_db()
+        self.assertEqual(eleve.statut, 'actif')
+
+    def test_prof_ne_peut_pas_archiver(self):
+        self.client.force_login(_creer_prof().user)
+        eleve = _creer_eleve()
+        self.client.get(reverse('admin_eleve_archiver', args=[eleve.id]))
+        eleve.refresh_from_db()
+        self.assertEqual(eleve.statut, 'actif')
+
+    def test_bouton_archiver_visible_pour_mshrif_sur_la_fiche(self):
+        self.client.force_login(_creer_mshrif())
+        eleve = _creer_eleve()
+        html = self.client.get(reverse('admin_eleve_detail', args=[eleve.id])).content.decode('utf-8')
+        self.assertIn(reverse('admin_eleve_archiver', args=[eleve.id]), html)
+        # L'arrêt (إيقاف) reste réservé au مدير — absent pour le مشرف.
+        self.assertNotIn(reverse('admin_eleve_suspendre', args=[eleve.id]), html)
+
+
 @override_settings(STORAGES=_STORAGES_TEST)
 class ProfSuppressionDefinitiveTests(TestCase):
     def setUp(self):

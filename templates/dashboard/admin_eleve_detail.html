@@ -25,15 +25,18 @@
             </span>
         </span>
     </div>
-    {% if request.user.role == 'admin' %}
+    {% if request.user.role == 'admin' or request.user.role == 'mshrif' %}
     {% blocktrans asvar confirmer_arret with nom=eleve.user.get_full_name %}هل أنت متأكد من إيقاف الطالب {{ nom }}؟{% endblocktrans %}
     {% blocktrans asvar confirmer_archivage with nom=eleve.user.get_full_name %}هل أنت متأكد من أرشفة الطالب {{ nom }}؟ سيبقى سجله كاملاً وقابلاً للاسترجاع.{% endblocktrans %}
     {% blocktrans asvar confirmer_reactivation with nom=eleve.user.get_full_name %}هل أنت متأكد من إعادة تفعيل الطالب {{ nom }}؟{% endblocktrans %}
     <div style="display:flex; gap:8px; padding:12px 0; flex-wrap:wrap;">
         {% if eleve.statut == 'actif' %}
+        {% if request.user.role == 'admin' %}
+        {# إيقاف (suspension) reste réservé au مدير — voir Tâche du 2026-09-02 #}
         <a href="{% url 'admin_eleve_suspendre' eleve.id %}"
            onclick="return confirm('{{ confirmer_arret|escapejs }}');"
            style="background:#fce4e4; color:#dc3545; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">⏸ {% trans "إيقاف" %}</a>
+        {% endif %}
         <a href="{% url 'admin_eleve_archiver' eleve.id %}"
            onclick="return confirm('{{ confirmer_archivage|escapejs }}');"
            style="background:#f0f0f0; color:#666; border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem;">🗄 {% trans "أرشفة" %}</a>
