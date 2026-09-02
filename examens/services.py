@@ -15,6 +15,7 @@ import os
 from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.utils.translation import gettext as gettext_
 
 from .models import Copie, Reponse
 
@@ -177,23 +178,23 @@ def motif_non_publiable(examen):
     élèves)."""
     questions = list(examen.questions.prefetch_related('choix'))
     if not questions:
-        return "لا يمكن نشر اختبار بدون أي سؤال."
+        return gettext_('لا يمكن نشر اختبار بدون أي سؤال.')
 
     for question in questions:
         if question.type_question == 'choix':
             choix = list(question.choix.all())
             if len(choix) < 2:
-                return f'السؤال "{question.enonce[:40]}" يجب أن يحتوي على مقترحين على الأقل.'
+                return gettext_('السؤال "%(v0)s" يجب أن يحتوي على مقترحين على الأقل.') % {'v0': question.enonce[:40]}
             if sum(1 for c in choix if c.est_correct) != 1:
-                return f'السؤال "{question.enonce[:40]}" يجب أن يحتوي على إجابة صحيحة واحدة بالضبط.'
+                return gettext_('السؤال "%(v0)s" يجب أن يحتوي على إجابة صحيحة واحدة بالضبط.') % {'v0': question.enonce[:40]}
         elif question.type_question == 'vrai_faux':
             if question.reponse_correcte_bool is None:
-                return f'يجب تحديد الإجابة الصحيحة (صح/خطأ) للسؤال "{question.enonce[:40]}".'
+                return gettext_('يجب تحديد الإجابة الصحيحة (صح/خطأ) للسؤال "%(v0)s".') % {'v0': question.enonce[:40]}
 
     if examen.date_debut is None or examen.date_limite is None:
-        return "يجب تحديد تاريخ البداية والتاريخ النهائي قبل النشر."
+        return gettext_('يجب تحديد تاريخ البداية والتاريخ النهائي قبل النشر.')
     if examen.date_limite <= examen.date_debut:
-        return "التاريخ النهائي يجب أن يكون بعد تاريخ البداية."
+        return gettext_('التاريخ النهائي يجب أن يكون بعد تاريخ البداية.')
 
     return None
 

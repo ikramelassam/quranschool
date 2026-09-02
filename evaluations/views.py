@@ -146,7 +146,7 @@ def superviseur_evaluer(request, seance_id):
                     critere=critere,
                     defaults={'note': note},
                 )
-        messages.success(request, 'تم حفظ تقييم المعلم بنجاح.')
+        messages.success(request, gettext_('تم حفظ تقييم المعلم بنجاح.'))
         return redirect('superviseur_seance_detail', seance_id=seance.id)
 
     criteres_notes = [

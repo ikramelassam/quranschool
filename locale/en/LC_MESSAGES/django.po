@@ -7323,3 +7323,1011 @@ msgstr "This session has been finally evaluated and can no longer be modified."
 
 msgid "التقييمات التي كتبها المؤطر (المشرف) على حصصك — الأحدث أولاً"
 msgstr "The evaluations written by the supervisor on your sessions — most recent first"
+
+#, python-format
+msgid "\"%(v0)s\" مرحلة أساسية للتسجيل ولا يمكن تعطيلها — راجع تفاصيل المرحلة لمعرفة السبب."
+msgstr "\"%(v0)s\" is an essential registration step and cannot be disabled — see the step details for the reason."
+
+#, python-format
+msgid "\"%(v0)s\" مرحلة أساسية للتسجيل ولا يمكن حذفها."
+msgstr "\"%(v0)s\" is an essential registration step and cannot be deleted."
+
+msgid "\"إلى تاريخ\" يجب أن يكون بعد \"من تاريخ\" أو مساوياً له."
+msgstr "\"End date\" must be on or after \"Start date\"."
+
+#, python-format
+msgid "%(v0)s: آية نهاية الحفظ (%(v1)s) تتجاوز عدد آيات %(v2)s (%(v3)s آية)."
+msgstr "%(v0)s: the memorization end verse (%(v1)s) exceeds the verse count of %(v2)s (%(v3)s verses)."
+
+#, python-format
+msgid "%(v0)s: آية نهاية الحفظ (%(v1)s) يجب أن تكون أكبر من أو تساوي آية البداية (%(v2)s)."
+msgstr "%(v0)s: the memorization end verse (%(v1)s) must be greater than or equal to the start verse (%(v2)s)."
+
+#, python-format
+msgid "%(v0)s: آية نهاية المراجعة (%(v1)s) تتجاوز عدد آيات %(v2)s (%(v3)s آية)."
+msgstr "%(v0)s: the review end verse (%(v1)s) exceeds the verse count of %(v2)s (%(v3)s verses)."
+
+#, python-format
+msgid "%(v0)s: آية نهاية المراجعة (%(v1)s) يجب أن تكون أكبر من أو تساوي آية البداية (%(v2)s)."
+msgstr "%(v0)s: the review end verse (%(v1)s) must be greater than or equal to the start verse (%(v2)s)."
+
+#, python-format
+msgid "%(v0)s: علامة %(v1)s غير صحيحة."
+msgstr "%(v0)s: the %(v1)s mark is invalid."
+
+#, python-format
+msgid "%(v0)s: علامة %(v1)s يجب أن تكون بين 1 و20."
+msgstr "%(v0)s: the %(v1)s mark must be between 1 and 20."
+
+#, python-format
+msgid "%(v0)s: يجب إدخال علامة %(v1)s."
+msgstr "%(v0)s: the %(v1)s mark is required."
+
+#, python-format
+msgid "%(v0)s: يجب تحديد \"المطلوب حفظه\"."
+msgstr "%(v0)s: \"To memorize\" must be set."
+
+#, python-format
+msgid "%(v0)s: يجب تحديد \"المطلوب مراجعته\"."
+msgstr "%(v0)s: \"To review\" must be set."
+
+msgid "أحد الخيارات المرسلة غير صالح لهذا المعيار."
+msgstr "One of the submitted options is not valid for this criterion."
+
+msgid "إذا كان هذا البريد مسجلاً لدينا، تواصل مع الإدارة للحصول على كلمة المرور الجديدة."
+msgstr "If this email is registered with us, contact the administration to get the new password."
+
+#, python-format
+msgid "الأشهر التالية كانت مسجلة مسبقاً ولم تُرسَل مجدداً: %(v0)s"
+msgstr "The following months were already recorded and were not resubmitted: %(v0)s"
+
+msgid "الاسم إلزامي."
+msgstr "Name is required."
+
+msgid "الاسم المعروض إلزامي."
+msgstr "Display name is required."
+
+msgid "الاسم المُدخل لا يطابق اسم المجموعة بالضبط — لم يتم حذف أي شيء."
+msgstr "The name entered does not exactly match the group name — nothing was deleted."
+
+msgid "البريد الإلكتروني إلزامي."
+msgstr "Email is required."
+
+msgid "البريد الإلكتروني المُدخل لا يطابق بالضبط — لم يتم حذف أي شيء."
+msgstr "The email entered does not match exactly — nothing was deleted."
+
+msgid "البريدان الإلكترونيان غير متطابقين."
+msgstr "The two email addresses do not match."
+
+msgid "التاريخ النهائي يجب أن يكون بعد تاريخ البداية."
+msgstr "The end date must be after the start date."
+
+#, python-format
+msgid "الحقل \"%(v0)s\" غير موجود فعلياً في نموذج المجموعة (Groupe) — تحقق من الاسم (حساس لحالة الأحرف)."
+msgstr "The field \"%(v0)s\" does not actually exist on the Groupe model — check the name (case-sensitive)."
+
+msgid "الرابط الذي ألصقته غير صالح. تأكّد من نسخه كاملاً (يبدأ بـ https://)."
+msgstr "The link you pasted is not valid. Make sure you copied it in full (it starts with https://)."
+
+msgid "الرجاء تحديد اسم الحقل الحقيقي في نموذج المجموعة (Groupe)."
+msgstr "Please specify the real field name on the Groupe model."
+
+#, python-format
+msgid "الرمز \"%(v0)s\" مستخدم مسبقاً."
+msgstr "The code \"%(v0)s\" is already in use."
+
+msgid "الرمز إلزامي ويجب أن يكون فريداً — تحقق من عدم استخدامه من قبل."
+msgstr "The code is required and must be unique — check that it is not already in use."
+
+msgid "الرمز إلزامي ويجب أن يكون فريداً."
+msgstr "The code is required and must be unique."
+
+msgid "الرمز إلزامي."
+msgstr "The code is required."
+
+#, python-format
+msgid "السؤال \"%(v0)s\" يجب أن يحتوي على إجابة صحيحة واحدة بالضبط."
+msgstr "The question \"%(v0)s\" must have exactly one correct answer."
+
+#, python-format
+msgid "السؤال \"%(v0)s\" يجب أن يحتوي على مقترحين على الأقل."
+msgstr "The question \"%(v0)s\" must have at least two options."
+
+#, python-format
+msgid "السعر المدخل لعدد الحصص %(v0)s غير صالح."
+msgstr "The price entered for %(v0)s sessions is invalid."
+
+#, python-format
+msgid "الطالب كان قد اختار مجموعة \"%(v0)s\" عند التسجيل، لكن لم يعد بالإمكان إلحاقه بها تلقائياً (%(v1)s) — يرجى إضافته يدوياً إلى مجموعة مناسبة."
+msgstr "The student had chosen the group \"%(v0)s\" at registration, but can no longer be added to it automatically (%(v1)s) — please add them manually to a suitable group."
+
+#, python-format
+msgid "العدد %(v0)s موجود مسبقاً."
+msgstr "The number %(v0)s already exists."
+
+msgid "الفئة العمرية المستهدفة لهذه الحلقة لا تتوافق مع تفضيل المعلم المصرَّح به عند تسجيله."
+msgstr "The age group targeted by this halqa does not match the preference the teacher declared at registration."
+
+msgid "اللقب إلزامي."
+msgstr "First name is required."
+
+msgid "المجموعة المختارة لا تتوافق تماماً مع أحد المعايير غير الإلزامية — يمكنك تأكيد التسجيل رغم ذلك، أو اختيار مجموعة أخرى."
+msgstr "The chosen group does not exactly match one of the non-mandatory criteria — you can confirm the registration anyway, or choose another group."
+
+#, python-format
+msgid "المدة المختارة طويلة جداً (%(v0)s شهراً) — الحد الأقصى %(v1)s شهراً في نفس الإرسال."
+msgstr "The selected period is too long (%(v0)s months) — maximum %(v1)s months per submission."
+
+msgid "الملف المرفوع ليس صورة صالحة."
+msgstr "The uploaded file is not a valid image."
+
+msgid "النص المُدخل لا يطابق اسم الحلقة بالضبط — لم يتم حذف أي شيء."
+msgstr "The text entered does not exactly match the halqa name — nothing was deleted."
+
+#, python-format
+msgid "النقاط يجب أن تكون بين 0 و %(v0)s."
+msgstr "Points must be between 0 and %(v0)s."
+
+msgid "انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يعد بالإمكان تقييمها."
+msgstr "The evaluation window for this session has passed (24 h after its start) — it can no longer be evaluated."
+
+msgid "بيانات غير صالحة — تحقق من الفئة العمرية وعدد الحصص والمبلغ."
+msgstr "Invalid data — check the age group, number of sessions and amount."
+
+msgid "تاريخ الميلاد غير صالح."
+msgstr "The date of birth is invalid."
+
+#, python-format
+msgid "تعذر الإضافة: البريد الإلكتروني %(v0)s مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد الدراسة."
+msgstr "Cannot add: the email %(v0)s is already used by another account or a pending registration request."
+
+#, python-format
+msgid "تعذر الإلغاء: هذه الحصة ليست في حالة \"مبرمجة\" حالياً (الحالة: %(v0)s)."
+msgstr "Cannot cancel: this session is not in the \"scheduled\" state (state: %(v0)s)."
+
+msgid "تعذر التعديل: هذا الأستاذ مؤرشف."
+msgstr "Cannot edit: this teacher is archived."
+
+msgid "تعذر التعديل: هذا الطالب مؤرشف."
+msgstr "Cannot edit: this student is archived."
+
+#, python-format
+msgid "تعذر التغيير: البريد الإلكتروني %(v0)s مستخدم بالفعل من طرف حساب آخر أو طلب تسجيل قيد الدراسة."
+msgstr "Cannot change: the email %(v0)s is already used by another account or a pending registration request."
+
+#, python-format
+msgid "تعذر التغيير: البريد الإلكتروني %(v0)s مستخدم بالفعل."
+msgstr "Cannot change: the email %(v0)s is already in use."
+
+#, python-format
+msgid "تعذر الحذف: هذا الحساب (%(v0)s) هو حساب مدير أو مشرف — لا يمكن حذفه من هنا مهما كانت حالته."
+msgstr "Cannot delete: this account (%(v0)s) is a Director or Deputy account — it cannot be deleted from here, whatever its state."
+
+msgid "تعذر الحذف: هذا الحساب مرتبط بملف شخصي نشط."
+msgstr "Cannot delete: this account is linked to an active profile."
+
+#, python-format
+msgid "تعذر الحفظ: %(v0)s مؤرشف."
+msgstr "Cannot save: %(v0)s is archived."
+
+#, python-format
+msgid "تعذر الرفض: حالة طلب %(v0)s تغيّرت منذ فتح هذه الصفحة (الحالة الحالية: %(v1)s)."
+msgstr "Cannot reject: the status of %(v0)s's request changed since this page was opened (current status: %(v1)s)."
+
+#, python-format
+msgid "تعذر الرفض: طلب %(v0)s لم يعد قابلاً للرفض (الحالة الحالية: %(v1)s)."
+msgstr "Cannot reject: %(v0)s's request can no longer be rejected (current status: %(v1)s)."
+
+#, python-format
+msgid "تعذر الرفض: طلب %(v0)s لم يعد قيد الانتظار (تمت معالجته بالفعل)."
+msgstr "Cannot reject: %(v0)s's request is no longer pending (it has already been processed)."
+
+#, python-format
+msgid "تعذر القبول النهائي: حالة طلب %(v0)s تغيّرت منذ فتح هذه الصفحة (الحالة الحالية: %(v1)s). لم يتم إنشاء أي حساب."
+msgstr "Final approval failed: the status of %(v0)s's request changed since this page was opened (current status: %(v1)s). No account was created."
+
+#, python-format
+msgid "تعذر القبول: يوجد حساب بهذا البريد الإلكتروني (%(v0)s) بدون ملف شخصي مرتبط (على الأرجح من اختبار سابق). احذف الحساب اليتيم أولاً ثم أعد المحاولة."
+msgstr "Cannot approve: an account exists with this email (%(v0)s) without a linked profile (likely from an earlier test). Delete the orphan account first, then retry."
+
+#, python-format
+msgid "تعذر القبول: يوجد حساب مؤرشف بهذا البريد الإلكتروني (%(v0)s). يجب إعادة تفعيل ذلك الحساب أولاً (أو تغيير بريده الإلكتروني) قبل قبول طلب جديد بنفس البريد."
+msgstr "Cannot approve: an archived account exists with this email (%(v0)s). Reactivate that account first (or change its email) before approving a new request with the same email."
+
+#, python-format
+msgid "تعذر القبول: يوجد حساب نشط بهذا البريد الإلكتروني (%(v0)s) مرتبط بملف شخصي آخر (غير طالب) — التعارض يجب حله يدوياً قبل المتابعة."
+msgstr "Cannot approve: an active account exists with this email (%(v0)s), linked to another (non-student) profile — the conflict must be resolved manually before continuing."
+
+#, python-format
+msgid "تعذر القبول: يوجد حساب نشط بهذا البريد الإلكتروني (%(v0)s) مرتبط بملف شخصي آخر — التعارض يجب حله يدوياً قبل المتابعة."
+msgstr "Cannot approve: an active account exists with this email (%(v0)s), linked to another profile — the conflict must be resolved manually before continuing."
+
+#, python-format
+msgid "تعذر حذف \"%(v0)s\": هذا الحقل استُخدم بالفعل في طلبات تسجيل سابقة. يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي."
+msgstr "Cannot delete \"%(v0)s\": this field has already been used in past registration requests. You can disable it instead of deleting it to preserve history."
+
+#, python-format
+msgid "تعذر حذف \"%(v0)s\": هذا الخيار مستخدم بالفعل (في إجابات أو مجموعات سابقة). يمكنك تعطيله بدلاً من حذفه."
+msgstr "Cannot delete \"%(v0)s\": this option is already used (in past answers or groups). You can disable it instead of deleting it."
+
+#, python-format
+msgid "تعذر حذف \"%(v0)s\": هذا المعيار استُخدم في تقييمات سابقة. يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي."
+msgstr "Cannot delete \"%(v0)s\": this criterion was used in past evaluations. You can disable it instead of deleting it to preserve history."
+
+#, python-format
+msgid "تعذر حذف \"%(v0)s\": هذا المعيار مستخدم بالفعل (في نموذج التسجيل، أو في إجابات/مجموعات سابقة). يمكنك تعطيله بدلاً من حذفه للحفاظ على السجل التاريخي."
+msgstr "Cannot delete \"%(v0)s\": this criterion is already in use (in the registration form, or in past answers/groups). You can disable it instead of deleting it to preserve history."
+
+#, python-format
+msgid "تعذر حذف \"%(v0)s\": هذه المرحلة تحتوي على حقول. احذف/انقل الحقول أولاً، أو عطّل المرحلة بدلاً من حذفها."
+msgstr "Cannot delete \"%(v0)s\": this step contains fields. Delete/move the fields first, or disable the step instead of deleting it."
+
+#, python-format
+msgid "تعذر عرض هذا الطلب: حالة طلب %(v0)s ليست \"بانتظار التصديق النهائي\" (الحالة الحالية: %(v1)s)."
+msgstr "Cannot display this request: %(v0)s's request is not in the \"awaiting final approval\" state (current status: %(v1)s)."
+
+#, python-format
+msgid "تعذرت الإضافة: مرحلة \"%(v0)s\" لا تعرض أي حقل عام على نموذج التسجيل العلني (لديها شاشتها الخاصة المبنية في الكود). أي حقل يُضاف هنا لن يظهر أبداً للمترشح — استخدم مرحلة \"المعلومات الشخصية\" أو \"اختيار البرنامج\" أو أنشئ مرحلة مخصصة جديدة بدلاً من ذلك."
+msgstr "Cannot add: the \"%(v0)s\" step shows no generic field on the public registration form (it has its own hard-coded screen). Any field added here will never show to the applicant — use the \"Personal information\" or \"Program choice\" step, or create a new custom step instead."
+
+#, python-format
+msgid "تعذّر إسناد \"%(v0)s\" لمجموعة \"%(v1)s\": %(v2)s"
+msgstr "Could not assign \"%(v0)s\" to group \"%(v1)s\": %(v2)s"
+
+#, python-format
+msgid "تعذّر إسناد %(v0)s: هذا الأستاذ مؤرشف."
+msgstr "Cannot assign %(v0)s: this teacher is archived."
+
+msgid "تعذّر إسناد الرابط: هذه المجموعة بدون حلقة (جدول) محددة."
+msgstr "Cannot assign the link: this group has no halqa (slot) set."
+
+#, python-format
+msgid "تعذّر استخدام \"%(v0)s\" لهذا التوقيت: %(v1)s"
+msgstr "Could not use \"%(v0)s\" for this time slot: %(v1)s"
+
+#, python-format
+msgid "تعذّر استخدام \"%(v0)s\" لهذا الموعد — لم يعد متاحاً. أعد المحاولة."
+msgstr "Could not use \"%(v0)s\" for this slot — it is no longer available. Try again."
+
+msgid "تعذّر الحذف: هذه الحلقة مرتبطة بمجموعة أو طلب تسجيل — يمكنك تعطيلها بدلاً من ذلك."
+msgstr "Cannot delete: this halqa is linked to a group or a registration request — you can disable it instead."
+
+msgid "تعذّر الحذف: هذه المجموعة مرتبطة بحصص أو طلاب أو سجل تاريخي — يمكنك أرشفتها بدلاً من ذلك (تعديل ← الحالة)."
+msgstr "Cannot delete: this group is linked to sessions, students or history — you can archive it instead (Edit ← Status)."
+
+#, python-format
+msgid "تعذّر قبول الطلب: %(v0)s"
+msgstr "Could not approve the request: %(v0)s"
+
+msgid "تعذّر قبول الطلب: الحلقة المطلوبة لم تعد موجودة."
+msgstr "Could not approve the request: the requested halqa no longer exists."
+
+#, python-format
+msgid "تعذّر نقل الطالب: %(v0)s"
+msgstr "Could not transfer the student: %(v0)s"
+
+#, python-format
+msgid "تعذّرت إضافة الطالب إلى المجموعة: %(v0)s"
+msgstr "Could not add the student to the group: %(v0)s"
+
+msgid "تم أرشفة نوع الاشتراك — لن يظهر في استمارات التسجيل الجديدة."
+msgstr "Subscription type archived — it will no longer appear in new registration forms."
+
+msgid "تم إخفاء الإعلان عن الطلاب."
+msgstr "The announcement has been hidden from students."
+
+msgid "تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة."
+msgstr "The payment proof was sent successfully; it will be reviewed by the administration."
+
+#, python-format
+msgid "تم إرسال إثبات الدفع لـ %(v0)s شهر بنجاح، سيتم مراجعته من طرف الإدارة."
+msgstr "The payment proof for %(v0)s months was sent successfully; it will be reviewed by the administration."
+
+msgid "تم إرسال طلبك بنجاح — بانتظار معالجته من طرف الإدارة."
+msgstr "Your request has been sent — awaiting processing by the administration."
+
+#, python-format
+msgid "تم إسناد \"%(v0)s\" إلى مجموعة \"%(v1)s\"."
+msgstr "\"%(v0)s\" has been assigned to group \"%(v1)s\"."
+
+msgid "تم إعادة تفعيل الإعلان."
+msgstr "The announcement has been reactivated."
+
+msgid "تم إعادة تفعيل نوع الاشتراك."
+msgstr "The subscription type has been reactivated."
+
+msgid "تم إغلاق الاختبار. لن يتمكن أي طالب من بدء محاولة جديدة."
+msgstr "The exam has been closed. No student can start a new attempt."
+
+#, python-format
+msgid "تم إلحاق الطالب تلقائياً بالمجموعة التي اختارها عند التسجيل: \"%(v0)s\"."
+msgstr "The student was automatically added to the group they chose at registration: \"%(v0)s\"."
+
+msgid "تم إلغاء الحصة."
+msgstr "The session has been cancelled."
+
+#, python-format
+msgid "تم إلغاء تفعيل اشتراك %(v0)s."
+msgstr "%(v0)s's subscription has been deactivated."
+
+msgid "تم إنشاء الاختبار كمسودة. أضف الأسئلة ثم انشره."
+msgstr "The exam was created as a draft. Add the questions, then publish it."
+
+#, python-format
+msgid "تم إنشاء طلب الأستاذ \"%(v0)s %(v1)s\" بنجاح — بانتظار التصديق النهائي من المشرف قبل إنشاء الحساب."
+msgstr "The teacher request \"%(v0)s %(v1)s\" was created successfully — awaiting the Deputy's final approval before the account is created."
+
+#, python-format
+msgid "تم إنشاء طلب تسجيل \"%(v0)s\" بنجاح. راجع الطلب ثم اضغط \"قبول الطلب\" لإتمام إنشاء الحساب."
+msgstr "The registration request \"%(v0)s\" was created successfully. Review the request, then click \"Approve request\" to finish creating the account."
+
+#, python-format
+msgid "تم إيقاف الطالب %(v0)s."
+msgstr "Student %(v0)s has been suspended."
+
+msgid "تم تأجيل الحصة إلى الموعد الجديد."
+msgstr "The session has been rescheduled to the new date."
+
+#, python-format
+msgid "تم تأجيل الحصة، مع استخدام \"%(v0)s\" كرابط استثنائي لهذه الحصة فقط."
+msgstr "The session was rescheduled, using \"%(v0)s\" as an exceptional link for this session only."
+
+#, python-format
+msgid "تم تحديث \"%(v0)s\" لهذه المجموعة."
+msgstr "\"%(v0)s\" has been updated for this group."
+
+msgid "تم تحديث إعدادات التسجيل بنجاح."
+msgstr "Registration settings updated successfully."
+
+msgid "تم تحديث إعدادات الظهور بنجاح."
+msgstr "Visibility settings updated successfully."
+
+msgid "تم تحديث إعدادات هامش رابط الحصص بنجاح."
+msgstr "Session link margin settings updated successfully."
+
+msgid "تم تحديث البرنامج العام بنجاح."
+msgstr "The general program has been updated."
+
+msgid "تم تحديث البيانات الحالية للمعلم بنجاح."
+msgstr "The teacher's current data has been updated."
+
+#, python-format
+msgid "تم تحديث المعلمين المُسندين إلى %(v0)s."
+msgstr "The teachers assigned to %(v0)s have been updated."
+
+msgid "تم تحديث المعلومات الإضافية بنجاح."
+msgstr "The additional information has been updated."
+
+msgid "تم تحديث المنحة الشهرية."
+msgstr "The monthly grant has been updated."
+
+#, python-format
+msgid "تم تحديث جدول تفرغ %(v0)s."
+msgstr "%(v0)s's availability has been updated."
+
+msgid "تم تحديث شعار المنصة بنجاح — سيظهر الشعار الجديد في كل الصفحات."
+msgstr "The platform logo has been updated — the new logo will appear on all pages."
+
+msgid "تم تحديث صفحة تقديم التسجيل بنجاح."
+msgstr "The registration presentation page has been updated."
+
+msgid "تم تحديث مدة الاحتفاظ برسائل الدردشة بنجاح."
+msgstr "The chat message retention period has been updated."
+
+msgid "تم تحديث معلومات التواصل بنجاح."
+msgstr "Contact details updated successfully."
+
+msgid "تم تحديث ميثاق التدريس بنجاح."
+msgstr "The teaching charter has been updated."
+
+msgid "تم تحديث نبذة التقديم بنجاح."
+msgstr "The introduction text has been updated."
+
+msgid "تم تسليم هذا الاختبار مسبقاً."
+msgstr "This exam has already been submitted."
+
+msgid "تم تعديل التعرفة بنجاح."
+msgstr "The rate has been updated."
+
+#, python-format
+msgid "تم تعديل الحقل البنيوي \"%(v0)s\" بنجاح."
+msgstr "The structural field \"%(v0)s\" has been updated."
+
+msgid "تم تعديل الحقل بنجاح."
+msgstr "The field has been updated."
+
+msgid "تم تعديل الحلقة بنجاح."
+msgstr "The halqa has been updated."
+
+msgid "تم تعديل الحلقة وإعادة توليد حصص جميع المجموعات المرتبطة بها حسب التوقيت الجديد."
+msgstr "The halqa was updated and the sessions of all its linked groups were regenerated according to the new schedule."
+
+msgid "تم تعديل الخيار بنجاح."
+msgstr "The option has been updated."
+
+msgid "تم تعديل المجموعة بنجاح."
+msgstr "The group has been updated."
+
+msgid "تم تعديل المجموعة وإعادة توليد حصصها حسب الحلقة الجديدة."
+msgstr "The group was updated and its sessions were regenerated according to the new halqa."
+
+#, python-format
+msgid "تم تعديل المرحلة \"%(v0)s\" بنجاح."
+msgstr "The step \"%(v0)s\" has been updated."
+
+#, python-format
+msgid "تم تعديل المعيار \"%(v0)s\" بنجاح."
+msgstr "The criterion \"%(v0)s\" has been updated."
+
+msgid "تم تعديل المعيار بنجاح."
+msgstr "The criterion has been updated."
+
+msgid "تم تعديل الملاحظة."
+msgstr "The note has been updated."
+
+msgid "تم تعديل طريقة الدفع بنجاح."
+msgstr "The payment method has been updated."
+
+msgid "تم تعديل نوع الاشتراك بنجاح."
+msgstr "The subscription type has been updated."
+
+msgid "تم تعطيل الحالة."
+msgstr "The case has been disabled."
+
+msgid "تم تعطيل الحقل."
+msgstr "The field has been disabled."
+
+msgid "تم تعطيل الخيار."
+msgstr "The option has been disabled."
+
+msgid "تم تعطيل الرابط — لن يُقترح للمجموعات الجديدة. المجموعات التي تستخدمه حالياً غير متأثرة."
+msgstr "The link has been disabled — it will no longer be suggested for new groups. Groups currently using it are unaffected."
+
+msgid "تم تعطيل المرحلة — لن تظهر في نموذج التسجيل."
+msgstr "The step has been disabled — it will no longer appear in the registration form."
+
+msgid "تم تعطيل المعيار — لن يظهر في نموذج التسجيل."
+msgstr "The criterion has been disabled — it will no longer appear in the registration form."
+
+msgid "تم تعطيل المعيار."
+msgstr "The criterion has been disabled."
+
+msgid "تم تعطيل طريقة الدفع."
+msgstr "The payment method has been disabled."
+
+#, python-format
+msgid "تم تغيير بريدك الإلكتروني إلى %(v0)s بنجاح."
+msgstr "Your email was successfully changed to %(v0)s."
+
+#, python-format
+msgid "تم تغيير بريدك الإلكتروني إلى %(v0)s بنجاح، لكن تعذر إرسال بريد الإشعار."
+msgstr "Your email was successfully changed to %(v0)s, but the notification email could not be sent."
+
+msgid "تم تغيير كلمة المرور بنجاح."
+msgstr "The password was successfully changed."
+
+msgid "تم تفعيل الحالة."
+msgstr "The case has been enabled."
+
+msgid "تم تفعيل الحقل."
+msgstr "The field has been enabled."
+
+msgid "تم تفعيل الخيار."
+msgstr "The option has been enabled."
+
+msgid "تم تفعيل المرحلة."
+msgstr "The step has been enabled."
+
+msgid "تم تفعيل المعيار."
+msgstr "The criterion has been enabled."
+
+msgid "تم تفعيل طريقة الدفع."
+msgstr "The payment method has been enabled."
+
+msgid "تم تقييم هذه الحصة بالفعل — لم يعد بالإمكان تعديلها."
+msgstr "This session has already been evaluated — it can no longer be modified."
+
+#, python-format
+msgid "تم حذف الحساب اليتيم (%(v0)s). يمكنك الآن إعادة محاولة القبول."
+msgstr "The orphan account (%(v0)s) was deleted. You can now retry the approval."
+
+#, python-format
+msgid "تم حذف الحقل \"%(v0)s\"."
+msgstr "The field \"%(v0)s\" has been deleted."
+
+#, python-format
+msgid "تم حذف الحلقة \"%(v0)s\" نهائياً."
+msgstr "The halqa \"%(v0)s\" has been permanently deleted."
+
+#, python-format
+msgid "تم حذف الخيار \"%(v0)s\"."
+msgstr "The option \"%(v0)s\" has been deleted."
+
+msgid "تم حذف السؤال."
+msgstr "The question has been deleted."
+
+msgid "تم حذف الطلب."
+msgstr "The request has been deleted."
+
+msgid "تم حذف العنصر من حقيبة الأستاذ."
+msgstr "The item was removed from the teacher's toolbox."
+
+#, python-format
+msgid "تم حذف المجموعة \"%(v0)s\" نهائياً مع كامل سجلها (%(v1)s حصة، %(v2)s حضور)."
+msgstr "The group \"%(v0)s\" was permanently deleted along with all its history (%(v1)s sessions, %(v2)s attendance records)."
+
+#, python-format
+msgid "تم حذف المجموعة \"%(v0)s\" نهائياً."
+msgstr "The group \"%(v0)s\" has been permanently deleted."
+
+#, python-format
+msgid "تم حذف المرحلة \"%(v0)s\"."
+msgstr "The step \"%(v0)s\" has been deleted."
+
+#, python-format
+msgid "تم حذف المعيار \"%(v0)s\"."
+msgstr "The criterion \"%(v0)s\" has been deleted."
+
+msgid "تم حذف الملاحظة."
+msgstr "The note has been deleted."
+
+msgid "تم حذف الملف من حقيبة الطالب."
+msgstr "The file was removed from the student's bag."
+
+#, python-format
+msgid "تم حذف حساب الأستاذ %(v0)s نهائياً."
+msgstr "Teacher account %(v0)s has been permanently deleted."
+
+#, python-format
+msgid "تم حذف حساب الطالب %(v0)s نهائياً."
+msgstr "Student account %(v0)s has been permanently deleted."
+
+#, python-format
+msgid "تم حذف حساب المؤطر %(v0)s نهائياً."
+msgstr "Supervisor account %(v0)s has been permanently deleted."
+
+msgid "تم حفظ البيان الشهري بنجاح."
+msgstr "The monthly report has been saved."
+
+msgid "تم حفظ التصحيح."
+msgstr "The grading has been saved."
+
+msgid "تم حفظ التعديلات على السؤال."
+msgstr "The question changes have been saved."
+
+msgid "تم حفظ التعديلات."
+msgstr "Changes saved."
+
+msgid "تم حفظ الحضور والتقييمات بنجاح."
+msgstr "Attendance and evaluations have been saved."
+
+msgid "تم حفظ الملاحظة."
+msgstr "The note has been saved."
+
+msgid "تم حفظ باقي الطلاب. صحّح الآيات أعلاه ثم احفظ مجدداً لإتمام حصة الطلاب المذكورين."
+msgstr "The other students were saved. Fix the verses above, then save again to complete the session for the listed students."
+
+msgid "تم حفظ تقييم المعلم بنجاح."
+msgstr "The teacher evaluation has been saved."
+
+#, python-format
+msgid "تم حفظ دفعة %(v0)s."
+msgstr "%(v0)s's payment has been saved."
+
+#, python-format
+msgid "تم رفض اشتراك %(v0)s."
+msgstr "%(v0)s's subscription has been rejected."
+
+msgid "تم رفض الدفعة."
+msgstr "The payment has been rejected."
+
+#, python-format
+msgid "تم رفض طلب %(v0)s."
+msgstr "%(v0)s's request has been rejected."
+
+#, python-format
+msgid "تم رفض طلب تعديل جدول تفرغ %(v0)s."
+msgstr "The request to change %(v0)s's availability has been rejected."
+
+#, python-format
+msgid "تم فك ارتباط \"%(v0)s\" عن مجموعة \"%(v1)s\"."
+msgstr "\"%(v0)s\" has been unlinked from group \"%(v1)s\"."
+
+#, python-format
+msgid "تم قبول اشتراك %(v0)s — سيبدأ في استقبال الإشعارات."
+msgstr "%(v0)s's subscription has been approved — they will start receiving notifications."
+
+msgid "تم قبول الدفعة."
+msgstr "The payment has been approved."
+
+#, python-format
+msgid "تم قبول تعديل جدول تفرغ %(v0)s."
+msgstr "The change to %(v0)s's availability has been approved."
+
+#, python-format
+msgid "تم قبول طلب %(v0)s مبدئياً — بانتظار التصديق النهائي من المشرف قبل إنشاء الحساب."
+msgstr "%(v0)s's request was provisionally approved — awaiting the Deputy's final approval before the account is created."
+
+#, python-format
+msgid "تم قبول طلب %(v0)s ونقله إلى حلقة %(v1)s."
+msgstr "%(v0)s's request was approved and they were moved to the %(v1)s halqa."
+
+msgid "تم نشر الإعلان بنجاح."
+msgstr "The announcement has been published."
+
+msgid "تم نشر الاختبار. أصبح مرئياً لطلاب الحلقة."
+msgstr "The exam has been published. It is now visible to the students of the halqa."
+
+#, python-format
+msgid "تم نقل %(v0)s إلى مجموعة %(v1)s (سجل حصصه وتقييماته في المجموعة السابقة محفوظ)."
+msgstr "%(v0)s was moved to group %(v1)s (their session and evaluation history in the previous group is preserved)."
+
+#, python-format
+msgid "تمت أرشفة الأستاذ %(v0)s — لن يتمكن من تسجيل الدخول بعد الآن."
+msgstr "Teacher %(v0)s has been archived — they can no longer log in."
+
+msgid "تمت أرشفة الحلقة — لن تظهر في القوائم إلا عبر تصفية \"الحالة\"."
+msgstr "The halqa has been archived — it will only appear in lists via the \"Status\" filter."
+
+#, python-format
+msgid "تمت أرشفة الطالب %(v0)s — لن يتمكن من تسجيل الدخول بعد الآن."
+msgstr "Student %(v0)s has been archived — they can no longer log in."
+
+#, python-format
+msgid "تمت أرشفة المجموعة \"%(v0)s\" — لن تظهر في القوائم إلا عبر تصفية \"الحالة\". سجلها الكامل يبقى محفوظاً."
+msgstr "The group \"%(v0)s\" has been archived — it will only appear in lists via the \"Status\" filter. Its full history is preserved."
+
+#, python-format
+msgid "تمت إزالة %(v0)s من المجموعة (سجل حصصه وتقييماته محفوظ)."
+msgstr "%(v0)s was removed from the group (their session and evaluation history is preserved)."
+
+msgid "تمت إضافة التعرفة بنجاح."
+msgstr "The rate has been added."
+
+#, python-format
+msgid "تمت إضافة الحالة \"%(v0)s حصص/أسبوع\" — لن تصبح قابلة للاستخدام في أي اشتراك أو تعرفة راتب قبل تحديد سعر/تعرفة خاصة بها."
+msgstr "The \"%(v0)s sessions/week\" case has been added — it will only become usable in a subscription or salary rate after a dedicated price/rate is set."
+
+msgid "تمت إضافة الحقل بنجاح."
+msgstr "The field has been added."
+
+msgid "تمت إضافة الحلقة بنجاح."
+msgstr "The halqa has been added."
+
+msgid "تمت إضافة الخيار بنجاح."
+msgstr "The option has been added."
+
+msgid "تمت إضافة الرابط بنجاح."
+msgstr "The link has been added."
+
+msgid "تمت إضافة السؤال."
+msgstr "The question has been added."
+
+msgid "تمت إضافة الطالب إلى المجموعة."
+msgstr "The student has been added to the group."
+
+msgid "تمت إضافة العنصر إلى حقيبة الأستاذ بنجاح."
+msgstr "The item has been added to the teacher's toolbox."
+
+msgid "تمت إضافة المجموعة وتوليد حصصها تلقائياً بنجاح."
+msgstr "The group was added and its sessions were generated automatically."
+
+#, python-format
+msgid "تمت إضافة المرحلة \"%(v0)s\" بنجاح."
+msgstr "The step \"%(v0)s\" has been added."
+
+#, python-format
+msgid "تمت إضافة المعيار \"%(v0)s\" بنجاح."
+msgstr "The criterion \"%(v0)s\" has been added."
+
+msgid "تمت إضافة المعيار بنجاح."
+msgstr "The criterion has been added."
+
+msgid "تمت إضافة الملاحظة."
+msgstr "The note has been added."
+
+#, python-format
+msgid "تمت إضافة الملف إلى حقيبة %(v0)s طالباً."
+msgstr "The file was added to the bag of %(v0)s students."
+
+#, python-format
+msgid "تمت إضافة الملف إلى حقيبة %(v0)s."
+msgstr "The file was added to %(v0)s's bag."
+
+msgid "تمت إضافة الملف إلى حقيبة الطلاب المعنيين بهذه الفئة."
+msgstr "The file was added to the bag of the students in this category."
+
+msgid "تمت إضافة الملف إلى حقيبة جميع الطلاب."
+msgstr "The file was added to every student's bag."
+
+msgid "تمت إضافة طريقة الدفع بنجاح."
+msgstr "The payment method has been added."
+
+msgid "تمت إضافة نوع الاشتراك بنجاح."
+msgstr "The subscription type has been added."
+
+#, python-format
+msgid "تمت إعادة تفعيل الأستاذ %(v0)s."
+msgstr "Teacher %(v0)s has been reactivated."
+
+msgid "تمت إعادة تفعيل الحلقة."
+msgstr "The halqa has been reactivated."
+
+msgid "تمت إعادة تفعيل الرابط."
+msgstr "The link has been reactivated."
+
+#, python-format
+msgid "تمت إعادة تفعيل الطالب %(v0)s."
+msgstr "Student %(v0)s has been reactivated."
+
+#, python-format
+msgid "تمت إعادة تفعيل المجموعة \"%(v0)s\"."
+msgstr "The group \"%(v0)s\" has been reactivated."
+
+#, python-format
+msgid "تنبيه: التوقيت المختار لا يتوافق بالكامل مع جدول تفرغ هذا الأستاذ المصرَّح به عند تسجيله — غير متفرغ حسب تصريحه في: %(v0)s."
+msgstr "Warning: the chosen time does not fully match the availability this teacher declared at registration — unavailable per their declaration at: %(v0)s."
+
+#, python-format
+msgid "تنبيه: التوقيت المختار لا يتوافق بالكامل مع جدول تفرغ هذا الطالب المصرَّح به عند تسجيله — غير متفرغ حسب تصريحه في: %(v0)s."
+msgstr "Warning: the chosen time does not fully match the availability this student declared at registration — unavailable per their declaration at: %(v0)s."
+
+msgid "جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة."
+msgstr "The student's gender does not match the target audience of this halqa."
+
+msgid "جنس الفئة المستهدفة لهذه الحلقة لا يتوافق مع تفضيل المعلم المصرَّح به عند تسجيله."
+msgstr "The gender of the target audience of this halqa does not match the preference the teacher declared at registration."
+
+#, python-format
+msgid "حجم الملف كبير جداً (%(v0)s م.ب). الحد الأقصى %(v1)s م.ب."
+msgstr "The file is too large (%(v0)s MB). Maximum %(v1)s MB."
+
+#, python-format
+msgid "حجم الملف كبير جداً (%(v0)s م.ب). الحد الأقصى 20 م.ب."
+msgstr "The file is too large (%(v0)s MB). Maximum 20 MB."
+
+msgid "حجم الملف كبير جداً — الحد الأقصى 2 ميغابايت."
+msgstr "The file is too large — maximum 2 MB."
+
+msgid "حجم الملف كبير جداً — الحد الأقصى 5 ميغابايت."
+msgstr "The file is too large — maximum 5 MB."
+
+msgid "حسابك مؤرشف — لا يمكن إرسال دفعات جديدة."
+msgstr "Your account is archived — you cannot submit new payments."
+
+msgid "رقم الواتساب غير صالح — يجب أن يحتوي على عدد أرقام صحيح (مثال: 0663394165 أو 212663394165)."
+msgstr "The WhatsApp number is invalid — it must contain a valid number of digits (e.g. 0663394165 or 212663394165)."
+
+msgid "رمز الخيار إلزامي ويجب أن يكون فريداً ضمن هذا المعيار."
+msgstr "The option code is required and must be unique within this criterion."
+
+msgid "رواية الحلقة لا تتوافق مع رواية الطالب."
+msgstr "The halqa's riwaya does not match the student's riwaya."
+
+msgid "صيغة الشهر غير صحيحة."
+msgstr "The month format is invalid."
+
+#, python-format
+msgid "صيغة الملف \"%(v0)s\" غير مدعومة."
+msgstr "The file format \"%(v0)s\" is not supported."
+
+#, python-format
+msgid "صيغة الملف \"%(v0)s\" غير مقبولة."
+msgstr "The file format \"%(v0)s\" is not accepted."
+
+msgid "صيغة الملف غير مدعومة — استعمل PNG أو JPEG أو WEBP أو GIF."
+msgstr "Unsupported file format — use PNG, JPEG, WEBP or GIF."
+
+msgid "عدد الحصص يجب أن يكون رقماً صحيحاً موجباً."
+msgstr "The number of sessions must be a positive integer."
+
+msgid "كلمة المرور الحالية غير صحيحة."
+msgstr "The current password is incorrect."
+
+msgid "كلمة المرور غير صحيحة."
+msgstr "The password is incorrect."
+
+msgid "كلمتا المرور الجديدتان غير متطابقتين."
+msgstr "The two new passwords do not match."
+
+msgid "لا يمكن أن تكون الملاحظة فارغة."
+msgstr "The note cannot be empty."
+
+msgid "لا يمكن أن يكون الهامش رقماً سالباً."
+msgstr "The margin cannot be a negative number."
+
+msgid "لا يمكن إضافة ملاحظة فارغة."
+msgstr "Cannot add an empty note."
+
+msgid "لا يمكن إعادة ترتيب أسئلة اختبار توجد له نسخ مُقدَّمة بالفعل."
+msgstr "Cannot reorder the questions of an exam that already has submitted papers."
+
+msgid "لا يمكن إعادة تعيين كلمة مرور حساب مدير أو مشرف من هنا."
+msgstr "Cannot reset the password of a Director or Deputy account from here."
+
+msgid "لا يمكن إغلاق اختبار ليس منشوراً."
+msgstr "Cannot close an exam that is not published."
+
+msgid "لا يمكن تصحيح نسخة لم تُقدَّم بعد."
+msgstr "Cannot grade a paper that has not been submitted yet."
+
+msgid "لا يمكن تعديل أسئلة اختبار توجد له نسخ مُقدَّمة بالفعل."
+msgstr "Cannot edit the questions of an exam that already has submitted papers."
+
+msgid "لا يمكن حذف أسئلة اختبار توجد له نسخ مُقدَّمة بالفعل."
+msgstr "Cannot delete the questions of an exam that already has submitted papers."
+
+msgid "لا يمكن نشر اختبار بدون أي سؤال."
+msgstr "Cannot publish an exam with no questions."
+
+msgid "لا يمكن نشر اختبار ليس في حالة مسودة."
+msgstr "Cannot publish an exam that is not in draft state."
+
+msgid "لتغيير كلمة المرور، يرجى التواصل مع الإدارة."
+msgstr "To change your password, please contact the administration."
+
+msgid "لديك بالفعل طلب تغيير حلقة قيد الانتظار — يجب معالجته أولاً قبل إرسال طلب جديد."
+msgstr "You already have a pending halqa change request — it must be processed before you send a new one."
+
+msgid "لم تنتهِ هذه الحصة بعد — لا يمكن تقييمها قبل انتهائها فعلياً."
+msgstr "This session is not over yet — it cannot be evaluated before it actually ends."
+
+msgid "لم يتغير البريد الإلكتروني."
+msgstr "The email address did not change."
+
+msgid "نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب."
+msgstr "The halqa type (memorization/consolidation) does not match the student's program."
+
+msgid "هذا الاختبار غير متاح حالياً."
+msgstr "This exam is not available right now."
+
+msgid "هذا الرابط مسجَّل مسبقاً في القائمة."
+msgstr "This link is already in the list."
+
+msgid "هذا الرابط معطّل حالياً — اختر رابطاً آخر."
+msgstr "This link is currently disabled — choose another one."
+
+msgid "هذا الطلب لم يعد قيد الانتظار."
+msgstr "This request is no longer pending."
+
+msgid "هذا المعيار مشتق تلقائياً ولا يمكن تعديله يدوياً من هنا."
+msgstr "This criterion is derived automatically and cannot be edited manually from here."
+
+msgid "هذا المعيار مشتق تلقائياً ولا يمكن فك ارتباطه يدوياً."
+msgstr "This criterion is derived automatically and cannot be unlinked manually."
+
+msgid "يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل."
+msgstr "The new password must contain at least 8 characters."
+
+msgid "يجب أن تكون المدة يوماً واحداً على الأقل."
+msgstr "The duration must be at least one day."
+
+msgid "يجب أن تكون كل مهلة زمنية يوماً/ساعة واحدة على الأقل."
+msgstr "Each time limit must be at least one day / one hour."
+
+msgid "يجب إدخال رابط."
+msgstr "A link is required."
+
+msgid "يجب إدخال عدد نقاط صحيح."
+msgstr "You must enter a valid number of points."
+
+msgid "يجب إدخال عنوان للاختبار."
+msgstr "You must enter a title for the exam."
+
+msgid "يجب إدخال عنوان ونص الإعلان."
+msgstr "You must enter a title and body for the announcement."
+
+msgid "يجب إدخال مدة صحيحة بالدقائق."
+msgstr "You must enter a valid duration in minutes."
+
+msgid "يجب إدخال نص أو إرفاق ملف على الأقل."
+msgstr "You must enter text or attach at least one file."
+
+msgid "يجب إرفاق ملف."
+msgstr "A file must be attached."
+
+msgid "يجب إضافة حصة واحدة على الأقل."
+msgstr "You must add at least one session."
+
+msgid "يجب اختيار إحدى حلقاتك."
+msgstr "You must choose one of your halqas."
+
+msgid "يجب اختيار الفئة المستهدفة بالإعلان."
+msgstr "You must choose the target audience for the announcement."
+
+msgid "يجب اختيار النوع (جماعي/فردي)."
+msgstr "You must choose the type (group/individual)."
+
+msgid "يجب اختيار حلقة صالحة من القائمة المقترحة."
+msgstr "You must choose a valid halqa from the suggested list."
+
+msgid "يجب اختيار حلقة قبل إنشاء المجموعة. أنشئ حلقة أولاً إذا لم تتوفر أي حلقة."
+msgstr "You must choose a halqa before creating the group. Create a halqa first if none is available."
+
+msgid "يجب اختيار حلقة للمجموعة."
+msgstr "You must choose a halqa for the group."
+
+msgid "يجب اختيار مجموعة الوجهة قبل النقل."
+msgstr "You must choose the destination group before transferring."
+
+msgid "يجب اختيار مدة صالحة."
+msgstr "You must choose a valid duration."
+
+#, python-format
+msgid "يجب تحديد الإجابة الصحيحة (صح/خطأ) للسؤال \"%(v0)s\"."
+msgstr "You must set the correct answer (true/false) for the question \"%(v0)s\"."
+
+msgid "يجب تحديد تاريخ البداية والتاريخ النهائي قبل النشر."
+msgstr "You must set the start date and end date before publishing."
+
+msgid "يجب تحديد تاريخ البداية والتاريخ النهائي."
+msgstr "You must set the start date and end date."
+
+msgid "يجب تحديد سعر واحد على الأقل لعدد حصص معين."
+msgstr "You must set at least one price for a given number of sessions."
+
+msgid "يجب عليك تغيير كلمة مرورك أولاً قبل القيام بأي إجراء آخر — الإجراء الذي حاولت القيام به لم يُنفَّذ."
+msgstr "You must change your password first before doing anything else — the action you attempted was not performed."
+
+msgid "يجب كتابة سبب الرفض قبل التأكيد."
+msgstr "You must give a reason for the rejection before confirming."
+
+msgid "يرجى إدخال أرقام صحيحة للمهل الزمنية."
+msgstr "Please enter valid numbers for the time limits."
+
+msgid "يرجى إدخال أرقام صحيحة."
+msgstr "Please enter valid numbers."
+
+msgid "يرجى إدخال رقم صحيح."
+msgstr "Please enter a valid number."
+
+msgid "يرجى إدخال فترة صحيحة (\"من تاريخ\" و\"إلى تاريخ\")."
+msgstr "Please enter a valid period (\"Start date\" and \"End date\")."
+
+msgid "يرجى اختيار أستاذ واحد على الأقل عند اختيار \"أساتذة محددون\"."
+msgstr "Please choose at least one teacher when \"Specific teachers\" is selected."
+
+msgid "يرجى اختيار ملف صورة."
+msgstr "Please choose an image file."
+
+msgid "الطالب مؤرشف — يجب إعادة تفعيله أولاً قبل إضافته إلى مجموعة."
+msgstr "The student is archived — you must reactivate the account first before adding them to a group."
+
+msgid "الطالب منضم بالفعل إلى هذه المجموعة."
+msgstr "The student is already a member of this group."
+
+msgid "المجموعة مكتملة العدد."
+msgstr "The group is full."
+
+msgid "لا يوجد جدول زمني محدد لهذه المجموعة."
+msgstr "No schedule is defined for this group."
+
+msgid "لا يوجد ملف تسجيل مرتبط بهذا الطالب لمقارنة المعايير."
+msgstr "No registration file is linked to this student to compare the criteria."
+
+msgid "عمر الطالب لا يقع ضمن الفئة العمرية لهذه الحلقة."
+msgstr "The student's age is outside this halqa's age range."
+
+msgid "نوع الاشتراك (فردي/جماعي) لا يتوافق مع نوع هذه المجموعة."
+msgstr "The subscription type (individual/group) does not match this group's type."
+
+msgid "جدول تفرغ الطالب لا يغطي كامل مواعيد هذه الحلقة."
+msgstr "The student's availability does not cover all of this halqa's time slots."
+
+msgid "نوع السؤال غير صالح."
+msgstr "Invalid question type."
+
+msgid "يجب إدخال نص السؤال."
+msgstr "You must enter the question text."
+
+msgid "يجب إدخال عدد نقاط صحيح (1 على الأقل)."
+msgstr "You must enter a valid number of points (at least 1)."
+
+msgid "يجب تحديد الإجابة الصحيحة (صح أو خطأ)."
+msgstr "You must specify the correct answer (true or false)."
+
+msgid "يجب إدخال مقترحين على الأقل."
+msgstr "You must enter at least two options."
+
+msgid "يجب تحديد إجابة صحيحة واحدة من بين المقترحات المدخلة."
+msgstr "You must designate exactly one correct answer among the options entered."

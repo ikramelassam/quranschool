@@ -9,6 +9,7 @@ from django.http import HttpResponseForbidden, HttpResponseBadRequest, JsonRespo
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_POST, require_GET
+from django.utils.translation import gettext as gettext_
 
 from accounts.decorators import role_required
 from .models import Examen, Question, ChoixQuestion, Copie, Reponse
@@ -67,7 +68,7 @@ def examen_ajouter(request):
             return render(request, 'examens/prof_form.html', {
                 'groupes': groupes, 'examen': None, 'valeurs': request.POST,
             })
-        messages.success(request, 'تم إنشاء الاختبار كمسودة. أضف الأسئلة ثم انشره.')
+        messages.success(request, gettext_('تم إنشاء الاختبار كمسودة. أضف الأسئلة ثم انشره.'))
         return redirect('examens_prof_detail', examen.id)
 
     return render(request, 'examens/prof_form.html', {'groupes': groupes, 'examen': None})
@@ -88,7 +89,7 @@ def examen_modifier(request, examen_id):
             return render(request, 'examens/prof_form.html', {
                 'groupes': groupes, 'examen': examen, 'valeurs': request.POST,
             })
-        messages.success(request, 'تم حفظ التعديلات.')
+        messages.success(request, gettext_('تم حفظ التعديلات.'))
         return redirect('examens_prof_detail', examen.id)
 
     return render(request, 'examens/prof_form.html', {'groupes': groupes, 'examen': examen})
@@ -106,7 +107,7 @@ def _valider_et_enregistrer_examen(request, prof, groupes_autorises, examen):
     titre = (request.POST.get('titre') or '').strip()
     instructions = request.POST.get('instructions', '').strip()
     if not titre:
-        return "يجب إدخال عنوان للاختبار.", examen
+        return gettext_('يجب إدخال عنوان للاختبار.'), examen
 
     chrono_modifiable = examen is None or examen.chrono_modifiable
     if chrono_modifiable:
@@ -117,17 +118,17 @@ def _valider_et_enregistrer_examen(request, prof, groupes_autorises, examen):
         duree_minutes_raw = request.POST.get('duree_minutes')
 
         if not groupe:
-            return "يجب اختيار إحدى حلقاتك.", examen
+            return gettext_('يجب اختيار إحدى حلقاتك.'), examen
         if not date_debut or not date_limite:
-            return "يجب تحديد تاريخ البداية والتاريخ النهائي.", examen
+            return gettext_('يجب تحديد تاريخ البداية والتاريخ النهائي.'), examen
         if date_limite <= date_debut:
-            return "التاريخ النهائي يجب أن يكون بعد تاريخ البداية.", examen
+            return gettext_('التاريخ النهائي يجب أن يكون بعد تاريخ البداية.'), examen
         try:
             duree_minutes = int(duree_minutes_raw)
             if duree_minutes < 1:
                 raise ValueError
         except (TypeError, ValueError):
-            return "يجب إدخال مدة صحيحة بالدقائق.", examen
+            return gettext_('يجب إدخال مدة صحيحة بالدقائق.'), examen
 
     if examen is None:
         examen = Examen.objects.create(
@@ -175,7 +176,7 @@ def examen_publier(request, examen_id):
     if not can_gerer_examen(request.user, examen):
         return HttpResponseForbidden('ليس لديك صلاحية نشر هذا الاختبار.')
     if examen.statut != 'brouillon':
-        messages.error(request, "لا يمكن نشر اختبار ليس في حالة مسودة.")
+        messages.error(request, gettext_('لا يمكن نشر اختبار ليس في حالة مسودة.'))
         return redirect('examens_prof_detail', examen.id)
 
     motif = motif_non_publiable(examen)
@@ -186,7 +187,7 @@ def examen_publier(request, examen_id):
     examen.statut = 'publie'
     examen.date_publication = timezone.now()
     examen.save(update_fields=['statut', 'date_publication'])
-    messages.success(request, 'تم نشر الاختبار. أصبح مرئياً لطلاب الحلقة.')
+    messages.success(request, gettext_('تم نشر الاختبار. أصبح مرئياً لطلاب الحلقة.'))
     return redirect('examens_prof_detail', examen.id)
 
 
@@ -197,12 +198,12 @@ def examen_fermer(request, examen_id):
     if not can_gerer_examen(request.user, examen):
         return HttpResponseForbidden('ليس لديك صلاحية إغلاق هذا الاختبار.')
     if examen.statut != 'publie':
-        messages.error(request, "لا يمكن إغلاق اختبار ليس منشوراً.")
+        messages.error(request, gettext_('لا يمكن إغلاق اختبار ليس منشوراً.'))
         return redirect('examens_prof_detail', examen.id)
 
     examen.statut = 'ferme'
     examen.save(update_fields=['statut'])
-    messages.success(request, 'تم إغلاق الاختبار. لن يتمكن أي طالب من بدء محاولة جديدة.')
+    messages.success(request, gettext_('تم إغلاق الاختبار. لن يتمكن أي طالب من بدء محاولة جديدة.'))
     return redirect('examens_prof_detail', examen.id)
 
 
@@ -215,15 +216,15 @@ def _valider_et_enregistrer_question(request, examen, question=None):
     points_raw = request.POST.get('points')
 
     if type_question not in dict(Question.TYPE_CHOICES):
-        return "نوع السؤال غير صالح."
+        return gettext_('نوع السؤال غير صالح.')
     if not enonce:
-        return "يجب إدخال نص السؤال."
+        return gettext_('يجب إدخال نص السؤال.')
     try:
         points = int(points_raw)
         if points < 1:
             raise ValueError
     except (TypeError, ValueError):
-        return "يجب إدخال عدد نقاط صحيح (1 على الأقل)."
+        return gettext_('يجب إدخال عدد نقاط صحيح (1 على الأقل).')
 
     reponse_correcte_bool = None
     choix_valides = []
@@ -232,7 +233,7 @@ def _valider_et_enregistrer_question(request, examen, question=None):
     if type_question == 'vrai_faux':
         valeur = request.POST.get('reponse_correcte_bool')
         if valeur not in ('true', 'false'):
-            return "يجب تحديد الإجابة الصحيحة (صح أو خطأ)."
+            return gettext_('يجب تحديد الإجابة الصحيحة (صح أو خطأ).')
         reponse_correcte_bool = (valeur == 'true')
 
     elif type_question == 'choix':
@@ -241,14 +242,14 @@ def _valider_et_enregistrer_question(request, examen, question=None):
             if texte:
                 choix_valides.append((i, texte))
         if len(choix_valides) < 2:
-            return "يجب إدخال مقترحين على الأقل."
+            return gettext_('يجب إدخال مقترحين على الأقل.')
         indices_valides = {i for i, _ in choix_valides}
         try:
             index_correct = int(request.POST.get('choix_correct'))
         except (TypeError, ValueError):
             index_correct = None
         if index_correct not in indices_valides:
-            return "يجب تحديد إجابة صحيحة واحدة من بين المقترحات المدخلة."
+            return gettext_('يجب تحديد إجابة صحيحة واحدة من بين المقترحات المدخلة.')
 
     if question is None:
         dernier_ordre = examen.questions.aggregate(m=Max('ordre'))['m'] or 0
@@ -302,7 +303,7 @@ def question_ajouter(request, examen_id):
     if not can_gerer_examen(request.user, examen):
         return HttpResponseForbidden('ليس لديك صلاحية تعديل هذا الاختبار.')
     if not examen.structure_modifiable:
-        messages.error(request, "لا يمكن تعديل أسئلة اختبار توجد له نسخ مُقدَّمة بالفعل.")
+        messages.error(request, gettext_('لا يمكن تعديل أسئلة اختبار توجد له نسخ مُقدَّمة بالفعل.'))
         return redirect('examens_prof_detail', examen.id)
 
     if request.method == 'POST':
@@ -313,7 +314,7 @@ def question_ajouter(request, examen_id):
                 'examen': examen, 'question': None, 'valeurs': request.POST,
                 'lignes_choix': _lignes_choix_contexte(request_post=request.POST),
             })
-        messages.success(request, 'تمت إضافة السؤال.')
+        messages.success(request, gettext_('تمت إضافة السؤال.'))
         return redirect('examens_prof_detail', examen.id)
 
     return render(request, 'examens/question_form.html', {
@@ -328,7 +329,7 @@ def question_modifier(request, question_id):
     if not can_gerer_examen(request.user, examen):
         return HttpResponseForbidden('ليس لديك صلاحية تعديل هذا الاختبار.')
     if not examen.structure_modifiable:
-        messages.error(request, "لا يمكن تعديل أسئلة اختبار توجد له نسخ مُقدَّمة بالفعل.")
+        messages.error(request, gettext_('لا يمكن تعديل أسئلة اختبار توجد له نسخ مُقدَّمة بالفعل.'))
         return redirect('examens_prof_detail', examen.id)
 
     if request.method == 'POST':
@@ -339,7 +340,7 @@ def question_modifier(request, question_id):
                 'examen': examen, 'question': question, 'valeurs': request.POST,
                 'lignes_choix': _lignes_choix_contexte(request_post=request.POST),
             })
-        messages.success(request, 'تم حفظ التعديلات على السؤال.')
+        messages.success(request, gettext_('تم حفظ التعديلات على السؤال.'))
         return redirect('examens_prof_detail', examen.id)
 
     return render(request, 'examens/question_form.html', {
@@ -355,12 +356,12 @@ def question_supprimer(request, question_id):
     if not can_gerer_examen(request.user, examen):
         return HttpResponseForbidden('ليس لديك صلاحية تعديل هذا الاختبار.')
     if not examen.structure_modifiable:
-        messages.error(request, "لا يمكن حذف أسئلة اختبار توجد له نسخ مُقدَّمة بالفعل.")
+        messages.error(request, gettext_('لا يمكن حذف أسئلة اختبار توجد له نسخ مُقدَّمة بالفعل.'))
         return redirect('examens_prof_detail', examen.id)
 
     examen_id = examen.id
     question.delete()
-    messages.success(request, 'تم حذف السؤال.')
+    messages.success(request, gettext_('تم حذف السؤال.'))
     return redirect('examens_prof_detail', examen_id)
 
 
@@ -370,7 +371,7 @@ def _deplacer_question(request, question_id, sens):
     if not can_gerer_examen(request.user, examen):
         return HttpResponseForbidden('ليس لديك صلاحية تعديل هذا الاختبار.')
     if not examen.structure_modifiable:
-        messages.error(request, "لا يمكن إعادة ترتيب أسئلة اختبار توجد له نسخ مُقدَّمة بالفعل.")
+        messages.error(request, gettext_('لا يمكن إعادة ترتيب أسئلة اختبار توجد له نسخ مُقدَّمة بالفعل.'))
         return redirect('examens_prof_detail', examen.id)
 
     questions = list(examen.questions.all())
@@ -416,7 +417,7 @@ def copie_correction(request, copie_id):
     if not can_corriger_examen(request.user, copie.examen):
         return HttpResponseForbidden('ليس لديك صلاحية تصحيح هذه النسخة.')
     if copie.statut != 'soumise':
-        messages.error(request, "لا يمكن تصحيح نسخة لم تُقدَّم بعد.")
+        messages.error(request, gettext_('لا يمكن تصحيح نسخة لم تُقدَّم بعد.'))
         return redirect('examens_prof_copies', copie.examen_id)
 
     if request.method == 'POST':
@@ -427,15 +428,15 @@ def copie_correction(request, copie_id):
         try:
             points = float(request.POST.get('points_obtenus'))
         except (TypeError, ValueError):
-            messages.error(request, "يجب إدخال عدد نقاط صحيح.")
+            messages.error(request, gettext_('يجب إدخال عدد نقاط صحيح.'))
             return redirect('examens_copie_correction', copie.id)
         if points < 0 or points > float(reponse.question.points):
-            messages.error(request, f"النقاط يجب أن تكون بين 0 و {reponse.question.points}.")
+            messages.error(request, gettext_('النقاط يجب أن تكون بين 0 و %(v0)s.') % {'v0': reponse.question.points})
             return redirect('examens_copie_correction', copie.id)
 
         commentaire = request.POST.get('commentaire', '').strip()
         enregistrer_correction_manuelle(reponse, points, commentaire)
-        messages.success(request, 'تم حفظ التصحيح.')
+        messages.success(request, gettext_('تم حفظ التصحيح.'))
         return redirect('examens_copie_correction', copie.id)
 
     reponses = copie.reponses.select_related('question', 'reponse_choix').order_by('question__ordre')
@@ -481,7 +482,7 @@ def eleve_examen_avant(request, examen_id):
 
     if request.method == 'POST':
         if not examen.peut_etre_commence:
-            messages.error(request, "هذا الاختبار غير متاح حالياً.")
+            messages.error(request, gettext_('هذا الاختبار غير متاح حالياً.'))
             return redirect('examens_eleve_liste')
         copie, _ = demarrer_ou_recuperer_copie(examen, eleve)
         return redirect('examens_passage', copie.id)
@@ -596,7 +597,7 @@ def examen_soumettre(request, copie_id):
 
     copie = finaliser_si_expiree(copie)
     if copie.statut != 'en_cours':
-        messages.info(request, "تم تسليم هذا الاختبار مسبقاً.")
+        messages.info(request, gettext_('تم تسليم هذا الاختبار مسبقاً.'))
         return redirect('examens_eleve_resultat', copie.id)
 
     copie = soumettre_copie(copie, automatique=False)

@@ -149,7 +149,7 @@ def mot_de_passe_oublie(request):
             )
         messages.success(
             request,
-            'إذا كان هذا البريد مسجلاً لدينا، تواصل مع الإدارة للحصول على كلمة المرور الجديدة.'
+            _('إذا كان هذا البريد مسجلاً لدينا، تواصل مع الإدارة للحصول على كلمة المرور الجديدة.')
         )
         # Reste sur la même page (au lieu de rediriger vers login) pour pouvoir
         # proposer tout de suite un contact direct avec le مدير (WhatsApp/email),
@@ -175,7 +175,7 @@ def reinitialiser_mon_mot_de_passe(request):
     # que password_change_view — élève/prof/مؤطر ne peuvent plus déclencher
     # eux-mêmes un changement de leur mot de passe, sous aucune forme.
     if request.user.role in ('eleve', 'prof', 'superviseur'):
-        messages.info(request, 'لتغيير كلمة المرور، يرجى التواصل مع الإدارة.')
+        messages.info(request, _('لتغيير كلمة المرور، يرجى التواصل مع الإدارة.'))
         return redirect_by_role(request.user)
 
     if request.method == 'POST':
@@ -245,7 +245,7 @@ def password_change_view(request):
     # à True pour eux). Blocage inconditionnel ici en défense en profondeur,
     # au cas où cette URL serait quand même atteinte directement.
     if request.user.role in ('eleve', 'prof', 'superviseur'):
-        messages.info(request, 'لتغيير كلمة المرور، يرجى التواصل مع الإدارة.')
+        messages.info(request, _('لتغيير كلمة المرور، يرجى التواصل مع الإدارة.'))
         return redirect_by_role(request.user)
 
     if request.method == 'POST':
@@ -254,17 +254,17 @@ def password_change_view(request):
         confirmation = request.POST.get('confirmation')
 
         if not request.user.check_password(ancien):
-            messages.error(request, 'كلمة المرور الحالية غير صحيحة.')
+            messages.error(request, _('كلمة المرور الحالية غير صحيحة.'))
         elif nouveau != confirmation:
-            messages.error(request, 'كلمتا المرور الجديدتان غير متطابقتين.')
+            messages.error(request, _('كلمتا المرور الجديدتان غير متطابقتين.'))
         elif len(nouveau) < 8:
-            messages.error(request, 'يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل.')
+            messages.error(request, _('يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل.'))
         else:
             request.user.set_password(nouveau)
             request.user.doit_changer_mot_de_passe = False
             request.user.save()
             update_session_auth_hash(request, request.user)
-            messages.success(request, 'تم تغيير كلمة المرور بنجاح.')
+            messages.success(request, _('تم تغيير كلمة المرور بنجاح.'))
             return redirect_by_role(request.user)
 
     return render(request, 'accounts/password_change.html', {

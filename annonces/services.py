@@ -1,6 +1,7 @@
 import os
 
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext as gettext_
 from courses.utils import cible_annonce_pour_eleve, tranche_age_precise, TRANCHES_AGE_PRECISES
 from .models import Annonce, LectureAnnonce
 
@@ -140,10 +141,10 @@ def valider_piece_jointe(fichier):
     la seule confiance du <input accept=...> côté client."""
     type_fichier = deduire_type_fichier(fichier.name, getattr(fichier, 'content_type', ''))
     if type_fichier is None:
-        return None, f'صيغة الملف "{os.path.splitext(fichier.name)[1]}" غير مدعومة.'
+        return None, gettext_('صيغة الملف "%(v0)s" غير مدعومة.') % {'v0': os.path.splitext(fichier.name)[1]}
     taille_max = TAILLE_MAX_PAR_TYPE_OCTETS[type_fichier]
     if fichier.size > taille_max:
-        return None, f'حجم الملف كبير جداً ({fichier.size // (1024 * 1024)} م.ب). الحد الأقصى {taille_max // (1024 * 1024)} م.ب.'
+        return None, gettext_('حجم الملف كبير جداً (%(v0)s م.ب). الحد الأقصى %(v1)s م.ب.') % {'v0': fichier.size // (1024 * 1024), 'v1': taille_max // (1024 * 1024)}
     return type_fichier, None
 
 

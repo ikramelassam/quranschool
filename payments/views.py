@@ -5,6 +5,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.contrib import messages
+from django.utils.translation import gettext as gettext_
 from accounts.decorators import role_required
 from accounts.services import eleves_pour_filtre
 from core.utils import paginer, envoyer_notification_telegram_async
@@ -80,7 +81,7 @@ def eleve_paiements(request):
         # accounts.services.archiver_eleve), donc cette vue est normalement
         # inatteignable pour lui — garde explicite malgré tout, chantier du 2026-08-03.
         if eleve.statut == 'archive':
-            messages.error(request, 'حسابك مؤرشف — لا يمكن إرسال دفعات جديدة.')
+            messages.error(request, gettext_('حسابك مؤرشف — لا يمكن إرسال دفعات جديدة.'))
             return redirect('eleve_paiements')
 
         from dashboard.templatetags.libelles_arabes import mois_annee_ar
@@ -96,19 +97,18 @@ def eleve_paiements(request):
             date_debut = datetime.date.fromisoformat(request.POST.get('date_debut', ''))
             date_fin = datetime.date.fromisoformat(request.POST.get('date_fin', ''))
         except (ValueError, TypeError):
-            messages.error(request, 'يرجى إدخال فترة صحيحة ("من تاريخ" و"إلى تاريخ").')
+            messages.error(request, gettext_('يرجى إدخال فترة صحيحة ("من تاريخ" و"إلى تاريخ").'))
             return redirect('eleve_paiements')
 
         if date_fin < date_debut:
-            messages.error(request, '"إلى تاريخ" يجب أن يكون بعد "من تاريخ" أو مساوياً له.')
+            messages.error(request, gettext_('"إلى تاريخ" يجب أن يكون بعد "من تاريخ" أو مساوياً له.'))
             return redirect('eleve_paiements')
 
         mois_periode = _mois_entre_inclus(date_debut, date_fin)
         if len(mois_periode) > NB_MOIS_MAX_PAR_PERIODE:
             messages.error(
                 request,
-                f'المدة المختارة طويلة جداً ({len(mois_periode)} شهراً) — الحد الأقصى '
-                f'{NB_MOIS_MAX_PAR_PERIODE} شهراً في نفس الإرسال.',
+                gettext_('المدة المختارة طويلة جداً (%(v0)s شهراً) — الحد الأقصى %(v1)s شهراً في نفس الإرسال.') % {'v0': len(mois_periode), 'v1': NB_MOIS_MAX_PAR_PERIODE},
             )
             return redirect('eleve_paiements')
 
@@ -161,12 +161,12 @@ def eleve_paiements(request):
             )
             messages.success(
                 request,
-                f'تم إرسال إثبات الدفع لـ {len(mois_crees)} شهر بنجاح، سيتم مراجعته من طرف الإدارة.'
-                if len(mois_crees) > 1 else 'تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة.'
+                gettext_('تم إرسال إثبات الدفع لـ %(v0)s شهر بنجاح، سيتم مراجعته من طرف الإدارة.') % {'v0': len(mois_crees)}
+                if len(mois_crees) > 1 else gettext_('تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة.')
             )
         if mois_deja_existants:
             noms = '، '.join(mois_annee_ar(m) for m in mois_deja_existants)
-            messages.info(request, f'الأشهر التالية كانت مسجلة مسبقاً ولم تُرسَل مجدداً: {noms}')
+            messages.info(request, gettext_('الأشهر التالية كانت مسجلة مسبقاً ولم تُرسَل مجدداً: %(v0)s') % {'v0': noms})
         return redirect('eleve_paiements')
 
     paiements = Paiement.objects.filter(eleve=eleve).order_by('-mois_reference')
@@ -389,13 +389,13 @@ def paiement_panel_sauvegarder(request):
 
     eleve = get_object_or_404(Eleve, id=request.POST.get('eleve_id'))
     if eleve.statut == 'archive':
-        messages.error(request, f'تعذر الحفظ: {eleve.user.get_full_name()} مؤرشف.')
+        messages.error(request, gettext_('تعذر الحفظ: %(v0)s مؤرشف.') % {'v0': eleve.user.get_full_name()})
         return redirect('suivi_paiements_eleves')
     mois_str = request.POST.get('mois', '')
     try:
         annee, mois_num = (int(x) for x in mois_str.split('-'))
     except ValueError:
-        messages.error(request, 'صيغة الشهر غير صحيحة.')
+        messages.error(request, gettext_('صيغة الشهر غير صحيحة.'))
         return redirect('suivi_paiements_eleves')
 
     # Retrouve le Paiement existant pour ce mois (peu importe le jour exact de
@@ -423,7 +423,7 @@ def paiement_panel_sauvegarder(request):
     from .cycles import reconcilier
     reconcilier(eleve)
 
-    messages.success(request, f'تم حفظ دفعة {eleve.user.get_full_name()}.')
+    messages.success(request, gettext_('تم حفظ دفعة %(v0)s.') % {'v0': eleve.user.get_full_name()})
     return redirect(f"{reverse('suivi_paiements_eleves')}?panel_eleve={eleve.id}&panel_mois={mois_str}")
 
 
@@ -441,7 +441,7 @@ def admin_paiement_valider(request, paiement_id):
     # (chantier relances de paiement du 2026-09-01) — voir payments.models.
     # CycleAbonnement / payments.cycles.
     reconcilier(paiement.eleve)
-    messages.success(request, 'تم قبول الدفعة.')
+    messages.success(request, gettext_('تم قبول الدفعة.'))
     return redirect('admin_paiement_detail', paiement_id=paiement.id)
 
 
@@ -454,7 +454,7 @@ def admin_paiement_rejeter(request, paiement_id):
     paiement.valide_par = request.user
     paiement.date_validation = timezone.now()
     paiement.save()
-    messages.info(request, 'تم رفض الدفعة.')
+    messages.info(request, gettext_('تم رفض الدفعة.'))
     return redirect('admin_paiement_detail', paiement_id=paiement.id)
 
 

@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
+from django.utils.translation import gettext as gettext_
 
 from accounts.decorators import role_required
 from .models import Annonce
@@ -122,10 +123,10 @@ def annonce_ajouter(request):
     destination_args = [cible] if destination == 'annonces_canal_detail' else []
 
     if not titre or not contenu:
-        messages.error(request, 'يجب إدخال عنوان ونص الإعلان.')
+        messages.error(request, gettext_('يجب إدخال عنوان ونص الإعلان.'))
         return redirect(destination, *destination_args)
     if cible not in CIBLES_VALIDES:
-        messages.error(request, 'يجب اختيار الفئة المستهدفة بالإعلان.')
+        messages.error(request, gettext_('يجب اختيار الفئة المستهدفة بالإعلان.'))
         return redirect('annonces_gestion')
 
     type_fichier = ''
@@ -144,7 +145,7 @@ def annonce_ajouter(request):
         date_creation__gte=timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_SECONDES),
     ).exists()
     if recente:
-        messages.success(request, 'تم نشر الإعلان بنجاح.')
+        messages.success(request, gettext_('تم نشر الإعلان بنجاح.'))
         return redirect(destination, *destination_args)
 
     Annonce.objects.create(
@@ -153,7 +154,7 @@ def annonce_ajouter(request):
         nom_fichier_original=fichier.name if fichier else '',
         taille_fichier_octets=fichier.size if fichier else None,
     )
-    messages.success(request, 'تم نشر الإعلان بنجاح.')
+    messages.success(request, gettext_('تم نشر الإعلان بنجاح.'))
     return redirect(destination, *destination_args)
 
 
@@ -169,9 +170,9 @@ def annonce_toggle(request, annonce_id):
     annonce.active = not annonce.active
     annonce.save(update_fields=['active'])
     if annonce.active:
-        messages.success(request, 'تم إعادة تفعيل الإعلان.')
+        messages.success(request, gettext_('تم إعادة تفعيل الإعلان.'))
     else:
-        messages.success(request, 'تم إخفاء الإعلان عن الطلاب.')
+        messages.success(request, gettext_('تم إخفاء الإعلان عن الطلاب.'))
     return redirect('annonces_canal_detail', annonce.cible)
 
 
