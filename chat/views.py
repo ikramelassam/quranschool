@@ -1,4 +1,6 @@
-from django.http import HttpResponseForbidden, JsonResponse, HttpResponseBadRequest, FileResponse
+from django.http import (
+    FileResponse, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse,
+)
 from django.shortcuts import render, get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -370,10 +372,23 @@ def chat_fichier(request, groupe_id, message_id):
         return HttpResponseBadRequest('لا يوجد ملف مرفق بهذه الرسالة.')
 
     if message.type_message == 'audio':
-        return FileResponse(
-            message.fichier.open('rb'),
-            content_type=content_type_audio(message.fichier.name),
-        )
+        # Juste après l'upload, le fichier vocal peut n'être pas encore servable
+        # par le stockage (latence de propagation Cloudinary pour une ressource
+        # raw — plusieurs secondes possibles sur l'hébergement actuel).
+        # RawMediaCloudinaryStorage._open() lève alors IOError (404) ou une
+        # requests.HTTPError : on renvoie un 503 « réessaie bientôt » propre
+        # plutôt qu'une 500 non gérée — le client (templates/chat/chat.html,
+        # reessayerAudioEnErreur) réessaie automatiquement en approche
+        # progressive jusqu'à ce que le fichier soit disponible.
+        try:
+            flux = message.fichier.open('rb')
+        except Exception:
+            reponse = HttpResponse(
+                'الملف الصوتي غير متاح بعد، جارٍ إعادة المحاولة…', status=503,
+            )
+            reponse['Retry-After'] = '3'
+            return reponse
+        return FileResponse(flux, content_type=content_type_audio(message.fichier.name))
 
     from core.media_proxy import servir_fichier_media
     return servir_fichier_media(
