@@ -3077,7 +3077,7 @@ class NotificationsProfEnAttenteDirectionTests(TestCase):
         self.client.force_login(self.mshrif)
         reponse_mshrif = self.client.get(reverse('dashboard_mshrif'))
         self.assertEqual(reponse_mshrif.context['notif_total'], 1)
-        self.assertContains(reponse_mshrif, 'طلب أستاذ بانتظار تصديقك')
+        self.assertContains(reponse_mshrif, 'طلب تسجيل أستاذ جديد')
 
     def test_ajout_manuel_admin_declenche_aussi_le_badge_mshrif(self):
         """Fonctionnalité 3 : les 2 chemins vers 'validee_directeur' (flux
@@ -3280,7 +3280,7 @@ class NotificationsOrdreGroupesTests(TestCase):
         self.assertEqual(len(evts), 2)
         # Tri strictement décroissant par date : prof (à l'instant) avant élève (il y a 10 j).
         self.assertGreater(evts[0]['date'], evts[1]['date'])
-        self.assertTrue(evts[0]['texte'].startswith('طلب أستاذ بانتظار تصديقك'))
+        self.assertTrue(evts[0]['texte'].startswith('طلب تسجيل أستاذ جديد'))
         self.assertTrue(evts[1]['texte'].startswith('طلب تسجيل جديد'))
         # Chaque ligne porte son icône de type.
         self.assertEqual(evts[0]['icone'], '👨‍🏫')
@@ -3344,6 +3344,33 @@ class NotificationsDirectionBadgeVsPanneauTests(TestCase):
         self.assertEqual(len(r.context['notif_groupes'][0]['evenements']), 3)
         # Badge : seulement les 2 non lues.
         self.assertEqual(r.context['notif_total'], 2)
+
+    def test_panneau_montre_aussi_l_historique_des_demandes_traitees(self):
+        """Une demande acceptée/refusée reste visible dans le panneau (avec sa
+        pastille de statut), même si elle ne compte plus dans le badge."""
+        from inscriptions.models import InscriptionProf
+        acceptee = self._inscription_eleve('histo_ok@zidni.test', nom='مقبول')
+        InscriptionEleve.objects.filter(pk=acceptee.pk).update(statut='valide')
+        refusee = self._inscription_eleve('histo_ko@zidni.test', nom='مرفوض')
+        InscriptionEleve.objects.filter(pk=refusee.pk).update(statut='rejete')
+        prof_valide = InscriptionProf.objects.create(
+            nom='أستاذ', prenom='مقبول', telephone='0600000055',
+            email='histo_prof@zidni.test', statut='valide',
+        )
+
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse('dashboard_admin'))
+        evts = r.context['notif_groupes'][0]['evenements']
+        textes = ' '.join(e['texte'] for e in evts)
+        self.assertIn('مقبول', textes)
+        self.assertIn('مرفوض', textes)
+        self.assertEqual(len(evts), 3)
+        # Aucune n'est « non lue » -> badge à zéro.
+        self.assertEqual(r.context['notif_total'], 0)
+        self.assertTrue(all(e['non_lu'] is False for e in evts))
+        # Chaque ligne d'inscription porte une pastille de statut.
+        tons = {e['statut_ton'] for e in evts}
+        self.assertTrue({'ok', 'ko'} <= tons)
 
 
 class BadgeSidebarGestionUtilisateursTests(TestCase):
