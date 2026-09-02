@@ -134,6 +134,11 @@ TEMPLATES = [
                 'accounts.context_processors.logo_context',
                 'chat.context_processors.chat_badge_context',
                 'annonces.context_processors.annonces_badge_context',
+                # Badge sur l'item de menu parent « إدارة المستخدمين » de la
+                # sidebar مدير/مشرف (count() léger, rôles admin/mshrif
+                # uniquement) — voir le docstring pour pourquoi ce compteur-ci
+                # peut vivre en context processor contrairement au panneau 🔔.
+                'dashboard.context_processors.badges_sidebar_direction',
             ],
         },
     },

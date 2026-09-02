@@ -105,6 +105,11 @@
         .menu-category-group summary::after { content: '⌄'; font-size: 0.9rem; transition: transform 0.15s; }
         .menu-category-group[open] summary::after { transform: rotate(180deg); }
         .menu-category-group summary:hover { color: rgba(255,255,255,0.75); }
+        /* Badge sur l'item parent lui-même (visible sans déplier) — le libellé
+           et son badge forment un seul bloc à gauche, le chevron ::after reste
+           poussé à droite par le justify-content:space-between du summary. */
+        .menu-category-group summary .menu-cat-titre { display: inline-flex; align-items: center; gap: 8px; }
+        .menu-category-group summary .menu-badge { margin: 0; }
         .menu-badge {
             background: #dc3545;
             color: white;
@@ -233,7 +238,7 @@
         </a>
 
         <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_eleves' or request.resolver_match.url_name == 'admin_profs' or request.resolver_match.url_name == 'admin_inscriptions' or request.resolver_match.url_name == 'admin_eleve_ajouter_manuel' or request.resolver_match.url_name == 'admin_prof_ajouter_manuel' or request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}open{% endif %}>
-            <summary>{% trans "إدارة المستخدمين" %}</summary>
+            <summary><span class="menu-cat-titre">{% trans "إدارة المستخدمين" %}{% if badge_gestion_utilisateurs %}<span class="menu-badge">{{ badge_gestion_utilisateurs }}</span>{% endif %}</span></summary>
             <a href="{% url 'admin_eleves' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_eleves' %}active{% endif %}">
                 <span class="icon">👤</span> {% trans "الطلاب" %}
@@ -245,6 +250,7 @@
             <a href="{% url 'admin_inscriptions' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_inscriptions' %}active{% endif %}">
                 <span class="icon">📋</span> {% trans "طلبات التسجيل" %}
+                {% if badge_inscriptions_en_attente %}<span class="menu-badge">{{ badge_inscriptions_en_attente }}</span>{% endif %}
             </a>
             <a href="{% url 'admin_eleve_ajouter_manuel' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_eleve_ajouter_manuel' %}active{% endif %}">
