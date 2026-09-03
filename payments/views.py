@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django.core.files.base import ContentFile
 from django.shortcuts import render, redirect, get_object_or_404
@@ -113,6 +114,25 @@ def eleve_paiements(request):
 
         mois_periode = _periodes_a_payer(depart_periode, nb_mois)
 
+        # Montant TOTAL saisi par l'élève (chantier du 2026-09-03 : les
+        # abonnements n'ont pas tous le même prix mensuel — l'élève connaît la
+        # somme qu'il a virée, pas forcément le prix au mois). Réparti à parts
+        # égales sur les `nb_mois` périodes : chaque Paiement porte
+        # `montant_total / nb_mois` arrondi au centime. L'arrondi peut faire
+        # varier la somme enregistrée de quelques centimes par rapport à la
+        # saisie (négligeable en dirham, l'admin valide de toute façon à la
+        # main) — en échange tous les Paiement frères gardent le MÊME montant
+        # (regroupement du lot sur la fiche admin, voir admin_paiement_detail).
+        try:
+            montant_total = Decimal(str(request.POST.get('montant', ''))).quantize(Decimal('0.01'))
+        except (InvalidOperation, TypeError, ValueError, ArithmeticError):
+            messages.error(request, gettext_('يرجى إدخال المبلغ الإجمالي المدفوع.'))
+            return redirect('eleve_paiements')
+        if montant_total <= 0:
+            messages.error(request, gettext_('يرجى إدخال المبلغ الإجمالي المدفوع.'))
+            return redirect('eleve_paiements')
+        montant_par_mois = (montant_total / nb_mois).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
         # Fichier lu UNE SEULE FOIS (chantier du 2026-08-24) : le même
         # justificatif peut couvrir plusieurs mois -> plusieurs Paiement
         # distincts, chacun avec sa PROPRE copie du fichier (ContentFile,
@@ -122,7 +142,6 @@ def eleve_paiements(request):
         screenshot_upload = request.FILES.get('screenshot')
         contenu_screenshot = screenshot_upload.read() if screenshot_upload else None
 
-        montant = request.POST.get('montant')
         seuil_anti_doublon = timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_SECONDES)
         mois_crees, mois_deja_existants = [], []
         for mois in mois_periode:
@@ -137,13 +156,13 @@ def eleve_paiements(request):
                 eleve=eleve, mois_reference__year=mois.year, mois_reference__month=mois.month,
             ).exists()
             deja_soumis_a_linstant = Paiement.objects.filter(
-                eleve=eleve, montant=montant, mois_reference=mois, date__gte=seuil_anti_doublon,
+                eleve=eleve, montant=montant_par_mois, mois_reference=mois, date__gte=seuil_anti_doublon,
             ).exists()
             if deja_present or deja_soumis_a_linstant:
                 mois_deja_existants.append(mois)
                 continue
 
-            paiement = Paiement(eleve=eleve, montant=montant, mois_reference=mois)
+            paiement = Paiement(eleve=eleve, montant=montant_par_mois, mois_reference=mois)
             if contenu_screenshot is not None:
                 paiement.screenshot.save(screenshot_upload.name, ContentFile(contenu_screenshot), save=False)
             paiement.save()
@@ -160,11 +179,14 @@ def eleve_paiements(request):
                 f'الطالب: {eleve.user.get_full_name()}\n'
                 f'{lignes_mois}'
             )
-            messages.success(
-                request,
-                gettext_('تم إرسال إثبات الدفع لـ %(v0)s شهر بنجاح، سيتم مراجعته من طرف الإدارة.') % {'v0': len(mois_crees)}
-                if len(mois_crees) > 1 else gettext_('تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة.')
-            )
+            if len(mois_crees) > 1:
+                messages.success(
+                    request,
+                    gettext_('تم إرسال إثبات الدفع لـ %(v0)s أشهر (%(v1)s د.م. لكل شهر) بنجاح، سيتم مراجعته من طرف الإدارة.')
+                    % {'v0': len(mois_crees), 'v1': montant_par_mois},
+                )
+            else:
+                messages.success(request, gettext_('تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة.'))
         if mois_deja_existants:
             noms = '، '.join(mois_annee_ar(m) for m in mois_deja_existants)
             messages.info(request, gettext_('الأشهر التالية كانت مسجلة مسبقاً ولم تُرسَل مجدداً: %(v0)s') % {'v0': noms})
