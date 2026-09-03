@@ -37,25 +37,21 @@ FENETRE_ANTI_DOUBLON_SECONDES = 5
 NB_MOIS_MAX_PAR_PERIODE = 24
 
 
-def _mois_entre_inclus(date_debut, date_fin):
-    """Liste de date(annee, mois, 1) — un par mois — du mois de `date_debut`
-    au mois de `date_fin` INCLUS (le jour exact du mois dans `date_debut`/
-    `date_fin` n'a jamais d'importance, seul le couple année/mois compte,
-    exactement comme partout ailleurs où Paiement.mois_reference est comparé
-    — voir payments.views.suivi_paiements_eleves, qui groupe déjà par
-    mois_reference__year/__month plutôt que par égalité de date exacte).
-    `date_debut` et `date_fin` dans le MÊME mois -> liste à un seul élément,
-    comportement strictement identique à l'ancien champ "الشهر المعني" (un
-    seul mois par soumission)."""
-    mois = []
-    annee, num_mois = date_debut.year, date_debut.month
-    while (annee, num_mois) <= (date_fin.year, date_fin.month):
-        mois.append(datetime.date(annee, num_mois, 1))
-        num_mois += 1
-        if num_mois > 12:
-            num_mois = 1
-            annee += 1
-    return mois
+def _periodes_a_payer(depart, nb_mois):
+    """Liste des dates de DÉBUT (une par mois) des `nb_mois` périodes
+    mensuelles consécutives à partir de `depart` (chantier « cycle roulant
+    ancré sur le jour d'inscription » du 2026-09-03).
+
+    `depart` = `date_debut` du cycle d'abonnement ouvert de l'élève (jour
+    d'ancrage 10→10…), jamais une date saisie librement : l'élève choisit
+    seulement COMBIEN de mois il règle, pas quand ils commencent — c'est ce
+    qui empêche « 10 sep → 10 oct » d'être compté comme deux mois. Chaque
+    Paiement créé porte sa date de début en `mois_reference` ; le
+    rapprochement avec le cycle se fait ensuite au mois près (voir
+    payments.cycles._mois_ref)."""
+    from .cycles import _ajouter_mois
+
+    return [_ajouter_mois(depart, i) for i in range(nb_mois)]
 
 
 def _base_template_admin_ou_mshrif(request):
@@ -86,31 +82,36 @@ def eleve_paiements(request):
 
         from dashboard.templatetags.libelles_arabes import mois_annee_ar
 
-        # Chantier du 2026-08-24 : sélecteur de PÉRIODE ("من تاريخ"/"إلى
-        # تاريخ") en remplacement de l'ancien champ unique "الشهر المعني" —
-        # même page, même modèle Paiement (toujours un Paiement PAR mois,
-        # unique_together (eleve, mois_reference) inchangé), juste une
-        # boucle sur tous les mois de la période au lieu d'une création
-        # unique. Une période sur un seul mois (من/إلى identiques) reproduit
-        # exactement l'ancien comportement.
+        # Chantier « cycle roulant ancré sur le jour d'inscription » du
+        # 2026-09-03 : l'élève choisit COMBIEN de mois il règle (champ
+        # "nb_mois"), plus une date de début libre. Le point de départ est
+        # toujours le début de son cycle d'abonnement ouvert (jour d'ancrage
+        # 10→10…) — sinon « 10 sep → 10 oct » saisi à la main était compté
+        # comme deux mois calendaires. Un Paiement PAR mois de période
+        # (unique_together (eleve, mois_reference) inchangé) ; le
+        # rapprochement avec les cycles reste au mois près (payments.cycles).
+        from .cycles import cycle_courant
+
+        cycle_ouvert = cycle_courant(eleve)
+        depart_periode = cycle_ouvert.date_debut if cycle_ouvert else timezone.localdate()
+
         try:
-            date_debut = datetime.date.fromisoformat(request.POST.get('date_debut', ''))
-            date_fin = datetime.date.fromisoformat(request.POST.get('date_fin', ''))
+            nb_mois = int(request.POST.get('nb_mois', ''))
         except (ValueError, TypeError):
-            messages.error(request, gettext_('يرجى إدخال فترة صحيحة ("من تاريخ" و"إلى تاريخ").'))
+            messages.error(request, gettext_('يرجى اختيار عدد الأشهر التي تريد دفعها.'))
             return redirect('eleve_paiements')
 
-        if date_fin < date_debut:
-            messages.error(request, gettext_('"إلى تاريخ" يجب أن يكون بعد "من تاريخ" أو مساوياً له.'))
+        if nb_mois < 1:
+            messages.error(request, gettext_('يرجى اختيار عدد الأشهر التي تريد دفعها.'))
             return redirect('eleve_paiements')
-
-        mois_periode = _mois_entre_inclus(date_debut, date_fin)
-        if len(mois_periode) > NB_MOIS_MAX_PAR_PERIODE:
+        if nb_mois > NB_MOIS_MAX_PAR_PERIODE:
             messages.error(
                 request,
-                gettext_('المدة المختارة طويلة جداً (%(v0)s شهراً) — الحد الأقصى %(v1)s شهراً في نفس الإرسال.') % {'v0': len(mois_periode), 'v1': NB_MOIS_MAX_PAR_PERIODE},
+                gettext_('المدة المختارة طويلة جداً (%(v0)s شهراً) — الحد الأقصى %(v1)s شهراً في نفس الإرسال.') % {'v0': nb_mois, 'v1': NB_MOIS_MAX_PAR_PERIODE},
             )
             return redirect('eleve_paiements')
+
+        mois_periode = _periodes_a_payer(depart_periode, nb_mois)
 
         # Fichier lu UNE SEULE FOIS (chantier du 2026-08-24) : le même
         # justificatif peut couvrir plusieurs mois -> plusieurs Paiement
@@ -176,9 +177,19 @@ def eleve_paiements(request):
     # reste affiché sur cette page tant que le paiement n'est pas fait.
     from dashboard.notifications import marquer_visite
     marquer_visite(request.user, 'paiements_retard')
+
+    # Formulaire « combien de mois » (chantier du 2026-09-03) : la période
+    # commence toujours au début du cycle ouvert (jour d'ancrage), affiché en
+    # lecture seule — l'élève ne choisit que le nombre de mois.
+    from .cycles import cycle_courant, _ajouter_mois
+    cycle_ouvert = cycle_courant(eleve)
+    periode_depart = cycle_ouvert.date_debut if cycle_ouvert else timezone.localdate()
     return render(request, 'dashboard/eleve_paiements.html', {
         'eleve': eleve,
         'paiements': paginer(request, paiements, 10),
+        'periode_depart': periode_depart,
+        'periode_fin_1mois': _ajouter_mois(periode_depart, 1),
+        'nb_mois_max': NB_MOIS_MAX_PAR_PERIODE,
     })
 
 
@@ -292,6 +303,18 @@ def suivi_paiements_eleves(request):
     ):
         mois_payes_par_eleve.setdefault(eleve_id, set()).add((annee, mois))
 
+    # Jour d'ancrage des périodes de chaque élève (chantier « cycle roulant »
+    # du 2026-09-03) : la date_debut de son cycle nº 1. Prefetch pour rester à
+    # nombre de requêtes constant (jamais O(élèves)). Repli sur date_joined
+    # pour un élève sans cycle (cas résiduel : validé avant le backfill 0007,
+    # ou données anciennes).
+    from .cycles import _ajouter_mois
+    from .models import CycleAbonnement
+    cycles1_qs = CycleAbonnement.objects.filter(numero=1)
+    if eleves_scope_ids is not None:
+        cycles1_qs = cycles1_qs.filter(eleve_id__in=eleves_scope_ids)
+    cycle1_par_eleve = dict(cycles1_qs.values_list('eleve_id', 'date_debut'))
+
     groupes_qs = Groupe.objects.prefetch_related('eleves__user').order_by('nom')
     if groupe_id:
         groupes_qs = groupes_qs.filter(id=groupe_id)
@@ -305,21 +328,24 @@ def suivi_paiements_eleves(request):
         # 2026-08-03). Son historique de paiements passés reste consultable via
         # 'إدارة المدفوعات' (admin_paiements), non filtrée.
         for eleve in groupe.eleves.exclude(statut='archive'):
-            depart = eleve.user.date_joined.date()
-            annee, mois = depart.year, depart.month
+            ancre = cycle1_par_eleve.get(eleve.id) or eleve.user.date_joined.date()
             mois_payes = mois_payes_par_eleve.get(eleve.id, set())
             mois_liste = []
-            while (annee, mois) <= (aujourdhui.year, aujourdhui.month):
+            i = 0
+            while i < 600:  # borne dure (~50 ans) — jamais atteinte en pratique
+                debut = _ajouter_mois(ancre, i)
+                if debut > aujourdhui:
+                    break
+                fin = _ajouter_mois(ancre, i + 1)
+                cle = (debut.year, debut.month)
                 mois_liste.append({
-                    'label': datetime.date(annee, mois, 1),
-                    'paye': (annee, mois) in mois_payes,
-                    'cle_mois': f'{annee}-{mois:02d}',
-                    'paiement': paiement_par_cellule.get((eleve.id, annee, mois)),
+                    'label': debut,
+                    'label_fin': fin,
+                    'paye': cle in mois_payes,
+                    'cle_mois': f'{debut.year}-{debut.month:02d}',
+                    'paiement': paiement_par_cellule.get((eleve.id, debut.year, debut.month)),
                 })
-                mois += 1
-                if mois > 12:
-                    mois = 1
-                    annee += 1
+                i += 1
             mois_liste.reverse()
             # "أظهر غير المدفوعين فقط" doit montrer UNIQUEMENT les mois impayes --
             # fix Tache du 2026-08-04 (signale par le client) : l'ancien filtre ne
@@ -354,10 +380,13 @@ def suivi_paiements_eleves(request):
         except ValueError:
             p_annee = p_mois = None
         if panel_eleve and p_annee:
+            from .cycles import periode_bornes
+            p_debut, p_fin = periode_bornes(panel_eleve, p_annee, p_mois)
             panel = {
                 'eleve': panel_eleve,
                 'mois': panel_mois,
-                'mois_label': datetime.date(p_annee, p_mois, 1),
+                'mois_label': p_debut,
+                'mois_label_fin': p_fin,
                 'paiement': paiement_par_cellule.get((panel_eleve.id, p_annee, p_mois)),
                 'peut_modifier': request.user.role == 'admin',
             }
@@ -406,7 +435,12 @@ def paiement_panel_sauvegarder(request):
         eleve=eleve, mois_reference__year=annee, mois_reference__month=mois_num
     ).first()
     if paiement is None:
-        paiement = Paiement(eleve=eleve, mois_reference=datetime.date(annee, mois_num, 1))
+        # Nouveau Paiement ancré sur le DÉBUT réel de la période de l'élève
+        # (jour d'ancrage 10→10…, chantier du 2026-09-03) et non le 1er du
+        # mois — le rapprochement avec les cycles reste au mois près.
+        from .cycles import periode_bornes
+        debut_periode, _fin = periode_bornes(eleve, annee, mois_num)
+        paiement = Paiement(eleve=eleve, mois_reference=debut_periode)
 
     paiement.montant = request.POST.get('montant') or 0
     nouveau_statut = request.POST.get('statut', 'en_attente')

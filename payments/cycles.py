@@ -4,12 +4,16 @@ notifications) : seulement le calcul « où en est l'élève dans ses échéance
 
 Voir payments.models.CycleAbonnement.__doc__ pour la règle métier complète.
 Points clés :
-- Comparaison des Paiement TOUJOURS au mois près (année/mois), jamais par date
-  exacte — `mois_reference` est saisi librement par l'élève (jour arbitraire),
-  exactement comme le fait déjà payments.views.suivi_paiements_eleves.
-- Un cycle n'est réglé que par une SUITE CONTIGUË de mois `valide` à partir de
-  son 1er mois : un mois payé plus loin, après un trou, ne « saute » jamais un
-  mois impayé.
+- Chaque cycle = UNE période mensuelle ancrée sur le jour de `date_debut` du
+  cycle 1 : élève inscrit le 10 -> périodes 10→10, 10→10… (chantier du
+  2026-09-03, en remplacement du découpage en mois calendaires 1er→1er).
+- Comparaison des Paiement au mois près (année/mois) du DÉBUT de la période —
+  `mois_reference` est saisi librement par l'élève (jour arbitraire) et deux
+  périodes consécutives tombent toujours dans deux mois calendaires distincts,
+  donc cette clé reste sans ambiguïté (voir _mois_ref).
+- Un cycle n'est réglé que si SON mois de début est `valide` : payer un mois
+  plus loin, après un trou, ne règle jamais le cycle en attente. Payer
+  plusieurs mois d'affilée règle plusieurs cycles à la file.
 - Aucune tâche planifiée : `reconcilier` est appelée à la main après chaque
   validation/modification de Paiement, le reste est calculé à la volée.
 """
@@ -51,16 +55,49 @@ def _delai_jours():
     return get_parametres_inscriptions().delai_paiement_jours or DELAI_PAIEMENT_DEFAUT
 
 
-def _premier_du_mois(d):
-    return datetime.date(d.year, d.month, 1)
+def _ajouter_mois(d, n):
+    """`d` décalée de `n` mois, le jour rabaissé au dernier jour du mois cible
+    si nécessaire (31 janv. + 1 mois -> 28/29 févr.). L'ANCRAGE se fait
+    toujours depuis la date d'origine passée en argument, jamais en chaînant
+    les appels — sinon un élève inscrit un 31 dériverait (31->28->28->28…).
+    Chantier « cycle roulant ancré sur le jour d'inscription » du 2026-09-03 :
+    la période d'un élève inscrit le 10 court du 10 au 10, pas du 1er au 1er."""
+    total = d.year * 12 + (d.month - 1) + n
+    annee, mois0 = divmod(total, 12)
+    mois = mois0 + 1
+    return datetime.date(annee, mois, min(d.day, calendar.monthrange(annee, mois)[1]))
 
 
-def _dernier_du_mois(annee, mois):
-    return datetime.date(annee, mois, calendar.monthrange(annee, mois)[1])
+def _mois_ref(d):
+    """(année, mois) du DÉBUT de la période commençant à `d` — clé de
+    rattachement d'un Paiement à un cycle. Deux périodes consécutives (même
+    jour d'ancrage, à un mois d'écart) tombent toujours dans deux mois
+    calendaires distincts, donc cette clé reste unique par période — c'est ce
+    qui permet de garder le rapprochement Paiement<->cycle au mois près
+    (mois_reference saisi au jour près par l'élève) sans re-caler l'historique."""
+    return (d.year, d.month)
 
 
-def _mois_suivant(annee, mois):
-    return (annee + 1, 1) if mois == 12 else (annee, mois + 1)
+def _premier_cycle(eleve):
+    """Le cycle nº 1 (le plus ancien) — sa `date_debut` est le jour d'ancrage
+    de TOUTES les périodes de l'élève (période N = date_debut + (N-1) mois)."""
+    return eleve.cycles_abonnement.order_by('numero').first()
+
+
+def periode_bornes(eleve, annee, mois):
+    """(début, fin exclusive) de la période mensuelle de `eleve` dont le mois
+    de DÉBUT est (annee, mois), d'après le jour d'ancrage (date_debut du cycle
+    nº 1) : élève inscrit le 10 -> (10/06, 10/07) pour (2026, 6). Repli
+    1er→1er du mois si l'élève n'a aucun cycle ou si (annee, mois) est
+    antérieur à son ancrage (données d'avant le backfill)."""
+    premier = _premier_cycle(eleve)
+    ancre = premier.date_debut if premier else None
+    if ancre is not None:
+        offset = (annee - ancre.year) * 12 + (mois - ancre.month)
+        if offset >= 0:
+            return _ajouter_mois(ancre, offset), _ajouter_mois(ancre, offset + 1)
+    debut = datetime.date(annee, mois, 1)
+    return debut, _ajouter_mois(debut, 1)
 
 
 def _mois_payes(eleve, statuts):
@@ -86,18 +123,6 @@ def _mois_couvrants_par_eleve(eleve_ids, statuts=('valide', 'en_attente')):
     ).values_list('eleve_id', 'mois_reference__year', 'mois_reference__month'):
         couverture.setdefault(eid, set()).add((a, m))
     return couverture
-
-
-def _fin_couverte_contigue(mois_payes, depuis):
-    """Dernier jour du dernier mois d'une suite CONTIGUË de mois présents dans
-    `mois_payes`, en partant du mois de `depuis`. None si le mois de départ
-    lui-même n'est pas payé."""
-    annee, mois = depuis.year, depuis.month
-    fin = None
-    while (annee, mois) in mois_payes:
-        fin = _dernier_du_mois(annee, mois)
-        annee, mois = _mois_suivant(annee, mois)
-    return fin
 
 
 def cycle_courant(eleve):
@@ -139,28 +164,48 @@ def redemarrer_cycle_courant(eleve, date_reference=None):
 
 
 def reconcilier(eleve):
-    """Fait avancer autant de cycles que la couverture `valide` le permet.
-    Appelée après toute validation/modification d'un Paiement. Ne revient
-    JAMAIS en arrière (un Paiement rejeté après coup ne « dé-règle » pas un
-    cycle déjà avancé — cas marginal, non demandé)."""
+    """Règle autant de cycles que la couverture `valide` le permet — UN cycle
+    par période mensuelle, ancrée sur le jour de `date_debut` du cycle 1
+    (10 → 10 → 10…, chantier du 2026-09-03). Appelée après toute
+    validation/modification d'un Paiement. Ne revient JAMAIS en arrière (un
+    Paiement rejeté après coup ne « dé-règle » pas un cycle déjà avancé — cas
+    marginal, non demandé).
+
+    Un Paiement `valide` dont le mois de `mois_reference` correspond au mois du
+    DÉBUT de la période du cycle courant règle ce cycle et ouvre le suivant
+    (`date_debut` = jour d'ancrage + 1 mois, `date_echeance` = + delai). Payer
+    plusieurs mois d'un coup règle donc plusieurs cycles à la file."""
     from .models import CycleAbonnement, Paiement
 
     mois_payes = _mois_payes(eleve, ['valide'])
+    premier = _premier_cycle(eleve)
+    if premier is None:
+        return
+    ancre = premier.date_debut
+    delai = _delai_jours()
     garde = 0
     while garde < 600:  # borne dure : ~50 ans de cycles mensuels, jamais atteinte
         garde += 1
         cycle = cycle_courant(eleve)
         if cycle is None:
             return
-        fin_couverte = _fin_couverte_contigue(mois_payes, _premier_du_mois(cycle.date_debut))
-        if fin_couverte is None:
+        if _mois_ref(cycle.date_debut) not in mois_payes:
             return
+        # Cas normal : période N = ancre + N mois (pas de dérive fin-de-mois,
+        # 31 janv. reste ancré au 31). Cas désarchivage : `redemarrer_cycle_
+        # courant` a repositionné le cycle ouvert hors de cette grille — on
+        # repart alors de SA propre date_debut.
+        if cycle.date_debut == _ajouter_mois(ancre, cycle.numero - 1):
+            prochain_debut = _ajouter_mois(ancre, cycle.numero)
+        else:
+            prochain_debut = _ajouter_mois(cycle.date_debut, 1)
+        fin_couverte = prochain_debut - datetime.timedelta(days=1)
         montant = (
             Paiement.objects.filter(
                 eleve=eleve,
                 statut='valide',
-                mois_reference__gte=_premier_du_mois(cycle.date_debut),
-                mois_reference__lte=fin_couverte,
+                mois_reference__year=cycle.date_debut.year,
+                mois_reference__month=cycle.date_debut.month,
             ).aggregate(total=Sum('montant'))['total']
             or 0
         )
@@ -172,8 +217,8 @@ def reconcilier(eleve):
         CycleAbonnement.objects.create(
             eleve=eleve,
             numero=cycle.numero + 1,
-            date_debut=fin_couverte + datetime.timedelta(days=1),
-            date_echeance=fin_couverte + datetime.timedelta(days=_delai_jours()),
+            date_debut=prochain_debut,
+            date_echeance=prochain_debut + datetime.timedelta(days=delai),
         )
 
 
