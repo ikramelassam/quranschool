@@ -1,4 +1,7 @@
 import datetime
+import io
+import logging
+import os
 from decimal import Decimal, InvalidOperation
 
 from django.core.files.base import ContentFile
@@ -37,7 +40,49 @@ FENETRE_ANTI_DOUBLON_SECONDES = 5
 # de Paiement d'un coup — aucun élève réel ne paie plus de 2 ans à l'avance.
 NB_MOIS_MAX_PAR_PERIODE = 24
 
+logger = logging.getLogger(__name__)
 
+# Justificatif de paiement : côté cadrage d'image avant l'upload vers le
+# storage (Cloudinary en prod). Cause n°1 de la lenteur du bouton « إرسال » sur
+# /payments/eleve/ (signalée 2026-09-03) : les élèves envoient une photo/capture
+# de virement prise au téléphone (3–10 Mo), poussée telle quelle vers Cloudinary
+# DANS le cycle requête/réponse -> plusieurs secondes d'attente sur l'hébergeur
+# gratuit. Un justificatif n'a pas besoin de plus : on le redimensionne et on le
+# ré-encode en JPEG avant l'envoi (typiquement 5 Mo -> ~200 Ko, ~20× moins à
+# transférer). Le champ `screenshot` est `accept="image/*"` côté formulaire, donc
+# toujours une image ici.
+JUSTIFICATIF_DIMENSION_MAX_PX = 1600
+JUSTIFICATIF_QUALITE_JPEG = 80
+
+
+def _preparer_justificatif(fichier):
+    """Redimensionne + ré-encode en JPEG le justificatif uploadé pour accélérer
+    l'upload vers le storage. Retourne un objet sauvegardable par
+    FileField.save()/`= fichier` (ContentFile nommé, ou le fichier d'origine si
+    le traitement échoue — un format exotique ne doit jamais bloquer une preuve
+    de paiement légitime)."""
+    try:
+        from PIL import Image, ImageOps
+
+        fichier.seek(0)
+        image = Image.open(fichier)
+        image = ImageOps.exif_transpose(image)  # photos de téléphone : respecte l'orientation
+        if image.mode not in ('RGB', 'L'):
+            fond = Image.new('RGB', image.size, (255, 255, 255))
+            fond.paste(image, mask=image.split()[-1] if image.mode in ('RGBA', 'LA', 'PA') else None)
+            image = fond
+        image.thumbnail((JUSTIFICATIF_DIMENSION_MAX_PX, JUSTIFICATIF_DIMENSION_MAX_PX))
+        tampon = io.BytesIO()
+        image.save(tampon, format='JPEG', quality=JUSTIFICATIF_QUALITE_JPEG, optimize=True)
+        nom_base = os.path.splitext(os.path.basename(getattr(fichier, 'name', 'justificatif')))[0] or 'justificatif'
+        return ContentFile(tampon.getvalue(), name=f'{nom_base}.jpg')
+    except Exception as e:
+        logger.warning("Justificatif non recompressé (upload de l'original) : %s", e)
+        try:
+            fichier.seek(0)
+        except Exception:
+            pass
+        return fichier
 
 
 def _base_template_admin_ou_mshrif(request):
@@ -147,9 +192,8 @@ def eleve_paiements(request):
         )
         screenshot_upload = request.FILES.get('screenshot')
         if screenshot_upload is not None:
-            paiement.screenshot.save(
-                screenshot_upload.name, ContentFile(screenshot_upload.read()), save=False,
-            )
+            justificatif = _preparer_justificatif(screenshot_upload)
+            paiement.screenshot.save(justificatif.name, justificatif, save=False)
         paiement.save()
 
         fin_periode = _ajouter_mois(date_debut, nb_mois)
@@ -493,7 +537,7 @@ def paiement_panel_sauvegarder(request):
         paiement.date_validation = timezone.now()
     paiement.statut = nouveau_statut
     if request.FILES.get('screenshot'):
-        paiement.screenshot = request.FILES['screenshot']
+        paiement.screenshot = _preparer_justificatif(request.FILES['screenshot'])
     paiement.save()
 
     # Chantier relances de paiement (2026-09-01) : toute création/modification

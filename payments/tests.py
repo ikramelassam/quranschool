@@ -30,6 +30,47 @@ def _screenshot():
     return SimpleUploadedFile('recu.jpg', b'contenu-de-test-jetable', content_type='image/jpeg')
 
 
+def _vraie_image(nom='recu.png', taille=(3000, 2200), format='PNG'):
+    """Une vraie image (pas juste un nom de fichier) — pour exercer le
+    redimensionnement de payments.views._preparer_justificatif."""
+    import io
+    from PIL import Image
+
+    tampon = io.BytesIO()
+    Image.new('RGB', taille, (180, 195, 210)).save(tampon, format=format)
+    return SimpleUploadedFile(nom, tampon.getvalue(), content_type=f'image/{format.lower()}')
+
+
+# Correctif perf du 2026-09-03 (bouton « إرسال » de /payments/eleve/ « trop
+# trop trop lent ») : la photo de virement (3–10 Mo) était poussée telle quelle
+# vers Cloudinary DANS la requête. _preparer_justificatif la redimensionne
+# (max 1600 px) et la ré-encode en JPEG avant l'upload.
+class PreparerJustificatifTests(TestCase):
+    def test_grande_image_redimensionnee_et_reencodee_en_jpeg(self):
+        from PIL import Image
+        from payments.views import _preparer_justificatif, JUSTIFICATIF_DIMENSION_MAX_PX
+
+        source = _vraie_image(taille=(3000, 2200))
+        taille_origine = source.size
+
+        sortie = _preparer_justificatif(source)
+
+        self.assertTrue(sortie.name.endswith('.jpg'))
+        donnees = sortie.read()
+        self.assertLess(len(donnees), taille_origine)  # nettement plus léger
+        import io
+        image = Image.open(io.BytesIO(donnees))
+        self.assertEqual(image.format, 'JPEG')
+        self.assertLessEqual(max(image.size), JUSTIFICATIF_DIMENSION_MAX_PX)
+
+    def test_fichier_non_image_est_renvoye_tel_quel_sans_lever(self):
+        from payments.views import _preparer_justificatif
+
+        source = SimpleUploadedFile('recu.pdf', b'%PDF-1.4 pas une image', content_type='application/pdf')
+        sortie = _preparer_justificatif(source)
+        self.assertIs(sortie, source)  # fallback : l'original, intact
+
+
 # Chantier « Paiement unique » du 2026-09-03 : le formulaire /payments/eleve/
 # demande la DATE DE DÉBUT (choisie par l'élève, pré-remplie avec le début de
 # son cycle ouvert), le NOMBRE DE MOIS et le MONTANT TOTAL viré. Résultat = UN
