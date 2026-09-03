@@ -98,7 +98,8 @@
     {% include 'dashboard/_groupes_precedents_eleve.html' with groupes_precedents=groupes_precedents couleur='var(--color-role-admin-solid)' %}
 
     {% if request.user.role != 'mshrif' %}
-    <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "مجموعات مقترحة" %}</div>
+    {# id="groupes-suggeres" : cible du lien « إضافة الطالب إلى مجموعة » de l'écran de confirmation post-acceptation (confirmation_creation_compte.html). #}
+    <div id="groupes-suggeres" style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px; scroll-margin-top:16px;">{% trans "مجموعات مقترحة" %}</div>
     {% if groupes_suggeres %}
         {% for groupe in groupes_suggeres %}
         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">

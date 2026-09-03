@@ -4263,6 +4263,71 @@ class AdminValiderEleveGroupeChoisiTests(TestCase):
         self.assertEqual(reponse.status_code, 302)
         self.assertTrue(Eleve.objects.filter(user__email='sans_groupe_choisi@zidni.test').exists())
 
+    # --- Écran de confirmation post-acceptation : bloc « المجموعة » + bouton
+    #     « إضافة الطالب إلى مجموعة » (Chantier du 2026-09-03) ---
+
+    def test_confirmation_sans_halaka_propose_un_bouton_vers_la_fiche_eleve(self):
+        """Élève inscrit « بدون مجموعة » : l'écran de confirmation affiche un
+        bouton d'ajout menant directement à la section « مجموعات مقترحة » de la
+        fiche élève (ancre #groupes-suggeres)."""
+        inscription = _creer_inscription_eleve(
+            email='confirm_sans_halaka@zidni.test', date_naissance=datetime.date(2000, 1, 1),
+        )
+        reponse = self.client.get(reverse('admin_valider_eleve', args=[inscription.id]), follow=True)
+        self.assertEqual(reponse.status_code, 200)
+
+        eleve = Eleve.objects.get(user__email='confirm_sans_halaka@zidni.test')
+        contenu = reponse.content.decode()
+        self.assertIn('إضافة الطالب إلى مجموعة', contenu)
+        self.assertIn(
+            reverse('admin_eleve_detail', args=[eleve.id]) + '#groupes-suggeres', contenu
+        )
+
+    def test_confirmation_rattachement_auto_propose_de_changer_de_groupe(self):
+        inscription = _creer_inscription_eleve(
+            email='confirm_halaka_ok@zidni.test', date_naissance=datetime.date(2000, 1, 1),
+            groupe_choisi=self.groupe,
+        )
+        reponse = self.client.get(reverse('admin_valider_eleve', args=[inscription.id]), follow=True)
+        eleve = Eleve.objects.get(user__email='confirm_halaka_ok@zidni.test')
+        contenu = reponse.content.decode()
+        self.assertIn('تغيير المجموعة', contenu)
+        self.assertIn(
+            reverse('admin_eleve_detail', args=[eleve.id]) + '#groupes-suggeres', contenu
+        )
+        self.assertNotIn('إضافة الطالب إلى مجموعة', contenu)
+
+    def test_confirmation_choix_invalide_propose_un_bouton_vers_la_fiche_eleve(self):
+        self.groupe.capacite_max = 0
+        self.groupe.save()
+        inscription = _creer_inscription_eleve(
+            email='confirm_halaka_ko@zidni.test', date_naissance=datetime.date(2000, 1, 1),
+            groupe_choisi=self.groupe,
+        )
+        reponse = self.client.get(reverse('admin_valider_eleve', args=[inscription.id]), follow=True)
+        eleve = Eleve.objects.get(user__email='confirm_halaka_ko@zidni.test')
+        contenu = reponse.content.decode()
+        self.assertIn('إضافة الطالب إلى مجموعة', contenu)
+        self.assertIn(
+            reverse('admin_eleve_detail', args=[eleve.id]) + '#groupes-suggeres', contenu
+        )
+
+    def test_confirmation_bloc_groupe_traduit_reellement_en_fr_et_en(self):
+        """Même piège que RenduReelFrEnTemplatesAdminTests : les nouveaux msgids
+        du bloc « المجموعة » doivent être dans locale/*.mo, pas seulement
+        balisés {% trans %}/{% blocktrans %}."""
+        for langue, attendu in (('fr', "Ajouter l'élève à un groupe"),
+                                ('en', 'Add the student to a group')):
+            inscription = _creer_inscription_eleve(
+                email=f'confirm_i18n_{langue}@zidni.test', date_naissance=datetime.date(2000, 1, 1),
+            )
+            self.client.post(reverse('set_language'), {'language': langue, 'next': '/'})
+            contenu = self.client.get(
+                reverse('admin_valider_eleve', args=[inscription.id]), follow=True
+            ).content.decode()
+            self.assertIn(attendu, contenu)
+            self.assertNotIn('إضافة الطالب إلى مجموعة', contenu)
+
 
 # ============================================================================
 # CHANTIER DU MOTEUR D'INSCRIPTION CONFIGURABLE — Étape 5E (2e tâche) :

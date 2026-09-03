@@ -25,6 +25,31 @@ et sa note du 2026-08-14 sur le retrait du {% block recherche_globale %}).
     <span id="confirmation-copie" style="display:none; margin-inline-start:10px; color:var(--color-success); font-size:0.85rem; font-weight:600;">{% trans "✔ تم النسخ" %}</span>
 </div>
 
+{% comment %}
+Bloc « المجموعة » (Chantier du 2026-09-03) — affiché juste après l'acceptation
+d'un élève : soit la confirmation du rattachement automatique à la halaka
+choisie (+ lien « تغيير المجموعة »), soit un bouton bien visible menant
+directement à la section « مجموعات مقترحة » de la fiche élève quand l'élève
+n'a encore aucune halaka (sans choix à l'inscription, ou choix devenu
+invalide). eleve_groupe_statut : 'ajoute' | 'echec_choix' | 'sans_choix'.
+{% endcomment %}
+{% if info.type_compte == 'eleve' and url_fiche_eleve_groupes %}
+<div style="background:white; border-radius:16px; padding:24px 28px; max-width:640px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:20px;">
+    <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:12px;">{% trans "🕌 المجموعة (الحلقة)" %}</div>
+    {% if eleve_groupe_statut == 'ajoute' %}
+        <div style="color:var(--color-success); font-weight:600; margin-bottom:14px;">{% blocktrans with nom=eleve_groupe_nom %}✅ تم إلحاق الطالب تلقائياً بالمجموعة التي اختارها عند التسجيل: «{{ nom }}».{% endblocktrans %}</div>
+        <a href="{{ url_fiche_eleve_groupes }}" style="color:var(--color-brand-gold-dark); text-decoration:none; font-weight:600;">{% trans "تغيير المجموعة ←" %}</a>
+    {% else %}
+        {% if eleve_groupe_statut == 'echec_choix' %}
+        <div style="color:var(--color-warning); margin-bottom:14px;">{% blocktrans with nom=eleve_groupe_nom %}⚠️ اختار الطالب مجموعة «{{ nom }}» عند التسجيل، لكن تعذّر إلحاقه بها (ممتلئة أو مؤرشفة أو غير متوافقة). لم يُلحق بعدُ بأي مجموعة.{% endblocktrans %}</div>
+        {% else %}
+        <div style="color:var(--color-warning); margin-bottom:14px;">{% trans "⚠️ لم يتم إلحاق الطالب بأي مجموعة بعد (سجّل بدون اختيار حلقة)." %}</div>
+        {% endif %}
+        <a href="{{ url_fiche_eleve_groupes }}" style="display:inline-block; background:var(--color-role-admin); color:white; border-radius:8px; padding:10px 22px; font-weight:700; font-size:0.9rem; text-decoration:none;">{% trans "➕ إضافة الطالب إلى مجموعة" %}</a>
+    {% endif %}
+</div>
+{% endif %}
+
 {% include 'dashboard/_contacts_whatsapp.html' with telephone_personne=info.telephone libelle_personne=libelle_personne_contact texte_absence_personne=texte_absence_personne message=message_pret_a_envoyer admins=admins %}
 {% if info.type_compte == 'prof' %}
 <div style="color:#999; font-size:0.78rem; margin-top:-12px; margin-bottom:20px;">{% trans '💡 إذا فضّلت تمرير المعلومات للإدارة بدل التواصل المباشر مع المعلم، استخدم زر "تواصل مع الإدارة" أعلاه — الرسالة نفسها جاهزة للإرسال.' %}</div>

@@ -2165,6 +2165,17 @@ def confirmation_creation_compte(request):
         'admins': (
             [contact_admin] if contact_admin and info['type_compte'] in ('prof', 'superviseur') else []
         ),
+        # Bloc « المجموعة » de l'écran élève (Chantier du 2026-09-03) : lien direct
+        # vers la section « مجموعات مقترحة » de la fiche élève (ancre
+        # #groupes-suggeres), où chaque groupe compatible a un bouton d'ajout en
+        # un clic. Absent pour prof/superviseur et pour les vieux dicts de
+        # session sans eleve_id (autres points d'entrée de cet écran).
+        'eleve_groupe_statut': info.get('groupe_statut'),
+        'eleve_groupe_nom': info.get('groupe_nom', ''),
+        'url_fiche_eleve_groupes': (
+            reverse('admin_eleve_detail', args=[info['eleve_id']]) + '#groupes-suggeres'
+            if info.get('eleve_id') else None
+        ),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -2359,11 +2370,22 @@ def admin_valider_eleve(request, inscription_id):
         from payments.cycles import demarrer_cycles
         demarrer_cycles(eleve)
 
-    if resultat_groupe_choisi:
+    # groupe_statut / groupe_nom : transmis à l'écran de confirmation pour y
+    # afficher, juste après l'acceptation, soit la confirmation du rattachement
+    # automatique (+ lien « تغيير المجموعة »), soit un bouton bien visible
+    # « إضافة الطالب إلى مجموعة » quand l'élève n'a encore aucune halaka
+    # (choix « بدون مجموعة » à l'inscription, ou choix devenu invalide). Évite
+    # d'avoir à retrouver l'élève dans la liste des utilisateurs pour l'assigner.
+    if resultat_groupe_choisi is None:
+        groupe_statut, groupe_nom = 'sans_choix', ''
+    else:
         etat, nom_groupe, raison = resultat_groupe_choisi
+        groupe_nom = nom_groupe
         if etat == 'succes':
+            groupe_statut = 'ajoute'
             messages.success(request, gettext_('تم إلحاق الطالب تلقائياً بالمجموعة التي اختارها عند التسجيل: "%(v0)s".') % {'v0': nom_groupe})
         else:
+            groupe_statut = 'echec_choix'
             messages.warning(
                 request,
                 gettext_('الطالب كان قد اختار مجموعة "%(v0)s" عند التسجيل، لكن لم يعد بالإمكان إلحاقه بها تلقائياً (%(v1)s) — يرجى إضافته يدوياً إلى مجموعة مناسبة.') % {'v0': nom_groupe, 'v1': raison}
@@ -2378,6 +2400,9 @@ def admin_valider_eleve(request, inscription_id):
         'password': password_temp,
         'telephone': inscription.telephone,
         'redirect_url_name': 'admin_inscriptions',
+        'eleve_id': eleve.id,
+        'groupe_statut': groupe_statut,
+        'groupe_nom': groupe_nom,
     }
     return redirect('confirmation_creation_compte')
 

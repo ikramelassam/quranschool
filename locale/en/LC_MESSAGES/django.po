@@ -8433,3 +8433,23 @@ msgstr "%(n)s months"
 
 msgid "بعض الأشهر المختارة مدفوعة ومقبولة مسبقاً — اختر تاريخ بداية أو عدد أشهر مختلفاً."
 msgstr "Some of the selected months are already paid and accepted — choose a different start date or number of months."
+
+msgid "🕌 المجموعة (الحلقة)"
+msgstr "🕌 Group (halaqa)"
+
+msgid "تغيير المجموعة ←"
+msgstr "Change group ←"
+
+msgid "⚠️ لم يتم إلحاق الطالب بأي مجموعة بعد (سجّل بدون اختيار حلقة)."
+msgstr "⚠️ The student is not assigned to any group yet (registered without choosing a halaqa)."
+
+msgid "➕ إضافة الطالب إلى مجموعة"
+msgstr "➕ Add the student to a group"
+
+#, python-format
+msgid "✅ تم إلحاق الطالب تلقائياً بالمجموعة التي اختارها عند التسجيل: «%(nom)s»."
+msgstr "✅ The student was automatically assigned to the group chosen at registration: \"%(nom)s\"."
+
+#, python-format
+msgid "⚠️ اختار الطالب مجموعة «%(nom)s» عند التسجيل، لكن تعذّر إلحاقه بها (ممتلئة أو مؤرشفة أو غير متوافقة). لم يُلحق بعدُ بأي مجموعة."
+msgstr "⚠️ The student had chosen the group \"%(nom)s\" at registration, but assignment failed (full, archived or incompatible). They are not in any group for now."
