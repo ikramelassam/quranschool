@@ -111,18 +111,7 @@ def eleve_paiements(request):
             messages.error(request, gettext_('يرجى إدخال المبلغ الإجمالي المدفوع.'))
             return redirect('eleve_paiements')
 
-        # Chevauchement : un des mois visés est-il déjà couvert par un Paiement
-        # existant NON rejeté ? (on ne redemande jamais un mois déjà payé/en
-        # cours de revue). Un Paiement `rejete` ne couvre rien -> re-payable.
         mois_vises = mois_couverts(date_debut, nb_mois)
-        mois_deja = set()
-        for mr, nb in Paiement.objects.filter(eleve=eleve).exclude(statut='rejete').values_list(
-            'mois_reference', 'nb_mois_couverts'
-        ):
-            mois_deja |= mois_couverts(mr, nb)
-        if mois_vises & mois_deja:
-            messages.error(request, gettext_('بعض الأشهر المختارة مسجَّلة مسبقاً — اختر تاريخ بداية أو عدد أشهر مختلفاً.'))
-            return redirect('eleve_paiements')
 
         # Anti-double-soumission : même total + même début envoyés il y a moins
         # de FENETRE_ANTI_DOUBLON_SECONDES = rejeu du même clic.
@@ -132,6 +121,26 @@ def eleve_paiements(request):
         ).exists():
             messages.info(request, gettext_('تم استلام هذه الدفعة بالفعل.'))
             return redirect('eleve_paiements')
+
+        # Seul un Paiement DÉJÀ VALIDÉ verrouille des mois (ils sont réellement
+        # réglés). Un Paiement `en_attente` ou `rejete` ne bloque PAS un
+        # nouvel envoi : l'élève peut corriger (mauvais montant / mauvaise
+        # capture) avant que l'administration ne traite.
+        if any(
+            mois_vises & mois_couverts(mr, nb)
+            for mr, nb in Paiement.objects.filter(eleve=eleve, statut='valide').values_list(
+                'mois_reference', 'nb_mois_couverts'
+            )
+        ):
+            messages.error(request, gettext_('بعض الأشهر المختارة مدفوعة ومقبولة مسبقاً — اختر تاريخ بداية أو عدد أشهر مختلفاً.'))
+            return redirect('eleve_paiements')
+
+        # Un Paiement `en_attente` qui chevauche est REMPLACÉ par ce nouvel
+        # envoi (sinon l'administration verrait deux demandes pour les mêmes
+        # mois). Les Paiement `rejete` sont conservés comme historique.
+        for ancien in Paiement.objects.filter(eleve=eleve, statut='en_attente'):
+            if mois_vises & mois_couverts(ancien.mois_reference, ancien.nb_mois_couverts):
+                ancien.delete()
 
         paiement = Paiement(
             eleve=eleve, montant=montant_total, mois_reference=date_debut, nb_mois_couverts=nb_mois,
