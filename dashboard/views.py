@@ -2176,6 +2176,12 @@ def confirmation_creation_compte(request):
             reverse('admin_eleve_detail', args=[info['eleve_id']]) + '#groupes-suggeres'
             if info.get('eleve_id') else None
         ),
+        # Cas 'ajoute' : « تغيير المجموعة » mène à la fiche de la halaka où
+        # l'élève vient d'être rattaché (on y retire/transfère l'élève).
+        'url_groupe_ajoute': (
+            reverse('admin_groupe_detail', args=[info['groupe_ajoute_id']])
+            if info.get('groupe_ajoute_id') else None
+        ),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -2376,6 +2382,7 @@ def admin_valider_eleve(request, inscription_id):
     # « إضافة الطالب إلى مجموعة » quand l'élève n'a encore aucune halaka
     # (choix « بدون مجموعة » à l'inscription, ou choix devenu invalide). Évite
     # d'avoir à retrouver l'élève dans la liste des utilisateurs pour l'assigner.
+    groupe_ajoute_id = None
     if resultat_groupe_choisi is None:
         groupe_statut, groupe_nom = 'sans_choix', ''
     else:
@@ -2383,6 +2390,7 @@ def admin_valider_eleve(request, inscription_id):
         groupe_nom = nom_groupe
         if etat == 'succes':
             groupe_statut = 'ajoute'
+            groupe_ajoute_id = inscription.groupe_choisi_id
             messages.success(request, gettext_('تم إلحاق الطالب تلقائياً بالمجموعة التي اختارها عند التسجيل: "%(v0)s".') % {'v0': nom_groupe})
         else:
             groupe_statut = 'echec_choix'
@@ -2403,6 +2411,7 @@ def admin_valider_eleve(request, inscription_id):
         'eleve_id': eleve.id,
         'groupe_statut': groupe_statut,
         'groupe_nom': groupe_nom,
+        'groupe_ajoute_id': groupe_ajoute_id,
     }
     return redirect('confirmation_creation_compte')
 

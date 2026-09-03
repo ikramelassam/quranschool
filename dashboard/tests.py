@@ -4289,12 +4289,11 @@ class AdminValiderEleveGroupeChoisiTests(TestCase):
             groupe_choisi=self.groupe,
         )
         reponse = self.client.get(reverse('admin_valider_eleve', args=[inscription.id]), follow=True)
-        eleve = Eleve.objects.get(user__email='confirm_halaka_ok@zidni.test')
         contenu = reponse.content.decode()
         self.assertIn('تغيير المجموعة', contenu)
-        self.assertIn(
-            reverse('admin_eleve_detail', args=[eleve.id]) + '#groupes-suggeres', contenu
-        )
+        # « تغيير المجموعة » mène à la fiche de la halaka où l'élève vient
+        # d'être rattaché, pas à la fiche élève.
+        self.assertIn(reverse('admin_groupe_detail', args=[self.groupe.id]), contenu)
         self.assertNotIn('إضافة الطالب إلى مجموعة', contenu)
 
     def test_confirmation_choix_invalide_propose_un_bouton_vers_la_fiche_eleve(self):

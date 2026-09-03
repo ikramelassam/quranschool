@@ -38,7 +38,7 @@ invalide). eleve_groupe_statut : 'ajoute' | 'echec_choix' | 'sans_choix'.
     <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:12px;">{% trans "🕌 المجموعة (الحلقة)" %}</div>
     {% if eleve_groupe_statut == 'ajoute' %}
         <div style="color:var(--color-success); font-weight:600; margin-bottom:14px;">{% blocktrans with nom=eleve_groupe_nom %}✅ تم إلحاق الطالب تلقائياً بالمجموعة التي اختارها عند التسجيل: «{{ nom }}».{% endblocktrans %}</div>
-        <a href="{{ url_fiche_eleve_groupes }}" style="color:var(--color-brand-gold-dark); text-decoration:none; font-weight:600;">{% trans "تغيير المجموعة ←" %}</a>
+        <a href="{{ url_groupe_ajoute|default:url_fiche_eleve_groupes }}" style="color:var(--color-brand-gold-dark); text-decoration:none; font-weight:600;">{% trans "تغيير المجموعة ←" %}</a>
     {% else %}
         {% if eleve_groupe_statut == 'echec_choix' %}
         <div style="color:var(--color-warning); margin-bottom:14px;">{% blocktrans with nom=eleve_groupe_nom %}⚠️ اختار الطالب مجموعة «{{ nom }}» عند التسجيل، لكن تعذّر إلحاقه بها (ممتلئة أو مؤرشفة أو غير متوافقة). لم يُلحق بعدُ بأي مجموعة.{% endblocktrans %}</div>
