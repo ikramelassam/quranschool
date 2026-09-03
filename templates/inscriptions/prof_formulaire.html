@@ -93,6 +93,12 @@
             transition: all 0.2s;
         }
         .btn-submit:hover { background-color: var(--color-role-admin-solid); }
+        .btn-submit:disabled,
+        .btn-submit:disabled:hover {
+            background-color: var(--color-role-prof-solid);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
         .btn-back {
             display: block;
             border: 2px solid #ddd;
@@ -332,7 +338,7 @@
             </label>
         </div>
 
-        <button type="submit" class="btn-submit">{% trans "إرسال الطلب ✉️" %}</button>
+        <button type="submit" class="btn-submit" disabled>{% trans "إرسال الطلب ✉️" %}</button>
         <a href="{% url 'login' %}" class="btn-back">{% trans "← رجوع" %}</a>
 
     </form>
@@ -370,6 +376,19 @@ function toggleMulti(el, field, value) {
     });
 }
 
+// Étape 8 (ميثاق التدريس) : le bouton « إرسال الطلب » reste désactivé tant
+// que la case « لقد قرأت ووافقت على ميثاق التدريس » n'est pas cochée.
+// L'attribut `required` sur la case demeure le filet navigateur, et la garde
+// serveur (inscriptions.views.inscription_prof) le double contrôle.
+const caseCharte = document.querySelector('input[name="accepte_charte"]');
+function majBoutonEnvoi() {
+    const btn = document.querySelector('.btn-submit');
+    if (btn.dataset.envoiEnCours === '1') return;  // ne pas contrarier l'anti-double-soumission
+    btn.disabled = !caseCharte.checked;
+}
+caseCharte.addEventListener('change', majBoutonEnvoi);
+document.addEventListener('DOMContentLoaded', majBoutonEnvoi);
+
 // Anti-double-soumission : désactive le bouton dès le premier submit pour
 // empêcher un 2e clic d'envoyer la même candidature deux fois pendant que la
 // requête part (voir aussi la garde serveur dans inscriptions.views.inscription_prof).
@@ -377,6 +396,7 @@ function toggleMulti(el, field, value) {
 document.querySelector('form').addEventListener('submit', function (e) {
     const btn = document.querySelector('.btn-submit');
     if (btn.disabled) { e.preventDefault(); return; }
+    btn.dataset.envoiEnCours = '1';
     btn.disabled = true;
     btn.textContent = '{{ texte_envoi_en_cours|escapejs }}';
 });
@@ -403,8 +423,9 @@ document.querySelector('form').addEventListener('submit', function (e) {
         if (!fileInput.files.length) {
             e.preventDefault();
             const btn = document.querySelector('.btn-submit');
-            btn.disabled = false;
+            delete btn.dataset.envoiEnCours;
             btn.textContent = '{% trans "إرسال الطلب ✉️" %}';
+            majBoutonEnvoi();
             alert('{% trans "يرجى تسجيل تلاوة قرآنية بصوتك قبل الإرسال." %}');
             box.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }

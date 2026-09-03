@@ -209,4 +209,30 @@ propres fonctions, jamais d'imposer l'ordre d'exécution à la page.
     }
 
     document.addEventListener('DOMContentLoaded', toggleNbSeances);
+
+    // ---- Case(s) à cocher OBLIGATOIRE(S) (type booléen, ex: « قبول الشروط »
+    // sur une étape personnalisée) : le bouton d'envoi de la page reste
+    // désactivé tant qu'elles ne sont pas TOUTES cochées — même comportement
+    // que l'étape « ميثاق التدريس » du formulaire prof, pour rester cohérent.
+    // `required` sur la case demeure le filet navigateur + revalidation serveur
+    // (registration.utils._reponses_a_creer_pour_champ). Aucune case
+    // obligatoire sur la page => aucun effet (bouton laissé tel quel).
+    function _casesObligatoiresCochees() {
+        const cases = document.querySelectorAll('.form-check-input[type="checkbox"][required]');
+        for (const c of cases) { if (!c.checked) return false; }
+        return true;
+    }
+
+    function majBoutonEnvoiCasesObligatoires() {
+        const btn = document.querySelector('form .btn-submit, form button[type="submit"]');
+        if (!btn || btn.dataset.envoiEnCours === '1') return;
+        if (!document.querySelector('.form-check-input[type="checkbox"][required]')) return;
+        btn.disabled = !_casesObligatoiresCochees();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.form-check-input[type="checkbox"][required]')
+            .forEach(c => c.addEventListener('change', majBoutonEnvoiCasesObligatoires));
+        majBoutonEnvoiCasesObligatoires();
+    });
 </script>
