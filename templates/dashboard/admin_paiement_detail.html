@@ -1,5 +1,5 @@
 {% extends base_template %}
-{% load libelles_arabes i18n %}
+{% load i18n %}
 {% block title %}{% trans "تفاصيل الدفعة" %}{% endblock %}
 {% block content %}
 <div class="page-title" style="display:flex; align-items:center; gap:10px;">
@@ -9,9 +9,27 @@
         {% include 'dashboard/_whatsapp_icon.html' with telephone=paiement.eleve.user.telephone %}
     </span>
 </div>
-<div class="page-subtitle">{{ paiement.mois_reference|mois_annee_ar }}</div>
+<div class="page-subtitle">{% blocktrans with debut=paiement.mois_reference|date:"d/m/Y" fin=paiement_periode_fin|date:"d/m/Y" %}من {{ debut }} إلى {{ fin }}{% endblocktrans %}</div>
 
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #eee;">
+        <div style="color:#888; font-size:0.8rem;">{% trans "الفترة المطلوب دفعها" %}</div>
+        <div style="font-weight:700; font-size:1.1rem;">
+            {% blocktrans with debut=periode_debut|date:"d/m/Y" fin=periode_fin|date:"d/m/Y" %}من {{ debut }} إلى {{ fin }}{% endblocktrans %}
+        </div>
+        {% if lot_periodes|length > 1 %}
+        <ul style="margin:10px 0 0; padding-inline-start:18px; color:#555; font-size:0.9rem;">
+            {% for item in lot_periodes %}
+            <li{% if item.paiement.id == paiement.id %} style="font-weight:700;"{% endif %}>
+                <a href="{% url 'admin_paiement_detail' item.paiement.id %}" style="color:inherit; text-decoration:none;">{{ item.debut|date:"d/m/Y" }} — {{ item.fin|date:"d/m/Y" }}</a>
+                —
+                {% if item.paiement.statut == 'valide' %}{% trans "مقبول ✅" %}{% elif item.paiement.statut == 'rejete' %}{% trans "مرفوض ❌" %}{% else %}{% trans "قيد المراجعة ⏳" %}{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
     <div class="row g-3 mb-4">
         <div class="col-md-4">
             <div style="color:#888; font-size:0.8rem;">{% trans "المبلغ" %}</div>

@@ -237,8 +237,44 @@ def admin_paiements(request):
 @role_required('admin', 'mshrif')
 def admin_paiement_detail(request, paiement_id):
     paiement = get_object_or_404(Paiement, id=paiement_id)
+
+    # « الفترة المطلوب دفعها » : quand un élève règle plusieurs mois d'un coup
+    # (champ « nombre de mois » de payments.views.eleve_paiements), il en
+    # résulte un Paiement PAR période mensuelle, tous créés dans la même
+    # soumission (même élève, même montant, même justificatif, `date` à
+    # quelques millisecondes/secondes d'intervalle). On reconstitue ici la
+    # période totale demandée en regroupant ces Paiement « frères » pour
+    # l'afficher à l'admin — aucune borne de période n'est stockée en base.
+    #
+    # Chantier « cycle roulant ancré sur le jour d'inscription » du
+    # 2026-09-03 : `mois_reference` est désormais la date de DÉBUT de la
+    # période payée (10/09, 10/10…), donc la période d'un Paiement va de
+    # `mois_reference` à `_ajouter_mois(mois_reference, 1)` exclu.
+    from .cycles import _ajouter_mois
+
+    fenetre = datetime.timedelta(seconds=120)
+    lot = list(
+        Paiement.objects.filter(
+            eleve=paiement.eleve,
+            montant=paiement.montant,
+            date__gte=paiement.date - fenetre,
+            date__lte=paiement.date + fenetre,
+        ).order_by('mois_reference')
+    )
+    if paiement not in lot:  # garde-fou : le paiement courant fait toujours partie du lot
+        lot = [paiement]
+
+    lot_periodes = [
+        {'paiement': p, 'debut': p.mois_reference, 'fin': _ajouter_mois(p.mois_reference, 1)}
+        for p in lot
+    ]
+
     context = {
         'paiement': paiement,
+        'lot_periodes': lot_periodes,
+        'paiement_periode_fin': _ajouter_mois(paiement.mois_reference, 1),
+        'periode_debut': lot[0].mois_reference,
+        'periode_fin': _ajouter_mois(lot[-1].mois_reference, 1),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))

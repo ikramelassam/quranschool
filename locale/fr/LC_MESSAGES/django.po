@@ -8389,3 +8389,10 @@ msgstr "Montant par mois (dirham)"
 
 msgid "فترات اشتراك كل طالب محسوبة من يوم تسجيله (مثلاً 10 إلى 10) — اضغط على أي فترة للاطلاع على الدفعة أو إدارتها"
 msgstr "Les périodes d'abonnement de chaque élève sont calculées depuis son jour d'inscription (ex. du 10 au 10) — cliquez sur une période pour consulter ou gérer le paiement."
+
+msgid "الفترة المطلوب دفعها"
+msgstr "Période à régler"
+
+#, python-format
+msgid "من %(debut)s إلى %(fin)s"
+msgstr "du %(debut)s au %(fin)s"
