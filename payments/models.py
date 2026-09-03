@@ -69,7 +69,16 @@ class Paiement(models.Model):
         related_name='paiements'
     )
     montant = models.DecimalField(max_digits=8, decimal_places=2)
+    # `mois_reference` = date de DÉBUT de la période payée (jour choisi
+    # librement par l'élève). `nb_mois_couverts` = combien de mois d'affilée
+    # ce SEUL Paiement règle (chantier du 2026-09-03 : payer 3 mois = 1 seul
+    # Paiement, montant total, 1 justificatif — plus 3 lignes). Le Paiement
+    # couvre les mois [mois_reference, _ajouter_mois(mois_reference,
+    # nb_mois_couverts)[ ; le rapprochement avec les CycleAbonnement se fait
+    # au mois près (voir payments.cycles). Les Paiement d'avant ce chantier
+    # ont nb_mois_couverts=1 (un mois chacun) — comportement identique.
     mois_reference = models.DateField()
+    nb_mois_couverts = models.PositiveSmallIntegerField(default=1)
     date = models.DateTimeField(auto_now_add=True)
     # Optionnel depuis Tâche 7 (2026-07-25) : un مدير peut créer un paiement
     # directement (espèces reçues en personne), sans justificatif numérique —
@@ -97,8 +106,28 @@ class Paiement(models.Model):
     def __str__(self):
         return f"{self.eleve} - {self.mois_reference}"
 
+    @property
+    def periode_fin(self):
+        """Fin EXCLUSIVE de la période couverte (10/09 + 3 mois -> 10/12).
+        Pour l'affichage « من ... إلى ... » sur les fiches et l'historique."""
+        from .cycles import _ajouter_mois
+        return _ajouter_mois(self.mois_reference, self.nb_mois_couverts or 1)
+
+    @property
+    def montant_par_mois(self):
+        """Part mensuelle du montant total (240 د.م. pour 3 mois -> 80/mois)."""
+        from decimal import Decimal, ROUND_HALF_UP
+        n = self.nb_mois_couverts or 1
+        return (self.montant / n).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
     class Meta:
-        unique_together = ('eleve', 'mois_reference')
+        # Plus de unique_together (eleve, mois_reference) depuis le chantier
+        # « Paiement unique » du 2026-09-03 : `mois_reference` est une date de
+        # début choisie librement et la couverture est une fenêtre de
+        # `nb_mois_couverts` mois — un couple (élève, date) exact n'a plus de
+        # sens comme clé. Le chevauchement de périodes est vérifié dans
+        # payments.views.eleve_paiements (et la fenêtre anti-doublon garde le
+        # double-clic).
         verbose_name = "Paiement"
         verbose_name_plural = "Paiements"
 

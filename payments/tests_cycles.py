@@ -115,6 +115,32 @@ class CycleAbonnementTests(TestCase):
             self.eleve.cycles_abonnement.filter(regle=True).count(), 3
         )
 
+    def test_un_seul_paiement_multi_mois_regle_plusieurs_cycles(self):
+        """Chantier « Paiement unique » : un Paiement nb_mois_couverts=3
+        (montant total 240) règle 3 cycles, part mensuelle 80 sur chacun."""
+        cycles.demarrer_cycles(self.eleve)
+        ancre = cycles.cycle_courant(self.eleve).date_debut
+        Paiement.objects.create(
+            eleve=self.eleve, montant=240, mois_reference=ancre.replace(day=12),
+            nb_mois_couverts=3, statut='valide',
+        )
+        cycles.reconcilier(self.eleve)
+        courant = cycles.cycle_courant(self.eleve)
+        self.assertEqual(courant.numero, 4)
+        self.assertEqual(courant.date_debut, cycles._ajouter_mois(ancre, 3))
+        regles = self.eleve.cycles_abonnement.filter(regle=True).order_by('numero')
+        self.assertEqual(regles.count(), 3)
+        self.assertTrue(all(c.montant_regle == 80 for c in regles))
+
+    def test_paiement_en_attente_multi_mois_suspend_la_relance_sur_toute_la_fenetre(self):
+        cycles.demarrer_cycles(self.eleve)
+        cycle = self._rendre_echu()
+        Paiement.objects.create(
+            eleve=self.eleve, montant=160, mois_reference=cycle.date_debut,
+            nb_mois_couverts=2, statut='en_attente',
+        )
+        self.assertFalse(cycles.est_en_retard(self.eleve))
+
     def test_trou_dans_la_couverture_ne_credite_pas_au_dela(self):
         cycles.demarrer_cycles(self.eleve)
         ancre = cycles.cycle_courant(self.eleve).date_debut

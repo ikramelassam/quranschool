@@ -20,11 +20,18 @@ Points clés :
 
 import calendar
 import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
-from django.db.models import Sum
 from django.utils import timezone
 
 DELAI_PAIEMENT_DEFAUT = 10
+_ZERO = Decimal('0.00')
+
+
+def _part_mensuelle(montant, nb_mois_couverts):
+    """Part mensuelle du montant total d'un Paiement (240 د.م. / 3 mois -> 80)."""
+    n = max(nb_mois_couverts or 1, 1)
+    return (Decimal(montant) / n).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 # Escalade de la relance élève (chantier du 2026-09-02) — jours de retard
 # comptés APRÈS `cycle.date_echeance` (J+1 = lendemain de l'échéance).
@@ -100,28 +107,28 @@ def periode_bornes(eleve, annee, mois):
     return debut, _ajouter_mois(debut, 1)
 
 
-def _mois_payes(eleve, statuts):
-    """Ensemble de (année, mois) ayant au moins un Paiement de `eleve` dans un
-    des `statuts` — une seule requête."""
-    from .models import Paiement
-
+def mois_couverts(mois_reference, nb_mois_couverts):
+    """{(année, mois), …} de chaque mois couvert par UN Paiement : de
+    `mois_reference` inclus à +`nb_mois_couverts` mois exclus (10 sep + 3 ->
+    sep, oct, nov). Un Paiement d'avant le chantier « Paiement unique » du
+    2026-09-03 a nb_mois_couverts=1 -> un seul (année, mois)."""
     return {
-        (a, m)
-        for a, m in Paiement.objects.filter(eleve=eleve, statut__in=statuts)
-        .values_list('mois_reference__year', 'mois_reference__month')
+        (d.year, d.month)
+        for d in (_ajouter_mois(mois_reference, i) for i in range(max(nb_mois_couverts or 1, 1)))
     }
 
 
 def _mois_couvrants_par_eleve(eleve_ids, statuts=('valide', 'en_attente')):
     """{eleve_id: {(année, mois), ...}} pour une LISTE d'élèves, en UNE requête
-    (voir cycles_ouverts_en_retard) — jamais une requête par élève."""
+    (voir cycles_ouverts_en_retard) — jamais une requête par élève. Coverage
+    étendue par `nb_mois_couverts`."""
     from .models import Paiement
 
     couverture = {}
-    for eid, a, m in Paiement.objects.filter(
+    for eid, mr, nb in Paiement.objects.filter(
         eleve_id__in=list(eleve_ids), statut__in=statuts,
-    ).values_list('eleve_id', 'mois_reference__year', 'mois_reference__month'):
-        couverture.setdefault(eid, set()).add((a, m))
+    ).values_list('eleve_id', 'mois_reference', 'nb_mois_couverts'):
+        couverture.setdefault(eid, set()).update(mois_couverts(mr, nb))
     return couverture
 
 
@@ -171,13 +178,22 @@ def reconcilier(eleve):
     Paiement rejeté après coup ne « dé-règle » pas un cycle déjà avancé — cas
     marginal, non demandé).
 
-    Un Paiement `valide` dont le mois de `mois_reference` correspond au mois du
-    DÉBUT de la période du cycle courant règle ce cycle et ouvre le suivant
-    (`date_debut` = jour d'ancrage + 1 mois, `date_echeance` = + delai). Payer
-    plusieurs mois d'un coup règle donc plusieurs cycles à la file."""
+    Un Paiement `valide` qui COUVRE le mois du DÉBUT de la période du cycle
+    courant (mois_reference .. +nb_mois_couverts) règle ce cycle et ouvre le
+    suivant (`date_debut` = jour d'ancrage + 1 mois, `date_echeance` = +
+    delai). Un Paiement multi-mois règle donc plusieurs cycles à la file, et
+    sa part mensuelle (montant / nb_mois_couverts) est portée sur chacun."""
     from .models import CycleAbonnement, Paiement
 
-    mois_payes = _mois_payes(eleve, ['valide'])
+    valides = list(
+        Paiement.objects.filter(eleve=eleve, statut='valide').values_list(
+            'mois_reference', 'nb_mois_couverts', 'montant'
+        )
+    )
+    mois_payes = set()
+    for mr, nb, _montant in valides:
+        mois_payes |= mois_couverts(mr, nb)
+
     premier = _premier_cycle(eleve)
     if premier is None:
         return
@@ -189,7 +205,8 @@ def reconcilier(eleve):
         cycle = cycle_courant(eleve)
         if cycle is None:
             return
-        if _mois_ref(cycle.date_debut) not in mois_payes:
+        cle_mois = _mois_ref(cycle.date_debut)
+        if cle_mois not in mois_payes:
             return
         # Cas normal : période N = ancre + N mois (pas de dérive fin-de-mois,
         # 31 janv. reste ancré au 31). Cas désarchivage : `redemarrer_cycle_
@@ -200,14 +217,10 @@ def reconcilier(eleve):
         else:
             prochain_debut = _ajouter_mois(cycle.date_debut, 1)
         fin_couverte = prochain_debut - datetime.timedelta(days=1)
-        montant = (
-            Paiement.objects.filter(
-                eleve=eleve,
-                statut='valide',
-                mois_reference__year=cycle.date_debut.year,
-                mois_reference__month=cycle.date_debut.month,
-            ).aggregate(total=Sum('montant'))['total']
-            or 0
+        # Part mensuelle de chaque Paiement valide qui couvre CE mois.
+        montant = sum(
+            (_part_mensuelle(mnt, nb) for mr, nb, mnt in valides if cle_mois in mois_couverts(mr, nb)),
+            _ZERO,
         )
         cycle.regle = True
         cycle.date_fin_couverte = fin_couverte
@@ -224,8 +237,9 @@ def reconcilier(eleve):
 
 def cycle_est_en_retard(cycle, aujourdhui=None):
     """True si CE cycle (déjà chargé) est ouvert, échu, et non couvert par un
-    Paiement `valide`/`en_attente` sur son 1er mois — 1 requête (`.exists()`).
-    Un Paiement `en_attente` suspend la relance sans faire avancer le cycle."""
+    Paiement `valide`/`en_attente` sur son 1er mois — 1 requête. Un Paiement
+    `en_attente` suspend la relance sans faire avancer le cycle ; un Paiement
+    multi-mois couvre plusieurs mois (mois_reference .. +nb_mois_couverts)."""
     if cycle is None or cycle.regle:
         return False
     aujourdhui = aujourdhui or timezone.localdate()
@@ -233,12 +247,13 @@ def cycle_est_en_retard(cycle, aujourdhui=None):
         return False
     from .models import Paiement
 
-    return not Paiement.objects.filter(
-        eleve_id=cycle.eleve_id,
-        statut__in=('valide', 'en_attente'),
-        mois_reference__year=cycle.date_debut.year,
-        mois_reference__month=cycle.date_debut.month,
-    ).exists()
+    cle_mois = _mois_ref(cycle.date_debut)
+    return not any(
+        cle_mois in mois_couverts(mr, nb)
+        for mr, nb in Paiement.objects.filter(
+            eleve_id=cycle.eleve_id, statut__in=('valide', 'en_attente'),
+        ).values_list('mois_reference', 'nb_mois_couverts')
+    )
 
 
 def est_en_retard(eleve, aujourdhui=None):
