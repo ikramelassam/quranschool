@@ -8453,3 +8453,23 @@ msgstr "✅ The student was automatically assigned to the group chosen at regist
 #, python-format
 msgid "⚠️ اختار الطالب مجموعة «%(nom)s» عند التسجيل، لكن تعذّر إلحاقه بها (ممتلئة أو مؤرشفة أو غير متوافقة). لم يُلحق بعدُ بأي مجموعة."
 msgstr "⚠️ The student had chosen the group \"%(nom)s\" at registration, but assignment failed (full, archived or incompatible). They are not in any group for now."
+
+
+msgid "سجل تلاوة قرآنية بصوتك"
+msgstr "Record a Quranic recitation in your own voice"
+
+msgid "بدء التسجيل"
+msgstr "Start recording"
+
+msgid "إعادة"
+msgstr "Restart"
+
+msgid "الحد الأقصى دقيقتان. سيُطلب منك السماح باستخدام المِيكروفون."
+msgstr "Two minutes maximum. Your browser will ask permission to use the microphone."
+
+msgid "تعذر الوصول إلى المِيكروفون. يرجى السماح بذلك في المتصفح."
+msgstr "Could not access the microphone. Please allow it in your browser."
+
+
+msgid "يرجى تسجيل تلاوة قرآنية بصوتك قبل الإرسال."
+msgstr "Please record a Quranic recitation in your own voice before submitting."

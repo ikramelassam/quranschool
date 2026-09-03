@@ -8453,3 +8453,23 @@ msgstr "✅ L'élève a été rattaché automatiquement au groupe choisi lors de
 #, python-format
 msgid "⚠️ اختار الطالب مجموعة «%(nom)s» عند التسجيل، لكن تعذّر إلحاقه بها (ممتلئة أو مؤرشفة أو غير متوافقة). لم يُلحق بعدُ بأي مجموعة."
 msgstr "⚠️ L'élève avait choisi le groupe « %(nom)s » lors de l'inscription, mais le rattachement a échoué (complet, archivé ou incompatible). Il n'est rattaché à aucun groupe pour l'instant."
+
+
+msgid "سجل تلاوة قرآنية بصوتك"
+msgstr "Enregistrez une récitation coranique avec votre voix"
+
+msgid "بدء التسجيل"
+msgstr "Démarrer l'enregistrement"
+
+msgid "إعادة"
+msgstr "Recommencer"
+
+msgid "الحد الأقصى دقيقتان. سيُطلب منك السماح باستخدام المِيكروفون."
+msgstr "Deux minutes maximum. Le navigateur vous demandera l'autorisation d'utiliser le microphone."
+
+msgid "تعذر الوصول إلى المِيكروفون. يرجى السماح بذلك في المتصفح."
+msgstr "Impossible d'accéder au microphone. Veuillez l'autoriser dans le navigateur."
+
+
+msgid "يرجى تسجيل تلاوة قرآنية بصوتك قبل الإرسال."
+msgstr "Veuillez enregistrer une récitation coranique avec votre voix avant l'envoi."
