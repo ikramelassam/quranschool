@@ -8396,3 +8396,16 @@ msgstr "Period to pay"
 #, python-format
 msgid "من %(debut)s إلى %(fin)s"
 msgstr "from %(debut)s to %(fin)s"
+
+msgid "المبلغ الإجمالي المدفوع (درهم)"
+msgstr "Total amount paid (dirham)"
+
+msgid "المبلغ الكلي الذي حوّلته — يُوزَّع تلقائياً على عدد الأشهر المختارة."
+msgstr "The total amount you transferred — automatically split across the chosen number of months."
+
+msgid "يرجى إدخال المبلغ الإجمالي المدفوع."
+msgstr "Please enter the total amount paid."
+
+#, python-format
+msgid "تم إرسال إثبات الدفع لـ %(v0)s أشهر (%(v1)s د.م. لكل شهر) بنجاح، سيتم مراجعته من طرف الإدارة."
+msgstr "Payment proof for %(v0)s months (%(v1)s MAD per month) has been sent successfully; it will be reviewed by the administration."

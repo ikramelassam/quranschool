@@ -8396,3 +8396,16 @@ msgstr "Période à régler"
 #, python-format
 msgid "من %(debut)s إلى %(fin)s"
 msgstr "du %(debut)s au %(fin)s"
+
+msgid "المبلغ الإجمالي المدفوع (درهم)"
+msgstr "Montant total payé (dirham)"
+
+msgid "المبلغ الكلي الذي حوّلته — يُوزَّع تلقائياً على عدد الأشهر المختارة."
+msgstr "Le montant total que vous avez viré — réparti automatiquement sur le nombre de mois choisi."
+
+msgid "يرجى إدخال المبلغ الإجمالي المدفوع."
+msgstr "Veuillez saisir le montant total payé."
+
+#, python-format
+msgid "تم إرسال إثبات الدفع لـ %(v0)s أشهر (%(v1)s د.م. لكل شهر) بنجاح، سيتم مراجعته من طرف الإدارة."
+msgstr "La preuve de paiement pour %(v0)s mois (%(v1)s د.م. par mois) a bien été envoyée, elle sera vérifiée par l'administration."

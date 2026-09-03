@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -31,11 +32,12 @@ def _screenshot():
 
 # Chantier « cycle roulant ancré sur le jour d'inscription » du 2026-09-03 :
 # le formulaire /payments/eleve/ demande COMBIEN de mois l'élève paie
-# ("nb_mois"), plus une date libre. La période commence toujours au début du
-# cycle d'abonnement ouvert (jour d'ancrage 10→10…) — sinon « 10 sep → 10 oct »
-# saisi à la main comptait deux mois calendaires. Un Paiement PAR mois de
-# période (unique_together (eleve, mois_reference) inchangé), mois_reference =
-# date de début de la période (rapprochement avec les cycles au mois près).
+# ("nb_mois") + le MONTANT TOTAL viré ("montant"), réparti à parts égales sur
+# les périodes. La période commence toujours au début du cycle d'abonnement
+# ouvert (jour d'ancrage 10→10…) — sinon « 10 sep → 10 oct » saisi à la main
+# comptait deux mois calendaires. Un Paiement PAR mois de période
+# (unique_together (eleve, mois_reference) inchangé), mois_reference = date de
+# début de la période (rapprochement avec les cycles au mois près).
 @override_settings(STORAGES=_STORAGES_TEST)
 class EleveePaiementsPeriodeTests(TestCase):
     def setUp(self):
@@ -56,15 +58,16 @@ class EleveePaiementsPeriodeTests(TestCase):
         self.assertEqual(paiements.first().mois_reference, datetime.date(2026, 8, 5))
         self.assertEqual(paiements.first().montant, 80)
 
-    def test_periode_de_plusieurs_mois_cree_un_paiement_par_mois_meme_montant(self):
+    def test_montant_total_reparti_a_parts_egales_sur_les_mois(self):
         reponse = self.client.post(reverse('eleve_paiements'), {
-            'nb_mois': '3', 'montant': '80', 'screenshot': _screenshot(),
+            'nb_mois': '3', 'montant': '240', 'screenshot': _screenshot(),
         })
         self.assertRedirects(reponse, reverse('eleve_paiements'))
         paiements = Paiement.objects.filter(eleve=self.eleve).order_by('mois_reference')
         self.assertEqual(list(paiements.values_list('mois_reference', flat=True)), [
             datetime.date(2026, 8, 5), datetime.date(2026, 9, 5), datetime.date(2026, 10, 5),
         ])
+        # 240 / 3 = 80 par mois, tous les Paiement frères au même montant.
         self.assertTrue(all(p.montant == 80 for p in paiements))
         # Chaque Paiement a bien SA PROPRE copie du justificatif (fichiers
         # distincts, pas le même objet UploadedFile épuisé après le 1er .save()).
@@ -72,6 +75,23 @@ class EleveePaiementsPeriodeTests(TestCase):
         self.assertEqual(len(noms_fichiers), 3)
         for p in paiements:
             self.assertTrue(p.screenshot.storage.exists(p.screenshot.name))
+
+    def test_montant_total_non_divisible_arrondi_au_centime(self):
+        reponse = self.client.post(reverse('eleve_paiements'), {
+            'nb_mois': '3', 'montant': '250', 'screenshot': _screenshot(),
+        })
+        self.assertRedirects(reponse, reverse('eleve_paiements'))
+        montants = set(Paiement.objects.filter(eleve=self.eleve).values_list('montant', flat=True))
+        # 250 / 3 = 83.33 (arrondi au centime), même valeur sur les 3 frères.
+        self.assertEqual(montants, {Decimal('83.33')})
+
+    def test_montant_zero_ou_invalide_refuse_sans_rien_creer(self):
+        for valeur in ('0', '-5', 'abc', ''):
+            reponse = self.client.post(reverse('eleve_paiements'), {
+                'nb_mois': '1', 'montant': valeur, 'screenshot': _screenshot(),
+            })
+            self.assertRedirects(reponse, reverse('eleve_paiements'))
+        self.assertFalse(Paiement.objects.filter(eleve=self.eleve).exists())
 
     def test_mois_deja_existant_dans_la_periode_est_ignore_sans_erreur(self):
         Paiement.objects.create(eleve=self.eleve, montant=80, mois_reference=datetime.date(2026, 9, 20))
@@ -140,8 +160,10 @@ class AdminPaiementDetailPeriodeTests(TestCase):
     def _payer(self, nb_mois):
         c = Client()
         c.force_login(self.eleve.user)
+        # montant = TOTAL viré ; 80 د.م./mois -> total = 80 * nb_mois, réparti
+        # à parts égales (chaque Paiement frère porte donc 80).
         c.post(reverse('eleve_paiements'), {
-            'nb_mois': str(nb_mois), 'montant': '80', 'screenshot': _screenshot(),
+            'nb_mois': str(nb_mois), 'montant': str(80 * nb_mois), 'screenshot': _screenshot(),
         })
         return list(Paiement.objects.filter(eleve=self.eleve, montant=80).order_by('mois_reference'))
 
