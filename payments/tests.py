@@ -118,3 +118,57 @@ class EleveePaiementsPeriodeTests(TestCase):
         })
         self.assertRedirects(reponse, reverse('eleve_paiements'))
         self.assertFalse(Paiement.objects.filter(eleve=self.eleve).exists())
+
+
+# La fiche /payments/admin/<id>/ doit montrer « la période que l'élève veut
+# payer » : un règlement de plusieurs mois crée un Paiement par période, la
+# vue les regroupe (même élève, même montant, même soumission) et affiche
+# les bornes début → fin exclusive de la période totale.
+@override_settings(STORAGES=_STORAGES_TEST)
+class AdminPaiementDetailPeriodeTests(TestCase):
+    def setUp(self):
+        from payments import cycles
+        self.eleve = _creer_eleve()
+        cycles.demarrer_cycles(self.eleve, date_reference=datetime.date(2026, 8, 5))
+        self.admin = User.objects.create_user(
+            username='admin_detail_periode@zidni.test', email='admin_detail_periode@zidni.test',
+            password='xX!test12345', role='admin', doit_changer_mot_de_passe=False,
+        )
+        self.client = Client()
+        self.client.force_login(self.admin)
+
+    def _payer(self, nb_mois):
+        c = Client()
+        c.force_login(self.eleve.user)
+        c.post(reverse('eleve_paiements'), {
+            'nb_mois': str(nb_mois), 'montant': '80', 'screenshot': _screenshot(),
+        })
+        return list(Paiement.objects.filter(eleve=self.eleve, montant=80).order_by('mois_reference'))
+
+    def test_detail_affiche_la_periode_totale_du_lot(self):
+        paiements = self._payer(3)  # 5/08, 5/09, 5/10 -> période 5/08 -> 5/11 exclu
+        reponse = self.client.get(reverse('admin_paiement_detail', args=[paiements[0].id]))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse.context['periode_debut'], datetime.date(2026, 8, 5))
+        self.assertEqual(reponse.context['periode_fin'], datetime.date(2026, 11, 5))
+        self.assertEqual(len(reponse.context['lot_periodes']), 3)
+        self.assertContains(reponse, '05/08/2026')
+        self.assertContains(reponse, '05/11/2026')
+
+    def test_detail_paiement_isole_periode_dun_seul_mois(self):
+        p = Paiement.objects.create(
+            eleve=self.eleve, montant=55, mois_reference=datetime.date(2026, 8, 5),
+        )
+        reponse = self.client.get(reverse('admin_paiement_detail', args=[p.id]))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse.context['periode_debut'], datetime.date(2026, 8, 5))
+        self.assertEqual(reponse.context['periode_fin'], datetime.date(2026, 9, 5))
+        self.assertEqual(len(reponse.context['lot_periodes']), 1)
+
+    def test_lot_ne_melange_pas_deux_montants_differents(self):
+        self._payer(2)  # montant 80
+        autre = Paiement.objects.create(
+            eleve=self.eleve, montant=999, mois_reference=datetime.date(2026, 10, 5),
+        )
+        reponse = self.client.get(reverse('admin_paiement_detail', args=[autre.id]))
+        self.assertEqual(len(reponse.context['lot_periodes']), 1)
