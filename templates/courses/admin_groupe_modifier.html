@@ -64,7 +64,14 @@
 
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "المعلم" %}</label>
-            <select name="prof" class="form-select mt-1" data-select-cherchable>
+            {% comment %}
+            Liste native volontairement (PAS data-select-cherchable) : bug
+            récurrent signalé par le terrain — sur certains navigateurs le
+            widget cherchable ne recopiait pas le choix dans le <select>
+            masqué et le groupe restait « بدون معلم » sans erreur. Le nombre
+            de profs reste petit, la recherche n'apporte rien ici.
+            {% endcomment %}
+            <select name="prof" class="form-select mt-1">
                 <option value="">{% trans "بدون معلم" %}</option>
                 {% for prof in profs %}
                 <option value="{{ prof.id }}" {% if groupe.prof == prof %}selected{% endif %}>
