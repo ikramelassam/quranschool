@@ -220,6 +220,21 @@ câblé — B3 : "pas à implémenter maintenant").
             if (elementsListe[i]) elementsListe[i].el.scrollIntoView({ block: 'nearest' });
         }
 
+        // Choix "évident" quand l'utilisateur valide sans avoir cliqué une
+        // ligne (Entrée dans la case de recherche, ou envoi du formulaire avec
+        // un filtre encore tapé) : la ligne surlignée au clavier, sinon
+        // l'UNIQUE résultat réel du filtre en cours (option de valeur non
+        // vide). Ne devine jamais au-delà — mieux vaut ne rien choisir qu'un
+        // mauvais élément. Corrige le cas "j'ai tapé le nom de mon prof mais
+        // il n'a pas été enregistré" (le <select> natif partait vide, le choix
+        // était perdu en silence).
+        function candidatImplicite() {
+            if (indexActif >= 0 && elementsListe[indexActif]) return elementsListe[indexActif];
+            if (!filtre.value.trim()) return null;
+            var reels = elementsListe.filter(function (item) { return item.option.value !== ''; });
+            return reels.length === 1 ? reels[0] : null;
+        }
+
         control.addEventListener('click', function () {
             if (panel.hidden) ouvrir(); else fermer();
         });
@@ -230,6 +245,9 @@ câblé — B3 : "pas à implémenter maintenant").
 
         filtre.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
+                // Recherche abandonnée : on vide le filtre pour qu'il ne soit
+                // pas "ressuscité" par le filet anti-oubli au submit.
+                filtre.value = '';
                 fermer();
                 control.focus();
             } else if (e.key === 'ArrowDown') {
@@ -240,7 +258,8 @@ câblé — B3 : "pas à implémenter maintenant").
                 if (elementsListe.length) { indexActif = Math.max(indexActif - 1, 0); surligner(indexActif); }
             } else if (e.key === 'Enter') {
                 e.preventDefault();
-                if (indexActif >= 0 && elementsListe[indexActif]) choisir(elementsListe[indexActif].option);
+                var choixEntree = candidatImplicite();
+                if (choixEntree) choisir(choixEntree.option);
             }
         });
 
@@ -248,21 +267,31 @@ câblé — B3 : "pas à implémenter maintenant").
             if (!wrap.contains(e.target)) fermer();
         });
 
-        // Validation "required" côté widget : le <select> natif est masqué
-        // visuellement (sc-original), certains navigateurs n'exécutent alors
-        // plus la validation HTML5 standard dessus — filet de sécurité manuel.
-        if (select.required) {
-            var form = select.closest('form');
-            if (form) {
-                form.addEventListener('submit', function (e) {
-                    if (!select.value) {
-                        e.preventDefault();
-                        control.classList.add('sc-erreur');
-                        erreurMsg.classList.add('sc-visible');
-                        control.focus();
-                    }
-                });
-            }
+        var form = select.closest('form');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                // Filet anti-oubli : l'utilisateur a tapé un filtre pour
+                // retrouver son choix mais n'a pas cliqué la ligne (ni fait
+                // Entrée). Si ce filtre ne laisse qu'UN résultat réel, on le
+                // valide avant l'envoi — sinon le <select> natif (masqué
+                // .sc-original) partait vide et la sélection était perdue en
+                // silence. Le panneau peut déjà être fermé ici (un clic sur le
+                // bouton d'envoi ferme le widget avant le submit) : on se base
+                // sur filtre.value / la liste rendue, pas sur panel.hidden.
+                if (filtre.value.trim() || indexActif >= 0) {
+                    var choixSubmit = candidatImplicite();
+                    if (choixSubmit) choisir(choixSubmit.option);
+                }
+                // Validation "required" côté widget : le <select> natif étant
+                // masqué visuellement, certains navigateurs n'exécutent plus la
+                // validation HTML5 standard dessus — filet de sécurité manuel.
+                if (select.required && !select.value) {
+                    e.preventDefault();
+                    control.classList.add('sc-erreur');
+                    erreurMsg.classList.add('sc-visible');
+                    control.focus();
+                }
+            });
         }
 
         majControleAffiche();
