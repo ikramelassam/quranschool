@@ -5,8 +5,9 @@ inscrire_eleve() (Étape 4, déjà complet et testé isolément).
 
 Bascule du 2026-08-24 (décision explicite du Directeur, voir registration/
 MIGRATION_NOTES.md) : ce parcours REMPLACE désormais /register/student
-(wizard_categorie_age y est monté directement, voir core/urls.py) —
-l'ancien formulaire à une page (inscriptions.views.inscription_eleve_*,
+(wizard_intro y est monté directement depuis le 2026-09-03 — l'intro/ميثاق
+en tout premier, puis le choix بالغ/طفل ; auparavant l'inverse — voir
+core/urls.py) — l'ancien formulaire à une page (inscriptions.views.inscription_eleve_*,
 inscriptions/urls.py) n'est plus lié nulle part publiquement mais reste en
 place, dormant, pas supprimé (rollback possible en 1 ligne dans core/urls.py).
 
@@ -26,10 +27,15 @@ from .utils import wizard_donnees, wizard_maj, wizard_reinitialiser, traduire_li
 
 
 def wizard_categorie_age(request):
-    """Étape -1 (avant même l'introduction/ميثاق) — RESTAURÉE depuis l'ancien
-    système (inscriptions.views.inscription_eleve_choix/eleve_choix.html) à
-    la demande du client, 2026-08-22 : le visiteur choisit d'abord بالغ/طفل,
-    comme aux tout débuts du projet.
+    """Étape 0-bis — RESTAURÉE depuis l'ancien système (inscriptions.views.
+    inscription_eleve_choix/eleve_choix.html) à la demande du client,
+    2026-08-22 : le visiteur choisit بالغ/طفل.
+
+    Position dans le parcours (2026-09-03, demande du client) : DÉSORMAIS
+    APRÈS l'introduction/ميثاق (wizard_intro), qui redevient le tout premier
+    écran de /register/student — auparavant l'inverse (ميثاق après ce choix).
+    Le choix بالغ/طفل mène directement à l'étape suivante (identité), plus à
+    l'intro.
 
     Ce choix N'EST JAMAIS une 2e source de vérité pour l'âge — pas de logique
     d'âge dupliquée : la SEULE source réelle reste tranche_age_depuis_
@@ -46,6 +52,7 @@ def wizard_categorie_age(request):
        le faisait déjà l'ancien inscription_eleve_formulaire."""
     from inscriptions.models import get_parametres_inscriptions
     from inscriptions.views import _reponse_categorie_fermee
+    from .utils import url_etape_suivante
 
     if request.method == 'POST':
         type_age_choisi = request.POST.get('type_age', '')
@@ -61,7 +68,7 @@ def wizard_categorie_age(request):
             return _reponse_categorie_fermee(request, 'enfant')
 
         wizard_maj(request, {'type_age_choisi': type_age_choisi})
-        return redirect('wizard_intro')
+        return redirect(url_etape_suivante('categorie_age'))
 
     return render(request, 'inscriptions/wizard_categorie_age.html', {})
 
@@ -69,27 +76,19 @@ def wizard_categorie_age(request):
 def wizard_intro(request):
     """Étape 0 — présentation (ميثاق), contenu entièrement lu depuis
     PresentationInscription (Étape 5C), jamais codé en dur dans le template.
-    Simple écran d'accueil, aucune donnée à soumettre ici — le bouton mène
-    à la prochaine étape active après 'categorie_age' (correction 8,
-    2026-08-22, navigation dynamique) — 'identite' normalement, mais
-    résolu dynamiquement pour rester cohérent si elle venait à changer de
-    position (elle reste verrouillée première en pratique, voir
-    EtapeInscription.CODES_VERROUILLES, mais jamais un lien codé en dur ici
-    non plus).
+    Simple écran d'accueil, aucune donnée à soumettre ici.
 
-    SAUT SERVEUR si la catégorie d'âge n'a pas encore été choisie (chantier
-    du 2026-08-22) — pas un simple masquage JS, un visiteur qui force cette
-    URL directement est TOUJOURS redirigé, même méthode que le saut Individuel
-    de wizard_groupe (Partie 3/26)."""
+    TOUT PREMIER écran du parcours (2026-09-03, demande du client) : c'est
+    la cible directe de /register/student, AVANT le choix بالغ/طفل
+    (wizard_categorie_age) — auparavant l'inverse (ce choix d'abord, l'intro
+    ensuite). Aucun prérequis de session : un visiteur qui arrive ici sans
+    rien avoir choisi voit simplement la présentation, le bouton « متابعة »
+    l'emmène ensuite à l'étape catégorie d'âge."""
     from .models import get_presentation_inscription
-    from .utils import url_etape_suivante
-
-    if 'type_age_choisi' not in wizard_donnees(request):
-        return redirect('wizard_categorie_age')
 
     return render(request, 'inscriptions/wizard_intro.html', {
         'presentation': get_presentation_inscription(),
-        'url_suivante': url_etape_suivante('categorie_age'),
+        'url_suivante': reverse('wizard_categorie_age'),
     })
 
 

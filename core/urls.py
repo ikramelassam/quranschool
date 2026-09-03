@@ -49,15 +49,17 @@ urlpatterns = [
     path('register/teacher', inscriptions_views.inscription_prof, name='inscription_prof'),
     # Bascule du 2026-08-24 (décision explicite du Directeur, voir registration/
     # MIGRATION_NOTES.md) : /register/student pointe désormais vers le NOUVEAU
-    # moteur d'inscription configurable (registration.views.wizard_categorie_age
-    # — Étape -1 du wizard, بالغ/طفل, même position exacte dans le parcours que
-    # l'ancien inscription_eleve_choix qu'il remplace) au lieu de l'ancien
-    # formulaire à une page. name='inscription_eleve_choix' VOLONTAIREMENT
-    # CONSERVÉ (pas renommé en 'wizard_categorie_age' malgré le nom qui ne
-    # correspond plus littéralement à la vue) : c'est ce nom qui est référencé
-    # partout (templates/accounts/login.html, la redirection legacy
-    # /inscriptions/eleve/choix/) — le conserver évite de toucher un seul
-    # template, la résolution suit automatiquement la nouvelle cible.
+    # moteur d'inscription configurable au lieu de l'ancien formulaire à une
+    # page. Cible mise à jour le 2026-09-03 (demande du client) :
+    # registration.views.wizard_intro — l'introduction/ميثاق redevient le tout
+    # premier écran, AVANT le choix بالغ/طفل (wizard_categorie_age), qui suit
+    # dès le bouton « متابعة ». Auparavant l'inverse (le choix d'abord, l'intro
+    # ensuite). name='inscription_eleve_choix' VOLONTAIREMENT CONSERVÉ (pas
+    # renommé malgré le nom qui ne correspond plus littéralement à la vue) :
+    # c'est ce nom qui est référencé partout (templates/accounts/login.html, la
+    # redirection legacy /inscriptions/eleve/choix/) — le conserver évite de
+    # toucher un seul template, la résolution suit automatiquement la nouvelle
+    # cible.
     #
     # ANCIEN FORMULAIRE (inscriptions.views.inscription_eleve_*, inscriptions/
     # urls.py) : PAS supprimé, laissé DORMANT — décision explicite suivant
@@ -67,7 +69,7 @@ urlpatterns = [
     # suit désormais ce name= vers le wizard), mais son code reste intact et
     # instantanément restaurable (il suffit de repointer cette ligne) en cas
     # de souci avec le nouveau parcours.
-    path('register/student', registration_views.wizard_categorie_age, name='inscription_eleve_choix'),
+    path('register/student', registration_views.wizard_intro, name='inscription_eleve_choix'),
 
     # Chantier traduction FR/EN (2026-08-27) — fournit la vue set_language de
     # Django (POST avec un champ 'language'), utilisée par le sélecteur de

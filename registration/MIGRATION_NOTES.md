@@ -6,12 +6,22 @@ automatiquement par un script ou une session Claude Code future — chaque
 case cochée doit l'être par vous (ou avec votre accord explicite), au moment
 qui vous convient.
 
+## MISE À JOUR — 2026-09-03 : ordre des 2 premiers écrans inversé
+
+`/register/student` pointe désormais vers `registration.views.wizard_intro`
+(l'introduction/ميثاق), qui redevient le **tout premier** écran ; le choix
+بالغ/طفل (`wizard_categorie_age`) le suit, via le bouton « متابعة ».
+Auparavant l'inverse (choix d'abord, intro ensuite, depuis le 2026-08-22).
+Demande explicite du client. `wizard_intro` n'a plus de prérequis de session
+(il n'exige plus qu'une catégorie d'âge ait été choisie).
+
 ## MISE À JOUR — 2026-08-24 : bascule effectuée
 
-`/register/student` pointe désormais vers le nouveau wizard
-(`registration.views.wizard_categorie_age`, voir `core/urls.py`) — décision
-explicite du Directeur, prise EN CONNAISSANCE de l'état ci-dessous (aucune
-autre case de la check-list n'était cochée à ce moment) :
+`/register/student` pointe désormais vers le nouveau wizard (à l'époque
+`registration.views.wizard_categorie_age` ; voir la mise à jour du 2026-09-03
+ci-dessus pour la cible actuelle, `core/urls.py`) — décision explicite du
+Directeur, prise EN CONNAISSANCE de l'état ci-dessous (aucune autre case de la
+check-list n'était cochée à ce moment) :
 
 - Au moment de la bascule, l'ancien formulaire recevait encore de VRAIES
   candidatures (dernière confirmée : 2026-08-21, email réel, statut validé).

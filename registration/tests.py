@@ -1282,7 +1282,6 @@ class WizardIntroTests(TestCase):
         presentation.save()
 
         client = Client()
-        _choisir_categorie_age(client)  # Étape -1 (2026-08-22) : sinon SAUT SERVEUR vers wizard_categorie_age
         reponse = client.get(reverse('wizard_intro'))
         self.assertEqual(reponse.status_code, 200)
         html = reponse.content.decode('utf-8')
@@ -1293,7 +1292,6 @@ class WizardIntroTests(TestCase):
     def test_intro_accessible_sans_authentification(self):
         """Page publique — aucun compte requis, contrairement au dashboard."""
         client = Client()
-        _choisir_categorie_age(client)  # Étape -1 (2026-08-22) : sinon SAUT SERVEUR vers wizard_categorie_age
         reponse = client.get(reverse('wizard_intro'))
         self.assertEqual(reponse.status_code, 200)
 
@@ -1349,11 +1347,14 @@ class WizardSessionHelpersTests(TestCase):
 
 
 # ============================================================================
-# Chantier du 2026-08-22 — Étape -1 restaurée : choix بالغ/طفل EN TOUT DÉBUT
-# de parcours (comme dans l'ancien système, inscriptions.views.
-# inscription_eleve_choix). Réutilise TEL QUEL les mécanismes déjà existants
-# (ParametresInscriptions.ouverte_eleve_*, _reponse_categorie_fermee,
-# MESSAGE_AGE_NE_CORRESPOND_PAS) — jamais une 2e source de vérité sur l'âge.
+# Chantier du 2026-08-22 — choix بالغ/طفل restauré (comme dans l'ancien
+# système, inscriptions.views.inscription_eleve_choix). Réutilise TEL QUEL les
+# mécanismes déjà existants (ParametresInscriptions.ouverte_eleve_*,
+# _reponse_categorie_fermee, MESSAGE_AGE_NE_CORRESPOND_PAS) — jamais une 2e
+# source de vérité sur l'âge.
+# 2026-09-03 : cet écran passe APRÈS l'intro/ميثاق (wizard_intro), qui redevient
+# le tout premier écran de /register/student ; le choix mène directement à
+# l'étape identité, plus à l'intro.
 # ============================================================================
 @override_settings(STORAGES=_STORAGES_TEST)
 class WizardCategorieAgeTests(TestCase):
@@ -1364,10 +1365,13 @@ class WizardCategorieAgeTests(TestCase):
         self.assertIn('طفل', html)
         self.assertIn('بالغ', html)
 
-    def test_choix_valide_avance_vers_intro(self):
+    def test_choix_valide_avance_vers_identite(self):
+        # 2026-09-03 : le choix بالغ/طفل mène désormais DIRECTEMENT à l'étape
+        # suivante (identité) — l'intro/ميثاق est passée AVANT, elle n'est plus
+        # la cible d'ici.
         client = Client()
         reponse = client.post(reverse('wizard_categorie_age'), {'type_age': 'adulte'})
-        self.assertRedirects(reponse, reverse('wizard_intro'), fetch_redirect_response=False)
+        self.assertRedirects(reponse, reverse('wizard_identite'), fetch_redirect_response=False)
         self.assertEqual(client.session['wizard_inscription']['type_age_choisi'], 'adulte')
 
     def test_choix_invalide_refuse_sans_rien_enregistrer(self):
@@ -1419,9 +1423,13 @@ class WizardCategorieAgeTests(TestCase):
         self.assertIn('Child students', html_en)
         self.assertNotIn('التسجيل مغلق حالياً', html_en)
 
-    def test_wizard_intro_saute_vers_categorie_age_si_pas_encore_choisi(self):
+    def test_wizard_intro_est_le_premier_ecran_sans_prerequis(self):
+        # 2026-09-03 : l'intro/ميثاق redevient le tout premier écran, accessible
+        # sans avoir choisi de catégorie d'âge — son bouton « متابعة » mène
+        # ensuite à wizard_categorie_age.
         reponse = Client().get(reverse('wizard_intro'))
-        self.assertRedirects(reponse, reverse('wizard_categorie_age'))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, reverse('wizard_categorie_age'))
 
     def test_wizard_identite_saute_vers_categorie_age_si_pas_encore_choisi(self):
         reponse = Client().get(reverse('wizard_identite'))
@@ -1529,32 +1537,40 @@ class WizardCategorieAgeTests(TestCase):
 # ============================================================================
 # Bascule du 2026-08-24 (voir registration/MIGRATION_NOTES.md, core/urls.py) :
 # /register/student remplace l'ancien formulaire à une page et sert
-# directement le wizard (wizard_categorie_age, sous 2 noms d'URL distincts —
-# 'inscription_eleve_choix' à /register/student, 'wizard_categorie_age' à
-# /registration/wizard/categorie-age/ — MÊME vue Python dans les 2 cas).
+# directement le wizard. Cible mise à jour le 2026-09-03 (demande du client) :
+# 'inscription_eleve_choix' à /register/student pointe désormais vers
+# wizard_intro (l'intro/ميثاق en tout premier), qui enchaîne sur
+# wizard_categorie_age (بالغ/طفل) via son bouton « متابعة ».
 # ============================================================================
 @override_settings(STORAGES=_STORAGES_TEST)
 class BasculeRegisterStudentTests(TestCase):
-    def test_register_student_sert_desormais_le_wizard(self):
+    def test_register_student_sert_desormais_lintro_du_wizard(self):
+        from .models import get_presentation_inscription
+
+        presentation = get_presentation_inscription()
+        presentation.intro = 'نص الميثاق التجريبي للبوابة'
+        presentation.save()
+
         reponse = Client().get('/register/student')
         self.assertEqual(reponse.status_code, 200)
         html = reponse.content.decode('utf-8')
-        self.assertIn('طفل', html)
-        self.assertIn('بالغ', html)
+        self.assertIn('نص الميثاق التجريبي للبوابة', html)
+        # Le bouton « متابعة » enchaîne sur le choix de la catégorie d'âge.
+        self.assertIn(reverse('wizard_categorie_age'), html)
 
     def test_reverse_inscription_eleve_choix_pointe_vers_register_student(self):
         # Utilisé tel quel par templates/accounts/login.html — VOLONTAIREMENT
         # pas renommé (voir core/urls.py) : ce test protège cette convention.
         self.assertEqual(reverse('inscription_eleve_choix'), '/register/student')
 
-    def test_soumission_depuis_register_student_avance_bien_le_wizard(self):
-        """Le POST à /register/student (name='inscription_eleve_choix') suit
-        EXACTEMENT le même comportement que reverse('wizard_categorie_age') —
-        même vue, la session accumulée est identique quel que soit le nom
-        d'URL par lequel le visiteur est entré."""
+    def test_parcours_depuis_register_student_enchaine_intro_puis_categorie_age(self):
+        """Depuis /register/student (l'intro), le visiteur passe à
+        wizard_categorie_age puis, son choix بالغ/طفل fait, à l'étape identité —
+        la session accumulée est identique quel que soit le nom d'URL d'entrée."""
         client = Client()
-        reponse = client.post('/register/student', {'type_age': 'adulte'})
-        self.assertRedirects(reponse, reverse('wizard_intro'), fetch_redirect_response=False)
+        self.assertEqual(client.get('/register/student').status_code, 200)
+        reponse = client.post(reverse('wizard_categorie_age'), {'type_age': 'adulte'})
+        self.assertRedirects(reponse, reverse('wizard_identite'), fetch_redirect_response=False)
         self.assertEqual(client.session['wizard_inscription']['type_age_choisi'], 'adulte')
 
     def test_ancien_formulaire_reste_dormant_mais_toujours_fonctionnel(self):

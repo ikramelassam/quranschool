@@ -3,12 +3,14 @@ from . import views
 
 # Wizard public (Étape 6) — vit sous /registration/wizard/. Bascule du
 # 2026-08-24 (voir registration/MIGRATION_NOTES.md, core/urls.py) :
-# /register/student pointe désormais AUSSI vers wizard_categorie_age
-# (2 URLs, même vue, voir core/urls.py) — /registration/wizard/... reste le
-# chemin canonique interne (redirections/reverse() du parcours), /register/
-# student reste le SEUL lien exposé publiquement (templates/accounts/
-# login.html). L'ancien formulaire à une page (inscriptions.urls.py) n'est
-# plus lié nulle part mais reste en place, dormant, pas supprimé.
+# /register/student sert le wizard public. Cible mise à jour le 2026-09-03
+# (demande du client) : /register/student == wizard_intro (l'intro/ميثاق, tout
+# premier écran), qui enchaîne sur wizard_categorie_age (بالغ/طفل). Auparavant
+# l'inverse. /registration/wizard/... reste le chemin canonique interne
+# (redirections/reverse() du parcours), /register/student reste le SEUL lien
+# exposé publiquement (templates/accounts/login.html). L'ancien formulaire à
+# une page (inscriptions.urls.py) n'est plus lié nulle part mais reste en
+# place, dormant, pas supprimé.
 urlpatterns = [
     path('wizard/', views.wizard_intro, name='wizard_intro'),
     path('wizard/categorie-age/', views.wizard_categorie_age, name='wizard_categorie_age'),
