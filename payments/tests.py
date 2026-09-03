@@ -89,27 +89,42 @@ class EleveePaiementsPeriodeTests(TestCase):
             self.assertRedirects(reponse, reverse('eleve_paiements'))
         self.assertFalse(Paiement.objects.filter(eleve=self.eleve).exists())
 
-    def test_mois_deja_couvert_refuse_la_soumission(self):
-        # Paiement existant couvrant août+septembre.
+    def test_mois_deja_valide_refuse_la_soumission(self):
+        # Paiement DÉJÀ VALIDÉ couvrant août+septembre -> verrouille ces mois.
         Paiement.objects.create(
-            eleve=self.eleve, montant=160, mois_reference=datetime.date(2026, 8, 5), nb_mois_couverts=2,
+            eleve=self.eleve, montant=160, mois_reference=datetime.date(2026, 8, 5),
+            nb_mois_couverts=2, statut='valide',
         )
         reponse = self.client.post(reverse('eleve_paiements'), {
             'date_debut': '2026-09-05', 'nb_mois': '2', 'montant': '160', 'screenshot': _screenshot(),
         })
         self.assertRedirects(reponse, reverse('eleve_paiements'))
-        # Rien de neuf : septembre est déjà couvert.
-        self.assertEqual(Paiement.objects.filter(eleve=self.eleve).count(), 1)
+        self.assertEqual(Paiement.objects.filter(eleve=self.eleve).count(), 1)  # rien de neuf
 
-    def test_paiement_rejete_ne_bloque_pas_un_nouveau_pour_le_meme_mois(self):
-        Paiement.objects.create(
+    def test_paiement_en_attente_est_remplace_par_le_nouvel_envoi(self):
+        # L'élève s'est trompé de montant, il renvoie -> l'ancien 'en_attente'
+        # qui chevauche est supprimé, remplacé par le nouveau.
+        ancien = Paiement.objects.create(
+            eleve=self.eleve, montant=999, mois_reference=datetime.date(2026, 8, 5), nb_mois_couverts=2,
+        )
+        reponse = self.client.post(reverse('eleve_paiements'), {
+            'date_debut': '2026-08-05', 'nb_mois': '2', 'montant': '160', 'screenshot': _screenshot(),
+        })
+        self.assertRedirects(reponse, reverse('eleve_paiements'))
+        self.assertFalse(Paiement.objects.filter(id=ancien.id).exists())
+        p = Paiement.objects.get(eleve=self.eleve)
+        self.assertEqual(p.montant, 160)
+
+    def test_paiement_rejete_ne_bloque_pas_ni_nest_supprime(self):
+        rejete = Paiement.objects.create(
             eleve=self.eleve, montant=80, mois_reference=datetime.date(2026, 8, 5), statut='rejete',
         )
         reponse = self.client.post(reverse('eleve_paiements'), {
             'date_debut': '2026-08-20', 'nb_mois': '1', 'montant': '80', 'screenshot': _screenshot(),
         })
         self.assertRedirects(reponse, reverse('eleve_paiements'))
-        self.assertEqual(Paiement.objects.filter(eleve=self.eleve).exclude(statut='rejete').count(), 1)
+        self.assertTrue(Paiement.objects.filter(id=rejete.id).exists())  # historique conservé
+        self.assertEqual(Paiement.objects.filter(eleve=self.eleve, statut='en_attente').count(), 1)
 
     def test_nb_mois_zero_ou_negatif_refuse_sans_rien_creer(self):
         for valeur in ('0', '-2'):

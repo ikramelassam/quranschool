@@ -8430,3 +8430,6 @@ msgstr "%(montant)s dirhams — %(n)s mois — envoyé le %(date)s"
 #, python-format
 msgid "%(n)s أشهر"
 msgstr "%(n)s mois"
+
+msgid "بعض الأشهر المختارة مدفوعة ومقبولة مسبقاً — اختر تاريخ بداية أو عدد أشهر مختلفاً."
+msgstr "Certains des mois choisis sont déjà payés et acceptés — choisissez une autre date de début ou un autre nombre de mois."
