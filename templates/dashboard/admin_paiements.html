@@ -64,7 +64,7 @@
                     {% include 'dashboard/_whatsapp_icon.html' with telephone=paiement.eleve.user.telephone %}
                 </span>
             </div>
-            <div style="color:#888; font-size:0.85rem;">{{ paiement.mois_reference|mois_annee_ar }} — {% blocktrans with montant=paiement.montant %}{{ montant }} درهم{% endblocktrans %}</div>
+            <div style="color:#888; font-size:0.85rem;">{% if paiement.nb_mois_couverts > 1 %}{{ paiement.mois_reference|date:"j F Y" }} → {{ paiement.periode_fin|date:"j F Y" }} ({% blocktrans with n=paiement.nb_mois_couverts %}{{ n }} أشهر{% endblocktrans %}){% else %}{{ paiement.mois_reference|mois_annee_ar }}{% endif %} — {% blocktrans with montant=paiement.montant %}{{ montant }} درهم{% endblocktrans %}</div>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
             {% if paiement.statut == 'valide' %}

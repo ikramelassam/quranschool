@@ -8409,3 +8409,24 @@ msgstr "Please enter the total amount paid."
 #, python-format
 msgid "تم إرسال إثبات الدفع لـ %(v0)s أشهر (%(v1)s د.م. لكل شهر) بنجاح، سيتم مراجعته من طرف الإدارة."
 msgstr "Payment proof for %(v0)s months (%(v1)s MAD per month) has been sent successfully; it will be reviewed by the administration."
+
+msgid "تاريخ بداية الفترة"
+msgstr "Period start date"
+
+msgid "بعض الأشهر المختارة مسجَّلة مسبقاً — اختر تاريخ بداية أو عدد أشهر مختلفاً."
+msgstr "Some of the selected months are already recorded — choose a different start date or number of months."
+
+msgid "تم استلام هذه الدفعة بالفعل."
+msgstr "This payment has already been received."
+
+#, python-format
+msgid "تم إرسال إثبات الدفع لـ %(v0)s أشهر بنجاح، سيتم مراجعته من طرف الإدارة."
+msgstr "Payment proof for %(v0)s months has been sent successfully; it will be reviewed by the administration."
+
+#, python-format
+msgid "%(montant)s درهم — %(n)s أشهر — أُرسل في %(date)s"
+msgstr "%(montant)s dirhams — %(n)s months — sent on %(date)s"
+
+#, python-format
+msgid "%(n)s أشهر"
+msgstr "%(n)s months"

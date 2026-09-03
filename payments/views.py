@@ -1,5 +1,5 @@
 import datetime
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation
 
 from django.core.files.base import ContentFile
 from django.shortcuts import render, redirect, get_object_or_404
@@ -38,21 +38,6 @@ FENETRE_ANTI_DOUBLON_SECONDES = 5
 NB_MOIS_MAX_PAR_PERIODE = 24
 
 
-def _periodes_a_payer(depart, nb_mois):
-    """Liste des dates de DÉBUT (une par mois) des `nb_mois` périodes
-    mensuelles consécutives à partir de `depart` (chantier « cycle roulant
-    ancré sur le jour d'inscription » du 2026-09-03).
-
-    `depart` = `date_debut` du cycle d'abonnement ouvert de l'élève (jour
-    d'ancrage 10→10…), jamais une date saisie librement : l'élève choisit
-    seulement COMBIEN de mois il règle, pas quand ils commencent — c'est ce
-    qui empêche « 10 sep → 10 oct » d'être compté comme deux mois. Chaque
-    Paiement créé porte sa date de début en `mois_reference` ; le
-    rapprochement avec le cycle se fait ensuite au mois près (voir
-    payments.cycles._mois_ref)."""
-    from .cycles import _ajouter_mois
-
-    return [_ajouter_mois(depart, i) for i in range(nb_mois)]
 
 
 def _base_template_admin_ou_mshrif(request):
@@ -83,25 +68,28 @@ def eleve_paiements(request):
 
         from dashboard.templatetags.libelles_arabes import mois_annee_ar
 
-        # Chantier « cycle roulant ancré sur le jour d'inscription » du
-        # 2026-09-03 : l'élève choisit COMBIEN de mois il règle (champ
-        # "nb_mois"), plus une date de début libre. Le point de départ est
-        # toujours le début de son cycle d'abonnement ouvert (jour d'ancrage
-        # 10→10…) — sinon « 10 sep → 10 oct » saisi à la main était compté
-        # comme deux mois calendaires. Un Paiement PAR mois de période
-        # (unique_together (eleve, mois_reference) inchangé) ; le
-        # rapprochement avec les cycles reste au mois près (payments.cycles).
-        from .cycles import cycle_courant
+        # Chantier « Paiement unique » du 2026-09-03 : payer plusieurs mois =
+        # UN SEUL Paiement (montant total, 1 justificatif, 1 validation), avec
+        # `nb_mois_couverts` = nombre de mois couverts d'affilée. L'élève
+        # CHOISIT sa date de début (`date_debut`, éditable, pré-remplie avec le
+        # début de son cycle d'abonnement ouvert). Le rapprochement avec les
+        # CycleAbonnement se fait au mois près sur la fenêtre couverte
+        # (payments.cycles.mois_couverts).
+        from .cycles import cycle_courant, _ajouter_mois, mois_couverts
 
         cycle_ouvert = cycle_courant(eleve)
-        depart_periode = cycle_ouvert.date_debut if cycle_ouvert else timezone.localdate()
+        defaut_debut = cycle_ouvert.date_debut if cycle_ouvert else timezone.localdate()
+
+        try:
+            date_debut = datetime.date.fromisoformat(request.POST.get('date_debut', ''))
+        except (ValueError, TypeError):
+            date_debut = defaut_debut  # tolérant : champ vide/invalide -> défaut
 
         try:
             nb_mois = int(request.POST.get('nb_mois', ''))
         except (ValueError, TypeError):
             messages.error(request, gettext_('يرجى اختيار عدد الأشهر التي تريد دفعها.'))
             return redirect('eleve_paiements')
-
         if nb_mois < 1:
             messages.error(request, gettext_('يرجى اختيار عدد الأشهر التي تريد دفعها.'))
             return redirect('eleve_paiements')
@@ -112,17 +100,8 @@ def eleve_paiements(request):
             )
             return redirect('eleve_paiements')
 
-        mois_periode = _periodes_a_payer(depart_periode, nb_mois)
-
-        # Montant TOTAL saisi par l'élève (chantier du 2026-09-03 : les
-        # abonnements n'ont pas tous le même prix mensuel — l'élève connaît la
-        # somme qu'il a virée, pas forcément le prix au mois). Réparti à parts
-        # égales sur les `nb_mois` périodes : chaque Paiement porte
-        # `montant_total / nb_mois` arrondi au centime. L'arrondi peut faire
-        # varier la somme enregistrée de quelques centimes par rapport à la
-        # saisie (négligeable en dirham, l'admin valide de toute façon à la
-        # main) — en échange tous les Paiement frères gardent le MÊME montant
-        # (regroupement du lot sur la fiche admin, voir admin_paiement_detail).
+        # Montant TOTAL viré (les abonnements n'ont pas tous le même prix
+        # mensuel — l'élève connaît la somme, pas forcément le prix au mois).
         try:
             montant_total = Decimal(str(request.POST.get('montant', ''))).quantize(Decimal('0.01'))
         except (InvalidOperation, TypeError, ValueError, ArithmeticError):
@@ -131,65 +110,54 @@ def eleve_paiements(request):
         if montant_total <= 0:
             messages.error(request, gettext_('يرجى إدخال المبلغ الإجمالي المدفوع.'))
             return redirect('eleve_paiements')
-        montant_par_mois = (montant_total / nb_mois).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-        # Fichier lu UNE SEULE FOIS (chantier du 2026-08-24) : le même
-        # justificatif peut couvrir plusieurs mois -> plusieurs Paiement
-        # distincts, chacun avec sa PROPRE copie du fichier (ContentFile,
-        # jamais le même objet UploadedFile réutilisé directement sur
-        # plusieurs .save() — son flux serait déjà épuisé après la 1ère
-        # écriture).
-        screenshot_upload = request.FILES.get('screenshot')
-        contenu_screenshot = screenshot_upload.read() if screenshot_upload else None
+        # Chevauchement : un des mois visés est-il déjà couvert par un Paiement
+        # existant NON rejeté ? (on ne redemande jamais un mois déjà payé/en
+        # cours de revue). Un Paiement `rejete` ne couvre rien -> re-payable.
+        mois_vises = mois_couverts(date_debut, nb_mois)
+        mois_deja = set()
+        for mr, nb in Paiement.objects.filter(eleve=eleve).exclude(statut='rejete').values_list(
+            'mois_reference', 'nb_mois_couverts'
+        ):
+            mois_deja |= mois_couverts(mr, nb)
+        if mois_vises & mois_deja:
+            messages.error(request, gettext_('بعض الأشهر المختارة مسجَّلة مسبقاً — اختر تاريخ بداية أو عدد أشهر مختلفاً.'))
+            return redirect('eleve_paiements')
 
+        # Anti-double-soumission : même total + même début envoyés il y a moins
+        # de FENETRE_ANTI_DOUBLON_SECONDES = rejeu du même clic.
         seuil_anti_doublon = timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_SECONDES)
-        mois_crees, mois_deja_existants = [], []
-        for mois in mois_periode:
-            # Idempotent par construction : un mois déjà enregistré (peu
-            # importe son statut — قيد المراجعة/مقبول/مرفوض, la contrainte
-            # unique_together interdit de toute façon un 2e Paiement pour ce
-            # même mois) est simplement ignoré, jamais une IntegrityError non
-            # rattrapée. La fenêtre anti-doublon (FENETRE_ANTI_DOUBLON_SECONDES)
-            # reste la protection contre un VRAI double-clic quasi-simultané
-            # sur un mois pas encore visible par ce check.
-            deja_present = Paiement.objects.filter(
-                eleve=eleve, mois_reference__year=mois.year, mois_reference__month=mois.month,
-            ).exists()
-            deja_soumis_a_linstant = Paiement.objects.filter(
-                eleve=eleve, montant=montant_par_mois, mois_reference=mois, date__gte=seuil_anti_doublon,
-            ).exists()
-            if deja_present or deja_soumis_a_linstant:
-                mois_deja_existants.append(mois)
-                continue
+        if Paiement.objects.filter(
+            eleve=eleve, montant=montant_total, mois_reference=date_debut, date__gte=seuil_anti_doublon,
+        ).exists():
+            messages.info(request, gettext_('تم استلام هذه الدفعة بالفعل.'))
+            return redirect('eleve_paiements')
 
-            paiement = Paiement(eleve=eleve, montant=montant_par_mois, mois_reference=mois)
-            if contenu_screenshot is not None:
-                paiement.screenshot.save(screenshot_upload.name, ContentFile(contenu_screenshot), save=False)
-            paiement.save()
-            mois_crees.append(paiement)
+        paiement = Paiement(
+            eleve=eleve, montant=montant_total, mois_reference=date_debut, nb_mois_couverts=nb_mois,
+        )
+        screenshot_upload = request.FILES.get('screenshot')
+        if screenshot_upload is not None:
+            paiement.screenshot.save(
+                screenshot_upload.name, ContentFile(screenshot_upload.read()), save=False,
+            )
+        paiement.save()
 
-        if mois_crees:
-            lignes_mois = '\n'.join(
-                f'— {mois_annee_ar(p.mois_reference)} : {p.montant} د.م. '
-                f'({request.build_absolute_uri(reverse("admin_paiement_detail", args=[p.id]))})'
-                for p in mois_crees
+        fin_periode = _ajouter_mois(date_debut, nb_mois)
+        envoyer_notification_telegram_async(
+            f'💰 دفعة جديدة بانتظار المراجعة\n'
+            f'الطالب: {eleve.user.get_full_name()}\n'
+            f'— {mois_annee_ar(date_debut)} → {mois_annee_ar(fin_periode)} '
+            f'({nb_mois} شهر) : {montant_total} د.م. '
+            f'({request.build_absolute_uri(reverse("admin_paiement_detail", args=[paiement.id]))})'
+        )
+        if nb_mois > 1:
+            messages.success(
+                request,
+                gettext_('تم إرسال إثبات الدفع لـ %(v0)s أشهر بنجاح، سيتم مراجعته من طرف الإدارة.') % {'v0': nb_mois},
             )
-            envoyer_notification_telegram_async(
-                f'💰 دفعة جديدة بانتظار المراجعة\n'
-                f'الطالب: {eleve.user.get_full_name()}\n'
-                f'{lignes_mois}'
-            )
-            if len(mois_crees) > 1:
-                messages.success(
-                    request,
-                    gettext_('تم إرسال إثبات الدفع لـ %(v0)s أشهر (%(v1)s د.م. لكل شهر) بنجاح، سيتم مراجعته من طرف الإدارة.')
-                    % {'v0': len(mois_crees), 'v1': montant_par_mois},
-                )
-            else:
-                messages.success(request, gettext_('تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة.'))
-        if mois_deja_existants:
-            noms = '، '.join(mois_annee_ar(m) for m in mois_deja_existants)
-            messages.info(request, gettext_('الأشهر التالية كانت مسجلة مسبقاً ولم تُرسَل مجدداً: %(v0)s') % {'v0': noms})
+        else:
+            messages.success(request, gettext_('تم إرسال إثبات الدفع بنجاح، سيتم مراجعته من طرف الإدارة.'))
         return redirect('eleve_paiements')
 
     paiements = Paiement.objects.filter(eleve=eleve).order_by('-mois_reference')
@@ -200,17 +168,16 @@ def eleve_paiements(request):
     from dashboard.notifications import marquer_visite
     marquer_visite(request.user, 'paiements_retard')
 
-    # Formulaire « combien de mois » (chantier du 2026-09-03) : la période
-    # commence toujours au début du cycle ouvert (jour d'ancrage), affiché en
-    # lecture seule — l'élève ne choisit que le nombre de mois.
-    from .cycles import cycle_courant, _ajouter_mois
+    # Formulaire (chantier « Paiement unique » du 2026-09-03) : date de début
+    # PRÉ-REMPLIE avec le début du cycle ouvert mais MODIFIABLE par l'élève ;
+    # il choisit aussi le nombre de mois et le montant total.
+    from .cycles import cycle_courant
     cycle_ouvert = cycle_courant(eleve)
     periode_depart = cycle_ouvert.date_debut if cycle_ouvert else timezone.localdate()
     return render(request, 'dashboard/eleve_paiements.html', {
         'eleve': eleve,
         'paiements': paginer(request, paiements, 10),
         'periode_depart': periode_depart,
-        'periode_fin_1mois': _ajouter_mois(periode_depart, 1),
         'nb_mois_max': NB_MOIS_MAX_PAR_PERIODE,
     })
 
@@ -260,33 +227,39 @@ def admin_paiements(request):
 def admin_paiement_detail(request, paiement_id):
     paiement = get_object_or_404(Paiement, id=paiement_id)
 
-    # « الفترة المطلوب دفعها » : un élève peut régler plusieurs mois dans une
-    # même soumission — payments.views.eleve_paiements crée alors un Paiement
-    # par période mensuelle (`mois_reference` = date de DÉBUT de période
-    # depuis le chantier « cycle roulant » du 2026-09-03). Aucune borne de
-    # période n'est stockée : on reconstitue la DURÉE TOTALE demandée en
-    # regroupant les Paiement « frères » de la même soumission (même élève,
-    # même montant, `date` à quelques secondes d'intervalle) et on affiche
-    # seulement le span début → fin exclusive, jamais le détail mois par mois
-    # (demande utilisateur : « juste la durée de la demande, pas l'historique »).
+    # « الفترة المطلوب دفعها » : durée totale de la demande (span début → fin
+    # exclusive), jamais le détail mois par mois.
+    # - Cas courant (chantier « Paiement unique » du 2026-09-03) : UN Paiement
+    #   porte `nb_mois_couverts` -> la période est `mois_reference` →
+    #   `_ajouter_mois(mois_reference, nb_mois_couverts)`, lue direct.
+    # - Fallback LEGACY (paiements d'avant la migration 0011, créés en un
+    #   Paiement PAR mois) : on regroupe les « frères » de la même soumission
+    #   (même élève, même montant, `date` à ±120 s) pour reconstituer le span.
     from .cycles import _ajouter_mois
 
-    fenetre = datetime.timedelta(seconds=120)
-    lot = list(
-        Paiement.objects.filter(
-            eleve=paiement.eleve,
-            montant=paiement.montant,
-            date__gte=paiement.date - fenetre,
-            date__lte=paiement.date + fenetre,
-        ).order_by('mois_reference')
-    )
-    if paiement not in lot:  # garde-fou : le paiement courant fait toujours partie du lot
-        lot = [paiement]
+    if (paiement.nb_mois_couverts or 1) > 1:
+        periode_debut = paiement.mois_reference
+        periode_fin = _ajouter_mois(paiement.mois_reference, paiement.nb_mois_couverts)
+    else:
+        fenetre = datetime.timedelta(seconds=120)
+        lot = list(
+            Paiement.objects.filter(
+                eleve=paiement.eleve,
+                montant=paiement.montant,
+                nb_mois_couverts=1,
+                date__gte=paiement.date - fenetre,
+                date__lte=paiement.date + fenetre,
+            ).order_by('mois_reference')
+        )
+        if paiement not in lot:  # garde-fou : le paiement courant fait toujours partie du lot
+            lot = [paiement]
+        periode_debut = lot[0].mois_reference
+        periode_fin = _ajouter_mois(lot[-1].mois_reference, 1)
 
     context = {
         'paiement': paiement,
-        'periode_debut': lot[0].mois_reference,
-        'periode_fin': _ajouter_mois(lot[-1].mois_reference, 1),
+        'periode_debut': periode_debut,
+        'periode_fin': periode_fin,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -340,24 +313,29 @@ def suivi_paiements_eleves(request):
     # Tous statuts confondus (pas seulement 'valide') pour que le panneau
     # puisse retrouver/modifier un paiement 'en_attente' ou 'rejete' existant,
     # pas seulement en créer un nouveau par-dessus.
+    # Un Paiement multi-mois (chantier « Paiement unique » du 2026-09-03)
+    # couvre plusieurs cellules (mois_reference .. +nb_mois_couverts) : chaque
+    # cellule couverte pointe vers CE Paiement (clic n'importe où -> même
+    # fiche). mois_couverts étend la fenêtre.
+    from .cycles import _ajouter_mois, mois_couverts
+    from .models import CycleAbonnement
+
     paiement_par_cellule = {}
     for p in paiements_scope:
-        cle = (p.eleve_id, p.mois_reference.year, p.mois_reference.month)
-        paiement_par_cellule[cle] = p
+        for (annee, mois) in mois_couverts(p.mois_reference, p.nb_mois_couverts):
+            paiement_par_cellule[(p.eleve_id, annee, mois)] = p
 
     mois_payes_par_eleve = {}
-    for eleve_id, annee, mois in paiements_scope.filter(statut='valide').values_list(
-        'eleve_id', 'mois_reference__year', 'mois_reference__month'
+    for eleve_id, mr, nb in paiements_scope.filter(statut='valide').values_list(
+        'eleve_id', 'mois_reference', 'nb_mois_couverts'
     ):
-        mois_payes_par_eleve.setdefault(eleve_id, set()).add((annee, mois))
+        mois_payes_par_eleve.setdefault(eleve_id, set()).update(mois_couverts(mr, nb))
 
     # Jour d'ancrage des périodes de chaque élève (chantier « cycle roulant »
     # du 2026-09-03) : la date_debut de son cycle nº 1. Prefetch pour rester à
     # nombre de requêtes constant (jamais O(élèves)). Repli sur date_joined
     # pour un élève sans cycle (cas résiduel : validé avant le backfill 0007,
     # ou données anciennes).
-    from .cycles import _ajouter_mois
-    from .models import CycleAbonnement
     cycles1_qs = CycleAbonnement.objects.filter(numero=1)
     if eleves_scope_ids is not None:
         cycles1_qs = cycles1_qs.filter(eleve_id__in=eleves_scope_ids)
@@ -429,13 +407,20 @@ def suivi_paiements_eleves(request):
             p_annee = p_mois = None
         if panel_eleve and p_annee:
             from .cycles import periode_bornes
-            p_debut, p_fin = periode_bornes(panel_eleve, p_annee, p_mois)
+            paiement_cellule = paiement_par_cellule.get((panel_eleve.id, p_annee, p_mois))
+            if paiement_cellule is not None:
+                # Bornes RÉELLES du Paiement qui couvre cette cellule (peut
+                # s'étendre sur plusieurs mois).
+                p_debut = paiement_cellule.mois_reference
+                p_fin = paiement_cellule.periode_fin
+            else:
+                p_debut, p_fin = periode_bornes(panel_eleve, p_annee, p_mois)
             panel = {
                 'eleve': panel_eleve,
                 'mois': panel_mois,
                 'mois_label': p_debut,
                 'mois_label_fin': p_fin,
-                'paiement': paiement_par_cellule.get((panel_eleve.id, p_annee, p_mois)),
+                'paiement': paiement_cellule,
                 'peut_modifier': request.user.role == 'admin',
             }
 
@@ -475,20 +460,22 @@ def paiement_panel_sauvegarder(request):
         messages.error(request, gettext_('صيغة الشهر غير صحيحة.'))
         return redirect('suivi_paiements_eleves')
 
-    # Retrouve le Paiement existant pour ce mois (peu importe le jour exact de
-    # mois_reference, saisi librement par l'élève à l'origine) plutôt que de
-    # risquer un doublon via get_or_create sur une date arbitraire (le 1er du
-    # mois) qui ne matcherait pas un enregistrement déjà là à un autre jour.
-    paiement = Paiement.objects.filter(
-        eleve=eleve, mois_reference__year=annee, mois_reference__month=mois_num
-    ).first()
+    # Retrouve le Paiement dont la fenêtre couverte (mois_reference ..
+    # +nb_mois_couverts) contient ce mois — un Paiement multi-mois est modifié
+    # EN ENTIER depuis n'importe laquelle de ses cellules.
+    from .cycles import mois_couverts, periode_bornes
+    paiement = next(
+        (
+            p for p in Paiement.objects.filter(eleve=eleve)
+            if (annee, mois_num) in mois_couverts(p.mois_reference, p.nb_mois_couverts)
+        ),
+        None,
+    )
     if paiement is None:
-        # Nouveau Paiement ancré sur le DÉBUT réel de la période de l'élève
-        # (jour d'ancrage 10→10…, chantier du 2026-09-03) et non le 1er du
-        # mois — le rapprochement avec les cycles reste au mois près.
-        from .cycles import periode_bornes
+        # Nouveau Paiement (1 mois) ancré sur le DÉBUT réel de la période de
+        # l'élève (jour d'ancrage 10→10…) et non le 1er du mois.
         debut_periode, _fin = periode_bornes(eleve, annee, mois_num)
-        paiement = Paiement(eleve=eleve, mois_reference=debut_periode)
+        paiement = Paiement(eleve=eleve, mois_reference=debut_periode, nb_mois_couverts=1)
 
     paiement.montant = request.POST.get('montant') or 0
     nouveau_statut = request.POST.get('statut', 'en_attente')
