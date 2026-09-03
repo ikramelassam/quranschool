@@ -8367,3 +8367,25 @@ msgstr "The message text cannot be empty."
 
 msgid "تم تحديث نص رسالة التذكير بنجاح."
 msgstr "The reminder message text has been updated."
+
+msgid "يرجى اختيار عدد الأشهر التي تريد دفعها."
+msgstr "Please choose how many months you want to pay."
+
+msgid "بداية الفترة"
+msgstr "Period start"
+
+msgid "تُحتسب فترتك من هذا التاريخ (لا يمكن تغييره)."
+msgstr "Your period is calculated from this date (cannot be changed)."
+
+msgid "عدد الأشهر المدفوعة"
+msgstr "Number of months paid"
+
+#, python-format
+msgid "شهر واحد = من %(debut)s إلى %(fin)s. اختر أكثر من شهر لدفع عدة أشهر دفعة واحدة."
+msgstr "One month = from %(debut)s to %(fin)s. Choose more than one month to pay several at once."
+
+msgid "المبلغ لكل شهر (درهم)"
+msgstr "Amount per month (dirham)"
+
+msgid "فترات اشتراك كل طالب محسوبة من يوم تسجيله (مثلاً 10 إلى 10) — اضغط على أي فترة للاطلاع على الدفعة أو إدارتها"
+msgstr "Each student's subscription periods are counted from their enrollment day (e.g. 10th to 10th) — click a period to view or manage the payment."

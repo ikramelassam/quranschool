@@ -77,46 +77,56 @@ class CycleAbonnementTests(TestCase):
         )
         self.assertFalse(cycles.est_en_retard(self.eleve))
 
-    def test_paiement_valide_fait_avancer_le_cycle(self):
+    def test_paiement_valide_fait_avancer_le_cycle_dun_mois_ancre(self):
         cycles.demarrer_cycles(self.eleve)
         cycle1 = cycles.cycle_courant(self.eleve)
+        ancre = cycle1.date_debut
+        # Paiement du mois de début de la période, jour arbitraire.
         Paiement.objects.create(
             eleve=self.eleve, montant=80,
-            mois_reference=cycle1.date_debut.replace(day=15), statut='valide',
+            mois_reference=ancre.replace(day=min(ancre.day + 3, 28)), statut='valide',
         )
         cycles.reconcilier(self.eleve)
         cycle1.refresh_from_db()
         self.assertTrue(cycle1.regle)
         cycle2 = cycles.cycle_courant(self.eleve)
         self.assertEqual(cycle2.numero, 2)
-        self.assertEqual(cycle2.date_debut, cycle1.date_fin_couverte + datetime.timedelta(days=1))
-        self.assertEqual(cycle2.date_echeance, cycle1.date_fin_couverte + datetime.timedelta(days=10))
+        # Période roulante : le cycle suivant démarre exactement un mois après
+        # l'ancrage (10 → 10), pas au 1er du mois calendaire.
+        self.assertEqual(cycle2.date_debut, cycles._ajouter_mois(ancre, 1))
+        self.assertEqual(cycle1.date_fin_couverte, cycles._ajouter_mois(ancre, 1) - datetime.timedelta(days=1))
+        self.assertEqual(cycle2.date_echeance, cycle2.date_debut + datetime.timedelta(days=10))
         self.assertEqual(cycle1.montant_regle, 80)
 
-    def test_couverture_multi_mois_contigus_credite_jusquau_dernier(self):
+    def test_payer_plusieurs_mois_regle_plusieurs_cycles_a_la_file(self):
         cycles.demarrer_cycles(self.eleve)
-        cycle1 = cycles.cycle_courant(self.eleve)
+        ancre = cycles.cycle_courant(self.eleve).date_debut
         for i in range(3):
             Paiement.objects.create(
                 eleve=self.eleve, montant=80,
-                mois_reference=_mois_decale(cycle1.date_debut, i).replace(day=5), statut='valide',
+                mois_reference=_mois_decale(ancre, i).replace(day=5), statut='valide',
             )
         cycles.reconcilier(self.eleve)
-        cycle1.refresh_from_db()
-        troisieme_mois = _mois_decale(cycle1.date_debut, 2)
-        self.assertEqual(cycle1.date_fin_couverte.month, troisieme_mois.month)
-        self.assertEqual(cycle1.date_fin_couverte.year, troisieme_mois.year)
+        # 3 périodes réglées -> le cycle ouvert est le nº 4, ancré à +3 mois.
+        courant = cycles.cycle_courant(self.eleve)
+        self.assertEqual(courant.numero, 4)
+        self.assertEqual(courant.date_debut, cycles._ajouter_mois(ancre, 3))
+        self.assertEqual(
+            self.eleve.cycles_abonnement.filter(regle=True).count(), 3
+        )
 
     def test_trou_dans_la_couverture_ne_credite_pas_au_dela(self):
         cycles.demarrer_cycles(self.eleve)
-        cycle1 = cycles.cycle_courant(self.eleve)
-        m0 = cycle1.date_debut
-        Paiement.objects.create(eleve=self.eleve, montant=80, mois_reference=_mois_decale(m0, 0).replace(day=3), statut='valide')
-        Paiement.objects.create(eleve=self.eleve, montant=80, mois_reference=_mois_decale(m0, 2).replace(day=3), statut='valide')
+        ancre = cycles.cycle_courant(self.eleve).date_debut
+        # Période 1 payée, période 2 sautée, période 3 payée.
+        Paiement.objects.create(eleve=self.eleve, montant=80, mois_reference=_mois_decale(ancre, 0).replace(day=3), statut='valide')
+        Paiement.objects.create(eleve=self.eleve, montant=80, mois_reference=_mois_decale(ancre, 2).replace(day=3), statut='valide')
         cycles.reconcilier(self.eleve)
-        cycle1.refresh_from_db()
-        self.assertTrue(cycle1.regle)
-        self.assertEqual(cycle1.date_fin_couverte.month, _mois_decale(m0, 0).month)
+        # Seule la période 1 est réglée ; le cycle ouvert reste la période 2.
+        self.assertEqual(self.eleve.cycles_abonnement.filter(regle=True).count(), 1)
+        courant = cycles.cycle_courant(self.eleve)
+        self.assertEqual(courant.numero, 2)
+        self.assertEqual(courant.date_debut, cycles._ajouter_mois(ancre, 1))
 
     def test_redemarrer_cycle_courant_reporte_lecheance_a_aujourdhui(self):
         cycles.demarrer_cycles(self.eleve)

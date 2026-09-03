@@ -107,19 +107,23 @@ class CycleAbonnement(models.Model):
     """Suivi des échéances de paiement de l'abonnement d'un élève — chantier
     « relances de paiement » du 2026-09-01.
 
-    RÈGLE D'ÉCHÉANCE (décidée par le client) :
+    RÈGLE D'ÉCHÉANCE (décidée par le client) — PÉRIODES ROULANTES ancrées sur
+    le jour d'inscription (chantier du 2026-09-03, en remplacement du découpage
+    en mois calendaires) :
     - Cycle 1 : créé à la validation de l'inscription (dashboard.views.
       admin_valider_eleve) ou au désarchivage (admin_eleve_reactiver).
-      `date_debut` = ce jour-là, `date_echeance` = `date_debut +
-      ParametresInscriptions.delai_paiement_jours` (10 par défaut).
-    - Cycle N+1 : créé quand le cycle N est réglé. L'élève paie une « durée
-      libre » via le sélecteur de période de sa page (payments.views.
-      eleve_paiements, INCHANGÉE par ce chantier — un Paiement par mois de la
-      période). La couverture réelle = la suite CONTIGUË de mois ayant un
-      Paiement `valide` à partir du 1er mois du cycle. `date_fin_couverte` =
-      dernier jour du dernier mois couvert ; `date_debut` du cycle suivant =
-      lendemain ; `date_echeance` = `date_fin_couverte + delai_paiement_jours`
-      (« 10 jours après la date finale de paiement »).
+      `date_debut` = ce jour-là (= jour d'ancrage de TOUTES les périodes),
+      `date_echeance` = `date_debut + ParametresInscriptions.
+      delai_paiement_jours` (10 par défaut).
+    - Cycle N = période N = `date_debut(cycle 1) + (N-1) mois` (élève inscrit
+      le 10 -> 10→10, 10→10…). Cycle N réglé dès qu'un Paiement `valide` porte
+      sur le MOIS de début de sa période (mois_reference au mois près) ; le
+      cycle N+1 est alors ouvert avec `date_debut = date_debut(cycle 1) + N
+      mois` et `date_echeance = date_debut + delai_paiement_jours`.
+      `date_fin_couverte` du cycle réglé = veille du début de la période
+      suivante. L'élève choisit COMBIEN de mois il règle (payments.views.
+      eleve_paiements), pas leur date de début — chaque mois payé règle un
+      cycle de plus, à la file.
 
     EN RETARD (calculé à la volée, jamais stocké — voir payments.cycles.
     est_en_retard) : `aujourd'hui > cycle_courant.date_echeance` ET aucun
