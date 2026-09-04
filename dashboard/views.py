@@ -1296,7 +1296,7 @@ def programme_general_detail(request):
     - مؤطر : même logique, agrégée sur tous ses profs assignés (Tâche 22) — plus
       "toujours les deux" comme avant, désormais cohérent avec prof/élève.
     """
-    from accounts.models import get_programme_general, Prof
+    from accounts.models import get_programme_general, Prof, ProgrammeGeneralParSeances
     from courses.utils import tranche_age_depuis_naissance
 
     programme = get_programme_general()
@@ -1312,6 +1312,25 @@ def programme_general_detail(request):
                         tranches.add(tranche_age_depuis_naissance(eleve.inscription.date_naissance))
         return tranches
 
+    def _paires_tranche_nb_slots_par(groupes_qs):
+        """(tranche_age, nb_slots) réellement présentes dans ces groupes actifs —
+        voir ProgrammeGeneralParSeances.__doc__. nb_slots = groupe.creneau.slots.
+        count() (seule source de vérité du nombre de séances/semaine, voir
+        courses.models.CreneauSlot.__doc__) ; groupe sans créneau/sans slot ignoré
+        (rien à apparier)."""
+        paires = set()
+        for groupe in groupes_qs:
+            nb_slots = groupe.creneau.slots.count() if groupe.creneau_id else 0
+            if not nb_slots:
+                continue
+            for eleve in groupe.eleves.filter(statut='actif').select_related('inscription'):
+                if eleve.inscription and eleve.inscription.date_naissance:
+                    tranche = tranche_age_depuis_naissance(eleve.inscription.date_naissance)
+                    paires.add((tranche, nb_slots))
+        return paires
+
+    paires_seances = set()
+
     if request.user.role == 'eleve':
         from accounts.models import Eleve
 
@@ -1320,6 +1339,10 @@ def programme_general_detail(request):
             tranche = tranche_age_depuis_naissance(eleve.inscription.date_naissance)
             montrer_enfants = tranche == 'enfant'
             montrer_adultes = tranche == 'adulte'
+            for groupe in eleve.groupes.filter(statut='actif'):
+                nb_slots = groupe.creneau.slots.count() if groupe.creneau_id else 0
+                if nb_slots:
+                    paires_seances.add((tranche, nb_slots))
         # Âge inconnu (dossier sans date de naissance) : les deux versions restent
         # affichées plutôt que de masquer silencieusement l'information.
 
@@ -1331,9 +1354,11 @@ def programme_general_detail(request):
             montrer_adultes = 'adulte' in tranches_enseignees
         # Aucun élève avec âge connu (nouveau prof, groupes vides...) : les deux
         # versions restent affichées, même principe que pour l'élève ci-dessus.
+        paires_seances = _paires_tranche_nb_slots_par(prof.groupes.filter(statut='actif'))
 
     elif request.user.role == 'superviseur':
         from accounts.models import Superviseur
+        from courses.models import Groupe
 
         superviseur = get_object_or_404(Superviseur, user=request.user)
         tranches_enseignees = _tranches_enseignees_par(superviseur.profs_assignes.all())
@@ -1342,6 +1367,20 @@ def programme_general_detail(request):
             montrer_adultes = 'adulte' in tranches_enseignees
         # Aucun prof assigné, ou aucun élève avec âge connu chez eux : les deux
         # versions restent affichées, même principe que pour prof/élève.
+        paires_seances = _paires_tranche_nb_slots_par(
+            Groupe.objects.filter(statut='actif', prof__in=superviseur.profs_assignes.all())
+        )
+
+    if paires_seances:
+        versions_seances = [
+            v for v in ProgrammeGeneralParSeances.objects.all().order_by('tranche_age', 'nb_slots')
+            if (v.tranche_age, v.nb_slots) in paires_seances
+        ]
+    else:
+        # Aucune combinaison connue (groupe sans créneau, élève sans âge...) :
+        # toutes les versions restent affichées, jamais rien caché sans raison
+        # (même principe que montrer_enfants/montrer_adultes ci-dessus).
+        versions_seances = list(ProgrammeGeneralParSeances.objects.all().order_by('tranche_age', 'nb_slots'))
 
     base_template = {
         'prof': 'dashboard/base_prof.html',
@@ -1353,6 +1392,7 @@ def programme_general_detail(request):
         'programme': programme,
         'montrer_enfants': montrer_enfants,
         'montrer_adultes': montrer_adultes,
+        'versions_seances': versions_seances,
         'base_template': base_template,
     })
 
@@ -1374,12 +1414,80 @@ def admin_programme_general(request):
         messages.success(request, gettext_('تم تحديث البرنامج العام بنجاح.'))
         return redirect('admin_programme_general')
 
+    from accounts.models import ProgrammeGeneralParSeances
+    from courses.models import OptionNbSeances
+
+    versions = ProgrammeGeneralParSeances.objects.all().order_by('tranche_age', 'nb_slots')
     context = {
         'programme': programme,
+        'versions_par_seances_par_tranche': {
+            'enfant': [v for v in versions if v.tranche_age == 'enfant'],
+            'adulte': [v for v in versions if v.tranche_age == 'adulte'],
+        },
+        'options_nb_seances': OptionNbSeances.objects.filter(est_actif=True),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_programme_general.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_programme_general_par_seances_ajouter(request):
+    """Ajoute (ou récupère si déjà existante) une version (tranche_age, nb_slots)
+    du البرنامج العام — POST only, même patron que
+    admin_tarif_remuneration_groupe_ajouter. nb_slots revalidé contre le
+    catalogue OptionNbSeances actif — jamais une valeur libre."""
+    from accounts.models import ProgrammeGeneralParSeances
+    from courses.models import OptionNbSeances
+
+    if request.method == 'POST':
+        tranche_age = request.POST.get('tranche_age')
+        nb_slots_brut = request.POST.get('nb_slots')
+        valeurs_actives = set(OptionNbSeances.objects.filter(est_actif=True).values_list('valeur', flat=True))
+        try:
+            nb_slots = int(nb_slots_brut)
+        except (TypeError, ValueError):
+            nb_slots = None
+        if tranche_age not in ('enfant', 'adulte') or nb_slots not in valeurs_actives:
+            messages.error(request, gettext_('بيانات غير صالحة — تحقق من الفئة العمرية وعدد الحصص.'))
+        else:
+            version, _cree = ProgrammeGeneralParSeances.objects.get_or_create(
+                tranche_age=tranche_age, nb_slots=nb_slots,
+            )
+            return redirect('admin_programme_general_par_seances_modifier', version.id)
+    return redirect('admin_programme_general')
+
+
+@role_required('admin', 'mshrif')
+def admin_programme_general_par_seances_modifier(request, version_id):
+    from accounts.models import ProgrammeGeneralParSeances
+    version = get_object_or_404(ProgrammeGeneralParSeances, id=version_id)
+
+    if request.method == 'POST':
+        for champ in version._CHAMPS_LOCALISABLES:
+            setattr(version, champ, request.POST.get(champ, ''))
+            setattr(version, f'{champ}_fr', request.POST.get(f'{champ}_fr', ''))
+            setattr(version, f'{champ}_en', request.POST.get(f'{champ}_en', ''))
+        version.save()
+        messages.success(request, gettext_('تم تحديث البرنامج العام بنجاح.'))
+        return redirect('admin_programme_general')
+
+    context = {
+        'version': version,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_programme_general_par_seances_modifier.html', context)
+
+
+@role_required('admin', 'mshrif')
+def admin_programme_general_par_seances_supprimer(request, version_id):
+    from accounts.models import ProgrammeGeneralParSeances
+    version = get_object_or_404(ProgrammeGeneralParSeances, id=version_id)
+    if request.method == 'POST':
+        version.delete()
+        messages.success(request, gettext_('تم حذف هذه النسخة من البرنامج العام.'))
+    return redirect('admin_programme_general')
 
 
 @role_required('admin', 'mshrif')

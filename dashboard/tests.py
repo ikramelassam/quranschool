@@ -6721,6 +6721,140 @@ class ProgrammeGeneralLocaliseTests(TestCase):
         self.assertIn('Intro FR', contenu)
 
 
+# ============================================================================
+# Chantier "diviser le برنامج عام selon le nombre de séances" (demande directe
+# du client, 2026-09-04) — accounts.ProgrammeGeneralParSeances s'AJOUTE à
+# ProgrammeGeneral (âge seul) : élève/prof/مؤطر voient la version qui
+# correspond au nombre de séances/semaine RÉEL de leurs groupes actifs.
+# ============================================================================
+class ProgrammeGeneralParSeancesTests(TestCase):
+    def setUp(self):
+        self.admin = _creer_admin()
+
+    def _creneau_n_slots(self, n, age_min=6, age_max=60):
+        creneau = Creneau.objects.create(
+            sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=age_min, age_max=age_max,
+        )
+        jours = ['lun', 'mar', 'mer', 'jeu', 'ven']
+        remplacer_slots_creneau(creneau, [
+            {'jour': jours[i], 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}
+            for i in range(n)
+        ])
+        return creneau
+
+    def test_admin_ajoute_puis_edite_une_version_par_nb_seances(self):
+        from courses.models import OptionNbSeances
+        from accounts.models import ProgrammeGeneralParSeances
+
+        OptionNbSeances.objects.get_or_create(valeur=2, defaults={'ordre': 2})
+        self.client.force_login(self.admin)
+
+        self.client.post(reverse('admin_programme_general_par_seances_ajouter'), {
+            'tranche_age': 'enfant', 'nb_slots': '2',
+        })
+        version = ProgrammeGeneralParSeances.objects.get(tranche_age='enfant', nb_slots=2)
+
+        self.client.post(reverse('admin_programme_general_par_seances_modifier', args=[version.id]), {
+            'titre': 'برنامج حصتين', 'titre_fr': 'Programme 2 séances', 'titre_en': '',
+            'intro': 'مقدمة', 'intro_fr': '', 'intro_en': '',
+            'items': 'نقطة 1', 'items_fr': '', 'items_en': '',
+        })
+        version.refresh_from_db()
+        self.assertEqual(version.titre, 'برنامج حصتين')
+        self.assertEqual(version.titre_fr, 'Programme 2 séances')
+
+    def test_nb_slots_hors_catalogue_refuse(self):
+        from accounts.models import ProgrammeGeneralParSeances
+        self.client.force_login(self.admin)
+        self.client.post(reverse('admin_programme_general_par_seances_ajouter'), {
+            'tranche_age': 'enfant', 'nb_slots': '99',
+        })
+        self.assertFalse(ProgrammeGeneralParSeances.objects.filter(nb_slots=99).exists())
+
+    def test_eleve_voit_la_version_correspondant_a_son_groupe(self):
+        from accounts.models import ProgrammeGeneralParSeances
+
+        ProgrammeGeneralParSeances.objects.create(
+            tranche_age='enfant', nb_slots=2, titre='برنامج حصتين للأطفال',
+        )
+        ProgrammeGeneralParSeances.objects.create(
+            tranche_age='enfant', nb_slots=3, titre='برنامج ثلاث حصص للأطفال',
+        )
+        eleve = _creer_eleve('eleve_pg_seances@zidni.test')
+        inscription = InscriptionEleve.objects.create(
+            nom='طالب اختبار', date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+            telephone='+212600000000', email='eleve_pg_seances@zidni.test',
+        )
+        eleve.inscription = inscription
+        eleve.save()
+        creneau = self._creneau_n_slots(2)
+        groupe = Groupe.objects.create(nom='مجموعة حصتين', creneau=creneau, statut='actif')
+        groupe.eleves.add(eleve)
+
+        self.client.force_login(eleve.user)
+        r = self.client.get(reverse('programme_general_detail'))
+        contenu = r.content.decode('utf-8')
+        self.assertIn('برنامج حصتين للأطفال', contenu)
+        self.assertNotIn('برنامج ثلاث حصص للأطفال', contenu)
+
+    def test_prof_voit_les_versions_de_tous_ses_groupes(self):
+        from accounts.models import ProgrammeGeneralParSeances
+
+        ProgrammeGeneralParSeances.objects.create(
+            tranche_age='enfant', nb_slots=1, titre='نسخة حصة واحدة',
+        )
+        ProgrammeGeneralParSeances.objects.create(
+            tranche_age='adulte', nb_slots=2, titre='نسخة حصتين للبالغين',
+        )
+        ProgrammeGeneralParSeances.objects.create(
+            tranche_age='adulte', nb_slots=1, titre='نسخة غير مرتبطة بأي مجموعة',
+        )
+        prof = _creer_prof('prof_pg_seances@zidni.test')
+
+        enfant = _creer_eleve('eleve_enfant_pg@zidni.test')
+        ins_enfant = InscriptionEleve.objects.create(
+            nom='طفل', date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+            telephone='+212600000001', email='eleve_enfant_pg@zidni.test',
+        )
+        enfant.inscription = ins_enfant
+        enfant.save()
+        groupe_enfant = Groupe.objects.create(
+            nom='مجموعة الأطفال', creneau=self._creneau_n_slots(1), prof=prof, statut='actif',
+        )
+        groupe_enfant.eleves.add(enfant)
+
+        adulte = _creer_eleve('eleve_adulte_pg@zidni.test')
+        ins_adulte = InscriptionEleve.objects.create(
+            nom='بالغ', date_naissance=datetime.date(1990, 1, 1), sexe='homme',
+            telephone='+212600000002', email='eleve_adulte_pg@zidni.test',
+        )
+        adulte.inscription = ins_adulte
+        adulte.save()
+        groupe_adulte = Groupe.objects.create(
+            nom='مجموعة البالغين', creneau=self._creneau_n_slots(2), prof=prof, statut='actif',
+        )
+        groupe_adulte.eleves.add(adulte)
+
+        self.client.force_login(prof.user)
+        r = self.client.get(reverse('programme_general_detail'))
+        contenu = r.content.decode('utf-8')
+        self.assertIn('نسخة حصة واحدة', contenu)
+        self.assertIn('نسخة حصتين للبالغين', contenu)
+        self.assertNotIn('نسخة غير مرتبطة بأي مجموعة', contenu)
+
+    def test_aucune_combinaison_connue_montre_toutes_les_versions(self):
+        from accounts.models import ProgrammeGeneralParSeances
+
+        ProgrammeGeneralParSeances.objects.create(tranche_age='enfant', nb_slots=1, titre='نسخة أ')
+        ProgrammeGeneralParSeances.objects.create(tranche_age='adulte', nb_slots=3, titre='نسخة ب')
+        prof = _creer_prof('prof_pg_sans_groupe@zidni.test')
+        self.client.force_login(prof.user)
+        r = self.client.get(reverse('programme_general_detail'))
+        contenu = r.content.decode('utf-8')
+        self.assertIn('نسخة أ', contenu)
+        self.assertIn('نسخة ب', contenu)
+
+
 class RenduReelFrEnTemplatesAdminTests(TestCase):
     """Chantier i18n du 2026-08-29 (audit مدير/مشرف, fin de chantier) —
     contrairement aux tests {% trans %}/gettext_lazy déjà présents ailleurs

@@ -593,6 +593,78 @@ def get_programme_general():
     return programme
 
 
+class ProgrammeGeneralParSeances(models.Model):
+    """Contenu du البرنامج العام qui S'AJOUTE à ProgrammeGeneral (âge seul,
+    ci-dessus) — chantier "diviser le programme selon le nombre de séances"
+    (demande directe du client, 2026-09-04). 1 ligne par combinaison
+    (tranche_age, nb_slots), extensible SANS migration de schéma — même
+    patron que courses.models.TarifRemunerationGroupe : nb_slots revalidé
+    côté serveur contre courses.models.OptionNbSeances actif à chaque
+    écriture (dashboard.views.admin_programme_general_par_seances_ajouter),
+    jamais une valeur libre. Import de courses.models impossible ICI
+    (import circulaire : courses.models importe déjà accounts.models) — la
+    validation vit donc dans la vue, pas dans ce modèle, comme pour
+    TarifRemunerationGroupe.
+
+    Affichage : élève/prof/مؤطر voient les versions correspondant aux
+    combinaisons (tranche_age, nb_slots) réellement présentes dans leurs
+    groupes actifs (nb_slots = groupe.creneau.slots.count()), voir
+    dashboard.views.programme_general_detail — même esprit que le filtrage
+    par âge déjà en place sur ProgrammeGeneral, jamais rien caché sans
+    combinaison connue."""
+    TRANCHE_AGE_CHOICES = [
+        ('enfant', _('طفل')),
+        ('adulte', _('بالغ')),
+    ]
+
+    tranche_age = models.CharField(max_length=10, choices=TRANCHE_AGE_CHOICES)
+    nb_slots = models.PositiveSmallIntegerField()
+
+    titre = models.CharField(max_length=200, blank=True)
+    intro = models.TextField(blank=True)
+    items = models.TextField(blank=True)
+    titre_fr = models.CharField(max_length=200, blank=True, default='')
+    titre_en = models.CharField(max_length=200, blank=True, default='')
+    intro_fr = models.TextField(blank=True, default='')
+    intro_en = models.TextField(blank=True, default='')
+    items_fr = models.TextField(blank=True, default='')
+    items_en = models.TextField(blank=True, default='')
+
+    date_modification = models.DateTimeField(auto_now=True)
+
+    _CHAMPS_LOCALISABLES = ('titre', 'intro', 'items')
+
+    def __str__(self):
+        return f"{self.get_tranche_age_display()} — {self.nb_slots} حصص/أسبوع"
+
+    def _localise(self, champ_base):
+        """Repli langue active -> arabe — voir ProgrammeGeneral._localise."""
+        langue = get_language()
+        if langue in ('fr', 'en'):
+            valeur = getattr(self, f'{champ_base}_{langue}', '')
+            if valeur:
+                return valeur
+        return getattr(self, champ_base)
+
+    @property
+    def titre_localise(self):
+        return self._localise('titre')
+
+    @property
+    def intro_localise(self):
+        return self._localise('intro')
+
+    @property
+    def items_localise(self):
+        return self._localise('items')
+
+    class Meta:
+        unique_together = ('tranche_age', 'nb_slots')
+        ordering = ['tranche_age', 'nb_slots']
+        verbose_name = "Programme général (par nombre de séances)"
+        verbose_name_plural = "Programme général (par nombre de séances)"
+
+
 class LogoConfig(models.Model):
     """Logo de la plateforme, modifiable UNIQUEMENT par le المشرف (mshrif_logo) — une
     fois uploadé, remplace automatiquement le logo par défaut partout (header,

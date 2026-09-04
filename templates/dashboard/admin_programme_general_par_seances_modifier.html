@@ -1,0 +1,59 @@
+{% extends base_template %}
+{% load i18n %}
+{% block title %}{% trans "البرنامج العام" %}{% endblock %}
+{% block content %}
+<style>
+.pgs-field-label { color:#888; font-size:0.8rem; margin-bottom:4px; display:block; }
+.pgs-field-hint { color:#aaa; font-size:0.75rem; margin-bottom:8px; }
+.pgs-card { background:white; border-radius:12px; padding:20px 24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:18px; max-width:900px; }
+.pgs-card input[type=text], .pgs-card textarea {
+    width:100%; border:1px solid #ddd; border-radius:8px; padding:8px 12px;
+    font-family:'Tajawal',sans-serif; margin-bottom:14px;
+}
+.pgs-card textarea { line-height:1.7; }
+.pgs-lang-tag { display:inline-block; font-size:0.72rem; color:#999; margin:2px 0; }
+</style>
+
+<div class="page-title">
+    {% if version.tranche_age == 'enfant' %}{% trans "الأطفال" %}{% else %}{% trans "البالغون" %}{% endif %}
+    — {% blocktrans with n=version.nb_slots %}{{ n }} حصص/أسبوع{% endblocktrans %}
+</div>
+<a href="{% url 'admin_programme_general' %}" style="color:#888; font-size:0.85rem;">← {% trans "العودة إلى البرنامج العام" %}</a>
+
+<form method="POST" style="margin-top:16px;">
+    {% csrf_token %}
+    <div class="pgs-card">
+        <label class="pgs-field-label">{% trans "عنوان البرنامج" %}</label>
+        <span class="pgs-lang-tag">🇸🇦 AR</span>
+        <input type="text" name="titre" value="{{ version.titre }}">
+        <span class="pgs-lang-tag">🇫🇷 FR</span>
+        <input type="text" name="titre_fr" value="{{ version.titre_fr }}">
+        <span class="pgs-lang-tag">🇬🇧 EN</span>
+        <input type="text" name="titre_en" value="{{ version.titre_en }}">
+
+        <label class="pgs-field-label">{% trans "مقدّمة" %}</label>
+        <span class="pgs-lang-tag">🇸🇦 AR</span>
+        <textarea name="intro" rows="4">{{ version.intro }}</textarea>
+        <span class="pgs-lang-tag">🇫🇷 FR</span>
+        <textarea name="intro_fr" rows="4">{{ version.intro_fr }}</textarea>
+        <span class="pgs-lang-tag">🇬🇧 EN</span>
+        <textarea name="intro_en" rows="4">{{ version.intro_en }}</textarea>
+
+        <label class="pgs-field-label">{% trans "النقاط (سطر واحد لكل نقطة، مثال: \"المرحلة الأولى: حفظ جزء عمّ\")" %}</label>
+        <div class="pgs-field-hint">{% trans "الفاصلة \":\" اختيارية." %}</div>
+        <span class="pgs-lang-tag">🇸🇦 AR</span>
+        <textarea name="items" rows="8">{{ version.items }}</textarea>
+        <span class="pgs-lang-tag">🇫🇷 FR</span>
+        <textarea name="items_fr" rows="8">{{ version.items_fr }}</textarea>
+        <span class="pgs-lang-tag">🇬🇧 EN</span>
+        <textarea name="items_en" rows="8">{{ version.items_en }}</textarea>
+    </div>
+
+    <button type="submit" style="background:{% if request.user.role == 'mshrif' %}var(--color-role-mshrif){% else %}var(--color-role-admin){% endif %}; color:white; border:none; border-radius:8px; padding:10px 28px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">{% trans "حفظ التعديلات ✅" %}</button>
+</form>
+
+<form method="POST" action="{% url 'admin_programme_general_par_seances_supprimer' version.id %}" style="margin-top:10px;">
+    {% csrf_token %}
+    <button type="submit" style="background:none; border:1px solid #d9534f; color:#d9534f; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; font-size:0.9rem; cursor:pointer;">{% trans "حذف هذه النسخة 🗑" %}</button>
+</form>
+{% endblock %}
