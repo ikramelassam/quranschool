@@ -2721,6 +2721,31 @@ class PresenceResultatMemorisationVueTests(TestCase):
         presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
         self.assertEqual(presence.resultat_memorisation, 'valide')
 
+    def test_note_critere_superieure_a_20_refusee(self):
+        """Demande directe du client (2026-09-04) : le prof ne doit pas pouvoir
+        noter un élève au-delà de 20/20 — déjà bridé côté client
+        (templates/dashboard/prof_seance_detail.html: <input max="20">) ET côté
+        serveur (dashboard.views.prof_presence_sauvegarder: 1 <= valeur <= 20).
+        Ce test verrouille le comportement serveur, seul rempart si le client
+        est contourné (POST direct, formulaire manipulé)."""
+        self.client.force_login(self.prof.user)
+        donnees = self._donnees_formulaire()
+        for c in self.criteres:
+            donnees[f'note_critere_{c.id}_{self.eleve.id}'] = '21'
+        self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees)
+        self.assertFalse(Presence.objects.filter(seance=self.seance, eleve=self.eleve).exists())
+
+    def test_note_critere_a_20_acceptee(self):
+        """Borne haute valide — 20/20 doit rester acceptée (pas un bridage à 19)."""
+        self.client.force_login(self.prof.user)
+        donnees = self._donnees_formulaire()
+        for c in self.criteres:
+            donnees[f'note_critere_{c.id}_{self.eleve.id}'] = '20'
+        self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees)
+        from courses.models import NotePresence
+        presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
+        self.assertTrue(NotePresence.objects.filter(presence=presence, note=20).exists())
+
 
 # ==================== Chantier notifications (2026-08-19) ====================
 # Panneau 🔔 الإشعارات — un test par déclencheur (Point F de la todo list
