@@ -6708,13 +6708,6 @@ class RenduReelFrEnTemplatesAdminTests(TestCase):
         self.assertIn('Student management', html_en)
         self.assertNotIn('إدارة الطلاب', html_en)
 
-    def test_admin_creneaux_traduit_reellement_en_fr_et_en(self):
-        client = Client()
-        client.force_login(self.admin)
-        client.post(reverse('set_language'), {'language': 'fr', 'next': reverse('admin_creneaux')})
-        html_fr = client.get(reverse('admin_creneaux')).content.decode('utf-8')
-        self.assertIn('Gestion des halqas', html_fr)
-
-        client.post(reverse('set_language'), {'language': 'en', 'next': reverse('admin_creneaux')})
-        html_en = client.get(reverse('admin_creneaux')).content.decode('utf-8')
-        self.assertIn('Halaka management', html_en)
+    # test_admin_creneaux_traduit_reellement_en_fr_et_en retiré (chantier
+    # « fusion horaire/groupe » du 2026-09-04) : l'écran admin_creneaux a été
+    # retiré, l'horaire se saisit désormais dans le formulaire du groupe.

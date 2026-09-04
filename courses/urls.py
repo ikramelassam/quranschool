@@ -17,13 +17,13 @@ urlpatterns = [
     # Étape 5D — onglet "الخصائص" (moteur d'inscription configurable)
     path('groupes/<int:groupe_id>/criteres/<int:critere_id>/definir/', views.groupe_definir_critere, name='admin_groupe_definir_critere'),
 
-    # Créneaux
-    path('creneaux/', views.creneaux_list, name='admin_creneaux'),
-    path('creneaux/ajouter/', views.creneau_ajouter, name='admin_creneau_ajouter'),
-    path('creneaux/<int:creneau_id>/modifier/', views.creneau_modifier, name='admin_creneau_modifier'),
-    path('creneaux/<int:creneau_id>/toggle/', views.creneau_toggle, name='admin_creneau_toggle'),
-    path('creneaux/<int:creneau_id>/supprimer/', views.creneau_supprimer, name='admin_creneau_supprimer'),
-    path('creneaux/<int:creneau_id>/supprimer-definitivement/', views.creneau_supprimer_definitivement, name='admin_creneau_supprimer_definitivement'),
+    # Note : l'ancien écran séparé « الحلقات » (créneaux/*) a été retiré le
+    # 2026-09-04 (chantier « fusion horaire/groupe », décision explicite du
+    # client) — l'horaire (jour/heure/âge/sexe/type/riwaya) se saisit
+    # désormais DIRECTEMENT dans le formulaire du groupe, un Creneau privé
+    # étant créé automatiquement derrière (jamais partagé entre 2 groupes,
+    # voir courses.views.groupe_ajouter/groupe_modifier). Le modèle Creneau
+    # lui-même n'est PAS supprimé — seules ces 6 routes CRUD disparaissent.
 
     # Liens Google Meet
     path('liens-meet/', views.liens_meet_list, name='admin_liens_meet'),

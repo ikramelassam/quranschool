@@ -1,5 +1,3 @@
-import json
-
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
@@ -13,9 +11,8 @@ from core.utils import paginer
 from .models import Groupe, Creneau, HistoriqueGroupeEleve, LienMeet
 from .utils import (
     regenerer_pour_nouveau_creneau, raison_incompatibilite_groupe, avertissements_groupe,
-    avertissements_prof_creneau, creneau_peut_etre_supprime, groupe_peut_etre_supprime,
-    description_conflit_lien_meet,
-    matrice_disponibilite_liens_meet, _message_conflit_depuis_groupes,
+    avertissements_prof_creneau, groupe_peut_etre_supprime,
+    description_conflit_lien_meet, matrice_disponibilite_liens_meet,
     valider_photo_groupe, remplacer_slots_creneau, TRANCHES_AGE_PRECISES,
 )
 from accounts.models import Prof, Eleve
@@ -33,44 +30,6 @@ def _contexte_base_mshrif(request):
         return {}
     from inscriptions.models import InscriptionProf
     return {'nb_demandes_en_attente': InscriptionProf.objects.filter(statut='validee_directeur').count()}
-
-
-def _liens_meet_contexte(creneaux, groupe_exclu=None):
-    """Contexte commun aux formulaires groupe_ajouter/groupe_modifier pour le
-    sélecteur de lien Meet (Tâche du 2026-08-17) : la liste des liens actifs
-    + un JSON {creneau_id: [{id, label, disponible, conflit}]} qui permet au
-    JS de rafraîchir le sélecteur sans recharger la page quand l'admin change
-    de créneau (section 7 du cahier des charges). Ne remplace JAMAIS la
-    validation serveur faite à la sauvegarde — seulement un confort d'affichage.
-
-    Correctif du 2026-08-30 (voir courses.utils.matrice_disponibilite_liens_meet
-    pour le diagnostic complet) : la grille disponible/conflit de CHAQUE lien
-    actif x CHAQUE créneau actif est désormais calculée en UN SEUL appel en
-    lot (4 requêtes SQL fixes) au lieu d'un couple de requêtes PAR couple
-    (lien, créneau) — c'était ~800 requêtes et ~88s mesurées en conditions
-    réelles (21 créneaux actifs x 16 liens actifs), largement au-dessus du
-    `--timeout 30` de gunicorn (Procfile), d'où les "Internal Server Error"
-    sur /courses/groupes/<id>/modifier/ et /courses/groupes/ajouter/. Résultat
-    JSON strictement identique à avant (même clés, mêmes valeurs)."""
-    creneaux = list(creneaux)
-    liens = list(LienMeet.objects.filter(est_actif=True))
-    conflits = matrice_disponibilite_liens_meet(liens, creneaux, groupe_exclu)
-    payload = {
-        creneau.id: [
-            {
-                'id': lien.id,
-                'label': str(lien),
-                'disponible': not conflits.get((lien.id, creneau.id), []),
-                'conflit': _message_conflit_depuis_groupes(conflits.get((lien.id, creneau.id), [])),
-            }
-            for lien in liens
-        ]
-        for creneau in creneaux
-    }
-    return {
-        'liens_meet': liens,
-        'liens_meet_json': json.dumps(payload),
-    }
 
 
 def _resoudre_lien_meet_pour_formulaire(request):
@@ -107,7 +66,6 @@ def groupes_list(request):
 
     statut = request.GET.get('statut', '')
     prof_id = request.GET.get('prof', '')
-    creneau_id = request.GET.get('creneau', '')
     q = request.GET.get('q', '').strip()
     # Navigation par pastilles المجموعات/الفردية/الجماعية puis, si الجماعية،
     # النساء/الرجال/الأطفال (Chantier du 2026-08-18) — filtre directement
@@ -156,8 +114,6 @@ def groupes_list(request):
         groupes = groupes.exclude(statut='archive')
     if prof_id:
         groupes = groupes.filter(prof_id=prof_id)
-    if creneau_id:
-        groupes = groupes.filter(creneau_id=creneau_id)
     if type_filtre in ('individuel', 'groupe'):
         groupes = groupes.filter(type_capacite=type_filtre)
     if categorie_filtre:
@@ -187,15 +143,12 @@ def groupes_list(request):
 
     context = {
         'groupes': paginer(request, groupes, 10),
-        'aucun_creneau': not Creneau.objects.filter(est_actif=True).exists(),
         'profs': Prof.actifs.select_related('user').order_by('user__first_name'),
-        'creneaux': Creneau.objects.order_by('id'),
         'chat_groupe_ids': groupes_chat_accessibles_ids(request.user),
         'tranches_age': TRANCHES_AGE_PRECISES,
         'filtres': {
             'statut': statut,
             'prof': prof_id,
-            'creneau': creneau_id,
             'type': type_filtre,
             'categorie': categorie_filtre,
             'tranche': tranche_filtre,
@@ -209,41 +162,72 @@ def groupes_list(request):
 
 @role_required('admin')
 def groupe_ajouter(request):
-    creneaux = Creneau.objects.filter(est_actif=True)
     # select_related('user') : le template affiche prof.user.get_full_name
     # pour chaque prof du <select> — sans lui, 1 requête par prof actif de
-    # toute l'école à chaque ouverture de cette page (Correctif du 2026-08-30,
-    # même famille de bug que _liens_meet_contexte ci-dessus).
+    # toute l'école à chaque ouverture de cette page (Correctif du 2026-08-30).
     profs = Prof.actifs.select_related('user').all()
+    liens_meet = LienMeet.objects.filter(est_actif=True)
 
     if request.method == 'POST':
-        # Photo (Tâche du 2026-08-17) — validée AVANT toute autre étape, comme
-        # la حلقة ci-dessous, pour ne jamais créer/modifier un groupe avec un
-        # fichier refusé. Le fichier validé reste utilisable plus loin (le
-        # curseur est remis à zéro par valider_photo_groupe).
+        # Photo (Tâche du 2026-08-17) — validée AVANT toute autre étape, pour
+        # ne jamais créer/modifier un groupe avec un fichier refusé. Le
+        # fichier validé reste utilisable plus loin (le curseur est remis à
+        # zéro par valider_photo_groupe).
         photo = request.FILES.get('photo')
         if photo:
             erreur_photo = valider_photo_groupe(photo)
             if erreur_photo:
                 messages.error(request, erreur_photo)
                 return render(request, 'courses/admin_groupe_ajouter.html', {
-                    'creneaux': creneaux,
                     'profs': profs,
+                    'liens_meet': liens_meet,
                     'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                    **_liens_meet_contexte(creneaux),
+                    'valeurs_creneau': _valeurs_creneau_depuis_post(request),
+                    'slots_saisis': _slots_depuis_post(request),
                 })
 
-        creneau_id = request.POST.get('creneau')
-        if not creneau_id:
-            messages.error(request, gettext_('يجب اختيار حلقة قبل إنشاء المجموعة. أنشئ حلقة أولاً إذا لم تتوفر أي حلقة.'))
+        slots = _slots_depuis_post(request)
+        if not slots:
+            messages.error(request, gettext_('يجب إضافة حصة واحدة على الأقل.'))
             return render(request, 'courses/admin_groupe_ajouter.html', {
-                'creneaux': creneaux,
                 'profs': profs,
+                'liens_meet': liens_meet,
                 'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                **_liens_meet_contexte(creneaux),
+                'valeurs_creneau': _valeurs_creneau_depuis_post(request),
+                'slots_saisis': slots,
             })
 
-        creneau_obj = get_object_or_404(Creneau, id=creneau_id)
+        # Horaire (chantier « fusion horaire/groupe » du 2026-09-04, décision
+        # explicite du client) : plus d'écran « الحلقات » séparé — un Creneau
+        # PRIVÉ à ce groupe est créé directement depuis les champs du
+        # formulaire, jamais partagé avec un autre groupe (contrairement à
+        # avant ce chantier, où plusieurs Groupe pouvaient pointer vers le
+        # même Creneau). Créé tout de suite, pas seulement à la sauvegarde
+        # finale : avertissements_prof_creneau et le contrôle de conflit de
+        # lien Meet lisent creneau.slots.all(), qui a besoin d'un Creneau
+        # PERSISTÉ — supprimé plus bas (_redisplay) si la soumission ne va
+        # pas à son terme (avertissement non confirmé, conflit de lien),
+        # pour ne jamais laisser de ligne orpheline.
+        creneau_obj = Creneau.objects.create(
+            sexe_cible=request.POST.get('sexe_cible'),
+            type_seance=request.POST.get('type_seance'),
+            riwaya=request.POST.get('riwaya'),
+            age_min=request.POST.get('age_min'),
+            age_max=request.POST.get('age_max'),
+        )
+        remplacer_slots_creneau(creneau_obj, slots)
+
+        def _redisplay(**contexte_supplementaire):
+            creneau_obj.delete()
+            contexte = {
+                'profs': profs,
+                'liens_meet': liens_meet,
+                'categorie_choices': Groupe.CATEGORIE_CHOICES,
+                'valeurs_creneau': _valeurs_creneau_depuis_post(request),
+                'slots_saisis': slots,
+            }
+            contexte.update(contexte_supplementaire)
+            return render(request, 'courses/admin_groupe_ajouter.html', contexte)
 
         # Lien Meet retenu : soit un lien du pool (le <select>), soit une URL
         # collée à la main (champ "lien_meet_nouveau") qui rejoint alors le
@@ -253,12 +237,7 @@ def groupe_ajouter(request):
         lien_meet_id, erreur_lien_meet = _resoudre_lien_meet_pour_formulaire(request)
         if erreur_lien_meet:
             messages.error(request, erreur_lien_meet)
-            return render(request, 'courses/admin_groupe_ajouter.html', {
-                'creneaux': creneaux,
-                'profs': profs,
-                'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                **_liens_meet_contexte(creneaux),
-            })
+            return _redisplay()
 
         prof_id = request.POST.get('prof') or None
         confirme = request.POST.get('confirme') == '1'
@@ -270,12 +249,7 @@ def groupe_ajouter(request):
             prof_obj = get_object_or_404(Prof, id=prof_id)
             if prof_obj.statut == 'archive':
                 messages.error(request, gettext_('تعذّر إسناد %(v0)s: هذا الأستاذ مؤرشف.') % {'v0': prof_obj.user.get_full_name()})
-                return render(request, 'courses/admin_groupe_ajouter.html', {
-                    'creneaux': creneaux,
-                    'profs': profs,
-                    'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                    **_liens_meet_contexte(creneaux),
-                })
+                return _redisplay()
             # Tâche du 2026-08-09 : l'incompatibilité d'horaire n'est plus
             # bloquante — elle est désormais remontée par
             # avertissements_prof_creneau, au même titre que l'âge/le sexe
@@ -290,7 +264,6 @@ def groupe_ajouter(request):
                     nom_fr=request.POST.get('nom_fr', ''),
                     nom_en=request.POST.get('nom_en', ''),
                     prof_id=prof_id,
-                    creneau_id=creneau_id,
                     description=request.POST.get('description', ''),
                     description_fr=request.POST.get('description_fr', ''),
                     description_en=request.POST.get('description_en', ''),
@@ -299,14 +272,7 @@ def groupe_ajouter(request):
                     lien_meet_id=lien_meet_id,
                     categorie=request.POST.get('categorie', ''),
                 )
-                return render(request, 'courses/admin_groupe_ajouter.html', {
-                    'creneaux': creneaux,
-                    'profs': profs,
-                    'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                    'groupe': groupe_previsualise,
-                    'avertissements_prof': avertissements_prof,
-                    **_liens_meet_contexte(creneaux),
-                })
+                return _redisplay(groupe=groupe_previsualise, avertissements_prof=avertissements_prof)
 
         # Lien Meet (Tâche du 2026-08-17) : UN groupe = AU PLUS UN lien du pool.
         # Depuis le 2026-08-31 une URL collée à la main est acceptée mais rejoint
@@ -322,28 +288,18 @@ def groupe_ajouter(request):
                 lien_meet_obj = get_object_or_404(LienMeet.objects.select_for_update(), id=lien_meet_id)
                 if not lien_meet_obj.est_actif:
                     messages.error(request, gettext_('هذا الرابط معطّل حالياً — اختر رابطاً آخر.'))
-                    return render(request, 'courses/admin_groupe_ajouter.html', {
-                        'creneaux': creneaux,
-                        'profs': profs,
-                        'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                        **_liens_meet_contexte(creneaux),
-                    })
+                    return _redisplay()
                 conflit = description_conflit_lien_meet(lien_meet_obj, creneau_obj)
                 if conflit:
                     messages.error(request, gettext_('تعذّر استخدام "%(v0)s" لهذا التوقيت: %(v1)s') % {'v0': lien_meet_obj, 'v1': conflit})
-                    return render(request, 'courses/admin_groupe_ajouter.html', {
-                        'creneaux': creneaux,
-                        'profs': profs,
-                        'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                        **_liens_meet_contexte(creneaux),
-                    })
+                    return _redisplay()
 
         groupe = Groupe.objects.create(
             nom=request.POST.get('nom'),
             nom_fr=request.POST.get('nom_fr', ''),
             nom_en=request.POST.get('nom_en', ''),
             prof_id=prof_id,
-            creneau_id=creneau_id,
+            creneau=creneau_obj,
             description=request.POST.get('description', ''),
             description_fr=request.POST.get('description_fr', ''),
             description_en=request.POST.get('description_en', ''),
@@ -361,10 +317,11 @@ def groupe_ajouter(request):
         return redirect('admin_groupes')
 
     return render(request, 'courses/admin_groupe_ajouter.html', {
-        'creneaux': creneaux,
         'profs': profs,
+        'liens_meet': liens_meet,
         'categorie_choices': Groupe.CATEGORIE_CHOICES,
-        **_liens_meet_contexte(creneaux),
+        'valeurs_creneau': _valeurs_creneau_depuis_post(request),
+        'slots_saisis': [],
     })
 
 
@@ -603,8 +560,7 @@ def groupe_transferer_eleve(request, groupe_id, eleve_id):
 
 @role_required('admin')
 def groupe_modifier(request, groupe_id):
-    groupe = get_object_or_404(Groupe, id=groupe_id)
-    creneaux = Creneau.objects.filter(est_actif=True)
+    groupe = get_object_or_404(Groupe.objects.select_related('creneau'), id=groupe_id)
     # Prof.actifs exclut les archivés du choix — SAUF le prof déjà assigné à ce
     # groupe s'il vient d'être archivé: on le garde visible (étiqueté "مؤرشف"
     # dans le template) pour que l'admin voie clairement qui est en place et
@@ -617,6 +573,7 @@ def groupe_modifier(request, groupe_id):
     profs = list(Prof.actifs.select_related('user').all())
     if groupe.prof_id and groupe.prof and groupe.prof.statut == 'archive' and groupe.prof not in profs:
         profs.append(groupe.prof)
+    liens_meet = LienMeet.objects.filter(est_actif=True)
 
     if request.method == 'POST':
         # Photo (Tâche du 2026-08-17) — validée AVANT toute autre étape, même
@@ -631,25 +588,81 @@ def groupe_modifier(request, groupe_id):
                 messages.error(request, erreur_photo)
                 return render(request, 'courses/admin_groupe_modifier.html', {
                     'groupe': groupe,
-                    'creneaux': creneaux,
                     'profs': profs,
+                    'liens_meet': liens_meet,
                     'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                    **_liens_meet_contexte(creneaux, groupe_exclu=groupe),
+                    'valeurs_creneau': _valeurs_creneau_pour_affichage(request, groupe.creneau),
+                    'slots_saisis': _slots_pour_affichage(request, groupe.creneau),
                 })
 
-        nouveau_creneau_id = request.POST.get('creneau')
-        if not nouveau_creneau_id:
-            messages.error(request, gettext_('يجب اختيار حلقة للمجموعة.'))
+        slots = _slots_depuis_post(request)
+        if not slots:
+            messages.error(request, gettext_('يجب إضافة حصة واحدة على الأقل.'))
             return render(request, 'courses/admin_groupe_modifier.html', {
                 'groupe': groupe,
-                'creneaux': creneaux,
                 'profs': profs,
+                'liens_meet': liens_meet,
                 'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                **_liens_meet_contexte(creneaux, groupe_exclu=groupe),
+                'valeurs_creneau': _valeurs_creneau_pour_affichage(request, groupe.creneau),
+                'slots_saisis': slots,
             })
 
-        creneau_obj = get_object_or_404(Creneau, id=nouveau_creneau_id)
-        creneau_a_change = str(groupe.creneau_id) != str(nouveau_creneau_id)
+        # Horaire (chantier « fusion horaire/groupe » du 2026-09-04, décision
+        # explicite du client) : au lieu de choisir un Creneau existant
+        # (potentiellement partagé, ancien écran « الحلقات » retiré ce même
+        # chantier), on construit un Creneau CANDIDAT privé depuis les champs
+        # du formulaire — même patron que groupe_ajouter, pour les mêmes
+        # raisons (avertissements_prof_creneau/conflit de lien Meet ont
+        # besoin d'un Creneau PERSISTÉ). Adopté par le groupe seulement si la
+        # sauvegarde va à son terme (voir plus bas) ; supprimé sinon.
+        ancien_creneau = groupe.creneau
+        anciens_slots = (
+            list(ancien_creneau.slots.order_by('ordre').values_list('jour', 'heure_debut', 'heure_fin'))
+            if ancien_creneau else []
+        )
+        creneau_candidat = Creneau.objects.create(
+            sexe_cible=request.POST.get('sexe_cible'),
+            type_seance=request.POST.get('type_seance'),
+            riwaya=request.POST.get('riwaya'),
+            age_min=request.POST.get('age_min'),
+            age_max=request.POST.get('age_max'),
+        )
+        remplacer_slots_creneau(creneau_candidat, slots)
+        nouveaux_slots = list(
+            creneau_candidat.slots.order_by('ordre').values_list('jour', 'heure_debut', 'heure_fin')
+        )
+        # Ne redéclenche la régénération des séances futures (destructive pour
+        # les séances déjà planifiées) que si l'horaire RÉEL (jour/heure) a
+        # changé — pas pour un simple ajustement d'âge/sexe/type/riwaya sans
+        # rapport avec le planning. Même principe que l'ancien creneau_modifier.
+        horaire_a_change = [str(v) for v in anciens_slots] != [str(v) for v in nouveaux_slots]
+
+        def _valeur_str(valeur):
+            return '' if valeur is None else str(valeur)
+
+        # Périmètre plus large que horaire_a_change ci-dessus : sert seulement
+        # à décider si l'avertissement prof/créneau doit être réévalué (âge et
+        # sexe comptent aussi pour cette compatibilité-là, pas seulement le
+        # jour/l'heure) — même rôle que l'ancien creneau_a_change (basé sur un
+        # changement d'id), qui ne peut plus être utilisé tel quel puisqu'un
+        # NOUVEAU Creneau est désormais créé à chaque modification.
+        creneau_pertinent_a_change = horaire_a_change or (ancien_creneau is None) or any(
+            _valeur_str(getattr(ancien_creneau, champ)) != _valeur_str(request.POST.get(champ))
+            for champ in ('sexe_cible', 'type_seance', 'riwaya', 'age_min', 'age_max')
+        )
+
+        def _redisplay(**contexte_supplementaire):
+            creneau_candidat.delete()
+            contexte = {
+                'groupe': groupe,
+                'profs': profs,
+                'liens_meet': liens_meet,
+                'categorie_choices': Groupe.CATEGORIE_CHOICES,
+                'valeurs_creneau': _valeurs_creneau_pour_affichage(request, groupe.creneau),
+                'slots_saisis': slots,
+            }
+            contexte.update(contexte_supplementaire)
+            return render(request, 'courses/admin_groupe_modifier.html', contexte)
 
         # Lien Meet retenu : lien du pool (<select>) ou URL collée à la main
         # (champ "lien_meet_nouveau", qui rejoint alors le pool) — résolu ICI,
@@ -657,13 +670,7 @@ def groupe_modifier(request, groupe_id):
         nouveau_lien_meet_id, erreur_lien_meet = _resoudre_lien_meet_pour_formulaire(request)
         if erreur_lien_meet:
             messages.error(request, erreur_lien_meet)
-            return render(request, 'courses/admin_groupe_modifier.html', {
-                'groupe': groupe,
-                'creneaux': creneaux,
-                'profs': profs,
-                'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                **_liens_meet_contexte(creneaux, groupe_exclu=groupe),
-            })
+            return _redisplay()
 
         nouveau_prof_id = request.POST.get('prof') or None
         prof_a_change = str(groupe.prof_id) != str(nouveau_prof_id)
@@ -672,23 +679,17 @@ def groupe_modifier(request, groupe_id):
         # Ne revalider la compatibilité prof/créneau que si l'un des deux change réellement —
         # sinon un groupe déjà assigné avant durcissement des disponibilités (ou avec une
         # matrice de dispo incomplète) devient bloqué pour toute autre modification (ex: lien_reunion).
-        if nouveau_prof_id and (creneau_a_change or prof_a_change):
+        if nouveau_prof_id and (creneau_pertinent_a_change or prof_a_change):
             prof_obj = get_object_or_404(Prof, id=nouveau_prof_id)
             # Revalidé côté serveur (le <select> exclut déjà les archivés, sauf le
             # prof déjà en place — voir plus haut) — se protège contre un POST
             # direct choisissant un AUTRE prof archivé que celui déjà assigné.
             if prof_a_change and prof_obj.statut == 'archive':
                 messages.error(request, gettext_('تعذّر إسناد %(v0)s: هذا الأستاذ مؤرشف.') % {'v0': prof_obj.user.get_full_name()})
-                return render(request, 'courses/admin_groupe_modifier.html', {
-                    'groupe': groupe,
-                    'creneaux': creneaux,
-                    'profs': profs,
-                    'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                    **_liens_meet_contexte(creneaux, groupe_exclu=groupe),
-                })
+                return _redisplay()
             # Tâche du 2026-08-09 : l'incompatibilité d'horaire n'est plus
             # bloquante — voir le même commentaire dans groupe_ajouter.
-            avertissements_prof = avertissements_prof_creneau(prof_obj, creneau_obj)
+            avertissements_prof = avertissements_prof_creneau(prof_obj, creneau_candidat)
             if avertissements_prof and not confirme:
                 groupe_previsualise = Groupe(
                     id=groupe.id,
@@ -702,19 +703,11 @@ def groupe_modifier(request, groupe_id):
                     type_capacite=request.POST.get('type_capacite', 'groupe'),
                     statut=request.POST.get('statut'),
                     prof_id=nouveau_prof_id,
-                    creneau_id=nouveau_creneau_id,
                     lien_meet_id=nouveau_lien_meet_id,
                     categorie=request.POST.get('categorie', ''),
                     cache_du_wizard_public=request.POST.get('cache_du_wizard_public') == 'on',
                 )
-                return render(request, 'courses/admin_groupe_modifier.html', {
-                    'groupe': groupe_previsualise,
-                    'creneaux': creneaux,
-                    'profs': profs,
-                    'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                    'avertissements_prof': avertissements_prof,
-                    **_liens_meet_contexte(creneaux, groupe_exclu=groupe),
-                })
+                return _redisplay(groupe=groupe_previsualise, avertissements_prof=avertissements_prof)
 
         # Lien Meet (Tâche du 2026-08-17) : REVÉRIFIÉ à chaque sauvegarde, même
         # quand le lien choisi est déjà celui en place — un changement de créneau
@@ -728,23 +721,11 @@ def groupe_modifier(request, groupe_id):
                 nouveau_lien_meet_obj = get_object_or_404(LienMeet.objects.select_for_update(), id=nouveau_lien_meet_id)
                 if not nouveau_lien_meet_obj.est_actif:
                     messages.error(request, gettext_('هذا الرابط معطّل حالياً — اختر رابطاً آخر.'))
-                    return render(request, 'courses/admin_groupe_modifier.html', {
-                        'groupe': groupe,
-                        'creneaux': creneaux,
-                        'profs': profs,
-                        'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                        **_liens_meet_contexte(creneaux, groupe_exclu=groupe),
-                    })
-                conflit = description_conflit_lien_meet(nouveau_lien_meet_obj, creneau_obj, groupe_exclu=groupe)
+                    return _redisplay()
+                conflit = description_conflit_lien_meet(nouveau_lien_meet_obj, creneau_candidat, groupe_exclu=groupe)
                 if conflit:
                     messages.error(request, gettext_('تعذّر استخدام "%(v0)s" لهذا التوقيت: %(v1)s') % {'v0': nouveau_lien_meet_obj, 'v1': conflit})
-                    return render(request, 'courses/admin_groupe_modifier.html', {
-                        'groupe': groupe,
-                        'creneaux': creneaux,
-                        'profs': profs,
-                        'categorie_choices': Groupe.CATEGORIE_CHOICES,
-                        **_liens_meet_contexte(creneaux, groupe_exclu=groupe),
-                    })
+                    return _redisplay()
 
             groupe.nom = request.POST.get('nom')
             groupe.nom_fr = request.POST.get('nom_fr', '')
@@ -756,7 +737,7 @@ def groupe_modifier(request, groupe_id):
             groupe.type_capacite = request.POST.get('type_capacite', 'groupe')
             groupe.statut = request.POST.get('statut')
             groupe.prof_id = nouveau_prof_id
-            groupe.creneau_id = nouveau_creneau_id
+            groupe.creneau = creneau_candidat
             groupe.categorie = request.POST.get('categorie', '')
             # Chantier du 2026-08-23 ("exclusion manuelle d'un groupe") —
             # n'affecte QUE le nouveau parcours public (registration.utils.
@@ -781,10 +762,16 @@ def groupe_modifier(request, groupe_id):
                     groupe.lien_reunion = ''
                 groupe.lien_meet = None
             groupe.save()
+            # L'ancien Creneau n'est plus jamais partagé (chantier du
+            # 2026-09-04) : il n'est référencé que par CE groupe, donc sûr à
+            # supprimer maintenant que groupe.creneau pointe déjà vers le
+            # nouveau (voir la migration 0045 pour les données pré-existantes).
+            if ancien_creneau is not None:
+                ancien_creneau.delete()
 
         for avertissement in avertissements_prof:
             messages.warning(request, avertissement)
-        if creneau_a_change:
+        if horaire_a_change:
             regenerer_pour_nouveau_creneau(groupe)
             messages.success(request, gettext_('تم تعديل المجموعة وإعادة توليد حصصها حسب الحلقة الجديدة.'))
         else:
@@ -793,62 +780,12 @@ def groupe_modifier(request, groupe_id):
 
     return render(request, 'courses/admin_groupe_modifier.html', {
         'groupe': groupe,
-        'creneaux': creneaux,
         'profs': profs,
+        'liens_meet': liens_meet,
         'categorie_choices': Groupe.CATEGORIE_CHOICES,
-        **_liens_meet_contexte(creneaux, groupe_exclu=groupe),
+        'valeurs_creneau': _valeurs_creneau_pour_affichage(request, groupe.creneau),
+        'slots_saisis': _slots_pour_affichage(request, groupe.creneau),
     })
-
-
-@role_required('admin', 'mshrif')
-def creneaux_list(request):
-    sexe_cible = request.GET.get('sexe_cible', '')
-    actif = request.GET.get('actif', '')
-    type_seance = request.GET.get('type_seance', '')
-    riwaya = request.GET.get('riwaya', '')
-    q = request.GET.get('q', '').strip()
-
-    creneaux = Creneau.objects.all().order_by('id')
-    if q:
-        creneaux = creneaux.filter(nom__icontains=q)
-    if sexe_cible:
-        creneaux = creneaux.filter(sexe_cible=sexe_cible)
-    if actif:
-        creneaux = creneaux.filter(est_actif=(actif == '1'))
-    else:
-        # Tâche du 2026-08-08 : un créneau archivé (est_actif=False) reste hors
-        # de la liste par défaut, sauf recherche explicite via "الحالة" —
-        # même principe qu'admin_eleves/admin_profs/admin_groupes. Avant ce
-        # correctif, "الحالة" vide affichait TOUT (y compris les archivés),
-        # contrairement à Eleve/Prof/Groupe.
-        creneaux = creneaux.filter(est_actif=True)
-    if type_seance:
-        creneaux = creneaux.filter(type_seance=type_seance)
-    if riwaya:
-        creneaux = creneaux.filter(riwaya=riwaya)
-
-    creneaux_page = paginer(request, creneaux, 10)
-    # Tâche du 2026-08-08 : calculé une fois ici (pas dans le template) pour
-    # que la condition d'affichage du bouton "حذف" soit EXACTEMENT la même
-    # que celle vérifiée côté serveur avant la suppression réelle (voir
-    # courses.utils.creneau_peut_etre_supprime) — pas de risque de dérive
-    # entre les deux si l'un des deux change plus tard.
-    for c in creneaux_page:
-        c.peut_supprimer = creneau_peut_etre_supprime(c)
-
-    context = {
-        'creneaux': creneaux_page,
-        'filtres': {
-            'q': q,
-            'sexe_cible': sexe_cible,
-            'actif': actif,
-            'type_seance': type_seance,
-            'riwaya': riwaya,
-        },
-        'base_template': _base_template_admin_ou_mshrif(request),
-    }
-    context.update(_contexte_base_mshrif(request))
-    return render(request, 'courses/admin_creneaux.html', context)
 
 
 def _slots_depuis_post(request):
@@ -869,122 +806,59 @@ def _slots_depuis_post(request):
     ]
 
 
-@role_required('admin')
-def creneau_ajouter(request):
+def _valeurs_creneau_depuis_post(request):
+    """Valeurs du gabarit horaire (sexe/type/rewaya/âge) telles que soumises
+    dans le POST du formulaire groupe — chantier « fusion horaire/groupe » du
+    2026-09-04 (voir groupe_ajouter/groupe_modifier). Sert à re-préremplir le
+    formulaire quand la soumission est ré-affichée (erreur, avertissement non
+    confirmé) : le Creneau créé pour la validation est alors supprimé, donc
+    plus rien en base à relire — on repart des valeurs telles que tapées.
+    request.POST est un QueryDict vide sur un GET, donc .get() retombe déjà
+    sur les valeurs par défaut ci-dessous dans ce cas (formulaire de création
+    vierge)."""
+    return {
+        'sexe_cible': request.POST.get('sexe_cible', 'mixte'),
+        'type_seance': request.POST.get('type_seance', 'hifz'),
+        'riwaya': request.POST.get('riwaya', 'hafs'),
+        'age_min': request.POST.get('age_min', ''),
+        'age_max': request.POST.get('age_max', ''),
+    }
+
+
+def _valeurs_creneau_pour_affichage(request, creneau_existant):
+    """Valeurs à préremplir dans les champs horaire du formulaire groupe :
+    celles du POST si une soumission a été refusée (ré-affichage — voir
+    _valeurs_creneau_depuis_post), sinon celles du Creneau déjà attaché au
+    groupe (ouverture d'un formulaire de MODIFICATION), sinon les valeurs par
+    défaut (ouverture d'un formulaire de CRÉATION, creneau_existant=None)."""
     if request.method == 'POST':
-        slots = _slots_depuis_post(request)
-        if not slots:
-            messages.error(request, gettext_('يجب إضافة حصة واحدة على الأقل.'))
-            return render(request, 'courses/admin_creneau_ajouter.html')
-
-        creneau = Creneau.objects.create(
-            nom=request.POST.get('nom', '').strip(),
-            nom_fr=request.POST.get('nom_fr', '').strip(),
-            nom_en=request.POST.get('nom_en', '').strip(),
-            sexe_cible=request.POST.get('sexe_cible'),
-            type_seance=request.POST.get('type_seance'),
-            riwaya=request.POST.get('riwaya'),
-            age_min=request.POST.get('age_min'),
-            age_max=request.POST.get('age_max'),
-        )
-        remplacer_slots_creneau(creneau, slots)
-        messages.success(request, gettext_('تمت إضافة الحلقة بنجاح.'))
-        return redirect('admin_creneaux')
-
-    return render(request, 'courses/admin_creneau_ajouter.html')
+        return _valeurs_creneau_depuis_post(request)
+    if creneau_existant:
+        return {
+            'sexe_cible': creneau_existant.sexe_cible,
+            'type_seance': creneau_existant.type_seance,
+            'riwaya': creneau_existant.riwaya,
+            'age_min': creneau_existant.age_min,
+            'age_max': creneau_existant.age_max,
+        }
+    return _valeurs_creneau_depuis_post(request)
 
 
-@role_required('admin')
-def creneau_modifier(request, creneau_id):
-    creneau = get_object_or_404(Creneau, id=creneau_id)
-
+def _slots_pour_affichage(request, creneau_existant):
+    """Même principe que _valeurs_creneau_pour_affichage, pour les حصص
+    hebdomadaires (slot_jour/slot_heure_debut/slot_heure_fin)."""
     if request.method == 'POST':
-        # Comparaison AVANT/APRÈS (jour, heure_debut, heure_fin) triée par ordre —
-        # comme avant ce chantier (qui comparait jour_1/jour_2 champ par champ),
-        # généralisée à 1..N slots plutôt qu'un couple figé.
-        anciens_slots = list(creneau.slots.order_by('ordre').values_list('jour', 'heure_debut', 'heure_fin'))
-
-        slots = _slots_depuis_post(request)
-        if not slots:
-            messages.error(request, gettext_('يجب إضافة حصة واحدة على الأقل.'))
-            return render(request, 'courses/admin_creneau_modifier.html', {'creneau': creneau})
-
-        creneau.nom = request.POST.get('nom', '').strip()
-        creneau.nom_fr = request.POST.get('nom_fr', '').strip()
-        creneau.nom_en = request.POST.get('nom_en', '').strip()
-        creneau.sexe_cible = request.POST.get('sexe_cible')
-        creneau.type_seance = request.POST.get('type_seance')
-        creneau.riwaya = request.POST.get('riwaya')
-        creneau.age_min = request.POST.get('age_min')
-        creneau.age_max = request.POST.get('age_max')
-        creneau.save()
-        remplacer_slots_creneau(creneau, slots)
-
-        nouveaux_slots = list(
-            creneau.slots.order_by('ordre').values_list('jour', 'heure_debut', 'heure_fin')
-        )
-
-        # L'horaire (slots) est stocké sur le Creneau, partagé par tous les Groupe
-        # qui le référencent — un changement ici doit déplacer les séances futures
-        # de CHAQUE groupe concerné, pas seulement d'un seul (Tâche 19, Bug 1 du
-        # 2026-07-26). On ne régénère que si l'horaire a vraiment changé (nombre de
-        # slots différent, ou même nombre mais jour/heure différents), pour ne pas
-        # effacer inutilement des séances lors d'une simple modification d'âge/
-        # sexe/type sans lien avec le planning.
-        horaire_a_change = [str(v) for v in anciens_slots] != [str(v) for v in nouveaux_slots]
-        if horaire_a_change:
-            with transaction.atomic():
-                for groupe in creneau.groupes.all():
-                    regenerer_pour_nouveau_creneau(groupe)
-            messages.success(request, gettext_('تم تعديل الحلقة وإعادة توليد حصص جميع المجموعات المرتبطة بها حسب التوقيت الجديد.'))
-        else:
-            messages.success(request, gettext_('تم تعديل الحلقة بنجاح.'))
-        return redirect('admin_creneaux')
-
-    return render(request, 'courses/admin_creneau_modifier.html', {
-        'creneau': creneau,
-    })
-
-
-@role_required('admin', 'mshrif')
-def creneau_toggle(request, creneau_id):
-    """Archive/réactive un créneau (Tâche du 2026-08-08 : élargi à مشرف,
-    auparavant admin uniquement — demande explicite du client pour ce
-    chantier précis, contrairement à Eleve/Prof où seul مدير peut
-    archiver/réactiver). Réutilise est_actif comme statut d'archivage (voir
-    CreneauActifsManager) plutôt que d'ajouter des vues أرشفة/تفعيل
-    séparées comme pour Groupe — un seul champ booléen, un seul bouton
-    bidirectionnel reste plus simple et sans redondance."""
-    creneau = get_object_or_404(Creneau, id=creneau_id)
-    creneau.est_actif = not creneau.est_actif
-    creneau.save()
-    messages.info(request, gettext_('تمت إعادة تفعيل الحلقة.') if creneau.est_actif else gettext_('تمت أرشفة الحلقة — لن تظهر في القوائم إلا عبر تصفية "الحالة".'))
-    return redirect('admin_creneaux')
-
-
-@role_required('admin')
-def creneau_supprimer(request, creneau_id):
-    """Suppression réelle (Tâche du 2026-08-08) — UNIQUEMENT si aucune
-    donnée n'est rattachée (voir courses.utils.creneau_peut_etre_supprime,
-    revérifié ici côté serveur, jamais en se fiant au seul bouton caché
-    côté template). Sinon, seule "تعطيل" (admin_creneau_toggle, existant)
-    reste possible. POST uniquement (formulaire + confirm() JS côté
-    template, même patron que _reinitialiser_mot_de_passe.html)."""
-    creneau = get_object_or_404(Creneau, id=creneau_id)
-    if not creneau_peut_etre_supprime(creneau):
-        messages.error(
-            request,
-            gettext_('تعذّر الحذف: هذه الحلقة مرتبطة بمجموعة أو طلب تسجيل — يمكنك تعطيلها بدلاً من ذلك.')
-        )
-        return redirect('admin_creneaux')
-
-    if request.method != 'POST':
-        return redirect('admin_creneaux')
-
-    label = str(creneau)
-    creneau.delete()
-    messages.success(request, gettext_('تم حذف الحلقة "%(v0)s" نهائياً.') % {'v0': label})
-    return redirect('admin_creneaux')
+        return _slots_depuis_post(request)
+    if creneau_existant:
+        return [
+            {
+                'jour': slot.jour,
+                'heure_debut': slot.heure_debut.strftime('%H:%M'),
+                'heure_fin': slot.heure_fin.strftime('%H:%M'),
+            }
+            for slot in creneau_existant.slots.order_by('ordre')
+        ]
+    return []
 
 
 @role_required('admin')
@@ -1074,34 +948,6 @@ def groupe_supprimer_definitivement(request, groupe_id):
     return redirect('admin_groupes')
 
 
-@role_required('admin')
-def creneau_supprimer_definitivement(request, creneau_id):
-    """GET affiche la page de confirmation dédiée (saisie exacte du nom) —
-    pas de champ texte casé dans la liste, contrairement à
-    groupe_supprimer_definitivement qui a sa propre page détail où le
-    placer. POST traite la suppression."""
-    creneau = get_object_or_404(Creneau, id=creneau_id)
-    if request.method != 'POST':
-        return render(request, 'courses/admin_creneau_supprimer_definitivement.html', {
-            'creneau': creneau,
-            'nb_groupes': creneau.groupes.count(),
-            'nb_inscriptions': creneau.inscriptions.count(),
-            'base_template': _base_template_admin_ou_mshrif(request),
-        })
-
-    label = str(creneau)
-    confirmation_nom = request.POST.get('confirmation_nom', '').strip()
-    if confirmation_nom != label:
-        messages.error(request, gettext_('النص المُدخل لا يطابق اسم الحلقة بالضبط — لم يتم حذف أي شيء.'))
-        return redirect('admin_creneaux')
-
-    with transaction.atomic():
-        creneau.delete()
-
-    messages.success(request, gettext_('تم حذف الحلقة "%(v0)s" نهائياً.') % {'v0': label})
-    return redirect('admin_creneaux')
-
-
 # ==================== POOL DE LIENS GOOGLE MEET (Tâche du 2026-08-17) ====================
 # Pool centralisé du مدير : un lien Meet enregistré une seule fois, réutilisable par
 # plusieurs groupes (voir courses.utils.liens_meet_disponibles pour la logique de
@@ -1138,8 +984,8 @@ def liens_meet_list(request):
     # auparavant recalculée indépendamment (liens_meet_disponibles par groupe, donc
     # par groupe x par lien x conflit) — désormais un seul appel en lot, chaque
     # groupe s'excluant ensuite lui-même de SES résultats (groupe_exclu diffère par
-    # groupe ici, contrairement à _liens_meet_contexte qui n'en a qu'un seul, d'où
-    # le filtrage en Python plutôt qu'un groupe_exclu global).
+    # groupe ici, contrairement à un groupe_exclu global — d'où le filtrage
+    # en Python plutôt qu'un groupe_exclu unique passé à l'appel en lot).
     liens_actifs = [lien for lien in liens if lien.est_actif]
     conflits_par_couple = matrice_disponibilite_liens_meet(
         liens_actifs, [groupe.creneau for groupe in groupes_sans_lien_avec_creneau],

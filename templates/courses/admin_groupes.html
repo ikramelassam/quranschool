@@ -9,31 +9,12 @@
         <div class="page-subtitle">{% blocktrans with total=groupes.paginator.count %}إجمالي المجموعات: {{ total }}{% endblocktrans %}</div>
     </div>
     {% if request.user.role != 'mshrif' %}
-    {% if aucun_creneau %}
-    <span style="background:#eee; color:#999; border-radius:8px; padding:10px 20px; font-weight:600;" title="{% trans 'أنشئ حلقة أولاً' %}">
-       + {% trans "إنشاء مجموعة جديدة" %}
-    </span>
-    {% else %}
     <a href="{% url 'admin_groupe_ajouter' %}"
        style="background:var(--color-role-admin); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
        + {% trans "إنشاء مجموعة جديدة" %}
     </a>
     {% endif %}
-    {% endif %}
 </div>
-
-{% if aucun_creneau and request.user.role != 'mshrif' %}
-<div style="background:#fff3cd; color:#856404; border-radius:8px; padding:14px 20px; margin-bottom:20px;">
-    {% comment %}
-    blocktrans n'accepte pas d'autres balises de template (ex: {% url %}) en
-    son sein — le lien "إنشاء حلقة" est donc résolu en variable AVANT, puis
-    injecté via une interpolation normale {{ lien }}, comme n'importe quelle
-    variable de contexte.
-    {% endcomment %}
-    {% url 'admin_creneau_ajouter' as url_creneau_ajouter %}
-    {% blocktrans %}⚠️ لا توجد أي حلقة نشطة بعد. يجب <a href="{{ url_creneau_ajouter }}" style="color:#856404; font-weight:700;">إنشاء حلقة</a> قبل أن تتمكن من إنشاء مجموعة.{% endblocktrans %}
-</div>
-{% endif %}
 
 <style>
     .pill-nav { display:flex; flex-wrap:wrap; gap:8px; }
@@ -54,25 +35,23 @@
         <a href="{% querystring type='groupe' page=None %}" class="{% if filtres.type == 'groupe' %}active{% endif %}">{% trans "المجموعات الجماعية" %}</a>
     </nav>
     {% if filtres.type == 'groupe' %}
+    {% comment %}
+    Plus de pastille intermédiaire "الأطفال" (retirée à la demande explicite
+    d'Ikram, chantier du 2026-09-05) : les 3 tranches d'âge précises
+    التلقين/البراعم/اليافعون sont désormais des pastilles DIRECTES à ce même
+    niveau, chacune combinant categorie='mineurs' + tranche=<code> en un seul
+    clic — plus besoin d'un 2e niveau de navigation pour y accéder. Tranches
+    calculées à partir de la حلقة (Creneau.age_min/age_max) assignée au
+    groupe, PAS de l'âge individuel de chaque élève — même source de vérité
+    que Groupe.tranches_age_visees (badge affiché sur chaque carte plus bas).
+    Voir courses.views.groupes_list.
+    {% endcomment %}
     <nav class="pill-nav pill-nav-secondaire mt-2" aria-label="{% trans 'تصفية حسب فئة المجموعة الجماعية' %}">
         <a href="{% querystring categorie=None tranche=None page=None %}" class="{% if not filtres.categorie %}active{% endif %}">{% trans "الكل" %}</a>
         <a href="{% querystring categorie='femmes_adultes' tranche=None page=None %}" class="{% if filtres.categorie == 'femmes_adultes' %}active{% endif %}">{% trans "النساء" %}</a>
         <a href="{% querystring categorie='hommes_adultes' tranche=None page=None %}" class="{% if filtres.categorie == 'hommes_adultes' %}active{% endif %}">{% trans "الرجال" %}</a>
-        <a href="{% querystring categorie='mineurs' tranche=None page=None %}" class="{% if filtres.categorie == 'mineurs' %}active{% endif %}">{% trans "الأطفال" %}</a>
-    </nav>
-    {% endif %}
-    {% if filtres.categorie == 'mineurs' %}
-    {% comment %}
-    3e niveau, affiché seulement sous الأطفال — les 3 tranches d'âge précises
-    التلقين/البراعم/اليافعون, calculées à partir de la حلقة (Creneau.age_min/
-    age_max) assignée au groupe, PAS de l'âge individuel de chaque élève —
-    même source de vérité que Groupe.tranches_age_visees (badge affiché sur
-    chaque carte plus bas). Voir courses.views.groupes_list.
-    {% endcomment %}
-    <nav class="pill-nav pill-nav-secondaire mt-2" aria-label="{% trans 'تصفية حسب الفئة العمرية' %}">
-        <a href="{% querystring tranche=None page=None %}" class="{% if not filtres.tranche %}active{% endif %}">{% trans "الكل" %}</a>
         {% for code, nom, age_min, age_max in tranches_age %}
-        <a href="{% querystring tranche=code page=None %}" class="{% if filtres.tranche == code %}active{% endif %}">{{ nom }}</a>
+        <a href="{% querystring categorie='mineurs' tranche=code page=None %}" class="{% if filtres.categorie == 'mineurs' and filtres.tranche == code %}active{% endif %}">{{ nom }}</a>
         {% endfor %}
     </nav>
     {% endif %}
@@ -101,20 +80,6 @@
                 {% for p in profs %}
                 <option value="{{ p.id }}" {% if filtres.prof == p.id|stringformat:"s" %}selected{% endif %}>{{ p.user.get_full_name }}</option>
                 {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-3">
-            <label style="color:#888; font-size:0.8rem;">{% trans "الحلقة" %}</label>
-            <select name="creneau" class="form-select" data-select-cherchable onchange="if(this.value === '__creer__'){ window.location.href = '{% url "admin_creneau_ajouter" %}'; }">
-                <option value="">{% trans "الكل" %}</option>
-                {% for c in creneaux %}
-                <option value="{{ c.id }}" {% if filtres.creneau == c.id|stringformat:"s" %}selected{% endif %}>
-                    {% if c.nom %}{{ c.nom_localise }}{% else %}{% blocktrans with creneau=c age_min=c.age_min age_max=c.age_max sexe=c.get_sexe_cible_display type_seance=c.get_type_seance_display riwaya=c.get_riwaya_display %}{{ creneau }} — {{ age_min }}-{{ age_max }} سنة، {{ sexe }}، {{ type_seance }}، {{ riwaya }}{% endblocktrans %}{% endif %}
-                </option>
-                {% endfor %}
-                {% if request.user.role != 'mshrif' %}
-                <option value="__creer__">+ {% trans "إنشاء حلقة جديدة" %}</option>
-                {% endif %}
             </select>
         </div>
         <div class="col-md-3 d-flex gap-2 align-items-end">
@@ -196,7 +161,7 @@
 </div>
 {% else %}
 <div style="text-align:center; padding:60px; color:#aaa;">
-    {% if filtres.statut or filtres.prof or filtres.creneau or filtres.type or filtres.categorie or filtres.tranche or filtres.q %}
+    {% if filtres.statut or filtres.prof or filtres.type or filtres.categorie or filtres.tranche or filtres.q %}
     {% trans "لا توجد مجموعات مطابقة لهذه التصفية" %}
     {% else %}
     {% trans "لا توجد مجموعات بعد — أنشئ مجموعة جديدة !" %}

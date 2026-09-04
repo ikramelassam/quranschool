@@ -81,18 +81,8 @@
             </select>
         </div>
 
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">{% trans "الحلقة (الجدول) *" %}</label>
-            <select name="creneau" class="form-select mt-1" required>
-                <option value="">{% trans "اختر حلقة" %}</option>
-                {% for creneau in creneaux %}
-                <option value="{{ creneau.id }}" {% if groupe.creneau == creneau %}selected{% endif %}>
-                    {% blocktrans with c=creneau age_min=creneau.age_min age_max=creneau.age_max sexe=creneau.get_sexe_cible_display type_seance=creneau.get_type_seance_display riwaya=creneau.get_riwaya_display %}{{ c }} — {{ age_min }}-{{ age_max }} سنة، {{ sexe }}، {{ type_seance }}، {{ riwaya }}{% endblocktrans %}
-                </option>
-                {% endfor %}
-            </select>
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "تغيير الحلقة يعيد توليد حصص المجموعة القادمة تلقائياً." %}</div>
-        </div>
+        {% include 'courses/_creneau_champs_groupe.html' %}
+        <div style="color:#888; font-size:0.8rem; margin:-10px 0 16px;">{% trans "تغيير التوقيت (الأيام/الأوقات) يعيد توليد حصص المجموعة القادمة تلقائياً." %}</div>
 
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "نوع المجموعة *" %}</label>
@@ -150,8 +140,8 @@
                 {% endcomment %}
                 {% url 'admin_liens_meet' as url_liens_meet %}
                 {% blocktrans %}رابط واحد ثابت يُستخدم لجميع حصص هذه المجموعة. تُقترح هنا فقط الروابط
-                <a href="{{ url_liens_meet }}" target="_blank" style="color:var(--color-brand-gold-dark);">المسجَّلة في إدارة الروابط</a>
-                والمتاحة لتوقيت الحلقة المختارة أعلاه (بدون تعارض مع مجموعة أخرى). تغيير الحلقة يعيد التحقق من توفر الرابط.{% endblocktrans %}
+                <a href="{{ url_liens_meet }}" target="_blank" style="color:var(--color-brand-gold-dark);">المسجَّلة في إدارة الروابط</a>.
+                إن كان الرابط مستخدَماً بالفعل لتوقيت متعارض، سيُرفض عند الحفظ مع توضيح السبب.{% endblocktrans %}
             </div>
             {% if groupe.lien_reunion and not groupe.lien_meet_id %}
             <div style="color:#7a4a00; font-size:0.8rem; margin-bottom:8px;">
@@ -167,11 +157,6 @@
             </select>
             <input type="url" name="lien_meet_nouveau" class="form-control" style="margin-top:8px;"
                    placeholder="{% trans 'أو الصق هنا رابطاً جديداً غير موجود في القائمة' %}">
-            <div id="lien_meet_statut" style="color:#888; font-size:0.8rem; margin-top:6px;"></div>
-            <div id="lien_meet_alerte" class="d-none" style="background:#fce4e4; color:var(--color-danger); border-radius:8px; padding:10px 14px; margin-top:10px; font-size:0.85rem; font-weight:600;">
-                {% blocktrans %}لا يوجد رابط Google Meet متاح لهذا التوقيت. عدّل الحلقة أعلاه، أو
-                <a href="{{ url_liens_meet }}" target="_blank" style="color:var(--color-danger); text-decoration:underline;">أضف رابط Meet جديد</a>.{% endblocktrans %}
-            </div>
         </div>
 
         {% if avertissements_prof %}
@@ -196,80 +181,4 @@
         </div>
     </form>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-{% trans "-- بدون رابط من القائمة --" as texte_sans_lien %}
-{% trans "متاح ✅" as texte_disponible %}
-{% trans "غير متاح ❌" as texte_indisponible %}
-{% trans "اختر حلقة أولاً لمعرفة الروابط المتاحة." as texte_choisir_creneau %}
-{% trans "لا يوجد أي رابط Google Meet مسجَّل بعد." as texte_aucun_lien %}
-{% comment %}
-__N__/__TOTAL__ : jetons remplacés côté JS (Django ne peut pas interpoler des
-valeurs calculées dans le navigateur au moment du rendu serveur) — la phrase
-ENTIÈRE reste traduisible d'un bloc, l'ordre des 2 nombres pouvant différer
-d'une langue à l'autre. Même patron que admin_groupe_ajouter.html.
-{% endcomment %}
-{% trans "__N__ رابط متاح من أصل __TOTAL__ لهذا التوقيت." as texte_statut_liens %}
-<script>
-// Tâche du 2026-08-17 : voir le même bloc dans admin_groupe_ajouter.html —
-// réévaluation dynamique des liens Meet disponibles quand l'admin change la
-// حلقة (créneau). La validation qui compte reste TOUJOURS celle faite côté
-// serveur à la sauvegarde (voir courses.views.groupe_modifier).
-const liensMeetParCreneau = {{ liens_meet_json|safe }};
-const selectCreneau = document.querySelector('select[name="creneau"]');
-const selectLienMeet = document.getElementById('id_lien_meet');
-const statutLienMeet = document.getElementById('lien_meet_statut');
-const alerteLienMeet = document.getElementById('lien_meet_alerte');
-const TEXTE_SANS_LIEN = '{{ texte_sans_lien|escapejs }}';
-const TEXTE_DISPONIBLE = '{{ texte_disponible|escapejs }}';
-const TEXTE_INDISPONIBLE = '{{ texte_indisponible|escapejs }}';
-const TEXTE_CHOISIR_CRENEAU = '{{ texte_choisir_creneau|escapejs }}';
-const TEXTE_AUCUN_LIEN = '{{ texte_aucun_lien|escapejs }}';
-const TEXTE_STATUT_LIENS = '{{ texte_statut_liens|escapejs }}';
-
-function rafraichirLiensMeet() {
-    const creneauId = selectCreneau.value;
-    const valeurActuelle = selectLienMeet.value;
-    const liens = liensMeetParCreneau[creneauId] || [];
-
-    selectLienMeet.innerHTML = '<option value="">' + TEXTE_SANS_LIEN + '</option>';
-    let nbDisponibles = 0;
-    liens.forEach(function (lien) {
-        const option = document.createElement('option');
-        option.value = lien.id;
-        if (lien.disponible) {
-            option.textContent = lien.label + ' — ' + TEXTE_DISPONIBLE;
-            nbDisponibles++;
-        } else {
-            option.textContent = lien.label + ' — ' + TEXTE_INDISPONIBLE + ' (' + lien.conflit + ')';
-            option.disabled = true;
-        }
-        selectLienMeet.appendChild(option);
-    });
-
-    const optionEncoreValide = Array.from(selectLienMeet.options).some(function (o) {
-        return o.value === valeurActuelle && !o.disabled;
-    });
-    selectLienMeet.value = optionEncoreValide ? valeurActuelle : '';
-
-    const aucunLienDisponible = !!creneauId && liens.length > 0 && nbDisponibles === 0;
-    alerteLienMeet.classList.toggle('d-none', !aucunLienDisponible);
-
-    if (!creneauId) {
-        statutLienMeet.textContent = TEXTE_CHOISIR_CRENEAU;
-    } else if (liens.length === 0) {
-        statutLienMeet.textContent = TEXTE_AUCUN_LIEN;
-    } else if (aucunLienDisponible) {
-        statutLienMeet.textContent = '';
-    } else {
-        statutLienMeet.textContent = TEXTE_STATUT_LIENS.replace('__N__', nbDisponibles).replace('__TOTAL__', liens.length);
-    }
-}
-
-if (selectCreneau && selectLienMeet) {
-    selectCreneau.addEventListener('change', rafraichirLiensMeet);
-    rafraichirLiensMeet();
-}
-</script>
 {% endblock %}

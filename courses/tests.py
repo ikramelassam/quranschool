@@ -88,6 +88,23 @@ def _creer_creneau_horaire(jour_1, hd1, hf1, jour_2, hd2, hf2, **overrides):
     return creneau
 
 
+def _champs_horaire_depuis_creneau(creneau):
+    """Chantier « fusion horaire/groupe » du 2026-09-04 : admin_groupe_ajouter/
+    admin_groupe_modifier ne prennent plus un `creneau` (id d'un Creneau
+    existant) mais les champs de l'horaire directement — cette fonction
+    convertit un Creneau de fixture (ex: _creer_creneau) en ce nouveau
+    dictionnaire de champs POST, pour ne pas dupliquer cette conversion dans
+    chaque test qui postait auparavant 'creneau': creneau.id."""
+    slots = list(creneau.slots.order_by('ordre'))
+    return {
+        'sexe_cible': creneau.sexe_cible, 'type_seance': creneau.type_seance, 'riwaya': creneau.riwaya,
+        'age_min': creneau.age_min, 'age_max': creneau.age_max,
+        'slot_jour': [s.jour for s in slots],
+        'slot_heure_debut': [s.heure_debut.strftime('%H:%M') for s in slots],
+        'slot_heure_fin': [s.heure_fin.strftime('%H:%M') for s in slots],
+    }
+
+
 def _creer_prof(email='prof_courses@zidni.test'):
     u = User.objects.create_user(
         username=email, email=email, password=MOT_DE_PASSE,
@@ -605,7 +622,7 @@ class GroupePhotoEtCategorieVuesTests(TestCase):
 
     def _ajouter(self, **extra):
         donnees = {
-            'nom': 'مجموعة الصورة', 'creneau': self.creneau.id,
+            'nom': 'مجموعة الصورة', **_champs_horaire_depuis_creneau(self.creneau),
             'type_capacite': 'groupe', 'max_eleves': 10,
         }
         donnees.update(extra)
@@ -643,7 +660,7 @@ class GroupePhotoEtCategorieVuesTests(TestCase):
         groupe = Groupe.objects.create(nom='مجموعة قديمة', creneau=self.creneau, photo=_image_upload('ancienne.png'))
         ancienne_url = groupe.photo.name
         reponse = self.client.post(reverse('admin_groupe_modifier', args=[groupe.id]), {
-            'nom': groupe.nom, 'creneau': self.creneau.id, 'type_capacite': 'groupe',
+            'nom': groupe.nom, **_champs_horaire_depuis_creneau(self.creneau), 'type_capacite': 'groupe',
             'capacite_max': 10, 'statut': 'actif', 'photo': _image_upload('nouvelle.png'),
         })
         self.assertEqual(reponse.status_code, 302)
@@ -656,7 +673,7 @@ class GroupePhotoEtCategorieVuesTests(TestCase):
         groupe = Groupe.objects.create(nom='مجموعة بصورة', creneau=self.creneau, photo=_image_upload())
         self.assertTrue(groupe.photo)
         reponse = self.client.post(reverse('admin_groupe_modifier', args=[groupe.id]), {
-            'nom': groupe.nom, 'creneau': self.creneau.id, 'type_capacite': 'groupe',
+            'nom': groupe.nom, **_champs_horaire_depuis_creneau(self.creneau), 'type_capacite': 'groupe',
             'capacite_max': 10, 'statut': 'actif', 'supprimer_photo': '1',
         })
         self.assertEqual(reponse.status_code, 302)
@@ -666,7 +683,7 @@ class GroupePhotoEtCategorieVuesTests(TestCase):
     def test_modification_categorie(self):
         groupe = Groupe.objects.create(nom='مجموعة للتصنيف', creneau=self.creneau, categorie='hommes_adultes')
         reponse = self.client.post(reverse('admin_groupe_modifier', args=[groupe.id]), {
-            'nom': groupe.nom, 'creneau': self.creneau.id, 'type_capacite': 'groupe',
+            'nom': groupe.nom, **_champs_horaire_depuis_creneau(self.creneau), 'type_capacite': 'groupe',
             'capacite_max': 10, 'statut': 'actif', 'categorie': 'femmes_adultes',
         })
         self.assertEqual(reponse.status_code, 302)
@@ -813,6 +830,84 @@ class DisponibiliteEleveNonBloquanteTests(TestCase):
         DisponibiliteProf.objects.create(prof=prof, jour_semaine='jeu', heure_debut='10:00')
         avertissements = avertissements_prof_creneau(prof, self.creneau)
         self.assertTrue(any('جدول تفرغ' in a for a in avertissements))
+
+
+class TypeOffreNonBloquantTests(TestCase):
+    """Chantier du 2026-09-04 (demande client explicite) : un élève inscrit en
+    فردي (individuel) peut être assigné à une مجموعة جماعية et inversement —
+    le type d'abonnement de la candidature ne doit plus empêcher le مدير
+    d'assigner l'élève (un élève peut changer d'avis après coup). Même
+    traitement que la disponibilité horaire (chantier du 2026-08-16, voir
+    DisponibiliteEleveNonBloquanteTests) : simple avertissement non
+    bloquant, avec confirmation possible."""
+
+    def setUp(self):
+        self.admin = _creer_admin('admin_type_offre_courses@zidni.test')
+        self.creneau = _creer_creneau()
+        # type_capacite='groupe' par défaut sur Groupe.
+        self.groupe = Groupe.objects.create(nom='مجموعة جماعية اختبار', creneau=self.creneau)
+
+    def _creer_eleve_individuel(self, email):
+        eleve = _creer_eleve(email)
+        eleve.inscription = _creer_inscription_eleve(email=f'ins_{email}', abonnement='individuel_1mois')
+        eleve.save()
+        return eleve
+
+    def test_type_offre_incompatible_nest_plus_bloquant(self):
+        eleve = self._creer_eleve_individuel('eleve_type_offre_incompatible@zidni.test')
+        self.assertIsNone(raison_incompatibilite_groupe(eleve, self.groupe))
+
+    def test_type_offre_incompatible_produit_un_avertissement(self):
+        eleve = self._creer_eleve_individuel('eleve_type_offre_avert@zidni.test')
+        avertissements = avertissements_groupe(eleve, self.groupe)
+        self.assertTrue(any('فردي/جماعي' in a for a in avertissements))
+
+    def test_type_offre_compatible_aucun_avertissement(self):
+        eleve = _creer_eleve('eleve_type_offre_compatible@zidni.test')
+        eleve.inscription = _creer_inscription_eleve(email='ins_type_offre_compatible', abonnement='groupe_1mois')
+        eleve.save()
+        avertissements = avertissements_groupe(eleve, self.groupe)
+        self.assertFalse(any('فردي/جماعي' in a for a in avertissements))
+
+    def test_vue_ajout_sans_confirmation_demande_confirmation_pas_de_rejet(self):
+        eleve = self._creer_eleve_individuel('eleve_type_offre_vue_sans_confirme@zidni.test')
+
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, self.admin)
+        reponse = client.post(
+            reverse('admin_groupe_ajouter_eleve', args=[self.groupe.id]),
+            {'eleve_id': str(eleve.id)},
+        )
+        self.assertRedirects(
+            reponse,
+            reverse('admin_groupe_detail', args=[self.groupe.id]) + f'?confirmer_ajout={eleve.id}',
+        )
+        self.assertFalse(self.groupe.eleves.filter(id=eleve.id).exists())
+
+    def test_vue_ajout_avec_confirmation_ajoute_malgre_type_offre_incompatible(self):
+        eleve = self._creer_eleve_individuel('eleve_type_offre_vue_confirme@zidni.test')
+
+        client = Client(SERVER_NAME='localhost')
+        _connecter(client, self.admin)
+        reponse = client.post(
+            reverse('admin_groupe_ajouter_eleve', args=[self.groupe.id]),
+            {'eleve_id': str(eleve.id), 'confirme': '1'},
+            follow=True,
+        )
+        self.assertRedirects(reponse, reverse('admin_groupe_detail', args=[self.groupe.id]))
+        self.assertTrue(self.groupe.eleves.filter(id=eleve.id).exists())
+        self.assertContains(reponse, 'فردي/جماعي')
+
+    def test_autres_criteres_bloquants_restent_actifs(self):
+        """Régression : seul le type d'abonnement devient non bloquant —
+        l'âge (et les autres critères de raison_incompatibilite_groupe)
+        doivent continuer à bloquer normalement."""
+        eleve = self._creer_eleve_individuel('eleve_type_offre_age_hors_plage@zidni.test')
+        eleve.inscription.date_naissance = datetime.date(1990, 1, 1)
+        eleve.inscription.save()
+        raison = raison_incompatibilite_groupe(eleve, self.groupe)
+        self.assertIsNotNone(raison)
+        self.assertIn('عمر', raison)
 
 
 # ==================== POOL DE LIENS GOOGLE MEET (Tâche du 2026-08-17) ====================
@@ -1000,7 +1095,7 @@ class LienMeetVuesGroupeTests(TestCase):
     def test_creation_avec_lien_disponible_reussit_et_synchronise_lien_reunion(self):
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_ajouter'), {
-            'nom': 'مجموعة جديدة', 'creneau': self.creneau_libre.id, 'lien_meet': self.lien1.id,
+            'nom': 'مجموعة جديدة', **_champs_horaire_depuis_creneau(self.creneau_libre), 'lien_meet': self.lien1.id,
             'type_capacite': 'groupe', 'max_eleves': 10,
         })
         self.assertEqual(reponse.status_code, 302)
@@ -1011,7 +1106,7 @@ class LienMeetVuesGroupeTests(TestCase):
     def test_creation_avec_lien_en_conflit_est_refusee_et_ne_cree_rien(self):
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_ajouter'), {
-            'nom': 'مجموعة متعارضة', 'creneau': self.creneau_conflit.id, 'lien_meet': self.lien1.id,
+            'nom': 'مجموعة متعارضة', **_champs_horaire_depuis_creneau(self.creneau_conflit), 'lien_meet': self.lien1.id,
             'type_capacite': 'groupe', 'max_eleves': 10,
         })
         self.assertEqual(reponse.status_code, 200)  # re-rendu du formulaire, pas de redirection
@@ -1022,7 +1117,7 @@ class LienMeetVuesGroupeTests(TestCase):
     def test_creation_sans_lien_reste_possible(self):
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_ajouter'), {
-            'nom': 'مجموعة بدون رابط', 'creneau': self.creneau_libre.id, 'lien_meet': '',
+            'nom': 'مجموعة بدون رابط', **_champs_horaire_depuis_creneau(self.creneau_libre), 'lien_meet': '',
             'type_capacite': 'groupe', 'max_eleves': 10,
         })
         self.assertEqual(reponse.status_code, 302)
@@ -1035,7 +1130,7 @@ class LienMeetVuesGroupeTests(TestCase):
         self.lien1.save(update_fields=['est_actif'])
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_ajouter'), {
-            'nom': 'مجموعة برابط معطّل', 'creneau': self.creneau_libre.id, 'lien_meet': self.lien1.id,
+            'nom': 'مجموعة برابط معطّل', **_champs_horaire_depuis_creneau(self.creneau_libre), 'lien_meet': self.lien1.id,
             'type_capacite': 'groupe', 'max_eleves': 10,
         })
         self.assertEqual(reponse.status_code, 200)
@@ -1044,7 +1139,7 @@ class LienMeetVuesGroupeTests(TestCase):
     def test_modification_meme_groupe_meme_lien_meme_creneau_nest_pas_un_faux_conflit(self):
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_modifier', args=[self.groupe_a.id]), {
-            'nom': 'مجموعة أ (اسم معدّل)', 'creneau': self.creneau_a.id, 'lien_meet': self.lien1.id,
+            'nom': 'مجموعة أ (اسم معدّل)', **_champs_horaire_depuis_creneau(self.creneau_a), 'lien_meet': self.lien1.id,
             'type_capacite': 'groupe', 'capacite_max': 10, 'statut': 'actif',
         })
         self.assertEqual(reponse.status_code, 302)
@@ -1062,7 +1157,7 @@ class LienMeetVuesGroupeTests(TestCase):
         )
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_modifier', args=[groupe_b.id]), {
-            'nom': groupe_b.nom, 'creneau': self.creneau_conflit.id, 'lien_meet': self.lien1.id,
+            'nom': groupe_b.nom, **_champs_horaire_depuis_creneau(self.creneau_conflit), 'lien_meet': self.lien1.id,
             'type_capacite': 'groupe', 'capacite_max': 10, 'statut': 'actif',
         })
         self.assertEqual(reponse.status_code, 200)
@@ -1074,7 +1169,7 @@ class LienMeetVuesGroupeTests(TestCase):
     def test_retrait_du_lien_efface_lien_reunion_synchronise(self):
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_modifier', args=[self.groupe_a.id]), {
-            'nom': self.groupe_a.nom, 'creneau': self.creneau_a.id, 'lien_meet': '',
+            'nom': self.groupe_a.nom, **_champs_horaire_depuis_creneau(self.creneau_a), 'lien_meet': '',
             'type_capacite': 'groupe', 'capacite_max': 10, 'statut': 'actif',
         })
         self.assertEqual(reponse.status_code, 302)
@@ -1094,7 +1189,7 @@ class LienMeetVuesGroupeTests(TestCase):
         )
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_modifier', args=[groupe_legacy.id]), {
-            'nom': groupe_legacy.nom, 'creneau': self.creneau_libre.id, 'lien_meet': '',
+            'nom': groupe_legacy.nom, **_champs_horaire_depuis_creneau(self.creneau_libre), 'lien_meet': '',
             'type_capacite': 'groupe', 'capacite_max': 10, 'statut': 'actif',
         })
         self.assertEqual(reponse.status_code, 302)
@@ -1106,7 +1201,7 @@ class LienMeetVuesGroupeTests(TestCase):
         est créé et devient le lien du groupe (2026-08-31)."""
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_ajouter'), {
-            'nom': 'مجموعة برابط ملصوق', 'creneau': self.creneau_libre.id,
+            'nom': 'مجموعة برابط ملصوق', **_champs_horaire_depuis_creneau(self.creneau_libre),
             'lien_meet': '', 'lien_meet_nouveau': 'https://meet.google.com/zzz-zzzz-zzz',
             'type_capacite': 'groupe', 'max_eleves': 10,
         })
@@ -1121,7 +1216,7 @@ class LienMeetVuesGroupeTests(TestCase):
         """Coller une URL déjà dans le pool ne crée pas de doublon."""
         client = self._client(self.admin)
         client.post(reverse('admin_groupe_ajouter'), {
-            'nom': 'مجموعة تعيد استخدام', 'creneau': self.creneau_libre.id,
+            'nom': 'مجموعة تعيد استخدام', **_champs_horaire_depuis_creneau(self.creneau_libre),
             'lien_meet': '', 'lien_meet_nouveau': self.lien1.url,
             'type_capacite': 'groupe', 'max_eleves': 10,
         })
@@ -1132,7 +1227,7 @@ class LienMeetVuesGroupeTests(TestCase):
     def test_lien_colle_invalide_est_refuse(self):
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_ajouter'), {
-            'nom': 'مجموعة برابط خاطئ', 'creneau': self.creneau_libre.id,
+            'nom': 'مجموعة برابط خاطئ', **_champs_horaire_depuis_creneau(self.creneau_libre),
             'lien_meet': '', 'lien_meet_nouveau': 'pas une url',
             'type_capacite': 'groupe', 'max_eleves': 10,
         })
@@ -1144,7 +1239,7 @@ class LienMeetVuesGroupeTests(TestCase):
         les liens du pool."""
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_ajouter'), {
-            'nom': 'مجموعة ملصوق متعارض', 'creneau': self.creneau_conflit.id,
+            'nom': 'مجموعة ملصوق متعارض', **_champs_horaire_depuis_creneau(self.creneau_conflit),
             'lien_meet': '', 'lien_meet_nouveau': self.lien1.url,
             'type_capacite': 'groupe', 'max_eleves': 10,
         })
@@ -1411,32 +1506,31 @@ class LienMeetGroupesSansLienTests(TestCase):
         reponse = self._client(self.admin).get(reverse('dashboard_admin'))
         self.assertEqual(reponse.context['groupes_sans_lien_meet'], 2)
 
-    def test_changement_horaire_qui_cree_conflit_propose_les_liens_disponibles_via_le_formulaire(self):
-        """Test F : la page de modification, après un changement d'horaire
-        refusé (voir LienMeetVuesGroupeTests.test_changement_horaire...), doit
-        recalculer et exposer les liens réellement disponibles pour le NOUVEL
-        horaire proposé dans son JSON JS — pas seulement pour l'ancien."""
+    def test_changement_horaire_qui_cree_conflit_est_refuse_et_ne_change_rien(self):
+        """Test F, réécrit chantier « fusion horaire/groupe » du 2026-09-04 :
+        l'aperçu JS live de disponibilité des liens (liensMeetParCreneau) a
+        été retiré avec l'ancien sélecteur "الحلقة" — il n'existe plus de
+        créneau EXISTANT à survoler avant soumission (l'horaire est saisi
+        inline, un Creneau candidat n'est créé qu'à la soumission). La
+        garantie qui compte reste la validation SERVEUR, déjà couverte par
+        LienMeetVuesGroupeTests.test_changement_horaire_qui_cree_un_conflit_est_refuse
+        — ce test vérifie ici que le formulaire re-affiché après refus ne
+        laisse aucune trace de conflit (groupe inchangé)."""
         groupe = Groupe.objects.create(
             nom='مجموعة ب', creneau=self.creneau_libre, lien_meet=self.lien1,
             lien_reunion=self.lien1.url, statut='actif',
         )
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_modifier', args=[groupe.id]), {
-            'nom': groupe.nom, 'creneau': self.creneau_conflit.id, 'lien_meet': self.lien1.id,
+            'nom': groupe.nom, **_champs_horaire_depuis_creneau(self.creneau_conflit), 'lien_meet': self.lien1.id,
             'type_capacite': 'groupe', 'capacite_max': 10, 'statut': 'actif',
         })
         self.assertEqual(reponse.status_code, 200)
-        self.assertContains(reponse, 'const liensMeetParCreneau')
-        import json as _json
-        contenu = reponse.content.decode('utf-8')
-        debut = contenu.index('const liensMeetParCreneau = ') + len('const liensMeetParCreneau = ')
-        fin = contenu.index(';', debut)
-        payload = _json.loads(contenu[debut:fin])
-        # Pour creneau_conflit, lien1 doit être marqué indisponible.
-        entree_lien1 = next(l for l in payload[str(self.creneau_conflit.id)] if l['id'] == self.lien1.id)
-        self.assertFalse(entree_lien1['disponible'])
-        entree_lien2 = next(l for l in payload[str(self.creneau_conflit.id)] if l['id'] == self.lien2.id)
-        self.assertTrue(entree_lien2['disponible'])
+        messages_affiches = [str(m) for m in reponse.context['messages']]
+        self.assertTrue(any('يتعارض' in m for m in messages_affiches))
+        groupe.refresh_from_db()
+        self.assertEqual(groupe.creneau_id, self.creneau_libre.id)
+        self.assertEqual(groupe.lien_meet_id, self.lien1.id)
 
 
 class ChevauchementHoraireReelTests(TestCase):
@@ -1658,100 +1752,16 @@ class CreneauNomTests(TestCase):
         creneau.save()
         self.assertEqual(str(creneau), 'حلقة الأطفال - الصباح')
 
-    def test_ajouter_creneau_avec_nom(self):
-        admin = _creer_admin()
-        client = Client(SERVER_NAME='localhost')
-        _connecter(client, admin)
-        reponse = client.post(reverse('admin_creneau_ajouter'), {
-            'nom': 'حلقة تجريبية', 'sexe_cible': 'mixte', 'type_seance': 'hifz', 'riwaya': 'hafs',
-            'age_min': 6, 'age_max': 12,
-            'slot_jour': ['lun', 'mer'], 'slot_heure_debut': ['16:00', '16:00'], 'slot_heure_fin': ['17:00', '17:00'],
-        })
-        self.assertEqual(reponse.status_code, 302)
-        creneau = Creneau.objects.get(nom='حلقة تجريبية')
-        self.assertEqual(str(creneau), 'حلقة تجريبية')
+    # test_ajouter_creneau_avec_nom / test_modifier_creneau_renomme retirés
+    # (chantier « fusion horaire/groupe » du 2026-09-04) : admin_creneau_
+    # ajouter/admin_creneau_modifier n'existent plus — Creneau.nom n'est plus
+    # saisi nulle part dans l'UI (créé vide par groupe_ajouter/groupe_modifier),
+    # seul le comportement de __str__ ci-dessus reste couvert.
 
-    def test_modifier_creneau_renomme(self):
-        admin = _creer_admin()
-        creneau = _creer_creneau()
-        slots = list(creneau.slots.order_by('ordre'))
-        client = Client(SERVER_NAME='localhost')
-        _connecter(client, admin)
-        reponse = client.post(reverse('admin_creneau_modifier', args=[creneau.id]), {
-            'nom': 'حلقة معاد تسميتها', 'sexe_cible': creneau.sexe_cible, 'type_seance': creneau.type_seance,
-            'riwaya': creneau.riwaya, 'age_min': creneau.age_min, 'age_max': creneau.age_max,
-            'slot_jour': [s.jour for s in slots],
-            'slot_heure_debut': [s.heure_debut.strftime('%H:%M') for s in slots],
-            'slot_heure_fin': [s.heure_fin.strftime('%H:%M') for s in slots],
-        })
-        self.assertEqual(reponse.status_code, 302)
-        creneau.refresh_from_db()
-        self.assertEqual(creneau.nom, 'حلقة معاد تسميتها')
-
-
-class AdminGroupesFiltreCreneauAffichageTests(TestCase):
-    """Liste déroulante "الحلقة" du filtre admin_groupes (Tâche du 2026-08-19) :
-    une حلقة nommée n'affiche QUE son nom dans le <select> (plus la
-    description âge/sexe/niveau/رواية en double), une حلقة sans nom garde
-    l'ancien affichage complet — et le <select> est désormais cherchable
-    (data-select-cherchable, composant partagé _select_cherchable.html)."""
-
-    def setUp(self):
-        self.admin = _creer_admin()
-        self.creneau_nomme = _creer_creneau(sexe_cible='homme', age_min=18, age_max=60)
-        self.creneau_nomme.nom = 'حلقة الرجال - المساء'
-        self.creneau_nomme.save()
-        self.creneau_sans_nom = _creer_creneau(sexe_cible='mixte', age_min=6, age_max=12)
-
-    def _get(self):
-        client = Client(SERVER_NAME='localhost')
-        _connecter(client, self.admin)
-        return client.get(reverse('admin_groupes'), {'type': 'groupe'})
-
-    def test_creneau_nomme_affiche_uniquement_son_nom(self):
-        html = self._get().content.decode('utf-8')
-        self.assertIn('حلقة الرجال - المساء', html)
-        # La description complète (âge/sexe/رواية) ne doit plus être accolée
-        # au nom pour ce créneau — seule la ligne du créneau sans nom la garde.
-        self.assertNotIn('حلقة الرجال - المساء — 18-60', html)
-
-    def test_creneau_sans_nom_garde_laffichage_complet(self):
-        html = self._get().content.decode('utf-8')
-        self.assertIn(f'{self.creneau_sans_nom} — 6-12', html)
-
-    def test_select_creneau_est_cherchable(self):
-        html = self._get().content.decode('utf-8')
-        self.assertIn('name="creneau" class="form-select" data-select-cherchable', html)
-
-
-class CreneauxListRechercheTests(TestCase):
-    """Vue admin_creneaux (courses.views.creneaux_list) : recherche ?q= par nom."""
-
-    def setUp(self):
-        self.admin = _creer_admin()
-        self.creneau_nomme = _creer_creneau()
-        self.creneau_nomme.nom = 'حلقة الأطفال - الصباح'
-        self.creneau_nomme.save()
-        self.creneau_sans_nom = _creer_creneau(sexe_cible='homme', age_min=18, age_max=60)
-
-    def _get(self, **params):
-        client = Client(SERVER_NAME='localhost')
-        _connecter(client, self.admin)
-        return client.get(reverse('admin_creneaux'), params)
-
-    def test_recherche_par_nom_trouve_le_creneau_nomme(self):
-        reponse = self._get(q='الأطفال')
-        ids = {c.id for c in reponse.context['creneaux']}
-        self.assertIn(self.creneau_nomme.id, ids)
-        self.assertNotIn(self.creneau_sans_nom.id, ids)
-
-    def test_recherche_sans_correspondance_ne_plante_pas(self):
-        reponse = self._get(q='زدني علما لا يوجد')
-        self.assertEqual(reponse.status_code, 200)
-        self.assertEqual(len(reponse.context['creneaux']), 0)
-
-
-
+# AdminGroupesFiltreCreneauAffichageTests / CreneauxListRechercheTests retirés
+# (chantier « fusion horaire/groupe » du 2026-09-04) : le filtre "الحلقة" de
+# admin_groupes et l'écran admin_creneaux ont été retirés — un Creneau est
+# désormais privé à son groupe, plus une entité navigable à part.
 
 # ============================================================================
 # Tâche du 2026-08-18 — Critère ينتقل/يعيد (Presence.resultat_memorisation)
@@ -1892,24 +1902,30 @@ class CreneauGeneralisationSlotsTests(TestCase):
         ])
         self.assertTrue(creneaux_se_chevauchent(creneau_a, creneau_b))
 
-    def test_creneau_ajouter_avec_4_slots_depuis_la_vue(self):
+    def test_groupe_ajouter_avec_4_slots_cree_un_creneau_a_4_slots(self):
+        """Chantier « fusion horaire/groupe » du 2026-09-04 : l'horaire se
+        saisit désormais directement dans admin_groupe_ajouter (plus d'écran
+        admin_creneau_ajouter séparé) — même couverture N séances/semaine,
+        via ce nouveau point d'entrée."""
         admin = _creer_admin()
         client = Client(SERVER_NAME='localhost')
         _connecter(client, admin)
-        reponse = client.post(reverse('admin_creneau_ajouter'), {
-            'nom': 'حلقة 4 حصص', 'sexe_cible': 'mixte', 'type_seance': 'hifz', 'riwaya': 'hafs',
-            'age_min': 6, 'age_max': 12,
+        reponse = client.post(reverse('admin_groupe_ajouter'), {
+            'nom': 'مجموعة 4 حصص', 'sexe_cible': 'mixte', 'type_seance': 'hifz', 'riwaya': 'hafs',
+            'age_min': 6, 'age_max': 12, 'type_capacite': 'groupe',
             'slot_jour': ['lun', 'mar', 'mer', 'jeu'],
             'slot_heure_debut': ['16:00', '16:00', '16:00', '16:00'],
             'slot_heure_fin': ['17:00', '17:00', '17:00', '17:00'],
         })
         self.assertEqual(reponse.status_code, 302)
-        creneau = Creneau.objects.get(nom='حلقة 4 حصص')
-        self.assertEqual(creneau.slots.count(), 4)
+        groupe = Groupe.objects.get(nom='مجموعة 4 حصص')
+        self.assertEqual(groupe.creneau.slots.count(), 4)
 
-    def test_creneau_modifier_peut_reduire_le_nombre_de_slots(self):
-        """4 slots -> 2 slots : les séances futures doivent être régénérées
-        (l'horaire a changé), sans casser quoi que ce soit."""
+    def test_groupe_modifier_peut_reduire_le_nombre_de_slots(self):
+        """4 slots -> 2 slots depuis admin_groupe_modifier : les séances
+        futures doivent être régénérées (l'horaire a changé), sans casser
+        quoi que ce soit — même couverture que l'ancien creneau_modifier,
+        via le nouveau formulaire fusionné."""
         admin = _creer_admin()
         creneau = _creer_creneau(nb_slots=4)
         groupe = Groupe.objects.create(nom='مجموعة تقليص الحصص', creneau=creneau, statut='actif')
@@ -1918,32 +1934,35 @@ class CreneauGeneralisationSlotsTests(TestCase):
 
         client = Client(SERVER_NAME='localhost')
         _connecter(client, admin)
-        reponse = client.post(reverse('admin_creneau_modifier', args=[creneau.id]), {
-            'nom': creneau.nom, 'sexe_cible': creneau.sexe_cible, 'type_seance': creneau.type_seance,
+        reponse = client.post(reverse('admin_groupe_modifier', args=[groupe.id]), {
+            'nom': groupe.nom, 'type_capacite': groupe.type_capacite, 'capacite_max': groupe.capacite_max,
+            'statut': groupe.statut,
+            'sexe_cible': creneau.sexe_cible, 'type_seance': creneau.type_seance,
             'riwaya': creneau.riwaya, 'age_min': creneau.age_min, 'age_max': creneau.age_max,
             'slot_jour': ['lun', 'mer'],
             'slot_heure_debut': ['16:00', '16:00'],
             'slot_heure_fin': ['17:00', '17:00'],
         })
         self.assertEqual(reponse.status_code, 302)
-        creneau.refresh_from_db()
-        self.assertEqual(creneau.slots.count(), 2)
+        groupe.refresh_from_db()
+        self.assertEqual(groupe.creneau.slots.count(), 2)
         jours_generes = {s.date.weekday() for s in Seance.objects.filter(groupe=groupe, statut='planifiee')}
         self.assertEqual(len(jours_generes), 2)
 
-    def test_creneau_ajouter_sans_aucun_slot_est_refuse(self):
+    def test_groupe_ajouter_sans_aucun_slot_est_refuse(self):
         """Garde-fou serveur (pas de Django Forms dans ce projet) — une requête
         POST manipulée sans aucune ligne slot_jour/slot_heure_debut/
-        slot_heure_fin ne doit jamais créer un Creneau sans planning."""
+        slot_heure_fin ne doit jamais créer de groupe ni de Creneau sans
+        planning."""
         admin = _creer_admin()
         client = Client(SERVER_NAME='localhost')
         _connecter(client, admin)
-        reponse = client.post(reverse('admin_creneau_ajouter'), {
-            'nom': 'حلقة بدون حصص', 'sexe_cible': 'mixte', 'type_seance': 'hifz', 'riwaya': 'hafs',
-            'age_min': 6, 'age_max': 12,
+        reponse = client.post(reverse('admin_groupe_ajouter'), {
+            'nom': 'مجموعة بدون حصص', 'sexe_cible': 'mixte', 'type_seance': 'hifz', 'riwaya': 'hafs',
+            'age_min': 6, 'age_max': 12, 'type_capacite': 'groupe',
         })
         self.assertEqual(reponse.status_code, 200)
-        self.assertFalse(Creneau.objects.filter(nom='حلقة بدون حصص').exists())
+        self.assertFalse(Groupe.objects.filter(nom='مجموعة بدون حصص').exists())
 
 
 class BackfillCreneauSlotMigrationTests(TestCase):

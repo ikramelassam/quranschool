@@ -206,7 +206,7 @@
             </a>
         </details>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_seances' or request.resolver_match.url_name == 'admin_calendrier' or request.resolver_match.url_name == 'admin_groupes' or request.resolver_match.url_name == 'admin_creneaux' or request.resolver_match.url_name == 'admin_liens_meet' or request.resolver_match.url_name == 'admin_demandes_disponibilite' or request.resolver_match.url_name == 'admin_demandes_changement_halaka' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_seances' or request.resolver_match.url_name == 'admin_calendrier' or request.resolver_match.url_name == 'admin_groupes' or request.resolver_match.url_name == 'admin_liens_meet' or request.resolver_match.url_name == 'admin_demandes_disponibilite' or request.resolver_match.url_name == 'admin_demandes_changement_halaka' %}open{% endif %}>
             <summary>{% trans "الحصص والجدولة" %}</summary>
             <a href="{% url 'admin_seances' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_seances' %}active{% endif %}">
@@ -219,10 +219,6 @@
             <a href="{% url 'admin_groupes' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_groupes' %}active{% endif %}">
                 <span class="icon">👥</span> {% trans "المجموعات" %}
-            </a>
-            <a href="{% url 'admin_creneaux' %}"
-               class="menu-item {% if request.resolver_match.url_name == 'admin_creneaux' %}active{% endif %}">
-                <span class="icon">🕐</span> {% trans "الحلقات" %}
             </a>
             <a href="{% url 'admin_liens_meet' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_liens_meet' %}active{% endif %}">
