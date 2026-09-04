@@ -56,10 +56,10 @@ WhatsApp alors que la demande était encore 'en_attente' en base (si
 
             <div class="rf-connecteur">{% trans "↓ يُدرَج تلقائياً في الحقل أدناه" %}</div>
 
-            <label class="rf-label">{% trans "📝 سبب الرفض" %} <span class="rf-requis">*</span></label>
-            <div class="rf-aide">{% trans "نص حر — يُحفظ نهائياً مع هذا الطلب، ولا يتغيّر أبداً لاحقاً حتى لو عُدّلت أو حُذفت الصيغة الجاهزة المستخدمة أعلاه" %}</div>
-            <textarea id="id_motif" name="motif" rows="6" class="form-control rf-motif" required
-                      placeholder="{% trans 'اكتب سبب الرفض هنا بوضوح — سيظهر هذا النص للشخص المعني...' %}">{{ motif_saisi }}</textarea>
+            <label class="rf-label">{% trans "📝 سبب الرفض (اختياري)" %}</label>
+            <div class="rf-aide">{% trans "نص حر — يُحفظ نهائياً مع هذا الطلب، ولا يتغيّر أبداً لاحقاً حتى لو عُدّلت أو حُذفت الصيغة الجاهزة المستخدمة أعلاه. اتركه فارغاً لرفض الطلب مباشرة دون كتابة أو إرسال أي رسالة." %}</div>
+            <textarea id="id_motif" name="motif" rows="6" class="form-control rf-motif"
+                      placeholder="{% trans 'اكتب سبب الرفض هنا بوضوح — سيظهر هذا النص للشخص المعني... (اختياري)' %}">{{ motif_saisi }}</textarea>
 
             <div class="form-check rf-checkbox">
                 <input type="checkbox" class="form-check-input" name="enregistrer_phrase" id="id_enregistrer_phrase">
@@ -72,11 +72,12 @@ WhatsApp alors que la demande était encore 'en_attente' en base (si
         <div class="rf-apercu">
             <div class="rf-apercu-titre">{% trans "👁️ معاينة الرسالة الكاملة" %}</div>
             <div class="rf-apercu-corps" id="id_apercu_message" dir="rtl"></div>
+            <div class="rf-apercu-corps" id="id_apercu_sans_message" dir="rtl" style="color:var(--color-text-muted); font-style:italic;" hidden>{% trans "لن يتم إرسال أي رسالة — سيُرفض الطلب مباشرة." %}</div>
         </div>
 
         <div class="rf-actions">
-            <button type="submit" class="rf-btn-confirmer"
-                    onclick="return confirm('{% blocktrans with nom=nom_complet|escapejs %}هل أنت متأكد من رفض طلب {{ nom }}؟ لا يمكن التراجع عن هذا الإجراء.{% endblocktrans %}');">
+            <button type="submit" class="rf-btn-confirmer" id="id_btn_confirmer"
+                    onclick="return confirm(document.getElementById('id_motif').value.trim() ? '{% blocktrans with nom=nom_complet|escapejs %}هل أنت متأكد من رفض طلب {{ nom }}؟ لا يمكن التراجع عن هذا الإجراء.{% endblocktrans %}' : '{% blocktrans with nom=nom_complet|escapejs %}هل أنت متأكد من رفض طلب {{ nom }} دون كتابة سبب ولا إرسال أي رسالة؟ لا يمكن التراجع عن هذا الإجراء.{% endblocktrans %}');">
                 {% trans "❌ تأكيد الرفض" %}
             </button>
             <a href="{{ retour_url }}" class="rf-btn-retour">{% trans "← رجوع بدون رفض" %}</a>
@@ -147,17 +148,23 @@ WhatsApp alors que la demande était encore 'en_attente' en base (si
     var motifInput = document.getElementById('id_motif');
     var phraseSelect = document.getElementById('id_phrase_select');
     var apercuEl = document.getElementById('id_apercu_message');
+    var apercuSansMessageEl = document.getElementById('id_apercu_sans_message');
 
     function messageComplet() {
-        var motif = motifInput.value.trim() || '...';
-        return gabaritAvant + motif + gabaritApres;
+        return gabaritAvant + motifInput.value.trim() + gabaritApres;
     }
 
     // Correction du 2026-08-14 : plus de liens WhatsApp à mettre à jour ici
     // (déplacés vers dashboard/refus_confirme.html, affiché seulement après
     // confirmation) — cette fonction ne met plus à jour que l'aperçu texte.
+    // Motif optionnel (demande du client, 2026-09-04) : champ vide -> aucune
+    // rédaction du gabarit، l'écran refus_confirme n'est de toute façon
+    // jamais affiché dans ce cas (voir dashboard.views.refus_confirme).
     function majTout() {
-        apercuEl.textContent = messageComplet();
+        var vide = !motifInput.value.trim();
+        apercuEl.hidden = vide;
+        apercuSansMessageEl.hidden = !vide;
+        if (!vide) apercuEl.textContent = messageComplet();
     }
 
     if (phraseSelect) {

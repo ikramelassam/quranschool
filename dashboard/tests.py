@@ -1084,16 +1084,36 @@ class RefusInscriptionAvecMotifTests(TestCase):
         self.assertEqual(inscription.statut, 'en_attente')
         self.assertEqual(inscription.motif_refus, '')
 
-    def test_motif_vide_ne_rejette_rien_et_reaffiche_le_formulaire(self):
+    def test_motif_vide_refuse_directement_sans_ecran_whatsapp(self):
+        """Demande du client (2026-09-04) : le مدير a le droit de refuser SANS
+        écrire ni envoyer aucun message — motif vide/blanc = refus immédiat,
+        redirection directe vers la liste (pas l'écran WhatsApp refus_confirme,
+        qui exige un motif non vide — voir sa garde de cohérence)."""
         self.client.force_login(self.admin)
         inscription = _creer_inscription_eleve(email='motif_vide@zidni.test')
         response = self.client.post(
             reverse('admin_rejeter_eleve', args=[inscription.id]),
             {'motif': '   '},  # blanc pur
         )
-        self.assertEqual(response.status_code, 200)  # réaffiche le formulaire, pas de redirect
+        self.assertRedirects(response, reverse('admin_inscriptions'))
         inscription.refresh_from_db()
-        self.assertEqual(inscription.statut, 'en_attente')
+        self.assertEqual(inscription.statut, 'rejete')
+        self.assertEqual(inscription.motif_refus, '')
+
+    def test_motif_vide_refuse_directement_prof_etape1_et_etape2(self):
+        self.client.force_login(self.admin)
+        inscription = _creer_inscription_prof(email='motif_vide_p1@zidni.test')
+        response = self.client.post(reverse('admin_rejeter_prof', args=[inscription.id]), {'motif': ''})
+        self.assertRedirects(response, reverse('admin_inscriptions'))
+        inscription.refresh_from_db()
+        self.assertEqual(inscription.statut, 'rejete')
+
+        self.client.force_login(self.mshrif)
+        inscription2 = _creer_inscription_prof(email='motif_vide_p2@zidni.test', statut='validee_directeur')
+        response2 = self.client.post(reverse('mshrif_rejeter_prof', args=[inscription2.id]), {'motif': ''})
+        self.assertRedirects(response2, reverse('mshrif_inscriptions_profs'))
+        inscription2.refresh_from_db()
+        self.assertEqual(inscription2.statut, 'rejete')
 
     # --- Permissions par rôle sur chacun des 3 écrans ---
 

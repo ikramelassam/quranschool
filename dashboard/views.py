@@ -2581,10 +2581,10 @@ def admin_rejeter_eleve(request, inscription_id):
 
     if request.method == 'POST':
         motif = request.POST.get('motif', '').strip()
+        inscription.statut = 'rejete'
+        inscription.motif_refus = motif
+        inscription.save()
         if motif:
-            inscription.statut = 'rejete'
-            inscription.motif_refus = motif
-            inscription.save()
             if request.POST.get('enregistrer_phrase') == 'on':
                 PhraseRefus.objects.create(contexte='refus_eleve', texte=motif)
             # Redirection vers l'écran dédié refus_confirme (Correction du
@@ -2601,7 +2601,12 @@ def admin_rejeter_eleve(request, inscription_id):
                 'base_template': 'dashboard/base_admin.html',
             }
             return redirect('refus_confirme')
-        messages.error(request, gettext_('يجب كتابة سبب الرفض قبل التأكيد.'))
+        # Motif laissé vide (demande du client, 2026-09-04) : le مدير a le
+        # droit de refuser SANS écrire de motif ni passer par l'écran
+        # WhatsApp (refus_confirme l'exige explicitement, voir sa garde de
+        # cohérence) — refus silencieux, direct vers la liste.
+        messages.success(request, gettext_('تم رفض طلب %(v0)s.') % {'v0': inscription.nom})
+        return redirect('admin_inscriptions')
 
     context = {
         'inscription': inscription,
@@ -2835,10 +2840,10 @@ def admin_rejeter_prof(request, inscription_id):
 
     if request.method == 'POST':
         motif = request.POST.get('motif', '').strip()
+        inscription.statut = 'rejete'
+        inscription.motif_refus = motif
+        inscription.save()
         if motif:
-            inscription.statut = 'rejete'
-            inscription.motif_refus = motif
-            inscription.save()
             if request.POST.get('enregistrer_phrase') == 'on':
                 PhraseRefus.objects.create(contexte='refus_prof_etape1', texte=motif)
             # Voir le commentaire équivalent dans admin_rejeter_eleve.
@@ -2854,7 +2859,10 @@ def admin_rejeter_prof(request, inscription_id):
                 'base_template': 'dashboard/base_admin.html',
             }
             return redirect('refus_confirme')
-        messages.error(request, gettext_('يجب كتابة سبب الرفض قبل التأكيد.'))
+        # Motif laissé vide (demande du client, 2026-09-04) — voir le
+        # commentaire équivalent dans admin_rejeter_eleve.
+        messages.success(request, gettext_('تم رفض طلب %(v0)s.') % {'v0': f'{inscription.nom} {inscription.prenom}'})
+        return redirect('admin_inscriptions')
 
     context = {
         'inscription': inscription,
@@ -3053,10 +3061,10 @@ def mshrif_rejeter_prof(request, inscription_id):
 
     if request.method == 'POST':
         motif = request.POST.get('motif', '').strip()
+        inscription.statut = 'rejete'
+        inscription.motif_refus = motif
+        inscription.save()
         if motif:
-            inscription.statut = 'rejete'
-            inscription.motif_refus = motif
-            inscription.save()
             if request.POST.get('enregistrer_phrase') == 'on':
                 PhraseRefus.objects.create(contexte='refus_prof_etape2', texte=motif)
             # Voir le commentaire équivalent dans admin_rejeter_eleve.
@@ -3073,7 +3081,10 @@ def mshrif_rejeter_prof(request, inscription_id):
                 'base_template': 'dashboard/base_mshrif.html',
             }
             return redirect('refus_confirme')
-        messages.error(request, gettext_('يجب كتابة سبب الرفض قبل التأكيد.'))
+        # Motif laissé vide (demande du client, 2026-09-04) — voir le
+        # commentaire équivalent dans admin_rejeter_eleve.
+        messages.success(request, gettext_('تم رفض طلب %(v0)s.') % {'v0': f'{inscription.nom} {inscription.prenom}'})
+        return redirect('mshrif_inscriptions_profs')
 
     context = {
         'inscription': inscription,
