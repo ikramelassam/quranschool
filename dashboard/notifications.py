@@ -410,12 +410,23 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     d'historique propre (un élève quitte la liste dès qu'il paie), donc
     seulement l'état courant. `non_lu` = échéance postérieure à la dernière
     visite de paiements_retards (`cle` 'paiements_retard_eleves'). Pas de
-    pastille de statut."""
+    pastille de statut.
+
+    5. Paiements soumis par l'élève (payments.Paiement, `soumis_par_eleve=True`
+    — chantier du 2026-09-04, exclut donc les saisies manuelles مدير via
+    paiement_panel_sauvegarder, qui n'ont pas à se notifier elles-mêmes) —
+    TOUT statut (historique complet, comme InscriptionEleve). `cle`
+    'nouveaux_paiements', partagée مدير+مشرف. `non_lu` sur 'en_attente'
+    seulement (déjà traité = plus actionnable). Lien : admin_paiement_detail."""
     from inscriptions.models import InscriptionEleve, InscriptionProf
     from courses.models import DemandeChangementHalaka
     from payments.cycles import eleves_en_retard
+    from payments.models import Paiement
 
-    cles = ['demandes_inscription', 'demandes_changement_halaka', 'paiements_retard_eleves']
+    cles = [
+        'demandes_inscription', 'demandes_changement_halaka',
+        'paiements_retard_eleves', 'nouveaux_paiements',
+    ]
     if user.role == 'mshrif':
         cles.append('profs_en_attente_validation')
     if user.role == 'admin':
@@ -442,6 +453,11 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
         'en_attente': (_('قيد الانتظار'), 'attente'),
         'validee': (_('مقبولة'), 'ok'),
         'refusee': (_('مرفوضة'), 'ko'),
+    }
+    statut_paiement = {
+        'en_attente': (_('قيد المراجعة'), 'attente'),
+        'valide': (_('مقبول'), 'ok'),
+        'rejete': (_('مرفوض'), 'ko'),
     }
 
     evenements = []
@@ -519,6 +535,25 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
             'statut_label': '',
             'statut_ton': '',
             'non_lu': echeance_dt > seuils['paiements_retard_eleves'],
+        })
+
+    # 5. Paiements soumis par l'élève — historique complet (exclut les
+    # saisies manuelles مدير, voir payments.models.Paiement.soumis_par_eleve).
+    for p in (
+        Paiement.objects.filter(soumis_par_eleve=True)
+        .select_related('eleve__user').order_by('-date')[:LIMITE_FETCH]
+    ):
+        libelle, ton = statut_paiement.get(p.statut, (p.get_statut_display(), 'neutre'))
+        evenements.append({
+            'texte': _('دفعة جديدة من الطالب: %(nom)s — %(montant)s د.م.') % {
+                'nom': p.eleve.user.get_full_name(), 'montant': p.montant,
+            },
+            'url': reverse('admin_paiement_detail', args=[p.id]),
+            'date': p.date,
+            'icone': '💰',
+            'statut_label': libelle,
+            'statut_ton': ton,
+            'non_lu': p.statut == 'en_attente' and p.date > seuils['nouveaux_paiements'],
         })
 
     evenements.sort(key=lambda e: e['date'], reverse=True)

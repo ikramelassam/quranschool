@@ -273,6 +273,12 @@ def admin_paiements(request):
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
+    # Page cible du groupe 🔔 « دفعة جديدة من الطالب » (chantier du
+    # 2026-09-04, voir dashboard.notifications.notifications_direction) —
+    # juste avant le render, jamais avant (même précaution que les autres
+    # appelants de marquer_visite).
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'nouveaux_paiements')
     return render(request, 'dashboard/admin_paiements.html', context)
 
 
@@ -316,6 +322,12 @@ def admin_paiement_detail(request, paiement_id):
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
+    # 2e "page cible" du groupe 🔔 « دفعة جديدة من الطالب » (le lien de
+    # notification pointe ICI, la fiche d'un paiement précis, pas vers
+    # admin_paiements la liste, déjà câblée plus haut) — même précaution que
+    # les autres appelants de marquer_visite (juste avant le render).
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'nouveaux_paiements')
     return render(request, 'dashboard/admin_paiement_detail.html', context)
 
 
@@ -528,7 +540,10 @@ def paiement_panel_sauvegarder(request):
         # Nouveau Paiement (1 mois) ancré sur le DÉBUT réel de la période de
         # l'élève (jour d'ancrage 10→10…) et non le 1er du mois.
         debut_periode, _fin = periode_bornes(eleve, annee, mois_num)
-        paiement = Paiement(eleve=eleve, mois_reference=debut_periode, nb_mois_couverts=1)
+        paiement = Paiement(
+            eleve=eleve, mois_reference=debut_periode, nb_mois_couverts=1,
+            soumis_par_eleve=False,
+        )
 
     paiement.montant = request.POST.get('montant') or 0
     nouveau_statut = request.POST.get('statut', 'en_attente')

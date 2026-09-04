@@ -912,7 +912,9 @@ class DerniereVisiteNotification(models.Model):
     halaka, مدير ET مشرف — Fonctionnalité 4, 2026-08-27),
     'paiements_retard' (eleve_paiements, élève — retard de paiement de son
     abonnement, chantier du 2026-09-01), 'paiements_retard_eleves'
-    (paiements_retards, مدير ET مشرف — élèves en retard de paiement).
+    (paiements_retards, مدير ET مشرف — élèves en retard de paiement),
+    'nouveaux_paiements' (admin_paiements + admin_paiement_detail, مدير ET
+    مشرف — nouveau paiement soumis par un élève, chantier du 2026-09-04).
     Voir dashboard.notifications pour le calcul complet."""
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='dernieres_visites_notification'

@@ -96,6 +96,14 @@ class Paiement(models.Model):
         blank=True,
         related_name='paiements_valides'
     )
+    # Chantier notif 🔔 مدير/مشرف du 2026-09-04 : distingue une soumission
+    # élève (payments.views.eleve_paiements) d'une saisie manuelle مدير
+    # (payments.views.paiement_panel_sauvegarder, espèces reçues en
+    # personne — pas besoin de notifier l'administration de sa propre
+    # saisie). default=True car l'unique voie de création avant Tâche 7
+    # (2026-07-25) était l'élève ; paiement_panel_sauvegarder le met
+    # explicitement à False à la création.
+    soumis_par_eleve = models.BooleanField(default=True)
     # Corrigé Tâche 7 (2026-07-25) : auto_now_add se déclenchait à la CRÉATION
     # de l'objet (donc dès la soumission par l'élève), jamais au moment réel
     # de la validation/rejet par le مدير — le champ était donc toujours rempli
