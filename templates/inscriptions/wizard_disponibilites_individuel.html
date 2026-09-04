@@ -1,0 +1,14 @@
+{% extends 'inscriptions/_wizard_base.html' %}
+{% load i18n %}
+{% block wizard_title %}{% trans "أوقات التفرغ" %}{% endblock %}
+{% block wizard_content %}
+<div class="page-title">{% trans "أوقات تفرغك الأسبوعية" %}</div>
+<div class="page-subtitle">{% trans "الخطوة 3 من 6 — الحصص الفردية ليس لها توقيت ثابت، أخبرنا بأوقات تفرغك لنتمكن من برمجة حصصك" %}</div>
+
+<form method="POST">
+    {% csrf_token %}
+    {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=dispo_selectionnees %}
+    <button type="submit" class="btn-submit">{% trans "التالي ←" %}</button>
+    <a href="{% url 'wizard_programme' %}" class="btn-back">{% trans "رجوع" %}</a>
+</form>
+{% endblock %}

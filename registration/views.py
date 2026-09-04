@@ -393,6 +393,44 @@ def _type_offre_et_reponses_filtrage(donnees):
     return type_offre_valeur, reponses_pour_filtrage
 
 
+def _wizard_disponibilites_individuel(request, donnees):
+    """Étape 3, branche Individuel (demande du client, 2026-09-04) — même
+    emplacement dans le parcours que le choix de groupe (wizard_groupe
+    ci-dessous), mais rendu totalement différent : il n'existe ici AUCUN
+    groupe/créneau fixe à choisir, donc rien qui indique quand programmer les
+    séances individuelles de l'élève. Réutilise EXACTEMENT les mêmes
+    composants que la matrice optionnelle "attente" de wizard_groupe
+    (courses.utils.JOURS_SEMAINE_DISPO/generer_heures_grille,
+    templates/courses/_grille_disponibilites.html, InscriptionEleve.
+    disponibilites JSONField déjà lu par registration.utils.inscrire_eleve
+    et converti en DisponibiliteEleve à la validation admin, voir
+    dashboard.views.admin_valider_eleve) — SEULE différence : ici la
+    sélection d'au moins un créneau est OBLIGATOIRE (pas juste une info en
+    plus), c'est la seule source connue de l'emploi du temps de l'élève."""
+    from courses.utils import JOURS_SEMAINE_DISPO, generer_heures_grille
+    from .utils import url_etape_suivante
+
+    jours, heures = JOURS_SEMAINE_DISPO, generer_heures_grille()
+
+    if request.method == 'POST':
+        dispo = request.POST.getlist('dispo')
+        if not dispo:
+            return render(request, 'inscriptions/wizard_disponibilites_individuel.html', {
+                'jours': jours, 'heures': heures,
+                'dispo_selectionnees': set(dispo),
+                'erreurs': [gettext_('يرجى تحديد وقت واحد على الأقل من أوقات تفرغك الأسبوعية.')],
+                'wizard_etape_num': 3,
+            })
+        wizard_maj(request, {'disponibilites': dispo})
+        return redirect(url_etape_suivante('groupe'))
+
+    return render(request, 'inscriptions/wizard_disponibilites_individuel.html', {
+        'jours': jours, 'heures': heures,
+        'dispo_selectionnees': set(donnees.get('disponibilites', [])),
+        'wizard_etape_num': 3,
+    })
+
+
 def wizard_groupe(request):
     """Étape 3 — UNIQUEMENT si le critère backend='champ_groupe' (type_offre)
     vaut 'groupe'. SAUT SERVEUR sinon (Partie 3/26 du cahier des charges) :
@@ -431,13 +469,22 @@ def wizard_groupe(request):
     if 'nom' not in donnees:
         return redirect('wizard_identite')
 
-    # SAUT SERVEUR (correction 8, 2026-08-22, navigation dynamique) : soit le
-    # critère type_offre vaut 'individuel' (déjà le cas avant cette
-    # correction), soit le مدير a lui-même désactivé cette étape — dans les
-    # 2 cas, url_etape_suivante('groupe') retrouve la même page suivante,
-    # aucun besoin de distinguer la raison ici.
+    # SAUT SERVEUR (correction 8, 2026-08-22, navigation dynamique) : si le
+    # مدير a lui-même désactivé cette étape, url_etape_suivante('groupe') est
+    # la seule chose à faire, quel que soit type_offre_valeur.
     type_offre_valeur, reponses_pour_filtrage = _type_offre_et_reponses_filtrage(donnees)
-    if type_offre_valeur != 'groupe' or not etape_est_active('groupe'):
+    if not etape_est_active('groupe'):
+        return redirect(url_etape_suivante('groupe'))
+
+    # Demande du client (2026-09-04) : l'Individuel n'a aucun groupe à
+    # choisir (pas de créneau fixe partagé) — cette même étape 3 demande donc
+    # à la place les disponibilités hebdomadaires de l'élève, seule façon de
+    # savoir quand programmer ses séances individuelles. Voir
+    # _wizard_disponibilites_individuel.__doc__.
+    if type_offre_valeur == 'individuel':
+        return _wizard_disponibilites_individuel(request, donnees)
+
+    if type_offre_valeur != 'groupe':
         return redirect(url_etape_suivante('groupe'))
 
     date_naissance = datetime.date.fromisoformat(donnees['date_naissance'])

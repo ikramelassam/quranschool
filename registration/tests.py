@@ -1960,23 +1960,37 @@ class WizardGroupeTests(TestCase):
         self.assertIn('مجموعة حفص جماعية للاختبار', html)
         self.assertIn('حفص', html)  # badge critère riwaya affiché génériquement
 
-    def test_saut_serveur_si_individuel_meme_en_forcant_lurl(self):
-        """LE test explicitement demandé : session avec type_offre='individuel'
-        en cours -> un accès DIRECT à l'URL de l'étape 3 (GET comme POST) est
-        TOUJOURS redirigé serveur vers l'abonnement, jamais un simple masquage
-        visuel côté client. La page groupe n'est même pas rendue (aucun
-        groupes_compatibles() inutilement exécuté avec un rendu HTML)."""
+    def test_individuel_affiche_les_disponibilites_au_lieu_du_groupe(self):
+        """Demande du client (2026-09-04) : l'Individuel n'a aucun groupe à
+        choisir à cette étape — il n'est donc plus redirigé directement vers
+        l'abonnement, il voit à la place une page de disponibilités
+        hebdomadaires (aucun groupes_compatibles() exécuté pour lui : aucune
+        carte de groupe dans cette page)."""
         client = Client()
         self._avancer_a_etape_3(client, type_offre='individuel')
 
         reponse_get = client.get(reverse('wizard_groupe'))
-        self.assertRedirects(reponse_get, reverse('wizard_abonnement'), fetch_redirect_response=False)
+        self.assertEqual(reponse_get.status_code, 200)
+        html = reponse_get.content.decode('utf-8')
+        self.assertNotIn('مجموعة حفص جماعية للاختبار', html)
 
-        # Même verdict en POST (tentative de forcer une soumission malgré tout).
-        reponse_post = client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
-        self.assertRedirects(reponse_post, reverse('wizard_abonnement'), fetch_redirect_response=False)
+        # POST sans aucune case cochée -> refusé, on reste sur la page (au
+        # moins une disponibilité est obligatoire pour un cours individuel).
+        reponse_post_vide = client.post(reverse('wizard_groupe'), {})
+        self.assertEqual(reponse_post_vide.status_code, 200)
+        self.assertNotIn('disponibilites', client.session.get('wizard_inscription', {}))
+
         # Le groupe_id posté malgré l'interdiction n'est JAMAIS retenu en session.
+        reponse_post_groupe_id = client.post(reverse('wizard_groupe'), {'groupe_id': str(self.groupe.id)})
         self.assertNotIn('groupe_id', client.session.get('wizard_inscription', {}))
+        self.assertEqual(reponse_post_groupe_id.status_code, 200)
+
+        # POST avec au moins une disponibilité -> avance normalement.
+        reponse_post = client.post(reverse('wizard_groupe'), {'dispo': ['lun_16:00', 'mer_18:00']})
+        self.assertRedirects(reponse_post, reverse('wizard_abonnement'), fetch_redirect_response=False)
+        self.assertEqual(
+            client.session['wizard_inscription']['disponibilites'], ['lun_16:00', 'mer_18:00'],
+        )
 
     def test_soumission_valide_avance_a_labonnement(self):
         client = Client()
