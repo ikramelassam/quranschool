@@ -1371,16 +1371,33 @@ def programme_general_detail(request):
             Groupe.objects.filter(statut='actif', prof__in=superviseur.profs_assignes.all())
         )
 
+    toutes_versions = list(ProgrammeGeneralParSeances.objects.all().order_by('tranche_age', 'nb_slots'))
     if paires_seances:
-        versions_seances = [
-            v for v in ProgrammeGeneralParSeances.objects.all().order_by('tranche_age', 'nb_slots')
-            if (v.tranche_age, v.nb_slots) in paires_seances
-        ]
+        versions_seances = [v for v in toutes_versions if (v.tranche_age, v.nb_slots) in paires_seances]
     else:
         # Aucune combinaison connue (groupe sans créneau, élève sans âge...) :
         # toutes les versions restent affichées, jamais rien caché sans raison
         # (même principe que montrer_enfants/montrer_adultes ci-dessus).
-        versions_seances = list(ProgrammeGeneralParSeances.objects.all().order_by('tranche_age', 'nb_slots'))
+        versions_seances = toutes_versions
+
+    # UN SEUL البرنامج العام par utilisateur (demande client, 2026-09-06) : la
+    # version « selon le nombre de séances », quand elle existe ET a du
+    # contenu pour une combinaison (tranche, nb_slots), REMPLACE la version
+    # « âge seul » pour cet utilisateur — elle ne s'y ajoute plus. La version
+    # « âge seul » d'une tranche n'est donc affichée que s'il reste au moins
+    # une combinaison connue de cette tranche SANS version dédiée (ou si
+    # aucune combinaison n'est connue : rien n'est masqué sans raison).
+    combos_couverts = {
+        (v.tranche_age, v.nb_slots) for v in versions_seances
+        if v.titre or v.intro or v.items
+    }
+    if paires_seances:
+        combos_enfant = {c for c in paires_seances if c[0] == 'enfant'}
+        combos_adulte = {c for c in paires_seances if c[0] == 'adulte'}
+        if combos_enfant and combos_enfant <= combos_couverts:
+            montrer_enfants = False
+        if combos_adulte and combos_adulte <= combos_couverts:
+            montrer_adultes = False
 
     base_template = {
         'prof': 'dashboard/base_prof.html',

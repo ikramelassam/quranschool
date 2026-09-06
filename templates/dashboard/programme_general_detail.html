@@ -5,6 +5,28 @@
 <div class="page-title">{% trans "البرنامج العام" %}</div>
 <div class="page-subtitle">{% blocktrans with date_maj=programme.date_modification|date:"d-m-Y H:i" %}آخر تحديث: {{ date_maj }}{% endblocktrans %}</div>
 
+{% comment %}
+Un seul البرنامج العام par utilisateur : la version « selon le nombre de
+séances » (versions_seances), quand elle existe pour la combinaison
+(âge, nb de séances) de l'utilisateur, remplace la version « âge seul »
+(montrer_enfants/montrer_adultes déjà mis à False côté vue dans ce cas).
+Elle est donc affichée EN PREMIER, comme programme principal.
+{% endcomment %}
+{% for version in versions_seances %}
+{% if version.titre or version.intro or version.items %}
+<div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px; max-width:800px;">
+    <div style="color:#888; font-size:0.82rem; margin-bottom:6px;">{% blocktrans with n=version.nb_slots %}{{ n }} حصص/أسبوع{% endblocktrans %}</div>
+    <h3 style="margin-top:0;">{{ version.titre_localise }}</h3>
+    <div style="line-height:2;">{{ version.intro_localise|linebreaks }}</div>
+    <ul style="padding-right:20px; line-height:1.9;">
+        {% for item in version.items_localise|parse_items %}
+        <li>{% if item.label %}<strong>{{ item.label }}:</strong> {% endif %}{{ item.texte }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% endfor %}
+
 {% if montrer_enfants %}
 <div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:24px; max-width:800px;">
     <h3 style="margin-top:0;">{{ programme.titre_enfants_localise }}</h3>
@@ -34,19 +56,4 @@
     {% endif %}
 </div>
 {% endif %}
-
-{% for version in versions_seances %}
-{% if version.titre or version.intro or version.items %}
-<div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-top:24px; max-width:800px;">
-    <div style="color:#888; font-size:0.82rem; margin-bottom:6px;">{% blocktrans with n=version.nb_slots %}{{ n }} حصص/أسبوع{% endblocktrans %}</div>
-    <h3 style="margin-top:0;">{{ version.titre_localise }}</h3>
-    <div style="line-height:2;">{{ version.intro_localise|linebreaks }}</div>
-    <ul style="padding-right:20px; line-height:1.9;">
-        {% for item in version.items_localise|parse_items %}
-        <li>{% if item.label %}<strong>{{ item.label }}:</strong> {% endif %}{{ item.texte }}</li>
-        {% endfor %}
-    </ul>
-</div>
-{% endif %}
-{% endfor %}
 {% endblock %}

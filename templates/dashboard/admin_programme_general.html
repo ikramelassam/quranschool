@@ -109,7 +109,7 @@
 </form>
 
 <div class="section-title" style="margin:28px 0 10px;">📅 {% trans "نسخ حسب عدد الحصص الأسبوعية" %}</div>
-<div style="color:#888; font-size:0.82rem; max-width:900px; margin-bottom:14px;">{% trans "محتوى إضافي يُعرض حسب عدد الحصص الأسبوعية لحلقة كل طالب/معلم/مؤطر — بالإضافة إلى نسخة الأطفال/البالغين أعلاه، وليس بديلاً عنها." %}</div>
+<div style="color:#888; font-size:0.82rem; max-width:900px; margin-bottom:14px;">{% trans "نسخة خاصة بعدد حصص معيّن: عند إنشائها، تحل محل نسخة العمر أعلاه لكل طالب/معلم/مؤطر يطابق هذا العدد — يُعرض برنامج عام واحد فقط لكل مستخدم. إن لم تُنشأ نسخة لعدد حصص ما، تبقى نسخة العمر الافتراضية هي المعروضة." %}</div>
 <div style="display:flex; gap:20px; flex-wrap:wrap;">
 {% for tranche_key, lignes in versions_par_seances_par_tranche.items %}
 <div class="pg-card" style="min-width:320px; flex:1;">

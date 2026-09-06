@@ -6842,6 +6842,61 @@ class ProgrammeGeneralParSeancesTests(TestCase):
         self.assertIn('برنامج حصتين للأطفال', contenu)
         self.assertNotIn('برنامج ثلاث حصص للأطفال', contenu)
 
+    def test_version_par_seances_remplace_la_version_age_un_seul_programme(self):
+        """Demande client (2026-09-06) : quand une version « selon le nombre de
+        séances » existe (avec du contenu) pour la combinaison de l'élève, la
+        version « âge seul » n'est PAS affichée en plus — un seul برنامج عام."""
+        from accounts.models import ProgrammeGeneralParSeances, get_programme_general
+
+        programme = get_programme_general()
+        programme.titre_enfants = 'برنامج العمر للأطفال (نسخة افتراضية)'
+        programme.intro_enfants = 'مقدمة نسخة العمر'
+        programme.save()
+        ProgrammeGeneralParSeances.objects.create(
+            tranche_age='enfant', nb_slots=2,
+            titre='برنامج حصتين للأطفال', intro='مقدمة حصتين',
+        )
+        eleve = _creer_eleve('eleve_pg_un_seul@zidni.test')
+        inscription = InscriptionEleve.objects.create(
+            nom='طالب', date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+            telephone='+212600000010', email='eleve_pg_un_seul@zidni.test',
+        )
+        eleve.inscription = inscription
+        eleve.save()
+        groupe = Groupe.objects.create(nom='مجموعة حصتين', creneau=self._creneau_n_slots(2), statut='actif')
+        groupe.eleves.add(eleve)
+
+        self.client.force_login(eleve.user)
+        contenu = self.client.get(reverse('programme_general_detail')).content.decode('utf-8')
+        self.assertIn('برنامج حصتين للأطفال', contenu)
+        self.assertNotIn('برنامج العمر للأطفال (نسخة افتراضية)', contenu)
+
+    def test_version_age_reste_si_pas_de_version_par_seances_pour_la_combinaison(self):
+        """Repli : si aucune version dédiée n'existe pour la combinaison de
+        l'élève (ici enfant/3), il voit la version « âge seul » par défaut."""
+        from accounts.models import ProgrammeGeneralParSeances, get_programme_general
+
+        programme = get_programme_general()
+        programme.titre_enfants = 'برنامج العمر للأطفال (نسخة افتراضية)'
+        programme.save()
+        ProgrammeGeneralParSeances.objects.create(
+            tranche_age='enfant', nb_slots=2, titre='برنامج حصتين',
+        )
+        eleve = _creer_eleve('eleve_pg_repli@zidni.test')
+        inscription = InscriptionEleve.objects.create(
+            nom='طالب', date_naissance=datetime.date(2015, 1, 1), sexe='homme',
+            telephone='+212600000011', email='eleve_pg_repli@zidni.test',
+        )
+        eleve.inscription = inscription
+        eleve.save()
+        groupe = Groupe.objects.create(nom='مجموعة 3 حصص', creneau=self._creneau_n_slots(3), statut='actif')
+        groupe.eleves.add(eleve)
+
+        self.client.force_login(eleve.user)
+        contenu = self.client.get(reverse('programme_general_detail')).content.decode('utf-8')
+        self.assertIn('برنامج العمر للأطفال (نسخة افتراضية)', contenu)
+        self.assertNotIn('برنامج حصتين', contenu)
+
     def test_prof_voit_les_versions_de_tous_ses_groupes(self):
         from accounts.models import ProgrammeGeneralParSeances
 

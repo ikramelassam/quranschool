@@ -594,9 +594,12 @@ def get_programme_general():
 
 
 class ProgrammeGeneralParSeances(models.Model):
-    """Contenu du البرنامج العام qui S'AJOUTE à ProgrammeGeneral (âge seul,
-    ci-dessus) — chantier "diviser le programme selon le nombre de séances"
-    (demande directe du client, 2026-09-04). 1 ligne par combinaison
+    """Contenu du البرنامج العام qui REMPLACE ProgrammeGeneral (âge seul,
+    ci-dessus) pour un utilisateur donné — chantier "diviser le programme
+    selon le nombre de séances" (demande directe du client, 2026-09-04 ;
+    précisé le 2026-09-06 : un seul programme par utilisateur, la version par
+    séances se substitue à la version âge, elle ne s'y ajoute pas). 1 ligne
+    par combinaison
     (tranche_age, nb_slots), extensible SANS migration de schéma — même
     patron que courses.models.TarifRemunerationGroupe : nb_slots revalidé
     côté serveur contre courses.models.OptionNbSeances actif à chaque
@@ -609,9 +612,11 @@ class ProgrammeGeneralParSeances(models.Model):
     Affichage : élève/prof/مؤطر voient les versions correspondant aux
     combinaisons (tranche_age, nb_slots) réellement présentes dans leurs
     groupes actifs (nb_slots = groupe.creneau.slots.count()), voir
-    dashboard.views.programme_general_detail — même esprit que le filtrage
-    par âge déjà en place sur ProgrammeGeneral, jamais rien caché sans
-    combinaison connue."""
+    dashboard.views.programme_general_detail. Quand une combinaison a une
+    version dédiée AVEC du contenu, la version « âge seul » de cette tranche
+    est masquée pour cet utilisateur (un seul programme affiché). Sinon, ou
+    si aucune combinaison n'est connue, la version « âge seul » reste la
+    valeur par défaut — jamais rien caché sans version de remplacement."""
     TRANCHE_AGE_CHOICES = [
         ('enfant', _('طفل')),
         ('adulte', _('بالغ')),
