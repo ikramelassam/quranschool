@@ -1,7 +1,11 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash, get_user_model
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.contrib import messages
+from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 
 def login_view(request):
@@ -129,6 +133,12 @@ def mot_de_passe_oublie(request):
             nouveau_mot_de_passe = generer_mot_de_passe_sequentiel()
             user.set_password(nouveau_mot_de_passe)
             user.doit_changer_mot_de_passe = False
+            # Traçabilité (audit du 2026-09-05) : ce flux "mot de passe oublié"
+            # ne renseignait pas date_reinitialisation_mot_de_passe (seul le
+            # reset lancé par un مدير/مشرف depuis le dashboard le faisait).
+            # mot_de_passe_reinitialise_par reste None : aucun acteur identifié
+            # (demande anonyme, non authentifiée).
+            user.date_reinitialisation_mot_de_passe = timezone.now()
             user.save()
             envoyer_notification_telegram_async(
                 f'🔑 طلب كلمة مرور جديدة\n'
@@ -140,6 +150,7 @@ def mot_de_passe_oublie(request):
             nouveau_mot_de_passe = generer_mot_de_passe_temporaire()
             user.set_password(nouveau_mot_de_passe)
             user.doit_changer_mot_de_passe = True
+            user.date_reinitialisation_mot_de_passe = timezone.now()
             user.save()
             envoyer_notification_telegram_async(
                 f'🔑 طلب "نسيت كلمة المرور"\n'
@@ -183,6 +194,10 @@ def reinitialiser_mon_mot_de_passe(request):
         email = request.user.email
         request.user.set_password(nouveau_mot_de_passe)
         request.user.doit_changer_mot_de_passe = True
+        # Traçabilité (audit du 2026-09-05) : reset déclenché par le titulaire
+        # lui-même depuis son compte — l'acteur EST request.user.
+        request.user.mot_de_passe_reinitialise_par = request.user
+        request.user.date_reinitialisation_mot_de_passe = timezone.now()
         request.user.save()
         envoyer_notification_telegram_async(
             f'🔑 طلب إعادة تعيين كلمة مرور (من داخل الحساب)\n'
@@ -210,8 +225,14 @@ def modifier_telephone(request):
         request.user.telephone = request.POST.get('telephone', '').strip()
         request.user.save(update_fields=['telephone'])
         messages.success(request, _('تم تحديث رقم الهاتف بنجاح.'))
+        # `next` vient d'un champ caché de la page profil (un nom d'URL interne).
+        # Validé avant redirect (audit du 2026-09-05) : jamais une URL externe
+        # ni un chemin arbitraire — protection open-redirect, même esprit que
+        # dashboard.views._next_valide.
         next_url = request.POST.get('next')
-        if next_url:
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
             return redirect(next_url)
     return redirect_by_role(request.user)
 
@@ -253,12 +274,26 @@ def password_change_view(request):
         nouveau = request.POST.get('nouveau_mot_de_passe')
         confirmation = request.POST.get('confirmation')
 
+        # Audit du 2026-09-05 : cette vue n'appliquait que `len >= 8` — les
+        # AUTH_PASSWORD_VALIDATORS de settings.py (similarité avec le compte,
+        # mot de passe trop courant, purement numérique…) n'étaient invoqués
+        # nulle part dans le projet. `validate_password` les exécute tous ;
+        # `password_validators=None` = ceux de settings.
+        erreur_validation = None
+        if nouveau:
+            try:
+                validate_password(nouveau, user=request.user)
+            except ValidationError as e:
+                erreur_validation = ' '.join(e.messages)
+
         if not request.user.check_password(ancien):
             messages.error(request, _('كلمة المرور الحالية غير صحيحة.'))
         elif nouveau != confirmation:
             messages.error(request, _('كلمتا المرور الجديدتان غير متطابقتين.'))
-        elif len(nouveau) < 8:
+        elif not nouveau or len(nouveau) < 8:
             messages.error(request, _('يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل.'))
+        elif erreur_validation:
+            messages.error(request, erreur_validation)
         else:
             request.user.set_password(nouveau)
             request.user.doit_changer_mot_de_passe = False

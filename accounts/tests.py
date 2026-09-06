@@ -1,11 +1,98 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import Client, TestCase, override_settings
+from django.urls import reverse
 
 from accounts.models import Prof
 from accounts.services import generer_presentation_publique
 
 User = get_user_model()
+
+_STORAGES_TEST = {
+    **settings.STORAGES,
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
+
+
+class ModifierTelephoneTests(TestCase):
+    """accounts.views.modifier_telephone — audit du 2026-09-05 : le `next`
+    n'était pas validé (open-redirect faible) ; aucun test ne couvrait la vue."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='tel@zidni.test', email='tel@zidni.test', password='xX!test12345',
+            role='eleve', doit_changer_mot_de_passe=False,
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_next_interne_est_respecte(self):
+        reponse = self.client.post(reverse('modifier_telephone'), {
+            'telephone': '0611223344', 'next': reverse('eleve_profil'),
+        })
+        self.assertRedirects(reponse, reverse('eleve_profil'), fetch_redirect_response=False)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.telephone, '0611223344')
+
+    def test_next_externe_est_ignore(self):
+        reponse = self.client.post(reverse('modifier_telephone'), {
+            'telephone': '0611223344', 'next': 'https://evil.example.com/phish',
+        })
+        self.assertNotIn('evil.example.com', reponse['Location'])
+        # Retombe sur le dashboard du rôle, jamais sur l'URL externe.
+        self.assertEqual(reponse['Location'], reverse('dashboard_eleve'))
+
+    def test_next_protocol_relative_est_ignore(self):
+        reponse = self.client.post(reverse('modifier_telephone'), {
+            'telephone': '0611223344', 'next': '//evil.example.com',
+        })
+        self.assertEqual(reponse['Location'], reverse('dashboard_eleve'))
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class PasswordChangeValidatorsTests(TestCase):
+    """accounts.views.password_change_view — audit du 2026-09-05 : seul
+    `len >= 8` était vérifié, les AUTH_PASSWORD_VALIDATORS de settings.py
+    n'étaient invoqués nulle part. `validate_password` les applique désormais."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='pwd@zidni.test', email='pwd@zidni.test', password='AncienMdp!2026',
+            first_name='مدير', role='admin', doit_changer_mot_de_passe=False,
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_mot_de_passe_trop_courant_refuse(self):
+        reponse = self.client.post(reverse('password_change'), {
+            'ancien_mot_de_passe': 'AncienMdp!2026',
+            'nouveau_mot_de_passe': 'password',  # >= 8 mais CommonPasswordValidator le rejette
+            'confirmation': 'password',
+        })
+        self.assertEqual(reponse.status_code, 200)  # formulaire ré-affiché
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('AncienMdp!2026'))  # inchangé
+
+    def test_mot_de_passe_purement_numerique_refuse(self):
+        reponse = self.client.post(reverse('password_change'), {
+            'ancien_mot_de_passe': 'AncienMdp!2026',
+            'nouveau_mot_de_passe': '48291736',
+            'confirmation': '48291736',
+        })
+        self.assertEqual(reponse.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('AncienMdp!2026'))
+
+    def test_mot_de_passe_valide_accepte(self):
+        reponse = self.client.post(reverse('password_change'), {
+            'ancien_mot_de_passe': 'AncienMdp!2026',
+            'nouveau_mot_de_passe': 'Kachida-9271-Tarwiya',
+            'confirmation': 'Kachida-9271-Tarwiya',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('Kachida-9271-Tarwiya'))
 
 
 def _creer_prof(email, **extra):
