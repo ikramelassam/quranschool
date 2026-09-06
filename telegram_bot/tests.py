@@ -5,7 +5,9 @@ from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 
 from accounts.models import User
-from core.utils import envoyer_notification_telegram
+from core.utils import (
+    envoyer_notification_telegram, envoyer_notification_telegram_avec_photo, envoyer_photo_telegram_direct,
+)
 from .models import AbonneTelegram
 
 MOT_DE_PASSE = 'xX!test12345'
@@ -352,3 +354,92 @@ class EnvoyerNotificationTelegramTest(TestCase):
         abonne.refresh_from_db()
         self.assertFalse(abonne.est_actif)
         self.assertTrue(abonne.en_attente_validation)
+
+
+@override_settings(TELEGRAM_BOT_TOKEN=TOKEN_TEST)
+class EnvoyerPhotoTelegramTest(TestCase):
+    """core.utils.envoyer_photo_telegram_direct / envoyer_notification_
+    telegram_avec_photo — chantier du 2026-09-05 (photo du justificatif de
+    paiement envoyée en pièce jointe, pas juste un lien texte) : même
+    contrat que la version texte (sendMessage), mais sur sendPhoto."""
+
+    def setUp(self):
+        AbonneTelegram.objects.all().delete()
+
+    @patch('core.utils.requests.post')
+    def test_appelle_sendphoto_avec_le_fichier_et_la_legende(self, mock_post):
+        mock_post.return_value = _reponse_mock()
+        resultat = envoyer_photo_telegram_direct(1, b'contenu-jpeg-de-test', 'recu.jpg', 'légende')
+        self.assertTrue(resultat)
+        url_appelee, kwargs = mock_post.call_args
+        self.assertTrue(url_appelee[0].endswith('/sendPhoto'))
+        self.assertEqual(kwargs['data']['chat_id'], 1)
+        self.assertEqual(kwargs['data']['caption'], 'légende')
+        self.assertEqual(kwargs['files']['photo'][0], 'recu.jpg')
+        self.assertEqual(kwargs['files']['photo'][1], b'contenu-jpeg-de-test')
+
+    @patch('core.utils.requests.post')
+    def test_403_leve_telegram_bloque(self, mock_post):
+        from core.utils import TelegramBloque
+
+        mock_post.return_value = _reponse_mock(status_code=403)
+        with self.assertRaises(TelegramBloque):
+            envoyer_photo_telegram_direct(1, b'x', 'recu.jpg')
+
+    @patch('core.utils.requests.post')
+    def test_diffuse_la_photo_a_tous_les_abonnes_actifs(self, mock_post):
+        mock_post.return_value = _reponse_mock()
+        AbonneTelegram.objects.create(chat_id=1, est_actif=True, en_attente_validation=False)
+        AbonneTelegram.objects.create(chat_id=2, est_actif=True, en_attente_validation=False)
+        AbonneTelegram.objects.create(chat_id=3, est_actif=False, en_attente_validation=False)
+
+        resultat = envoyer_notification_telegram_avec_photo('légende', b'contenu', 'recu.jpg')
+
+        self.assertTrue(resultat)
+        self.assertEqual(mock_post.call_count, 2)  # pas le 3e, inactif
+
+    @patch('core.utils.requests.post')
+    def test_403_desactive_automatiquement_le_destinataire_bloque(self, mock_post):
+        abonne_bloque = AbonneTelegram.objects.create(chat_id=1, est_actif=True, en_attente_validation=False)
+        abonne_ok = AbonneTelegram.objects.create(chat_id=2, est_actif=True, en_attente_validation=False)
+
+        def side_effect(url, data, files, timeout):
+            if data['chat_id'] == abonne_bloque.chat_id:
+                return _reponse_mock(status_code=403)
+            return _reponse_mock(status_code=200)
+
+        mock_post.side_effect = side_effect
+
+        resultat = envoyer_notification_telegram_avec_photo('légende', b'contenu', 'recu.jpg')
+
+        self.assertTrue(resultat)
+        abonne_bloque.refresh_from_db()
+        self.assertFalse(abonne_bloque.est_actif)
+        abonne_ok.refresh_from_db()
+        self.assertTrue(abonne_ok.est_actif)
+
+    def test_aucun_abonne_actif_retourne_false(self):
+        self.assertFalse(envoyer_notification_telegram_avec_photo('légende', b'contenu', 'recu.jpg'))
+
+    @patch('core.utils.requests.post')
+    def test_photo_refusee_replie_sur_le_texte_seul(self, mock_post):
+        """sendPhoto peut échouer pour une raison propre au FICHIER (image
+        illisible par Telegram) sans que l'abonné ait bloqué le bot — dans ce
+        cas la notification (texte + lien) doit tout de même partir, pas être
+        perdue silencieusement."""
+        AbonneTelegram.objects.create(chat_id=1, est_actif=True, en_attente_validation=False)
+
+        def side_effect(url, data, timeout, files=None):
+            if url.endswith('/sendPhoto'):
+                return _reponse_mock(status_code=400, texte='IMAGE_PROCESS_FAILED')
+            return _reponse_mock(status_code=200)
+
+        mock_post.side_effect = side_effect
+
+        resultat = envoyer_notification_telegram_avec_photo('légende du paiement', b'pas-une-vraie-image', 'recu.jpg')
+
+        self.assertTrue(resultat)
+        self.assertEqual(mock_post.call_count, 2)  # sendPhoto (échec) puis sendMessage (repli)
+        appel_texte = mock_post.call_args
+        self.assertTrue(appel_texte[0][0].endswith('/sendMessage'))
+        self.assertEqual(appel_texte[1]['data']['text'], 'légende du paiement')

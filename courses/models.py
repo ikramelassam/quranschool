@@ -326,6 +326,7 @@ class Groupe(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        unique=True,
         related_name='groupes'
     )
     capacite_max = models.IntegerField(default=10)

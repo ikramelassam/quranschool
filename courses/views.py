@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as gettext_
+from django.views.decorators.http import require_POST
 from accounts.decorators import role_required
 from core.utils import paginer
 from .models import Groupe, Creneau, HistoriqueGroupeEleve, LienMeet
@@ -161,6 +162,12 @@ def groupes_list(request):
 
 
 @role_required('admin')
+# @transaction.atomic (audit du 2026-09-05) : le Creneau privé est créé
+# (Creneau.objects.create) plusieurs lignes avant le Groupe.objects.create()
+# final qui l'adopte — sans transaction englobante, un échec tardif (ex:
+# capacite_max invalide) laissait le Creneau + ses CreneauSlot orphelins en
+# base, jamais nettoyés. Toute la vue commite ou annule d'un bloc.
+@transaction.atomic
 def groupe_ajouter(request):
     # select_related('user') : le template affiche prof.user.get_full_name
     # pour chaque prof du <select> — sans lui, 1 requête par prof actif de
@@ -197,6 +204,17 @@ def groupe_ajouter(request):
                 'slots_saisis': slots,
             })
 
+        age_min, age_max, erreur_age = _ages_creneau_depuis_post(request)
+        if erreur_age:
+            messages.error(request, erreur_age)
+            return render(request, 'courses/admin_groupe_ajouter.html', {
+                'profs': profs,
+                'liens_meet': liens_meet,
+                'categorie_choices': Groupe.CATEGORIE_CHOICES,
+                'valeurs_creneau': _valeurs_creneau_depuis_post(request),
+                'slots_saisis': slots,
+            })
+
         # Horaire (chantier « fusion horaire/groupe » du 2026-09-04, décision
         # explicite du client) : plus d'écran « الحلقات » séparé — un Creneau
         # PRIVÉ à ce groupe est créé directement depuis les champs du
@@ -212,8 +230,8 @@ def groupe_ajouter(request):
             sexe_cible=request.POST.get('sexe_cible'),
             type_seance=request.POST.get('type_seance'),
             riwaya=request.POST.get('riwaya'),
-            age_min=request.POST.get('age_min'),
-            age_max=request.POST.get('age_max'),
+            age_min=age_min,
+            age_max=age_max,
         )
         remplacer_slots_creneau(creneau_obj, slots)
 
@@ -267,7 +285,7 @@ def groupe_ajouter(request):
                     description=request.POST.get('description', ''),
                     description_fr=request.POST.get('description_fr', ''),
                     description_en=request.POST.get('description_en', ''),
-                    capacite_max=request.POST.get('max_eleves', 10),
+                    capacite_max=_capacite_max_depuis_post(request),
                     type_capacite=request.POST.get('type_capacite', 'groupe'),
                     lien_meet_id=lien_meet_id,
                     categorie=request.POST.get('categorie', ''),
@@ -303,7 +321,7 @@ def groupe_ajouter(request):
             description=request.POST.get('description', ''),
             description_fr=request.POST.get('description_fr', ''),
             description_en=request.POST.get('description_en', ''),
-            capacite_max=request.POST.get('max_eleves', 10),
+            capacite_max=_capacite_max_depuis_post(request),
             type_capacite=request.POST.get('type_capacite', 'groupe'),
             lien_meet=lien_meet_obj,
             lien_reunion=lien_meet_obj.url if lien_meet_obj else '',
@@ -463,6 +481,7 @@ def groupe_detail(request, groupe_id):
 
 
 @role_required('admin', 'mshrif')
+@require_POST
 def groupe_definir_critere(request, groupe_id, critere_id):
     """Enregistre la/les valeur(s) d'UN critère backend='eav' pour ce groupe
     (onglet "الخصائص") — Directeur ET مشرف, accès strictement identique
@@ -559,6 +578,11 @@ def groupe_transferer_eleve(request, groupe_id, eleve_id):
     return redirect('admin_groupe_detail', groupe_id=groupe_id)
 
 @role_required('admin')
+# @transaction.atomic : même raison que groupe_ajouter (audit du 2026-09-05) —
+# creneau_candidat est créé avant le bloc atomic interne qui sauvegarde le
+# groupe et supprime ancien_creneau ; sans cette transaction englobante, un
+# échec dans ce bloc interne laissait creneau_candidat orphelin.
+@transaction.atomic
 def groupe_modifier(request, groupe_id):
     groupe = get_object_or_404(Groupe.objects.select_related('creneau'), id=groupe_id)
     # Prof.actifs exclut les archivés du choix — SAUF le prof déjà assigné à ce
@@ -607,6 +631,18 @@ def groupe_modifier(request, groupe_id):
                 'slots_saisis': slots,
             })
 
+        age_min, age_max, erreur_age = _ages_creneau_depuis_post(request)
+        if erreur_age:
+            messages.error(request, erreur_age)
+            return render(request, 'courses/admin_groupe_modifier.html', {
+                'groupe': groupe,
+                'profs': profs,
+                'liens_meet': liens_meet,
+                'categorie_choices': Groupe.CATEGORIE_CHOICES,
+                'valeurs_creneau': _valeurs_creneau_pour_affichage(request, groupe.creneau),
+                'slots_saisis': slots,
+            })
+
         # Horaire (chantier « fusion horaire/groupe » du 2026-09-04, décision
         # explicite du client) : au lieu de choisir un Creneau existant
         # (potentiellement partagé, ancien écran « الحلقات » retiré ce même
@@ -624,8 +660,8 @@ def groupe_modifier(request, groupe_id):
             sexe_cible=request.POST.get('sexe_cible'),
             type_seance=request.POST.get('type_seance'),
             riwaya=request.POST.get('riwaya'),
-            age_min=request.POST.get('age_min'),
-            age_max=request.POST.get('age_max'),
+            age_min=age_min,
+            age_max=age_max,
         )
         remplacer_slots_creneau(creneau_candidat, slots)
         nouveaux_slots = list(
@@ -699,7 +735,7 @@ def groupe_modifier(request, groupe_id):
                     description=request.POST.get('description', ''),
                     description_fr=request.POST.get('description_fr', ''),
                     description_en=request.POST.get('description_en', ''),
-                    capacite_max=request.POST.get('capacite_max', 10),
+                    capacite_max=_capacite_max_depuis_post(request),
                     type_capacite=request.POST.get('type_capacite', 'groupe'),
                     statut=request.POST.get('statut'),
                     prof_id=nouveau_prof_id,
@@ -733,11 +769,15 @@ def groupe_modifier(request, groupe_id):
             groupe.description = request.POST.get('description', '')
             groupe.description_fr = request.POST.get('description_fr', '')
             groupe.description_en = request.POST.get('description_en', '')
-            groupe.capacite_max = request.POST.get('capacite_max', 10)
+            groupe.capacite_max = _capacite_max_depuis_post(request)
             groupe.type_capacite = request.POST.get('type_capacite', 'groupe')
             groupe.statut = request.POST.get('statut')
             groupe.prof_id = nouveau_prof_id
-            groupe.creneau = creneau_candidat
+            # Audit du 2026-09-05 : seulement si un champ pertinent a changé —
+            # sinon groupe.creneau reste ancien_creneau tel quel (voir plus bas,
+            # creneau_candidat jetable est alors supprimé au lieu d'être adopté).
+            if creneau_pertinent_a_change:
+                groupe.creneau = creneau_candidat
             groupe.categorie = request.POST.get('categorie', '')
             # Chantier du 2026-08-23 ("exclusion manuelle d'un groupe") —
             # n'affecte QUE le nouveau parcours public (registration.utils.
@@ -762,12 +802,23 @@ def groupe_modifier(request, groupe_id):
                     groupe.lien_reunion = ''
                 groupe.lien_meet = None
             groupe.save()
-            # L'ancien Creneau n'est plus jamais partagé (chantier du
-            # 2026-09-04) : il n'est référencé que par CE groupe, donc sûr à
-            # supprimer maintenant que groupe.creneau pointe déjà vers le
-            # nouveau (voir la migration 0045 pour les données pré-existantes).
-            if ancien_creneau is not None:
-                ancien_creneau.delete()
+            if creneau_pertinent_a_change:
+                # L'ancien Creneau n'est plus jamais partagé (chantier du
+                # 2026-09-04) : il n'est référencé que par CE groupe, donc sûr à
+                # supprimer maintenant que groupe.creneau pointe déjà vers le
+                # nouveau (voir la migration 0045 pour les données pré-existantes).
+                if ancien_creneau is not None:
+                    ancien_creneau.delete()
+            else:
+                # Audit du 2026-09-05 : rien de pertinent n'a changé (même
+                # horaire/âge/sexe/type/riwaya) — creneau_candidat n'était
+                # qu'un jetable créé pour permettre le calcul des
+                # avertissements prof (avertissements_prof_creneau a besoin
+                # d'un Creneau persisté), jamais adopté par le groupe. Sans ce
+                # else, CHAQUE sauvegarde du formulaire (même un simple
+                # changement de photo/description) recréait et détruisait un
+                # Creneau + ses CreneauSlot pour rien.
+                creneau_candidat.delete()
 
         for avertissement in avertissements_prof:
             messages.warning(request, avertissement)
@@ -804,6 +855,44 @@ def _slots_depuis_post(request):
         for jour, debut, fin in zip(jours, debuts, fins)
         if jour and debut and fin
     ]
+
+
+def _capacite_max_depuis_post(request):
+    """Capacité max du groupe depuis le POST, castée en int (défaut 10,
+    plancher 1). Nom de champ unifié le 2026-09-05 : l'écran d'AJOUT postait
+    `max_eleves`, l'écran de MODIF `capacite_max` — désormais `capacite_max`
+    des deux côtés, `max_eleves` gardé en repli pour un vieux formulaire en
+    cache. Le cast int évite qu'une valeur reste en str sur l'instance en
+    mémoire (même classe de piège que _ages_creneau_depuis_post)."""
+    brut = request.POST.get('capacite_max') or request.POST.get('max_eleves') or ''
+    try:
+        return max(int(brut), 1)
+    except (TypeError, ValueError):
+        return 10
+
+
+def _ages_creneau_depuis_post(request):
+    """(age_min, age_max) en int depuis le POST du formulaire groupe, ou
+    (None, None, message d'erreur) si l'un des deux est absent/non entier/hors
+    plage — garde-fou serveur (pas de Django Forms dans ce projet, `required`
+    HTML contournable par un POST forgé ou JS désactivé).
+
+    Le cast en int est OBLIGATOIRE ici : Creneau.age_min/age_max sont des
+    IntegerField NOT NULL, mais Creneau.objects.create(age_min='6') ne caste
+    PAS la valeur sur l'instance en mémoire — elle resterait la str du POST,
+    ce qui casse _categorie_age_creneau (`'6' < AGE_SEUIL_ADULTE`) au moment
+    du calcul des avertissements prof dans groupe_ajouter/groupe_modifier
+    (audit du 2026-09-05, HTTP 500 sur toute création/modif de groupe avec un
+    enseignant assigné)."""
+    brut_min = (request.POST.get('age_min') or '').strip()
+    brut_max = (request.POST.get('age_max') or '').strip()
+    try:
+        age_min, age_max = int(brut_min), int(brut_max)
+    except (TypeError, ValueError):
+        return None, None, gettext_('يجب إدخال السن الأدنى والسن الأقصى كرقمين صحيحين.')
+    if age_min < 1 or age_max < age_min:
+        return None, None, gettext_('نطاق السن غير صالح: تأكد أن السن الأدنى لا يقل عن 1 وأنه لا يتجاوز السن الأقصى.')
+    return age_min, age_max, None
 
 
 def _valeurs_creneau_depuis_post(request):
@@ -879,7 +968,18 @@ def groupe_supprimer(request, groupe_id):
         return redirect('admin_groupe_detail', groupe_id=groupe.id)
 
     nom = groupe.nom
-    groupe.delete()
+    # Chantier « fusion horaire/groupe » du 2026-09-04 : le Creneau de ce
+    # groupe n'appartient plus qu'à lui (unique=True depuis l'audit du
+    # 2026-09-05) — supprimer le groupe sans supprimer aussi son Creneau
+    # laisserait une ligne orpheline invisible pour toujours (l'ancien écran
+    # « الحلقات » qui permettait de les voir/nettoyer a été retiré ce même
+    # chantier). SET_NULL sur Groupe.creneau, donc groupe.delete() seul ne
+    # le touche pas — suppression explicite ici.
+    creneau = groupe.creneau
+    with transaction.atomic():
+        groupe.delete()
+        if creneau is not None:
+            creneau.delete()
     messages.success(request, gettext_('تم حذف المجموعة "%(v0)s" نهائياً.') % {'v0': nom})
     return redirect('admin_groupes')
 
@@ -937,9 +1037,13 @@ def groupe_supprimer_definitivement(request, groupe_id):
     nb_seances = groupe.seances.count()
     nb_presences = Presence.objects.filter(seance__groupe=groupe).count()
     nom = groupe.nom
+    # Même correctif que groupe_supprimer ci-dessus — voir son commentaire.
+    creneau = groupe.creneau
 
     with transaction.atomic():
         groupe.delete()
+        if creneau is not None:
+            creneau.delete()
 
     messages.success(
         request,

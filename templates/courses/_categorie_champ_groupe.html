@@ -1,0 +1,65 @@
+{% load i18n %}
+{% comment %}
+Champ « فئة المجموعة » (Groupe.categorie) — inclus dans admin_groupe_ajouter.html
+ET admin_groupe_modifier.html, jamais affiché seul. Attend `categorie_choices`
+(= Groupe.CATEGORIE_CHOICES) et, en ré-affichage/modification, `groupe`.
+
+Sous-menu « الفئة العمرية » : visible UNIQUEMENT quand la catégorie choisie est
+« الأطفال » (valeur 'mineurs'). Ce n'est PAS un champ enregistré — il ne fait que
+pré-remplir السن الأدنى/الأقصى du توقيت (champs age_min/age_max de
+_creneau_champs_groupe.html). La tranche d'un groupe reste donc dérivée de l'âge
+du créneau comme partout ailleurs (courses.utils.TRANCHES_AGE_PRECISES, filtre de
+admin_groupes.html) — décision explicite du client, aucune 2e source de vérité.
+Bornes d'âge = copie de TRANCHES_AGE_PRECISES (التلقين 5-7 / البراعم 8-13 /
+اليافعون 14-17) ; les garder synchronisées si cette constante change.
+{% endcomment %}
+<div class="mb-3">
+    <label style="font-weight:600; color:#333;">{% trans "فئة المجموعة" %}</label>
+    <select name="categorie" id="id_categorie_groupe" class="form-select mt-1">
+        <option value="">-- {% trans "غير مصنّفة" %} --</option>
+        {% for valeur, libelle in categorie_choices %}
+        <option value="{{ valeur }}" {% if groupe.categorie == valeur %}selected{% endif %}>{{ libelle }}</option>
+        {% endfor %}
+    </select>
+    <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "نفس تصنيف قنوات الإعلانات (النساء/الرجال/الأطفال) — تُستخدم لتصفية المجموعات." %}</div>
+
+    <div id="bloc-tranche-age-groupe" style="margin-top:10px;" hidden>
+        <label style="font-weight:600; color:#333;">{% trans "الفئة العمرية" %}</label>
+        <select id="id_tranche_age_groupe" class="form-select mt-1"
+                data-age-min-talqin="5" data-age-max-talqin="7"
+                data-age-min-baraim="8" data-age-max-baraim="13"
+                data-age-min-yafiun="14" data-age-max-yafiun="17">
+            <option value="">-- {% trans "بدون تحديد" %} --</option>
+            <option value="talqin">{% trans "التلقين" %} (5–7)</option>
+            <option value="baraim">{% trans "البراعم" %} (8–13)</option>
+            <option value="yafiun">{% trans "اليافعون" %} (14–17)</option>
+        </select>
+        <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "اختيار فئة يملأ السن الأدنى والأقصى في التوقيت تلقائياً — يمكنك تعديلهما بعد ذلك." %}</div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var selCategorie = document.getElementById('id_categorie_groupe');
+    var bloc = document.getElementById('bloc-tranche-age-groupe');
+    var selTranche = document.getElementById('id_tranche_age_groupe');
+    if (!selCategorie || !bloc || !selTranche) return;
+
+    var champAgeMin = document.querySelector('input[name="age_min"]');
+    var champAgeMax = document.querySelector('input[name="age_max"]');
+
+    function majVisibilite() {
+        bloc.hidden = selCategorie.value !== 'mineurs';
+    }
+
+    selCategorie.addEventListener('change', majVisibilite);
+    selTranche.addEventListener('change', function () {
+        var code = selTranche.value;
+        if (!code || !champAgeMin || !champAgeMax) return;
+        champAgeMin.value = selTranche.getAttribute('data-age-min-' + code);
+        champAgeMax.value = selTranche.getAttribute('data-age-max-' + code);
+    });
+
+    majVisibilite();
+})();
+</script>

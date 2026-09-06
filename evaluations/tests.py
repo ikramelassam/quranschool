@@ -1,5 +1,6 @@
 import datetime
 
+from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -147,9 +148,11 @@ class CritereLocaliseTests(TestCase):
         NoteEvaluation.objects.create(evaluation=evaluation, critere=self.critere_traduit, note=3)
         NoteEvaluation.objects.create(evaluation=evaluation, critere=self.critere_sans_trad, note=4)
         self.client.force_login(self.prof.user)
-        response = self.client.get(
-            reverse('evaluations_prof_recues'), HTTP_ACCEPT_LANGUAGE='fr',
-        )
+        # Depuis LangueParDefautArabeMiddleware (2026-09-02), Accept-Language est
+        # ignoré tant qu'aucun cookie de langue n'est posé — FR/EN passe
+        # UNIQUEMENT par le sélecteur (set_language). On simule ce choix.
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = 'fr'
+        response = self.client.get(reverse('evaluations_prof_recues'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Assiduité')
         self.assertNotContains(response, 'المواظبة')
@@ -167,3 +170,107 @@ class CritereLocaliseTests(TestCase):
         cree = Critere.objects.get(nom_ar='معيار تجريبي للترجمة')
         self.assertEqual(cree.nom_fr, 'Préparation')
         self.assertEqual(cree.nom_en, 'Preparation')
+
+
+class SuperviseurEvaluerTests(TestCase):
+    """evaluations.views.superviseur_evaluer — écriture d'une évaluation du
+    prof par le مؤطر (audit du 2026-09-05 : aucun test ne la couvrait).
+    Contraintes : séance terminée (evaluable_par_prof), commentaire
+    obligatoire, fenêtre de modification 24 h, scope profs_assignés."""
+
+    def setUp(self):
+        self.prof = _creer_prof()
+        self.superviseur = _creer_superviseur()
+        self.superviseur.profs_assignes.add(self.prof)
+        self.groupe = Groupe.objects.create(nom='حلقة', prof=self.prof, statut='actif')
+        # Séance dans le passé -> evaluable_par_prof True (fin_datetime None
+        # sans créneau -> repli sur debut_datetime, déjà passé).
+        hier = timezone.localdate() - datetime.timedelta(days=1)
+        self.seance = Seance.objects.create(
+            groupe=self.groupe, date=hier, heure=datetime.time(17, 0),
+            type='normal', statut='terminee',
+        )
+        self.critere = Critere.objects.create(nom_ar='المواظبة', ordre=1, est_actif=True)
+
+    def _login_superviseur(self):
+        self.client.force_login(self.superviseur.user)
+
+    def test_creation_evaluation_avec_commentaire_et_note(self):
+        self._login_superviseur()
+        reponse = self.client.post(reverse('superviseur_evaluer', args=[self.seance.id]), {
+            'commentaire': 'أداء ممتاز', f'note_{self.critere.id}': '4',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        evaluation = Evaluation.objects.get(seance=self.seance)
+        self.assertEqual(evaluation.commentaire, 'أداء ممتاز')
+        self.assertEqual(evaluation.prof, self.prof)
+        self.assertEqual(evaluation.superviseur, self.superviseur)
+        self.assertEqual(NoteEvaluation.objects.get(evaluation=evaluation, critere=self.critere).note, 4)
+
+    def test_commentaire_obligatoire(self):
+        self._login_superviseur()
+        reponse = self.client.post(reverse('superviseur_evaluer', args=[self.seance.id]), {
+            'commentaire': '   ', f'note_{self.critere.id}': '3',
+        })
+        self.assertEqual(reponse.status_code, 200)  # ré-affiche le formulaire
+        self.assertFalse(Evaluation.objects.filter(seance=self.seance).exists())
+
+    def test_modification_dans_les_24h(self):
+        self._login_superviseur()
+        self.client.post(reverse('superviseur_evaluer', args=[self.seance.id]), {
+            'commentaire': 'v1', f'note_{self.critere.id}': '2',
+        })
+        self.client.post(reverse('superviseur_evaluer', args=[self.seance.id]), {
+            'commentaire': 'v2 corrigé', f'note_{self.critere.id}': '4',
+        })
+        evaluation = Evaluation.objects.get(seance=self.seance)
+        self.assertEqual(evaluation.commentaire, 'v2 corrigé')
+        self.assertEqual(NoteEvaluation.objects.get(evaluation=evaluation, critere=self.critere).note, 4)
+
+    def test_modification_bloquee_apres_24h(self):
+        self._login_superviseur()
+        self.client.post(reverse('superviseur_evaluer', args=[self.seance.id]), {
+            'commentaire': 'initial', f'note_{self.critere.id}': '2',
+        })
+        evaluation = Evaluation.objects.get(seance=self.seance)
+        Evaluation.objects.filter(pk=evaluation.pk).update(
+            date=timezone.now() - datetime.timedelta(hours=25)
+        )
+        reponse = self.client.post(reverse('superviseur_evaluer', args=[self.seance.id]), {
+            'commentaire': 'tentative tardive', f'note_{self.critere.id}': '0',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        evaluation.refresh_from_db()
+        self.assertEqual(evaluation.commentaire, 'initial')  # inchangé
+
+    def test_seance_dun_prof_non_assigne_refusee(self):
+        autre_prof = _creer_prof('autre_prof_eval@zidni.test')
+        autre_groupe = Groupe.objects.create(nom='حلقة أخرى', prof=autre_prof, statut='actif')
+        autre_seance = Seance.objects.create(
+            groupe=autre_groupe, date=timezone.localdate() - datetime.timedelta(days=1),
+            heure=datetime.time(17, 0), type='normal', statut='terminee',
+        )
+        self._login_superviseur()
+        reponse = self.client.post(reverse('superviseur_evaluer', args=[autre_seance.id]), {
+            'commentaire': 'محاولة', f'note_{self.critere.id}': '3',
+        })
+        self.assertEqual(reponse.status_code, 404)
+        self.assertFalse(Evaluation.objects.filter(seance=autre_seance).exists())
+
+    def test_seance_non_terminee_refusee(self):
+        future = Seance.objects.create(
+            groupe=self.groupe, date=timezone.localdate() + datetime.timedelta(days=2),
+            heure=datetime.time(17, 0), type='normal', statut='planifiee',
+        )
+        self._login_superviseur()
+        reponse = self.client.post(reverse('superviseur_evaluer', args=[future.id]), {
+            'commentaire': 'trop tôt', f'note_{self.critere.id}': '3',
+        })
+        self.assertEqual(reponse.status_code, 302)  # redirigé vers le détail séance
+        self.assertFalse(Evaluation.objects.filter(seance=future).exists())
+
+    def test_role_prof_refuse(self):
+        self.client.force_login(self.prof.user)
+        reponse = self.client.get(reverse('superviseur_evaluer', args=[self.seance.id]))
+        self.assertEqual(reponse.status_code, 302)
+        self.assertNotEqual(reponse.url, reverse('superviseur_evaluer', args=[self.seance.id]))

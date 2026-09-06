@@ -59,6 +59,20 @@ LIMITE_PAR_GROUPE = 5
 # par groupe. Plus large que LIMITE_PAR_GROUPE parce qu'il n'y a plus qu'une
 # seule liste ; la page « عرض الكل » reste, elle, à LIMITE_FETCH.
 LIMITE_LISTE_PLATE = 15
+# Audit du 2026-09-05 (chantier notif paiement du 2026-09-04) :
+# Paiement.soumis_par_eleve n'existe que depuis cette date — la migration qui
+# l'a ajouté (payments/0012) a dû mettre `True` par défaut sur TOUS les
+# Paiement déjà en base (default=True), y compris ceux saisis à la main par
+# un مدير via paiement_panel_sauvegarder AVANT ce chantier (saisie manuelle
+# possible depuis la Tâche 7 du 2026-07-25 — il n'existe aucun moyen fiable
+# de distinguer rétroactivement les deux cas pour ces ~6 semaines de
+# données). Plutôt que de deviner (heuristique fragile, ex: absence de
+# `screenshot` — pas fiable non plus, voir payments.views.eleve_paiements où
+# il est optionnel côté serveur), on borne la notification à seulement les
+# Paiement créés à partir de cette date : soumis_par_eleve n'y est fiable
+# qu'à partir d'ici, donc rien d'antérieur n'entre dans le panneau, jamais
+# mal étiqueté.
+DATE_FIABILITE_SOUMIS_PAR_ELEVE = datetime.datetime(2026, 9, 4, tzinfo=datetime.timezone.utc)
 
 
 def _trier_groupes_par_recence(groupes):
@@ -174,13 +188,27 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
     # très tardif d'une séance ancienne ne redéclenche pas le badge si la
     # date de la séance elle-même précède déjà la dernière visite — aucun
     # champ de meilleure précision n'existe sur ce modèle sans migration.
+    #
+    # « CE Presence porte-t-il une évaluation ? » : une NotePresence (critères
+    # dynamiques, Tâche du 2026-08-04 — le SEUL système d'écriture depuis)
+    # OU l'un des 4 champs GELÉS note_hifz/note_muraja3a/note_tilawa/
+    # note_mouwazaba (historique, plus jamais réécrit par
+    # prof_presence_sauvegarder). Avant l'audit du 2026-09-05, seuls les 4
+    # champs gelés étaient testés ici -> aucune évaluation du système actuel
+    # ne déclenchait le badge 🔔. Aligné sur calculer_progression_eleve, qui
+    # combine déjà les 2 sources (courses.utils). distinct() : la jointure
+    # sur notes_criteres peut dupliquer la ligne Presence.
+    from django.db.models import Q
+
     seuil_notes_date = timezone.localtime(seuils['notes_seances']).date()
     notes = list(
         Presence.objects.filter(eleve=eleve, seance__date__gte=seuil_notes_date)
-        .exclude(
-            note_hifz__isnull=True, note_muraja3a__isnull=True,
-            note_tilawa__isnull=True, note_mouwazaba__isnull=True,
+        .filter(
+            Q(notes_criteres__isnull=False)
+            | Q(note_hifz__isnull=False) | Q(note_muraja3a__isnull=False)
+            | Q(note_tilawa__isnull=False) | Q(note_mouwazaba__isnull=False)
         )
+        .distinct()
         .select_related('seance__groupe')
         .order_by('-seance__date', '-seance__heure')[:LIMITE_FETCH]
     )
@@ -415,7 +443,12 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     5. Paiements soumis par l'élève (payments.Paiement, `soumis_par_eleve=True`
     — chantier du 2026-09-04, exclut donc les saisies manuelles مدير via
     paiement_panel_sauvegarder, qui n'ont pas à se notifier elles-mêmes) —
-    TOUT statut (historique complet, comme InscriptionEleve). `cle`
+    en plus borné à `date__gte=DATE_FIABILITE_SOUMIS_PAR_ELEVE` (audit du
+    2026-09-05, voir cette constante) : soumis_par_eleve vaut True par
+    défaut sur tout Paiement antérieur (backfill de migration), y compris
+    d'éventuelles saisies manuelles مدير faites avant ce chantier — jamais
+    fiable pour distinguer avant cette date. TOUT statut (historique
+    complet, comme InscriptionEleve). `cle`
     'nouveaux_paiements', partagée مدير+مشرف. `non_lu` sur 'en_attente'
     seulement (déjà traité = plus actionnable). Lien : admin_paiement_detail."""
     from inscriptions.models import InscriptionEleve, InscriptionProf
@@ -540,7 +573,7 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     # 5. Paiements soumis par l'élève — historique complet (exclut les
     # saisies manuelles مدير, voir payments.models.Paiement.soumis_par_eleve).
     for p in (
-        Paiement.objects.filter(soumis_par_eleve=True)
+        Paiement.objects.filter(soumis_par_eleve=True, date__gte=DATE_FIABILITE_SOUMIS_PAR_ELEVE)
         .select_related('eleve__user').order_by('-date')[:LIMITE_FETCH]
     ):
         libelle, ton = statut_paiement.get(p.statut, (p.get_statut_display(), 'neutre'))

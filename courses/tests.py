@@ -246,7 +246,11 @@ class GroupesListFiltreTests(TestCase):
         )
         self.groupe_mineurs = Groupe.objects.create(
             nom='ZZZ_أطفال_تجريبي', type_capacite='groupe', categorie='mineurs',
-            creneau=creneau_a,  # créneau adulte 18-60, PAS mineur — sans rapport avec categorie
+            # Même gabarit que creneau_a (adulte 18-60, PAS mineur — sans rapport
+            # avec categorie) mais SA PROPRE ligne : Groupe.creneau est unique=True
+            # depuis l'audit du 2026-09-05, ne peut plus référencer creneau_a déjà
+            # pris par groupe_femmes.
+            creneau=_creer_creneau(sexe_cible='homme', age_min=18, age_max=60),
         )
         # Nom volontairement SANS le mot "نساء" (contrairement aux 3 groupes
         # ci-dessus) — sinon nom__trigram_similar (recherche floue, voir plus
@@ -623,7 +627,7 @@ class GroupePhotoEtCategorieVuesTests(TestCase):
     def _ajouter(self, **extra):
         donnees = {
             'nom': 'مجموعة الصورة', **_champs_horaire_depuis_creneau(self.creneau),
-            'type_capacite': 'groupe', 'max_eleves': 10,
+            'type_capacite': 'groupe', 'capacite_max': 10,
         }
         donnees.update(extra)
         return self.client.post(reverse('admin_groupe_ajouter'), donnees)
@@ -695,12 +699,88 @@ class GroupePhotoEtCategorieVuesTests(TestCase):
         # formulaire détaillé "فئة المجموعة" (ancien paramètre `cat`) a été
         # retiré car doublon exact des pastilles النساء/الرجال/الأطفال, qui
         # filtrent ce même champ Groupe.categorie via `categorie`.
+        # Audit du 2026-09-05 : creneau_id distinct pour chaque groupe (obligatoire
+        # depuis courses.models.Groupe.creneau unique=True) — seul categorie compte
+        # ici, la valeur de l'horaire est sans importance pour ce test.
         Groupe.objects.create(nom='ZZZ_مصنّفة_رجال', creneau=self.creneau, categorie='hommes_adultes')
-        Groupe.objects.create(nom='ZZZ_مصنّفة_نساء', creneau=self.creneau, categorie='femmes_adultes')
+        Groupe.objects.create(nom='ZZZ_مصنّفة_نساء', creneau=_creer_creneau(), categorie='femmes_adultes')
         reponse = self.client.get(reverse('admin_groupes'), {'categorie': 'hommes_adultes'})
         noms = {g.nom for g in reponse.context['groupes']}
         self.assertIn('ZZZ_مصنّفة_رجال', noms)
         self.assertNotIn('ZZZ_مصنّفة_نساء', noms)
+
+
+class GroupeFormulaireProfEtAgeTests(TestCase):
+    """Régression (audit du 2026-09-05, chantier « fusion horaire/groupe ») :
+    depuis que le Creneau privé du groupe est créé à partir des champs du
+    formulaire (Creneau.objects.create(age_min=request.POST.get('age_min'))),
+    age_min/age_max restaient des `str` sur l'instance en mémoire — le calcul
+    des avertissements prof (_categorie_age_creneau : `str < int`) plantait en
+    HTTP 500 toute création/modification de groupe AVEC un enseignant assigné.
+    Aucun test vue ne postait de champ `prof` jusqu'ici. On couvre aussi le
+    garde-fou serveur sur age_min/age_max (POST forgé / JS désactivé)."""
+
+    def setUp(self):
+        self.admin = _creer_admin('admin_groupe_prof_age@zidni.test')
+        self.prof = _creer_prof('prof_groupe_prof_age@zidni.test')
+        self.creneau = _creer_creneau()
+        self.client = Client(SERVER_NAME='localhost')
+        _connecter(self.client, self.admin)
+
+    def _donnees(self, **extra):
+        donnees = {
+            'nom': 'مجموعة مع أستاذ', **_champs_horaire_depuis_creneau(self.creneau),
+            'type_capacite': 'groupe', 'capacite_max': 10,
+        }
+        donnees.update(extra)
+        return donnees
+
+    def test_creation_groupe_avec_prof_reussit(self):
+        reponse = self.client.post(
+            reverse('admin_groupe_ajouter'), self._donnees(prof=str(self.prof.id)),
+        )
+        self.assertEqual(reponse.status_code, 302)
+        groupe = Groupe.objects.get(nom='مجموعة مع أستاذ')
+        self.assertEqual(groupe.prof_id, self.prof.id)
+        groupe.creneau.refresh_from_db()
+        self.assertEqual(groupe.creneau.age_min, self.creneau.age_min)
+        self.assertEqual(groupe.creneau.age_max, self.creneau.age_max)
+
+    def test_modification_groupe_avec_prof_et_changement_horaire_reussit(self):
+        groupe = Groupe.objects.create(nom='مجموعة للتعديل', creneau=_creer_creneau(), statut='actif', prof=self.prof)
+        reponse = self.client.post(reverse('admin_groupe_modifier', args=[groupe.id]), self._donnees(
+            nom=groupe.nom, prof=str(self.prof.id), statut='actif', capacite_max=10,
+            slot_jour=['mar'], slot_heure_debut=['16:00'], slot_heure_fin=['17:00'],
+        ))
+        self.assertEqual(reponse.status_code, 302)
+        groupe.refresh_from_db()
+        self.assertEqual([s.jour for s in groupe.creneau.slots.all()], ['mar'])
+        self.assertEqual(groupe.prof_id, self.prof.id)
+
+    def test_age_non_numerique_refuse_proprement_sans_500_ni_creneau_orphelin(self):
+        avant = Creneau.objects.count()
+        reponse = self.client.post(
+            reverse('admin_groupe_ajouter'),
+            self._donnees(prof=str(self.prof.id), age_min='abc', age_max='12'),
+        )
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(Groupe.objects.filter(nom='مجموعة مع أستاذ').exists())
+        self.assertEqual(Creneau.objects.count(), avant)
+
+    def test_age_manquant_refuse_proprement(self):
+        donnees = self._donnees(prof=str(self.prof.id))
+        donnees.pop('age_min')
+        reponse = self.client.post(reverse('admin_groupe_ajouter'), donnees)
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(Groupe.objects.filter(nom='مجموعة مع أستاذ').exists())
+
+    def test_age_min_superieur_a_age_max_refuse(self):
+        reponse = self.client.post(
+            reverse('admin_groupe_ajouter'),
+            self._donnees(age_min='20', age_max='10'),
+        )
+        self.assertEqual(reponse.status_code, 200)
+        self.assertFalse(Groupe.objects.filter(nom='مجموعة مع أستاذ').exists())
 
 
 class ValiderPhotoGroupeTests(TestCase):
@@ -1096,7 +1176,7 @@ class LienMeetVuesGroupeTests(TestCase):
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_ajouter'), {
             'nom': 'مجموعة جديدة', **_champs_horaire_depuis_creneau(self.creneau_libre), 'lien_meet': self.lien1.id,
-            'type_capacite': 'groupe', 'max_eleves': 10,
+            'type_capacite': 'groupe', 'capacite_max': 10,
         })
         self.assertEqual(reponse.status_code, 302)
         groupe = Groupe.objects.get(nom='مجموعة جديدة')
@@ -1107,7 +1187,7 @@ class LienMeetVuesGroupeTests(TestCase):
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_ajouter'), {
             'nom': 'مجموعة متعارضة', **_champs_horaire_depuis_creneau(self.creneau_conflit), 'lien_meet': self.lien1.id,
-            'type_capacite': 'groupe', 'max_eleves': 10,
+            'type_capacite': 'groupe', 'capacite_max': 10,
         })
         self.assertEqual(reponse.status_code, 200)  # re-rendu du formulaire, pas de redirection
         self.assertFalse(Groupe.objects.filter(nom='مجموعة متعارضة').exists())
@@ -1118,7 +1198,7 @@ class LienMeetVuesGroupeTests(TestCase):
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_ajouter'), {
             'nom': 'مجموعة بدون رابط', **_champs_horaire_depuis_creneau(self.creneau_libre), 'lien_meet': '',
-            'type_capacite': 'groupe', 'max_eleves': 10,
+            'type_capacite': 'groupe', 'capacite_max': 10,
         })
         self.assertEqual(reponse.status_code, 302)
         groupe = Groupe.objects.get(nom='مجموعة بدون رابط')
@@ -1131,7 +1211,7 @@ class LienMeetVuesGroupeTests(TestCase):
         client = self._client(self.admin)
         reponse = client.post(reverse('admin_groupe_ajouter'), {
             'nom': 'مجموعة برابط معطّل', **_champs_horaire_depuis_creneau(self.creneau_libre), 'lien_meet': self.lien1.id,
-            'type_capacite': 'groupe', 'max_eleves': 10,
+            'type_capacite': 'groupe', 'capacite_max': 10,
         })
         self.assertEqual(reponse.status_code, 200)
         self.assertFalse(Groupe.objects.filter(nom='مجموعة برابط معطّل').exists())
@@ -1203,7 +1283,7 @@ class LienMeetVuesGroupeTests(TestCase):
         reponse = client.post(reverse('admin_groupe_ajouter'), {
             'nom': 'مجموعة برابط ملصوق', **_champs_horaire_depuis_creneau(self.creneau_libre),
             'lien_meet': '', 'lien_meet_nouveau': 'https://meet.google.com/zzz-zzzz-zzz',
-            'type_capacite': 'groupe', 'max_eleves': 10,
+            'type_capacite': 'groupe', 'capacite_max': 10,
         })
         self.assertEqual(reponse.status_code, 302)
         groupe = Groupe.objects.get(nom='مجموعة برابط ملصوق')
@@ -1218,7 +1298,7 @@ class LienMeetVuesGroupeTests(TestCase):
         client.post(reverse('admin_groupe_ajouter'), {
             'nom': 'مجموعة تعيد استخدام', **_champs_horaire_depuis_creneau(self.creneau_libre),
             'lien_meet': '', 'lien_meet_nouveau': self.lien1.url,
-            'type_capacite': 'groupe', 'max_eleves': 10,
+            'type_capacite': 'groupe', 'capacite_max': 10,
         })
         groupe = Groupe.objects.get(nom='مجموعة تعيد استخدام')
         self.assertEqual(groupe.lien_meet_id, self.lien1.id)
@@ -1229,7 +1309,7 @@ class LienMeetVuesGroupeTests(TestCase):
         reponse = client.post(reverse('admin_groupe_ajouter'), {
             'nom': 'مجموعة برابط خاطئ', **_champs_horaire_depuis_creneau(self.creneau_libre),
             'lien_meet': '', 'lien_meet_nouveau': 'pas une url',
-            'type_capacite': 'groupe', 'max_eleves': 10,
+            'type_capacite': 'groupe', 'capacite_max': 10,
         })
         self.assertEqual(reponse.status_code, 200)
         self.assertFalse(Groupe.objects.filter(nom='مجموعة برابط خاطئ').exists())
@@ -1241,7 +1321,7 @@ class LienMeetVuesGroupeTests(TestCase):
         reponse = client.post(reverse('admin_groupe_ajouter'), {
             'nom': 'مجموعة ملصوق متعارض', **_champs_horaire_depuis_creneau(self.creneau_conflit),
             'lien_meet': '', 'lien_meet_nouveau': self.lien1.url,
-            'type_capacite': 'groupe', 'max_eleves': 10,
+            'type_capacite': 'groupe', 'capacite_max': 10,
         })
         self.assertEqual(reponse.status_code, 200)
         self.assertFalse(Groupe.objects.filter(nom='مجموعة ملصوق متعارض').exists())
@@ -1653,9 +1733,16 @@ class SeanceExceptionLienMeetTests(TestCase):
         self.assertIn(self.lien2, liens_dispo)
 
     def test_6_aucun_meet_disponible(self):
-        # Un 3e groupe occupe aussi Meet 2 le même mercredi 16h-17h : plus aucun lien libre.
+        # Un 3e groupe occupe aussi Meet 2 au même horaire (mercredi 16h-17h) que
+        # groupe_b : plus aucun lien libre. Son PROPRE Creneau (même horaire, ligne
+        # distincte) — Groupe.creneau est unique=True depuis l'audit du 2026-09-05,
+        # ne peut plus référencer self.creneau_b déjà utilisé par groupe_b.
+        creneau_c = _creer_creneau_horaire(
+            'mer', datetime.time(16, 0), datetime.time(17, 0),
+            'sam', datetime.time(10, 0), datetime.time(11, 0),
+        )
         Groupe.objects.create(
-            nom='مجموعة ج (تحتل Meet2)', creneau=self.creneau_b, lien_meet=self.lien2,
+            nom='مجموعة ج (تحتل Meet2)', creneau=creneau_c, lien_meet=self.lien2,
             lien_reunion=self.lien2.url, statut='actif',
         )
         reponse = self._deplacer(self.s1, self.s1.date, '16:00')
@@ -1708,7 +1795,13 @@ class SeanceExceptionLienMeetTests(TestCase):
         """Point A : le panneau d'ajout de lien apparaît dans le HTML AVANT la
         section "يحتاج انتباهك" (donc juste sous le bouton d'en-tête), jamais
         après une longue liste de groupes."""
-        Groupe.objects.create(nom='مجموعة بدون رابط (نقطة أ)', creneau=self.creneau_a, statut='actif')
+        # Son propre Creneau (self.creneau_a est déjà celui de self.groupe_a créé
+        # dans setUp — unique=True depuis l'audit du 2026-09-05).
+        creneau_sans_lien = _creer_creneau_horaire(
+            'jeu', datetime.time(9, 0), datetime.time(10, 0),
+            'dim', datetime.time(9, 0), datetime.time(10, 0),
+        )
+        Groupe.objects.create(nom='مجموعة بدون رابط (نقطة أ)', creneau=creneau_sans_lien, statut='actif')
         reponse = self._client().get(reverse('admin_liens_meet'))
         html = reponse.content.decode('utf-8')
         self.assertLess(html.index('ajouter-lien-panel'), html.index('يحتاج انتباهك'))
@@ -1716,10 +1809,14 @@ class SeanceExceptionLienMeetTests(TestCase):
     def test_12b_carte_groupe_sans_lien_est_cliquable_vers_les_details(self):
         """Point B : la carte d'un groupe sans lien (avec créneau) mène à sa
         fiche détail, explicitement via "عرض التفاصيل"."""
+        # groupe_a supprimé D'ABORD (simplifie : ne garder que ce cas dans "بدون
+        # رابط") — libère self.creneau_a (unique=True depuis l'audit du
+        # 2026-09-05, ne peut plus être réutilisé tant que groupe_a existe ;
+        # SET_NULL ne supprime pas le Creneau lui-même, seulement la référence).
+        self.groupe_a.delete()
         groupe_sans_lien = Groupe.objects.create(
             nom='مجموعة بدون رابط (واجهة)', creneau=self.creneau_a, statut='actif',
         )
-        self.groupe_a.delete()  # simplifie : ne garder que ce cas dans "بدون رابط"
         reponse = self._client().get(reverse('admin_liens_meet'))
         html = reponse.content.decode('utf-8')
         self.assertIn(reverse('admin_groupe_detail', args=[groupe_sans_lien.id]), html)

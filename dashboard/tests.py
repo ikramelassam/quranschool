@@ -592,7 +592,10 @@ class CritereEleveLocaliseTests(TestCase):
         presence = Presence.objects.create(seance=seance, eleve=eleve, statut='present')
         NotePresence.objects.create(presence=presence, critere=critere, note=15)
 
-        response = self.client.get(reverse('bilans_mensuels'), HTTP_ACCEPT_LANGUAGE='fr')
+        # Accept-Language est ignoré depuis LangueParDefautArabeMiddleware
+        # (2026-09-02) : FR/EN passe par le cookie de langue (set_language).
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = 'fr'
+        response = self.client.get(reverse('bilans_mensuels'))
         self.assertEqual(response.status_code, 200)
         contenu = response.content.decode('utf-8')
         self.assertIn('Mémorisation', contenu)
@@ -2780,7 +2783,24 @@ class NotificationsChantierTests(TestCase):
         self.assertEqual(response.context['notif_total'], 0)
 
     # ---------- 4b. Note de séance (Presence) ----------
-    def test_note_seance_declenche_le_badge_eleve(self):
+    def test_note_seance_systeme_actuel_declenche_le_badge_eleve(self):
+        """Système ACTUEL (Tâche du 2026-08-04) : l'évaluation est portée par
+        des NotePresence, jamais par les 4 champs note_hifz/... gelés. L'audit
+        du 2026-09-05 a trouvé que le filtre de dashboard.notifications ne
+        regardait QUE ces champs gelés -> aucune évaluation réelle ne
+        déclenchait le badge. Ce test couvre désormais le vrai chemin."""
+        critere = CritereEleve.objects.create(nom_ar='الحفظ', ordre=1, est_actif=True)
+        presence = Presence.objects.create(
+            seance=self.seance, eleve=self.eleve, statut='present',
+        )
+        NotePresence.objects.create(presence=presence, critere=critere, note=15)
+        self._connecter_eleve()
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 1)
+
+    def test_note_seance_legacy_champs_geles_declenche_encore_le_badge_eleve(self):
+        """Historique : une Presence antérieure au 2026-08-04 porte encore ses
+        4 champs note_hifz/... — elle doit continuer de compter."""
         Presence.objects.create(
             seance=self.seance, eleve=self.eleve, statut='present',
             note_hifz=15, note_muraja3a=14, note_tilawa=16, note_mouwazaba=18,
@@ -3719,8 +3739,11 @@ class CritereInscriptionCRUDTests(TestCase):
         option = CritereOption.objects.create(critere=critere, code='inter', label='متوسط')
         creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
         _slots(creneau, [{'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}])
+        creneau2 = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        _slots(creneau2, [{'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}])
         groupe1 = Groupe.objects.create(nom='مجموعة أولى', creneau=creneau, statut='actif')
-        groupe2 = Groupe.objects.create(nom='مجموعة ثانية', creneau=creneau, statut='actif')
+        # Son propre Creneau (unique=True depuis l'audit du 2026-09-05).
+        groupe2 = Groupe.objects.create(nom='مجموعة ثانية', creneau=creneau2, statut='actif')
         GroupeCritereValeur.objects.create(groupe=groupe1, critere=critere, option=option)
         GroupeCritereValeur.objects.create(groupe=groupe2, critere=critere, option=option)
 
@@ -4178,6 +4201,9 @@ class MoyenPaiementPresentationDelaisTests(TestCase):
         reponse = client.post(reverse('admin_gestion_inscriptions'), {
             'ouverte_eleve_adulte': '1', 'ouverte_eleve_enfant': '1', 'ouverte_prof': '1',
             'delai_paiement_jours': '7', 'delai_contact_heures': '48',
+            # Champs devenus obligatoires avec le chantier relance de paiement
+            # (2026-09-02) — la vue refuse tout l'enregistrement s'ils manquent.
+            'delai_grace_nouvel_eleve_mois': '2', 'heure_relance_paiement': '20:00',
         })
         self.assertEqual(reponse.status_code, 302)
         parametres = get_parametres_inscriptions()
@@ -5742,11 +5768,17 @@ class GenericiteBoutEnBoutTests(TestCase):
             {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
             {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
         ])
+        creneau_revision = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        _slots(creneau_revision, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
         groupe_memo = Groupe.objects.create(
             nom='مجموعة اختبار التعميم — الحفظ', creneau=creneau, statut='actif', type_capacite='groupe', capacite_max=10,
         )
+        # Son propre Creneau (unique=True depuis l'audit du 2026-09-05).
         groupe_revision = Groupe.objects.create(
-            nom='مجموعة اختبار التعميم — المراجعة', creneau=creneau, statut='actif', type_capacite='groupe', capacite_max=10,
+            nom='مجموعة اختبار التعميم — المراجعة', creneau=creneau_revision, statut='actif', type_capacite='groupe', capacite_max=10,
         )
         for groupe in (groupe_memo, groupe_revision):
             GroupeCritereValeur.objects.create(groupe=groupe, critere=critere_programme, option=critere_programme.options.get(code='hifz'))
@@ -5961,6 +5993,13 @@ class AdminInscriptionDetailAuditTests(TestCase):
         )
         from payments.models import MoyenPaiement
         self.moyen = MoyenPaiement.objects.create(code='test_audit_cih', label='CIH بنك', est_actif=True)
+
+        # Le seed OptionNbSeances ne crée que [1, 2, 3] (courses/migrations/0040) ;
+        # ces tests exercent des valeurs précises (4, 55) — on les rend
+        # sélectionnables ici plutôt que de coupler le test au contenu du seed.
+        from courses.models import OptionNbSeances
+        for valeur in (4, 55):
+            OptionNbSeances.objects.get_or_create(valeur=valeur, defaults={'ordre': valeur})
 
     def _connecte_admin(self):
         client = Client()
@@ -6672,7 +6711,10 @@ class ProgrammeGeneralLocaliseTests(TestCase):
         eleve.user.date_naissance = datetime.date(2015, 1, 1)  # enfant
         eleve.user.save()
         self.client.force_login(eleve.user)
-        r = self.client.get(reverse('programme_general_detail'), HTTP_ACCEPT_LANGUAGE='fr')
+        # Accept-Language ignoré depuis LangueParDefautArabeMiddleware (2026-09-02)
+        # — FR/EN par cookie de langue uniquement.
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = 'fr'
+        r = self.client.get(reverse('programme_general_detail'))
         self.assertEqual(r.status_code, 200)
         contenu = r.content.decode('utf-8')
         self.assertIn('Programme enfants', contenu)

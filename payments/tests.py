@@ -1,6 +1,8 @@
 import datetime
 from decimal import Decimal
 
+from unittest.mock import patch
+
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, Client, override_settings
@@ -199,6 +201,42 @@ class EleveePaiementsPeriodeTests(TestCase):
         self.assertFalse(Paiement.objects.filter(eleve=self.eleve).exists())
 
 
+@override_settings(STORAGES=_STORAGES_TEST)
+class SoumissionPaiementNotifieTelegramAvecPhotoTests(TestCase):
+    """Chantier du 2026-09-05 : la notif Telegram de soumission de paiement
+    envoie désormais la photo du justificatif en pièce jointe (sendPhoto),
+    pas juste un lien vers la fiche — voir core.utils.envoyer_notification_
+    telegram_avec_photo_async. Sans photo (aucun cas normal aujourd'hui,
+    mais le champ est optionnel côté modèle), on retombe sur le texte seul."""
+
+    def setUp(self):
+        self.eleve = _creer_eleve()
+        self.client = Client()
+        self.client.force_login(self.eleve.user)
+
+    @patch('payments.views.envoyer_notification_telegram_avec_photo_async')
+    @patch('payments.views.envoyer_notification_telegram_async')
+    def test_avec_screenshot_envoie_la_photo_pas_seulement_le_texte(self, mock_texte, mock_photo):
+        reponse = self.client.post(reverse('eleve_paiements'), {
+            'nb_mois': '1', 'montant': '80', 'screenshot': _screenshot(),
+        })
+        self.assertRedirects(reponse, reverse('eleve_paiements'))
+        mock_photo.assert_called_once()
+        mock_texte.assert_not_called()
+        legende, contenu, nom = mock_photo.call_args[0]
+        self.assertIn(self.eleve.user.get_full_name(), legende)
+        self.assertTrue(contenu)  # bytes non vides
+        self.assertTrue(nom.endswith('.jpg'))
+
+    @patch('payments.views.envoyer_notification_telegram_avec_photo_async')
+    @patch('payments.views.envoyer_notification_telegram_async')
+    def test_sans_screenshot_retombe_sur_le_texte_seul(self, mock_texte, mock_photo):
+        reponse = self.client.post(reverse('eleve_paiements'), {'nb_mois': '1', 'montant': '80'})
+        self.assertRedirects(reponse, reverse('eleve_paiements'))
+        mock_texte.assert_called_once()
+        mock_photo.assert_not_called()
+
+
 # La fiche /payments/admin/<id>/ montre « la durée de la demande » (span début
 # → fin exclusive), jamais le détail mois par mois. Cas courant : un seul
 # Paiement avec nb_mois_couverts. Fallback legacy : lot de Paiement d'1 mois.
@@ -250,3 +288,72 @@ class AdminPaiementDetailPeriodeTests(TestCase):
         reponse = self.client.get(reverse('admin_paiement_detail', args=[p1.id]))
         self.assertEqual(reponse.context['periode_debut'], datetime.date(2026, 8, 5))
         self.assertEqual(reponse.context['periode_fin'], datetime.date(2026, 10, 5))
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class PaiementPanelSauvegarderTests(TestCase):
+    """payments.views.paiement_panel_sauvegarder — saisie/màj d'un paiement
+    par le مدير depuis le panneau de suivi (audit du 2026-09-05 : aucun test
+    ne la couvrait). @role_required('admin'), POST only, reconcilier()."""
+
+    def setUp(self):
+        from payments import cycles
+        self.eleve = _creer_eleve()
+        cycles.demarrer_cycles(self.eleve, date_reference=datetime.date(2026, 8, 5))
+        self.admin = User.objects.create_user(
+            username='admin_panel@zidni.test', email='admin_panel@zidni.test',
+            password='xX!test12345', role='admin', doit_changer_mot_de_passe=False,
+        )
+        self.mshrif = User.objects.create_user(
+            username='mshrif_panel@zidni.test', email='mshrif_panel@zidni.test',
+            password='xX!test12345', role='mshrif', doit_changer_mot_de_passe=False,
+        )
+        self.client = Client()
+
+    def _post(self, **extra):
+        donnees = {
+            'eleve_id': self.eleve.id, 'mois': '2026-08',
+            'montant': '80', 'statut': 'valide',
+        }
+        donnees.update(extra)
+        return self.client.post(reverse('paiement_panel_sauvegarder'), donnees)
+
+    def test_creation_paiement_manuel_valide_fait_avancer_le_cycle(self):
+        from payments import cycles
+        self.client.force_login(self.admin)
+        reponse = self._post()
+        self.assertEqual(reponse.status_code, 302)
+        paiement = Paiement.objects.get(eleve=self.eleve)
+        self.assertEqual(paiement.statut, 'valide')
+        self.assertFalse(paiement.soumis_par_eleve)  # saisie manuelle
+        self.assertEqual(paiement.valide_par, self.admin)
+        self.assertFalse(cycles.est_en_retard(self.eleve))
+
+    def test_get_ne_fait_rien(self):
+        self.client.force_login(self.admin)
+        reponse = self.client.get(reverse('paiement_panel_sauvegarder'))
+        self.assertEqual(reponse.status_code, 302)
+        self.assertFalse(Paiement.objects.filter(eleve=self.eleve).exists())
+
+    def test_mshrif_ne_peut_pas_enregistrer(self):
+        self.client.force_login(self.mshrif)
+        reponse = self._post()
+        self.assertEqual(reponse.status_code, 302)
+        self.assertNotIn(reverse('suivi_paiements_eleves'), reponse.url)  # redirigé vers son dashboard
+        self.assertFalse(Paiement.objects.filter(eleve=self.eleve).exists())
+
+    def test_mise_a_jour_dun_paiement_existant(self):
+        self.client.force_login(self.admin)
+        self._post(montant='80', statut='en_attente')
+        self._post(montant='90', statut='valide')
+        self.assertEqual(Paiement.objects.filter(eleve=self.eleve).count(), 1)
+        paiement = Paiement.objects.get(eleve=self.eleve)
+        self.assertEqual(paiement.montant, Decimal('90'))
+        self.assertEqual(paiement.statut, 'valide')
+
+    def test_eleve_archive_refuse(self):
+        self.eleve.statut = 'archive'
+        self.eleve.save(update_fields=['statut'])
+        self.client.force_login(self.admin)
+        self._post()
+        self.assertFalse(Paiement.objects.filter(eleve=self.eleve).exists())

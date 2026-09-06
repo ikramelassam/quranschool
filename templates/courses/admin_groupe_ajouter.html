@@ -84,19 +84,10 @@
 
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "الطاقة الاستيعابية القصوى" %}</label>
-            <input type="number" name="max_eleves" class="form-control mt-1" value="{{ groupe.capacite_max|default:10 }}" min="1" max="50">
+            <input type="number" name="capacite_max" class="form-control mt-1" value="{{ groupe.capacite_max|default:10 }}" min="1" max="50">
         </div>
 
-        <div class="mb-3">
-            <label style="font-weight:600; color:#333;">{% trans "فئة المجموعة" %}</label>
-            <select name="categorie" class="form-select mt-1">
-                <option value="">-- {% trans "غير مصنّفة" %} --</option>
-                {% for valeur, libelle in categorie_choices %}
-                <option value="{{ valeur }}" {% if groupe.categorie == valeur %}selected{% endif %}>{{ libelle }}</option>
-                {% endfor %}
-            </select>
-            <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "نفس تصنيف قنوات الإعلانات (النساء/الرجال/الأطفال) — تُستخدم لتصفية المجموعات." %}</div>
-        </div>
+        {% include 'courses/_categorie_champ_groupe.html' %}
 
         <div style="background:#f7f3ea; border:1px solid var(--color-brand-gold); border-radius:10px; padding:16px 18px; margin-bottom:16px;">
             <label style="font-weight:700; color:var(--color-brand-gold-dark); display:flex; align-items:center; gap:8px;">

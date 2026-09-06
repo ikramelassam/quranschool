@@ -234,8 +234,15 @@ class GroupesAvecPlaceDisponibleTests(TestCase):
         )
         _remplir_groupe(self.groupe_plein, 3, 'plein')  # capacite_max=3, 3 élèves déjà inscrits -> plein
 
+        # Son propre Creneau (Groupe.creneau est unique=True depuis l'audit du
+        # 2026-09-05, ne peut plus référencer self.creneau déjà pris par
+        # groupe_plein) — seule la capacité compte pour ce test.
+        creneau_2 = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(creneau_2, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
         self.groupe_presque_plein = Groupe.objects.create(
-            nom='مجموعة شبه ممتلئة', creneau=self.creneau, statut='actif', capacite_max=3,
+            nom='مجموعة شبه ممتلئة', creneau=creneau_2, statut='actif', capacite_max=3,
         )
         _remplir_groupe(self.groupe_presque_plein, 2, 'presque')  # 2/3 -> encore 1 place
 
@@ -1079,8 +1086,11 @@ class ChampAvecCritereSurEtapeIdentiteTests(TestCase):
         self.groupe_arabophone = Groupe.objects.create(
             nom='مجموعة تواصل بالعربية', creneau=self.creneau, statut='actif', type_capacite='groupe', capacite_max=10,
         )
+        # Son propre Creneau (unique=True depuis l'audit du 2026-09-05) — seule
+        # la langue de communication compte pour ce test.
         self.groupe_francophone = Groupe.objects.create(
-            nom='مجموعة تواصل بالفرنسية', creneau=self.creneau, statut='actif', type_capacite='groupe', capacite_max=10,
+            nom='مجموعة تواصل بالفرنسية', creneau=_creer_creneau(nb_slots=2, age_min=6, age_max=60),
+            statut='actif', type_capacite='groupe', capacite_max=10,
         )
         for groupe, option in [(self.groupe_arabophone, self.opt_ar), (self.groupe_francophone, self.opt_fr)]:
             GroupeCritereValeur.objects.create(groupe=groupe, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))
@@ -2213,6 +2223,11 @@ class WizardGroupeDisponibilitesSiAttenteTests(TestCase):
         self.champ_riwaya = ChampInscription.objects.get(etape__code='programme', critere=self.critere_riwaya)
         self.champ_type_offre = ChampInscription.objects.get(etape__code='programme', critere=self.critere_type_offre)
         self.champ_nb_seances = ChampInscription.objects.get(etape__code='programme', critere=self.critere_nb_seances)
+        # nb_seances=99 (valeur volontairement improbable pour garantir "aucun
+        # groupe exact") doit être une OptionNbSeances active, sinon
+        # wizard_programme la rejette (revalidation serveur) et le parcours
+        # n'atteint jamais wizard_groupe — le seed n'a que [1,2,3].
+        _seeder_options_nb_seances(99)
         # Aucun groupe créé : garantit aucun_groupe_exact=True (et même
         # groupes_proches vide), sans que ce soit l'objet de ces tests.
 
@@ -2494,9 +2509,16 @@ class GroupeCacheDuWizardPublicTests(TestCase):
         GroupeCritereValeur.objects.create(groupe=self.groupe_cache, critere=self.critere_riwaya, option=self.critere_riwaya.options.get(code='hafs'))
 
         # Groupe NON caché (cache_du_wizard_public=False, la valeur par
-        # défaut) — même créneau/critères, sert de témoin de non-régression.
+        # défaut) — même horaire/critères que groupe_cache (Creneau distinct
+        # requis : unique=True depuis l'audit du 2026-09-05), sert de témoin
+        # de non-régression.
+        creneau_visible = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(creneau_visible, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
         self.groupe_visible = Groupe.objects.create(
-            nom='مجموعة عادية غير مخفية', creneau=self.creneau, statut='actif',
+            nom='مجموعة عادية غير مخفية', creneau=creneau_visible, statut='actif',
             type_capacite='groupe', capacite_max=10,
         )
         GroupeCritereValeur.objects.create(groupe=self.groupe_visible, critere=self.critere_programme, option=self.critere_programme.options.get(code='hifz'))

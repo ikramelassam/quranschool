@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import sys
 import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -19,6 +20,18 @@ AUTH_USER_MODEL = 'accounts.User'
 
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / '.env')
+
+# True pendant `manage.py test` (ou pytest) — sert à couper TOUT effet de bord
+# réseau réel pendant les tests, Telegram en tête (voir la section Telegram plus
+# bas). Sans ce garde-fou, chaque test qui termine une inscription / un paiement
+# / un « mot de passe oublié » envoyait un VRAI message au مدير : le .env local
+# fournit un TELEGRAM_BOT_TOKEN + un TELEGRAM_CHAT_ID valides, ce dernier étant
+# semé comme AbonneTelegram actif par la migration telegram_bot 0002 dans la
+# base de test elle-même (bug constaté le 2026-09-06 : des dizaines de notifs
+# « 📥 طلب تسجيل جديد » pointant vers http://testserver/…). Les tests qui
+# veulent vérifier un envoi patchent explicitement core.utils (mock) ou
+# surchargent le token via @override_settings — ils ne dépendent pas du .env.
+TESTING = ('test' in sys.argv) or sys.argv[0].rsplit('/', 1)[-1].startswith(('pytest', 'py.test'))
 
 
 # Quick-start development settings - unsuitable for production
@@ -295,6 +308,17 @@ TELEGRAM_BOT_TOKEN = env('TELEGRAM_BOT_TOKEN', default='')
 # une fois cette migration appliquée en production, mais on la laisse ici pour
 # ne rien casser tant que ce n'est pas fait.
 TELEGRAM_CHAT_ID = env('TELEGRAM_CHAT_ID', default='')
+
+if TESTING:
+    # Neutralisation dure des envois Telegram pendant les tests (voir TESTING
+    # en haut du fichier). Token vide => envoyer_message_telegram_direct /
+    # envoyer_photo_telegram_direct retournent False AVANT tout appel réseau
+    # (core.utils). CHAT_ID vide => la migration de seed telegram_bot 0002 ne
+    # crée AUCUN abonné réel dans la base de test. Les tests qui vérifient un
+    # envoi surchargent ces valeurs via @override_settings et patchent
+    # core.utils.requests.post — ils ne sont pas affectés.
+    TELEGRAM_BOT_TOKEN = ''
+    TELEGRAM_CHAT_ID = ''
 # TELEGRAM_WEBHOOK_SECRET : secret arbitraire (ex: généré via `python -c
 # "import secrets; print(secrets.token_urlsafe(32))"`) fourni à Telegram via
 # `setWebhook` (voir telegram_bot.management.commands.set_telegram_webhook).

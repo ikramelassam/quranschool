@@ -4677,14 +4677,15 @@ def admin_eleve_archiver(request, eleve_id):
 
 # ==================== SUPPRESSION DÉFINITIVE (chantier du 2026-08-12) ====================
 # Distincte de admin_eleve_archiver/admin_prof_archiver (réversibles) : ici on
-# supprime le User pour de vrai — مدير UNIQUEMENT (pas مشرف), confirmation par
-# saisie EXACTE de l'email (identifiant garanti unique, contrairement au nom),
-# transaction.atomic(), AUCUNE trace conservée après coup — même contrat que
-# groupe_supprimer_definitivement/creneau_supprimer_definitivement (courses/
-# views.py). Le detail exact de ce qui est réellement supprimé vs détaché
-# (SET_NULL) a été audité champ par champ avant ce chantier — voir les 2
-# migrations SET_NULL (BilanMensuel.prof, Evaluation.superviseur) qui
-# l'accompagnent.
+# supprime le User pour de vrai — مدير ET مشرف (inversion assumée le 2026-08-13,
+# point 3, voir dashboard.tests.EleveSuppressionDefinitiveTests.test_mshrif_autorise
+# qui remplace l'ancien test_mshrif_refuse). NB : la suppression définitive d'un
+# GROUPE (courses.views.groupe_supprimer_definitivement) reste, elle, réservée au
+# مدير — asymétrie connue, pas un oubli. Confirmation par saisie EXACTE de l'email
+# (identifiant garanti unique, contrairement au nom), transaction.atomic(), AUCUNE
+# trace conservée après coup. Le détail exact de ce qui est réellement supprimé vs
+# détaché (SET_NULL) a été audité champ par champ avant ce chantier — voir les 2
+# migrations SET_NULL (BilanMensuel.prof, Evaluation.superviseur) qui l'accompagnent.
 
 @role_required('admin', 'mshrif')
 def eleve_supprimer_definitivement(request, eleve_id):

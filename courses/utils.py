@@ -163,6 +163,12 @@ def raison_incompatibilite_groupe(eleve, groupe):
     avertissements_prof_creneau) — voir avertissements_groupe pour ce
     critère, désormais informatif seulement.
 
+    Type d'abonnement (فردي/جماعي) : n'est PLUS bloquant depuis le chantier
+    du 2026-09-04 (demande client explicite — un élève inscrit en individuel
+    peut changer d'avis vers le collectif, ou inversement, et le مدير doit
+    pouvoir l'assigner quand même) — voir avertissements_groupe pour ce
+    critère, désormais informatif seulement.
+
     Élève archivé: bloquant depuis le chantier d'archivage du 2026-08-03 — c'est
     le seul point de passage commun à l'ajout, au transfert et à la confirmation
     malgré avertissement, donc le bon (et unique) endroit pour l'interdire."""
@@ -187,18 +193,15 @@ def raison_incompatibilite_groupe(eleve, groupe):
     if age < creneau.age_min or age > creneau.age_max:
         return gettext_('عمر الطالب لا يقع ضمن الفئة العمرية لهذه الحلقة.')
 
-    type_offre = inscription.abonnement_type_offre()
-    if type_offre and type_offre != groupe.type_capacite:
-        return gettext_('نوع الاشتراك (فردي/جماعي) لا يتوافق مع نوع هذه المجموعة.')
-
     return None
 
 
 def avertissements_groupe(eleve, groupe):
     """Critères informatifs (non bloquants) pour un couple (eleve, groupe) :
-    programme, riwaya, sexe (non bloquants depuis la Tâche 14) et
-    disponibilité horaire (non bloquante depuis le chantier du 2026-08-16 —
-    voir le commentaire équivalent dans raison_incompatibilite_groupe).
+    programme, riwaya, sexe (non bloquants depuis la Tâche 14), type
+    d'abonnement فردي/جماعي (non bloquant depuis le chantier du 2026-09-04)
+    et disponibilité horaire (non bloquante depuis le chantier du 2026-08-16
+    — voir le commentaire équivalent dans raison_incompatibilite_groupe).
     Retourne la liste des messages d'avertissement à afficher — liste vide si
     tout correspond. À appeler uniquement après avoir vérifié
     raison_incompatibilite_groupe (aucune garantie ici si creneau/inscription
@@ -223,6 +226,9 @@ def avertissements_groupe(eleve, groupe):
         avertissements.append(gettext_('رواية الحلقة لا تتوافق مع رواية الطالب.'))
     if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
         avertissements.append(gettext_('جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة.'))
+    type_offre = inscription.abonnement_type_offre()
+    if type_offre and type_offre != groupe.type_capacite:
+        avertissements.append(gettext_('نوع الاشتراك (فردي/جماعي) لا يتوافق مع نوع هذه المجموعة.'))
 
     manquants = creneaux_manquants_pour_eleve(eleve, creneau)
     if manquants and eleve.disponibilites.exists():
@@ -239,8 +245,9 @@ def raison_incompatibilite_groupe_inscription(inscription, groupe):
     (InscriptionEleve) pas encore acceptée: pas de Eleve/DisponibiliteEleve
     en base, les critères sont lus directement depuis l'inscription.
 
-    Programme/riwaya/sexe ne sont plus bloquants depuis la Tâche 14 — voir
-    avertissements_groupe_inscription."""
+    Programme/riwaya/sexe ne sont plus bloquants depuis la Tâche 14, et le
+    type d'abonnement فردي/جماعي ne l'est plus depuis le chantier du
+    2026-09-04 — voir avertissements_groupe_inscription."""
     if groupe.eleves.count() >= groupe.capacite_max:
         return gettext_('المجموعة مكتملة العدد.')
 
@@ -251,10 +258,6 @@ def raison_incompatibilite_groupe_inscription(inscription, groupe):
     age = _age_depuis_naissance(inscription.date_naissance)
     if age < creneau.age_min or age > creneau.age_max:
         return gettext_('عمر الطالب لا يقع ضمن الفئة العمرية لهذه الحلقة.')
-
-    type_offre = inscription.abonnement_type_offre()
-    if type_offre and type_offre != groupe.type_capacite:
-        return gettext_('نوع الاشتراك (فردي/جماعي) لا يتوافق مع نوع هذه المجموعة.')
 
     manquants = creneaux_manquants_pour_matrice(inscription.disponibilites, creneau)
     if manquants:
@@ -277,6 +280,9 @@ def avertissements_groupe_inscription(inscription, groupe):
         avertissements.append(gettext_('رواية الحلقة لا تتوافق مع رواية الطالب.'))
     if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
         avertissements.append(gettext_('جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة.'))
+    type_offre = inscription.abonnement_type_offre()
+    if type_offre and type_offre != groupe.type_capacite:
+        avertissements.append(gettext_('نوع الاشتراك (فردي/جماعي) لا يتوافق مع نوع هذه المجموعة.'))
     return avertissements
 
 

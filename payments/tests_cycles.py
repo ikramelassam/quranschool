@@ -360,5 +360,5 @@ class RelanceWhatsAppTests(TestCase):
             eleve=self.eleve, montant=80, mois_reference=cycle.date_debut, statut='en_attente',
         )
         self.client.force_login(self.admin)
-        self.client.get(reverse('admin_paiement_valider', args=[paiement.id]))
+        self.client.post(reverse('admin_paiement_valider', args=[paiement.id]))
         self.assertFalse(cycles.est_en_retard(self.eleve))

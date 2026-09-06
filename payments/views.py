@@ -10,9 +10,10 @@ from django.urls import reverse
 from django.utils import timezone
 from django.contrib import messages
 from django.utils.translation import gettext as gettext_
+from django.views.decorators.http import require_POST
 from accounts.decorators import role_required
 from accounts.services import eleves_pour_filtre
-from core.utils import paginer, envoyer_notification_telegram_async
+from core.utils import paginer, envoyer_notification_telegram_async, envoyer_notification_telegram_avec_photo_async
 from accounts.models import Eleve
 from .models import Paiement
 
@@ -191,19 +192,30 @@ def eleve_paiements(request):
             eleve=eleve, montant=montant_total, mois_reference=date_debut, nb_mois_couverts=nb_mois,
         )
         screenshot_upload = request.FILES.get('screenshot')
+        photo_telegram = None
         if screenshot_upload is not None:
             justificatif = _preparer_justificatif(screenshot_upload)
+            # Capturé AVANT le .save() sur le FileField : la lecture du
+            # contenu par le storage peut laisser le curseur en fin de
+            # fichier, donc on lit + on rembobine ici pour garder une copie
+            # utilisable par l'envoi Telegram ci-dessous.
+            photo_telegram = (justificatif.name, justificatif.read())
+            justificatif.seek(0)
             paiement.screenshot.save(justificatif.name, justificatif, save=False)
         paiement.save()
 
         fin_periode = _ajouter_mois(date_debut, nb_mois)
-        envoyer_notification_telegram_async(
+        message_telegram = (
             f'💰 دفعة جديدة بانتظار المراجعة\n'
             f'الطالب: {eleve.user.get_full_name()}\n'
             f'— {mois_annee_ar(date_debut)} → {mois_annee_ar(fin_periode)} '
             f'({nb_mois} شهر) : {montant_total} د.م. '
             f'({request.build_absolute_uri(reverse("admin_paiement_detail", args=[paiement.id]))})'
         )
+        if photo_telegram:
+            envoyer_notification_telegram_avec_photo_async(message_telegram, photo_telegram[1], photo_telegram[0])
+        else:
+            envoyer_notification_telegram_async(message_telegram)
         if nb_mois > 1:
             messages.success(
                 request,
@@ -565,7 +577,11 @@ def paiement_panel_sauvegarder(request):
 
 
 @role_required('admin')
+@require_POST
 def admin_paiement_valider(request, paiement_id):
+    # @require_POST (audit du 2026-09-05) : validation d'un paiement = écriture
+    # financière + reconcilier() -> jamais sur un simple GET (le template
+    # admin_paiement_detail.html poste déjà via <form method="POST">).
     from django.utils import timezone
     from .cycles import reconcilier
 
@@ -583,6 +599,7 @@ def admin_paiement_valider(request, paiement_id):
 
 
 @role_required('admin')
+@require_POST
 def admin_paiement_rejeter(request, paiement_id):
     from django.utils import timezone
 
