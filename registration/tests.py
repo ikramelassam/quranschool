@@ -2072,6 +2072,105 @@ class WizardGroupeTests(TestCase):
         self.assertNotIn('groupe_id', client.session.get('wizard_inscription', {}))
 
 
+class WizardIndividuelSexeProfSouhaiteTests(WizardGroupeTests):
+    """Demande du client (2026-09-06) : à l'étape « أوقات التفرغ » du parcours
+    INDIVIDUEL, l'ENFANT (et lui seul) choisit le sexe de l'enseignant
+    souhaité. Purement indicatif (InscriptionEleve.sexe_prof_souhaite) —
+    jamais bloquant, jamais un filtre. Réutilise le setUp de WizardGroupeTests
+    (config wizard + groupe témoin)."""
+
+    NAISSANCE_ENFANT = '2015-01-01'   # ~11 ans en 2026
+    NAISSANCE_ADULTE = '2000-01-01'
+
+    def _avancer_individuel(self, client, type_age='enfant', naissance=None):
+        naissance = naissance or (
+            self.NAISSANCE_ENFANT if type_age == 'enfant' else self.NAISSANCE_ADULTE
+        )
+        _choisir_categorie_age(client, type_age=type_age)
+        client.post(reverse('wizard_identite'), {
+            'nom': 'كريم الفاسي', 'sexe': 'homme', 'email': 'karim.indiv@zidni.test',
+            'date_naissance': naissance, 'nom_parent': 'والد كريم' if type_age == 'enfant' else '',
+            'indicatif_pays': '212', 'telephone': '0600445566', 'telephone_confirmation': '0600445566',
+        })
+        client.post(reverse('wizard_programme'), {
+            f'champ_{self.champ_programme.id}': 'hifz',
+            f'champ_{self.champ_riwaya.id}': 'hafs',
+            f'champ_{self.champ_type_offre.id}': 'individuel',
+            f'champ_{self.champ_nb_seances.id}': '2',
+        })
+
+    def test_enfant_individuel_voit_le_champ(self):
+        client = Client()
+        self._avancer_individuel(client, type_age='enfant')
+        html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertIn('sexe_prof_souhaite', html)
+        self.assertIn('هل تفضّل أن يكون المعلّم', html)
+
+    def test_adulte_individuel_ne_voit_pas_le_champ(self):
+        client = Client()
+        self._avancer_individuel(client, type_age='adulte')
+        html = client.get(reverse('wizard_groupe')).content.decode('utf-8')
+        self.assertNotIn('sexe_prof_souhaite', html)
+
+    def test_choix_enfant_enregistre_en_session(self):
+        client = Client()
+        self._avancer_individuel(client, type_age='enfant')
+        reponse = client.post(reverse('wizard_groupe'), {
+            'dispo': ['lun_16:00'], 'sexe_prof_souhaite': 'femme',
+        })
+        self.assertRedirects(reponse, reverse('wizard_abonnement'), fetch_redirect_response=False)
+        self.assertEqual(client.session['wizard_inscription']['sexe_prof_souhaite'], 'femme')
+
+    def test_valeur_invalide_ramenee_a_vide(self):
+        client = Client()
+        self._avancer_individuel(client, type_age='enfant')
+        client.post(reverse('wizard_groupe'), {'dispo': ['lun_16:00'], 'sexe_prof_souhaite': 'n_importe_quoi'})
+        self.assertEqual(client.session['wizard_inscription']['sexe_prof_souhaite'], '')
+
+    def test_adulte_ne_peut_pas_forcer_le_champ_par_post(self):
+        client = Client()
+        self._avancer_individuel(client, type_age='adulte')
+        client.post(reverse('wizard_groupe'), {'dispo': ['lun_16:00'], 'sexe_prof_souhaite': 'homme'})
+        self.assertEqual(client.session['wizard_inscription'].get('sexe_prof_souhaite', ''), '')
+
+    def test_inscrire_eleve_persiste_le_choix_pour_enfant_individuel(self):
+        from .models import ChampInscription
+        ChampInscription.objects.update(est_actif=False)
+        config = _config_standard()
+        reponses = {
+            'nom': 'سلمى', 'sexe': 'femme', 'telephone': '+212600000000',
+            'date_naissance': self.NAISSANCE_ENFANT, 'nom_parent': 'والد سلمى',
+            'email': 'salma.indiv@zidni.test',
+            f"champ_{config['champ_riwaya'].id}": 'hafs',
+            f"champ_{config['champ_type_offre'].id}": 'individuel',
+            f"champ_{config['champ_nb_seances'].id}": '2',
+            'abonnement_code': 'test_abo_individuel',
+            'accepte_conditions': 'oui',
+            'sexe_prof_souhaite': 'homme',
+        }
+        inscription, erreurs = inscrire_eleve(reponses)
+        self.assertEqual(erreurs, [])
+        self.assertEqual(inscription.sexe_prof_souhaite, 'homme')
+
+    def test_inscrire_eleve_ignore_le_choix_pour_adulte_individuel(self):
+        from .models import ChampInscription
+        ChampInscription.objects.update(est_actif=False)
+        config = _config_standard()
+        reponses = {
+            'nom': 'أحمد', 'sexe': 'homme', 'telephone': '+212600000000',
+            'date_naissance': self.NAISSANCE_ADULTE, 'email': 'ahmed.indiv@zidni.test',
+            f"champ_{config['champ_riwaya'].id}": 'hafs',
+            f"champ_{config['champ_type_offre'].id}": 'individuel',
+            f"champ_{config['champ_nb_seances'].id}": '2',
+            'abonnement_code': 'test_abo_individuel',
+            'accepte_conditions': 'oui',
+            'sexe_prof_souhaite': 'femme',
+        }
+        inscription, erreurs = inscrire_eleve(reponses)
+        self.assertEqual(erreurs, [])
+        self.assertEqual(inscription.sexe_prof_souhaite, '')
+
+
 class WizardGroupePresentationPubliqueProfTests(TestCase):
     """Chantier du 2026-08-27 — Prof.presentation_publique affichée dans les
     cartes halaka du wizard, gated par VisibiliteProf.afficher_presentation_

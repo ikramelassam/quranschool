@@ -1401,6 +1401,17 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
     if erreurs:
         return None, erreurs
 
+    # Sexe de l'enseignant souhaité (demande du client, 2026-09-06) : ne
+    # provient QUE du wizard individuel enfant (registration.views.
+    # _wizard_disponibilites_individuel). Reverrouillé ici — jamais retenu
+    # pour un adulte ou une inscription en groupe, même si la session porte
+    # une valeur résiduelle (POST forgé, retour arrière dans le wizard).
+    sexe_prof_souhaite = (reponses_brutes.get('sexe_prof_souhaite') or '')
+    if type_offre_valeur != 'individuel' or type_age != 'enfant':
+        sexe_prof_souhaite = ''
+    if sexe_prof_souhaite not in dict(InscriptionEleve.SEXE_PROF_SOUHAITE_CHOICES):
+        sexe_prof_souhaite = ''
+
     # ---- 5. Création (tout ou rien) ----
     with transaction.atomic():
         inscription = InscriptionEleve.objects.create(
@@ -1423,6 +1434,7 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
             # attente). Vide ([]) pour toute autre porte d'entrée (ajout
             # manuel, ancien formulaire) : comportement inchangé pour elles.
             disponibilites=reponses_brutes.get('disponibilites') or [],
+            sexe_prof_souhaite=sexe_prof_souhaite,
         )
         ReponseInscription.objects.bulk_create([
             ReponseInscription(

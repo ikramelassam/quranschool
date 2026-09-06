@@ -406,29 +406,49 @@ def _wizard_disponibilites_individuel(request, donnees):
     et converti en DisponibiliteEleve à la validation admin, voir
     dashboard.views.admin_valider_eleve) — SEULE différence : ici la
     sélection d'au moins un créneau est OBLIGATOIRE (pas juste une info en
-    plus), c'est la seule source connue de l'emploi du temps de l'élève."""
+    plus), c'est la seule source connue de l'emploi du temps de l'élève.
+
+    Sexe de l'enseignant souhaité (demande du client, 2026-09-06) : question
+    posée ICI, mais UNIQUEMENT à l'enfant (type_age_choisi == 'enfant', déjà
+    revalidé contre la vraie date de naissance à wizard_identite). Purement
+    indicatif — voir InscriptionEleve.sexe_prof_souhaite. Un adulte en
+    individuel ne voit jamais ce champ ; un choix « pas de préférence » est
+    permis (valeur vide)."""
     from courses.utils import JOURS_SEMAINE_DISPO, generer_heures_grille
+    from inscriptions.models import InscriptionEleve
     from .utils import url_etape_suivante
 
     jours, heures = JOURS_SEMAINE_DISPO, generer_heures_grille()
+    est_enfant = donnees.get('type_age_choisi') == 'enfant'
+    sexes_valides = {v for v, _ in InscriptionEleve.SEXE_PROF_SOUHAITE_CHOICES}
+
+    def _rendu(contexte_extra):
+        return render(request, 'inscriptions/wizard_disponibilites_individuel.html', {
+            'jours': jours, 'heures': heures,
+            'wizard_etape_num': 3,
+            'demander_sexe_prof': est_enfant,
+            'sexe_prof_choices': InscriptionEleve.SEXE_PROF_SOUHAITE_CHOICES,
+            'sexe_prof_souhaite': donnees.get('sexe_prof_souhaite', ''),
+            **contexte_extra,
+        })
 
     if request.method == 'POST':
         dispo = request.POST.getlist('dispo')
+        # Ignoré (remis à '') pour un adulte, même si le POST est forgé —
+        # le champ ne le concerne pas.
+        sexe_prof = request.POST.get('sexe_prof_souhaite', '') if est_enfant else ''
+        if sexe_prof not in sexes_valides:
+            sexe_prof = ''
         if not dispo:
-            return render(request, 'inscriptions/wizard_disponibilites_individuel.html', {
-                'jours': jours, 'heures': heures,
+            return _rendu({
                 'dispo_selectionnees': set(dispo),
+                'sexe_prof_souhaite': sexe_prof,
                 'erreurs': [gettext_('يرجى تحديد وقت واحد على الأقل من أوقات تفرغك الأسبوعية.')],
-                'wizard_etape_num': 3,
             })
-        wizard_maj(request, {'disponibilites': dispo})
+        wizard_maj(request, {'disponibilites': dispo, 'sexe_prof_souhaite': sexe_prof})
         return redirect(url_etape_suivante('groupe'))
 
-    return render(request, 'inscriptions/wizard_disponibilites_individuel.html', {
-        'jours': jours, 'heures': heures,
-        'dispo_selectionnees': set(donnees.get('disponibilites', [])),
-        'wizard_etape_num': 3,
-    })
+    return _rendu({'dispo_selectionnees': set(donnees.get('disponibilites', []))})
 
 
 def wizard_groupe(request):

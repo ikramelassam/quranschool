@@ -176,6 +176,12 @@ class ChampsInscriptionVisiblesTests(TestCase):
             # test_nb_slots_et_niveau_scolaire_affiches) — jamais un 2e test
             # de rendu dupliqué ici.
             'niveau_scolaire',
+            # Demande du client (2026-09-06) — sexe de l'enseignant souhaité,
+            # posé uniquement à l'enfant en séances individuelles. Affiché
+            # conditionnellement (seulement quand rempli) sur
+            # admin_inscription_detail.html, voir
+            # test_sexe_prof_souhaite_eleve_affiche_quand_renseigne ci-dessous.
+            'sexe_prof_souhaite',
         }
         champs_connus = champs_verifies_affiches | set(self.CHAMPS_EXCLUS_ELEVE)
         champs_nouveaux = champs_reels - champs_connus
@@ -198,6 +204,17 @@ class ChampsInscriptionVisiblesTests(TestCase):
         url = reverse('admin_inscription_eleve_detail', args=[inscription.id])
         contenu = self.client.get(url).content.decode('utf-8')
         self.assertIn('MotifRefusMarqueurQ3k7', contenu)
+
+    def test_sexe_prof_souhaite_eleve_affiche_quand_renseigne(self):
+        """Demande du client (2026-09-06) — le sexe de prof souhaité (enfant en
+        individuel) n'est affiché que quand il est rempli, donc vérifié
+        séparément de test_page_candidature_eleve_affiche_les_champs_attendus
+        ci-dessus (inscription publique de base, où il reste vide)."""
+        inscription = self._creer_inscription_eleve(sexe_prof_souhaite='femme')
+        url = reverse('admin_inscription_eleve_detail', args=[inscription.id])
+        contenu = self.client.get(url).content.decode('utf-8')
+        self.assertIn('المعلّم المفضّل', contenu)
+        self.assertIn('أستاذة', contenu)
 
     def test_cree_par_affiche_quand_renseigne(self):
         """Étape 7 (ajout manuel Directeur/مشرف) — cree_par n'est affiché que

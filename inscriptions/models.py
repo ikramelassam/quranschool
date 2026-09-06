@@ -163,6 +163,10 @@ class InscriptionEleve(models.Model):
         ('meet', 'Google Meet'),
         ('les_deux', _('كلاهما')),
     ]
+    SEXE_PROF_SOUHAITE_CHOICES = [
+        ('homme', _('أستاذ')),
+        ('femme', _('أستاذة')),
+    ]
     # Infos personnelles
     nom = models.CharField(max_length=100)
     # "nom" = NOM COMPLET (prénom + nom de famille ensemble) — le formulaire
@@ -257,6 +261,19 @@ class InscriptionEleve(models.Model):
     # avant pour ce chemin-là, seule la contrainte "obligatoire" est relâchée).
     outil = models.CharField(max_length=20, choices=OUTIL_CHOICES, blank=True, default='')
     abonnement = models.CharField(max_length=30)
+    # Sexe de l'enseignant souhaité — demande du client (2026-09-06) : posé
+    # UNIQUEMENT à l'enfant qui s'inscrit en séances INDIVIDUELLES (à l'étape
+    # « أوقات التفرغ » du wizard individuel, voir registration.views.
+    # _wizard_disponibilites_individuel). Purement INDICATIF : affiché à la
+    # direction sur la fiche candidature pour l'aider à choisir le prof lors
+    # de l'assignation manuelle — aucun filtrage automatique, aucune règle
+    # bloquante (tout ce qui touche au sexe est informatif dans ce projet,
+    # cf. courses.utils.avertissements_groupe). Vide ('') pour tout autre
+    # parcours : adulte, inscription en groupe, ajout manuel, ancien
+    # formulaire.
+    sexe_prof_souhaite = models.CharField(
+        max_length=10, choices=SEXE_PROF_SOUHAITE_CHOICES, blank=True, default=''
+    )
 
     # Extras
     accepte_conditions = models.BooleanField(default=False)

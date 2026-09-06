@@ -173,6 +173,21 @@ pas seulement au moment du refus lui-même.
     </div>
     {% endif %}
 
+    {% comment %}
+    Sexe de l'enseignant souhaité — posé UNIQUEMENT à l'enfant en séances
+    individuelles (voir InscriptionEleve.sexe_prof_souhaite). Purement
+    indicatif : aide le مدير à choisir le prof à l'assignation. Ligne
+    masquée si vide (adulte, groupe, ou enfant sans préférence) — donc hors
+    du bloc « نوع الحصة » ci-dessus, qui dépend d'une résolution
+    d'abonnement.
+    {% endcomment %}
+    {% if inscription.sexe_prof_souhaite %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">{% trans "المعلّم المفضّل" %}</span>
+        <span style="font-weight:600;">{{ inscription.get_sexe_prof_souhaite_display }}</span>
+    </div>
+    {% endif %}
+
     <!-- Étape 5 — عدد الحصص الأسبوعية + الاشتراك + السعر + الحلقة -->
     <div style="color:var(--color-role-admin-solid); font-weight:700; border-bottom:2px solid var(--color-role-admin-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "عدد الحصص الأسبوعية والاشتراك" %}</div>
 

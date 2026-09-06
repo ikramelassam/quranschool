@@ -8,6 +8,32 @@
 <form method="POST">
     {% csrf_token %}
     {% include 'courses/_grille_disponibilites.html' with jours=jours heures=heures champ_nom='dispo' valeurs_form=dispo_selectionnees %}
+
+    {% if demander_sexe_prof %}
+    <div style="margin-top:18px; padding:14px 16px; background:#f7f3ea; border:1px solid var(--color-brand-gold); border-radius:10px;">
+        <label style="font-weight:600; color:#333; display:block; margin-bottom:6px;">
+            {% trans "هل تفضّل أن يكون المعلّم أستاذاً أم أستاذة؟" %}
+        </label>
+        <div style="color:#888; font-size:0.8rem; margin-bottom:8px;">
+            {% trans "اختياري — مؤشّر فقط لمساعدة الإدارة عند إسناد المعلّم." %}
+        </div>
+        <div style="display:flex; gap:16px; flex-wrap:wrap;">
+            <label style="font-weight:400;">
+                <input type="radio" name="sexe_prof_souhaite" value=""
+                       {% if not sexe_prof_souhaite %}checked{% endif %}>
+                {% trans "لا تفضيل" %}
+            </label>
+            {% for valeur, libelle in sexe_prof_choices %}
+            <label style="font-weight:400;">
+                <input type="radio" name="sexe_prof_souhaite" value="{{ valeur }}"
+                       {% if sexe_prof_souhaite == valeur %}checked{% endif %}>
+                {{ libelle }}
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <button type="submit" class="btn-submit">{% trans "التالي ←" %}</button>
     <a href="{% url 'wizard_programme' %}" class="btn-back">{% trans "رجوع" %}</a>
 </form>
