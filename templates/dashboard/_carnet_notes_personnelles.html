@@ -45,14 +45,16 @@ depuis date_creation. Le contenu ne redevient visible qu'en mode édition
             </div>
         </div>
         {% trans "العنوان (اختياري)" as placeholder_titre_note %}
-        <form id="note_edition_{{ note.id }}{{ id_suffix }}" method="POST" action="{% url 'modifier_note_personnelle' note.id %}" hidden>
+        <form id="note_edition_{{ note.id }}{{ id_suffix }}" method="POST" action="{% url 'modifier_note_personnelle' note.id %}" data-carnet-note-form hidden>
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.path }}">
             <input type="text" name="titre" class="form-control" value="{{ note.titre }}" placeholder="{{ placeholder_titre_note }}" style="margin-bottom:6px;">
             <textarea name="contenu" class="form-control" rows="2" required>{{ note.contenu }}</textarea>
-            <div style="display:flex; gap:8px; margin-top:6px;">
+            <div style="display:flex; gap:16px; margin-top:6px;">
                 <button type="submit" style="background:var(--color-brand-gold-dark); color:white; border:none; border-radius:8px; padding:4px 14px; font-size:0.8rem; cursor:pointer;">{% trans "حفظ" %}</button>
-                <span onclick="toggleEditionNote{{ id_suffix }}({{ note.id }})" style="color:#888; font-size:0.8rem; cursor:pointer; padding:4px 6px;">{% trans "إلغاء" %}</span>
+                {# « إلغاء » = abandonner la modification en cours : on rétablit le texte enregistré #}
+                {# et on referme SANS rien envoyer au serveur (type="button", jamais de submit). #}
+                <button type="button" onclick="annulerEditionNote{{ id_suffix }}({{ note.id }})" style="background:none; border:none; color:#888; font-size:0.8rem; cursor:pointer; padding:4px 6px;">{% trans "إلغاء" %}</button>
             </div>
         </form>
     </div>
@@ -60,7 +62,7 @@ depuis date_creation. Le contenu ne redevient visible qu'en mode édition
     <div style="color:#bbb; font-size:0.85rem; padding:8px 0;">{% trans "لم تكتب أي ملاحظة على هذا الملف الشخصي بعد." %}</div>
     {% endfor %}
 
-    <form method="POST" action="{% url 'ajouter_note_personnelle' profil_user.id %}" style="margin-top:14px;">
+    <form method="POST" action="{% url 'ajouter_note_personnelle' profil_user.id %}" style="margin-top:14px;" data-carnet-note-form>
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.path }}">
         {% trans "العنوان (اختياري)" as placeholder_titre_note2 %}
@@ -78,4 +80,23 @@ depuis date_creation. Le contenu ne redevient visible qu'en mode édition
         edition.hidden = enEdition;
         affichage.hidden = !enEdition;
     }
+    // « إلغاء » : on rétablit d'abord les valeurs enregistrées (form.reset) PUIS on
+    // referme — une modification abandonnée ne reste jamais dans le DOM et ne
+    // peut donc pas être enregistrée par une soumission ultérieure. Rien n'est
+    // envoyé au serveur : la note garde son contenu précédent.
+    function annulerEditionNote{{ id_suffix }}(noteId) {
+        const edition = document.getElementById('note_edition_' + noteId + '{{ id_suffix }}');
+        if (edition) { edition.reset(); }
+        toggleEditionNote{{ id_suffix }}(noteId);
+    }
+    // La touche « Entrée » dans le champ « العنوان » validait le formulaire en
+    // douce (soumission implicite HTML) : un directeur qui pensait juste fermer
+    // la note la voyait enregistrée. On exige désormais un clic explicite sur
+    // « حفظ » / « إضافة ملاحظة ». (Entrée dans le <textarea> = saut de ligne,
+    // comportement natif inchangé.)
+    document.querySelectorAll('form[data-carnet-note-form] input[name="titre"]').forEach(function (champ) {
+        champ.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); }
+        });
+    });
 </script>

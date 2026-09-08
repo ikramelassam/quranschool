@@ -2148,6 +2148,24 @@ class NotePersonnelleTests(TestCase):
         self.assertEqual(note.titre, 'جديد')
         self.assertEqual(note.contenu, 'محدَّثة')
 
+    def test_bouton_ilgha_du_formulaire_edition_ne_soumet_rien(self):
+        """Bug 2026-09-08 : « إلغاء » dans l'écran « تعديل » d'une note doit
+        seulement abandonner la modification en cours (bouton type="button" +
+        form.reset côté JS), il ne doit JAMAIS enregistrer ni supprimer."""
+        from accounts.models import NotePersonnelle
+        note = NotePersonnelle.objects.create(
+            profil_user=self.eleve.user, auteur=self.admin, titre='titre', contenu='contenu enregistré',
+        )
+        self.client.force_login(self.admin)
+        html = self.client.get(reverse('admin_eleve_detail', args=[self.eleve.id])).content.decode('utf-8')
+        forme = html.split(f"note_edition_{note.id}")[1].split('</form>')[0]
+        # « إلغاء » = <button type="button"> qui appelle annulerEditionNote (aucun submit)
+        self.assertIn('annulerEditionNote', forme)
+        self.assertNotIn(reverse('supprimer_note_personnelle', args=[note.id]), forme)
+        # la note reste intacte : aucune requête n'a été émise
+        note.refresh_from_db()
+        self.assertEqual(note.contenu, 'contenu enregistré')
+
     def test_note_champ_indépendant_de_notes_admin_existant(self):
         """Le nouveau carnet ne touche jamais Prof.notes_admin (système
         indépendant, confirmé explicitement)."""
