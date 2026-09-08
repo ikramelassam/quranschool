@@ -753,6 +753,9 @@ def _wizard_confirmer_inscription(request, donnees, moyens, date_limite, paramet
       accepté (voir WizardConfirmationSecuriteTests.
       test_groupe_id_devenu_incompatible_entre_etape_3_et_confirmation_est_
       rejete_a_la_confirmation)."""
+    from django.utils import timezone
+    from inscriptions.models import InscriptionEleve
+    from inscriptions.views import FENETRE_ANTI_DOUBLON_SECONDES
     from .models import get_presentation_inscription
     from .utils import inscrire_eleve, url_etape_suivante
 
@@ -764,6 +767,36 @@ def _wizard_confirmer_inscription(request, donnees, moyens, date_limite, paramet
             'erreurs': [gettext_('يرجى اختيار طريقة دفع صالحة.')],
             'wizard_etape_num': 5,
         })
+
+    # Anti-double-soumission (signalé par le client, 2026-09-08) : un
+    # double-clic sur ce bouton final, un retour arrière puis renvoi, ou une
+    # page qui « semble bloquée » créait un 2e InscriptionEleve identique.
+    # La session est bien vidée après un succès (wizard_reinitialiser plus
+    # bas), mais deux requêtes quasi simultanées la lisent toutes les deux
+    # encore pleine. Fenêtre FENETRE_ANTI_DOUBLON_SECONDES (2 min) sur
+    # email+nom+date_naissance — un autre membre de la famille (nom
+    # différent) n'est jamais confondu, le partage d'e-mail parent/enfant
+    # reste possible. Même principe et même constante que l'ancien formulaire
+    # une page (inscriptions.views.inscription_eleve_formulaire).
+    try:
+        date_naissance_doublon = datetime.date.fromisoformat(donnees.get('date_naissance', ''))
+    except (ValueError, TypeError):
+        date_naissance_doublon = None
+    seuil_anti_doublon = timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_SECONDES)
+    if InscriptionEleve.objects.filter(
+        email=(donnees.get('email') or '').strip(),
+        nom=(donnees.get('nom') or '').strip(),
+        date_naissance=date_naissance_doublon,
+        date_soumission__gte=seuil_anti_doublon,
+    ).exists():
+        presentation = get_presentation_inscription()
+        wizard_reinitialiser(request)
+        request.session['wizard_confirmation'] = {
+            'nom': (donnees.get('nom') or '').strip(),
+            'message_bienvenue': presentation.message_bienvenue_localise,
+            'delai_contact_heures': parametres.delai_contact_heures,
+        }
+        return redirect(url_etape_suivante('paiement'))
 
     inscription, erreurs = inscrire_eleve(donnees, cree_par=None)
     if erreurs:

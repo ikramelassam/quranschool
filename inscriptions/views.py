@@ -20,11 +20,18 @@ import json
 # Anti-double-soumission (chantier du 2026-08-16, séparé du fix de
 # duplication des messages) : une candidature avec les mêmes champs-clés
 # soumise il y a moins de ce délai par la même personne est traitée comme un
-# rejeu du même clic (double clic, onglet dupliqué, re-soumission réseau),
-# jamais comme une 2e candidature distincte. Volontairement court et étroit —
-# ne touche PAS à _email_bloque_pour_candidature_eleve/_email_deja_utilise
-# (règles métier de blocage/partage d'email, inchangées).
-FENETRE_ANTI_DOUBLON_SECONDES = 5
+# rejeu du même clic (double clic, onglet dupliqué, re-soumission réseau,
+# retour arrière puis re-envoi, page qui « semble bloquée »…), jamais comme
+# une 2e candidature distincte. Élargi de 5 s à 2 min le 2026-09-08 : le
+# client signalait des doublons créés par des gens qui renvoyaient le
+# formulaire au bout de quelques dizaines de secondes sans être sûrs que
+# ça avait marché. La clé de rapprochement reste email+nom+date_naissance
+# (élève) / email+nom+prénom (prof) : un autre membre de la famille (nom
+# différent) n'est jamais confondu avec un rejeu. Ne touche PAS à
+# _email_bloque_pour_candidature_eleve/_email_deja_utilise (règles métier de
+# blocage/partage d'e-mail, inchangées). Aussi utilisée par le wizard public
+# (registration.views._wizard_confirmer_inscription).
+FENETRE_ANTI_DOUBLON_SECONDES = 120
 
 CATEGORIE_LABEL = {
     'adulte': _('الطلاب البالغون'),
@@ -313,9 +320,10 @@ def inscription_eleve_formulaire(request, type_age):
             })
 
         # Garde anti-double-soumission : une InscriptionEleve avec les mêmes
-        # email+nom+date_naissance vient d'être créée il y a quelques
-        # secondes -> on renvoie directement vers la confirmation sans
-        # insérer un doublon ni renvoyer une 2e notification Telegram.
+        # email+nom+date_naissance a été créée il y a moins de
+        # FENETRE_ANTI_DOUBLON_SECONDES (2 min) -> on renvoie directement vers
+        # la confirmation sans insérer un doublon ni renvoyer une 2e
+        # notification Telegram.
         seuil_anti_doublon = timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_SECONDES)
         if InscriptionEleve.objects.filter(
             email=email, nom=request.POST.get('nom'), date_naissance=date_naissance,

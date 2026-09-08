@@ -510,6 +510,44 @@ class InscriptionPubliqueDateNaissanceTests(TestCase):
         self.assertIn('طلب تسجيل جديد', mock_notif.call_args[0][0])
         self.assertIn('أستاذ', mock_notif.call_args[0][0])
 
+    # ------------------------------------------------------------------
+    # Anti-double-soumission élargi à 2 min (2026-09-08) — le client
+    # signalait des doublons créés par des renvois du formulaire au bout
+    # de quelques dizaines de secondes.
+    # ------------------------------------------------------------------
+
+    def test_fenetre_anti_doublon_est_au_moins_2_min(self):
+        from inscriptions.views import FENETRE_ANTI_DOUBLON_SECONDES
+        self.assertGreaterEqual(FENETRE_ANTI_DOUBLON_SECONDES, 120)
+
+    def test_eleve_ancien_formulaire_renvoi_ne_cree_pas_de_doublon(self):
+        """L'ancien formulaire une page (toujours routé sur
+        /inscription/eleve/formulaire/<type_age>/) : un renvoi identique
+        email+nom+date_naissance dans la fenêtre est traité comme un rejeu,
+        pas comme une 2e candidature. C'est ici la SEULE garde (le partage
+        d'e-mail élève/élève autorise sinon une 2e InscriptionEleve)."""
+        donnees = dict(
+            self.DONNEES_ELEVE_BASE, date_naissance='1995-05-20',
+            email='regression.doublon.ancien@zidni.test', nom='DoublonAncien',
+        )
+        url = reverse('inscription_eleve_formulaire', args=['adulte'])
+        self.assertEqual(self.client.post(url, donnees).status_code, 302)
+        self.assertEqual(self.client.post(url, donnees).status_code, 302)
+        self.assertEqual(
+            InscriptionEleve.objects.filter(email='regression.doublon.ancien@zidni.test').count(), 1,
+        )
+
+    def test_eleve_ancien_formulaire_autre_membre_famille_meme_email_accepte(self):
+        """La garde ne confond jamais un 2e membre de la famille (nom
+        différent, même e-mail) avec un rejeu."""
+        base = dict(self.DONNEES_ELEVE_BASE, email='famille.partage.ancien@zidni.test')
+        url = reverse('inscription_eleve_formulaire', args=['adulte'])
+        self.client.post(url, dict(base, nom='MembreUn', date_naissance='1995-05-20'))
+        self.client.post(url, dict(base, nom='MembreDeux', date_naissance='1996-06-21'))
+        self.assertEqual(
+            InscriptionEleve.objects.filter(email='famille.partage.ancien@zidni.test').count(), 2,
+        )
+
 
 @override_settings(STORAGES={
     **settings.STORAGES,

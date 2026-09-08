@@ -3739,6 +3739,36 @@ class WizardConfirmationTests(TestCase):
         self.assertIn('طلب تسجيل جديد', message)
         self.assertIn('نور الدين حمزة', message)
 
+    def test_double_soumission_du_bouton_final_ne_cree_pas_de_doublon(self):
+        """Signalé par le client (2026-09-08) : un double-clic sur le bouton
+        final (ou retour arrière + renvoi) créait 2 InscriptionEleve
+        identiques. _wizard_confirmer_inscription rejette désormais un 2e
+        envoi email+nom+date_naissance dans les FENETRE_ANTI_DOUBLON_SECONDES
+        et renvoie vers la confirmation sans rien recréer."""
+        from unittest.mock import patch
+
+        client = Client()
+        self._avancer_jusquau_paiement(client, 'double.clic@zidni.test', type_offre='groupe')
+
+        # On sauvegarde l'état de session AVANT le 1er envoi (qui va la vider)
+        # pour rejouer exactement la même requête, comme le ferait un 2e clic
+        # parti quasi en même temps que le premier.
+        session_avant = dict(client.session['wizard_inscription'])
+
+        with patch('registration.views.envoyer_notification_telegram_async') as mock_notif:
+            r1 = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+            self.assertRedirects(r1, reverse('wizard_confirmation'), fetch_redirect_response=False)
+
+            session = client.session
+            session['wizard_inscription'] = session_avant
+            session.save()
+            r2 = client.post(reverse('wizard_paiement'), {'moyen_paiement_code': self.moyen.code})
+
+        self.assertRedirects(r2, reverse('wizard_confirmation'), fetch_redirect_response=False)
+        self.assertEqual(InscriptionEleve.objects.filter(email='double.clic@zidni.test').count(), 1)
+        # Une seule notification Telegram, pas deux.
+        mock_notif.assert_called_once()
+
     def test_parcours_complet_individuel_saute_le_groupe_jusquau_bout(self):
         client = Client()
         self._avancer_jusquau_paiement(client, 'individuel.wizard@zidni.test', type_offre='individuel')
