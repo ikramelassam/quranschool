@@ -86,6 +86,55 @@ def _preparer_justificatif(fichier):
         return fichier
 
 
+def _diffuser_telegram_paiement_valide(paiement, request):
+    """Chantier du 2026-09-09 : la notification Telegram du circuit paiement
+    part désormais à la VALIDATION du paiement par la direction (« ✅ دفعة
+    مقبولة ») et non plus au dépôt par l'élève. Diffusée à TOUS les abonnés
+    Telegram مدير/مشرف (core.utils.envoyer_notification_telegram*), avec le
+    justificatif de l'élève en pièce jointe s'il en a joint un, sinon en texte
+    seul (paiement saisi à la main par un مدير, sans capture).
+
+    L'ENVOI est non bloquant (thread détaché, voir ..._async). La lecture du
+    justificatif depuis le storage (Cloudinary en prod) reste synchrone ici :
+    le fichier est déjà en base, recompressé à ~200 Ko par _preparer_
+    justificatif (aucun upload), négligeable devant le reconcilier() qui suit
+    l'appel. Ne lève jamais : un souci Telegram ne doit pas faire échouer une
+    validation financière déjà écrite."""
+    from .cycles import _ajouter_mois
+    from dashboard.templatetags.libelles_arabes import mois_annee_ar
+
+    nb_mois = paiement.nb_mois_couverts or 1
+    debut = paiement.mois_reference
+    fin = _ajouter_mois(debut, nb_mois)
+    legende = (
+        f'✅ دفعة مقبولة\n'
+        f'الطالب: {paiement.eleve.user.get_full_name()}\n'
+        f'— {mois_annee_ar(debut)} → {mois_annee_ar(fin)} '
+        f'({nb_mois} شهر) : {paiement.montant} د.م.\n'
+        f'{request.build_absolute_uri(reverse("admin_paiement_detail", args=[paiement.id]))}'
+    )
+
+    contenu_photo = None
+    nom_fichier = ''
+    if paiement.screenshot:
+        try:
+            paiement.screenshot.open('rb')
+            contenu_photo = paiement.screenshot.read()
+            nom_fichier = os.path.basename(paiement.screenshot.name)
+        except Exception as e:
+            logger.warning("Justificatif du paiement %s illisible pour Telegram : %s", paiement.id, e)
+        finally:
+            try:
+                paiement.screenshot.close()
+            except Exception:
+                pass
+
+    if contenu_photo:
+        envoyer_notification_telegram_avec_photo_async(legende, contenu_photo, nom_fichier)
+    else:
+        envoyer_notification_telegram_async(legende)
+
+
 def _base_template_admin_ou_mshrif(request):
     """Équivalent local de dashboard.views._base_template_admin_ou_mshrif — les
     paiements élèves sont réutilisés en lecture seule par المشرف."""
@@ -112,8 +161,6 @@ def eleve_paiements(request):
             messages.error(request, gettext_('حسابك مؤرشف — لا يمكن إرسال دفعات جديدة.'))
             return redirect('eleve_paiements')
 
-        from dashboard.templatetags.libelles_arabes import mois_annee_ar
-
         # Chantier « Paiement unique » du 2026-09-03 : payer plusieurs mois =
         # UN SEUL Paiement (montant total, 1 justificatif, 1 validation), avec
         # `nb_mois_couverts` = nombre de mois couverts d'affilée. L'élève
@@ -121,7 +168,7 @@ def eleve_paiements(request):
         # début de son cycle d'abonnement ouvert). Le rapprochement avec les
         # CycleAbonnement se fait au mois près sur la fenêtre couverte
         # (payments.cycles.mois_couverts).
-        from .cycles import cycle_courant, _ajouter_mois, mois_couverts
+        from .cycles import cycle_courant, mois_couverts
 
         cycle_ouvert = cycle_courant(eleve)
         defaut_debut = cycle_ouvert.date_debut if cycle_ouvert else timezone.localdate()
@@ -192,30 +239,16 @@ def eleve_paiements(request):
             eleve=eleve, montant=montant_total, mois_reference=date_debut, nb_mois_couverts=nb_mois,
         )
         screenshot_upload = request.FILES.get('screenshot')
-        photo_telegram = None
         if screenshot_upload is not None:
             justificatif = _preparer_justificatif(screenshot_upload)
-            # Capturé AVANT le .save() sur le FileField : la lecture du
-            # contenu par le storage peut laisser le curseur en fin de
-            # fichier, donc on lit + on rembobine ici pour garder une copie
-            # utilisable par l'envoi Telegram ci-dessous.
-            photo_telegram = (justificatif.name, justificatif.read())
-            justificatif.seek(0)
             paiement.screenshot.save(justificatif.name, justificatif, save=False)
         paiement.save()
 
-        fin_periode = _ajouter_mois(date_debut, nb_mois)
-        message_telegram = (
-            f'💰 دفعة جديدة بانتظار المراجعة\n'
-            f'الطالب: {eleve.user.get_full_name()}\n'
-            f'— {mois_annee_ar(date_debut)} → {mois_annee_ar(fin_periode)} '
-            f'({nb_mois} شهر) : {montant_total} د.م. '
-            f'({request.build_absolute_uri(reverse("admin_paiement_detail", args=[paiement.id]))})'
-        )
-        if photo_telegram:
-            envoyer_notification_telegram_avec_photo_async(message_telegram, photo_telegram[1], photo_telegram[0])
-        else:
-            envoyer_notification_telegram_async(message_telegram)
+        # Chantier du 2026-09-09 : la notification Telegram du circuit paiement
+        # ne part PLUS ici (au dépôt par l'élève) mais à la VALIDATION par la
+        # direction — voir _diffuser_telegram_paiement_valide. Le مدير/مشرف est
+        # tout de même prévenu du dépôt par le badge 🔔 « دفعة جديدة من الطالب »
+        # (dashboard.notifications.notifications_direction, section 5), inchangé.
         if nb_mois > 1:
             messages.success(
                 request,
@@ -559,6 +592,14 @@ def paiement_panel_sauvegarder(request):
 
     paiement.montant = request.POST.get('montant') or 0
     nouveau_statut = request.POST.get('statut', 'en_attente')
+    # Passage à « accepté » d'une soumission d'élève -> notification Telegram
+    # après le save (chantier du 2026-09-09, voir _diffuser_telegram_paiement_
+    # valide). Exclut les saisies manuelles مدير (soumis_par_eleve=False).
+    passage_a_valide = (
+        nouveau_statut == 'valide'
+        and paiement.statut != 'valide'
+        and paiement.soumis_par_eleve
+    )
     if nouveau_statut in ('valide', 'rejete') and nouveau_statut != paiement.statut:
         paiement.valide_par = request.user
         paiement.date_validation = timezone.now()
@@ -571,6 +612,9 @@ def paiement_panel_sauvegarder(request):
     # de Paiement peut faire avancer un cycle d'abonnement — voir payments.cycles.
     from .cycles import reconcilier
     reconcilier(eleve)
+
+    if passage_a_valide:
+        _diffuser_telegram_paiement_valide(paiement, request)
 
     messages.success(request, gettext_('تم حفظ دفعة %(v0)s.') % {'v0': eleve.user.get_full_name()})
     return redirect(f"{reverse('suivi_paiements_eleves')}?panel_eleve={eleve.id}&panel_mois={mois_str}")
@@ -586,6 +630,7 @@ def admin_paiement_valider(request, paiement_id):
     from .cycles import reconcilier
 
     paiement = get_object_or_404(Paiement, id=paiement_id)
+    deja_valide = paiement.statut == 'valide'
     paiement.statut = 'valide'
     paiement.valide_par = request.user
     paiement.date_validation = timezone.now()
@@ -594,6 +639,12 @@ def admin_paiement_valider(request, paiement_id):
     # (chantier relances de paiement du 2026-09-01) — voir payments.models.
     # CycleAbonnement / payments.cycles.
     reconcilier(paiement.eleve)
+    # Notification Telegram à la direction (chantier du 2026-09-09) — seulement
+    # sur le PASSAGE à « accepté » (pas un re-clic) et pour une VRAIE soumission
+    # d'élève : une saisie manuelle مدير (espèces reçues en personne) n'a pas à
+    # se notifier elle-même (voir Paiement.soumis_par_eleve).
+    if not deja_valide and paiement.soumis_par_eleve:
+        _diffuser_telegram_paiement_valide(paiement, request)
     messages.success(request, gettext_('تم قبول الدفعة.'))
     return redirect('admin_paiement_detail', paiement_id=paiement.id)
 

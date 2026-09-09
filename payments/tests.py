@@ -202,12 +202,11 @@ class EleveePaiementsPeriodeTests(TestCase):
 
 
 @override_settings(STORAGES=_STORAGES_TEST)
-class SoumissionPaiementNotifieTelegramAvecPhotoTests(TestCase):
-    """Chantier du 2026-09-05 : la notif Telegram de soumission de paiement
-    envoie désormais la photo du justificatif en pièce jointe (sendPhoto),
-    pas juste un lien vers la fiche — voir core.utils.envoyer_notification_
-    telegram_avec_photo_async. Sans photo (aucun cas normal aujourd'hui,
-    mais le champ est optionnel côté modèle), on retombe sur le texte seul."""
+class SoumissionPaiementNeNotifiePlusTelegramTests(TestCase):
+    """Chantier du 2026-09-09 : la notification Telegram du circuit paiement
+    ne part PLUS au dépôt par l'élève (elle part maintenant à la validation
+    par la direction, voir PaiementValideNotifieTelegramTests). Le مدير/مشرف
+    reste prévenu du dépôt par le badge 🔔 « دفعة جديدة من الطالب »."""
 
     def setUp(self):
         self.eleve = _creer_eleve()
@@ -216,24 +215,120 @@ class SoumissionPaiementNotifieTelegramAvecPhotoTests(TestCase):
 
     @patch('payments.views.envoyer_notification_telegram_avec_photo_async')
     @patch('payments.views.envoyer_notification_telegram_async')
-    def test_avec_screenshot_envoie_la_photo_pas_seulement_le_texte(self, mock_texte, mock_photo):
+    def test_depot_avec_screenshot_nenvoie_rien_sur_telegram(self, mock_texte, mock_photo):
         reponse = self.client.post(reverse('eleve_paiements'), {
             'nb_mois': '1', 'montant': '80', 'screenshot': _screenshot(),
         })
         self.assertRedirects(reponse, reverse('eleve_paiements'))
+        self.assertTrue(Paiement.objects.filter(eleve=self.eleve).exists())
+        mock_photo.assert_not_called()
+        mock_texte.assert_not_called()
+
+    @patch('payments.views.envoyer_notification_telegram_avec_photo_async')
+    @patch('payments.views.envoyer_notification_telegram_async')
+    def test_depot_sans_screenshot_nenvoie_rien_sur_telegram(self, mock_texte, mock_photo):
+        reponse = self.client.post(reverse('eleve_paiements'), {'nb_mois': '1', 'montant': '80'})
+        self.assertRedirects(reponse, reverse('eleve_paiements'))
+        mock_texte.assert_not_called()
+        mock_photo.assert_not_called()
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class PaiementValideNotifieTelegramTests(TestCase):
+    """Chantier du 2026-09-09 : à la VALIDATION d'un paiement soumis par
+    l'élève, la direction reçoit sur Telegram « ✅ دفعة مقبولة » avec le
+    justificatif de l'élève en pièce jointe (sendPhoto) — voir
+    payments.views._diffuser_telegram_paiement_valide. Sans justificatif
+    (ou pour une saisie manuelle مدير), texte seul / aucun envoi."""
+
+    def setUp(self):
+        from payments import cycles
+        self.eleve = _creer_eleve()
+        cycles.demarrer_cycles(self.eleve, date_reference=datetime.date(2026, 8, 5))
+        self.admin = User.objects.create_user(
+            username='admin_valide_tg@zidni.test', email='admin_valide_tg@zidni.test',
+            password='xX!test12345', role='admin', doit_changer_mot_de_passe=False,
+        )
+        self.client = Client()
+        self.client.force_login(self.admin)
+
+    def _paiement_eleve(self, avec_screenshot=True):
+        p = Paiement(
+            eleve=self.eleve, montant=80, mois_reference=datetime.date(2026, 8, 5),
+            nb_mois_couverts=1, statut='en_attente', soumis_par_eleve=True,
+        )
+        if avec_screenshot:
+            p.screenshot.save('recu.jpg', _screenshot(), save=False)
+        p.save()
+        return p
+
+    @patch('payments.views.envoyer_notification_telegram_avec_photo_async')
+    @patch('payments.views.envoyer_notification_telegram_async')
+    def test_validation_envoie_le_justificatif_en_piece_jointe(self, mock_texte, mock_photo):
+        p = self._paiement_eleve(avec_screenshot=True)
+        reponse = self.client.post(reverse('admin_paiement_valider', args=[p.id]))
+        self.assertEqual(reponse.status_code, 302)
+        p.refresh_from_db()
+        self.assertEqual(p.statut, 'valide')
         mock_photo.assert_called_once()
         mock_texte.assert_not_called()
         legende, contenu, nom = mock_photo.call_args[0]
         self.assertIn(self.eleve.user.get_full_name(), legende)
-        self.assertTrue(contenu)  # bytes non vides
-        self.assertTrue(nom.endswith('.jpg'))
+        self.assertIn('مقبول', legende)
+        self.assertTrue(contenu)
 
     @patch('payments.views.envoyer_notification_telegram_avec_photo_async')
     @patch('payments.views.envoyer_notification_telegram_async')
-    def test_sans_screenshot_retombe_sur_le_texte_seul(self, mock_texte, mock_photo):
-        reponse = self.client.post(reverse('eleve_paiements'), {'nb_mois': '1', 'montant': '80'})
-        self.assertRedirects(reponse, reverse('eleve_paiements'))
+    def test_validation_sans_justificatif_texte_seul(self, mock_texte, mock_photo):
+        p = self._paiement_eleve(avec_screenshot=False)
+        self.client.post(reverse('admin_paiement_valider', args=[p.id]))
         mock_texte.assert_called_once()
+        mock_photo.assert_not_called()
+
+    @patch('payments.views.envoyer_notification_telegram_avec_photo_async')
+    @patch('payments.views.envoyer_notification_telegram_async')
+    def test_reclic_sur_paiement_deja_valide_ne_renotifie_pas(self, mock_texte, mock_photo):
+        p = self._paiement_eleve(avec_screenshot=True)
+        p.statut = 'valide'
+        p.save(update_fields=['statut'])
+        self.client.post(reverse('admin_paiement_valider', args=[p.id]))
+        mock_texte.assert_not_called()
+        mock_photo.assert_not_called()
+
+    @patch('payments.views.envoyer_notification_telegram_avec_photo_async')
+    @patch('payments.views.envoyer_notification_telegram_async')
+    def test_rejet_ne_notifie_pas(self, mock_texte, mock_photo):
+        p = self._paiement_eleve(avec_screenshot=True)
+        self.client.post(reverse('admin_paiement_rejeter', args=[p.id]))
+        p.refresh_from_db()
+        self.assertEqual(p.statut, 'rejete')
+        mock_texte.assert_not_called()
+        mock_photo.assert_not_called()
+
+    @patch('payments.views.envoyer_notification_telegram_avec_photo_async')
+    @patch('payments.views.envoyer_notification_telegram_async')
+    def test_validation_via_panneau_suivi_notifie(self, mock_texte, mock_photo):
+        p = self._paiement_eleve(avec_screenshot=True)
+        reponse = self.client.post(reverse('paiement_panel_sauvegarder'), {
+            'eleve_id': self.eleve.id, 'mois': '2026-08', 'montant': '80', 'statut': 'valide',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        p.refresh_from_db()
+        self.assertEqual(p.statut, 'valide')
+        mock_photo.assert_called_once()
+
+    @patch('payments.views.envoyer_notification_telegram_avec_photo_async')
+    @patch('payments.views.envoyer_notification_telegram_async')
+    def test_saisie_manuelle_directeur_ne_notifie_pas(self, mock_texte, mock_photo):
+        # Aucun Paiement existant -> paiement_panel_sauvegarder crée une saisie
+        # manuelle (soumis_par_eleve=False) : pas de notification à la direction
+        # de sa propre saisie.
+        reponse = self.client.post(reverse('paiement_panel_sauvegarder'), {
+            'eleve_id': self.eleve.id, 'mois': '2026-08', 'montant': '80', 'statut': 'valide',
+        })
+        self.assertEqual(reponse.status_code, 302)
+        self.assertFalse(Paiement.objects.get(eleve=self.eleve).soumis_par_eleve)
+        mock_texte.assert_not_called()
         mock_photo.assert_not_called()
 
 
