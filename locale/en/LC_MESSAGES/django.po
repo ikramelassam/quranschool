@@ -8480,3 +8480,6 @@ msgstr "Accepted payments"
 #, python-format
 msgid "تمّ قبول دفعتك (%(montant)s د.م.) ✅"
 msgstr "Your payment has been accepted (%(montant)s MAD) ✅"
+
+msgid "هذه المجموعة أُنشئت للتوّ."
+msgstr "This group was just created."

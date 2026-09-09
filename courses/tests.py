@@ -2659,3 +2659,142 @@ class NomsSouratesTraductionTests(TestCase):
             self.assertEqual(str(presence.nom_sourate_memorisee), 'An-Nas')
         with translation.override('ar'):
             self.assertEqual(str(presence.nom_sourate_memorisee), 'الناس')
+
+
+class GroupeAntiDoubleSoumissionTests(TestCase):
+    """Bug signalé par le client le 2026-09-09 : un seul groupe « علي بن ابي
+    طالب » créé mais DEUX en base (471/472), byte-pour-byte identiques, IDs
+    consécutifs — un double clic sur « إنشاء المجموعة » (ou un rechargement)
+    pendant la création lente (upload photo + génération des séances). La vue
+    groupe_ajouter n'avait AUCUNE garde, contrairement à
+    inscriptions/paiements/annonces. Garde serveur : même nom + même
+    enseignant + même horaire créés il y a moins de
+    FENETRE_ANTI_DOUBLON_GROUPE_SECONDES -> pas de 2e insertion, on renvoie
+    vers le groupe déjà là."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.prof = _creer_prof()
+        self.creneau = _creer_creneau()
+        self.client = Client(SERVER_NAME='localhost')
+        _connecter(self.client, self.admin)
+
+    def _donnees(self, **extra):
+        donnees = {
+            'nom': 'علي بن ابي طالب رضي الله عنه',
+            **_champs_horaire_depuis_creneau(self.creneau),
+            'type_capacite': 'groupe', 'capacite_max': 10,
+            'prof': str(self.prof.id), 'confirme': '1',
+        }
+        donnees.update(extra)
+        return donnees
+
+    def test_double_soumission_ne_cree_quun_seul_groupe(self):
+        self.client.post(reverse('admin_groupe_ajouter'), self._donnees())
+        self.client.post(reverse('admin_groupe_ajouter'), self._donnees())
+        self.assertEqual(
+            Groupe.objects.filter(nom='علي بن ابي طالب رضي الله عنه').count(), 1
+        )
+
+    def test_deuxieme_soumission_redirige_vers_le_groupe_existant(self):
+        self.client.post(reverse('admin_groupe_ajouter'), self._donnees())
+        groupe = Groupe.objects.get(nom='علي بن ابي طالب رضي الله عنه')
+        reponse = self.client.post(reverse('admin_groupe_ajouter'), self._donnees())
+        self.assertRedirects(
+            reponse, reverse('admin_groupe_detail', args=[groupe.id]),
+            fetch_redirect_response=False,
+        )
+
+    def test_double_soumission_ne_laisse_pas_de_creneau_orphelin(self):
+        avant = Creneau.objects.count()
+        self.client.post(reverse('admin_groupe_ajouter'), self._donnees())
+        self.client.post(reverse('admin_groupe_ajouter'), self._donnees())
+        # +1 seul créneau : celui de la 2e soumission a été supprimé.
+        self.assertEqual(Creneau.objects.count(), avant + 1)
+
+    def test_hors_fenetre_une_seconde_creation_est_autorisee(self):
+        from django.utils import timezone
+        self.client.post(reverse('admin_groupe_ajouter'), self._donnees())
+        premier = Groupe.objects.get(nom='علي بن ابي طالب رضي الله عنه')
+        vieux = timezone.now() - datetime.timedelta(seconds=10_000)
+        Groupe.objects.filter(id=premier.id).update(date_creation=vieux)
+        self.client.post(reverse('admin_groupe_ajouter'), self._donnees())
+        self.assertEqual(
+            Groupe.objects.filter(nom='علي بن ابي طالب رضي الله عنه').count(), 2
+        )
+
+    def test_meme_nom_mais_horaire_different_non_bloque(self):
+        self.client.post(reverse('admin_groupe_ajouter'), self._donnees())
+        autre_horaire = self._donnees(
+            slot_jour=['sam'], slot_heure_debut=['09:00'], slot_heure_fin=['10:00'],
+        )
+        self.client.post(reverse('admin_groupe_ajouter'), autre_horaire)
+        self.assertEqual(
+            Groupe.objects.filter(nom='علي بن ابي طالب رضي الله عنه').count(), 2
+        )
+
+    def test_meme_nom_horaire_mais_prof_different_non_bloque(self):
+        autre_prof = _creer_prof('prof2_doublon@zidni.test')
+        self.client.post(reverse('admin_groupe_ajouter'), self._donnees())
+        self.client.post(
+            reverse('admin_groupe_ajouter'), self._donnees(prof=str(autre_prof.id))
+        )
+        self.assertEqual(
+            Groupe.objects.filter(nom='علي بن ابي طالب رضي الله عنه').count(), 2
+        )
+
+
+class DedupliquerGroupesCommandeTests(TestCase):
+    """Commande de nettoyage des حلقات créées en double (bug client du
+    2026-09-09). Dry-run par défaut, --supprimer pour agir, ne touche jamais
+    un doublon qui porte des données."""
+
+    def setUp(self):
+        from django.core.management import call_command
+        self.call_command = call_command
+        self.prof = _creer_prof()
+
+    def _groupe(self, nom='حلقة مكررة'):
+        return Groupe.objects.create(nom=nom, prof=self.prof, creneau=_creer_creneau())
+
+    def _memes_slots(self, source, cible):
+        cible.creneau.slots.all().delete()
+        for s in source.creneau.slots.order_by('ordre'):
+            CreneauSlot.objects.create(
+                creneau=cible.creneau, jour=s.jour, heure_debut=s.heure_debut,
+                heure_fin=s.heure_fin, ordre=s.ordre,
+            )
+
+    def test_dry_run_ne_supprime_rien(self):
+        g1 = self._groupe()
+        g2 = self._groupe()
+        self._memes_slots(g1, g2)
+        self.call_command('dedupliquer_groupes')
+        self.assertEqual(Groupe.objects.filter(nom='حلقة مكررة').count(), 2)
+
+    def test_supprimer_garde_le_plus_ancien(self):
+        g1 = self._groupe()
+        g2 = self._groupe()
+        self._memes_slots(g1, g2)
+        self.call_command('dedupliquer_groupes', supprimer=True)
+        restants = list(Groupe.objects.filter(nom='حلقة مكررة'))
+        self.assertEqual(restants, [g1])
+        # créneau privé du doublon parti avec lui
+        self.assertFalse(Creneau.objects.filter(id=g2.creneau_id).exists())
+
+    def test_ne_supprime_pas_un_doublon_avec_eleve(self):
+        g1 = self._groupe()
+        g2 = self._groupe()
+        self._memes_slots(g1, g2)
+        eleve = _creer_eleve('eleve_dedup@zidni.test')
+        g2.eleves.add(eleve)
+        self.call_command('dedupliquer_groupes', supprimer=True)
+        self.assertEqual(Groupe.objects.filter(nom='حلقة مكررة').count(), 2)
+
+    def test_horaires_differents_ne_sont_pas_des_doublons(self):
+        g1 = self._groupe()
+        g2 = self._groupe()  # _creer_creneau -> mêmes jours par défaut ? on force différent
+        g2.creneau.slots.all().delete()
+        CreneauSlot.objects.create(creneau=g2.creneau, jour='dim', heure_debut='08:00', heure_fin='09:00', ordre=1)
+        self.call_command('dedupliquer_groupes', supprimer=True)
+        self.assertEqual(Groupe.objects.filter(nom='حلقة مكررة').count(), 2)

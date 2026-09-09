@@ -137,3 +137,34 @@
     </form>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+// Garde anti-double-soumission côté navigateur (bug client du 2026-09-09 :
+// groupes 471/472 identiques). La création est lente (upload photo + génération
+// des séances) : sans ça, un 2e clic ou un rechargement impatient part en 2e
+// POST complet. Le serveur a sa propre garde (courses.views.groupe_ajouter),
+// ceci évite juste la requête inutile. Réactivé au retour arrière (bfcache).
+(function () {
+    var form = document.querySelector('form[method="POST"]');
+    if (!form) return;
+    form.addEventListener('submit', function () {
+        var btn = form.querySelector('button[type="submit"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.6';
+            btn.style.cursor = 'wait';
+        }
+    });
+    window.addEventListener('pageshow', function () {
+        var btn = form.querySelector('button[type="submit"]');
+        if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.style.cursor = 'pointer';
+        }
+    });
+})();
+</script>
+{% endblock %}

@@ -379,6 +379,15 @@ class Groupe(models.Model):
     # par courses.utils.valider_photo_groupe (extension + taille + ouverture
     # réelle via Pillow), jamais sur la seule confiance du <input accept=...>.
     photo = models.ImageField(upload_to='groupes_photos/', null=True, blank=True)
+    # Horodatage de création (chantier anti-doublon du 2026-09-09) — absent
+    # jusqu'ici. Sert UNIQUEMENT à la garde anti-double-soumission de
+    # courses.views.groupe_ajouter : deux clics sur « إنشاء المجموعة » ou un
+    # rechargement pendant la création lente (upload photo + génération des
+    # séances) créaient deux groupes rigoureusement identiques (ex. « علي بن
+    # ابي طالب », 471/472). null=True : les groupes créés avant cette migration
+    # restent à NULL, ce qui les exclut naturellement de la fenêtre de
+    # détection (comparaison `date_creation__gte`).
+    date_creation = models.DateTimeField(auto_now_add=True, null=True)
 
     objects = models.Manager()
     actifs = GroupeActifsManager()

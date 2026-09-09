@@ -1,3 +1,5 @@
+import datetime
+
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
@@ -17,6 +19,27 @@ from .utils import (
     valider_photo_groupe, remplacer_slots_creneau, TRANCHES_AGE_PRECISES,
 )
 from accounts.models import Prof, Eleve
+
+
+# Garde anti-double-soumission de groupe_ajouter (bug client du 2026-09-09 :
+# groupes 471/472 « علي بن ابي طالب » identiques, créés par un double clic /
+# rechargement pendant la création lente). Fenêtre alignée sur celle des
+# inscriptions (inscriptions.views.FENETRE_ANTI_DOUBLON_SECONDES = 120) mais
+# un peu plus large : la création d'un groupe est plus lente (upload photo +
+# génération de toutes les séances) et l'admin peut légitimement patienter.
+FENETRE_ANTI_DOUBLON_GROUPE_SECONDES = 180
+
+
+def _signature_slots_creneau(creneau):
+    """Empreinte comparable de l'horaire d'un créneau : ensemble trié des
+    (jour, heure_début, heure_fin) de ses slots. Deux groupes de même nom +
+    même enseignant + même empreinte = même groupe (utilisé par la garde
+    anti-double-soumission de groupe_ajouter)."""
+    if creneau is None:
+        return frozenset()
+    return frozenset(
+        (s.jour, s.heure_debut, s.heure_fin) for s in creneau.slots.all()
+    )
 
 
 def _base_template_admin_ou_mshrif(request):
@@ -311,6 +334,35 @@ def groupe_ajouter(request):
                 if conflit:
                     messages.error(request, gettext_('تعذّر استخدام "%(v0)s" لهذا التوقيت: %(v1)s') % {'v0': lien_meet_obj, 'v1': conflit})
                     return _redisplay()
+
+        # Garde anti-double-soumission (bug client du 2026-09-09 : groupes
+        # 471/472 « علي بن ابي طالب » identiques). Deux clics sur « إنشاء
+        # المجموعة » ou un rechargement pendant la création lente (upload photo
+        # Cloudinary + regenerer_pour_nouveau_creneau qui génère toutes les
+        # séances) partaient en 2 POST complets → 2 créneaux + 2 groupes. Si un
+        # groupe de MÊME nom + MÊME enseignant + MÊME horaire a été créé il y a
+        # moins de FENETRE_ANTI_DOUBLON_GROUPE_SECONDES, on n'insère pas : on
+        # jette le créneau qu'on venait de créer et on renvoie vers le groupe
+        # déjà là (même principe que la garde d'inscriptions.views). Placé
+        # APRÈS toutes les validations pour ne se déclencher que sur une
+        # soumission qui, seule, aurait réussi.
+        seuil_doublon = timezone.now() - datetime.timedelta(seconds=FENETRE_ANTI_DOUBLON_GROUPE_SECONDES)
+        signature_courante = _signature_slots_creneau(creneau_obj)
+        doublon_recent = next(
+            (
+                g for g in Groupe.objects.filter(
+                    nom=request.POST.get('nom'),
+                    prof_id=prof_id,
+                    date_creation__gte=seuil_doublon,
+                ).select_related('creneau')
+                if _signature_slots_creneau(g.creneau) == signature_courante
+            ),
+            None,
+        )
+        if doublon_recent:
+            creneau_obj.delete()
+            messages.info(request, gettext_('هذه المجموعة أُنشئت للتوّ.'))
+            return redirect('admin_groupe_detail', doublon_recent.id)
 
         groupe = Groupe.objects.create(
             nom=request.POST.get('nom'),
