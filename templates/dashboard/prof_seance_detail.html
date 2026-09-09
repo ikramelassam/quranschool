@@ -78,6 +78,20 @@
         margin-bottom: 8px;
     }
     .remarque-generale-bloc .hint { color: #9a8557; font-size: 0.8rem; margin-bottom: 10px; }
+
+    /* --- Mobile (audit 2026-09-09) --- */
+    @media (max-width: 768px) {
+        /* iOS Safari zoome à chaque focus sur un champ dont la police est < 16px.
+           Les contrôles Bootstrap "-sm" sont à 0.875rem (14px) → on les repasse à
+           16px sur mobile uniquement (la densité "-sm" du bureau ne change pas). */
+        .form-select-sm, .form-control-sm { font-size: 16px; }
+        /* La paire آية : la sourate prend toute la largeur, "من" / "إلى" se
+           partagent la ligne suivante moitié-moitié (au lieu de 3 colonnes
+           écrasées à ~70px chacune). */
+        .ayah-pair > .col-6 { flex: 0 0 100%; width: 100%; max-width: 100%; }
+        .ayah-pair > .col-3 { flex: 0 0 50%; width: 50%; max-width: 50%; }
+        .btn-enregistrer-seance { display: block; width: 100%; }
+    }
 </style>
 {% endblock %}
 
@@ -341,7 +355,7 @@
 
     {% trans "سيتم تحديث الحضور والتقييمات لهذه الحصة المنتهية. هل أنت متأكد؟" as confirmation_maj_terminee %}
     {% trans "هل أنت متأكد من حفظ الحضور والتقييمات؟ سيتم اعتبار هذه الحصة منتهية نهائياً." as confirmation_sauvegarde %}
-    <button type="submit" class="btn"
+    <button type="submit" class="btn btn-enregistrer-seance"
             {% if seance.statut == 'terminee' %}
             onclick="return confirm('{{ confirmation_maj_terminee|escapejs }}');"
             {% else %}

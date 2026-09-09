@@ -1,5 +1,24 @@
+{% comment %}
+Cible tactile des cases : sur mobile, le tableau (7 jours × N heures) se fait
+déjà défiler horizontalement — des cases à la taille par défaut (~13-16px) sont
+trop petites à cocher au doigt. On agrandit la case ET on rend toute la cellule
+cliquable via un <label> pour offrir une vraie zone de ~44px. Style posé une
+seule fois même si le partiel est inclus deux fois sur la page (règles CSS
+idempotentes).
+{% endcomment %}
+<style>
+    .grille-dispo td { padding: 6px; }
+    .grille-dispo .case-dispo { display: block; cursor: pointer; margin: 0; padding: 8px 0; }
+    .grille-dispo .case-dispo input { width: 20px; height: 20px; vertical-align: middle; }
+    .grille-dispo .case-dispo input:disabled { cursor: default; }
+    @media (max-width: 768px) {
+        .grille-dispo td { padding: 4px; }
+        .grille-dispo .case-dispo { padding: 12px 0; }
+        .grille-dispo .case-dispo input { width: 24px; height: 24px; }
+    }
+</style>
 <div style="overflow-x:auto;">
-<table class="table table-bordered text-center align-middle" style="font-size:0.82rem; min-width:600px;">
+<table class="table table-bordered text-center align-middle grille-dispo" style="font-size:0.82rem; min-width:600px;">
     <thead>
         <tr style="background:#f9f9f9;">
             <th></th>
@@ -16,9 +35,11 @@
             {% with heure_str=heure|time:"H:i" %}
             {% with cle=jour_code|add:"_"|add:heure_str %}
             <td>
-                <input type="checkbox" name="{{ champ_nom }}" value="{{ cle }}"
-                       {% if cle in valeurs_form %}checked{% endif %}
-                       {% if lecture_seule %}disabled{% endif %}>
+                <label class="case-dispo">
+                    <input type="checkbox" name="{{ champ_nom }}" value="{{ cle }}"
+                           {% if cle in valeurs_form %}checked{% endif %}
+                           {% if lecture_seule %}disabled{% endif %}>
+                </label>
             </td>
             {% endwith %}
             {% endwith %}

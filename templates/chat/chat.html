@@ -395,6 +395,39 @@
            obligeant l'utilisateur à dézoomer manuellement à chaque message. */
         .chat-composer textarea { font-size: 16px; }
     }
+
+    /* ---------- Toast + confirmation in-page (audit mobile 2026-09-09) ----------
+       Remplacent alert()/confirm() natifs : ceux-ci gèlent tout le fil JS (donc
+       le polling, la lecture audio en cours…) et, sur mobile, s'affichent comme
+       une pop-up système hors charte. */
+    .chat-toast-zone {
+        position: fixed; left: 0; right: 0; bottom: 20px; z-index: 120;
+        display: flex; flex-direction: column; align-items: center; gap: 8px;
+        pointer-events: none; padding: 0 16px;
+    }
+    .chat-toast {
+        max-width: 420px; width: 100%; box-sizing: border-box;
+        background: var(--color-text-primary); color: #fff;
+        border-radius: 12px; padding: 12px 16px; font-size: 0.9rem; line-height: 1.4;
+        box-shadow: 0 6px 24px rgba(0,0,0,0.28);
+        opacity: 0; transform: translateY(10px); transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+    .chat-toast.visible { opacity: 1; transform: translateY(0); }
+    .chat-toast.chat-toast-erreur { background: var(--color-danger); }
+
+    .chat-confirm-overlay {
+        position: fixed; inset: 0; z-index: 130; background: rgba(0,0,0,0.45);
+        display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    .chat-confirm-modale {
+        background: #fff; border-radius: 16px; padding: 22px; width: 100%; max-width: 340px;
+        text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    }
+    .chat-confirm-texte { color: var(--color-text-primary); font-size: 0.95rem; margin-bottom: 18px; }
+    .chat-confirm-boutons { display: flex; gap: 10px; }
+    .chat-confirm-boutons button { flex: 1; border: none; border-radius: 10px; padding: 10px 0; font-family: 'Tajawal', sans-serif; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+    .chat-confirm-annuler { background: #ececec; color: var(--color-text-primary); }
+    .chat-confirm-ok { background: var(--color-danger); color: #fff; }
 </style>
 {% endblock %}
 
@@ -480,6 +513,18 @@ en JS selon le type (image/vidéo/audio/PDF) — voir initMediaViewer().
     </div>
     <div class="chat-media-corps" id="chatMediaCorps"></div>
 </div>
+
+{% comment %}Toast + confirmation in-page — voir chatToast() / chatConfirm().{% endcomment %}
+<div class="chat-toast-zone" id="chatToastZone"></div>
+<div class="chat-confirm-overlay" id="chatConfirmOverlay" hidden>
+    <div class="chat-confirm-modale" role="alertdialog" aria-modal="true">
+        <div class="chat-confirm-texte" id="chatConfirmTexte"></div>
+        <div class="chat-confirm-boutons">
+            <button type="button" class="chat-confirm-annuler" id="chatConfirmAnnuler">{% trans "إلغاء" %}</button>
+            <button type="button" class="chat-confirm-ok" id="chatConfirmOk">{% trans "حذف" %}</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -525,6 +570,62 @@ en JS selon le type (image/vidéo/audio/PDF) — voir initMediaViewer().
     function scrollBas(container) {
         container.scrollTop = container.scrollHeight;
     }
+
+    // Toast in-page (remplace alert()) : n'interrompt pas le fil JS ni le
+    // polling. `type` = 'erreur' (rouge) ou '' (neutre). Disparaît seul.
+    function chatToast(message, type) {
+        const zone = document.getElementById('chatToastZone');
+        if (!zone) { return; }
+        const toast = document.createElement('div');
+        toast.className = 'chat-toast' + (type === 'erreur' ? ' chat-toast-erreur' : '');
+        toast.setAttribute('role', 'status');
+        toast.textContent = message;
+        zone.appendChild(toast);
+        requestAnimationFrame(function () { toast.classList.add('visible'); });
+        setTimeout(function () {
+            toast.classList.remove('visible');
+            setTimeout(function () { toast.remove(); }, 220);
+        }, 4200);
+    }
+
+    // Confirmation in-page (remplace confirm()) → Promise<boolean>. Une seule
+    // modale réutilisée. Échap / clic hors modale / "إلغاء" = false.
+    function chatConfirm(message) {
+        const overlay = document.getElementById('chatConfirmOverlay');
+        const texte = document.getElementById('chatConfirmTexte');
+        const btnOk = document.getElementById('chatConfirmOk');
+        const btnAnnuler = document.getElementById('chatConfirmAnnuler');
+        if (!overlay) { return Promise.resolve(window.confirm(message)); }
+        texte.textContent = message;
+        overlay.hidden = false;
+        return new Promise(function (resolve) {
+            function fermer(valeur) {
+                overlay.hidden = true;
+                btnOk.removeEventListener('click', onOk);
+                btnAnnuler.removeEventListener('click', onAnnuler);
+                overlay.removeEventListener('click', onFond);
+                document.removeEventListener('keydown', onTouche);
+                resolve(valeur);
+            }
+            function onOk() { fermer(true); }
+            function onAnnuler() { fermer(false); }
+            function onFond(e) { if (e.target === overlay) { fermer(false); } }
+            function onTouche(e) { if (e.key === 'Escape') { fermer(false); } }
+            btnOk.addEventListener('click', onOk);
+            btnAnnuler.addEventListener('click', onAnnuler);
+            overlay.addEventListener('click', onFond);
+            document.addEventListener('keydown', onTouche);
+            btnOk.focus();
+        });
+    }
+
+    // Sortis de .main-content vers <body> pour que leur position:fixed se cadre
+    // sur le viewport et non sur la zone décalée de la sidebar (même raison que
+    // #chatMediaOverlay, voir initMediaViewer).
+    ['chatToastZone', 'chatConfirmOverlay'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el && el.parentNode !== document.body) { document.body.appendChild(el); }
+    });
 
     // Gestion d'erreur commune à tous les fetch du chat (Point 6 de l'audit du
     // 2026-08-15) : distingue explicitement "accès refusé" (403 — les
@@ -911,20 +1012,22 @@ en JS selon le type (image/vidéo/audio/PDF) — voir initMediaViewer().
         liste.addEventListener('click', function (e) {
             const bouton = e.target.closest('.chat-bubble-supprimer');
             if (!bouton) { return; }
-            if (!confirm('{{ msg_confirmer_suppr_message|escapejs }}')) { return; }
             const messageId = bouton.dataset.messageId;
-            fetch(`/chat/${groupeId}/messages/${messageId}/supprimer/`, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
-            })
-                .then(reponseOuErreur)
-                .then(function (data) {
-                    const ligne = liste.querySelector(`[data-message-id="${data.id}"]`);
-                    if (ligne) { ligne.outerHTML = data.html; }
+            chatConfirm('{{ msg_confirmer_suppr_message|escapejs }}').then(function (ok) {
+                if (!ok) { return; }
+                fetch(`/chat/${groupeId}/messages/${messageId}/supprimer/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
                 })
-                .catch(function () {
-                    alert('{{ msg_echec_suppr_message|escapejs }}');
-                });
+                    .then(reponseOuErreur)
+                    .then(function (data) {
+                        const ligne = liste.querySelector(`[data-message-id="${data.id}"]`);
+                        if (ligne) { ligne.outerHTML = data.html; }
+                    })
+                    .catch(function () {
+                        chatToast('{{ msg_echec_suppr_message|escapejs }}', 'erreur');
+                    });
+            });
         });
     }
 
@@ -1180,9 +1283,9 @@ en JS selon le type (image/vidéo/audio/PDF) — voir initMediaViewer().
                         // Point 4 : message précis calculé par le serveur
                         // (extension refusée, fichier trop volumineux...)
                         // plutôt qu'un "حاول مرة أخرى" qui n'explique rien.
-                        alert(erreur.messageServeur);
+                        chatToast(erreur.messageServeur, 'erreur');
                     } else {
-                        alert('{{ msg_echec_envoi|escapejs }}');
+                        chatToast('{{ msg_echec_envoi|escapejs }}', 'erreur');
                     }
                 })
                 .finally(() => { majEtatEnvoyer(); });
