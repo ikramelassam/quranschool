@@ -169,3 +169,46 @@ class GenererPresentationPubliqueTests(TestCase):
         texte = generer_presentation_publique(prof)
         self.assertIn('يفضل التدريس لـ', texte)
         self.assertIn('بالغون', texte)
+
+
+class ConnexionEmailMobileRTLTests(TestCase):
+    """« Beaucoup de profs bloqués à la connexion » (2026-09-09) : sur mobile RTL,
+    le clavier arabe colle des marques directionnelles / espaces invisibles à
+    l'e-mail, et iOS met une majuscule à la 1re lettre. La candidature s'était
+    faite proprement (chantier 569113f), mais la connexion lisait l'e-mail brut
+    → « البريد الإلكتروني أو كلمة المرور غير صحيحة »."""
+
+    def setUp(self):
+        self.client = Client(SERVER_NAME='localhost')
+        self.user = User.objects.create_user(
+            username='prof.mobile@zidni.test', email='prof.mobile@zidni.test',
+            password='MotDePasse123', first_name='Prof Mobile', role='prof',
+        )
+        self.url = reverse('login')
+
+    def _login(self, email):
+        return self.client.post(self.url, {'email': email, 'password': 'MotDePasse123'})
+
+    def test_email_propre_fonctionne_toujours(self):
+        self.assertEqual(self._login('prof.mobile@zidni.test').status_code, 302)
+
+    def test_marques_directionnelles_invisibles_sont_ignorees(self):
+        self.assertEqual(self._login('‏prof.mobile@zidni.test‏').status_code, 302)
+
+    def test_espaces_parasites_sont_ignores(self):
+        self.assertEqual(self._login('  prof.mobile@zidni.test﻿ ').status_code, 302)
+
+    def test_casse_differente_est_toleree(self):
+        self.assertEqual(self._login('Prof.Mobile@Zidni.test').status_code, 302)
+
+    def test_mauvais_mot_de_passe_refuse_toujours(self):
+        reponse = self.client.post(self.url, {'email': 'prof.mobile@zidni.test', 'password': 'faux'})
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, 'غير صحيحة')
+
+    def test_backend_direct_normalise_aussi(self):
+        from django.contrib.auth import authenticate
+        self.assertEqual(
+            authenticate(username='‏ PROF.MOBILE@zidni.test ', password='MotDePasse123'),
+            self.user,
+        )

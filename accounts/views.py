@@ -8,14 +8,20 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 
+from accounts.utils import nettoyer_email_saisi
+
 def login_view(request):
     if request.user.is_authenticated:
         return redirect_by_role(request.user)
     
     if request.method == 'POST':
-        email = request.POST.get('email')
+        # nettoyer_email_saisi : sur mobile RTL, le clavier arabe colle des
+        # marques directionnelles / espaces invisibles à l'adresse — sans ça,
+        # beaucoup de profs qui s'étaient inscrits proprement restaient bloqués
+        # sur « ...غير صحيحة » (EmailBackend re-nettoie aussi, ceinture + bretelles).
+        email = nettoyer_email_saisi(request.POST.get('email'))
         password = request.POST.get('password')
-        
+
         user = authenticate(request, username=email, password=password)
 
         if user is not None:
@@ -117,14 +123,17 @@ def mot_de_passe_oublie(request):
     from dashboard.views import generer_mot_de_passe_temporaire, generer_mot_de_passe_sequentiel
 
     if request.method == 'POST':
-        email = request.POST.get('email', '').strip()
+        # nettoyer_email_saisi + iexact : même motif que la connexion — un prof
+        # sur mobile RTL tape son e-mail avec des marques invisibles / une
+        # majuscule iOS et ne se retrouvait jamais lui-même ici non plus.
+        email = nettoyer_email_saisi(request.POST.get('email', ''))
         nom_saisi = request.POST.get('nom_complet', '').strip()
         User = get_user_model()
 
         user = None
         if email and nom_saisi:
             nom_normalise = _normaliser_nom_pour_comparaison(nom_saisi)
-            for candidat in User.objects.filter(email=email):
+            for candidat in User.objects.filter(email__iexact=email):
                 if _normaliser_nom_pour_comparaison(candidat.get_full_name()) == nom_normalise:
                     user = candidat
                     break
