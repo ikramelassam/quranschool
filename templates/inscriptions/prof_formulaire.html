@@ -158,7 +158,10 @@
                 </div>
                 <div class="col-6">
                     <label class="form-label">{% trans "البريد الإلكتروني" %} *</label>
-                    <input type="email" name="email" class="form-control" value="{{ old_email|default:'' }}" required>
+                    <input type="email" name="email" class="form-control" dir="ltr"
+                           inputmode="email" autocomplete="email" autocapitalize="none"
+                           autocorrect="off" spellcheck="false"
+                           value="{{ old_email|default:'' }}" required>
                 </div>
                 <div class="col-12">
                     {% include 'inscriptions/_verification_whatsapp.html' %}
@@ -518,6 +521,23 @@ document.querySelector('form').addEventListener('submit', function (e) {
     btnStart.addEventListener('click', start);
     btnStop.addEventListener('click', stop);
     btnReset.addEventListener('click', reset);
+})();
+
+// Mobile RTL : nettoie l'e-mail (espace finale / marques directionnelles
+// invisibles ajoutées par les claviers arabes) pour ne pas déclencher à tort
+// « أدخل عنوان بريد إلكتروني » à l'envoi.
+(function () {
+    var CARACTERES_PARASITES = /[\s\u00A0\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
+    document.querySelectorAll('input[type="email"]').forEach(function (champ) {
+        function nettoyer() {
+            var propre = (champ.value || '').replace(CARACTERES_PARASITES, '');
+            if (propre !== champ.value) champ.value = propre;
+        }
+        champ.addEventListener('input', nettoyer);
+        champ.addEventListener('blur', nettoyer);
+        champ.addEventListener('compositionend', nettoyer);
+        nettoyer();
+    });
 })();
 </script>
 </body>

@@ -114,5 +114,31 @@
     {% block wizard_content %}{% endblock %}
 </div>
 {% block wizard_extra_js %}{% endblock %}
+<script>
+    // Mobile RTL : les claviers arabes (et l'autocomplétion) ajoutent souvent
+    // une espace finale ou des marques directionnelles/invisibles autour d'un
+    // e-mail latin. Le navigateur juge alors le champ type="email" invalide et
+    // bloque l'envoi avec « أدخل عنوان بريد إلكتروني » alors que l'adresse est
+    // correcte. On nettoie la valeur à la saisie pour que le champ redevienne
+    // valide avant que l'utilisateur n'appuie sur « التالي ».
+    (function () {
+        var CARACTERES_PARASITES = /[\s\u00A0\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
+        document.querySelectorAll('input[type="email"]').forEach(function (champ) {
+            champ.setAttribute('dir', 'ltr');
+            champ.setAttribute('autocapitalize', 'none');
+            champ.setAttribute('autocorrect', 'off');
+            champ.setAttribute('spellcheck', 'false');
+            if (!champ.getAttribute('inputmode')) champ.setAttribute('inputmode', 'email');
+            function nettoyer() {
+                var propre = (champ.value || '').replace(CARACTERES_PARASITES, '');
+                if (propre !== champ.value) champ.value = propre;
+            }
+            champ.addEventListener('input', nettoyer);
+            champ.addEventListener('blur', nettoyer);
+            champ.addEventListener('compositionend', nettoyer);
+            nettoyer();
+        });
+    })();
+</script>
 </body>
 </html>

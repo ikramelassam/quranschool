@@ -25,7 +25,10 @@
         {% elif config.champ_cle == 'email' %}
         <div class="mb-3">
             <label class="form-label">{{ config.label_localise }}{% if config.obligatoire %} *{% endif %}</label>
-            <input type="email" name="email" class="form-control mt-1" value="{{ config.valeur_actuelle|default:'' }}" {% if config.obligatoire %}required{% endif %}>
+            <input type="email" name="email" class="form-control mt-1" dir="ltr"
+                   inputmode="email" autocomplete="email" autocapitalize="none"
+                   autocorrect="off" spellcheck="false"
+                   value="{{ config.valeur_actuelle|default:'' }}" {% if config.obligatoire %}required{% endif %}>
         </div>
         {% elif config.champ_cle == 'telephone' %}
         {% include 'inscriptions/_verification_whatsapp.html' with telephone_obligatoire=config.obligatoire %}

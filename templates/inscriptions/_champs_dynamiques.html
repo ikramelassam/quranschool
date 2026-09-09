@@ -123,7 +123,9 @@ propres fonctions, jamais d'imposer l'ordre d'exécution à la page.
         {% elif champ.type_champ == 'date' %}
         <input type="date" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
         {% elif champ.type_champ == 'email' %}
-        <input type="email" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>
+        <input type="email" name="champ_{{ champ.id }}" class="form-control mt-1" dir="ltr"
+               inputmode="email" autocomplete="email" autocapitalize="none"
+               autocorrect="off" spellcheck="false" {% if champ.obligatoire %}required{% endif %}>
         {% else %}
         {# 'texte' et tout autre type_champ non modélisé par un widget dédié — même repli qu'avant ce chantier. #}
         <input type="text" name="champ_{{ champ.id }}" class="form-control mt-1" {% if champ.obligatoire %}required{% endif %}>

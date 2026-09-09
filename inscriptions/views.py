@@ -162,6 +162,18 @@ def _construire_et_valider_telephone(request):
     return f'+{indicatif}{numero_local}', None
 
 
+def nettoyer_email_saisi(valeur):
+    """Nettoie un e-mail tapé sur mobile : retire les espaces (y compris l'espace
+    finale ajoutée par l'autocomplétion), l'espace insécable, et les marques
+    directionnelles / caractères de largeur nulle que les claviers arabes
+    insèrent autour d'un texte latin dans un champ RTL. Sans ça, `str.strip()`
+    laisse passer un U+200F collé à l'adresse : le champ `type="email"` bloque
+    l'envoi côté navigateur (« أدخل عنوان بريد إلكتروني ») et, si la requête
+    passe quand même, on crée un compte dont l'e-mail est inutilisable.
+    Miroir serveur du nettoyage JS de _wizard_base.html."""
+    return re.sub(r'[\s\u00A0\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]', '', valeur or '')
+
+
 def _email_deja_utilise(email, exclure_user_id=None):
     """Vérifie si cet email est déjà pris par un compte User existant, ou par
     une InscriptionEleve/InscriptionProf encore en attente de validation.
@@ -252,7 +264,7 @@ def inscription_eleve_formulaire(request, type_age):
     }
 
     if request.method == 'POST':
-        email = request.POST.get('email', '').strip()
+        email = nettoyer_email_saisi(request.POST.get('email', ''))
         disponibilites = request.POST.getlist('dispo')
         date_naissance_str = request.POST.get('date_naissance', '')
 
@@ -394,7 +406,7 @@ def inscription_prof(request):
     }
 
     if request.method == 'POST':
-        email = request.POST.get('email', '').strip()
+        email = nettoyer_email_saisi(request.POST.get('email', ''))
         disponibilites = request.POST.getlist('dispo')
         compte_bancaire = request.POST.get('compte_bancaire', '').strip()
         rib = request.POST.get('rib', '').strip()

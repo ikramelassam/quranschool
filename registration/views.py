@@ -222,7 +222,8 @@ def wizard_identite(request):
             nouvelles_valeurs['sexe'] = sexe
 
         if 'email' in configs_par_cle:
-            email = request.POST.get('email', '').strip()
+            from inscriptions.views import nettoyer_email_saisi
+            email = nettoyer_email_saisi(request.POST.get('email', ''))
             if not email:
                 erreurs.append(gettext_('"%(label)s" إلزامي.') % {'label': configs_par_cle['email'].label_localise})
             nouvelles_valeurs['email'] = email

@@ -1679,6 +1679,23 @@ class WizardIdentiteTests(TestCase):
         self.assertEqual(session['wizard_inscription']['email'], 'sara.wizard@zidni.test')
         self.assertTrue(session['wizard_inscription']['telephone'])  # assemblé par _construire_et_valider_telephone
 
+    def test_email_avec_marques_invisibles_mobile_est_nettoye(self):
+        """Signalement du 2026-09-09 : sur mobile RTL, le clavier arabe /
+        l'autocomplétion collent une espace finale ou une marque directionnelle
+        (U+200F, U+200E, U+FEFF…) à l'e-mail. `str.strip()` n'enlève pas ces
+        caractères -> compte créé avec un e-mail inutilisable. Le champ doit
+        être nettoyé côté serveur (miroir du JS de _wizard_base.html)."""
+        client = Client()
+        _choisir_categorie_age(client)
+        reponse = client.post(reverse('wizard_identite'), self._reponses_valides(
+            email='‏fatimaaoutli8@gmail.com ‎',
+        ))
+        self.assertRedirects(reponse, reverse('wizard_programme'), fetch_redirect_response=False)
+        self.assertEqual(
+            client.session['wizard_inscription']['email'],
+            'fatimaaoutli8@gmail.com',
+        )
+
     def test_post_incomplet_reaffiche_le_formulaire_avec_erreur(self):
         client = Client()
         _choisir_categorie_age(client)

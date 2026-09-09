@@ -183,7 +183,9 @@
 
         <div class="mb-3">
             <label class="form-label">{% trans "البريد الإلكتروني *" %}</label>
-            <input type="email" name="email" class="form-control"
+            <input type="email" name="email" class="form-control" dir="ltr"
+                   inputmode="email" autocomplete="email" autocapitalize="none"
+                   autocorrect="off" spellcheck="false"
                    placeholder="{% trans 'البريد الإلكتروني' %}" value="{{ old_email|default:'' }}" required>
         </div>
 
@@ -412,6 +414,24 @@
         btn.disabled = true;
         btn.textContent = '{% trans "جارٍ الإرسال..." %}';
     });
+
+    // Mobile RTL : les claviers arabes / l'autocomplétion ajoutent souvent une
+    // espace finale ou des marques directionnelles invisibles autour d'un e-mail
+    // latin ; le navigateur bloque alors l'envoi (« أدخل عنوان بريد إلكتروني »)
+    // alors que l'adresse est correcte. On nettoie la valeur à la saisie.
+    (function () {
+        var CARACTERES_PARASITES = /[\s\u00A0\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
+        document.querySelectorAll('input[type="email"]').forEach(function (champ) {
+            function nettoyer() {
+                var propre = (champ.value || '').replace(CARACTERES_PARASITES, '');
+                if (propre !== champ.value) champ.value = propre;
+            }
+            champ.addEventListener('input', nettoyer);
+            champ.addEventListener('blur', nettoyer);
+            champ.addEventListener('compositionend', nettoyer);
+            nettoyer();
+        });
+    })();
 </script>
 </body>
 </html>
