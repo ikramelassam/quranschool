@@ -3,7 +3,7 @@
 {% block title %}{% trans "إعادة تعيين كلمة المرور" %}{% endblock %}
 {% block content %}
 <div class="page-title">{% trans "إعادة تعيين كلمة المرور" %}</div>
-<div class="page-subtitle">{{ utilisateur.get_full_name }} — {{ utilisateur.get_role_display }} — {{ utilisateur.email }}</div>
+<div class="page-subtitle">{{ utilisateur.get_full_name }} — {{ utilisateur.get_role_display }} — <span class="email-copiable">{{ utilisateur.email }}</span></div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:520px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     {% if mdp_genere %}

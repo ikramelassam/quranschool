@@ -3,7 +3,7 @@
 {% block title %}{% trans "حسابي" %}{% endblock %}
 {% block content %}
 <div class="page-title">{% trans "حسابي" %}</div>
-<div class="page-subtitle">{% blocktrans with email=request.user.email %}البريد الحالي: {{ email }}{% endblocktrans %}</div>
+<div class="page-subtitle">{% trans "البريد الحالي:" %} <span class="email-copiable">{{ request.user.email }}</span></div>
 
 <div class="row g-4">
     <div class="col-md-6">

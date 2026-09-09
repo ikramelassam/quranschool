@@ -8,7 +8,7 @@ le retrait du {% block recherche_globale %}).
 {% endcomment %}
 {% block content %}
 <div class="page-title">{% trans "حذف نهائي" %}</div>
-<div class="page-subtitle">{{ superviseur.user.get_full_name }} — {{ superviseur.user.email }}</div>
+<div class="page-subtitle">{{ superviseur.user.get_full_name }} — <span class="email-copiable">{{ superviseur.user.email }}</span></div>
 
 {% comment %}
 Chantier du 2026-08-12 — voir dashboard.views.superviseur_supprimer_definitivement.
@@ -34,7 +34,7 @@ proprement (profs_assignes, évaluations rédigées, séances suivies).
     <form method="POST" onsubmit="return confirm('{{ texte_confirmation|escapejs }}');">
         {% csrf_token %}
         <label style="color:#8a3b36; font-size:0.85rem; display:block; margin-bottom:4px;">{% trans "اكتب البريد الإلكتروني التالي بالضبط للتأكيد:" %}</label>
-        <div style="background:white; border-radius:6px; padding:8px 12px; font-family:'Tajawal',sans-serif; margin-bottom:10px; border:1px solid #e0c4c2;">{{ superviseur.user.email }}</div>
+        <div style="background:white; border-radius:6px; padding:8px 12px; font-family:'Tajawal',sans-serif; margin-bottom:10px; border:1px solid #e0c4c2;"><span class="email-copiable">{{ superviseur.user.email }}</span></div>
         <input type="text" name="confirmation_nom" class="form-control mb-3" placeholder="{{ superviseur.user.email }}" required>
         <div class="d-flex gap-2">
             <button type="submit"

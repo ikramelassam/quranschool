@@ -3,7 +3,7 @@
 {% block title %}{% trans "تغيير البريد الإلكتروني" %}{% endblock %}
 {% block content %}
 <div class="page-title">{% trans "تغيير البريد الإلكتروني" %}</div>
-<div class="page-subtitle">{% blocktrans with nom=utilisateur.get_full_name email=utilisateur.email %}{{ nom }} — البريد الحالي: {{ email }}{% endblocktrans %}</div>
+<div class="page-subtitle">{{ utilisateur.get_full_name }} — {% trans "البريد الحالي:" %} <span class="email-copiable">{{ utilisateur.email }}</span></div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <form method="POST">

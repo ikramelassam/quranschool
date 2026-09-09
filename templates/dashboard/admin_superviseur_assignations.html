@@ -22,7 +22,7 @@ actuelle d'un coup d'œil avant de modifier l'assignation en dessous.
         </div>
         <div>
             <div style="font-weight:700; font-size:1.1rem; color:var(--color-text-primary);">{{ superviseur.user.get_full_name }}</div>
-            <div style="color:#888; font-size:0.85rem; margin-top:2px;">{% blocktrans with email=superviseur.user.email n=groupes_actuels|length %}{{ email }} — {{ n }} مجموعة حالياً{% endblocktrans %}</div>
+            <div style="color:#888; font-size:0.85rem; margin-top:2px;"><span class="email-copiable">{{ superviseur.user.email }}</span>{% blocktrans with n=groupes_actuels|length %} — {{ n }} مجموعة حالياً{% endblocktrans %}</div>
         </div>
     </div>
     {% if groupes_actuels %}

@@ -8,7 +8,7 @@ la note du 2026-08-14 sur le retrait du {% block recherche_globale %}).
 {% endcomment %}
 {% block content %}
 <div class="page-title">{% trans "هذا البريد مشترك مع حسابات أخرى" %}</div>
-<div class="page-subtitle">{% blocktrans with nom=utilisateur.get_full_name email=utilisateur.email %}{{ nom }} — البريد الحالي: {{ email }}{% endblocktrans %}</div>
+<div class="page-subtitle">{{ utilisateur.get_full_name }} — {% trans "البريد الحالي:" %} <span class="email-copiable">{{ utilisateur.email }}</span></div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:560px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 

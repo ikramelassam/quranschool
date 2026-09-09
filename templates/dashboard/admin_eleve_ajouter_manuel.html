@@ -183,7 +183,7 @@
     {% endif %}
 
     <div style="background:var(--color-bg-cream, #f7f2ea); border-radius:10px; padding:14px 18px; margin-bottom:20px; font-size:0.9rem;">
-        <strong>{{ valeurs_form.nom }}</strong> — {{ valeurs_form.email }}
+        <strong>{{ valeurs_form.nom }}</strong> — <span class="email-copiable">{{ valeurs_form.email }}</span>
         {% if age %}— {% blocktrans with age=age %}العمر: {{ age }} سنة{% endblocktrans %}{% endif %}
     </div>
 

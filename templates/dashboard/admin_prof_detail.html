@@ -3,7 +3,7 @@
 {% block title %}{{ prof.user.get_full_name }}{% endblock %}
 {% block content %}
 <div class="page-title">{{ prof.user.get_full_name }}</div>
-<div class="page-subtitle">{{ prof.user.email }}</div>
+<div class="page-subtitle"><span class="email-copiable">{{ prof.user.email }}</span></div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:700px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
 

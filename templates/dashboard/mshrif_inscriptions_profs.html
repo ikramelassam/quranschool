@@ -11,7 +11,7 @@
         <div class="row align-items-center">
             <div class="col-md-6">
                 <div style="font-weight:700; font-size:1.1rem;">{{ ins.nom }} {{ ins.prenom }}</div>
-                <div style="color:#888; font-size:0.9rem;">{{ ins.email }}</div>
+                <div style="color:#888; font-size:0.9rem;"><span class="email-copiable">{{ ins.email }}</span></div>
                 <div style="color:#888; font-size:0.85rem; margin-top:4px;">
                     {% blocktrans with date=ins.date_soumission|date:"d-m-Y" %}تاريخ التقديم: {{ date }}{% endblocktrans %}
                 </div>

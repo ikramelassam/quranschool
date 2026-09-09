@@ -59,3 +59,19 @@
     --color-role-superviseur-solid: #6B3410;
     --color-role-eleve-solid: #8B4B00;
 }
+
+/* --- Adresse e-mail affichée, sélectionnable d'un bloc ---
+   Seule règle non-token de ce fichier, placée ici parce qu'il est le seul
+   CSS chargé par TOUS les templates complets (5 bases + login/inscription).
+   `user-select:all` : un simple clic sélectionne l'adresse ENTIÈRE et rien
+   d'autre — le directeur qui copie l'e-mail d'un candidat n'attrape plus le
+   libellé arabe, le nom ou le téléphone voisins collés sur la même ligne
+   (signalé 2026-09-09). `unicode-bidi:isolate` + `direction:ltr` : l'adresse
+   latine reste intègre au milieu d'un texte RTL et ne perturbe pas la ligne. */
+.email-copiable {
+    -webkit-user-select: all;
+    user-select: all;
+    unicode-bidi: isolate;
+    direction: ltr;
+    word-break: break-all;
+}

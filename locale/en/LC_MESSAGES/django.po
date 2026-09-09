@@ -8483,3 +8483,13 @@ msgstr "Your payment has been accepted (%(montant)s MAD) ✅"
 
 msgid "هذه المجموعة أُنشئت للتوّ."
 msgstr "This group was just created."
+
+msgid "البريد الحالي:"
+msgstr "Current e-mail:"
+
+msgid "البريد الجديد:"
+msgstr "New e-mail:"
+
+#, python-format
+msgid " — %(n)s مجموعة حالياً"
+msgstr " — %(n)s group(s) currently"

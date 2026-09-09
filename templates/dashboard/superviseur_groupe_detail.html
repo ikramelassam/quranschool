@@ -135,7 +135,7 @@
                 </div>
             </div>
             <div style="display:flex; gap:10px; align-items:center;">
-                <div style="color:#888; font-size:0.85rem;">{{ ligne.eleve.user.email }}</div>
+                <div style="color:#888; font-size:0.85rem;"><span class="email-copiable">{{ ligne.eleve.user.email }}</span></div>
                 <span style="display:inline-flex; gap:6px; align-items:center;">
                     {% include 'dashboard/_email_icon.html' with email=ligne.eleve.user.email %}
                     {% include 'dashboard/_whatsapp_icon.html' with telephone=ligne.eleve.user.telephone %}

@@ -46,7 +46,7 @@ chantier de modèle, pas juste un filtre de template.
             </div>
             <div style="min-width:0;">
                 <div style="font-weight:700;">{{ s.user.get_full_name }}</div>
-                <div style="color:#888; font-size:0.85rem;">{{ s.user.email }}</div>
+                <div style="color:#888; font-size:0.85rem;"><span class="email-copiable">{{ s.user.email }}</span></div>
                 <div style="color:#888; font-size:0.85rem;">{% blocktrans with n_profs=s.nb_profs_assignes n_groupes=s.nb_groupes_total %}{{ n_profs }} معلم مُسند — {{ n_groupes }} مجموعة{% endblocktrans %}</div>
             </div>
         </a>

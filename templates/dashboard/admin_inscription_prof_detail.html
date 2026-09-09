@@ -28,7 +28,7 @@
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">{% trans "البريد الإلكتروني" %}</span>
         <span style="font-weight:600; display:flex; align-items:center; gap:10px;">
-            {{ inscription.email }}
+            <span class="email-copiable">{{ inscription.email }}</span>
             {% include 'dashboard/_email_icon.html' with email=inscription.email %}
         </span>
     </div>

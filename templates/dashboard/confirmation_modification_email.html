@@ -8,7 +8,7 @@ la note du 2026-08-14 sur le retrait du {% block recherche_globale %}).
 {% endcomment %}
 {% block content %}
 <div class="page-title">{% trans "✅ تم تغيير البريد الإلكتروني بنجاح" %}</div>
-<div class="page-subtitle">{% blocktrans with nom=info.nom email=info.nouvel_email %}{{ nom }} — البريد الجديد: {{ email }}{% endblocktrans %}</div>
+<div class="page-subtitle">{{ info.nom }} — {% trans "البريد الجديد:" %} <span class="email-copiable">{{ info.nouvel_email }}</span></div>
 
 {% if info.nb_comptes_maj > 1 %}
 <div style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:10px 16px; max-width:640px; font-size:0.85rem; margin-bottom:16px;">
