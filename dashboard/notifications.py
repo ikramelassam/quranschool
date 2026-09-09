@@ -167,7 +167,7 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
     from courses.models import Presence
     from accounts.models import DocumentEleve
 
-    seuils = _seuils(user, ['examens', 'notes_seances', 'cartable', 'paiements_retard'])
+    seuils = _seuils(user, ['examens', 'notes_seances', 'cartable', 'paiements_retard', 'paiements_acceptes'])
     groupes_eleve = eleve.groupes.all()
 
     examens = list(
@@ -284,9 +284,36 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
                     'date': ancre,
                 }]
 
+    # Paiement accepté par la direction — chantier du 2026-09-09 (miroir de la
+    # notif Telegram déplacée du dépôt vers la validation, voir payments.views.
+    # _diffuser_telegram_paiement_valide). Avant, l'élève ne voyait RIEN quand
+    # sa preuve de paiement était acceptée. Horodaté sur `date_validation`
+    # (posé explicitement à la validation, jamais un auto_now -> aucune fausse
+    # notif sur un ré-enregistrement du Paiement) ; borné aux vraies
+    # soumissions de l'élève (`soumis_par_eleve`, pas une saisie manuelle
+    # مدير). Amorçage des comptes déjà existants : accounts/migrations/0050.
+    from payments.models import Paiement
+
+    paiements_acceptes = list(
+        Paiement.objects.filter(
+            eleve=eleve, statut='valide', soumis_par_eleve=True,
+            date_validation__gt=seuils['paiements_acceptes'],
+        ).order_by('-date_validation')[:LIMITE_FETCH]
+    )
+    evenements_paiement_accepte = [
+        {
+            'texte': _('تمّ قبول دفعتك (%(montant)s د.م.) ✅') % {'montant': p.montant},
+            'url': reverse('eleve_paiements'),
+            'date': p.date_validation,
+        }
+        for p in paiements_acceptes
+    ]
+
     groupes = []
     if evenements_retard_paiement:
         groupes.append({'icone': '⚠️', 'label': _('دفع متأخر'), 'evenements': evenements_retard_paiement})
+    if evenements_paiement_accepte:
+        groupes.append({'icone': '✅', 'label': _('دفعات مقبولة'), 'evenements': evenements_paiement_accepte[:limite]})
     if evenements_examens:
         groupes.append({'icone': '📝', 'label': _('اختبارات جديدة'), 'evenements': evenements_examens[:limite]})
     if evenements_notes:
@@ -295,7 +322,7 @@ def notifications_eleve(eleve, user, limite=LIMITE_PAR_GROUPE):
         groupes.append({'icone': '🎒', 'label': _('ملفات جديدة في حقيبتك'), 'evenements': evenements_cartable[:limite]})
 
     total = (
-        len(evenements_retard_paiement)
+        len(evenements_retard_paiement) + len(evenements_paiement_accepte)
         + len(evenements_examens) + len(evenements_notes) + len(evenements_cartable)
     )
     return _trier_groupes_par_recence(groupes), total

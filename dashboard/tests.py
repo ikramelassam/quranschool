@@ -2895,6 +2895,44 @@ class NotificationsChantierTests(TestCase):
         response = self.client.get(reverse('dashboard_eleve'))
         self.assertEqual(response.context['notif_total'], 0)
 
+    # ---------- 4d. Paiement accepté par la direction (2026-09-09) ----------
+    def test_paiement_accepte_declenche_le_badge_eleve(self):
+        Paiement.objects.create(
+            eleve=self.eleve, montant=80, mois_reference=timezone.localdate(),
+            nb_mois_couverts=1, statut='valide', soumis_par_eleve=True,
+            date_validation=timezone.now(),
+        )
+        self._connecter_eleve()
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 1)
+        self.assertContains(response, 'تمّ قبول دفعتك')
+
+    @override_settings(STORAGES=_STORAGES_TEST_MEMOIRE)
+    def test_paiement_accepte_disparait_apres_visite_de_la_page_paiements(self):
+        Paiement.objects.create(
+            eleve=self.eleve, montant=80, mois_reference=timezone.localdate(),
+            nb_mois_couverts=1, statut='valide', soumis_par_eleve=True,
+            date_validation=timezone.now(),
+        )
+        self._connecter_eleve()
+        self.client.get(reverse('eleve_paiements'))  # marque 'paiements_acceptes' lu
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 0)
+
+    def test_paiement_en_attente_ou_saisie_manuelle_ne_declenche_pas(self):
+        Paiement.objects.create(
+            eleve=self.eleve, montant=80, mois_reference=timezone.localdate(),
+            nb_mois_couverts=1, statut='en_attente', soumis_par_eleve=True,
+        )
+        Paiement.objects.create(
+            eleve=self.eleve, montant=80, mois_reference=timezone.localdate() + datetime.timedelta(days=1),
+            nb_mois_couverts=1, statut='valide', soumis_par_eleve=False,
+            date_validation=timezone.now(),
+        )
+        self._connecter_eleve()
+        response = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(response.context['notif_total'], 0)
+
     # ---------- 5a. Évaluation reçue par le prof ----------
     def test_evaluation_recue_declenche_le_badge_prof(self):
         Evaluation.objects.create(

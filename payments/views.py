@@ -265,6 +265,10 @@ def eleve_paiements(request):
     # reste affiché sur cette page tant que le paiement n'est pas fait.
     from dashboard.notifications import marquer_visite
     marquer_visite(request.user, 'paiements_retard')
+    # Page cible du groupe 🔔 « دفعات مقبولة » (chantier du 2026-09-09) : cette
+    # page liste l'historique des paiements, statut inclus -> la consulter vaut
+    # lecture de l'acceptation.
+    marquer_visite(request.user, 'paiements_acceptes')
 
     # Formulaire (chantier « Paiement unique » du 2026-09-03) : date de début
     # PRÉ-REMPLIE avec le début du cycle ouvert mais MODIFIABLE par l'élève ;

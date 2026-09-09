@@ -8473,3 +8473,10 @@ msgstr "Impossible d'accéder au microphone. Veuillez l'autoriser dans le naviga
 
 msgid "يرجى تسجيل تلاوة قرآنية بصوتك قبل الإرسال."
 msgstr "Veuillez enregistrer une récitation coranique avec votre voix avant l'envoi."
+
+msgid "دفعات مقبولة"
+msgstr "Paiements acceptés"
+
+#, python-format
+msgid "تمّ قبول دفعتك (%(montant)s د.م.) ✅"
+msgstr "Votre paiement a été accepté (%(montant)s DH) ✅"
