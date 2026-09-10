@@ -978,10 +978,12 @@ def cible_annonce_pour_eleve(eleve):
 def lien_seance_est_actif(seance):
     """True si l'heure actuelle tombe dans la fenêtre [début - marge_avant,
     fin + marge_apres] de cette séance — Point 15, Tâche du 2026-08-04.
-    Recalculé à CHAQUE appel à partir des valeurs actuelles en base (jamais
-    mis en cache) : un changement d'horaire de la séance ou du réglage de
-    marge se reflète immédiatement au prochain appel, sans action
-    supplémentaire. fin_datetime retombe sur debut_datetime si le groupe n'a
+    Recalculé à CHAQUE appel à partir de l'horaire actuel de la séance : un
+    changement d'horaire se reflète immédiatement au prochain appel, sans
+    action supplémentaire. La marge (ReglageLienSeance) passe désormais par
+    get_reglage_lien_seance, caché 60 s (Correctif perf du 2026-09-10) —
+    un changement de marge par la direction se propage sous 60 s.
+    fin_datetime retombe sur debut_datetime si le groupe n'a
     pas/plus de créneau (voir Seance.fin_datetime), donc la fenêtre se
     réduit à [début - marge_avant, début + marge_apres] dans ce cas. False
     si aucun lien n'est actif pour cette séance (rien à activer — voir
@@ -989,12 +991,12 @@ def lien_seance_est_actif(seance):
     est posé, Tâche du 2026-08-17, sinon celui du groupe) ou si la séance
     est annulée."""
     import datetime
-    from .models import ReglageLienSeance
+    from .models import get_reglage_lien_seance
 
     if not seance.lien_effectif or seance.statut == 'annulee':
         return False
 
-    reglage, _ = ReglageLienSeance.objects.get_or_create(pk=1)
+    reglage = get_reglage_lien_seance()
     debut = seance.debut_datetime
     fin = seance.fin_datetime or debut
     fenetre_debut = debut - datetime.timedelta(minutes=reglage.marge_avant_minutes)

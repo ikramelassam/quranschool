@@ -7043,3 +7043,72 @@ class RenduReelFrEnTemplatesAdminTests(TestCase):
     # test_admin_creneaux_traduit_reellement_en_fr_et_en retiré (chantier
     # « fusion horaire/groupe » du 2026-09-04) : l'écran admin_creneaux a été
     # retiré, l'horaire se saisit désormais dans le formulaire du groupe.
+
+
+class AgendaDashboardSansN1CreneauTests(TestCase):
+    """Correctif perf du 2026-09-10 (AUDIT_STABILITE) : chaque badge de séance
+    (dashboard/_meet_icon.html via le filtre |lien_seance_actif) lit
+    seance.fin_datetime — donc seance.groupe.creneau + creneau.slots.all() — et
+    le singleton ReglageLienSeance. Sans mise en cache du réglage ni
+    select_related/prefetch du créneau, une page d'agenda faisait plusieurs
+    requêtes SQL PAR séance affichée : un des N+1 qui faisait dépasser le
+    --timeout du worker gunicorn en prod (page entièrement blanche, pas une
+    500). Ces tests verrouillent l'absence de N+1 : le nombre de requêtes ne
+    doit pas croître proportionnellement au nombre de séances."""
+
+    def setUp(self):
+        cache.clear()
+        self.prof = _creer_prof('prof_agenda_n1@zidni.test')
+        self.creneau = _creer_creneau_dashboard()
+        self.groupe = Groupe.objects.create(
+            nom='حلقة الأجندة', creneau=self.creneau, prof=self.prof,
+            lien_reunion='https://meet.google.com/abc-defg-hij',
+        )
+        self.client = Client()
+        self.client.force_login(self.prof.user)
+
+    def _creer_seances(self, n, decalage_jours=1):
+        aujourdhui = timezone.localdate()
+        Seance.objects.bulk_create([
+            Seance(
+                groupe=self.groupe,
+                date=aujourdhui + datetime.timedelta(days=decalage_jours + i),
+                heure=datetime.time(16, 0), type='normal',
+            )
+            for i in range(n)
+        ])
+
+    def test_reglage_lien_seance_mis_en_cache(self):
+        from courses.models import get_reglage_lien_seance
+
+        get_reglage_lien_seance()  # amorce (SELECT [+ INSERT] + cache.set)
+        with self.assertNumQueries(0):
+            get_reglage_lien_seance()
+            get_reglage_lien_seance()
+
+    def _delta_requetes_agenda(self, url_name):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        self._creer_seances(2, decalage_jours=1)
+        cache.clear()
+        with CaptureQueriesContext(connection) as mesure_2:
+            reponse = self.client.get(reverse(url_name))
+        self.assertEqual(reponse.status_code, 200)
+
+        self._creer_seances(6, decalage_jours=10)
+        cache.clear()
+        with CaptureQueriesContext(connection) as mesure_8:
+            reponse = self.client.get(reverse(url_name))
+        self.assertEqual(reponse.status_code, 200)
+
+        return len(mesure_8.captured_queries) - len(mesure_2.captured_queries)
+
+    def test_dashboard_prof_pas_de_n1_sur_le_creneau(self):
+        # +6 séances : sans le correctif, ~3 requêtes SQL par séance en plus
+        # (creneau, slots, ReglageLienSeance) — soit ~18. Avec, le créneau est
+        # partagé (prefetch unique) et le réglage caché : delta quasi nul.
+        self.assertLess(self._delta_requetes_agenda('dashboard_prof'), 6)
+
+    def test_prof_seances_pas_de_n1_sur_le_creneau(self):
+        self.assertLess(self._delta_requetes_agenda('prof_seances'), 6)

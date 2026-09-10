@@ -512,7 +512,17 @@ def dashboard_prof(request):
     # dashboard_superviseur) plutôt que de dupliquer la logique une 2e fois.
     # Aperçu immédiat = 3 dernières séances passées à plat, exclues ensuite du
     # regroupement par semaine pour ne jamais les afficher deux fois.
-    toutes_seances_prof = Seance.objects.filter(groupe__prof=prof).select_related('groupe')
+    # select_related('groupe__creneau') + prefetch des slots (Correctif perf du
+    # 2026-09-10, AUDIT_STABILITE) : chaque badge de séance (dashboard/
+    # _meet_icon.html via |lien_seance_actif) lit seance.fin_datetime, donc
+    # seance.groupe.creneau + creneau.slots.all() — sans ça, 2 requêtes SQL par
+    # séance affichée sur l'agenda du prof, un des N+1 qui faisait dépasser le
+    # --timeout du worker (page blanche). regrouper_seances_a_venir /
+    # navigation_mois_et_semaines ne font que .filter() dessus : le prefetch
+    # est conservé.
+    toutes_seances_prof = Seance.objects.filter(groupe__prof=prof).select_related(
+        'groupe__creneau'
+    ).prefetch_related('groupe__creneau__slots')
     apercu_seances = list(
         toutes_seances_prof.filter(date__lt=aujourdhui).order_by('-date', '-heure')[:3]
     )
@@ -525,7 +535,9 @@ def dashboard_prof(request):
     # par date décroissante.
     prochaine_seance = Seance.objects.filter(
         groupe__prof=prof, date__gte=aujourdhui
-    ).exclude(statut='terminee').select_related('groupe').order_by('date', 'heure').first()
+    ).exclude(statut='terminee').select_related('groupe__creneau').prefetch_related(
+        'groupe__creneau__slots'
+    ).order_by('date', 'heure').first()
 
     # ===== "القادمة" — section manquante (Point 1 du chantier groupé du
     # 2026-08-05) : avant ce correctif, seule "الحصة القادمة" (une séance
@@ -626,7 +638,11 @@ def prof_seances(request):
     # (retard/aujourd'hui/passées, ci-dessous) n'affichent que seance.groupe.nom
     # et payaient pourtant, elles aussi, ce même prefetch (élèves + user)
     # à chaque évaluation de leur queryset, sans jamais l'utiliser.
-    toutes_seances = Seance.objects.filter(groupe__prof=prof).select_related('groupe')
+    # select_related('groupe__creneau') + prefetch des slots : voir dashboard_prof
+    # (même N+1 sur seance.fin_datetime lu par chaque badge _meet_icon.html).
+    toutes_seances = Seance.objects.filter(groupe__prof=prof).select_related(
+        'groupe__creneau'
+    ).prefetch_related('groupe__creneau__slots')
     if groupe_id:
         toutes_seances = toutes_seances.filter(groupe_id=groupe_id)
 
@@ -682,7 +698,7 @@ def admin_reglage_lien_seance(request):
     """Réglage global de la marge (minutes avant/après) pendant laquelle le
     lien de réunion d'une séance est cliquable — مدير ET مشرف, même patron
     que admin_gestion_inscriptions."""
-    from courses.models import get_reglage_lien_seance
+    from courses.models import get_reglage_lien_seance, invalider_cache_reglage_lien_seance
 
     reglage = get_reglage_lien_seance()
     if request.method == 'POST':
@@ -699,6 +715,7 @@ def admin_reglage_lien_seance(request):
         reglage.marge_apres_minutes = marge_apres
         reglage.derniere_modification_par = request.user
         reglage.save()
+        invalider_cache_reglage_lien_seance()
         messages.success(request, gettext_('تم تحديث إعدادات هامش رابط الحصص بنجاح.'))
         return redirect('admin_reglage_lien_seance')
 
@@ -3468,7 +3485,9 @@ def dashboard_eleve(request):
     # motif, c'est une info que l'élève doit voir.
     prochaine_seance = Seance.objects.filter(
         groupe__in=groupes, date__gte=aujourdhui
-    ).exclude(statut='terminee').select_related('groupe').prefetch_related('groupe__eleves__user').order_by('date', 'heure').first()
+    ).exclude(statut='terminee').select_related('groupe__creneau').prefetch_related(
+        'groupe__eleves__user', 'groupe__creneau__slots'
+    ).order_by('date', 'heure').first()
 
     dernieres_evaluations = Presence.objects.filter(
         eleve=eleve
@@ -3560,7 +3579,9 @@ def eleve_seances(request):
     # nb_a_venir permet au template d'afficher un compteur du reste.
     seances_a_venir_qs = Seance.objects.filter(
         groupe__in=eleve.groupes.all(), date__gte=aujourdhui
-    ).exclude(statut='terminee').select_related('groupe').prefetch_related('groupe__eleves__user').order_by('date', 'heure')
+    ).exclude(statut='terminee').select_related('groupe__creneau').prefetch_related(
+        'groupe__eleves__user', 'groupe__creneau__slots'
+    ).order_by('date', 'heure')
     nb_a_venir = seances_a_venir_qs.count()
     seances_a_venir = seances_a_venir_qs[:3]
     # Reste des séances à venir au-delà des 3 déjà visibles — rendu caché
@@ -3799,7 +3820,12 @@ def dashboard_superviseur(request):
 
     toutes_seances = Seance.objects.filter(
         groupe__prof__in=profs_assignes,
-    ).select_related('groupe__prof__user', 'groupe__creneau').annotate(
+    ).select_related('groupe__prof__user', 'groupe__creneau').prefetch_related(
+        # slots du créneau : lus par seance.fin_datetime pour chaque badge
+        # _meet_icon.html / _seance_evaluation_badge.html (Correctif perf du
+        # 2026-09-10, même N+1 que côté prof).
+        'groupe__creneau__slots'
+    ).annotate(
         est_evaluee=Exists(Evaluation.objects.filter(seance=OuterRef('pk')))
     )
 
@@ -3927,7 +3953,9 @@ def dashboard_superviseur(request):
     candidates_proches = Seance.objects.filter(
         groupe__prof__in=profs_assignes, statut='planifiee',
         date__gte=aujourdhui, date__lte=aujourdhui + datetime.timedelta(days=7),
-    ).select_related('groupe__prof__user', 'groupe__creneau').order_by('date', 'heure')
+    ).select_related('groupe__prof__user', 'groupe__creneau').prefetch_related(
+        'groupe__creneau__slots'
+    ).order_by('date', 'heure')
 
     seance_en_cours = None
     seance_suivante = None

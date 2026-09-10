@@ -537,12 +537,40 @@ class ReglageLienSeance(models.Model):
         verbose_name_plural = "Réglage du lien de séance"
 
 
+CLE_CACHE_REGLAGE_LIEN_SEANCE = 'reglage_lien_seance_v1'
+
+
 def get_reglage_lien_seance():
     """Renvoie l'unique instance de ReglageLienSeance, en la créant (valeurs
     par défaut 10/10) si elle n'existe pas encore — même patron singleton
-    que accounts.models.get_visibilite_prof()."""
+    que accounts.models.get_visibilite_prof().
+
+    Mise en cache 60 s (Correctif perf du 2026-09-10, AUDIT_STABILITE) :
+    courses.utils.lien_seance_est_actif l'appelle une fois PAR séance affichée
+    (filtre |lien_seance_actif dans dashboard/_meet_icon.html), soit des
+    dizaines de get_or_create identiques par page d'agenda prof/élève/مؤطر —
+    un des N+1 qui faisait dépasser le --timeout du worker en prod (page
+    entièrement blanche). Même patron que accounts.models.get_logo_config.
+    Les marges modifiées par la direction se propagent sous 60 s, ou
+    immédiatement sur le worker qui a enregistré via
+    invalider_cache_reglage_lien_seance (appelée par
+    dashboard.views.admin_reglage_lien_seance)."""
+    from django.core.cache import cache
+
+    reglage = cache.get(CLE_CACHE_REGLAGE_LIEN_SEANCE)
+    if reglage is not None:
+        return reglage
     reglage, _ = ReglageLienSeance.objects.get_or_create(pk=1)
+    cache.set(CLE_CACHE_REGLAGE_LIEN_SEANCE, reglage, 60)
     return reglage
+
+
+def invalider_cache_reglage_lien_seance():
+    """À appeler juste après tout reglage.save() sur ReglageLienSeance — sinon
+    l'ancienne marge resterait active jusqu'à expiration du cache (60 s)."""
+    from django.core.cache import cache
+
+    cache.delete(CLE_CACHE_REGLAGE_LIEN_SEANCE)
 
 
 class HistoriqueGroupeEleve(models.Model):
