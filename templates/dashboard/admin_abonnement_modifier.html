@@ -1,5 +1,5 @@
 {% extends base_template %}
-{% load i18n %}
+{% load i18n l10n %}
 {% block title %}{% trans "تعديل نوع الاشتراك" %}{% endblock %}
 {% block content %}
 <div class="page-title">{% blocktrans with type_offre=type_abonnement.get_type_offre_display label=type_abonnement.label %}تعديل: {{ type_offre }} - {{ label }}{% endblocktrans %}</div>
@@ -56,7 +56,7 @@
 
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "السعر الافتراضي (درهم) *" %}</label>
-            <input type="number" step="0.01" name="prix" class="form-control mt-1" value="{{ type_abonnement.prix }}" required>
+            <input type="number" step="0.01" name="prix" class="form-control mt-1" value="{{ type_abonnement.prix|unlocalize }}" required>
             <div style="color:#888; font-size:0.8rem; margin-top:4px;">
                 {% trans "يُستخدم لأي عدد حصص أسبوعية لا يوجد له سعر خاص أدناه — الحقل \"الرسمي\" الوحيد، وما يلي هو تدقيق اختياري لكل حالة، وليس سعراً منافساً له." %}
             </div>
@@ -85,7 +85,7 @@
             {% for ligne in lignes %}
             <div class="mb-2 ligne-prix" style="display:flex; align-items:center; gap:12px; padding-bottom:10px; border-bottom:1px solid #f0f0f0;">
                 <label style="font-weight:600; color:#333; min-width:110px;">{% blocktrans with n=ligne.nb_slots %}{{ n }} حصص/أسبوع{% endblocktrans %}</label>
-                <input type="number" step="0.01" min="0" name="prix_{{ ligne.nb_slots }}" class="form-control" value="{{ ligne.prix }}" required>
+                <input type="number" step="0.01" min="0" name="prix_{{ ligne.nb_slots }}" class="form-control" value="{{ ligne.prix|unlocalize }}" required>
                 <label style="display:flex; align-items:center; gap:4px; font-size:0.85rem; color:#555; white-space:nowrap;">
                     <input type="checkbox" name="actif_{{ ligne.nb_slots }}" {% if ligne.est_actif %}checked{% endif %}>
                     {% trans "نشط" %}

@@ -1,5 +1,5 @@
 {% extends base_template %}
-{% load i18n %}
+{% load i18n l10n %}
 {% block title %}{% trans "تعديل تعرفة فردي" %}{% endblock %}
 {% block content %}
 <div class="page-title">{% blocktrans with tranche=tarif.get_tranche_age_display %}تعديل: {{ tranche }} (فردي){% endblocktrans %}</div>
@@ -13,7 +13,7 @@
         </div>
         <div class="mb-3">
             <label style="font-weight:600; color:#333;">{% trans "السعر (درهم / حصة مُنجزة فعلياً) *" %}</label>
-            <input type="number" step="0.01" name="montant" class="form-control mt-1" value="{{ tarif.montant }}" required>
+            <input type="number" step="0.01" name="montant" class="form-control mt-1" value="{{ tarif.montant|unlocalize }}" required>
             <div style="color:#888; font-size:0.8rem; margin-top:4px;">
                 {% trans "يُحتسب هذا المبلغ لكل حصة فردية أُنجزت فعلياً هذا الشهر (المعلم حضّر والطالب حضر) — وليس مبلغاً شهرياً ثابتاً." %}
             </div>

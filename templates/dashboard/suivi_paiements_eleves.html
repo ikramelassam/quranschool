@@ -1,5 +1,5 @@
 {% extends base_template %}
-{% load libelles_arabes i18n %}
+{% load libelles_arabes i18n l10n %}
 {% block title %}{% trans "متابعة مدفوعات الطلاب" %}{% endblock %}
 {% block extra_css %}
 <style>
@@ -125,7 +125,7 @@
             <input type="hidden" name="mois" value="{{ panel.mois }}">
 
             <label>{% trans "المبلغ (درهم)" %}</label>
-            <input type="number" step="0.01" min="0" name="montant" value="{{ panel.paiement.montant|default:'' }}" class="form-control mb-3" required>
+            <input type="number" step="0.01" min="0" name="montant" value="{{ panel.paiement.montant|default:''|unlocalize }}" class="form-control mb-3" required>
 
             <label>{% trans "الحالة" %}</label>
             <select name="statut" class="form-select mb-3">
