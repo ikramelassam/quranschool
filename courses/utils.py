@@ -354,14 +354,72 @@ def groupes_compatibles_pour_eleve(eleve):
     même si Tâche 14 puis le chantier du 2026-08-16 les ont rendus non
     bloquants pour l'ajout manuel) : cette liste sert de suggestion "idéale"
     en un clic, distincte de l'ajout manuel qui accepte désormais ces
-    critères avec un simple avertissement."""
-    from .models import Groupe
+    critères avec un simple avertissement.
 
-    candidats = Groupe.objects.filter(statut='actif').exclude(eleves=eleve).select_related('creneau', 'prof__user')
-    return [
-        g for g in candidats
-        if raison_incompatibilite_groupe(eleve, g) is None and not avertissements_groupe(eleve, g)
-    ]
+    Réécrite le 2026-09-12 (correctif N+1 — page fiche élève tombant en
+    erreur serveur une fois le nombre de حلقات actives devenu important) :
+    appeler raison_incompatibilite_groupe()/avertissements_groupe() dans la
+    boucle refaisait ~7 requêtes PAR GROUPE (disponibilité de l'élève
+    rechargée à chaque tour, slots du créneau non préchargés, type
+    d'abonnement re-résolu à chaque tour...) — avec une centaine de groupes
+    actifs cela dépassait largement le budget requêtes/temps disponible sur
+    l'hébergement (Render + Supabase, offres gratuites). Cette version
+    précalcule une seule fois ce qui ne dépend que de l'élève (disponibilité,
+    type d'abonnement) et précharge en 1 requête les créneaux/slots/effectifs
+    de tous les groupes candidats, puis ne fait plus AUCUNE requête dans la
+    boucle Python. Les critères vérifiés restent rigoureusement les mêmes que
+    raison_incompatibilite_groupe + avertissements_groupe (les deux
+    fonctions ci-dessus restent inchangées et utilisées telles quelles
+    ailleurs, pour un seul groupe à la fois — pas de problème de perf dans
+    ces cas-là)."""
+    from django.db.models import Count
+    from .models import Groupe, DisponibiliteEleve
+
+    if eleve.statut == 'archive':
+        return []
+
+    inscription = eleve.inscription
+    if not inscription:
+        return []
+
+    age = _age_depuis_naissance(inscription.date_naissance)
+    dispo_eleve = set(
+        DisponibiliteEleve.objects.filter(eleve=eleve).values_list('jour_semaine', 'heure_debut')
+    )
+    type_offre = inscription.abonnement_type_offre()
+
+    candidats = (
+        Groupe.objects.filter(statut='actif')
+        .exclude(eleves=eleve)
+        .select_related('creneau', 'prof__user')
+        .prefetch_related('creneau__slots')
+        .annotate(nb_eleves=Count('eleves', distinct=True))
+    )
+
+    resultats = []
+    for g in candidats:
+        if g.nb_eleves >= g.capacite_max:
+            continue
+        creneau = g.creneau
+        if not creneau:
+            continue
+        if age < creneau.age_min or age > creneau.age_max:
+            continue
+        # Correspond aux 4 avertissements bloquants ici (programme, riwaya,
+        # sexe, type d'offre) — cette liste de suggestion n'accepte aucun
+        # avertissement, contrairement à l'ajout manuel.
+        if inscription.programme != creneau.type_seance:
+            continue
+        if inscription.riwaya != creneau.riwaya:
+            continue
+        if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
+            continue
+        if type_offre and type_offre != g.type_capacite:
+            continue
+        if dispo_eleve and _creneaux_manquants(dispo_eleve, creneau):
+            continue
+        resultats.append(g)
+    return resultats
 
 
 def groupes_compatibles_sexe_age_pour_changement(eleve):
@@ -411,15 +469,54 @@ def groupes_compatibles_sexe_age_pour_changement(eleve):
 def groupes_compatibles_pour_inscription(inscription):
     """Équivalent de groupes_compatibles_pour_eleve pour une candidature pas
     encore acceptée (affichage informatif sur la fiche de candidature, avant
-    que le directeur clique accepter/refuser)."""
+    que le directeur clique accepter/refuser).
+
+    Réécrite le 2026-09-12 (même correctif N+1 que groupes_compatibles_
+    pour_eleve — voir son commentaire) : raison_incompatibilite_groupe_
+    inscription()/avertissements_groupe_inscription() dans la boucle
+    refaisaient l'effectif du groupe + le type d'abonnement à chaque tour, et
+    les slots du créneau n'étaient même pas préchargés. Critères identiques,
+    y compris le fait que l'incompatibilité de disponibilité reste bloquante
+    ICI (contrairement à groupes_compatibles_pour_eleve) — comportement
+    existant conservé tel quel, pas une correction de ce chantier."""
+    from django.db.models import Count
     from .models import Groupe
 
-    candidats = Groupe.objects.filter(statut='actif').select_related('creneau', 'prof__user')
-    return [
-        g for g in candidats
-        if raison_incompatibilite_groupe_inscription(inscription, g) is None
-        and not avertissements_groupe_inscription(inscription, g)
-    ]
+    age = _age_depuis_naissance(inscription.date_naissance)
+    dispo_matrice = set()
+    for entree in inscription.disponibilites:
+        jour, heure_str = entree.split('_')
+        dispo_matrice.add((jour, datetime.datetime.strptime(heure_str, '%H:%M').time()))
+    type_offre = inscription.abonnement_type_offre()
+
+    candidats = (
+        Groupe.objects.filter(statut='actif')
+        .select_related('creneau', 'prof__user')
+        .prefetch_related('creneau__slots')
+        .annotate(nb_eleves=Count('eleves', distinct=True))
+    )
+
+    resultats = []
+    for g in candidats:
+        if g.nb_eleves >= g.capacite_max:
+            continue
+        creneau = g.creneau
+        if not creneau:
+            continue
+        if age < creneau.age_min or age > creneau.age_max:
+            continue
+        if _creneaux_manquants(dispo_matrice, creneau):
+            continue
+        if inscription.programme != creneau.type_seance:
+            continue
+        if inscription.riwaya != creneau.riwaya:
+            continue
+        if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
+            continue
+        if type_offre and type_offre != g.type_capacite:
+            continue
+        resultats.append(g)
+    return resultats
 
 
 def matrice_vers_lignes(prof, valeurs):
