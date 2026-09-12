@@ -3159,6 +3159,115 @@ class NotificationsDirectionTests(TestCase):
         self.assertEqual(self.client.get(reverse('mes_notifications')).status_code, 200)
 
 
+# ---------- Chantier du 2026-09-12 : direction voit les évaluations (halaka + مؤطر) ----------
+class NotificationsEvaluationsDirectionTests(TestCase):
+    """Voir dashboard.notifications.notifications_direction, sources 6 et 7 —
+    avant ce chantier, le prof et l'élève étaient notifiés d'une évaluation
+    (notifications_prof/notifications_eleve) mais مدير/مشرف n'avaient AUCUNE
+    visibilité dessus dans leur panneau 🔔."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+        self.prof = _creer_prof('prof_notif_eval@zidni.test')
+        self.superviseur = _creer_superviseur('superviseur_notif_eval@zidni.test')
+        self.eleve = _creer_eleve('eleve_notif_eval@zidni.test')
+        self.groupe = Groupe.objects.create(nom='حلقة الإشعارات', prof=self.prof, statut='actif')
+        self.groupe.eleves.add(self.eleve)
+        # Séance datée d'HIER (pas "demain", contrairement à
+        # NotificationsChantierTests) : les tests ci-dessous vérifient aussi
+        # le passage "lu" (marquer_visite pose date_visite=timezone.now()),
+        # qui doit donc pouvoir dépasser la date de l'évènement — impossible
+        # avec un évènement dans le futur. Le seuil de "non lu" (amorçage
+        # normalement posé à user.date_joined, voir _seuils) est ici fixé
+        # explicitement à 5 jours dans le passé pour les 2 nouvelles clés,
+        # pour ne dépendre ni de l'heure d'exécution des tests ni de l'écart
+        # (quelques millisecondes) entre la création de self.admin ci-dessus
+        # et celle de cette séance.
+        self.seance = Seance.objects.create(
+            groupe=self.groupe, date=timezone.localdate() - datetime.timedelta(days=1), heure=datetime.time(17, 0),
+            # 'planifiee' par défaut : une évaluation مؤطر (source 7) ne
+            # suppose pas que le prof ait, lui, déjà rempli sa propre feuille
+            # de présence (source 6) — les tests qui veulent une حلقة
+            # "terminee" le posent explicitement.
+            type='normal', statut='planifiee',
+        )
+        from accounts.models import DerniereVisiteNotification
+
+        seuil_ancien = timezone.now() - datetime.timedelta(days=5)
+        DerniereVisiteNotification.objects.bulk_create([
+            DerniereVisiteNotification(user=user, cle=cle, date_visite=seuil_ancien)
+            for user in (self.admin, self.mshrif)
+            for cle in ('seances_evaluees_direction', 'evaluations_mouatir_direction')
+        ])
+
+    def test_seance_evaluee_par_prof_declenche_le_badge_direction(self):
+        self.seance.statut = 'terminee'
+        self.seance.save()
+        Presence.objects.create(seance=self.seance, eleve=self.eleve, statut='present')
+        self.client.force_login(self.admin)
+        reponse = self.client.get(reverse('dashboard_admin'))
+        self.assertEqual(reponse.context['notif_total'], 1)
+        self.assertContains(reponse, 'تم تقييم حصة حلقة حلقة الإشعارات')
+
+        self.client.force_login(self.mshrif)
+        reponse_mshrif = self.client.get(reverse('dashboard_mshrif'))
+        self.assertEqual(reponse_mshrif.context['notif_total'], 1)
+
+    def test_seance_encore_planifiee_ne_declenche_rien(self):
+        self.seance.statut = 'planifiee'
+        self.seance.save()
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 0)
+
+    def test_evaluation_mouatir_declenche_le_badge_direction(self):
+        Evaluation.objects.create(
+            seance=self.seance, superviseur=self.superviseur, prof=self.prof,
+            commentaire='أداء جيد.',
+        )
+        self.client.force_login(self.admin)
+        reponse = self.client.get(reverse('dashboard_admin'))
+        self.assertEqual(reponse.context['notif_total'], 1)
+        self.assertContains(reponse, 'قيّم المؤطر حصة الأستاذ')
+
+        self.client.force_login(self.mshrif)
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 1)
+
+    def test_visiter_admin_evaluations_marque_les_deux_types_lus(self):
+        self.seance.statut = 'terminee'
+        self.seance.save()
+        Presence.objects.create(seance=self.seance, eleve=self.eleve, statut='present')
+        Evaluation.objects.create(
+            seance=self.seance, superviseur=self.superviseur, prof=self.prof,
+            commentaire='أداء جيد.',
+        )
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 2)
+        self.client.get(reverse('admin_evaluations'))
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 0)
+
+    def test_visiter_la_fiche_dune_seance_marque_les_deux_types_lus(self):
+        self.seance.statut = 'terminee'
+        self.seance.save()
+        Presence.objects.create(seance=self.seance, eleve=self.eleve, statut='present')
+        Evaluation.objects.create(
+            seance=self.seance, superviseur=self.superviseur, prof=self.prof,
+            commentaire='أداء جيد.',
+        )
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 2)
+        self.client.get(reverse('admin_evaluation_detail', args=[self.seance.id]))
+        self.assertEqual(self.client.get(reverse('dashboard_admin')).context['notif_total'], 0)
+
+    def test_lien_notification_pointe_vers_la_fiche_de_la_seance(self):
+        self.seance.statut = 'terminee'
+        self.seance.save()
+        Presence.objects.create(seance=self.seance, eleve=self.eleve, statut='present')
+        url_fiche = reverse('admin_evaluation_detail', args=[self.seance.id])
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse('dashboard_admin')), url_fiche)
+
+
 # ---------- Fonctionnalité 3 (2026-08-27) : notification مشرف — prof en attente ----------
 class NotificationsProfEnAttenteDirectionTests(TestCase):
     """Voir dashboard.notifications.notifications_direction — 2e événement :

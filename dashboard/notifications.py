@@ -477,15 +477,41 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     fiable pour distinguer avant cette date. TOUT statut (historique
     complet, comme InscriptionEleve). `cle`
     'nouveaux_paiements', partagée مدير+مشرف. `non_lu` sur 'en_attente'
-    seulement (déjà traité = plus actionnable). Lien : admin_paiement_detail."""
+    seulement (déjà traité = plus actionnable). Lien : admin_paiement_detail.
+
+    6. حلقة (séance) évaluée par le prof (courses.Seance passée à 'terminee'
+    via dashboard.views.prof_presence_sauvegarder) — chantier du 2026-09-12.
+    Le prof et l'élève concerné sont déjà notifiés ailleurs (voir
+    notifications_eleve, groupe 'notes_seances') ; la direction, elle, n'avait
+    jusqu'ici AUCUNE visibilité sur "quelle حلقة vient d'être évaluée". Même
+    limite assumée que notifications_eleve : Seance/Presence ne portent aucun
+    champ date propre pour "quand la feuille a été remplie" — la date/heure de
+    la séance sert de proxy (voir _datetime_seance), donc un remplissage très
+    tardif d'une séance ancienne ne redéclenche pas le badge si cette date
+    précède déjà la dernière visite. `cle` 'seances_evaluees_direction',
+    partagée مدير+مشرف. Pas de pastille de statut (toujours "fait", pas
+    d'attente). Lien : admin_evaluation_detail (marque aussi ce `cle` lu, voir
+    son appelant).
+
+    7. Évaluation du prof par le مؤطر (evaluations.Evaluation, superviseur ->
+    prof) — chantier du 2026-09-12, même besoin que le point 6 mais côté
+    évaluation PROF plutôt qu'ÉLÈVE. Le prof lui-même est déjà notifié (voir
+    notifications_prof, groupe 'evaluations_recues') ; la direction ne l'était
+    pas. `Evaluation.date` est auto_now_add (contrairement au point 6) : pas
+    de proxy nécessaire, la date réelle de l'évaluation est fiable. `cle`
+    'evaluations_mouatir_direction', partagée مدير+مشرف. Lien :
+    admin_evaluation_detail (même fiche que le point 6, les deux y sont déjà
+    affichés côte à côte)."""
     from inscriptions.models import InscriptionEleve, InscriptionProf
-    from courses.models import DemandeChangementHalaka
+    from courses.models import DemandeChangementHalaka, Seance
     from payments.cycles import eleves_en_retard
     from payments.models import Paiement
+    from evaluations.models import Evaluation
 
     cles = [
         'demandes_inscription', 'demandes_changement_halaka',
         'paiements_retard_eleves', 'nouveaux_paiements',
+        'seances_evaluees_direction', 'evaluations_mouatir_direction',
     ]
     if user.role == 'mshrif':
         cles.append('profs_en_attente_validation')
@@ -614,6 +640,41 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
             'statut_label': libelle,
             'statut_ton': ton,
             'non_lu': p.statut == 'en_attente' and p.date > seuils['nouveaux_paiements'],
+        })
+
+    # 6. حلقة (séance) évaluée par le prof — historique complet, pas de statut
+    # (une séance 'terminee' l'est définitivement, voir Seance.modifiable_par_prof).
+    for s in (
+        Seance.objects.filter(statut='terminee').select_related('groupe')
+        .order_by('-date', '-heure')[:LIMITE_FETCH]
+    ):
+        date_evenement = _datetime_seance(s)
+        evenements.append({
+            'texte': _('تم تقييم حصة حلقة %(groupe)s') % {'groupe': s.groupe.nom},
+            'url': reverse('admin_evaluation_detail', args=[s.id]),
+            'date': date_evenement,
+            'icone': '📋',
+            'statut_label': '',
+            'statut_ton': '',
+            'non_lu': date_evenement > seuils['seances_evaluees_direction'],
+        })
+
+    # 7. Évaluation du prof par le مؤطر — historique complet, pas de statut.
+    for e in (
+        Evaluation.objects.select_related('seance__groupe', 'prof__user')
+        .order_by('-date')[:LIMITE_FETCH]
+    ):
+        nom_prof = e.prof.user.get_full_name() if e.prof else _('أستاذ محذوف')
+        evenements.append({
+            'texte': _('قيّم المؤطر حصة الأستاذ %(prof)s في حلقة %(groupe)s') % {
+                'prof': nom_prof, 'groupe': e.seance.groupe.nom,
+            },
+            'url': reverse('admin_evaluation_detail', args=[e.seance_id]),
+            'date': e.date,
+            'icone': '🧭',
+            'statut_label': '',
+            'statut_ton': '',
+            'non_lu': e.date > seuils['evaluations_mouatir_direction'],
         })
 
     evenements.sort(key=lambda e: e['date'], reverse=True)

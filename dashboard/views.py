@@ -6149,6 +6149,13 @@ def admin_evaluations(request):
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
+    # Page cible du panneau 🔔 pour les 2 groupes "évaluations" (chantier du
+    # 2026-09-12, voir dashboard.notifications.notifications_direction,
+    # sources 6 et 7) — même précaution que les autres appelants de
+    # marquer_visite : juste avant le render.
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'seances_evaluees_direction')
+    marquer_visite(request.user, 'evaluations_mouatir_direction')
     return render(request, 'dashboard/admin_evaluations.html', context)
 
 
@@ -6168,6 +6175,13 @@ def admin_evaluation_detail(request, seance_id):
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
+    # Fiche = page cible individuelle des 2 mêmes groupes 🔔 que la liste
+    # admin_evaluations ci-dessus (les 2 types d'évaluation d'une séance sont
+    # affichés côte à côte sur CETTE fiche) — voir dashboard.notifications.
+    # notifications_direction, sources 6 et 7.
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'seances_evaluees_direction')
+    marquer_visite(request.user, 'evaluations_mouatir_direction')
     return render(request, 'dashboard/admin_evaluation_detail.html', context)
 
 
