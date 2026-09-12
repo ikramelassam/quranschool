@@ -1,17 +1,16 @@
-# Rattache le critère historique المراجعة (seedé par
-# 0022_seed_criteres_eleves_et_backfill.py) à l'axe مراجعة — c'est le SEUL
-# critère numérique masqué quand le prof choisit "الحفظ" pour la séance (voir
-# Seance.type_evaluation). Les 3 autres (الحفظ، التلاوة، المواظبة والسلوك)
-# restent 'commun' (valeur par défaut du champ, jamais touchée ici) :
-# précision demandée par le client le 2026-09-12 — la qualité de récitation
-# par cœur (الحفظ) reste évaluée même une séance où le contenu du jour est de
-# la révision (on y récite justement DU DÉJÀ-mémorisé), donc ce critère ne
-# doit jamais disparaître, contrairement à la ZONE "quelle sourate/ayat" (elle,
-# bien basculée par Seance.type_evaluation — voir dashboard.views.
-# prof_seance_detail/prof_presence_sauvegarder).
+# Rattache 2 des 4 critères historiques (seedés par
+# 0022_seed_criteres_eleves_et_backfill.py) à leur axe respectif, selon la
+# répartition EXACTE donnée par le client le 2026-09-12 :
+#   séance impaire (الحفظ)    : الحفظ + التلاوة + المواظبة والسلوك
+#   séance paire   (المراجعة) : المراجعة + الحفظ + المواظبة والسلوك
+# "الحفظ" et "المواظبة والسلوك" restent 'commun' (valeur par défaut du champ,
+# jamais touchée ici) : présents dans les 2 cas d'après le client. Seuls
+# "التلاوة" (absente des séances de révision) et "المراجعة" (absente des
+# séances de حفظ) sont basculés ici.
 from django.db import migrations
 
 CORRESPONDANCE = {
+    'التلاوة': 'hifz',
     'المراجعة': 'mouraja3a',
 }
 

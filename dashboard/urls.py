@@ -26,7 +26,6 @@ urlpatterns = [
     path('prof/seances/', views.prof_seances, name='prof_seances'),
     path('prof/seances/<int:seance_id>/', views.prof_seance_detail, name='prof_seance_detail'),
     path('prof/seances/<int:seance_id>/presence/', views.prof_presence_sauvegarder, name='prof_presence_sauvegarder'),
-    path('prof/seances/<int:seance_id>/type-evaluation/', views.prof_seance_choisir_type_evaluation, name='prof_seance_choisir_type_evaluation'),
     path('prof/emploi/', views.prof_emploi, name='prof_emploi'),
     path('prof/disponibilites/', views.prof_disponibilites, name='prof_disponibilites'),
     path('prof/profil/', views.prof_profil, name='prof_profil'),
@@ -145,6 +144,9 @@ urlpatterns = [
     path('admin/criteres-eleves/<int:critere_id>/modifier/', views.admin_critere_eleve_modifier, name='admin_critere_eleve_modifier'),
     path('admin/criteres-eleves/<int:critere_id>/toggle/', views.admin_critere_eleve_toggle, name='admin_critere_eleve_toggle'),
     path('admin/criteres-eleves/<int:critere_id>/supprimer/', views.admin_critere_eleve_supprimer, name='admin_critere_eleve_supprimer'),
+    path('admin/criteres-par-seance/', views.admin_criteres_par_seance, name='admin_criteres_par_seance'),
+    path('admin/criteres-par-seance/ajouter/', views.admin_criteres_par_seance_ajouter_position, name='admin_criteres_par_seance_ajouter_position'),
+    path('admin/criteres-par-seance/<int:position>/', views.admin_criteres_par_seance_modifier, name='admin_criteres_par_seance_modifier'),
 
     # Admin — vue centralisée des évaluations
     path('admin/evaluations/', views.admin_evaluations, name='admin_evaluations'),

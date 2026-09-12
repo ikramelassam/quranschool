@@ -2853,3 +2853,100 @@ class DedupliquerGroupesCommandeTests(TestCase):
         CreneauSlot.objects.create(creneau=g2.creneau, jour='dim', heure_debut='08:00', heure_fin='09:00', ordre=1)
         self.call_command('dedupliquer_groupes', supprimer=True)
         self.assertEqual(Groupe.objects.filter(nom='حلقة مكررة').count(), 2)
+
+
+# ---------- Chantier du 2026-09-12 (v2) : axe d'évaluation élève 100% automatique ----------
+class SeanceTypeEvaluationAutomatiqueTests(TestCase):
+    """Demande explicite du client : le prof ne doit évaluer qu'UN axe par
+    حصة (الحفظ ou المراجعة), déterminé AUTOMATIQUEMENT par le numéro de la
+    séance dans la semaine — jamais un choix du prof (1ʳᵉ tentative de ce
+    chantier, abandonnée : voir historique de Seance.type_evaluation).
+    Impaire (1, 3, 5…) -> الحفظ ; paire (2, 4, 6…) -> المراجعة. Doit
+    fonctionner pour n'importe quel nombre de séances/semaine (1 à N), sans
+    aucune modification de code — voir Seance.numero_dans_la_semaine.__doc__.
+
+    Aucune dépendance à `timezone.now()` ici : numero_dans_la_semaine ne lit
+    que Seance.date (jour de semaine) et les CreneauSlot du groupe, jamais
+    l'heure actuelle — donc aucun figeage de temps nécessaire pour ces tests,
+    contrairement à dashboard.tests.ProfSeanceAxeAutomatiqueTests (qui, elle,
+    passe par la vue et donc par modifiable_par_prof)."""
+
+    LUNDI_REF = datetime.date(2026, 9, 14)  # lundi de référence, arbitraire
+
+    def _creneau(self, jours):
+        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(creneau, [
+            {'jour': j, 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}
+            for j in jours
+        ])
+        return creneau
+
+    def _seance(self, groupe, jour_code, semaines=0):
+        """Séance datée sur `jour_code` de la semaine de LUNDI_REF (+ `semaines`
+        semaines) — seul le jour de semaine compte pour ce calcul, la date
+        exacte n'a par elle-même aucune signification."""
+        from .utils import JOUR_INDEX
+
+        date_seance = self.LUNDI_REF + datetime.timedelta(weeks=semaines, days=JOUR_INDEX[jour_code])
+        return Seance.objects.create(groupe=groupe, date=date_seance, heure=datetime.time(16, 0), type='normal')
+
+    def test_1_seance_par_semaine_toujours_hifz(self):
+        groupe = Groupe.objects.create(nom='حلقة 1 حصة', creneau=self._creneau(['lun']))
+        s1 = self._seance(groupe, 'lun')
+        self.assertEqual(s1.numero_dans_la_semaine, 1)
+        self.assertEqual(s1.type_evaluation, 'hifz')
+        # La semaine suivante, le même jour reste en position 1 (le calcul
+        # n'est jamais cumulatif d'une semaine à l'autre).
+        s1_semaine_2 = self._seance(groupe, 'lun', semaines=1)
+        self.assertEqual(s1_semaine_2.type_evaluation, 'hifz')
+
+    def test_2_seances_par_semaine_hifz_puis_mouraja3a(self):
+        groupe = Groupe.objects.create(nom='حلقة 2 حصص', creneau=self._creneau(['lun', 'jeu']))
+        s1 = self._seance(groupe, 'lun')
+        s2 = self._seance(groupe, 'jeu')
+        self.assertEqual((s1.numero_dans_la_semaine, s1.type_evaluation), (1, 'hifz'))
+        self.assertEqual((s2.numero_dans_la_semaine, s2.type_evaluation), (2, 'mouraja3a'))
+
+    def test_3_seances_par_semaine_alterne(self):
+        groupe = Groupe.objects.create(nom='حلقة 3 حصص', creneau=self._creneau(['lun', 'mer', 'ven']))
+        seances = [self._seance(groupe, j) for j in ('lun', 'mer', 'ven')]
+        self.assertEqual([s.type_evaluation for s in seances], ['hifz', 'mouraja3a', 'hifz'])
+
+    def test_4_seances_par_semaine_alterne(self):
+        groupe = Groupe.objects.create(nom='حلقة 4 حصص', creneau=self._creneau(['lun', 'mar', 'mer', 'jeu']))
+        seances = [self._seance(groupe, j) for j in ('lun', 'mar', 'mer', 'jeu')]
+        self.assertEqual([s.type_evaluation for s in seances], ['hifz', 'mouraja3a', 'hifz', 'mouraja3a'])
+
+    def test_5_seances_par_semaine_alterne(self):
+        groupe = Groupe.objects.create(nom='حلقة 5 حصص', creneau=self._creneau(['lun', 'mar', 'mer', 'jeu', 'ven']))
+        seances = [self._seance(groupe, j) for j in ('lun', 'mar', 'mer', 'jeu', 'ven')]
+        self.assertEqual(
+            [s.type_evaluation for s in seances],
+            ['hifz', 'mouraja3a', 'hifz', 'mouraja3a', 'hifz'],
+        )
+
+    def test_ordre_de_saisie_du_creneau_nimporte_pas(self):
+        """CreneauSlot.ordre reflète l'ordre de SAISIE dans le formulaire
+        créneau (voir courses.utils.remplacer_slots_creneau), pas forcément
+        l'ordre chronologique des jours — le calcul doit rester correct même
+        si l'admin a saisi jeudi avant lundi dans le formulaire."""
+        creneau = self._creneau(['jeu', 'lun'])  # saisi dans le "mauvais" ordre
+        groupe = Groupe.objects.create(nom='حلقة ordre inversé', creneau=creneau)
+        s_lun = self._seance(groupe, 'lun')
+        s_jeu = self._seance(groupe, 'jeu')
+        self.assertEqual(s_lun.type_evaluation, 'hifz')       # lundi = 1ʳᵉ chronologiquement
+        self.assertEqual(s_jeu.type_evaluation, 'mouraja3a')  # jeudi = 2ᵉ chronologiquement
+
+    def test_seance_sans_creneau_replie_sur_hifz(self):
+        groupe = Groupe.objects.create(nom='حلقة sans créneau')  # creneau=None
+        seance = Seance.objects.create(groupe=groupe, date=self.LUNDI_REF, heure=datetime.time(16, 0), type='normal')
+        self.assertEqual(seance.numero_dans_la_semaine, 1)
+        self.assertEqual(seance.type_evaluation, 'hifz')
+
+    def test_seance_exceptionnelle_hors_jours_du_creneau_replie_sur_hifz(self):
+        """Séance déplacée un jour absent des CreneauSlot actuels (ou créneau
+        modifié depuis la génération de cette séance) — repli sur 1/الحفظ,
+        même philosophie que Seance.fin_datetime."""
+        groupe = Groupe.objects.create(nom='حلقة', creneau=self._creneau(['lun', 'jeu']))
+        seance = self._seance(groupe, 'mar')  # mardi : absent du créneau ['lun', 'jeu']
+        self.assertEqual(seance.type_evaluation, 'hifz')

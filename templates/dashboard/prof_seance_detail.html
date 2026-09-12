@@ -102,12 +102,16 @@
     {% if seance.lien_effectif %} · <a href="{% url 'rejoindre_seance' seance.id %}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 {% trans "رابط الاجتماع" %}</a>{% endif %}
 </div>
 
-{% if seance.type_evaluation %}
-<div style="background:#eef2ff; color:#333; border-radius:8px; padding:10px 16px; margin-bottom:16px; font-size:0.9rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-    <span>🎯 {% trans "محور هذه الحصة:" %} <strong>{{ seance.get_type_evaluation_display }}</strong></span>
-    {% if seance.modifiable_par_prof %}
-    <a href="?changer_type=1" style="color:var(--color-role-prof-solid); font-weight:600;">🔁 {% trans "تغيير" %}</a>
-    {% endif %}
+{% if seance.modifiable_par_prof %}
+{% comment %}
+Chantier du 2026-09-12 : l'axe de CETTE حصة (الحفظ/المراجعة) est calculé
+AUTOMATIQUEMENT selon sa position dans la semaine (voir Seance.
+type_evaluation.__doc__) — purement informatif, rien à choisir ni à changer
+ici. N'apparaît que côté formulaire (séance encore modifiable) : une séance
+déjà 'terminee' affiche ses données telles quelles, sans ce bandeau.
+{% endcomment %}
+<div style="background:#eef2ff; color:#333; border-radius:8px; padding:10px 16px; margin-bottom:16px; font-size:0.9rem;">
+    🎯 {% trans "محور هذه الحصة:" %} <strong>{{ seance.type_evaluation_display }}</strong>
 </div>
 {% endif %}
 
@@ -143,8 +147,14 @@
         </div>
         {% if presence %}
         <div class="eleve-card-body" style="display:block;">
+            {% comment %}
+            Lecture seule : les 2 blocs restent TOUJOURS affichés (chacun
+            montrant "لا يوجد" si vide), jamais filtrés par l'axe recalculé
+            de la séance — indispensable pour l'historique antérieur au
+            chantier du 2026-09-12, où حفظ ET مراجعة étaient réellement
+            remplis ensemble sur une même حصة (jamais masqué rétroactivement).
+            {% endcomment %}
             <div class="row g-3">
-                {% if not seance.type_evaluation or seance.type_evaluation == 'hifz' %}
                 <div class="col-md-6">
                     <div class="notation-groupe">
                         <div class="notation-titre">{% trans "الحفظ" %}</div>
@@ -158,8 +168,6 @@
                         {% endif %}
                     </div>
                 </div>
-                {% endif %}
-                {% if not seance.type_evaluation or seance.type_evaluation == 'mouraja3a' %}
                 <div class="col-md-6">
                     <div class="notation-groupe">
                         <div class="notation-titre">{% trans "المراجعة" %}</div>
@@ -173,7 +181,6 @@
                         {% endif %}
                     </div>
                 </div>
-                {% endif %}
             </div>
             {% if item.notes_criteres %}
             <div class="row g-3 mt-1">
@@ -330,9 +337,17 @@
                 {% comment %}
                 Critères dynamiques /20 (Point 7, Tâche du 2026-08-04) — gérés
                 depuis "معايير تقييم الطلاب", plus 4 champs fixes en dur.
+                Filtrage par position (chantier du 2026-09-12, v2) : seul un
+                critère faisant partie du profil configuré pour CETTE position
+                de séance (nc.applicable_a_la_seance, voir
+                ProfilCriteresSeance/Seance.criteres_applicables) est rendu
+                comme champ à remplir — les autres sont simplement omis, ils
+                ne redeviendront exigibles côté serveur que si le formulaire
+                les propose (voir prof_presence_sauvegarder).
                 {% endcomment %}
                 <div class="row g-3 mt-1">
                     {% for nc in item.notes_criteres %}
+                    {% if nc.applicable_a_la_seance %}
                     <div class="col-6 col-md-3">
                         <div class="notation-groupe">
                             <div class="notation-titre">{{ nc.critere.nom_localise }}</div>
@@ -341,6 +356,7 @@
                                    value="{{ nc.note|default:'' }}">
                         </div>
                     </div>
+                    {% endif %}
                     {% empty %}
                     <div class="col-12" style="color:#aaa; font-size:0.85rem;">{% trans "لا توجد معايير تقييم مفعّلة حالياً." %}</div>
                     {% endfor %}

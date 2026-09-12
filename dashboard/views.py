@@ -852,22 +852,6 @@ def prof_seance_detail(request, seance_id):
     prof = get_object_or_404(Prof, user=request.user)
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
 
-    # Chantier du 2026-09-12 — demande explicite du client : le prof choisit
-    # l'axe (الحفظ أو المراجعة) de CETTE حصة avant de pouvoir la remplir,
-    # jamais les deux à la fois (voir Seance.type_evaluation.__doc__). Tant
-    # que ce choix n'est pas fait, on affiche l'écran de question plutôt que
-    # la feuille — ?changer_type=1 permet d'y revenir explicitement pour
-    # corriger un choix (lien affiché sur la feuille elle-même une fois
-    # répondue). Une séance non modifiable_par_prof (déjà 'terminee', ou
-    # délai dépassé) n'a plus rien à choisir : elle s'affiche telle quelle,
-    # y compris son éventuel type_evaluation=None si elle est antérieure à ce
-    # chantier (aucun backfill rétroactif, voir la migration 0048).
-    if seance.modifiable_par_prof and (not seance.type_evaluation or request.GET.get('changer_type') == '1'):
-        return render(request, 'dashboard/prof_seance_choisir_type_evaluation.html', {
-            'prof': prof,
-            'seance': seance,
-        })
-
     # Un élève suspendu/archivé ne doit plus apparaître dans les feuilles de
     # présence à venir (voir Tâche 3 du 2026-07-25) — son historique passé
     # n'est pas affecté, seule cette liste "à remplir maintenant" l'exclut.
@@ -879,12 +863,21 @@ def prof_seance_detail(request, seance_id):
 
     # Critères dynamiques (Point 7, Tâche du 2026-08-04) — remplacent les 4
     # champs fixes note_hifz/note_muraja3a/note_tilawa/note_mouwazaba.
-    # Filtrage par axe (chantier du 2026-09-12, voir CritereEleve.type_lie) :
-    # une séance SANS type_evaluation (historique antérieur) affiche tout,
-    # sans filtre — comportement inchangé pour tout ce qui précède ce chantier.
+    # `criteres_actifs` reste NON filtré : utilisé pour construire
+    # `notes_criteres` ci-dessous, qui sert AUSSI à l'affichage en lecture
+    # seule d'une séance déjà 'terminee' — celui-ci doit montrer TOUTE note
+    # réellement enregistrée, y compris pour l'historique antérieur où
+    # d'autres critères que ceux configurés aujourd'hui avaient été notés
+    # (jamais masqué rétroactivement selon la config actuelle du profil).
+    #
+    # Chantier du 2026-09-12 (v2 — configuration indépendante PAR POSITION de
+    # séance, demandée explicitement par le client après avoir jugé le
+    # système à 2 compartiments hifz/mouraja3a insuffisant) : la liste des
+    # critères EXIGIBLES pour CETTE séance précise vient exclusivement de
+    # Seance.criteres_applicables (ProfilCriteresSeance) — plus jamais de
+    # CritereEleve.type_lie lu directement ici. Voir ProfilCriteresSeance.__doc__.
     criteres_actifs = list(CritereEleve.objects.filter(est_actif=True).order_by('ordre'))
-    if seance.type_evaluation:
-        criteres_actifs = [c for c in criteres_actifs if c.type_lie in ('commun', seance.type_evaluation)]
+    ids_criteres_applicables = {c.id for c in seance.criteres_applicables}
 
     # Django templates ne peuvent pas faire presences[eleve.id] (lookup par variable).
     # On construit donc directement la liste (élève, présence) dans la vue.
@@ -904,7 +897,15 @@ def prof_seance_detail(request, seance_id):
         if not presence:
             premiere_non_remplie_trouvee = True
         notes_criteres = [
-            {'critere': c, 'note': notes_par_cellule.get((eleve.id, c.id))}
+            {
+                'critere': c, 'note': notes_par_cellule.get((eleve.id, c.id)),
+                # Consommé par le template (section formulaire uniquement) pour
+                # ne rendre l'<input> que si ce critère fait partie du profil
+                # de CETTE position de séance — la lecture seule, elle, ignore
+                # ce booléen et affiche toute note existante quel que soit le
+                # profil actuel.
+                'applicable_a_la_seance': c.id in ids_criteres_applicables,
+            }
             for c in criteres_actifs
         ]
         eleves_presences.append({
@@ -932,31 +933,6 @@ def prof_seance_detail(request, seance_id):
 
 
 @role_required('prof')
-def prof_seance_choisir_type_evaluation(request, seance_id):
-    """Enregistre l'axe (الحفظ أو المراجعة) choisi par le prof pour CETTE
-    séance — voir Seance.type_evaluation.__doc__ et prof_seance_detail (qui
-    affiche la question tant que ce choix n'est pas fait). POST uniquement :
-    un accès GET direct (lien deviné, ou redirection accidentelle) ne modifie
-    jamais l'état, il est simplement renvoyé sans effet vers la feuille, qui
-    réaffichera la question elle-même."""
-    from accounts.models import Prof
-    from courses.models import Seance
-
-    prof = get_object_or_404(Prof, user=request.user)
-    seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
-
-    if request.method == 'POST' and seance.modifiable_par_prof:
-        valeur = request.POST.get('type_evaluation')
-        if valeur in dict(Seance.TYPE_EVALUATION_CHOICES):
-            seance.type_evaluation = valeur
-            seance.save()
-        else:
-            messages.error(request, gettext_('يجب اختيار "الحفظ" أو "المراجعة".'))
-
-    return redirect('prof_seance_detail', seance_id=seance.id)
-
-
-@role_required('prof')
 def prof_presence_sauvegarder(request, seance_id):
     from accounts.models import Prof, Eleve
     from courses.models import Seance, Presence
@@ -973,30 +949,29 @@ def prof_presence_sauvegarder(request, seance_id):
             messages.error(request, gettext_('انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يعد بالإمكان تقييمها.'))
         return redirect('prof_seance_detail', seance_id=seance.id)
 
-    # Chantier du 2026-09-12 : impossible de sauvegarder sans avoir répondu à
-    # la question posée par prof_seance_detail — ce garde-fou serveur ne
-    # devrait normalement jamais se déclencher (le formulaire n'est rendu
-    # qu'après ce choix), sauf soumission directe forgée ou séance modifiée
-    # entretemps par une autre requête concurrente.
-    if not seance.type_evaluation:
-        messages.error(request, gettext_('يجب اختيار نوع التقييم (الحفظ أو المراجعة) أولاً.'))
-        return redirect('prof_seance_detail', seance_id=seance.id)
+    # Chantier du 2026-09-12 : l'axe (الحفظ/المراجعة) est calculé
+    # AUTOMATIQUEMENT depuis la position de la séance dans la semaine (voir
+    # Seance.type_evaluation.__doc__) — toujours une valeur, jamais besoin de
+    # garde-fou "pas encore choisi" (abandonné avec la 1ʳᵉ version de ce
+    # chantier, où le prof choisissait lui-même).
     type_eval = seance.type_evaluation
 
     if request.method == 'POST':
-        from courses.models import CritereEleve, NotePresence
+        from courses.models import NotePresence
 
         # Critères dynamiques (Tâche du 2026-08-04, Point 7) — remplacent les 4
         # champs fixes note_hifz/note_muraja3a/note_tilawa/note_mouwazaba
         # (gelés désormais, jamais plus réécrits depuis cette vue, conservés
         # uniquement pour l'historique antérieur à cette migration). Champ HTML
-        # attendu par élève : note_critere_<critere.id>_<eleve.id>. Filtrage
-        # par axe (chantier du 2026-09-12) : même filtre que prof_seance_detail
-        # (voir CritereEleve.type_lie) — indispensable ici aussi, sinon un
-        # critère de l'AUTRE axe redeviendrait exigible côté serveur alors que
-        # le formulaire rendu ne le proposait plus.
-        criteres_actifs = list(CritereEleve.objects.filter(est_actif=True).order_by('ordre'))
-        criteres_actifs = [c for c in criteres_actifs if c.type_lie in ('commun', type_eval)]
+        # attendu par élève : note_critere_<critere.id>_<eleve.id>.
+        #
+        # Chantier du 2026-09-12 (v2) : la liste des critères EXIGIBLES vient
+        # exclusivement de seance.criteres_applicables (ProfilCriteresSeance,
+        # configuration indépendante par position de séance) — même source
+        # que prof_seance_detail, indispensable ici aussi côté serveur, sinon
+        # un critère hors du profil de CETTE position redeviendrait exigible
+        # alors que le formulaire rendu ne le proposait plus.
+        criteres_actifs = list(seance.criteres_applicables)
 
         # Un élève suspendu/archivé ne doit plus apparaître dans les feuilles de
         # présence à venir (voir Tâche 3 du 2026-07-25) — son historique passé
@@ -6172,6 +6147,72 @@ def admin_critere_eleve_supprimer(request, critere_id):
         messages.success(request, gettext_('تم حذف المعيار "%(v0)s".') % {'v0': nom})
 
     return redirect('admin_criteres_eleves')
+
+
+# ==================== ADMIN — CRITÈRES PAR POSITION DE SÉANCE (Chantier du 2026-09-12, v2) ====================
+# Ne gère QUE l'association CritereEleve <-> ProfilCriteresSeance (quels
+# critères existants s'appliquent à quelle position) — créer/nommer/
+# activer/supprimer un CritereEleve reste exclusivement sur les vues
+# ci-dessus (admin_criteres_eleves et consorts). Même patron de permissions
+# que celles-ci : liste visible مدير+مشرف, modification مدير seul.
+
+@role_required('admin', 'mshrif')
+def admin_criteres_par_seance(request):
+    from courses.models import ProfilCriteresSeance
+
+    context = {
+        'profils': ProfilCriteresSeance.objects.prefetch_related('criteres').order_by('position'),
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_criteres_par_seance.html', context)
+
+
+@role_required('admin')
+def admin_criteres_par_seance_ajouter_position(request):
+    """Ajoute manuellement la position suivante (max existant + 1) — permet
+    à l'admin de préparer à l'avance une حصة que le planning n'a pas encore
+    réellement atteinte, sans attendre qu'une vraie séance la déclenche (voir
+    Seance.criteres_applicables, qui crée aussi une position à la volée dès
+    qu'une حصة réelle l'atteint en premier, selon le même mécanisme)."""
+    from courses.models import ProfilCriteresSeance
+
+    if request.method == 'POST':
+        derniere = ProfilCriteresSeance.objects.order_by('-position').first()
+        nouvelle_position = (derniere.position + 1) if derniere else 1
+        ProfilCriteresSeance.objects.create(position=nouvelle_position)
+        messages.success(request, gettext_('تمت إضافة الحصة %(v0)s.') % {'v0': nouvelle_position})
+
+    return redirect('admin_criteres_par_seance')
+
+
+@role_required('admin')
+def admin_criteres_par_seance_modifier(request, position):
+    """Coche/décoche les CritereEleve membres du profil de CETTE position
+    précise — jamais recalculé par la suite depuis pair/impair une fois
+    enregistré ici (voir ProfilCriteresSeance.__doc__). get_or_create : une
+    position jamais rencontrée par aucune vraie séance mais visée
+    directement par URL (lien deviné) est créée vide plutôt que 404,
+    cohérent avec le comportement à la volée de Seance.criteres_applicables."""
+    from courses.models import ProfilCriteresSeance, CritereEleve
+
+    profil, _ = ProfilCriteresSeance.objects.get_or_create(position=position)
+
+    if request.method == 'POST':
+        ids_coches = request.POST.getlist('criteres')
+        profil.criteres.set(CritereEleve.objects.filter(id__in=ids_coches))
+        messages.success(request, gettext_('تم تحديث معايير الحصة %(v0)s.') % {'v0': position})
+        return redirect('admin_criteres_par_seance')
+
+    ids_membres = set(profil.criteres.values_list('id', flat=True))
+    context = {
+        'profil': profil,
+        'criteres_coches': [
+            {'critere': c, 'coche': c.id in ids_membres}
+            for c in CritereEleve.objects.filter(est_actif=True).order_by('ordre')
+        ],
+    }
+    return render(request, 'dashboard/admin_criteres_par_seance_modifier.html', context)
 
 
 # ==================== ADMIN — VUE CENTRALISÉE DES ÉVALUATIONS ====================

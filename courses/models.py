@@ -856,23 +856,105 @@ class Seance(models.Model):
 
     # Chantier du 2026-09-12 — demande explicite du client : le prof ne doit
     # évaluer QU'UNE seule chose par حصة (typiquement الحفظ à la séance 1 de
-    # la semaine, المراجعة à la séance 2), jamais les deux en même temps comme
-    # avant ce champ. Posé une fois par une question dédiée avant le
-    # remplissage de la feuille (voir dashboard.views.prof_seance_detail et
-    # prof_seance_choisir_type_evaluation) — null=True tant que la question
-    # n'a pas encore été posée/répondue (jamais de valeur devinée), y compris
-    # pour TOUTE séance créée avant ce chantier (aucun backfill : l'ancien
-    # comportement "les deux blocs à la fois" reste affiché tel quel pour tout
-    # historique déjà en base, voir Presence.consigne_memorisation/
-    # consigne_revision qui restent, eux, inchangés et continuent de
-    # coexister sur une même Presence quel que soit type_evaluation).
-    TYPE_EVALUATION_CHOICES = [
+    # la semaine, المراجعة à la séance 2), jamais les deux en même temps.
+    # PREMIÈRE version (abandonnée le même jour) : le prof choisissait
+    # lui-même via une question posée avant le remplissage — le client a
+    # ensuite précisé vouloir un calcul 100% AUTOMATIQUE par numéro de
+    # séance, sans aucune interaction du prof (« je pense qu'on reste sur ce
+    # principe »). Voir type_evaluation ci-dessous : ni champ stocké ni
+    # migration, un simple calcul dérivé de la position de la séance dans la
+    # semaine (numero_dans_la_semaine) — donc AUCUNE valeur à backfiller, et
+    # aucun risque de désynchronisation si le créneau du groupe change après
+    # coup (le calcul se refait à chaque lecture).
+    AXES_EVALUATION_ELEVE = [
         ('hifz', _('الحفظ')),
         ('mouraja3a', _('المراجعة')),
     ]
-    type_evaluation = models.CharField(
-        max_length=10, choices=TYPE_EVALUATION_CHOICES, null=True, blank=True,
-    )
+
+    @property
+    def numero_dans_la_semaine(self):
+        """Position (1-indexée) de cette séance parmi les créneaux hebdomadaires
+        du groupe, triés CHRONOLOGIQUEMENT par jour de la semaine (lundi en
+        premier, voir courses.utils.JOUR_INDEX) — PAS CreneauSlot.ordre, qui ne
+        reflète que l'ordre de saisie dans le formulaire créneau (voir
+        courses.utils.remplacer_slots_creneau), pas forcément l'ordre réel des
+        jours si l'admin les a saisis dans le désordre.
+
+        Repli sur 1 si le groupe n'a pas de créneau, ou si aucun slot ne
+        correspond au jour de cette séance précise (créneau modifié depuis la
+        génération de cette séance, ou séance exceptionnelle déplacée sur un
+        jour inhabituel) — même philosophie de repli que fin_datetime
+        ci-dessus ("on retombe sur le premier slot, même rôle exact")."""
+        from .utils import JOUR_INDEX
+
+        creneau = self.groupe.creneau
+        if not creneau:
+            return 1
+        slots_tries = sorted(creneau.slots.all(), key=lambda s: (JOUR_INDEX[s.jour], s.heure_debut))
+        if not slots_tries:
+            return 1
+        jour_seance = self.date.weekday()
+        for position, slot in enumerate(slots_tries, start=1):
+            if JOUR_INDEX[slot.jour] == jour_seance:
+                return position
+        return 1
+
+    @property
+    def type_evaluation(self):
+        """Axe d'évaluation élève de CETTE séance (الحفظ/المراجعة) — calculé
+        automatiquement depuis numero_dans_la_semaine, JAMAIS choisi
+        manuellement : impaire (1, 3, 5…) = 'hifz' (contenu du jour = nouvel
+        apprentissage + récitation), paire (2, 4, 6…) = 'mouraja3a' (contenu
+        du jour = révision de l'acquis). Toujours une valeur (jamais None,
+        contrairement à la 1ʳᵉ version de ce chantier) : une حلقة à 1 séance/
+        semaine a toujours sa séance unique en position 1, donc toujours
+        'hifz' — cohérent avec la demande explicite du client (Point 9 : "si
+        un groupe possède une seule séance, elle est donc traitée comme la
+        séance 1").
+
+        Détermine quels CritereEleve sont affichés/exigés dans la feuille de
+        présence (voir CritereEleve.type_lie et dashboard.views.
+        prof_seance_detail/prof_presence_sauvegarder) — n'affecte QUE la
+        feuille encore modifiable ; l'affichage en lecture seule d'une séance
+        déjà 'terminee' montre toujours les 2 blocs (voir template), y
+        compris pour tout historique antérieur à ce chantier où les 2 étaient
+        réellement remplis ensemble — jamais masqué rétroactivement."""
+        return 'hifz' if self.numero_dans_la_semaine % 2 == 1 else 'mouraja3a'
+
+    @property
+    def type_evaluation_display(self):
+        return dict(self.AXES_EVALUATION_ELEVE)[self.type_evaluation]
+
+    def _defaut_criteres_pour_nouvelle_position(self):
+        """Gabarit UNIQUEMENT utilisé la toute première fois qu'un
+        ProfilCriteresSeance est créé pour cette position (voir
+        criteres_applicables ci-dessous) — reproduit l'ancien mapping
+        CritereEleve.type_lie (impaire='hifz', paire='mouraja3a') pour ne
+        rien changer tant que l'admin n'a rien personnalisé. Dernier usage
+        de type_lie dans le parcours normal : jamais relu une fois le profil
+        créé, jamais utilisé pour filtrer une évaluation en direct (voir
+        ProfilCriteresSeance.__doc__). CritereEleve est défini plus bas dans
+        ce même fichier — résolu au moment de l'appel, pas à la définition
+        de la classe, donc aucun import n'est nécessaire ici."""
+        return CritereEleve.objects.filter(type_lie__in=('commun', self.type_evaluation))
+
+    @property
+    def criteres_applicables(self):
+        """QuerySet des CritereEleve ACTIFS applicables à CETTE séance —
+        SOURCE UNIQUE pendant le parcours normal d'évaluation (voir
+        dashboard.views.prof_seance_detail/prof_presence_sauvegarder) :
+        ProfilCriteresSeance associé à numero_dans_la_semaine. Une position
+        encore jamais configurée obtient un profil créé à la volée avec un
+        contenu par défaut (voir _defaut_criteres_pour_nouvelle_position) —
+        UNE SEULE FOIS : dès que la ligne existe, son contenu enregistré est
+        la seule vérité, plus jamais recalculé (demande explicite du client :
+        modifier la position 6 ne doit jamais changer si type_lie ou la
+        parité évoluent ensuite, et ne doit jamais affecter la position 2 ou
+        4)."""
+        profil, cree = ProfilCriteresSeance.objects.get_or_create(position=self.numero_dans_la_semaine)
+        if cree:
+            profil.criteres.set(self._defaut_criteres_pour_nouvelle_position())
+        return profil.criteres.filter(est_actif=True).order_by('ordre')
 
     FENETRE_EVALUATION_PRESENCE_HEURES = 24  # même principe que evaluations.Evaluation
     # (مؤطر -> prof) : passé ce délai depuis le DÉBUT de la séance (aucune durée de
@@ -1119,23 +1201,23 @@ class CritereEleve(models.Model):
     ordre = models.IntegerField(default=0)
     est_actif = models.BooleanField(default=True)
 
-    # Chantier du 2026-09-12 (même chantier que Seance.type_evaluation) : un
-    # critère peut être spécifique à l'un des 2 axes désormais posés à la
-    # séance (الحفظ/المراجعة), ou 'commun' (par défaut) s'il s'applique dans
-    # les deux cas. Seul un critère 'commun' ou dont le type_lie correspond à
-    # Seance.type_evaluation est affiché/exigé dans la feuille de présence
-    # (voir dashboard.views.prof_seance_detail/prof_presence_sauvegarder) —
-    # une séance SANS type_evaluation (historique antérieur à ce chantier)
-    # continue d'afficher TOUS les critères actifs sans filtre, comme avant.
+    # Chantier du 2026-09-12 — PORTÉE RESTREINTE depuis la v2 (voir
+    # ProfilCriteresSeance ci-dessous, plus bas dans ce fichier) : ce champ
+    # NE FILTRE PLUS DIRECTEMENT les critères d'une évaluation en cours. Le
+    # client a explicitement demandé une configuration INDÉPENDANTE par
+    # position de séance (1, 2, 3, 4…), pas seulement 2 compartiments
+    # partagés par toutes les positions impaires/paires — voir
+    # ProfilCriteresSeance et Seance.criteres_applicables, LA seule source
+    # utilisée pendant le parcours normal d'évaluation.
     #
-    # Backfill des 4 critères historiques (voir migration 0049) — précision
-    # explicite du client : SEUL "المراجعة" est basculé sur type_lie='mouraja3a'.
-    # "الحفظ" reste 'commun' à dessein (pas 'hifz') : la qualité de récitation
-    # par cœur reste notée même une séance de révision (on y récite du
-    # déjà-mémorisé) — seule la ZONE "quelle sourate/ayat" bascule avec
-    # Seance.type_evaluation, pas cette note de qualité. "التلاوة" et
-    # "المواظبة والسلوك" restent 'commun' pour la même raison (indépendants
-    # de l'axe du jour).
+    # type_lie ne sert plus qu'à UNE chose : fournir le gabarit par défaut
+    # quand une position de séance est configurée pour la toute première
+    # fois (voir Seance._defaut_criteres_pour_nouvelle_position) — jamais
+    # relu ensuite pour cette position une fois son ProfilCriteresSeance
+    # créé. Valeurs actuelles (issues de la migration 0049, répartition
+    # donnée par le client le 2026-09-12) : "التلاوة" -> 'hifz' ; "المراجعة"
+    # -> 'mouraja3a' ; "الحفظ" et "المواظبة والسلوك" -> 'commun' (valeur par
+    # défaut, jamais touchée).
     TYPE_LIE_CHOICES = [
         ('commun', _('مشترك (يظهر في الحالتين)')),
         ('hifz', _('خاص بالحفظ')),
@@ -1164,6 +1246,56 @@ class CritereEleve(models.Model):
         ordering = ['ordre']
         verbose_name = "Critère d'évaluation élève"
         verbose_name_plural = "Critères d'évaluation élève"
+
+
+class ProfilCriteresSeance(models.Model):
+    """Chantier du 2026-09-12 (v2) — demande explicite du client : chaque
+    POSITION de séance dans la semaine (1ʳᵉ, 2ᵉ, 3ᵉ, 4ᵉ… sans limite, voir
+    Seance.numero_dans_la_semaine) a sa PROPRE liste de critères, totalement
+    indépendante des autres. Rejeté explicitement par le client : un simple
+    système à 2 compartiments partagés (pair/impair, l'ancien CritereEleve.
+    type_lie) — modifier la position 4 ne doit JAMAIS affecter la position
+    2, même si les deux étaient identiques au départ (ex: 2 hifz+révision
+    devient différent de 4 hifz+révision après une personnalisation).
+
+    `position` est un simple entier, jamais borné : une position encore
+    jamais configurée est créée À LA VOLÉE au premier accès (voir Seance.
+    criteres_applicables), avec un contenu par défaut dérivé de CritereEleve.
+    type_lie (pair/impair) — UNIQUEMENT à cet instant précis. Dès que la
+    ligne existe en base, son contenu enregistré devient la seule source de
+    vérité : elle n'est plus jamais recalculée, même si type_lie change
+    ensuite ou si l'admin modifie une AUTRE position.
+
+    `criteres` est une M2M vers CritereEleve (jamais dupliqué : un même
+    critère peut appartenir à N positions à la fois, exactement comme
+    demandé) — la page /dashboard/admin/criteres-eleves/ reste l'unique
+    endroit pour créer/nommer/activer/supprimer un CritereEleve ; cet écran-ci
+    ne gère que leur association à une position.
+
+    AUCUN lien vers NotePresence/Presence : une évaluation déjà enregistrée
+    ne référence jamais un ProfilCriteresSeance, seulement directement le
+    CritereEleve noté — modifier un profil n'a donc aucun effet rétroactif
+    sur l'historique déjà en base (voir dashboard.views.prof_seance_detail,
+    qui construit l'affichage en lecture seule depuis les NotePresence
+    réellement enregistrées, jamais depuis le profil actuel)."""
+    position = models.PositiveIntegerField(unique=True)
+    criteres = models.ManyToManyField(CritereEleve, related_name='profils_seance', blank=True)
+
+    def __str__(self):
+        return f"الحصة {self.position}"
+
+    @property
+    def nb_criteres_actifs(self):
+        """Nombre de critères réellement exigibles aujourd'hui (actifs) —
+        distinct du nombre brut de membres M2M, qui peut inclure un critère
+        depuis désactivé (conservé pour l'historique, voir CritereEleve.
+        est_actif) : affiché sur admin_criteres_par_seance.html."""
+        return self.criteres.filter(est_actif=True).count()
+
+    class Meta:
+        ordering = ['position']
+        verbose_name = "Profil de critères par position de séance"
+        verbose_name_plural = "Profils de critères par position de séance"
 
 
 class NotePresence(models.Model):

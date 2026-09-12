@@ -6,6 +6,7 @@
     <div>
         <div class="page-title">{% trans "معايير تقييم الطلاب" %}</div>
         <div class="page-subtitle">{% trans "تظهر هذه المعايير في استمارة تقييم المعلم للطالب (ورقة الحضور)" %}</div>
+        <div class="mt-1"><a href="{% url 'admin_criteres_par_seance' %}" style="color:var(--color-role-admin-solid); font-size:0.9rem;">{% trans "🎯 اختيار معايير كل حصة على حدة" %}</a></div>
     </div>
     {% if request.user.role != 'mshrif' %}
     <a href="{% url 'admin_critere_eleve_ajouter' %}"
