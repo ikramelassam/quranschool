@@ -1002,12 +1002,14 @@ def _slots_pour_affichage(request, creneau_existant):
     return []
 
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def groupe_supprimer(request, groupe_id):
     """Suppression réelle (Tâche du 2026-08-08) — UNIQUEMENT si aucune
     donnée n'est rattachée (voir courses.utils.groupe_peut_etre_supprime,
     revérifié ici côté serveur). Sinon, seule "تعطيل" (statut='archive' via
-    admin_groupe_modifier, existant) reste possible. POST uniquement."""
+    admin_groupe_modifier, existant) reste possible. POST uniquement.
+    مدير + مشرف depuis le 2026-09-09 (cohérence avec
+    groupe_supprimer_definitivement, ouvert au مشرف le même jour)."""
     groupe = get_object_or_404(Groupe, id=groupe_id)
     if not groupe_peut_etre_supprime(groupe):
         messages.error(
@@ -1065,15 +1067,17 @@ def groupe_reactiver(request, groupe_id):
 # ==================== SUPPRESSION DÉFINITIVE AVEC HISTORIQUE (Tâche du 2026-08-08, point 2 — révisé le 2026-08-08) ====================
 # Distincte de groupe_supprimer/creneau_supprimer (qui refusent tout net si
 # une donnée existe) : ici, on supprime QUAND MÊME, même avec des séances/
-# présences/évaluations liées — مدير UNIQUEMENT (pas مشرف, contrairement à
-# l'archivage ci-dessus), confirmation par saisie EXACTE du nom (aucune case
-# à cocher ne suffit pour une action de cette gravité). Décision explicite du
-# client : AUCUNE trace conservée après coup (le JournalSuppression construit
-# initialement a été retiré — modèle supprimé du projet, voir migration
-# 0025_delete_journalsuppression) — la suppression est réellement définitive,
-# sans journal d'audit.
+# présences/évaluations liées — مدير + مشرف (demande explicite du client le
+# 2026-09-09 : aligne la suppression de GROUPE sur celle des COMPTES
+# élève/prof/superviseur, déjà مدير+مشرف depuis le 2026-08-13 ; l'ancienne
+# asymétrie « groupe = مدير seul » est levée). Confirmation par saisie EXACTE
+# du nom (aucune case à cocher ne suffit pour une action de cette gravité).
+# Décision explicite du client : AUCUNE trace conservée après coup (le
+# JournalSuppression construit initialement a été retiré — modèle supprimé du
+# projet, voir migration 0025_delete_journalsuppression) — la suppression est
+# réellement définitive, sans journal d'audit.
 
-@role_required('admin')
+@role_required('admin', 'mshrif')
 def groupe_supprimer_definitivement(request, groupe_id):
     from .models import Presence
 

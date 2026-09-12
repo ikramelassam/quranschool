@@ -4844,8 +4844,9 @@ def admin_eleve_archiver(request, eleve_id):
 # supprime le User pour de vrai — مدير ET مشرف (inversion assumée le 2026-08-13,
 # point 3, voir dashboard.tests.EleveSuppressionDefinitiveTests.test_mshrif_autorise
 # qui remplace l'ancien test_mshrif_refuse). NB : la suppression définitive d'un
-# GROUPE (courses.views.groupe_supprimer_definitivement) reste, elle, réservée au
-# مدير — asymétrie connue, pas un oubli. Confirmation par saisie EXACTE de l'email
+# GROUPE (courses.views.groupe_supprimer_definitivement) est également مدير + مشرف
+# depuis le 2026-09-09 (l'ancienne asymétrie « groupe = مدير seul » a été levée à
+# la demande du client). Confirmation par saisie EXACTE de l'email
 # (identifiant garanti unique, contrairement au nom), transaction.atomic(), AUCUNE
 # trace conservée après coup. Le détail exact de ce qui est réellement supprimé vs
 # détaché (SET_NULL) a été audité champ par champ avant ce chantier — voir les 2

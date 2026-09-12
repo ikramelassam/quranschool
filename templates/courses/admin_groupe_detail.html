@@ -307,13 +307,14 @@
     <a href="{% url 'admin_groupes' %}" style="color:var(--color-role-admin-solid); text-decoration:none;">{% trans "← العودة للمجموعات" %}</a>
 </div>
 
-{% if request.user.role == 'admin' %}
+{% if request.user.role == 'admin' or request.user.role == 'mshrif' %}
 {% comment %}
 Tâche du 2026-08-08, point 2 (révisé le 2026-08-08) — منطقة خطر :
 suppression DÉFINITIVE même avec historique lié (séances/حضور/تقييمات).
 Distincte visuellement de "حذف" ci-dessus (rouge foncé, section à part,
 confirmation par SAISIE du nom exact plutôt qu'une simple popup — cohérent
-avec la gravité de l'action). مدير uniquement. AUCUNE trace conservée
+avec la gravité de l'action). مدير + مشرف (demande du client le 2026-09-09,
+comme la suppression définitive des comptes). AUCUNE trace conservée
 après coup (décision explicite du client — le JournalSuppression construit
 initialement a été retiré, voir courses.views.
 groupe_supprimer_definitivement).

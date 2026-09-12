@@ -2661,6 +2661,61 @@ class NomsSouratesTraductionTests(TestCase):
             self.assertEqual(str(presence.nom_sourate_memorisee), 'الناس')
 
 
+class GroupeSuppressionParMshrifTests(TestCase):
+    """Demande du client le 2026-09-09 : le مشرف peut désormais supprimer un
+    groupe (حذف simple ET حذف نهائي), au même titre que le مدير — aligné sur la
+    suppression définitive des comptes élève/prof/superviseur, مدير+مشرف depuis
+    le 2026-08-13. L'élève/le prof restent exclus."""
+
+    def setUp(self):
+        self.client = Client(SERVER_NAME='localhost')
+        self.mshrif = _creer_mshrif('mshrif_suppr_groupe@zidni.test')
+        self.creneau = _creer_creneau()
+        self.groupe = Groupe.objects.create(nom='حلقة للحذف بالمشرف', creneau=self.creneau)
+
+    def _url_def(self, groupe=None):
+        return reverse('admin_groupe_supprimer_definitivement', args=[(groupe or self.groupe).id])
+
+    def test_mshrif_supprime_definitivement_avec_nom_exact(self):
+        Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 20), heure='16:00', type='normal')
+        _connecter(self.client, self.mshrif)
+        reponse = self.client.post(self._url_def(), {'confirmation_nom': 'حلقة للحذف بالمشرف'})
+        self.assertRedirects(reponse, reverse('admin_groupes'), fetch_redirect_response=False)
+        self.assertFalse(Groupe.objects.filter(id=self.groupe.id).exists())
+
+    def test_mshrif_nom_errone_ne_supprime_rien(self):
+        _connecter(self.client, self.mshrif)
+        reponse = self.client.post(self._url_def(), {'confirmation_nom': 'اسم خاطئ'})
+        self.assertEqual(reponse.status_code, 302)
+        self.assertTrue(Groupe.objects.filter(id=self.groupe.id).exists())
+
+    def test_mshrif_voit_la_zone_de_danger_sur_la_fiche(self):
+        _connecter(self.client, self.mshrif)
+        reponse = self.client.get(reverse('admin_groupe_detail', args=[self.groupe.id]))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertContains(reponse, self._url_def())
+
+    def test_mshrif_supprime_simple_si_aucune_donnee(self):
+        _connecter(self.client, self.mshrif)
+        reponse = self.client.post(reverse('admin_groupe_supprimer', args=[self.groupe.id]))
+        self.assertEqual(reponse.status_code, 302)
+        self.assertFalse(Groupe.objects.filter(id=self.groupe.id).exists())
+
+    def test_prof_ne_peut_pas_supprimer(self):
+        prof = _creer_prof('prof_suppr_groupe@zidni.test')
+        _connecter(self.client, prof.user)
+        reponse = self.client.post(self._url_def(), {'confirmation_nom': 'حلقة للحذف بالمشرف'})
+        self.assertEqual(reponse.status_code, 302)
+        self.assertTrue(Groupe.objects.filter(id=self.groupe.id).exists())
+
+    def test_eleve_ne_peut_pas_supprimer(self):
+        eleve = _creer_eleve('eleve_suppr_groupe@zidni.test')
+        _connecter(self.client, eleve.user)
+        reponse = self.client.post(self._url_def(), {'confirmation_nom': 'حلقة للحذف بالمشرف'})
+        self.assertEqual(reponse.status_code, 302)
+        self.assertTrue(Groupe.objects.filter(id=self.groupe.id).exists())
+
+
 class GroupeAntiDoubleSoumissionTests(TestCase):
     """Bug signalé par le client le 2026-09-09 : un seul groupe « علي بن ابي
     طالب » créé mais DEUX en base (471/472), byte-pour-byte identiques, IDs
