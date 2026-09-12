@@ -104,14 +104,27 @@
 
 {% if seance.modifiable_par_prof %}
 {% comment %}
-Chantier du 2026-09-12 : l'axe de CETTE حصة (الحفظ/المراجعة) est calculé
-AUTOMATIQUEMENT selon sa position dans la semaine (voir Seance.
-type_evaluation.__doc__) — purement informatif, rien à choisir ni à changer
-ici. N'apparaît que côté formulaire (séance encore modifiable) : une séance
-déjà 'terminee' affiche ses données telles quelles, sans ce bandeau.
+Correction de régression du 2026-09-12 : le bandeau affichait auparavant un
+SEUL axe (seance.type_evaluation_display), binaire et exclusif — trompeur
+depuis que criteres_applicables (ProfilCriteresSeance) peut exiger les 2 axes
+sur la même séance (bloc_memorisation ET bloc_revision, voir dashboard.views.
+prof_seance_detail). Purement informatif, rien à choisir ni à changer ici.
+N'apparaît que côté formulaire (séance encore modifiable) : une séance déjà
+'terminee' affiche ses données telles quelles, sans ce bandeau.
 {% endcomment %}
 <div style="background:#eef2ff; color:#333; border-radius:8px; padding:10px 16px; margin-bottom:16px; font-size:0.9rem;">
-    🎯 {% trans "محور هذه الحصة:" %} <strong>{{ seance.type_evaluation_display }}</strong>
+    🎯 {% trans "محاور هذه الحصة:" %}
+    <strong>
+        {% if bloc_memorisation and bloc_revision %}
+            {% trans "الحفظ والمراجعة" %}
+        {% elif bloc_memorisation %}
+            {% trans "الحفظ" %}
+        {% elif bloc_revision %}
+            {% trans "المراجعة" %}
+        {% else %}
+            {% trans "لا يوجد محور محدد لهذه الحصة" %}
+        {% endif %}
+    </strong>
 </div>
 {% endif %}
 
@@ -239,14 +252,18 @@ déjà 'terminee' affiche ses données telles quelles, sans ce bandeau.
         <div class="eleve-card-body">
             <div class="notation-bloc" id="notation_{{ eleve.id }}">
                 {% comment %}
-                Chantier du 2026-09-12 : un SEUL des 2 blocs est rendu — celui
-                qui correspond à seance.type_evaluation (jamais les deux à la
-                fois, voir Seance.type_evaluation.__doc__). prof_seance_detail
-                garantit que type_evaluation est déjà posé avant d'atteindre ce
-                formulaire (voir la question posée sinon).
+                Correction de régression du 2026-09-12 : les 2 blocs sont
+                désormais rendus INDÉPENDAMMENT, d'après bloc_memorisation/
+                bloc_revision (criteres_applicables, voir dashboard.views.
+                prof_seance_detail) — plus jamais un SEUL bloc choisi par le
+                binaire seance.type_evaluation. Avant ce correctif, une séance
+                dont le profil exigeait à la fois حفظ ET مراجعة ne montrait
+                que le bloc مراجعة, et prof_presence_sauvegarder effaçait
+                silencieusement les données حفظ à chaque sauvegarde (voir
+                Seance.bloc_memorisation_applicable.__doc__).
                 {% endcomment %}
                 <div class="row g-3">
-                    {% if seance.type_evaluation == 'hifz' %}
+                    {% if bloc_memorisation %}
                     <div class="col-12">
                         <div class="notation-groupe">
                             <div class="notation-titre">{% trans "الحفظ" %}</div>
@@ -292,7 +309,8 @@ déjà 'terminee' affiche ses données telles quelles, sans ce bandeau.
                             </div>
                         </div>
                     </div>
-                    {% else %}
+                    {% endif %}
+                    {% if bloc_revision %}
                     <div class="col-12">
                         <div class="notation-groupe">
                             <div class="notation-titre">{% trans "المراجعة" %}</div>
@@ -362,14 +380,15 @@ déjà 'terminee' affiche ses données telles quelles, sans ce bandeau.
                     {% endfor %}
                 </div>
 
-                {% if seance.type_evaluation == 'hifz' %}
+                {% if bloc_memorisation %}
                 {% trans "مثال: حفظ سورة النساء من آية 1 إلى 10" as placeholder_consigne_memo %}
                 <div class="remarque-eleve">
                     <label>📌 {% trans "المطلوب حفظه *" %}</label>
                     <textarea name="consigne_memo_{{ eleve.id }}" class="form-control consigne-input" rows="1" required
                               placeholder="{{ placeholder_consigne_memo }}">{{ presence.consigne_memorisation|default:'' }}</textarea>
                 </div>
-                {% else %}
+                {% endif %}
+                {% if bloc_revision %}
                 {% trans "مثال: مراجعة سورة البقرة من آية 1 إلى 50" as placeholder_consigne_rev %}
                 <div class="remarque-eleve">
                     <label>📌 {% trans "المطلوب مراجعته *" %}</label>
@@ -397,17 +416,32 @@ déjà 'terminee' affiche ses données telles quelles, sans ce bandeau.
         <textarea name="remarque_generale" class="form-control" rows="3">{{ seance.remarque_generale }}</textarea>
     </div>
 
+    {% comment %}
+    Workflow Enregistrer/Soumettre (demande explicite du client, 2026-09-12) :
+    "حفظ كمسودة" enregistre le travail en cours SANS finaliser (la séance
+    reste modifiable, rien n'est perdu si le prof quitte la page) ;
+    "إرسال نهائي" enregistre ET verrouille définitivement — comportement
+    identique à l'unique bouton d'avant ce chantier. Même formulaire, mêmes
+    données, seul le champ "action" posté change (voir dashboard.views.
+    prof_presence_sauvegarder).
+    {% endcomment %}
     {% trans "سيتم تحديث الحضور والتقييمات لهذه الحصة المنتهية. هل أنت متأكد؟" as confirmation_maj_terminee %}
-    {% trans "هل أنت متأكد من حفظ الحضور والتقييمات؟ سيتم اعتبار هذه الحصة منتهية نهائياً." as confirmation_sauvegarde %}
-    <button type="submit" class="btn btn-enregistrer-seance"
-            {% if seance.statut == 'terminee' %}
-            onclick="return confirm('{{ confirmation_maj_terminee|escapejs }}');"
-            {% else %}
-            onclick="return confirm('{{ confirmation_sauvegarde|escapejs }}');"
-            {% endif %}
-            style="background:var(--color-role-prof); color:white; font-weight:600; padding:10px 24px; border-radius:8px;">
-        {% trans "حفظ الحضور والتقييمات" %}
-    </button>
+    {% trans "هل أنت متأكد من الإرسال النهائي؟ سيتم اعتبار هذه الحصة منتهية ولن يكون بالإمكان تعديلها بعد ذلك." as confirmation_soumettre %}
+    <div class="d-flex flex-wrap gap-2">
+        <button type="submit" name="action" value="enregistrer" class="btn btn-enregistrer-seance"
+                style="background:white; color:var(--color-role-prof); border:2px solid var(--color-role-prof); font-weight:600; padding:10px 24px; border-radius:8px;">
+            {% trans "💾 حفظ كمسودة" %}
+        </button>
+        <button type="submit" name="action" value="soumettre" class="btn btn-enregistrer-seance"
+                {% if seance.statut == 'terminee' %}
+                onclick="return confirm('{{ confirmation_maj_terminee|escapejs }}');"
+                {% else %}
+                onclick="return confirm('{{ confirmation_soumettre|escapejs }}');"
+                {% endif %}
+                style="background:var(--color-role-prof); color:white; font-weight:600; padding:10px 24px; border-radius:8px;">
+            {% trans "✅ إرسال نهائي" %}
+        </button>
+    </div>
     {% endif %}
 </form>
 {% endif %}

@@ -50,6 +50,18 @@
            style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
            {% trans "تعديل" %}
         </a>
+        {% endif %}
+        {% comment %}
+        Chantier du 2026-09-12 (v3, Niveau 2) — personnalisation des critères
+        d'évaluation PROPRE à ce groupe, indépendante de l'إعداد المشترك
+        (voir ProfilCriteresSeance.__doc__). Visible مدير+مشرف (lecture),
+        même patron que admin_criteres_par_seance.
+        {% endcomment %}
+        <a href="{% url 'admin_groupe_criteres_par_seance' groupe.id %}"
+           style="background:#eef2ff; color:var(--color-role-prof-solid); border-radius:8px; padding:10px 20px; text-decoration:none; font-weight:600;">
+           {% trans "معايير التقييم 🎯" %}
+        </a>
+        {% if request.user.role != 'mshrif' %}
         {% comment %}
         Tâche du 2026-08-08 (nettoyage UX) : ancien bouton "حذف" simple
         (Option B du tout premier chantier) RETIRÉ — désormais redondant avec

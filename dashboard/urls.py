@@ -145,8 +145,13 @@ urlpatterns = [
     path('admin/criteres-eleves/<int:critere_id>/toggle/', views.admin_critere_eleve_toggle, name='admin_critere_eleve_toggle'),
     path('admin/criteres-eleves/<int:critere_id>/supprimer/', views.admin_critere_eleve_supprimer, name='admin_critere_eleve_supprimer'),
     path('admin/criteres-par-seance/', views.admin_criteres_par_seance, name='admin_criteres_par_seance'),
-    path('admin/criteres-par-seance/ajouter/', views.admin_criteres_par_seance_ajouter_position, name='admin_criteres_par_seance_ajouter_position'),
-    path('admin/criteres-par-seance/<int:position>/', views.admin_criteres_par_seance_modifier, name='admin_criteres_par_seance_modifier'),
+    path('admin/criteres-par-seance/ajouter-groupe/', views.admin_criteres_par_seance_ajouter_bucket, name='admin_criteres_par_seance_ajouter_bucket'),
+    path('admin/criteres-par-seance/<int:nb_seances>/ajouter/', views.admin_criteres_par_seance_ajouter_position, name='admin_criteres_par_seance_ajouter_position'),
+    path('admin/criteres-par-seance/<int:nb_seances>/<int:position>/', views.admin_criteres_par_seance_modifier, name='admin_criteres_par_seance_modifier'),
+    # Niveau 2 — personnalisation spécifique à un groupe (priorité sur le Niveau 1 commun ci-dessus).
+    path('admin/groupes/<int:groupe_id>/criteres-par-seance/', views.admin_groupe_criteres_par_seance, name='admin_groupe_criteres_par_seance'),
+    path('admin/groupes/<int:groupe_id>/criteres-par-seance/<int:position>/', views.admin_groupe_criteres_par_seance_modifier, name='admin_groupe_criteres_par_seance_modifier'),
+    path('admin/groupes/<int:groupe_id>/criteres-par-seance/<int:position>/retirer/', views.admin_groupe_criteres_par_seance_retirer, name='admin_groupe_criteres_par_seance_retirer'),
 
     # Admin — vue centralisée des évaluations
     path('admin/evaluations/', views.admin_evaluations, name='admin_evaluations'),

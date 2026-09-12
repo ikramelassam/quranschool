@@ -4,36 +4,54 @@
 {% block content %}
 <div class="mb-4">
     <div class="page-title">{% trans "معايير كل حصة" %}</div>
-    <div class="page-subtitle">{% trans "لكل حصة معاييرها الخاصة، مستقلة عن باقي الحصص — عدّل معايير حصة دون التأثير على البقية" %}</div>
+    <div class="page-subtitle">{% trans "الإعداد المشترك، مرتّب حسب عدد الحصص/الأسبوع — لكل عدد حصص إعداد مستقل. للتخصيص الخاص بمجموعة معينة، افتح صفحة تلك المجموعة." %}</div>
 </div>
 
-<div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
-    {% for profil in profils %}
-    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:16px 24px; border-bottom:1px solid #f0f0f0;">
-        <div style="font-weight:700;">{% blocktrans with position=profil.position %}الحصة {{ position }}{% endblocktrans %}</div>
-        <div class="d-flex flex-wrap gap-2 align-items-center">
-            <span style="background:#f0f0f0; color:#555; border-radius:20px; padding:4px 12px; font-size:0.8rem;">
-                {% blocktrans count n=profil.nb_criteres_actifs %}{{ n }} معيار مفعّل{% plural %}{{ n }} معايير مفعّلة{% endblocktrans %}
-            </span>
-            {% if request.user.role != 'mshrif' %}
-            <a href="{% url 'admin_criteres_par_seance_modifier' profil.position %}"
-               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-               {% trans "تعديل ✏️" %}
-            </a>
-            {% endif %}
-        </div>
+{% for nb_seances, profils in buckets %}
+<div class="mb-3">
+    <div style="font-weight:700; margin-bottom:6px;">
+        {% blocktrans count n=nb_seances %}المجموعات ذات حصة واحدة/أسبوع{% plural %}المجموعات ذات {{ n }} حصص/أسبوع{% endblocktrans %}
     </div>
-    {% empty %}
-    <div style="text-align:center; padding:60px; color:#aaa;">{% trans "لا توجد حصص مهيّأة بعد" %}</div>
-    {% endfor %}
+    <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+        {% for profil in profils %}
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:16px 24px; border-bottom:1px solid #f0f0f0;">
+            <div style="font-weight:700;">{% blocktrans with position=profil.position %}الحصة {{ position }}{% endblocktrans %}</div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span style="background:#f0f0f0; color:#555; border-radius:20px; padding:4px 12px; font-size:0.8rem;">
+                    {% blocktrans count n=profil.nb_criteres_actifs %}{{ n }} معيار مفعّل{% plural %}{{ n }} معايير مفعّلة{% endblocktrans %}
+                </span>
+                {% if request.user.role != 'mshrif' %}
+                <a href="{% url 'admin_criteres_par_seance_modifier' nb_seances profil.position %}"
+                   style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+                   {% trans "تعديل ✏️" %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% if request.user.role != 'mshrif' %}
+    <form method="POST" action="{% url 'admin_criteres_par_seance_ajouter_position' nb_seances %}" class="mt-2">
+        {% csrf_token %}
+        <button type="submit"
+            style="background:none; border:1px dashed #ccc; color:#777; border-radius:8px; padding:6px 14px; font-family:'Tajawal',sans-serif; font-size:0.85rem; cursor:pointer;">
+            {% trans "+ إضافة حصة أخرى لهذه المجموعة" %}
+        </button>
+    </form>
+    {% endif %}
 </div>
+{% empty %}
+<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px;">{% trans "لا توجد إعدادات مشتركة بعد" %}</div>
+{% endfor %}
 
 {% if request.user.role != 'mshrif' %}
-<form method="POST" action="{% url 'admin_criteres_par_seance_ajouter_position' %}" class="mt-3">
+<form method="POST" action="{% url 'admin_criteres_par_seance_ajouter_bucket' %}" class="mt-3 d-flex gap-2 align-items-center">
     {% csrf_token %}
+    <label style="font-size:0.9rem; color:#555;">{% trans "تحضير عدد حصص/أسبوع جديد:" %}</label>
+    <input type="number" name="nb_seances_semaine" min="1" class="form-control form-control-sm" style="width:90px;" required>
     <button type="submit"
         style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 20px; font-family:'Tajawal',sans-serif; font-size:0.95rem; cursor:pointer;">
-        {% trans "+ إضافة حصة أخرى" %}
+        {% trans "+ إضافة" %}
     </button>
 </form>
 {% endif %}

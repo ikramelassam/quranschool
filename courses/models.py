@@ -900,25 +900,35 @@ class Seance(models.Model):
         return 1
 
     @property
-    def type_evaluation(self):
-        """Axe d'évaluation élève de CETTE séance (الحفظ/المراجعة) — calculé
-        automatiquement depuis numero_dans_la_semaine, JAMAIS choisi
-        manuellement : impaire (1, 3, 5…) = 'hifz' (contenu du jour = nouvel
-        apprentissage + récitation), paire (2, 4, 6…) = 'mouraja3a' (contenu
-        du jour = révision de l'acquis). Toujours une valeur (jamais None,
-        contrairement à la 1ʳᵉ version de ce chantier) : une حلقة à 1 séance/
-        semaine a toujours sa séance unique en position 1, donc toujours
-        'hifz' — cohérent avec la demande explicite du client (Point 9 : "si
-        un groupe possède une seule séance, elle est donc traitée comme la
-        séance 1").
+    def nb_seances_semaine(self):
+        """Nombre de séances/semaine du GROUPE de cette séance — clé du
+        Niveau 1 (commun) de ProfilCriteresSeance, voir son __doc__. Jamais
+        stocké séparément (même principe que CreneauSlot.__doc__, voir aussi
+        courses.utils) : toujours dérivé de groupe.creneau.slots.count().
+        Repli sur 1 si le groupe n'a pas de créneau — même philosophie de
+        repli que numero_dans_la_semaine ci-dessus (un groupe sans créneau
+        n'a par définition qu'une seule séance possible, en position 1)."""
+        creneau = self.groupe.creneau
+        if not creneau:
+            return 1
+        n = creneau.slots.count()
+        return n if n > 0 else 1
 
-        Détermine quels CritereEleve sont affichés/exigés dans la feuille de
-        présence (voir CritereEleve.type_lie et dashboard.views.
-        prof_seance_detail/prof_presence_sauvegarder) — n'affecte QUE la
-        feuille encore modifiable ; l'affichage en lecture seule d'une séance
-        déjà 'terminee' montre toujours les 2 blocs (voir template), y
-        compris pour tout historique antérieur à ce chantier où les 2 étaient
-        réellement remplis ensemble — jamais masqué rétroactivement."""
+    @property
+    def type_evaluation(self):
+        """Axe DOMINANT de CETTE séance (الحفظ/المراجعة), calculé depuis
+        numero_dans_la_semaine — impaire='hifz', paire='mouraja3a'. Depuis le
+        chantier du 2026-09-12 (v3, correction de régression), ce champ NE
+        GATE PLUS les champs sourate_memorisee/sourate_revisee de Presence :
+        voir bloc_memorisation_applicable/bloc_revision_applicable
+        ci-dessous, dérivés de criteres_applicables (ProfilCriteresSeance),
+        seule source qui reflète correctement une séance mixte (حفظ ET
+        مراجعة à la fois, cas explicitement demandé par le client — ex.
+        séance 2 d'un groupe à 2 séances/semaine peut exiger "الحفظ" ET
+        "المراجعة"). type_evaluation reste utilisé pour 2 choses seulement :
+        (1) le bandeau informatif de prof_seance_detail.html (purement
+        indicatif), (2) le gabarit par défaut d'une position encore jamais
+        configurée (_defaut_criteres_pour_nouvelle_position ci-dessous)."""
         return 'hifz' if self.numero_dans_la_semaine % 2 == 1 else 'mouraja3a'
 
     @property
@@ -927,34 +937,82 @@ class Seance(models.Model):
 
     def _defaut_criteres_pour_nouvelle_position(self):
         """Gabarit UNIQUEMENT utilisé la toute première fois qu'un
-        ProfilCriteresSeance est créé pour cette position (voir
-        criteres_applicables ci-dessous) — reproduit l'ancien mapping
-        CritereEleve.type_lie (impaire='hifz', paire='mouraja3a') pour ne
-        rien changer tant que l'admin n'a rien personnalisé. Dernier usage
-        de type_lie dans le parcours normal : jamais relu une fois le profil
-        créé, jamais utilisé pour filtrer une évaluation en direct (voir
-        ProfilCriteresSeance.__doc__). CritereEleve est défini plus bas dans
-        ce même fichier — résolu au moment de l'appel, pas à la définition
-        de la classe, donc aucun import n'est nécessaire ici."""
+        ProfilCriteresSeance (Niveau 1, commun) est créé pour ce couple
+        (nb_seances_semaine, position) — voir criteres_applicables
+        ci-dessous. Reproduit l'ancien mapping CritereEleve.type_lie
+        (impaire='hifz', paire='mouraja3a') pour ne rien changer tant que
+        l'admin n'a rien personnalisé. Dernier usage de type_lie à la
+        création : jamais relu ensuite pour ce profil, jamais utilisé pour
+        filtrer une évaluation en direct (voir ProfilCriteresSeance.__doc__).
+        Un profil de Niveau 2 (spécifique à un groupe), lui, n'a jamais de
+        gabarit par défaut : voir dashboard.views.
+        admin_criteres_par_seance_groupe_modifier, qui pré-remplit
+        explicitement depuis la résolution ACTUELLE (Niveau 2 > Niveau 1 >
+        défaut) au moment de la personnalisation, jamais depuis type_lie
+        directement. CritereEleve est défini plus bas dans ce même fichier —
+        résolu au moment de l'appel, pas à la définition de la classe, donc
+        aucun import n'est nécessaire ici."""
         return CritereEleve.objects.filter(type_lie__in=('commun', self.type_evaluation))
 
     @property
     def criteres_applicables(self):
         """QuerySet des CritereEleve ACTIFS applicables à CETTE séance —
         SOURCE UNIQUE pendant le parcours normal d'évaluation (voir
-        dashboard.views.prof_seance_detail/prof_presence_sauvegarder) :
-        ProfilCriteresSeance associé à numero_dans_la_semaine. Une position
-        encore jamais configurée obtient un profil créé à la volée avec un
-        contenu par défaut (voir _defaut_criteres_pour_nouvelle_position) —
-        UNE SEULE FOIS : dès que la ligne existe, son contenu enregistré est
-        la seule vérité, plus jamais recalculé (demande explicite du client :
-        modifier la position 6 ne doit jamais changer si type_lie ou la
-        parité évoluent ensuite, et ne doit jamais affecter la position 2 ou
-        4)."""
-        profil, cree = ProfilCriteresSeance.objects.get_or_create(position=self.numero_dans_la_semaine)
+        dashboard.views.prof_seance_detail/prof_presence_sauvegarder).
+
+        Résolution à 2 niveaux, priorité stricte (demande explicite du
+        client, 2026-09-12) :
+          1. Niveau 2 — profil spécifique à CE groupe et CETTE position
+             (ProfilCriteresSeance.groupe = self.groupe), si une ligne
+             existe déjà. Jamais créé à la volée : une personnalisation
+             groupe est TOUJOURS un choix explicite de l'admin (voir
+             admin_criteres_par_seance_groupe_modifier), jamais un
+             sous-produit de la lecture d'une séance.
+          2. Niveau 1 — profil commun (groupe NULL) pour CE
+             nb_seances_semaine et CETTE position. Une combinaison encore
+             jamais configurée est créée À LA VOLÉE, avec un contenu par
+             défaut dérivé de type_lie (voir
+             _defaut_criteres_pour_nouvelle_position) — UNE SEULE FOIS : dès
+             que la ligne existe, son contenu enregistré est la seule
+             vérité, plus jamais recalculé (modifier la position 6 d'un
+             nb_seances_semaine=2 ne doit jamais changer si type_lie ou la
+             parité évoluent ensuite, et ne doit jamais affecter la position
+             2, ni un groupe personnalisé au Niveau 2, ni un autre
+             nb_seances_semaine)."""
+        position = self.numero_dans_la_semaine
+
+        profil_specifique = ProfilCriteresSeance.objects.filter(
+            groupe=self.groupe, position=position,
+        ).first()
+        if profil_specifique is not None:
+            return profil_specifique.criteres.filter(est_actif=True).order_by('ordre')
+
+        profil_commun, cree = ProfilCriteresSeance.objects.get_or_create(
+            groupe=None, nb_seances_semaine=self.nb_seances_semaine, position=position,
+        )
         if cree:
-            profil.criteres.set(self._defaut_criteres_pour_nouvelle_position())
-        return profil.criteres.filter(est_actif=True).order_by('ordre')
+            profil_commun.criteres.set(self._defaut_criteres_pour_nouvelle_position())
+        return profil_commun.criteres.filter(est_actif=True).order_by('ordre')
+
+    @property
+    def bloc_memorisation_applicable(self):
+        """True si au moins un critère "الحفظ" (type_lie='hifz') est
+        exigible sur CETTE séance précise, d'après criteres_applicables —
+        remplace le gate binaire type_evaluation == 'hifz' (correction de
+        régression du 2026-09-12 : l'ancien gate écrasait silencieusement
+        sourate_memorisee/ayah_*/consigne_memorisation dès que
+        type_evaluation résolvait à 'mouraja3a', même quand un critère حفظ
+        était réellement exigible sur cette séance — voir
+        dashboard.views.prof_presence_sauvegarder). Indépendant de
+        bloc_revision_applicable : les deux peuvent être True en même temps
+        (séance mixte حفظ+مراجعة, cas explicitement voulu par le client)."""
+        return self.criteres_applicables.filter(type_lie='hifz').exists()
+
+    @property
+    def bloc_revision_applicable(self):
+        """Symétrique de bloc_memorisation_applicable pour "المراجعة"
+        (type_lie='mouraja3a')."""
+        return self.criteres_applicables.filter(type_lie='mouraja3a').exists()
 
     FENETRE_EVALUATION_PRESENCE_HEURES = 24  # même principe que evaluations.Evaluation
     # (مؤطر -> prof) : passé ce délai depuis le DÉBUT de la séance (aucune durée de
@@ -1249,40 +1307,62 @@ class CritereEleve(models.Model):
 
 
 class ProfilCriteresSeance(models.Model):
-    """Chantier du 2026-09-12 (v2) — demande explicite du client : chaque
-    POSITION de séance dans la semaine (1ʳᵉ, 2ᵉ, 3ᵉ, 4ᵉ… sans limite, voir
-    Seance.numero_dans_la_semaine) a sa PROPRE liste de critères, totalement
-    indépendante des autres. Rejeté explicitement par le client : un simple
-    système à 2 compartiments partagés (pair/impair, l'ancien CritereEleve.
-    type_lie) — modifier la position 4 ne doit JAMAIS affecter la position
-    2, même si les deux étaient identiques au départ (ex: 2 hifz+révision
-    devient différent de 4 hifz+révision après une personnalisation).
+    """Chantier du 2026-09-12 (v2), étendu le même jour à 2 NIVEAUX sur
+    demande explicite du client (« le besoin métier peut évoluer ») :
 
-    `position` est un simple entier, jamais borné : une position encore
-    jamais configurée est créée À LA VOLÉE au premier accès (voir Seance.
-    criteres_applicables), avec un contenu par défaut dérivé de CritereEleve.
-    type_lie (pair/impair) — UNIQUEMENT à cet instant précis. Dès que la
-    ligne existe en base, son contenu enregistré devient la seule source de
-    vérité : elle n'est plus jamais recalculée, même si type_lie change
-    ensuite ou si l'admin modifie une AUTRE position.
+    Niveau 1 — COMMUN : `groupe` NULL, clé = (nb_seances_semaine, position).
+    Regroupe automatiquement tous les groupes ayant le même nombre de
+    séances/semaine (voir Seance.nb_seances_semaine) — remplace le
+    1ᵉʳ jet de ce chantier, où `position` seule (sans dimension
+    nb_seances_semaine) était partagée par TOUS les groupes quelle que
+    soit leur cadence (position 1 d'un groupe à 1 séance = position 1
+    d'un groupe à 2 séances). Rejeté explicitement par le client : la
+    position 2 d'un groupe à 2 séances/semaine et la position 2 d'un
+    groupe à 4 séances/semaine doivent pouvoir être configurées
+    différemment.
+
+    Niveau 2 — SPÉCIFIQUE : `groupe` renseigné, clé = (groupe, position).
+    Ligne totalement indépendante, jamais recalculée depuis le Niveau 1
+    après sa création : modifier la config commune d'un nb_seances_semaine
+    donné n'écrit JAMAIS dans une ligne Niveau 2 existante (voir Seance.
+    criteres_applicables pour la résolution avec priorité Niveau 2 >
+    Niveau 1 > gabarit par défaut).
+
+    `position` reste un entier jamais borné : une position encore jamais
+    configurée (à l'un ou l'autre niveau) est créée À LA VOLÉE au premier
+    accès réel (voir Seance.criteres_applicables), avec un contenu par
+    défaut dérivé de CritereEleve.type_lie — UNIQUEMENT à cet instant
+    précis. Dès que la ligne existe en base, son contenu enregistré devient
+    la seule source de vérité : elle n'est plus jamais recalculée, même si
+    type_lie change ensuite ou si l'admin modifie une AUTRE position/un
+    autre groupe.
 
     `criteres` est une M2M vers CritereEleve (jamais dupliqué : un même
-    critère peut appartenir à N positions à la fois, exactement comme
-    demandé) — la page /dashboard/admin/criteres-eleves/ reste l'unique
-    endroit pour créer/nommer/activer/supprimer un CritereEleve ; cet écran-ci
-    ne gère que leur association à une position.
+    critère peut appartenir à N profils à la fois, aux deux niveaux) — la
+    page /dashboard/admin/criteres-eleves/ reste l'unique endroit pour
+    créer/nommer/activer/supprimer un CritereEleve ; les écrans de ce
+    modèle ne gèrent que leur association à une position (commune ou
+    spécifique à un groupe).
 
     AUCUN lien vers NotePresence/Presence : une évaluation déjà enregistrée
     ne référence jamais un ProfilCriteresSeance, seulement directement le
-    CritereEleve noté — modifier un profil n'a donc aucun effet rétroactif
-    sur l'historique déjà en base (voir dashboard.views.prof_seance_detail,
-    qui construit l'affichage en lecture seule depuis les NotePresence
-    réellement enregistrées, jamais depuis le profil actuel)."""
-    position = models.PositiveIntegerField(unique=True)
+    CritereEleve noté — modifier un profil (des 2 niveaux) n'a donc aucun
+    effet rétroactif sur l'historique déjà en base (voir dashboard.views.
+    prof_seance_detail, qui construit l'affichage en lecture seule depuis
+    les NotePresence réellement enregistrées, jamais depuis le profil
+    actuel)."""
+    groupe = models.ForeignKey(
+        Groupe, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='profils_criteres_seance',
+    )
+    nb_seances_semaine = models.PositiveIntegerField(null=True, blank=True)
+    position = models.PositiveIntegerField()
     criteres = models.ManyToManyField(CritereEleve, related_name='profils_seance', blank=True)
 
     def __str__(self):
-        return f"الحصة {self.position}"
+        if self.groupe_id:
+            return f"{self.groupe} — الحصة {self.position} (تخصيص)"
+        return f"{self.nb_seances_semaine} حصص/أسبوع — الحصة {self.position}"
 
     @property
     def nb_criteres_actifs(self):
@@ -1296,6 +1376,20 @@ class ProfilCriteresSeance(models.Model):
         ordering = ['position']
         verbose_name = "Profil de critères par position de séance"
         verbose_name_plural = "Profils de critères par position de séance"
+        constraints = [
+            # Niveau 1 (commun) : une seule ligne par (nb_seances_semaine, position).
+            models.UniqueConstraint(
+                fields=['nb_seances_semaine', 'position'],
+                condition=models.Q(groupe__isnull=True),
+                name='uniq_commun_nbseances_position',
+            ),
+            # Niveau 2 (spécifique) : une seule ligne par (groupe, position).
+            models.UniqueConstraint(
+                fields=['groupe', 'position'],
+                condition=models.Q(groupe__isnull=False),
+                name='uniq_groupe_position',
+            ),
+        ]
 
 
 class NotePresence(models.Model):

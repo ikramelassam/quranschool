@@ -1,10 +1,14 @@
 {% extends 'dashboard/base_admin.html' %}
 {% load i18n %}
-{% block title %}{% blocktrans with position=profil.position %}معايير الحصة {{ position }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans with position=position %}تخصيص الحصة {{ position }}{% endblocktrans %}{% endblock %}
 {% block content %}
-<div class="page-title">{% blocktrans with position=profil.position %}معايير الحصة {{ position }}{% endblocktrans %}</div>
+<div class="page-title">{% blocktrans with position=position nom=groupe.nom %}تخصيص الحصة {{ position }} لمجموعة {{ nom }}{% endblocktrans %}</div>
 <div class="page-subtitle">
-    {% blocktrans with n=nb_seances %}الإعداد المشترك للمجموعات ذات {{ n }} حصص/أسبوع — لا يؤثر هذا على باقي عدد الحصص، ولا على أي مجموعة تم تخصيصها بشكل خاص{% endblocktrans %}
+    {% if personnalise %}
+        {% trans "هذه الحصة مخصصة بالفعل لهذه المجموعة — أي تعديل هنا يبقى خاصًا بها فقط." %}
+    {% else %}
+        {% trans "أول تخصيص لهذه الحصة: القائمة أدناه معبّأة مسبقًا بالإعداد المشترك الحالي، عدّلها حسب الحاجة ثم احفظ لجعلها مستقلة نهائيًا عن الإعداد المشترك." %}
+    {% endif %}
 </div>
 
 <div style="background:white; border-radius:16px; padding:32px; max-width:500px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
@@ -23,7 +27,7 @@
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">
                 {% trans "حفظ ✅" %}
             </button>
-            <a href="{% url 'admin_criteres_par_seance' %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
+            <a href="{% url 'admin_groupe_criteres_par_seance' groupe.id %}" style="color:#888; text-decoration:none; padding:10px;">{% trans "← رجوع" %}</a>
         </div>
     </form>
 </div>

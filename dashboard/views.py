@@ -929,6 +929,13 @@ def prof_seance_detail(request, seance_id):
         # plutôt que de dire "rien n'a été fait" quand ce n'est pas le cas.
         'nb_presences_enregistrees': len(presences_par_eleve),
         'nb_total_eleves': len(eleves),
+        # Correction de régression du 2026-09-12 : remplace le gate binaire
+        # seance.type_evaluation (qui écrasait silencieusement les données
+        # حفظ d'une séance dont le profil exige AUSSI un critère مراجعة) —
+        # voir Seance.bloc_memorisation_applicable.__doc__. Les 2 peuvent
+        # être True en même temps (séance mixte).
+        'bloc_memorisation': seance.bloc_memorisation_applicable,
+        'bloc_revision': seance.bloc_revision_applicable,
     })
 
 
@@ -949,12 +956,25 @@ def prof_presence_sauvegarder(request, seance_id):
             messages.error(request, gettext_('انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يعد بالإمكان تقييمها.'))
         return redirect('prof_seance_detail', seance_id=seance.id)
 
-    # Chantier du 2026-09-12 : l'axe (الحفظ/المراجعة) est calculé
-    # AUTOMATIQUEMENT depuis la position de la séance dans la semaine (voir
-    # Seance.type_evaluation.__doc__) — toujours une valeur, jamais besoin de
-    # garde-fou "pas encore choisi" (abandonné avec la 1ʳᵉ version de ce
-    # chantier, où le prof choisissait lui-même).
-    type_eval = seance.type_evaluation
+    # Correction de régression du 2026-09-12 : la visibilité des blocs
+    # حفظ/مراجعة (sourate/ayat/consigne) vient désormais de
+    # criteres_applicables (ProfilCriteresSeance), PAS du binaire
+    # seance.type_evaluation — voir Seance.bloc_memorisation_applicable.
+    # __doc__ pour le diagnostic complet. Les 2 peuvent être True en même
+    # temps (séance mixte حفظ+مراجعة).
+    bloc_memo = seance.bloc_memorisation_applicable
+    bloc_rev = seance.bloc_revision_applicable
+
+    # Workflow Enregistrer/Soumettre (demande explicite du client, 2026-09-12) :
+    # 'enregistrer' sauvegarde le travail en cours SANS finaliser la séance
+    # (reste modifiable), 'soumettre' sauvegarde ET finalise (statut
+    # 'terminee', verrouillage définitif — comportement identique à l'ancien
+    # bouton unique). Repli sur 'soumettre' uniquement si la valeur postée
+    # est absente/invalide (accès forgé) — les 2 boutons du formulaire
+    # envoient toujours explicitement l'un des 2 (voir prof_seance_detail.html).
+    action = request.POST.get('action')
+    if action not in ('enregistrer', 'soumettre'):
+        action = 'soumettre'
 
     if request.method == 'POST':
         from courses.models import NotePresence
@@ -986,14 +1006,17 @@ def prof_presence_sauvegarder(request, seance_id):
             statut = request.POST.get(f'statut_{eleve.id}', 'absent')
             remarque = request.POST.get(f'remarque_{eleve.id}', '')
 
-            # Chantier du 2026-09-12 : un SEUL des 2 blocs (حفظ/مراجعة) est lu
-            # depuis le POST — celui qui correspond à type_eval (l'autre n'est
-            # de toute façon plus rendu par le formulaire, voir
-            # prof_seance_detail). L'axe non choisi cette séance est
-            # explicitement remis à vide/valeur par défaut ci-dessous plutôt
-            # que de laisser une éventuelle valeur POST orpheline (accès
-            # forgé) s'enregistrer silencieusement.
-            if type_eval == 'hifz':
+            # Correction de régression du 2026-09-12 : chaque bloc (حفظ/مراجعة)
+            # est désormais lu depuis le POST INDÉPENDAMMENT, d'après
+            # bloc_memo/bloc_rev (criteres_applicables) — les 2 peuvent être
+            # lus et enregistrés EN MÊME TEMPS sur une séance mixte (avant ce
+            # correctif, seul le bloc correspondant à l'ancien binaire
+            # type_evaluation était lu, et l'autre était FORCÉMENT vidé même
+            # s'il était réellement exigible — voir Seance.
+            # bloc_memorisation_applicable.__doc__). Un bloc non applicable à
+            # cette séance reste vidé/valeur par défaut, comme avant, pour
+            # ignorer toute valeur POST orpheline (accès forgé).
+            if bloc_memo:
                 sourate_memorisee = request.POST.get(f'sourate_memo_{eleve.id}') or None
                 ayah_debut_memorisation = request.POST.get(f'ayah_debut_memo_{eleve.id}') or None
                 ayah_fin_memorisation = request.POST.get(f'ayah_fin_memo_{eleve.id}') or None
@@ -1005,10 +1028,12 @@ def prof_presence_sauvegarder(request, seance_id):
                 resultat_memorisation = request.POST.get(f'resultat_memo_{eleve.id}', 'valide')
                 if resultat_memorisation not in dict(Presence.RESULTAT_CHOICES):
                     resultat_memorisation = 'valide'
-                sourate_revisee = ayah_debut_revision = ayah_fin_revision = None
-                consigne_revision = ''
-                resultat_revision = 'valide'
-            else:  # 'mouraja3a'
+            else:
+                sourate_memorisee = ayah_debut_memorisation = ayah_fin_memorisation = None
+                consigne_memorisation = ''
+                resultat_memorisation = 'valide'
+
+            if bloc_rev:
                 sourate_revisee = request.POST.get(f'sourate_rev_{eleve.id}') or None
                 ayah_debut_revision = request.POST.get(f'ayah_debut_rev_{eleve.id}') or None
                 ayah_fin_revision = request.POST.get(f'ayah_fin_rev_{eleve.id}') or None
@@ -1016,9 +1041,10 @@ def prof_presence_sauvegarder(request, seance_id):
                 resultat_revision = request.POST.get(f'resultat_rev_{eleve.id}', 'valide')
                 if resultat_revision not in dict(Presence.RESULTAT_CHOICES):
                     resultat_revision = 'valide'
-                sourate_memorisee = ayah_debut_memorisation = ayah_fin_memorisation = None
-                consigne_memorisation = ''
-                resultat_memorisation = 'valide'
+            else:
+                sourate_revisee = ayah_debut_revision = ayah_fin_revision = None
+                consigne_revision = ''
+                resultat_revision = 'valide'
 
             # Critères dynamiques /20 (Tâche du 2026-08-04, Point 7) — remplacent
             # l'ancienne échelle qualitative pour toute nouvelle évaluation
@@ -1037,8 +1063,9 @@ def prof_presence_sauvegarder(request, seance_id):
             # (ex: ayah 300 pour الفاتحة qui n'en a que 7) doit être refusée — voir
             # _ayah_depasse_sourate et le commentaire de courses/quran_data.py qui
             # annonçait cette validation sans qu'elle ait jamais été implémentée.
-            # Un seul bloc à valider désormais (type_eval) — l'autre est
-            # toujours None ci-dessus, ces 2 fonctions renvoient alors False.
+            # Les 2 blocs peuvent être validés (séance mixte حفظ+مراجعة) : un
+            # bloc non applicable a ses champs toujours None ci-dessus, ces 2
+            # fonctions renvoient alors False sans rien valider pour lui.
             ligne_invalide = False
             if _ayah_incoherentes(ayah_debut_memorisation, ayah_fin_memorisation):
                 erreurs.append(
@@ -1084,10 +1111,10 @@ def prof_presence_sauvegarder(request, seance_id):
                         ligne_invalide = True
                         continue
                     notes_validees[critere.id] = valeur
-                if type_eval == 'hifz' and not consigne_memorisation.strip():
+                if bloc_memo and not consigne_memorisation.strip():
                     erreurs.append(gettext_('%(v0)s: يجب تحديد "المطلوب حفظه".') % {'v0': eleve.user.get_full_name()})
                     ligne_invalide = True
-                if type_eval == 'mouraja3a' and not consigne_revision.strip():
+                if bloc_rev and not consigne_revision.strip():
                     erreurs.append(gettext_('%(v0)s: يجب تحديد "المطلوب مراجعته".') % {'v0': eleve.user.get_full_name()})
                     ligne_invalide = True
             else:
@@ -1137,10 +1164,21 @@ def prof_presence_sauvegarder(request, seance_id):
             return redirect('prof_seance_detail', seance_id=seance.id)
 
         seance.remarque_generale = request.POST.get('remarque_generale', '')
-        seance.statut = 'terminee'
-        seance.save()
-        messages.success(request, gettext_('تم حفظ الحضور والتقييمات بنجاح.'))
-        return redirect('prof_seances')
+        if action == 'soumettre':
+            seance.statut = 'terminee'
+            seance.save()
+            messages.success(request, gettext_('تم حفظ الحضور والتقييمات بنجاح.'))
+            return redirect('prof_seances')
+        else:
+            # 'enregistrer' : même sauvegarde par élève que ci-dessus, mais la
+            # séance reste 'planifiee' (modifiable_par_prof toujours vrai tant
+            # que le délai de 24h n'est pas dépassé) — le prof peut continuer
+            # à remplir d'autres élèves sans perdre ce qui est déjà saisi, ni
+            # verrouiller la séance prématurément (voir demande explicite du
+            # client : "Enregistrer" ne finalise pas, seul "Soumettre" le fait).
+            seance.save()
+            messages.success(request, gettext_('تم حفظ المسودة. يمكنك متابعة التعديل أو الضغط على "إرسال نهائي" لاحقاً.'))
+            return redirect('prof_seance_detail', seance_id=seance.id)
 
     return redirect('prof_seance_detail', seance_id=seance_id)
 
@@ -6172,10 +6210,22 @@ def admin_critere_eleve_supprimer(request, critere_id):
 
 @role_required('admin', 'mshrif')
 def admin_criteres_par_seance(request):
+    """Niveau 1 (commun) UNIQUEMENT — regroupé par nb_seances_semaine (voir
+    ProfilCriteresSeance.__doc__). La personnalisation Niveau 2 (spécifique à
+    un groupe) se fait depuis la fiche du groupe concerné (voir
+    admin_groupe_criteres_par_seance), jamais depuis cet écran global."""
     from courses.models import ProfilCriteresSeance
 
+    profils_communs = ProfilCriteresSeance.objects.filter(
+        groupe__isnull=True,
+    ).exclude(nb_seances_semaine__isnull=True).prefetch_related('criteres').order_by('nb_seances_semaine', 'position')
+
+    buckets = {}
+    for profil in profils_communs:
+        buckets.setdefault(profil.nb_seances_semaine, []).append(profil)
+
     context = {
-        'profils': ProfilCriteresSeance.objects.prefetch_related('criteres').order_by('position'),
+        'buckets': sorted(buckets.items()),
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
@@ -6183,34 +6233,72 @@ def admin_criteres_par_seance(request):
 
 
 @role_required('admin')
-def admin_criteres_par_seance_ajouter_position(request):
-    """Ajoute manuellement la position suivante (max existant + 1) — permet
-    à l'admin de préparer à l'avance une حصة que le planning n'a pas encore
-    réellement atteinte, sans attendre qu'une vraie séance la déclenche (voir
-    Seance.criteres_applicables, qui crée aussi une position à la volée dès
-    qu'une حصة réelle l'atteint en premier, selon le même mécanisme)."""
+def admin_criteres_par_seance_ajouter_position(request, nb_seances):
+    """Ajoute manuellement la position suivante (max existant + 1) DANS ce
+    bucket nb_seances_semaine — permet à l'admin de préparer à l'avance une
+    حصة que le planning n'a pas encore réellement atteinte, sans attendre
+    qu'une vraie séance la déclenche (voir Seance.criteres_applicables, qui
+    crée aussi une position à la volée dès qu'une حصة réelle l'atteint en
+    premier, selon le même mécanisme). Contrairement à criteres_applicables,
+    créée ici SANS gabarit par défaut (vide) — un profil manuel n'a pas de
+    Seance dont dériver type_evaluation, voir _defaut_criteres_pour_nouvelle_position.__doc__."""
     from courses.models import ProfilCriteresSeance
 
     if request.method == 'POST':
-        derniere = ProfilCriteresSeance.objects.order_by('-position').first()
+        derniere = ProfilCriteresSeance.objects.filter(
+            groupe__isnull=True, nb_seances_semaine=nb_seances,
+        ).order_by('-position').first()
         nouvelle_position = (derniere.position + 1) if derniere else 1
-        ProfilCriteresSeance.objects.create(position=nouvelle_position)
+        ProfilCriteresSeance.objects.create(
+            groupe=None, nb_seances_semaine=nb_seances, position=nouvelle_position,
+        )
         messages.success(request, gettext_('تمت إضافة الحصة %(v0)s.') % {'v0': nouvelle_position})
 
     return redirect('admin_criteres_par_seance')
 
 
 @role_required('admin')
-def admin_criteres_par_seance_modifier(request, position):
-    """Coche/décoche les CritereEleve membres du profil de CETTE position
-    précise — jamais recalculé par la suite depuis pair/impair une fois
-    enregistré ici (voir ProfilCriteresSeance.__doc__). get_or_create : une
-    position jamais rencontrée par aucune vraie séance mais visée
-    directement par URL (lien deviné) est créée vide plutôt que 404,
-    cohérent avec le comportement à la volée de Seance.criteres_applicables."""
+def admin_criteres_par_seance_ajouter_bucket(request):
+    """Prépare à l'avance un NOUVEAU nombre de séances/semaine jamais encore
+    rencontré (ex: un futur groupe à 3 séances/semaine, alors qu'aucun groupe
+    actuel n'en a) — crée sa position 1, vide, même principe que
+    admin_criteres_par_seance_ajouter_position ci-dessus."""
+    from courses.models import ProfilCriteresSeance
+
+    if request.method == 'POST':
+        try:
+            nb_seances = int(request.POST.get('nb_seances_semaine', ''))
+        except ValueError:
+            messages.error(request, gettext_('يرجى إدخال رقم صحيح.'))
+            return redirect('admin_criteres_par_seance')
+        if nb_seances < 1:
+            messages.error(request, gettext_('يجب أن يكون عدد الحصص أكبر من صفر.'))
+            return redirect('admin_criteres_par_seance')
+        _, cree = ProfilCriteresSeance.objects.get_or_create(
+            groupe=None, nb_seances_semaine=nb_seances, position=1,
+        )
+        if cree:
+            messages.success(request, gettext_('تمت إضافة مجموعة "%(v0)s حصص/أسبوع".') % {'v0': nb_seances})
+        else:
+            messages.warning(request, gettext_('هذه المجموعة موجودة بالفعل.'))
+
+    return redirect('admin_criteres_par_seance')
+
+
+@role_required('admin')
+def admin_criteres_par_seance_modifier(request, nb_seances, position):
+    """Coche/décoche les CritereEleve membres du profil COMMUN (Niveau 1) de
+    ce (nb_seances_semaine, position) précis — jamais recalculé par la suite
+    depuis pair/impair une fois enregistré ici (voir ProfilCriteresSeance.
+    __doc__). get_or_create : une combinaison jamais rencontrée par aucune
+    vraie séance mais visée directement par URL (lien deviné) est créée vide
+    plutôt que 404, cohérent avec le comportement à la volée de
+    Seance.criteres_applicables."""
     from courses.models import ProfilCriteresSeance, CritereEleve
 
-    profil, _ = ProfilCriteresSeance.objects.get_or_create(position=position)
+    profil, _ = ProfilCriteresSeance.objects.get_or_create(
+        groupe=None, nb_seances_semaine=nb_seances, position=position,
+    )
 
     if request.method == 'POST':
         ids_coches = request.POST.getlist('criteres')
@@ -6221,12 +6309,121 @@ def admin_criteres_par_seance_modifier(request, position):
     ids_membres = set(profil.criteres.values_list('id', flat=True))
     context = {
         'profil': profil,
+        'nb_seances': nb_seances,
         'criteres_coches': [
             {'critere': c, 'coche': c.id in ids_membres}
             for c in CritereEleve.objects.filter(est_actif=True).order_by('ordre')
         ],
     }
     return render(request, 'dashboard/admin_criteres_par_seance_modifier.html', context)
+
+
+# ---------- Niveau 2 — personnalisation spécifique à un groupe (priorité sur le Niveau 1 ci-dessus) ----------
+
+@role_required('admin', 'mshrif')
+def admin_groupe_criteres_par_seance(request, groupe_id):
+    """Liste les positions 1..nb_seances_semaine de CE groupe, chacune
+    indiquant si elle suit la config commune (Niveau 1) ou a été personnalisée
+    (Niveau 2, ligne ProfilCriteresSeance.groupe=ce groupe) — voir Seance.
+    criteres_applicables pour la résolution avec priorité."""
+    from courses.models import Groupe, ProfilCriteresSeance
+
+    groupe = get_object_or_404(Groupe, id=groupe_id)
+    nb_seances = groupe.creneau.slots.count() if groupe.creneau else 1
+    nb_seances = nb_seances if nb_seances > 0 else 1
+
+    profils_specifiques = {
+        p.position: p for p in ProfilCriteresSeance.objects.filter(
+            groupe=groupe,
+        ).prefetch_related('criteres')
+    }
+
+    positions = []
+    for position in range(1, nb_seances + 1):
+        profil_specifique = profils_specifiques.get(position)
+        positions.append({
+            'position': position,
+            'personnalise': profil_specifique is not None,
+            'profil': profil_specifique,
+        })
+
+    context = {
+        'groupe': groupe,
+        'nb_seances': nb_seances,
+        'positions': positions,
+        'base_template': _base_template_admin_ou_mshrif(request),
+    }
+    context.update(_contexte_base_mshrif(request))
+    return render(request, 'dashboard/admin_groupe_criteres_par_seance.html', context)
+
+
+@role_required('admin')
+def admin_groupe_criteres_par_seance_modifier(request, groupe_id, position):
+    """Coche/décoche les CritereEleve du profil SPÉCIFIQUE (Niveau 2) de ce
+    groupe/position — création explicite uniquement (jamais à la volée
+    depuis Seance.criteres_applicables, voir son __doc__ : une
+    personnalisation groupe est toujours un choix assumé de l'admin).
+    Pré-remplissage à la première ouverture (GET, profil pas encore en
+    base) : copie PONCTUELLE de ce que ce groupe/position résout AUJOURD'HUI
+    (Niveau 1 actuel), pas un lien vivant — une fois enregistré, cette ligne
+    devient indépendante et n'est plus jamais recalculée depuis le Niveau 1
+    (voir ProfilCriteresSeance.__doc__)."""
+    from courses.models import Groupe, ProfilCriteresSeance, CritereEleve
+
+    groupe = get_object_or_404(Groupe, id=groupe_id)
+    profil = ProfilCriteresSeance.objects.filter(groupe=groupe, position=position).first()
+
+    if request.method == 'POST':
+        if profil is None:
+            profil = ProfilCriteresSeance.objects.create(groupe=groupe, position=position)
+        ids_coches = request.POST.getlist('criteres')
+        profil.criteres.set(CritereEleve.objects.filter(id__in=ids_coches))
+        messages.success(request, gettext_('تم حفظ التخصيص الخاص بهذه المجموعة للحصة %(v0)s.') % {'v0': position})
+        return redirect('admin_groupe_criteres_par_seance', groupe_id=groupe.id)
+
+    if profil is not None:
+        ids_membres = set(profil.criteres.values_list('id', flat=True))
+    else:
+        # Pas encore personnalisé : pré-remplissage depuis la résolution
+        # ACTUELLE (Niveau 1 commun résolu pour ce nb_seances_semaine/position),
+        # calculée UNE SEULE FOIS ici pour l'affichage initial du formulaire —
+        # rien n'est encore écrit en base tant que l'admin n'a pas soumis.
+        nb_seances = groupe.creneau.slots.count() if groupe.creneau else 1
+        nb_seances = nb_seances if nb_seances > 0 else 1
+        profil_commun = ProfilCriteresSeance.objects.filter(
+            groupe__isnull=True, nb_seances_semaine=nb_seances, position=position,
+        ).first()
+        ids_membres = set(profil_commun.criteres.values_list('id', flat=True)) if profil_commun else set()
+
+    context = {
+        'groupe': groupe,
+        'position': position,
+        'personnalise': profil is not None,
+        'criteres_coches': [
+            {'critere': c, 'coche': c.id in ids_membres}
+            for c in CritereEleve.objects.filter(est_actif=True).order_by('ordre')
+        ],
+    }
+    return render(request, 'dashboard/admin_groupe_criteres_par_seance_modifier.html', context)
+
+
+@role_required('admin')
+def admin_groupe_criteres_par_seance_retirer(request, groupe_id, position):
+    """Supprime la ligne Niveau 2 de ce groupe/position — le groupe revient
+    immédiatement suivre la config commune (Niveau 1) de son
+    nb_seances_semaine, sans aucune trace de l'ancienne personnalisation."""
+    from courses.models import Groupe, ProfilCriteresSeance
+
+    groupe = get_object_or_404(Groupe, id=groupe_id)
+
+    if request.method == 'POST':
+        supprime, _ = ProfilCriteresSeance.objects.filter(groupe=groupe, position=position).delete()
+        if supprime:
+            messages.success(request, gettext_('تم إلغاء التخصيص — ستتبع هذه الحصة الإعداد المشترك من الآن.'))
+        else:
+            messages.warning(request, gettext_('لا يوجد تخصيص لإلغائه.'))
+
+    return redirect('admin_groupe_criteres_par_seance', groupe_id=groupe.id)
 
 
 # ==================== ADMIN — VUE CENTRALISÉE DES ÉVALUATIONS ====================
