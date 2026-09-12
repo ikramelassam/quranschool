@@ -854,6 +854,26 @@ class Seance(models.Model):
         help_text="Remarque du prof sur la séance dans son ensemble (distincte des remarques par élève)."
     )
 
+    # Chantier du 2026-09-12 — demande explicite du client : le prof ne doit
+    # évaluer QU'UNE seule chose par حصة (typiquement الحفظ à la séance 1 de
+    # la semaine, المراجعة à la séance 2), jamais les deux en même temps comme
+    # avant ce champ. Posé une fois par une question dédiée avant le
+    # remplissage de la feuille (voir dashboard.views.prof_seance_detail et
+    # prof_seance_choisir_type_evaluation) — null=True tant que la question
+    # n'a pas encore été posée/répondue (jamais de valeur devinée), y compris
+    # pour TOUTE séance créée avant ce chantier (aucun backfill : l'ancien
+    # comportement "les deux blocs à la fois" reste affiché tel quel pour tout
+    # historique déjà en base, voir Presence.consigne_memorisation/
+    # consigne_revision qui restent, eux, inchangés et continuent de
+    # coexister sur une même Presence quel que soit type_evaluation).
+    TYPE_EVALUATION_CHOICES = [
+        ('hifz', _('الحفظ')),
+        ('mouraja3a', _('المراجعة')),
+    ]
+    type_evaluation = models.CharField(
+        max_length=10, choices=TYPE_EVALUATION_CHOICES, null=True, blank=True,
+    )
+
     FENETRE_EVALUATION_PRESENCE_HEURES = 24  # même principe que evaluations.Evaluation
     # (مؤطر -> prof) : passé ce délai depuis le DÉBUT de la séance (aucune durée de
     # séance n'est stockée, l'heure de début sert donc de référence), le prof perd
@@ -1098,6 +1118,30 @@ class CritereEleve(models.Model):
     nom_en = models.CharField(max_length=200, blank=True, default='')
     ordre = models.IntegerField(default=0)
     est_actif = models.BooleanField(default=True)
+
+    # Chantier du 2026-09-12 (même chantier que Seance.type_evaluation) : un
+    # critère peut être spécifique à l'un des 2 axes désormais posés à la
+    # séance (الحفظ/المراجعة), ou 'commun' (par défaut) s'il s'applique dans
+    # les deux cas. Seul un critère 'commun' ou dont le type_lie correspond à
+    # Seance.type_evaluation est affiché/exigé dans la feuille de présence
+    # (voir dashboard.views.prof_seance_detail/prof_presence_sauvegarder) —
+    # une séance SANS type_evaluation (historique antérieur à ce chantier)
+    # continue d'afficher TOUS les critères actifs sans filtre, comme avant.
+    #
+    # Backfill des 4 critères historiques (voir migration 0049) — précision
+    # explicite du client : SEUL "المراجعة" est basculé sur type_lie='mouraja3a'.
+    # "الحفظ" reste 'commun' à dessein (pas 'hifz') : la qualité de récitation
+    # par cœur reste notée même une séance de révision (on y récite du
+    # déjà-mémorisé) — seule la ZONE "quelle sourate/ayat" bascule avec
+    # Seance.type_evaluation, pas cette note de qualité. "التلاوة" et
+    # "المواظبة والسلوك" restent 'commun' pour la même raison (indépendants
+    # de l'axe du jour).
+    TYPE_LIE_CHOICES = [
+        ('commun', _('مشترك (يظهر في الحالتين)')),
+        ('hifz', _('خاص بالحفظ')),
+        ('mouraja3a', _('خاص بالمراجعة')),
+    ]
+    type_lie = models.CharField(max_length=10, choices=TYPE_LIE_CHOICES, default='commun')
 
     def __str__(self):
         return self.nom_ar

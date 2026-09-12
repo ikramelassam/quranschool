@@ -26,6 +26,7 @@ urlpatterns = [
     path('prof/seances/', views.prof_seances, name='prof_seances'),
     path('prof/seances/<int:seance_id>/', views.prof_seance_detail, name='prof_seance_detail'),
     path('prof/seances/<int:seance_id>/presence/', views.prof_presence_sauvegarder, name='prof_presence_sauvegarder'),
+    path('prof/seances/<int:seance_id>/type-evaluation/', views.prof_seance_choisir_type_evaluation, name='prof_seance_choisir_type_evaluation'),
     path('prof/emploi/', views.prof_emploi, name='prof_emploi'),
     path('prof/disponibilites/', views.prof_disponibilites, name='prof_disponibilites'),
     path('prof/profil/', views.prof_profil, name='prof_profil'),

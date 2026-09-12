@@ -102,6 +102,15 @@
     {% if seance.lien_effectif %} · <a href="{% url 'rejoindre_seance' seance.id %}" target="_blank" rel="noopener" style="color:var(--color-brand-gold-dark); font-weight:600;">🔗 {% trans "رابط الاجتماع" %}</a>{% endif %}
 </div>
 
+{% if seance.type_evaluation %}
+<div style="background:#eef2ff; color:#333; border-radius:8px; padding:10px 16px; margin-bottom:16px; font-size:0.9rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+    <span>🎯 {% trans "محور هذه الحصة:" %} <strong>{{ seance.get_type_evaluation_display }}</strong></span>
+    {% if seance.modifiable_par_prof %}
+    <a href="?changer_type=1" style="color:var(--color-role-prof-solid); font-weight:600;">🔁 {% trans "تغيير" %}</a>
+    {% endif %}
+</div>
+{% endif %}
+
 {% if not seance.modifiable_par_prof %}
     {% if seance.statut == 'terminee' %}
     <div style="background:#e8f5e9; color:var(--color-success); border-radius:8px; padding:14px 18px; margin-bottom:20px; font-weight:600;">
@@ -135,6 +144,7 @@
         {% if presence %}
         <div class="eleve-card-body" style="display:block;">
             <div class="row g-3">
+                {% if not seance.type_evaluation or seance.type_evaluation == 'hifz' %}
                 <div class="col-md-6">
                     <div class="notation-groupe">
                         <div class="notation-titre">{% trans "الحفظ" %}</div>
@@ -148,6 +158,8 @@
                         {% endif %}
                     </div>
                 </div>
+                {% endif %}
+                {% if not seance.type_evaluation or seance.type_evaluation == 'mouraja3a' %}
                 <div class="col-md-6">
                     <div class="notation-groupe">
                         <div class="notation-titre">{% trans "المراجعة" %}</div>
@@ -161,6 +173,7 @@
                         {% endif %}
                     </div>
                 </div>
+                {% endif %}
             </div>
             {% if item.notes_criteres %}
             <div class="row g-3 mt-1">
@@ -218,8 +231,16 @@
 
         <div class="eleve-card-body">
             <div class="notation-bloc" id="notation_{{ eleve.id }}">
+                {% comment %}
+                Chantier du 2026-09-12 : un SEUL des 2 blocs est rendu — celui
+                qui correspond à seance.type_evaluation (jamais les deux à la
+                fois, voir Seance.type_evaluation.__doc__). prof_seance_detail
+                garantit que type_evaluation est déjà posé avant d'atteindre ce
+                formulaire (voir la question posée sinon).
+                {% endcomment %}
                 <div class="row g-3">
-                    <div class="col-md-6">
+                    {% if seance.type_evaluation == 'hifz' %}
+                    <div class="col-12">
                         <div class="notation-groupe">
                             <div class="notation-titre">{% trans "الحفظ" %}</div>
                             {% trans "— السورة —" as placeholder_sourate %}
@@ -264,10 +285,13 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="col-md-6">
+                    {% else %}
+                    <div class="col-12">
                         <div class="notation-groupe">
                             <div class="notation-titre">{% trans "المراجعة" %}</div>
+                            {% trans "— السورة —" as placeholder_sourate %}
+                            {% trans "من" as placeholder_de %}
+                            {% trans "إلى" as placeholder_a %}
                             <div class="row g-2 ayah-pair">
                                 <div class="col-6">
                                     <select name="sourate_rev_{{ eleve.id }}" class="form-select form-select-sm" data-select-cherchable>
@@ -300,6 +324,7 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
 
                 {% comment %}
@@ -321,18 +346,21 @@
                     {% endfor %}
                 </div>
 
+                {% if seance.type_evaluation == 'hifz' %}
                 {% trans "مثال: حفظ سورة النساء من آية 1 إلى 10" as placeholder_consigne_memo %}
-                {% trans "مثال: مراجعة سورة البقرة من آية 1 إلى 50" as placeholder_consigne_rev %}
                 <div class="remarque-eleve">
                     <label>📌 {% trans "المطلوب حفظه *" %}</label>
                     <textarea name="consigne_memo_{{ eleve.id }}" class="form-control consigne-input" rows="1" required
                               placeholder="{{ placeholder_consigne_memo }}">{{ presence.consigne_memorisation|default:'' }}</textarea>
                 </div>
+                {% else %}
+                {% trans "مثال: مراجعة سورة البقرة من آية 1 إلى 50" as placeholder_consigne_rev %}
                 <div class="remarque-eleve">
                     <label>📌 {% trans "المطلوب مراجعته *" %}</label>
                     <textarea name="consigne_rev_{{ eleve.id }}" class="form-control consigne-input" rows="1" required
                               placeholder="{{ placeholder_consigne_rev }}">{{ presence.consigne_revision|default:'' }}</textarea>
                 </div>
+                {% endif %}
             </div>
 
             <div class="remarque-eleve">

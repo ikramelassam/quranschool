@@ -1,0 +1,38 @@
+{% extends 'dashboard/base_prof.html' %}
+{% load i18n %}
+{% block title %}{% trans "نوع تقييم الحصة" %}{% endblock %}
+
+{% block content %}
+<div class="page-title">{{ seance.groupe.nom }}</div>
+<div class="page-subtitle">
+    {{ seance.date|date:"d-m-Y" }} — {{ seance.heure|time:"H:i" }} — {{ seance.get_type_display }}
+</div>
+
+<div style="background:white; border-radius:16px; padding:32px; max-width:560px; margin:24px auto; box-shadow:0 2px 12px rgba(0,0,0,0.06); text-align:center;">
+    <div style="font-size:2rem; margin-bottom:10px;">❓</div>
+    <div style="font-weight:700; font-size:1.15rem; margin-bottom:8px;">{% trans "ماذا ستُقيّم في هذه الحصة؟" %}</div>
+    <div style="color:#888; font-size:0.9rem; margin-bottom:28px;">
+        {% trans "اختر محورًا واحدًا فقط لهذه الحصة — عادةً الحفظ في الحصة الأولى من الأسبوع، والمراجعة في الحصة الثانية." %}
+    </div>
+    <div class="d-flex flex-column flex-md-row gap-3 justify-content-center">
+        <form method="POST" action="{% url 'prof_seance_choisir_type_evaluation' seance.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="type_evaluation" value="hifz">
+            <button type="submit" style="width:100%; background:var(--color-role-prof); color:white; border:none; border-radius:12px; padding:18px 24px; font-family:'Tajawal',sans-serif; font-size:1.05rem; font-weight:700; cursor:pointer;">
+                📖 {% trans "الحفظ" %}
+            </button>
+        </form>
+        <form method="POST" action="{% url 'prof_seance_choisir_type_evaluation' seance.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="type_evaluation" value="mouraja3a">
+            <button type="submit" style="width:100%; background:var(--color-role-prof-solid); color:white; border:none; border-radius:12px; padding:18px 24px; font-family:'Tajawal',sans-serif; font-size:1.05rem; font-weight:700; cursor:pointer;">
+                🔁 {% trans "المراجعة" %}
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="mt-3" style="text-align:center;">
+    <a href="{% url 'prof_seances' %}" style="color:var(--color-role-prof-solid); text-decoration:none;">{% trans "← رجوع إلى سجل الحصص" %}</a>
+</div>
+{% endblock %}

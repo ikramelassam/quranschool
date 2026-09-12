@@ -851,6 +851,23 @@ def prof_seance_detail(request, seance_id):
 
     prof = get_object_or_404(Prof, user=request.user)
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
+
+    # Chantier du 2026-09-12 — demande explicite du client : le prof choisit
+    # l'axe (الحفظ أو المراجعة) de CETTE حصة avant de pouvoir la remplir,
+    # jamais les deux à la fois (voir Seance.type_evaluation.__doc__). Tant
+    # que ce choix n'est pas fait, on affiche l'écran de question plutôt que
+    # la feuille — ?changer_type=1 permet d'y revenir explicitement pour
+    # corriger un choix (lien affiché sur la feuille elle-même une fois
+    # répondue). Une séance non modifiable_par_prof (déjà 'terminee', ou
+    # délai dépassé) n'a plus rien à choisir : elle s'affiche telle quelle,
+    # y compris son éventuel type_evaluation=None si elle est antérieure à ce
+    # chantier (aucun backfill rétroactif, voir la migration 0048).
+    if seance.modifiable_par_prof and (not seance.type_evaluation or request.GET.get('changer_type') == '1'):
+        return render(request, 'dashboard/prof_seance_choisir_type_evaluation.html', {
+            'prof': prof,
+            'seance': seance,
+        })
+
     # Un élève suspendu/archivé ne doit plus apparaître dans les feuilles de
     # présence à venir (voir Tâche 3 du 2026-07-25) — son historique passé
     # n'est pas affecté, seule cette liste "à remplir maintenant" l'exclut.
@@ -862,7 +879,12 @@ def prof_seance_detail(request, seance_id):
 
     # Critères dynamiques (Point 7, Tâche du 2026-08-04) — remplacent les 4
     # champs fixes note_hifz/note_muraja3a/note_tilawa/note_mouwazaba.
+    # Filtrage par axe (chantier du 2026-09-12, voir CritereEleve.type_lie) :
+    # une séance SANS type_evaluation (historique antérieur) affiche tout,
+    # sans filtre — comportement inchangé pour tout ce qui précède ce chantier.
     criteres_actifs = list(CritereEleve.objects.filter(est_actif=True).order_by('ordre'))
+    if seance.type_evaluation:
+        criteres_actifs = [c for c in criteres_actifs if c.type_lie in ('commun', seance.type_evaluation)]
 
     # Django templates ne peuvent pas faire presences[eleve.id] (lookup par variable).
     # On construit donc directement la liste (élève, présence) dans la vue.
@@ -910,6 +932,31 @@ def prof_seance_detail(request, seance_id):
 
 
 @role_required('prof')
+def prof_seance_choisir_type_evaluation(request, seance_id):
+    """Enregistre l'axe (الحفظ أو المراجعة) choisi par le prof pour CETTE
+    séance — voir Seance.type_evaluation.__doc__ et prof_seance_detail (qui
+    affiche la question tant que ce choix n'est pas fait). POST uniquement :
+    un accès GET direct (lien deviné, ou redirection accidentelle) ne modifie
+    jamais l'état, il est simplement renvoyé sans effet vers la feuille, qui
+    réaffichera la question elle-même."""
+    from accounts.models import Prof
+    from courses.models import Seance
+
+    prof = get_object_or_404(Prof, user=request.user)
+    seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
+
+    if request.method == 'POST' and seance.modifiable_par_prof:
+        valeur = request.POST.get('type_evaluation')
+        if valeur in dict(Seance.TYPE_EVALUATION_CHOICES):
+            seance.type_evaluation = valeur
+            seance.save()
+        else:
+            messages.error(request, gettext_('يجب اختيار "الحفظ" أو "المراجعة".'))
+
+    return redirect('prof_seance_detail', seance_id=seance.id)
+
+
+@role_required('prof')
 def prof_presence_sauvegarder(request, seance_id):
     from accounts.models import Prof, Eleve
     from courses.models import Seance, Presence
@@ -926,6 +973,16 @@ def prof_presence_sauvegarder(request, seance_id):
             messages.error(request, gettext_('انتهت مهلة تقييم هذه الحصة (24 ساعة من بدايتها) — لم يعد بالإمكان تقييمها.'))
         return redirect('prof_seance_detail', seance_id=seance.id)
 
+    # Chantier du 2026-09-12 : impossible de sauvegarder sans avoir répondu à
+    # la question posée par prof_seance_detail — ce garde-fou serveur ne
+    # devrait normalement jamais se déclencher (le formulaire n'est rendu
+    # qu'après ce choix), sauf soumission directe forgée ou séance modifiée
+    # entretemps par une autre requête concurrente.
+    if not seance.type_evaluation:
+        messages.error(request, gettext_('يجب اختيار نوع التقييم (الحفظ أو المراجعة) أولاً.'))
+        return redirect('prof_seance_detail', seance_id=seance.id)
+    type_eval = seance.type_evaluation
+
     if request.method == 'POST':
         from courses.models import CritereEleve, NotePresence
 
@@ -933,8 +990,13 @@ def prof_presence_sauvegarder(request, seance_id):
         # champs fixes note_hifz/note_muraja3a/note_tilawa/note_mouwazaba
         # (gelés désormais, jamais plus réécrits depuis cette vue, conservés
         # uniquement pour l'historique antérieur à cette migration). Champ HTML
-        # attendu par élève : note_critere_<critere.id>_<eleve.id>.
+        # attendu par élève : note_critere_<critere.id>_<eleve.id>. Filtrage
+        # par axe (chantier du 2026-09-12) : même filtre que prof_seance_detail
+        # (voir CritereEleve.type_lie) — indispensable ici aussi, sinon un
+        # critère de l'AUTRE axe redeviendrait exigible côté serveur alors que
+        # le formulaire rendu ne le proposait plus.
         criteres_actifs = list(CritereEleve.objects.filter(est_actif=True).order_by('ordre'))
+        criteres_actifs = [c for c in criteres_actifs if c.type_lie in ('commun', type_eval)]
 
         # Un élève suspendu/archivé ne doit plus apparaître dans les feuilles de
         # présence à venir (voir Tâche 3 du 2026-07-25) — son historique passé
@@ -947,31 +1009,47 @@ def prof_presence_sauvegarder(request, seance_id):
         erreurs = []
         for eleve in eleves:
             statut = request.POST.get(f'statut_{eleve.id}', 'absent')
-            sourate_memorisee = request.POST.get(f'sourate_memo_{eleve.id}') or None
-            ayah_debut_memorisation = request.POST.get(f'ayah_debut_memo_{eleve.id}') or None
-            ayah_fin_memorisation = request.POST.get(f'ayah_fin_memo_{eleve.id}') or None
-            sourate_revisee = request.POST.get(f'sourate_rev_{eleve.id}') or None
-            ayah_debut_revision = request.POST.get(f'ayah_debut_rev_{eleve.id}') or None
-            ayah_fin_revision = request.POST.get(f'ayah_fin_rev_{eleve.id}') or None
             remarque = request.POST.get(f'remarque_{eleve.id}', '')
-            consigne_memorisation = request.POST.get(f'consigne_memo_{eleve.id}', '')
-            consigne_revision = request.POST.get(f'consigne_rev_{eleve.id}', '')
 
-            # Critère ينتقل/يعيد (Tâche du 2026-08-18) — 'valide' par défaut si
-            # rien n'est coché (comportement historique inchangé). On ignore
-            # toute valeur POST qui ne serait pas l'une des 2 choix valides
-            # plutôt que de faire confiance au client.
-            resultat_memorisation = request.POST.get(f'resultat_memo_{eleve.id}', 'valide')
-            if resultat_memorisation not in dict(Presence.RESULTAT_CHOICES):
-                resultat_memorisation = 'valide'
-            resultat_revision = request.POST.get(f'resultat_rev_{eleve.id}', 'valide')
-            if resultat_revision not in dict(Presence.RESULTAT_CHOICES):
+            # Chantier du 2026-09-12 : un SEUL des 2 blocs (حفظ/مراجعة) est lu
+            # depuis le POST — celui qui correspond à type_eval (l'autre n'est
+            # de toute façon plus rendu par le formulaire, voir
+            # prof_seance_detail). L'axe non choisi cette séance est
+            # explicitement remis à vide/valeur par défaut ci-dessous plutôt
+            # que de laisser une éventuelle valeur POST orpheline (accès
+            # forgé) s'enregistrer silencieusement.
+            if type_eval == 'hifz':
+                sourate_memorisee = request.POST.get(f'sourate_memo_{eleve.id}') or None
+                ayah_debut_memorisation = request.POST.get(f'ayah_debut_memo_{eleve.id}') or None
+                ayah_fin_memorisation = request.POST.get(f'ayah_fin_memo_{eleve.id}') or None
+                consigne_memorisation = request.POST.get(f'consigne_memo_{eleve.id}', '')
+                # Critère ينتقل/يعيد (Tâche du 2026-08-18) — 'valide' par défaut
+                # si rien n'est coché. On ignore toute valeur POST qui ne
+                # serait pas l'un des 2 choix valides plutôt que de faire
+                # confiance au client.
+                resultat_memorisation = request.POST.get(f'resultat_memo_{eleve.id}', 'valide')
+                if resultat_memorisation not in dict(Presence.RESULTAT_CHOICES):
+                    resultat_memorisation = 'valide'
+                sourate_revisee = ayah_debut_revision = ayah_fin_revision = None
+                consigne_revision = ''
                 resultat_revision = 'valide'
+            else:  # 'mouraja3a'
+                sourate_revisee = request.POST.get(f'sourate_rev_{eleve.id}') or None
+                ayah_debut_revision = request.POST.get(f'ayah_debut_rev_{eleve.id}') or None
+                ayah_fin_revision = request.POST.get(f'ayah_fin_rev_{eleve.id}') or None
+                consigne_revision = request.POST.get(f'consigne_rev_{eleve.id}', '')
+                resultat_revision = request.POST.get(f'resultat_rev_{eleve.id}', 'valide')
+                if resultat_revision not in dict(Presence.RESULTAT_CHOICES):
+                    resultat_revision = 'valide'
+                sourate_memorisee = ayah_debut_memorisation = ayah_fin_memorisation = None
+                consigne_memorisation = ''
+                resultat_memorisation = 'valide'
 
             # Critères dynamiques /20 (Tâche du 2026-08-04, Point 7) — remplacent
             # l'ancienne échelle qualitative pour toute nouvelle évaluation
             # (note_memorisation/note_revision ne sont plus jamais réécrits
-            # depuis cette vue, voir Presence.note_memorisation).
+            # depuis cette vue, voir Presence.note_memorisation). criteres_actifs
+            # est déjà filtré par axe (commun + type_eval) plus haut.
             notes_brutes = {
                 critere.id: request.POST.get(f'note_critere_{critere.id}_{eleve.id}', '')
                 for critere in criteres_actifs
@@ -984,6 +1062,8 @@ def prof_presence_sauvegarder(request, seance_id):
             # (ex: ayah 300 pour الفاتحة qui n'en a que 7) doit être refusée — voir
             # _ayah_depasse_sourate et le commentaire de courses/quran_data.py qui
             # annonçait cette validation sans qu'elle ait jamais été implémentée.
+            # Un seul bloc à valider désormais (type_eval) — l'autre est
+            # toujours None ci-dessus, ces 2 fonctions renvoient alors False.
             ligne_invalide = False
             if _ayah_incoherentes(ayah_debut_memorisation, ayah_fin_memorisation):
                 erreurs.append(
@@ -1006,9 +1086,10 @@ def prof_presence_sauvegarder(request, seance_id):
                 )
                 ligne_invalide = True
 
-            # Les critères /20 et les 2 consignes ne sont obligatoires que pour
-            # un élève marqué présent — rien à noter/consigner pour une absence
-            # (voir Tâche 9 du 2026-07-25).
+            # Les critères /20 et la consigne du bloc actif (حفظ OU مراجعة, pas
+            # les 2) ne sont obligatoires que pour un élève marqué présent —
+            # rien à noter/consigner pour une absence (voir Tâche 9 du
+            # 2026-07-25).
             notes_validees = {}
             if statut == 'present':
                 for critere in criteres_actifs:
@@ -1028,10 +1109,10 @@ def prof_presence_sauvegarder(request, seance_id):
                         ligne_invalide = True
                         continue
                     notes_validees[critere.id] = valeur
-                if not consigne_memorisation.strip():
+                if type_eval == 'hifz' and not consigne_memorisation.strip():
                     erreurs.append(gettext_('%(v0)s: يجب تحديد "المطلوب حفظه".') % {'v0': eleve.user.get_full_name()})
                     ligne_invalide = True
-                if not consigne_revision.strip():
+                if type_eval == 'mouraja3a' and not consigne_revision.strip():
                     erreurs.append(gettext_('%(v0)s: يجب تحديد "المطلوب مراجعته".') % {'v0': eleve.user.get_full_name()})
                     ligne_invalide = True
             else:
@@ -6023,16 +6104,22 @@ def admin_critere_eleve_ajouter(request):
     from courses.models import CritereEleve
 
     if request.method == 'POST':
+        type_lie = request.POST.get('type_lie', 'commun')
+        if type_lie not in dict(CritereEleve.TYPE_LIE_CHOICES):
+            type_lie = 'commun'
         CritereEleve.objects.create(
             nom_ar=request.POST.get('nom_ar'),
             nom_fr=request.POST.get('nom_fr', '').strip(),
             nom_en=request.POST.get('nom_en', '').strip(),
             ordre=request.POST.get('ordre', 0),
+            type_lie=type_lie,
         )
         messages.success(request, gettext_('تمت إضافة المعيار بنجاح.'))
         return redirect('admin_criteres_eleves')
 
-    return render(request, 'dashboard/admin_critere_eleve_ajouter.html')
+    return render(request, 'dashboard/admin_critere_eleve_ajouter.html', {
+        'type_lie_choices': CritereEleve.TYPE_LIE_CHOICES,
+    })
 
 
 @role_required('admin')
@@ -6041,16 +6128,21 @@ def admin_critere_eleve_modifier(request, critere_id):
     critere = get_object_or_404(CritereEleve, id=critere_id)
 
     if request.method == 'POST':
+        type_lie = request.POST.get('type_lie', 'commun')
+        if type_lie not in dict(CritereEleve.TYPE_LIE_CHOICES):
+            type_lie = 'commun'
         critere.nom_ar = request.POST.get('nom_ar')
         critere.nom_fr = request.POST.get('nom_fr', '').strip()
         critere.nom_en = request.POST.get('nom_en', '').strip()
         critere.ordre = request.POST.get('ordre', 0)
+        critere.type_lie = type_lie
         critere.save()
         messages.success(request, gettext_('تم تعديل المعيار بنجاح.'))
         return redirect('admin_criteres_eleves')
 
     return render(request, 'dashboard/admin_critere_eleve_modifier.html', {
         'critere': critere,
+        'type_lie_choices': CritereEleve.TYPE_LIE_CHOICES,
     })
 
 

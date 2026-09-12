@@ -27,6 +27,15 @@
             <label style="font-weight:600; color:#333;">{% trans "ترتيب الظهور" %}</label>
             <input type="number" name="ordre" class="form-control mt-1" value="0">
         </div>
+        <div class="mb-3">
+            <label style="font-weight:600; color:#333;">{% trans "الارتباط بمحور التقييم" %}</label>
+            <div style="color:#999; font-size:0.8rem; margin-bottom:4px;">{% trans "معيار «خاص بالحفظ» أو «خاص بالمراجعة» لا يظهر إلا في الحصص التي اختار فيها المعلم هذا المحور." %}</div>
+            <select name="type_lie" class="form-select mt-1">
+                {% for valeur, libelle in type_lie_choices %}
+                <option value="{{ valeur }}" {% if valeur == 'commun' %}selected{% endif %}>{{ libelle }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <div class="d-flex gap-3 mt-4">
             <button type="submit"
                 style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 24px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">

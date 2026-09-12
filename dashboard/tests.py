@@ -2699,9 +2699,16 @@ class MediaProxyHelpersTests(TestCase):
 # Tâche du 2026-08-18 — Critère ينتقل/يعيد, sauvegarde depuis la vue prof
 # ============================================================================
 class PresenceResultatMemorisationVueTests(TestCase):
-    """prof_presence_sauvegarder enregistre bien resultat_memorisation/
-    resultat_revision — voir courses.tests.ResultatMemorisationProgressionTests
-    pour l'exclusion du calcul de progression lui-même."""
+    """prof_presence_sauvegarder enregistre bien resultat_memorisation (axe
+    الحفظ) / resultat_revision (axe المراجعة) — voir courses.tests.
+    ResultatMemorisationProgressionTests pour l'exclusion du calcul de
+    progression lui-même.
+
+    Chantier du 2026-09-12 (Seance.type_evaluation) : le prof ne soumet plus
+    JAMAIS les 2 blocs à la fois — un seul axe par requête, choisi au
+    préalable sur la séance (voir dashboard.views.
+    prof_seance_choisir_type_evaluation). Ce test ne couvre donc plus qu'UN
+    axe par méthode, plus un test symétrique pour l'autre axe."""
 
     def setUp(self):
         from courses.models import CritereEleve
@@ -2718,36 +2725,58 @@ class PresenceResultatMemorisationVueTests(TestCase):
         il_y_a_2h = timezone.localtime(timezone.now() - datetime.timedelta(hours=2))
         self.seance = Seance.objects.create(
             groupe=self.groupe, date=il_y_a_2h.date(), heure=il_y_a_2h.time(),
-            type='normal', statut='planifiee',
+            type='normal', statut='planifiee', type_evaluation='hifz',
         )
-        self.criteres = list(CritereEleve.objects.filter(est_actif=True))
+        # Critères visibles pour l'axe الحفظ (commun + hifz, jamais مراجعة —
+        # voir CritereEleve.type_lie et la migration 0049).
+        self.criteres = list(CritereEleve.objects.filter(est_actif=True).exclude(type_lie='mouraja3a'))
 
-    def _donnees_formulaire(self, resultat_memo='a_refaire', resultat_rev='valide'):
+    def _donnees_formulaire(self, resultat_memo='a_refaire'):
         donnees = {
             f'statut_{self.eleve.id}': 'present',
             f'sourate_memo_{self.eleve.id}': '2',
             f'ayah_debut_memo_{self.eleve.id}': '1',
             f'ayah_fin_memo_{self.eleve.id}': '10',
-            f'sourate_rev_{self.eleve.id}': '',
-            f'ayah_debut_rev_{self.eleve.id}': '',
-            f'ayah_fin_rev_{self.eleve.id}': '',
             f'remarque_{self.eleve.id}': '',
             f'consigne_memo_{self.eleve.id}': 'حفظ الآيات 1-10',
-            f'consigne_rev_{self.eleve.id}': 'مراجعة عامة',
             f'resultat_memo_{self.eleve.id}': resultat_memo,
-            f'resultat_rev_{self.eleve.id}': resultat_rev,
             'remarque_generale': '',
         }
         for c in self.criteres:
             donnees[f'note_critere_{c.id}_{self.eleve.id}'] = '15'
         return donnees
 
-    def test_resultat_memorisation_et_revision_enregistres(self):
+    def test_resultat_memorisation_enregistre_axe_hifz(self):
         self.client.force_login(self.prof.user)
         self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), self._donnees_formulaire())
         presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
         self.assertEqual(presence.resultat_memorisation, 'a_refaire')
+        # Axe non choisi cette séance : jamais deviné, retombe sur 'valide'.
         self.assertEqual(presence.resultat_revision, 'valide')
+
+    def test_resultat_revision_enregistre_axe_mouraja3a(self):
+        from courses.models import CritereEleve
+
+        self.seance.type_evaluation = 'mouraja3a'
+        self.seance.save()
+        criteres_mouraja3a = list(CritereEleve.objects.filter(est_actif=True).exclude(type_lie='hifz'))
+        donnees = {
+            f'statut_{self.eleve.id}': 'present',
+            f'sourate_rev_{self.eleve.id}': '2',
+            f'ayah_debut_rev_{self.eleve.id}': '1',
+            f'ayah_fin_rev_{self.eleve.id}': '10',
+            f'remarque_{self.eleve.id}': '',
+            f'consigne_rev_{self.eleve.id}': 'مراجعة عامة',
+            f'resultat_rev_{self.eleve.id}': 'a_refaire',
+            'remarque_generale': '',
+        }
+        for c in criteres_mouraja3a:
+            donnees[f'note_critere_{c.id}_{self.eleve.id}'] = '15'
+        self.client.force_login(self.prof.user)
+        self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees)
+        presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
+        self.assertEqual(presence.resultat_revision, 'a_refaire')
+        self.assertEqual(presence.resultat_memorisation, 'valide')
 
     def test_valeur_invalide_retombe_sur_valide(self):
         """Une valeur POST qui ne serait pas l'un des 2 choix valides (paramètre
@@ -2783,6 +2812,176 @@ class PresenceResultatMemorisationVueTests(TestCase):
         from courses.models import NotePresence
         presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
         self.assertTrue(NotePresence.objects.filter(presence=presence, note=20).exists())
+
+
+# ---------- Chantier du 2026-09-12 : un seul axe (الحفظ أو المراجعة) par حصة ----------
+class ProfSeanceTypeEvaluationTests(TestCase):
+    """Demande explicite du client : le prof ne doit évaluer qu'UNE seule
+    chose par حصة (typiquement الحفظ à la séance 1 de la semaine, المراجعة à
+    la séance 2) — jamais les deux à la fois comme avant ce chantier. Le prof
+    CHOISIT l'axe lui-même (question posée sur chaque séance), aucun mapping
+    automatique par numéro de séance (rejeté explicitement : une حلقة peut
+    avoir 1 ou 3 séances/semaine, pas toujours 2). Voir
+    Seance.type_evaluation.__doc__ et CritereEleve.type_lie.__doc__."""
+
+    def setUp(self):
+        from courses.models import CritereEleve
+
+        self.prof = _creer_prof('prof_type_eval@zidni.test')
+        self.eleve = _creer_eleve('eleve_type_eval@zidni.test')
+        self.groupe = Groupe.objects.create(nom='ZZZ_مجموعة_نوع_التقييم', prof=self.prof)
+        self.groupe.eleves.add(self.eleve)
+
+        il_y_a_2h = timezone.localtime(timezone.now() - datetime.timedelta(hours=2))
+        self.seance = Seance.objects.create(
+            groupe=self.groupe, date=il_y_a_2h.date(), heure=il_y_a_2h.time(),
+            type='normal', statut='planifiee',
+        )
+        # Critère spécifique إضافي pour vérifier le filtrage type_lie (les 4
+        # critères seedés — الحفظ/المراجعة/التلاوة/المواظبة — existent déjà,
+        # voir migrations 0022 et 0049).
+        self.critere_mouraja3a_only = CritereEleve.objects.create(
+            nom_ar='معيار خاص بالمراجعة فقط', ordre=99, type_lie='mouraja3a',
+        )
+
+    def _url_detail(self, **params):
+        url = reverse('prof_seance_detail', args=[self.seance.id])
+        if params:
+            from urllib.parse import urlencode
+            url += '?' + urlencode(params)
+        return url
+
+    def test_seance_sans_type_choisi_affiche_la_question(self):
+        self.client.force_login(self.prof.user)
+        reponse = self.client.get(self._url_detail())
+        self.assertContains(reponse, 'ماذا ستُقيّم في هذه الحصة؟')
+        self.assertNotContains(reponse, f'name="sourate_memo_{self.eleve.id}"')
+
+    def test_choisir_hifz_definit_le_type_et_affiche_le_bloc_correspondant(self):
+        self.client.force_login(self.prof.user)
+        self.client.post(
+            reverse('prof_seance_choisir_type_evaluation', args=[self.seance.id]),
+            {'type_evaluation': 'hifz'},
+        )
+        self.seance.refresh_from_db()
+        self.assertEqual(self.seance.type_evaluation, 'hifz')
+
+        reponse = self.client.get(self._url_detail())
+        self.assertContains(reponse, f'name="sourate_memo_{self.eleve.id}"')
+        self.assertNotContains(reponse, f'name="sourate_rev_{self.eleve.id}"')
+        # Le critère spécifique المراجعة uniquement ne doit pas apparaître.
+        self.assertNotContains(reponse, f'name="note_critere_{self.critere_mouraja3a_only.id}_{self.eleve.id}"')
+
+    def test_choisir_mouraja3a_definit_le_type_et_affiche_le_bloc_correspondant(self):
+        self.client.force_login(self.prof.user)
+        self.client.post(
+            reverse('prof_seance_choisir_type_evaluation', args=[self.seance.id]),
+            {'type_evaluation': 'mouraja3a'},
+        )
+        self.seance.refresh_from_db()
+        self.assertEqual(self.seance.type_evaluation, 'mouraja3a')
+
+        reponse = self.client.get(self._url_detail())
+        self.assertContains(reponse, f'name="sourate_rev_{self.eleve.id}"')
+        self.assertNotContains(reponse, f'name="sourate_memo_{self.eleve.id}"')
+        self.assertContains(reponse, f'name="note_critere_{self.critere_mouraja3a_only.id}_{self.eleve.id}"')
+
+    def test_valeur_invalide_ne_definit_aucun_type(self):
+        self.client.force_login(self.prof.user)
+        self.client.post(
+            reverse('prof_seance_choisir_type_evaluation', args=[self.seance.id]),
+            {'type_evaluation': 'autre_chose'},
+        )
+        self.seance.refresh_from_db()
+        self.assertIsNone(self.seance.type_evaluation)
+
+    def test_get_sur_choisir_type_ne_modifie_rien(self):
+        """Un accès GET (lien deviné) ne doit jamais avoir d'effet — seul un
+        POST peut poser le type_evaluation."""
+        self.client.force_login(self.prof.user)
+        self.client.get(reverse('prof_seance_choisir_type_evaluation', args=[self.seance.id]))
+        self.seance.refresh_from_db()
+        self.assertIsNone(self.seance.type_evaluation)
+
+    def test_changer_type_reaffiche_la_question(self):
+        self.seance.type_evaluation = 'hifz'
+        self.seance.save()
+        self.client.force_login(self.prof.user)
+        reponse = self.client.get(self._url_detail(changer_type='1'))
+        self.assertContains(reponse, 'ماذا ستُقيّم في هذه الحصة؟')
+        # Le type déjà choisi n'est pas effacé tant qu'un nouveau choix n'a
+        # pas été soumis — seule LA VUE bascule sur la question.
+        self.seance.refresh_from_db()
+        self.assertEqual(self.seance.type_evaluation, 'hifz')
+
+    def test_seance_terminee_ignore_changer_type(self):
+        """Une حصة déjà 'terminee' n'est plus modifiable_par_prof — le lien
+        ?changer_type=1 ne doit pas rouvrir la question, juste l'affichage
+        habituel en lecture seule."""
+        self.seance.type_evaluation = 'hifz'
+        self.seance.statut = 'terminee'
+        self.seance.save()
+        self.client.force_login(self.prof.user)
+        reponse = self.client.get(self._url_detail(changer_type='1'))
+        self.assertNotContains(reponse, 'ماذا ستُقيّم في هذه الحصة؟')
+
+    def test_sauvegarder_sans_type_choisi_refuse(self):
+        """Accès direct forgé à prof_presence_sauvegarder sans être passé par
+        la question — garde-fou serveur, ne doit jamais planter ni deviner."""
+        self.client.force_login(self.prof.user)
+        donnees = {
+            f'statut_{self.eleve.id}': 'present',
+            f'sourate_memo_{self.eleve.id}': '2',
+            f'ayah_debut_memo_{self.eleve.id}': '1',
+            f'ayah_fin_memo_{self.eleve.id}': '10',
+            f'consigne_memo_{self.eleve.id}': 'حفظ الآيات 1-10',
+        }
+        self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees)
+        self.assertFalse(Presence.objects.filter(seance=self.seance, eleve=self.eleve).exists())
+
+    def test_sauvegarde_hifz_ignore_les_champs_revision_forges(self):
+        """Même si le POST contient (accès forgé) des champs sourate_rev_/
+        consigne_rev_, l'axe مراجعة n'étant pas celui choisi cette séance, ils
+        ne doivent jamais être enregistrés — un seul axe par Presence."""
+        from courses.models import CritereEleve
+
+        self.seance.type_evaluation = 'hifz'
+        self.seance.save()
+        self.client.force_login(self.prof.user)
+        donnees = {
+            f'statut_{self.eleve.id}': 'present',
+            f'sourate_memo_{self.eleve.id}': '2',
+            f'ayah_debut_memo_{self.eleve.id}': '1',
+            f'ayah_fin_memo_{self.eleve.id}': '10',
+            f'consigne_memo_{self.eleve.id}': 'حفظ الآيات 1-10',
+            # Champs de l'axe non choisi — forgés, doivent être ignorés.
+            f'sourate_rev_{self.eleve.id}': '3',
+            f'ayah_debut_rev_{self.eleve.id}': '1',
+            f'ayah_fin_rev_{self.eleve.id}': '5',
+            f'consigne_rev_{self.eleve.id}': 'مراجعة عامة',
+        }
+        for c in CritereEleve.objects.filter(est_actif=True).exclude(type_lie='mouraja3a'):
+            donnees[f'note_critere_{c.id}_{self.eleve.id}'] = '15'
+        self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees)
+        presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
+        self.assertEqual(presence.sourate_memorisee, 2)
+        self.assertIsNone(presence.sourate_revisee)
+        self.assertEqual(presence.consigne_revision, '')
+
+    def test_lecture_seule_dune_seance_terminee_sans_type_affiche_les_deux_blocs(self):
+        """Historique antérieur à ce chantier (type_evaluation jamais posé,
+        séance déjà 'terminee') : comportement inchangé, les 2 blocs
+        continuent de s'afficher côte à côte (aucune régression rétroactive)."""
+        self.seance.statut = 'terminee'
+        self.seance.save()
+        Presence.objects.create(
+            seance=self.seance, eleve=self.eleve, statut='present',
+            sourate_memorisee=2, ayah_debut_memorisation=1, ayah_fin_memorisation=5,
+        )
+        self.client.force_login(self.prof.user)
+        reponse = self.client.get(self._url_detail())
+        self.assertContains(reponse, 'الحفظ')
+        self.assertContains(reponse, 'المراجعة')
 
 
 # ==================== Chantier notifications (2026-08-19) ====================
