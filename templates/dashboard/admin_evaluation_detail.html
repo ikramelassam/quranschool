@@ -34,13 +34,12 @@
                 {% if p.note_revision %}<span style="{{ p.note_revision|note_style }} border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ p.get_note_revision_display }}</span>{% endif %}
             </div>
         </div>
-        {% if p.note_hifz %}
+        {% if p.notes_criteres.all %}
         <div class="col-md-12">
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
-                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">{% trans "الحفظ:" %} {{ p.note_hifz }}/20</span>
-                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">{% trans "المراجعة:" %} {{ p.note_muraja3a }}/20</span>
-                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">{% trans "التلاوة:" %} {{ p.note_tilawa }}/20</span>
-                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">{% trans "المواظبة والسلوك:" %} {{ p.note_mouwazaba }}/20</span>
+                {% for nc in p.notes_criteres.all %}
+                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">{{ nc.critere.nom_localise }}: {{ nc.note }}/20</span>
+                {% endfor %}
             </div>
         </div>
         {% endif %}

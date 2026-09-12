@@ -21,7 +21,7 @@
                 <span style="color:#888;">{% trans "الهاتف" %}</span>
                 {% if not modifier_telephone %}
                 <span style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-weight:600;">{{ eleve.user.telephone|default:"—" }}</span>
+                    <span style="font-weight:600;" class="{% if eleve.user.telephone %}tel-copiable{% endif %}">{{ eleve.user.telephone|default:"—" }}</span>
                     <a href="?modifier_telephone=1" style="color:var(--color-role-eleve-solid); font-size:0.82rem; text-decoration:none;">✏️ {% trans "تعديل" %}</a>
                 </span>
                 {% endif %}

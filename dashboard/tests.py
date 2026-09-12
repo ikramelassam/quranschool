@@ -3024,6 +3024,75 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
         self.assertContains(reponse, '(1-8)')
 
 
+class HistoriqueNotesCriteresDynamiquesTests(TestCase):
+    """Audit affichage du 2026-09-12 : depuis la migration du 2026-08-04 vers
+    les critères dynamiques (NotePresence, voir courses.models.NotePresence.
+    __doc__), plusieurs pages d'historique/liste continuaient de conditionner
+    tout leur bloc de notation sur les 4 anciens champs fixes note_hifz/...
+    (gelés, plus jamais écrits pour une nouvelle Presence) — la note
+    réellement saisie par le prof devenait invisible partout ailleurs que sur
+    l'écran de saisie du jour (prof_seance_detail, déjà correct). Un test par
+    page concernée, sur le vrai chemin (NotePresence)."""
+
+    def setUp(self):
+        self.prof = _creer_prof('prof_hist_notes@zidni.test')
+        self.eleve = _creer_eleve('eleve_hist_notes@zidni.test')
+        self.superviseur = _creer_superviseur('superviseur_hist_notes@zidni.test')
+        self.superviseur.profs_assignes.add(self.prof)
+        creneau = _creer_creneau_dashboard()
+        self.groupe = Groupe.objects.create(nom='ZZZ_مجموعة_تاريخ_علامات', prof=self.prof, creneau=creneau)
+        self.groupe.eleves.add(self.eleve)
+        self.seance = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0),
+            type='normal', statut='terminee',
+        )
+        self.critere = CritereEleve.objects.create(nom_ar='معيار الحفظ التجريبي', ordre=1, est_actif=True)
+        self.presence = Presence.objects.create(seance=self.seance, eleve=self.eleve, statut='present')
+        NotePresence.objects.create(presence=self.presence, critere=self.critere, note=15)
+
+    def test_eleve_seances_affiche_la_note_du_critere(self):
+        self.client.force_login(self.eleve.user)
+        reponse = self.client.get(reverse('eleve_seances'))
+        self.assertContains(reponse, 'معيار الحفظ التجريبي')
+        self.assertContains(reponse, '15/20')
+
+    def test_eleve_seance_detail_affiche_la_note_du_critere(self):
+        self.client.force_login(self.eleve.user)
+        reponse = self.client.get(reverse('eleve_seance_detail', args=[self.presence.id]))
+        self.assertContains(reponse, 'معيار الحفظ التجريبي')
+        self.assertContains(reponse, '15/20')
+
+    def test_eleve_progression_affiche_la_note_du_critere(self):
+        self.client.force_login(self.eleve.user)
+        reponse = self.client.get(reverse('eleve_progression'))
+        self.assertContains(reponse, 'معيار الحفظ التجريبي')
+        self.assertContains(reponse, '15/20')
+
+    def test_superviseur_seance_detail_affiche_la_note_du_critere(self):
+        self.client.force_login(self.superviseur.user)
+        reponse = self.client.get(reverse('superviseur_seance_detail', args=[self.seance.id]))
+        self.assertContains(reponse, 'معيار الحفظ التجريبي')
+        self.assertContains(reponse, '15/20')
+
+    def test_prof_evaluations_affiche_la_moyenne_du_critere(self):
+        self.client.force_login(self.prof.user)
+        reponse = self.client.get(reverse('prof_evaluations'))
+        self.assertContains(reponse, 'معيار الحفظ التجريبي')
+
+    def test_admin_evaluations_affiche_la_note_du_critere(self):
+        admin = _creer_admin()
+        self.client.force_login(admin)
+        reponse = self.client.get(reverse('admin_evaluations'))
+        self.assertContains(reponse, 'معيار الحفظ التجريبي')
+
+    def test_admin_evaluation_detail_affiche_la_note_du_critere(self):
+        admin = _creer_admin()
+        self.client.force_login(admin)
+        reponse = self.client.get(reverse('admin_evaluation_detail', args=[self.seance.id]))
+        self.assertContains(reponse, 'معيار الحفظ التجريبي')
+        self.assertContains(reponse, '15/20')
+
+
 # ---------- Chantier du 2026-09-12 (v2) : configuration INDÉPENDANTE par position ----------
 class ProfilCriteresSeanceTests(TestCase):
     """Le client a rejeté le système à 2 compartiments partagés (hifz/

@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n l10n %}
 {# Formulaire de correction manuelle (texte/audio) — inclus depuis copie_correction.html pour CHAQUE réponse concernée. Chaque formulaire poste indépendamment vers la même vue (reponse_id identifie la cible), pas de soumission groupée : le prof peut corriger question par question sans perdre les corrections déjà enregistrées. #}
 <form method="POST" style="margin-top:12px; background:#f9f7f2; border-radius:8px; padding:14px 16px;">
     {% csrf_token %}
@@ -7,7 +7,7 @@
         <div class="col-auto">
             <label style="color:#888; font-size:0.78rem; display:block;">{% blocktrans with max=reponse.question.points %}النقاط (من {{ max }}){% endblocktrans %}</label>
             <input type="number" name="points_obtenus" min="0" max="{{ reponse.question.points }}" step="0.5"
-                   value="{{ reponse.points_obtenus|default_if_none:'' }}" class="form-control" style="width:100px;" required>
+                   value="{{ reponse.points_obtenus|default_if_none:''|unlocalize }}" class="form-control" style="width:100px;" required>
         </div>
         <div class="col">
             <label style="color:#888; font-size:0.78rem; display:block;">{% trans "ملاحظة (اختياري)" %}</label>

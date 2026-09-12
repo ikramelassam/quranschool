@@ -14,13 +14,13 @@
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">{% trans "الهاتف" %}</span>
         <span style="font-weight:600;">
-            {% if telephone_contact %}<a href="tel:{{ telephone_contact }}" style="color:var(--color-role-admin-solid);">{{ telephone_contact }}</a>{% else %}—{% endif %}
+            {% if telephone_contact %}<a href="tel:{{ telephone_contact }}" class="tel-copiable" style="color:var(--color-role-admin-solid);">{{ telephone_contact }}</a>{% else %}—{% endif %}
         </span>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">{% trans "البريد الإلكتروني" %}</span>
         <span style="font-weight:600;">
-            {% if email_contact %}<a href="mailto:{{ email_contact }}" style="color:var(--color-role-admin-solid);">{{ email_contact }}</a>{% else %}—{% endif %}
+            {% if email_contact %}<a href="mailto:{{ email_contact }}" class="email-copiable" style="color:var(--color-role-admin-solid);">{{ email_contact }}</a>{% else %}—{% endif %}
         </span>
     </div>
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">

@@ -45,12 +45,11 @@
 <details class="compact-card mb-3" open style="padding:0; overflow:hidden;">
     <summary style="cursor:pointer; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; list-style:none;">
         <span style="font-weight:700;">{{ bloc.eleve.user.get_full_name }}</span>
-        {% if bloc.moyenne_hifz %}
+        {% if bloc.moyennes_criteres %}
         <span style="display:flex; gap:6px; flex-wrap:wrap; font-size:0.78rem;">
-            <span style="background:#f0f0f0; border-radius:20px; padding:2px 8px;">{% trans "حفظ" %} {{ bloc.moyenne_hifz }}/20</span>
-            <span style="background:#f0f0f0; border-radius:20px; padding:2px 8px;">{% trans "مراجعة" %} {{ bloc.moyenne_muraja3a }}/20</span>
-            <span style="background:#f0f0f0; border-radius:20px; padding:2px 8px;">{% trans "تلاوة" %} {{ bloc.moyenne_tilawa }}/20</span>
-            <span style="background:#f0f0f0; border-radius:20px; padding:2px 8px;">{% trans "مواظبة" %} {{ bloc.moyenne_mouwazaba }}/20</span>
+            {% for m in bloc.moyennes_criteres %}
+            <span style="background:#f0f0f0; border-radius:20px; padding:2px 8px;">{{ m.nom }} {{ m.moyenne }}/20</span>
+            {% endfor %}
         </span>
         {% endif %}
     </summary>
@@ -67,12 +66,11 @@
                     {% include 'dashboard/_badge_statut.html' with type='danger' texte=p.get_statut_display %}
                 {% endif %}
             </div>
-            {% if p.note_hifz %}
+            {% if p.notes_criteres.all %}
             <div style="font-size:0.78rem; color:#555; margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
-                <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">{% trans "حفظ" %} {{ p.note_hifz }}/20</span>
-                <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">{% trans "مراجعة" %} {{ p.note_muraja3a }}/20</span>
-                <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">{% trans "تلاوة" %} {{ p.note_tilawa }}/20</span>
-                <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">{% trans "مواظبة" %} {{ p.note_mouwazaba }}/20</span>
+                {% for nc in p.notes_criteres.all %}
+                <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">{{ nc.critere.nom_localise }} {{ nc.note }}/20</span>
+                {% endfor %}
             </div>
             {% elif p.note_memorisation or p.note_revision %}
             <div style="font-size:0.8rem; color:#555; margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
@@ -102,12 +100,11 @@
                         {% include 'dashboard/_badge_statut.html' with type='danger' texte=p.get_statut_display %}
                     {% endif %}
                 </div>
-                {% if p.note_hifz %}
+                {% if p.notes_criteres.all %}
                 <div style="font-size:0.78rem; color:#555; margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
-                    <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">{% trans "حفظ" %} {{ p.note_hifz }}/20</span>
-                    <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">{% trans "مراجعة" %} {{ p.note_muraja3a }}/20</span>
-                    <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">{% trans "تلاوة" %} {{ p.note_tilawa }}/20</span>
-                    <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">{% trans "مواظبة" %} {{ p.note_mouwazaba }}/20</span>
+                    {% for nc in p.notes_criteres.all %}
+                    <span style="background:#f9f9f9; border-radius:20px; padding:1px 8px;">{{ nc.critere.nom_localise }} {{ nc.note }}/20</span>
+                    {% endfor %}
                 </div>
                 {% elif p.note_memorisation or p.note_revision %}
                 <div style="font-size:0.8rem; color:#555; margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">

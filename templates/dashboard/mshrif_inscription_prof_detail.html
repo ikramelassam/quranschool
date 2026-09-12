@@ -34,7 +34,7 @@
     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">{% trans "الهاتف" %}</span>
         <span style="font-weight:600; display:flex; align-items:center; gap:10px;">
-            {{ inscription.telephone|default:"—" }}
+            <span class="{% if inscription.telephone %}tel-copiable{% endif %}">{{ inscription.telephone|default:"—" }}</span>
             {% include 'dashboard/_whatsapp_icon.html' with telephone=inscription.telephone %}
         </span>
     </div>

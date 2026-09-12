@@ -36,7 +36,7 @@ WhatsApp alors que la demande était encore 'en_attente' en base (si
     <div class="page-title" style="margin-bottom:6px;">{{ titre_refus }}</div>
     <div class="rf-entete-personne">
         <span class="rf-entete-nom">👤 {{ nom_complet }}</span>
-        {% if telephone_personne %}<span class="rf-entete-tel">📞 {{ telephone_personne }}</span>{% endif %}
+        {% if telephone_personne %}<span class="rf-entete-tel">📞 <span class="tel-copiable">{{ telephone_personne }}</span></span>{% endif %}
     </div>
 </div>
 

@@ -66,12 +66,11 @@
             {% endif %}
         </div>
 
-        {% if presence.note_hifz %}
+        {% if presence.notes_criteres.all %}
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; font-size:0.8rem;">
-            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">{% trans "الحفظ:" %} {{ presence.note_hifz }}/20</span>
-            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">{% trans "المراجعة:" %} {{ presence.note_muraja3a }}/20</span>
-            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">{% trans "التلاوة:" %} {{ presence.note_tilawa }}/20</span>
-            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">{% trans "المواظبة والسلوك:" %} {{ presence.note_mouwazaba }}/20</span>
+            {% for nc in presence.notes_criteres.all %}
+            <span style="background:var(--color-bg-cream); border-radius:8px; padding:4px 10px;">{{ nc.critere.nom_localise }}: {{ nc.note }}/20</span>
+            {% endfor %}
         </div>
         {% endif %}
 

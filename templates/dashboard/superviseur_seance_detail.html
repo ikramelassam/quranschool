@@ -71,13 +71,12 @@
             <span style="{{ presence.note_revision|note_style }} border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ presence.get_note_revision_display }}</span>
             {% endif %}
         </div>
-        {% if presence.note_hifz %}
+        {% if presence.notes_criteres.all %}
         <div class="col-md-12">
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">{% blocktrans with n=presence.note_hifz %}الحفظ: {{ n }}/20{% endblocktrans %}</span>
-                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">{% blocktrans with n=presence.note_muraja3a %}المراجعة: {{ n }}/20{% endblocktrans %}</span>
-                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">{% blocktrans with n=presence.note_tilawa %}التلاوة: {{ n }}/20{% endblocktrans %}</span>
-                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">{% blocktrans with n=presence.note_mouwazaba %}المواظبة والسلوك: {{ n }}/20{% endblocktrans %}</span>
+                {% for nc in presence.notes_criteres.all %}
+                <span style="background:#f9f9f9; border-radius:8px; padding:3px 10px; font-size:0.78rem;">{{ nc.critere.nom_localise }}: {{ nc.note }}/20</span>
+                {% endfor %}
             </div>
         </div>
         {% endif %}

@@ -1700,7 +1700,7 @@ def prof_evaluations(request):
 
     presences = Presence.objects.filter(seance__groupe__prof=prof).select_related(
         'eleve__user', 'seance__groupe'
-    ).order_by('-seance__date', '-seance__heure')
+    ).prefetch_related('notes_criteres__critere').order_by('-seance__date', '-seance__heure')
 
     if groupe_id:
         presences = presences.filter(seance__groupe_id=groupe_id)
@@ -1720,15 +1720,24 @@ def prof_evaluations(request):
         bloc = blocs_par_eleve.setdefault(p.eleve_id, {'eleve': p.eleve, 'presences': []})
         bloc['presences'].append(p)
 
-    def moyenne(valeurs):
-        valeurs = [v for v in valeurs if v is not None]
-        return round(sum(valeurs) / len(valeurs), 1) if valeurs else None
-
     for bloc in blocs_par_eleve.values():
-        bloc['moyenne_hifz'] = moyenne([p.note_hifz for p in bloc['presences']])
-        bloc['moyenne_muraja3a'] = moyenne([p.note_muraja3a for p in bloc['presences']])
-        bloc['moyenne_tilawa'] = moyenne([p.note_tilawa for p in bloc['presences']])
-        bloc['moyenne_mouwazaba'] = moyenne([p.note_mouwazaba for p in bloc['presences']])
+        # Moyennes par critère dynamique (remplace les 4 moyennes fixes
+        # hifz/muraja3a/tilawa/mouwazaba, gelées depuis le Point 7 du
+        # 2026-08-04 — voir courses.models.NotePresence.__doc__) : regroupe
+        # toutes les NotePresence de l'élève par critère, tous groupes/positions
+        # confondus, peu importe le nombre ou le nom des critères configurés.
+        cumul_par_critere = {}
+        for p in bloc['presences']:
+            for nc in p.notes_criteres.all():
+                cumul = cumul_par_critere.setdefault(
+                    nc.critere_id,
+                    {'nom': nc.critere.nom_localise, 'ordre': nc.critere.ordre, 'valeurs': []},
+                )
+                cumul['valeurs'].append(nc.note)
+        bloc['moyennes_criteres'] = [
+            {'nom': c['nom'], 'moyenne': round(sum(c['valeurs']) / len(c['valeurs']), 1)}
+            for c in sorted(cumul_par_critere.values(), key=lambda c: c['ordre'])
+        ]
         # Historique par séance potentiellement long sur une année scolaire —
         # limité à 10 + bouton "عرض الكل" (Tâche 22 Partie F du 2026-07-26),
         # même logique que suivi_paiements_eleves (toggle par bloc, id unique).
@@ -3654,7 +3663,9 @@ def eleve_seances(request):
     # par la pagination, mais évitables).
     presences = Presence.objects.filter(
         eleve=eleve
-    ).select_related('seance__groupe').order_by('-seance__date', '-seance__heure')
+    ).select_related('seance__groupe').prefetch_related(
+        'notes_criteres__critere'
+    ).order_by('-seance__date', '-seance__heure')
 
     # Marque le type 'notes_seances' comme lu (panneau 🔔 الإشعارات, Chantier
     # notifications du 2026-08-19) — voir dashboard.notifications.__doc__.
@@ -3682,7 +3693,10 @@ def eleve_seance_detail(request, presence_id):
     eleve = get_object_or_404(Eleve, user=request.user)
     # Filtrer par eleve=eleve directement dans la requête (pas juste comparer après coup):
     # si l'ID appartient à un autre élève, la ligne ne matche pas -> 404, jamais de fuite de données.
-    presence = get_object_or_404(Presence, id=presence_id, eleve=eleve)
+    presence = get_object_or_404(
+        Presence.objects.prefetch_related('notes_criteres__critere'),
+        id=presence_id, eleve=eleve,
+    )
 
     return render(request, 'dashboard/eleve_seance_detail.html', {
         'presence': presence,
@@ -4092,7 +4106,7 @@ def superviseur_seance_detail(request, seance_id):
 
     superviseur = get_object_or_404(Superviseur, user=request.user)
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof__in=superviseur.profs_assignes.all())
-    presences = Presence.objects.filter(seance=seance)
+    presences = Presence.objects.filter(seance=seance).prefetch_related('notes_criteres__critere')
 
     return render(request, 'dashboard/superviseur_seance_detail.html', {
         'seance': seance,
@@ -6234,7 +6248,7 @@ def admin_evaluations(request):
 
     presences = Presence.objects.filter(seance__statut='terminee').select_related(
         'seance__groupe__prof__user', 'eleve__user'
-    ).order_by('-seance__date', '-seance__heure')
+    ).prefetch_related('notes_criteres__critere').order_by('-seance__date', '-seance__heure')
 
     evaluations_profs = Evaluation.objects.select_related(
         'seance__groupe__prof__user', 'superviseur__user', 'prof__user'
@@ -6298,7 +6312,7 @@ def admin_evaluation_detail(request, seance_id):
     from evaluations.models import Evaluation
 
     seance = get_object_or_404(Seance, id=seance_id)
-    presences = Presence.objects.filter(seance=seance).select_related('eleve__user').order_by('eleve__user__first_name')
+    presences = Presence.objects.filter(seance=seance).select_related('eleve__user').prefetch_related('notes_criteres__critere').order_by('eleve__user__first_name')
     evaluation = Evaluation.objects.filter(seance=seance).select_related('superviseur__user').prefetch_related('notes__critere').first()
 
     context = {

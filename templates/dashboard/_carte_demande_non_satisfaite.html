@@ -20,9 +20,9 @@ du clic principal, pas des extensions du lien "voir les détails".
             {{ d.nom_contact|default:_("— بدون اسم —") }}
         </div>
         <div style="color:#555; font-size:0.85rem; margin-bottom:4px;">
-            {% if d.telephone_contact %}📞 {{ d.telephone_contact }}{% endif %}
+            {% if d.telephone_contact %}📞 <span class="tel-copiable">{{ d.telephone_contact }}</span>{% endif %}
             {% if d.telephone_contact and d.email_contact %} — {% endif %}
-            {% if d.email_contact %}✉️ {{ d.email_contact }}{% endif %}
+            {% if d.email_contact %}✉️ <span class="email-copiable">{{ d.email_contact }}</span>{% endif %}
             {% if not d.telephone_contact and not d.email_contact %}{% trans "لا يوجد رقم/بريد مسجَّل" %}{% endif %}
         </div>
         <div style="font-size:0.85rem; color:#555; margin-bottom:4px;">

@@ -24,7 +24,7 @@
     <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(139,75,0,0.1);">
         <span style="color:var(--color-text-muted); font-size:0.85rem;">{% trans "التواصل" %}</span>
         <span style="display:flex; align-items:center; gap:10px;">
-            <span style="font-weight:600; color:var(--color-text-primary);">{{ prof.user.telephone|default:"—" }}</span>
+            <span style="font-weight:600; color:var(--color-text-primary);" class="{% if prof.user.telephone %}tel-copiable{% endif %}">{{ prof.user.telephone|default:"—" }}</span>
             <span style="display:inline-flex; gap:6px; align-items:center;">
                 {% include 'dashboard/_email_icon.html' with email=prof.user.email %}
                 {% include 'dashboard/_whatsapp_icon.html' with telephone=prof.user.telephone %}

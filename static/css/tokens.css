@@ -60,15 +60,17 @@
     --color-role-eleve-solid: #8B4B00;
 }
 
-/* --- Adresse e-mail affichée, sélectionnable d'un bloc ---
+/* --- E-mail/téléphone affichés, sélectionnables d'un bloc ---
    Seule règle non-token de ce fichier, placée ici parce qu'il est le seul
    CSS chargé par TOUS les templates complets (5 bases + login/inscription).
-   `user-select:all` : un simple clic sélectionne l'adresse ENTIÈRE et rien
-   d'autre — le directeur qui copie l'e-mail d'un candidat n'attrape plus le
-   libellé arabe, le nom ou le téléphone voisins collés sur la même ligne
-   (signalé 2026-09-09). `unicode-bidi:isolate` + `direction:ltr` : l'adresse
-   latine reste intègre au milieu d'un texte RTL et ne perturbe pas la ligne. */
-.email-copiable {
+   `user-select:all` : un simple clic sélectionne la valeur ENTIÈRE et rien
+   d'autre — le directeur qui copie l'e-mail/téléphone d'un candidat n'attrape
+   plus le libellé arabe, le nom ou la valeur voisine collée sur la même ligne
+   (signalé 2026-09-09, étendu au téléphone le 2026-09-12). `unicode-bidi:isolate`
+   + `direction:ltr` : la valeur latine reste intègre au milieu d'un texte RTL
+   et ne perturbe pas la ligne. */
+.email-copiable,
+.tel-copiable {
     -webkit-user-select: all;
     user-select: all;
     unicode-bidi: isolate;

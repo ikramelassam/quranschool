@@ -1,10 +1,10 @@
-{% load i18n %}
+{% load i18n l10n %}
 <div class="ring-wrap">
     <svg width="168" height="168" viewBox="0 0 168 168">
         <circle cx="84" cy="84" r="72" fill="none" stroke="#f2ead9" stroke-width="14"/>
         <circle cx="84" cy="84" r="72" fill="none" stroke="url(#ringGrad)" stroke-width="14"
                 stroke-linecap="round" stroke-dasharray="452.39"
-                stroke-dashoffset="{{ ring_dashoffset }}"/>
+                stroke-dashoffset="{{ ring_dashoffset|unlocalize }}"/>
         <defs>
             <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stop-color="#A86414"/>

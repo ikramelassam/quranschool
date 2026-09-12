@@ -66,14 +66,13 @@
     <div style="color:#aaa; padding:8px 0 16px;">{% trans "لم تسجَّل أي مراجعة لهذه الحصة." %}</div>
     {% endif %}
 
-    {% if presence.note_hifz %}
-    <!-- Notation numérique /20 (Tâche 9) -->
+    {% if presence.notes_criteres.all %}
+    <!-- Notation numérique /20 par critère dynamique (remplace les 4 champs fixes note_hifz/... depuis le 2026-08-04) -->
     <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "التقييم" %}</div>
     <div class="row g-3">
-        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">{% trans "الحفظ" %}</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_hifz }}/20</div></div></div>
-        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">{% trans "المراجعة" %}</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_muraja3a }}/20</div></div></div>
-        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">{% trans "التلاوة" %}</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_tilawa }}/20</div></div></div>
-        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">{% trans "المواظبة والسلوك" %}</div><div style="font-weight:700; font-size:1.1rem;">{{ presence.note_mouwazaba }}/20</div></div></div>
+        {% for nc in presence.notes_criteres.all %}
+        <div class="col-6 col-md-3"><div style="text-align:center; background:#f9f9f9; border-radius:8px; padding:10px;"><div style="color:#888; font-size:0.78rem;">{{ nc.critere.nom_localise }}</div><div style="font-weight:700; font-size:1.1rem;">{{ nc.note }}/20</div></div></div>
+        {% endfor %}
     </div>
     {% endif %}
 
