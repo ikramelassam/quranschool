@@ -483,15 +483,16 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     via dashboard.views.prof_presence_sauvegarder) — chantier du 2026-09-12.
     Le prof et l'élève concerné sont déjà notifiés ailleurs (voir
     notifications_eleve, groupe 'notes_seances') ; la direction, elle, n'avait
-    jusqu'ici AUCUNE visibilité sur "quelle حلقة vient d'être évaluée". Même
-    limite assumée que notifications_eleve : Seance/Presence ne portent aucun
-    champ date propre pour "quand la feuille a été remplie" — la date/heure de
-    la séance sert de proxy (voir _datetime_seance), donc un remplissage très
-    tardif d'une séance ancienne ne redéclenche pas le badge si cette date
-    précède déjà la dernière visite. `cle` 'seances_evaluees_direction',
-    partagée مدير+مشرف. Pas de pastille de statut (toujours "fait", pas
-    d'attente). Lien : admin_evaluation_detail (marque aussi ce `cle` lu, voir
-    son appelant).
+    jusqu'ici AUCUNE visibilité sur "quelle حلقة vient d'être évaluée". Date
+    d'événement = `Seance.date_evaluation` (horodatage réel de la soumission,
+    posé par prof_presence_sauvegarder), PAS la date/heure de la séance —
+    corrige un bug signalé le 2026-09-13 (une séance du matin évaluée le soir
+    affichait "منذ 6 ساعات" au lieu de "منذ لحظات"). Repli sur
+    `_datetime_seance` pour l'historique antérieur à ce champ (NULL) — même
+    limite assumée que notifications_eleve pour CES séances-là uniquement.
+    `cle` 'seances_evaluees_direction', partagée مدير+مشرف. Pas de pastille de
+    statut (toujours "fait", pas d'attente). Lien : admin_evaluation_detail
+    (marque aussi ce `cle` lu, voir son appelant).
 
     7. Évaluation du prof par le مؤطر (evaluations.Evaluation, superviseur ->
     prof) — chantier du 2026-09-12, même besoin que le point 6 mais côté
@@ -648,7 +649,12 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
         Seance.objects.filter(statut='terminee').select_related('groupe')
         .order_by('-date', '-heure')[:LIMITE_FETCH]
     ):
-        date_evenement = _datetime_seance(s)
+        # date_evaluation = quand la feuille a réellement été soumise (voir son
+        # __doc__ sur Seance) ; repli sur _datetime_seance pour l'historique
+        # antérieur à ce champ (NULL). Bug signalé le 2026-09-13 : sans ce
+        # repli sur date_evaluation, une séance du matin évaluée le soir
+        # s'affichait "منذ 6 ساعات" au lieu de "منذ لحظات".
+        date_evenement = s.date_evaluation or _datetime_seance(s)
         evenements.append({
             'texte': _('تم تقييم حصة حلقة %(groupe)s') % {'groupe': s.groupe.nom},
             'url': reverse('admin_evaluation_detail', args=[s.id]),

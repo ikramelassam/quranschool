@@ -853,6 +853,18 @@ class Seance(models.Model):
         blank=True,
         help_text="Remarque du prof sur la séance dans son ensemble (distincte des remarques par élève)."
     )
+    # Horodatage du remplissage réel de la feuille de présence (posé par
+    # dashboard.views.prof_presence_sauvegarder au moment du 'soumettre'),
+    # PAS la date/heure de la séance elle-même (`date`/`heure` ci-dessus,
+    # qui restent le proxy utilisé partout ailleurs pour l'affichage de la
+    # séance). Bug signalé le 2026-09-13 : la notification direction
+    # "تم تقييم حصة حلقة X" (dashboard/notifications.py) utilisait
+    # `_datetime_seance` comme date d'événement — une séance du matin évaluée
+    # le soir même s'affichait "منذ 6 ساعات" au lieu de "منذ لحظات". Champ
+    # rempli seulement pour les séances terminées via ce chantier ; NULL pour
+    # tout l'historique antérieur (fallback sur _datetime_seance, voir
+    # dashboard/notifications.py).
+    date_evaluation = models.DateTimeField(null=True, blank=True)
 
     # Chantier du 2026-09-12 — demande explicite du client : le prof ne doit
     # évaluer QU'UNE seule chose par حصة (typiquement الحفظ à la séance 1 de

@@ -944,6 +944,8 @@ def prof_presence_sauvegarder(request, seance_id):
     from accounts.models import Prof, Eleve
     from courses.models import Seance, Presence
 
+    from django.utils import timezone
+
     prof = get_object_or_404(Prof, user=request.user)
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
 
@@ -1166,6 +1168,7 @@ def prof_presence_sauvegarder(request, seance_id):
         seance.remarque_generale = request.POST.get('remarque_generale', '')
         if action == 'soumettre':
             seance.statut = 'terminee'
+            seance.date_evaluation = timezone.now()
             seance.save()
             messages.success(request, gettext_('تم حفظ الحضور والتقييمات بنجاح.'))
             return redirect('prof_seances')
