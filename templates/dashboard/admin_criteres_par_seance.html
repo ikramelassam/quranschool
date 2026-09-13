@@ -4,57 +4,103 @@
 {% block content %}
 <div class="mb-4">
     <div class="page-title">{% trans "معايير كل حصة" %}</div>
-    <div class="page-subtitle">{% trans "الإعداد المشترك، مرتّب حسب عدد الحصص/الأسبوع — لكل عدد حصص إعداد مستقل. للتخصيص الخاص بمجموعة معينة، افتح صفحة تلك المجموعة." %}</div>
+    <div class="page-subtitle">{% trans "الإعداد المشترك، مكتشَف تلقائيًا من عدد الحصص/الأسبوع الفعلي لكل مجموعة — كل عدد حصص له إعداد مستقل، يُطبَّق تلقائيًا على كل المجموعات التي تشاركه. لتخصيص مجموعة معينة، استعمل البحث أسفل الصفحة." %}</div>
 </div>
 
-{% for nb_seances, profils in buckets %}
+{% for cad in cadences %}
 <div class="mb-3">
-    <div style="font-weight:700; margin-bottom:6px;">
-        {% blocktrans count n=nb_seances %}المجموعات ذات حصة واحدة/أسبوع{% plural %}المجموعات ذات {{ n }} حصص/أسبوع{% endblocktrans %}
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <div style="font-weight:700;">
+            {% blocktrans count n=cad.nb_seances %}حصة واحدة/أسبوع{% plural %}{{ n }} حصص/أسبوع{% endblocktrans %}
+        </div>
+        <span style="background:var(--color-role-admin); color:white; border-radius:20px; padding:2px 12px; font-size:0.8rem;">
+            {% blocktrans count n=cad.nb_groupes %}{{ n }} مجموعة{% plural %}{{ n }} مجموعة{% endblocktrans %}
+        </span>
+        <a href="?cadence={{ cad.nb_seances }}#personnalisation-groupe" style="color:#888; font-size:0.8rem; text-decoration:none;">{% trans "عرض هذه المجموعات ←" %}</a>
     </div>
     <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
-        {% for profil in profils %}
+        {% for profil in cad.positions %}
         <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:16px 24px; border-bottom:1px solid #f0f0f0;">
-            <div style="font-weight:700;">{% blocktrans with position=profil.position %}الحصة {{ position }}{% endblocktrans %}</div>
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <span style="background:#f0f0f0; color:#555; border-radius:20px; padding:4px 12px; font-size:0.8rem;">
-                    {% blocktrans count n=profil.nb_criteres_actifs %}{{ n }} معيار مفعّل{% plural %}{{ n }} معايير مفعّلة{% endblocktrans %}
-                </span>
-                {% if request.user.role != 'mshrif' %}
-                <a href="{% url 'admin_criteres_par_seance_modifier' nb_seances profil.position %}"
-                   style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
-                   {% trans "تعديل ✏️" %}
-                </a>
-                {% endif %}
+            <div>
+                <div style="font-weight:700;">{% blocktrans with position=profil.position %}الحصة {{ position }}{% endblocktrans %}</div>
+                <div style="margin-top:4px; color:#555; font-size:0.85rem;">
+                    {% for c in profil.criteres %}{{ c.nom_localise }}{% if not forloop.last %} · {% endif %}{% empty %}<span style="color:#aaa;">{% trans "لا توجد معايير مفعّلة لهذه الحصة" %}</span>{% endfor %}
+                </div>
             </div>
+            {% if request.user.role != 'mshrif' %}
+            <a href="{% url 'admin_criteres_par_seance_modifier' cad.nb_seances profil.position %}"
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+               {% trans "تعديل ✏️" %}
+            </a>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
-    {% if request.user.role != 'mshrif' %}
-    <form method="POST" action="{% url 'admin_criteres_par_seance_ajouter_position' nb_seances %}" class="mt-2">
-        {% csrf_token %}
-        <button type="submit"
-            style="background:none; border:1px dashed #ccc; color:#777; border-radius:8px; padding:6px 14px; font-family:'Tajawal',sans-serif; font-size:0.85rem; cursor:pointer;">
-            {% trans "+ إضافة حصة أخرى لهذه المجموعة" %}
-        </button>
-    </form>
-    {% endif %}
 </div>
 {% empty %}
-<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px;">{% trans "لا توجد إعدادات مشتركة بعد" %}</div>
+<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px;">{% trans "لا توجد مجموعات نشطة بحصص محددة بعد" %}</div>
 {% endfor %}
 
-{% if request.user.role != 'mshrif' %}
-<form method="POST" action="{% url 'admin_criteres_par_seance_ajouter_bucket' %}" class="mt-3 d-flex gap-2 align-items-center">
-    {% csrf_token %}
-    <label style="font-size:0.9rem; color:#555;">{% trans "تحضير عدد حصص/أسبوع جديد:" %}</label>
-    <input type="number" name="nb_seances_semaine" min="1" class="form-control form-control-sm" style="width:90px;" required>
-    <button type="submit"
-        style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:10px 20px; font-family:'Tajawal',sans-serif; font-size:0.95rem; cursor:pointer;">
-        {% trans "+ إضافة" %}
-    </button>
-</form>
+{% if nb_groupes_sans_creneau %}
+<div style="color:#aaa; font-size:0.85rem; margin-bottom:24px;">
+    {% blocktrans count n=nb_groupes_sans_creneau %}توجد مجموعة واحدة بدون جدول حصص محدَّد — مستبعدة من الإعدادات أعلاه.{% plural %}توجد {{ n }} مجموعات بدون جدول حصص محدَّد — مستبعدة من الإعدادات أعلاه.{% endblocktrans %}
+</div>
 {% endif %}
+
+<hr class="my-4">
+
+<div id="personnalisation-groupe" class="mb-4">
+    <div class="page-title" style="font-size:1.15rem;">{% trans "تخصيص معايير مجموعة" %}</div>
+    <div class="page-subtitle">{% trans "ابحث عن مجموعة لتخصيص معايير إحدى حصصها — أي تعديل هنا يبقى خاصًا بهذه المجموعة فقط، ولا يتأثر بتعديل الإعداد المشترك لاحقًا." %}</div>
+
+    <form method="GET" class="d-flex flex-wrap gap-2 align-items-center mt-2 mb-3">
+        <input type="text" name="q" value="{{ recherche_q }}" placeholder="{% trans 'اسم المجموعة...' %}"
+               class="form-control" style="max-width:260px;">
+        <select name="cadence" class="form-control" style="max-width:180px;">
+            <option value="">{% trans "كل عدد الحصص" %}</option>
+            {% for cad in cadences %}
+            <option value="{{ cad.nb_seances }}" {% if cadence_filtre == cad.nb_seances|stringformat:'s' %}selected{% endif %}>
+                {% blocktrans count n=cad.nb_seances %}حصة واحدة/أسبوع{% plural %}{{ n }} حصص/أسبوع{% endblocktrans %}
+            </option>
+            {% endfor %}
+        </select>
+        <button type="submit"
+            style="background:var(--color-role-admin); color:white; border:none; border-radius:8px; padding:8px 20px; font-family:'Tajawal',sans-serif; font-size:0.9rem; cursor:pointer;">
+            {% trans "بحث 🔍" %}
+        </button>
+        {% if recherche_q or cadence_filtre %}
+        <a href="{% url 'admin_criteres_par_seance' %}#personnalisation-groupe" style="color:#888; font-size:0.85rem;">{% trans "إلغاء البحث" %}</a>
+        {% endif %}
+    </form>
+
+    {% if recherche_q or cadence_filtre %}
+    <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; margin-bottom:16px;">
+        {% for item in resultats_recherche %}
+        <a href="?q={{ recherche_q }}&cadence={{ cadence_filtre }}&groupe_id={{ item.groupe.id }}#personnalisation-groupe"
+           style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 24px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:inherit;{% if groupe_selectionne.id == item.groupe.id %} background:#fff8e6;{% endif %}">
+            <span style="font-weight:600;">{{ item.groupe.nom }}</span>
+            <span style="background:#f0f0f0; color:#555; border-radius:20px; padding:2px 12px; font-size:0.8rem;">
+                {% blocktrans count n=item.nb_seances %}حصة واحدة/أسبوع{% plural %}{{ n }} حصص/أسبوع{% endblocktrans %}
+            </span>
+        </a>
+        {% empty %}
+        <div style="text-align:center; padding:32px; color:#aaa;">{% trans "لا توجد مجموعة مطابقة" %}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if groupe_selectionne %}
+    <div style="background:white; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+        <div style="padding:16px 24px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-weight:700;">{{ groupe_selectionne.nom }}</div>
+            <div style="color:#777; font-size:0.85rem;">
+                {% blocktrans count n=nb_seances_groupe_selectionne %}حصة واحدة/أسبوع{% plural %}{{ n }} حصص/أسبوع{% endblocktrans %}
+            </div>
+        </div>
+        {% include 'dashboard/_positions_resolues_groupe.html' with groupe=groupe_selectionne positions=positions_groupe_selectionne %}
+    </div>
+    {% endif %}
+</div>
 
 <div class="mt-3">
     <a href="{% url 'admin_criteres_eleves' %}" style="color:#888; text-decoration:none;">{% trans "← إدارة المعايير نفسها (إضافة/تعديل/حذف)" %}</a>

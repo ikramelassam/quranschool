@@ -523,9 +523,24 @@ def dashboard_prof(request):
     toutes_seances_prof = Seance.objects.filter(groupe__prof=prof).select_related(
         'groupe__creneau'
     ).prefetch_related('groupe__creneau__slots')
-    apercu_seances = list(
+    # Correctif du 2026-09-13 (même signalement que prochaine_seance
+    # ci-dessous) : `date__lt=aujourdhui` seul excluait TOUJOURS les séances
+    # du jour, même une fois leur heure de fin réelle largement dépassée et
+    # jamais soumises par le prof — elles disparaissaient alors de TOUT le
+    # tableau de bord (ni "القادمة" depuis le correctif précédent, ni ici).
+    # `date__lt` reste exact pour toute séance d'un jour calendaire déjà
+    # entièrement révolu (sa fin réelle est nécessairement avant "maintenant"
+    # dès que ce jour n'est plus aujourd'hui) — seules les séances DU JOUR
+    # MÊME doivent être départagées une à une via evaluable_par_prof.
+    seances_du_jour_deja_finies = [
+        s for s in toutes_seances_prof.filter(date=aujourdhui) if s.evaluable_par_prof
+    ]
+    candidats_apercu = seances_du_jour_deja_finies + list(
         toutes_seances_prof.filter(date__lt=aujourdhui).order_by('-date', '-heure')[:3]
     )
+    apercu_seances = sorted(
+        candidats_apercu, key=lambda s: (s.date, s.heure), reverse=True
+    )[:3]
     seances_hors_apercu = toutes_seances_prof.exclude(id__in=[s.id for s in apercu_seances])
     nav = navigation_mois_et_semaines(seances_hors_apercu, request, aujourdhui)
 
@@ -533,24 +548,45 @@ def dashboard_prof(request):
     # intention que dashboard_eleve.prochaine_seance : identifiable d'un coup
     # d'œil, plutôt que noyée dans "آخر الحصص" qui mélange passé/futur trié
     # par date décroissante.
-    prochaine_seance = Seance.objects.filter(
-        groupe__prof=prof, date__gte=aujourdhui
-    ).exclude(statut='terminee').select_related('groupe__creneau').prefetch_related(
-        'groupe__creneau__slots'
-    ).order_by('date', 'heure').first()
+    #
+    # Correctif du 2026-09-13 (signalement réel d'un prof, reproduit sur un
+    # groupe de test) : `date__gte=aujourdhui` seul ne suffit pas — une
+    # séance du jour dont l'heure est déjà largement passée (ex: 09h alors
+    # qu'il est 14h), mais jamais soumise par le prof (statut resté
+    # 'planifiee'), restait affichée comme "الحصة القادمة" (icône Meet
+    # cliquable comprise), alors qu'elle est déjà terminée dans les faits.
+    # `evaluable_par_prof` (Seance.__doc__) est déjà LA notion existante de
+    # "cette séance a atteint sa fin réelle" — on l'utilise ici pour ne
+    # retenir que la première séance qui n'a PAS ENCORE atteint ce point,
+    # au lieu du seul filtre sur la date. Une séance en retard (déjà
+    # terminée dans les faits mais non soumise) n'est donc plus jamais
+    # présentée comme "à venir" ici — elle reste consultable/évaluable via
+    # prof_seances (section "متأخرة", déjà correcte, voir seances_retard
+    # ci-dessous dans ce fichier).
+    candidats_prochaine_seance = list(
+        Seance.objects.filter(groupe__prof=prof, date__gte=aujourdhui)
+        .exclude(statut='terminee')
+        .select_related('groupe__creneau')
+        .prefetch_related('groupe__creneau__slots')
+        .order_by('date', 'heure')
+    )
+    prochaine_seance = next(
+        (s for s in candidats_prochaine_seance if not s.evaluable_par_prof), None
+    )
 
     # ===== "القادمة" — section manquante (Point 1 du chantier groupé du
     # 2026-08-05) : avant ce correctif, seule "الحصة القادمة" (une séance
     # unique) était visible côté prof, rien ne montrait le reste des séances
     # à venir. Réutilise courses.utils.regrouper_seances_a_venir, partagée
-    # avec dashboard_superviseur (voir sa docstring pour le détail). Comme
-    # côté مؤطر : prochaine_seance retirée du "بقية هذا الأسبوع" pour ne pas
-    # l'afficher deux fois, sans fausser nb_semaine_courante.
-    a_venir = regrouper_seances_a_venir(toutes_seances_prof, aujourdhui)
-    id_a_exclure = prochaine_seance.id if prochaine_seance else None
-    bucket_semaine_courante = [
-        s for s in a_venir['bucket_semaine_courante'] if s.id != id_a_exclure
-    ]
+    # avec dashboard_superviseur (voir sa docstring pour le détail) — id_a_exclure
+    # lui délègue désormais le retrait de prochaine_seance de TOUS ses buckets
+    # affichés (correctif du 2026-09-13 : semaine_suivante pouvait aussi la
+    # contenir en double un dimanche, voir la docstring de la fonction).
+    a_venir = regrouper_seances_a_venir(
+        toutes_seances_prof, aujourdhui,
+        id_a_exclure=prochaine_seance.id if prochaine_seance else None,
+    )
+    bucket_semaine_courante = a_venir['bucket_semaine_courante']
 
     # Panneau 🔔 الإشعارات (Chantier notifications du 2026-08-19) — calculé
     # UNIQUEMENT ici (page d'accueil), jamais en context processor global :
@@ -580,7 +616,13 @@ def dashboard_prof(request):
         # Remplace l'ancien len(seances[:5]) — comptait au mieux 5 même si le
         # prof avait un historique bien plus long ; total réel, cohérent avec
         # le fait que la liste ci-dessous n'est plus plafonnée à 5 non plus.
-        'total_seances_passees': toutes_seances_prof.filter(date__lt=aujourdhui).count(),
+        # Même correctif du 2026-09-13 que ci-dessus pour apercu_seances : les
+        # séances du jour déjà finies comptent aussi (réutilise
+        # seances_du_jour_deja_finies, déjà calculé, sans re-parcourir tout
+        # l'historique du prof).
+        'total_seances_passees': (
+            toutes_seances_prof.filter(date__lt=aujourdhui).count() + len(seances_du_jour_deja_finies)
+        ),
         'notif_groupes': notif_groupes,
         'notif_total': notif_total,
     }
@@ -3589,11 +3631,25 @@ def dashboard_eleve(request):
     # Prochaine séance: même filtre que eleve_seances (exclut seulement les
     # séances déjà terminées) — une séance annulée reste affichée avec son
     # motif, c'est une info que l'élève doit voir.
-    prochaine_seance = Seance.objects.filter(
-        groupe__in=groupes, date__gte=aujourdhui
-    ).exclude(statut='terminee').select_related('groupe__creneau').prefetch_related(
-        'groupe__eleves__user', 'groupe__creneau__slots'
-    ).order_by('date', 'heure').first()
+    #
+    # Correctif du 2026-09-13 — même correction que dashboard_prof.
+    # prochaine_seance ci-dessus (voir son commentaire pour le détail du
+    # signalement) : `date__gte=aujourdhui` seul ne suffit pas, une séance
+    # du jour déjà terminée dans les faits (heure passée) mais non soumise
+    # par le prof restait affichée comme "à venir" côté élève aussi.
+    # `evaluable_par_prof` reste la bonne notion ici (elle ne dépend d'aucun
+    # rôle, seulement de l'heure de fin réelle de la séance) — ne conserve
+    # que la première séance qui ne l'a pas encore atteinte.
+    candidats_prochaine_seance = list(
+        Seance.objects.filter(groupe__in=groupes, date__gte=aujourdhui)
+        .exclude(statut='terminee')
+        .select_related('groupe__creneau')
+        .prefetch_related('groupe__eleves__user', 'groupe__creneau__slots')
+        .order_by('date', 'heure')
+    )
+    prochaine_seance = next(
+        (s for s in candidats_prochaine_seance if not s.evaluable_par_prof), None
+    )
 
     dernieres_evaluations = Presence.objects.filter(
         eleve=eleve
@@ -3683,12 +3739,26 @@ def eleve_seances(request):
     # Volontairement limité à 3 (contrairement aux 10 du prof/superviseur) :
     # pour l'élève c'est juste informatif, pas une file de travail à traiter —
     # nb_a_venir permet au template d'afficher un compteur du reste.
-    seances_a_venir_qs = Seance.objects.filter(
-        groupe__in=eleve.groupes.all(), date__gte=aujourdhui
-    ).exclude(statut='terminee').select_related('groupe__creneau').prefetch_related(
-        'groupe__eleves__user', 'groupe__creneau__slots'
-    ).order_by('date', 'heure')
-    nb_a_venir = seances_a_venir_qs.count()
+    # Correctif du 2026-09-13 (même signalement/même famille de correctif que
+    # dashboard_prof/dashboard_eleve.prochaine_seance) : `date__gte=aujourdhui`
+    # seul faisait apparaître, sous "🔜 الحصص القادمة", une séance du jour déjà
+    # terminée dans les faits (heure passée) mais jamais soumise par le prof —
+    # contradiction visible avec son propre badge "لم يتم تقييمها بعد ⚠️"
+    # (voir _seance_statut_badge.html) sous un titre "à venir". Une séance
+    # annulée reste toujours affichée quelle que soit l'heure (l'élève doit
+    # être informé de l'annulation, même après coup) — seul le critère
+    # `evaluable_par_prof` départage les séances encore réellement 'planifiee'.
+    candidats_a_venir = list(
+        Seance.objects.filter(groupe__in=eleve.groupes.all(), date__gte=aujourdhui)
+        .exclude(statut='terminee')
+        .select_related('groupe__creneau')
+        .prefetch_related('groupe__eleves__user', 'groupe__creneau__slots')
+        .order_by('date', 'heure')
+    )
+    seances_a_venir_qs = [
+        s for s in candidats_a_venir if s.statut == 'annulee' or not s.evaluable_par_prof
+    ]
+    nb_a_venir = len(seances_a_venir_qs)
     seances_a_venir = seances_a_venir_qs[:3]
     # Reste des séances à venir au-delà des 3 déjà visibles — rendu caché
     # dans le template et déplié en JS au clic sur le compteur, sans
@@ -4089,14 +4159,17 @@ def dashboard_superviseur(request):
     # volontairement indépendant des filtres.
     from courses.utils import regrouper_seances_a_venir
 
-    a_venir = regrouper_seances_a_venir(toutes_seances, aujourdhui)
     # seance_suivante peut ne pas appartenir à toutes_seances (elle ignore les
     # filtres GET) : le retirer si présente évite un doublon visuel sans
-    # jamais fausser nb_semaine_courante (compté AVANT ce retrait).
-    id_a_exclure = seance_suivante.id if seance_suivante else None
-    bucket_semaine_courante = [
-        s for s in a_venir['bucket_semaine_courante'] if s.id != id_a_exclure
-    ]
+    # jamais fausser nb_semaine_courante (compté AVANT ce retrait) — délégué
+    # à regrouper_seances_a_venir désormais (correctif du 2026-09-13 : un
+    # dimanche, seance_suivante pouvait apparaître EN DOUBLE dans
+    # semaine_suivante, jamais filtrée jusqu'ici, voir sa docstring).
+    a_venir = regrouper_seances_a_venir(
+        toutes_seances, aujourdhui,
+        id_a_exclure=seance_suivante.id if seance_suivante else None,
+    )
+    bucket_semaine_courante = a_venir['bucket_semaine_courante']
     nb_semaine_courante = a_venir['nb_semaine_courante']
 
     # Panneau 🔔 الإشعارات (Chantier du 2026-08-31) — calculé UNIQUEMENT ici
@@ -6211,81 +6284,107 @@ def admin_critere_eleve_supprimer(request, critere_id):
 # ci-dessus (admin_criteres_eleves et consorts). Même patron de permissions
 # que celles-ci : liste visible مدير+مشرف, modification مدير seul.
 
+def _positions_resolues_du_groupe(groupe):
+    """Liste, pour un groupe précis, des positions 1..nb_seances_semaine
+    avec pour chacune les critères RÉELLEMENT résolus (commun ou
+    personnalisé) — SEULE fonction d'itération, partagée par
+    admin_criteres_par_seance (section recherche/personnalisation intégrée)
+    et admin_groupe_criteres_par_seance (fiche dédiée d'un groupe), pour ne
+    jamais dupliquer cette boucle dans 2 vues (voir ProfilCriteresSeance.
+    resoudre, LE resolver central, seul appelé ici)."""
+    from courses.models import ProfilCriteresSeance, nb_seances_semaine_du_groupe
+
+    nb_seances = nb_seances_semaine_du_groupe(groupe)
+    positions = []
+    for position in range(1, nb_seances + 1):
+        profil, niveau = ProfilCriteresSeance.resoudre(groupe, position)
+        positions.append({
+            'position': position,
+            'personnalise': niveau == 'groupe',
+            'criteres': list(profil.criteres.filter(est_actif=True).order_by('ordre')),
+        })
+    return nb_seances, positions
+
+
 @role_required('admin', 'mshrif')
 def admin_criteres_par_seance(request):
-    """Niveau 1 (commun) UNIQUEMENT — regroupé par nb_seances_semaine (voir
-    ProfilCriteresSeance.__doc__). La personnalisation Niveau 2 (spécifique à
-    un groupe) se fait depuis la fiche du groupe concerné (voir
-    admin_groupe_criteres_par_seance), jamais depuis cet écran global."""
-    from courses.models import ProfilCriteresSeance
+    """Niveau 1 (commun) — regroupé par nb_seances_semaine RÉEL des groupes
+    ACTIFS (voir courses.models.cadences_reelles_des_groupes.__doc__) :
+    cadences DÉCOUVERTES depuis les données réelles, jamais une liste
+    manuelle de groupes à associer à une cadence, ni un bouton "ajouter une
+    séance/un nombre de séances" (les 2 rejetés explicitement par le client
+    le 2026-09-13 — voir l'ancien admin_criteres_par_seance_ajouter_position/
+    _ajouter_bucket, supprimés ce jour-là).
 
-    profils_communs = ProfilCriteresSeance.objects.filter(
-        groupe__isnull=True,
-    ).exclude(nb_seances_semaine__isnull=True).prefetch_related('criteres').order_by('nb_seances_semaine', 'position')
+    Contient aussi, SUR CETTE MÊME PAGE (demande explicite : "ne doit pas
+    dépendre d'une URL cachée ou d'une navigation vers une fiche groupe
+    inexistante"), la recherche + personnalisation Niveau 2 d'un groupe
+    précis, via les paramètres GET `q` (nom), `cadence` (filtre par
+    nb_seances_semaine réel) et `groupe_id` (groupe sélectionné à afficher/
+    personnaliser) — voir _positions_resolues_du_groupe ci-dessus, seule
+    logique de résolution, partagée avec admin_groupe_criteres_par_seance
+    (fiche dédiée d'un groupe, toujours accessible séparément depuis sa
+    fiche groupe, voir templates/courses/admin_groupe_detail.html)."""
+    from courses.models import Groupe, ProfilCriteresSeance, cadences_reelles_des_groupes
 
-    buckets = {}
-    for profil in profils_communs:
-        buckets.setdefault(profil.nb_seances_semaine, []).append(profil)
+    compteur_cadences, nb_groupes_sans_creneau = cadences_reelles_des_groupes()
+
+    cadences = []
+    for nb_seances in sorted(compteur_cadences):
+        positions = []
+        for position in range(1, nb_seances + 1):
+            profil = ProfilCriteresSeance._resoudre_commun(nb_seances, position)
+            positions.append({
+                'position': position,
+                'criteres': list(profil.criteres.filter(est_actif=True).order_by('ordre')),
+            })
+        cadences.append({
+            'nb_seances': nb_seances,
+            'nb_groupes': compteur_cadences[nb_seances],
+            'positions': positions,
+        })
+
+    # ---- Section "تخصيص معايير مجموعة" : recherche + personnalisation, intégrée à cette même page ----
+    recherche_q = request.GET.get('q', '').strip()
+    cadence_filtre = request.GET.get('cadence', '').strip()
+    resultats_recherche = []
+    if recherche_q or cadence_filtre:
+        candidats = Groupe.actifs.select_related('creneau').prefetch_related('creneau__slots').order_by('nom')
+        if recherche_q:
+            candidats = candidats.filter(nom__icontains=recherche_q)
+        try:
+            cadence_filtre_int = int(cadence_filtre) if cadence_filtre else None
+        except ValueError:
+            cadence_filtre_int = None
+        for g in candidats:
+            n = len(g.creneau.slots.all()) if g.creneau else 0
+            if cadence_filtre_int is not None and n != cadence_filtre_int:
+                continue
+            resultats_recherche.append({'groupe': g, 'nb_seances': n})
+        resultats_recherche = resultats_recherche[:30]
+
+    groupe_selectionne = None
+    nb_seances_groupe_selectionne = None
+    positions_groupe_selectionne = []
+    groupe_id_selectionne = request.GET.get('groupe_id', '')
+    if groupe_id_selectionne:
+        groupe_selectionne = Groupe.objects.filter(id=groupe_id_selectionne).first()
+        if groupe_selectionne is not None:
+            nb_seances_groupe_selectionne, positions_groupe_selectionne = _positions_resolues_du_groupe(groupe_selectionne)
 
     context = {
-        'buckets': sorted(buckets.items()),
+        'cadences': cadences,
+        'nb_groupes_sans_creneau': nb_groupes_sans_creneau,
+        'recherche_q': recherche_q,
+        'cadence_filtre': cadence_filtre,
+        'resultats_recherche': resultats_recherche,
+        'groupe_selectionne': groupe_selectionne,
+        'nb_seances_groupe_selectionne': nb_seances_groupe_selectionne,
+        'positions_groupe_selectionne': positions_groupe_selectionne,
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'dashboard/admin_criteres_par_seance.html', context)
-
-
-@role_required('admin')
-def admin_criteres_par_seance_ajouter_position(request, nb_seances):
-    """Ajoute manuellement la position suivante (max existant + 1) DANS ce
-    bucket nb_seances_semaine — permet à l'admin de préparer à l'avance une
-    حصة que le planning n'a pas encore réellement atteinte, sans attendre
-    qu'une vraie séance la déclenche (voir Seance.criteres_applicables, qui
-    crée aussi une position à la volée dès qu'une حصة réelle l'atteint en
-    premier, selon le même mécanisme). Contrairement à criteres_applicables,
-    créée ici SANS gabarit par défaut (vide) — un profil manuel n'a pas de
-    Seance dont dériver type_evaluation, voir _defaut_criteres_pour_nouvelle_position.__doc__."""
-    from courses.models import ProfilCriteresSeance
-
-    if request.method == 'POST':
-        derniere = ProfilCriteresSeance.objects.filter(
-            groupe__isnull=True, nb_seances_semaine=nb_seances,
-        ).order_by('-position').first()
-        nouvelle_position = (derniere.position + 1) if derniere else 1
-        ProfilCriteresSeance.objects.create(
-            groupe=None, nb_seances_semaine=nb_seances, position=nouvelle_position,
-        )
-        messages.success(request, gettext_('تمت إضافة الحصة %(v0)s.') % {'v0': nouvelle_position})
-
-    return redirect('admin_criteres_par_seance')
-
-
-@role_required('admin')
-def admin_criteres_par_seance_ajouter_bucket(request):
-    """Prépare à l'avance un NOUVEAU nombre de séances/semaine jamais encore
-    rencontré (ex: un futur groupe à 3 séances/semaine, alors qu'aucun groupe
-    actuel n'en a) — crée sa position 1, vide, même principe que
-    admin_criteres_par_seance_ajouter_position ci-dessus."""
-    from courses.models import ProfilCriteresSeance
-
-    if request.method == 'POST':
-        try:
-            nb_seances = int(request.POST.get('nb_seances_semaine', ''))
-        except ValueError:
-            messages.error(request, gettext_('يرجى إدخال رقم صحيح.'))
-            return redirect('admin_criteres_par_seance')
-        if nb_seances < 1:
-            messages.error(request, gettext_('يجب أن يكون عدد الحصص أكبر من صفر.'))
-            return redirect('admin_criteres_par_seance')
-        _, cree = ProfilCriteresSeance.objects.get_or_create(
-            groupe=None, nb_seances_semaine=nb_seances, position=1,
-        )
-        if cree:
-            messages.success(request, gettext_('تمت إضافة مجموعة "%(v0)s حصص/أسبوع".') % {'v0': nb_seances})
-        else:
-            messages.warning(request, gettext_('هذه المجموعة موجودة بالفعل.'))
-
-    return redirect('admin_criteres_par_seance')
 
 
 @role_required('admin')
@@ -6325,30 +6424,16 @@ def admin_criteres_par_seance_modifier(request, nb_seances, position):
 
 @role_required('admin', 'mshrif')
 def admin_groupe_criteres_par_seance(request, groupe_id):
-    """Liste les positions 1..nb_seances_semaine de CE groupe, chacune
-    indiquant si elle suit la config commune (Niveau 1) ou a été personnalisée
-    (Niveau 2, ligne ProfilCriteresSeance.groupe=ce groupe) — voir Seance.
-    criteres_applicables pour la résolution avec priorité."""
-    from courses.models import Groupe, ProfilCriteresSeance
+    """Liste les positions 1..nb_seances_semaine de CE groupe, avec pour
+    CHACUNE les critères RÉELLEMENT résolus aujourd'hui (commun ou
+    personnalisé) — délègue à _positions_resolues_du_groupe ci-dessus (même
+    logique exacte que la section recherche/personnalisation intégrée à
+    admin_criteres_par_seance), qui passe par ProfilCriteresSeance.resoudre,
+    LE resolver centralisé, jamais réimplémenté ici."""
+    from courses.models import Groupe
 
     groupe = get_object_or_404(Groupe, id=groupe_id)
-    nb_seances = groupe.creneau.slots.count() if groupe.creneau else 1
-    nb_seances = nb_seances if nb_seances > 0 else 1
-
-    profils_specifiques = {
-        p.position: p for p in ProfilCriteresSeance.objects.filter(
-            groupe=groupe,
-        ).prefetch_related('criteres')
-    }
-
-    positions = []
-    for position in range(1, nb_seances + 1):
-        profil_specifique = profils_specifiques.get(position)
-        positions.append({
-            'position': position,
-            'personnalise': profil_specifique is not None,
-            'profil': profil_specifique,
-        })
+    nb_seances, positions = _positions_resolues_du_groupe(groupe)
 
     context = {
         'groupe': groupe,
@@ -6364,44 +6449,37 @@ def admin_groupe_criteres_par_seance(request, groupe_id):
 def admin_groupe_criteres_par_seance_modifier(request, groupe_id, position):
     """Coche/décoche les CritereEleve du profil SPÉCIFIQUE (Niveau 2) de ce
     groupe/position — création explicite uniquement (jamais à la volée
-    depuis Seance.criteres_applicables, voir son __doc__ : une
+    depuis ProfilCriteresSeance.resoudre, voir son __doc__ : une
     personnalisation groupe est toujours un choix assumé de l'admin).
     Pré-remplissage à la première ouverture (GET, profil pas encore en
-    base) : copie PONCTUELLE de ce que ce groupe/position résout AUJOURD'HUI
-    (Niveau 1 actuel), pas un lien vivant — une fois enregistré, cette ligne
-    devient indépendante et n'est plus jamais recalculée depuis le Niveau 1
-    (voir ProfilCriteresSeance.__doc__)."""
+    base) : copie PONCTUELLE de ce que resoudre() renvoie AUJOURD'HUI
+    (Niveau 1 commun, puisqu'aucun Niveau 2 n'existe encore à ce stade),
+    pas un lien vivant — une fois enregistré, cette ligne devient
+    indépendante et n'est plus jamais recalculée depuis le Niveau 1 (voir
+    ProfilCriteresSeance.__doc__)."""
     from courses.models import Groupe, ProfilCriteresSeance, CritereEleve
 
     groupe = get_object_or_404(Groupe, id=groupe_id)
-    profil = ProfilCriteresSeance.objects.filter(groupe=groupe, position=position).first()
+    profil_specifique = ProfilCriteresSeance.objects.filter(groupe=groupe, position=position).first()
 
     if request.method == 'POST':
-        if profil is None:
-            profil = ProfilCriteresSeance.objects.create(groupe=groupe, position=position)
+        if profil_specifique is None:
+            profil_specifique = ProfilCriteresSeance.objects.create(groupe=groupe, position=position)
         ids_coches = request.POST.getlist('criteres')
-        profil.criteres.set(CritereEleve.objects.filter(id__in=ids_coches))
+        profil_specifique.criteres.set(CritereEleve.objects.filter(id__in=ids_coches))
         messages.success(request, gettext_('تم حفظ التخصيص الخاص بهذه المجموعة للحصة %(v0)s.') % {'v0': position})
         return redirect('admin_groupe_criteres_par_seance', groupe_id=groupe.id)
 
-    if profil is not None:
-        ids_membres = set(profil.criteres.values_list('id', flat=True))
-    else:
-        # Pas encore personnalisé : pré-remplissage depuis la résolution
-        # ACTUELLE (Niveau 1 commun résolu pour ce nb_seances_semaine/position),
-        # calculée UNE SEULE FOIS ici pour l'affichage initial du formulaire —
-        # rien n'est encore écrit en base tant que l'admin n'a pas soumis.
-        nb_seances = groupe.creneau.slots.count() if groupe.creneau else 1
-        nb_seances = nb_seances if nb_seances > 0 else 1
-        profil_commun = ProfilCriteresSeance.objects.filter(
-            groupe__isnull=True, nb_seances_semaine=nb_seances, position=position,
-        ).first()
-        ids_membres = set(profil_commun.criteres.values_list('id', flat=True)) if profil_commun else set()
+    # resoudre() renvoie forcément profil_specifique lui-même si déjà créé
+    # (Niveau 2 prioritaire), sinon le commun — dans les 2 cas c'est
+    # exactement l'état à pré-cocher.
+    profil_resolu, _niveau = ProfilCriteresSeance.resoudre(groupe, position)
+    ids_membres = set(profil_resolu.criteres.values_list('id', flat=True))
 
     context = {
         'groupe': groupe,
         'position': position,
-        'personnalise': profil is not None,
+        'personnalise': profil_specifique is not None,
         'criteres_coches': [
             {'critere': c, 'coche': c.id in ids_membres}
             for c in CritereEleve.objects.filter(est_actif=True).order_by('ordre')
@@ -6412,9 +6490,16 @@ def admin_groupe_criteres_par_seance_modifier(request, groupe_id, position):
 
 @role_required('admin')
 def admin_groupe_criteres_par_seance_retirer(request, groupe_id, position):
-    """Supprime la ligne Niveau 2 de ce groupe/position — le groupe revient
+    """« إعادة إلى الإعداد المشترك » — supprime UNIQUEMENT la ligne Niveau 2
+    (groupe=ce groupe, position=cette position) : le groupe revient
     immédiatement suivre la config commune (Niveau 1) de son
-    nb_seances_semaine, sans aucune trace de l'ancienne personnalisation."""
+    nb_seances_semaine, via ProfilCriteresSeance.resoudre (aucun cache à
+    invalider). Ne touche JAMAIS : le catalogue CritereEleve (seule
+    l'association M2M de cette ligne disparaît avec elle), la config
+    commune (Niveau 1, ligne séparée, jamais lue ni écrite ici), ni
+    l'historique NotePresence/Presence (ProfilCriteresSeance n'a AUCUNE FK
+    entrante depuis ces tables, voir son __doc__ — les évaluations déjà
+    enregistrées restent exactement ce qu'elles étaient)."""
     from courses.models import Groupe, ProfilCriteresSeance
 
     groupe = get_object_or_404(Groupe, id=groupe_id)

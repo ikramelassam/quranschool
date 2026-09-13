@@ -1,0 +1,61 @@
+{% load i18n %}
+{% comment %}
+Partagé par admin_criteres_par_seance.html (section recherche/personnalisation
+intégrée) et admin_groupe_criteres_par_seance.html (fiche dédiée d'un groupe)
+— UNE SEULE fois ce balisage, pour ne jamais le désynchroniser entre les 2
+écrans (voir dashboard.views._positions_resolues_du_groupe.__doc__).
+Attend : `groupe` et `positions` (liste de dicts position/personnalise/criteres).
+{% endcomment %}
+{% for item in positions %}
+<div style="padding:16px 24px; border-bottom:1px solid #f0f0f0;">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+            <div style="font-weight:700;">{% blocktrans with position=item.position %}الحصة {{ position }}{% endblocktrans %}</div>
+            {% if item.personnalise %}
+            <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:2px 10px; font-size:0.75rem;">{% trans "مخصصة لهذه المجموعة" %}</span>
+            {% else %}
+            <span style="background:#f0f0f0; color:#777; border-radius:20px; padding:2px 10px; font-size:0.75rem;">{% trans "الإعداد الحالي: الإعداد المشترك" %}</span>
+            {% endif %}
+        </div>
+        {% if request.user.role != 'mshrif' %}
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            {% if item.personnalise %}
+            <a href="{% url 'admin_groupe_criteres_par_seance_modifier' groupe.id item.position %}"
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+               {% trans "تعديل ✏️" %}
+            </a>
+            {% comment %}
+            Même patron de protection que les autres actions destructives du
+            dashboard (confirm() JS, ex. admin_groupe_archiver) — ne supprime
+            QUE l'override groupe+position, jamais le CritereEleve, jamais le
+            commun, jamais l'historique NotePresence (voir
+            admin_groupe_criteres_par_seance_retirer.__doc__).
+            {% endcomment %}
+            <form method="POST" action="{% url 'admin_groupe_criteres_par_seance_retirer' groupe.id item.position %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" onclick="return confirm('{% trans "هل تريد إعادة هذه الحصة إلى الإعداد المشترك؟ سيتم فقدان التخصيص الحالي." %}');"
+                    style="background:none; border:1px solid #dc3545; color:#dc3545; border-radius:8px; padding:6px 14px; font-family:'Tajawal',sans-serif; font-size:0.85rem; cursor:pointer;">
+                    {% trans "إعادة إلى الإعداد المشترك" %}
+                </button>
+            </form>
+            {% else %}
+            <a href="{% url 'admin_groupe_criteres_par_seance_modifier' groupe.id item.position %}"
+               style="background:var(--color-brand-gold); color:white; border-radius:8px; padding:6px 14px; text-decoration:none; font-size:0.85rem;">
+               {% trans "تخصيص ✏️" %}
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% comment %}
+    Liste des critères RÉELLEMENT résolus aujourd'hui pour cette position
+    (commun ou personnalisé) — même resolver que l'évaluation réelle
+    (ProfilCriteresSeance.resoudre), jamais recalculée ici.
+    {% endcomment %}
+    <div style="margin-top:8px; color:#555; font-size:0.9rem;">
+        {% for c in item.criteres %}{{ c.nom_localise }}{% if not forloop.last %} · {% endif %}{% empty %}<span style="color:#aaa;">{% trans "لا توجد معايير مفعّلة لهذه الحصة" %}</span>{% endfor %}
+    </div>
+</div>
+{% empty %}
+<div style="text-align:center; padding:60px; color:#aaa;">{% trans "لا توجد معلومات عن عدد حصص هذه المجموعة" %}</div>
+{% endfor %}

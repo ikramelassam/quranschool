@@ -1140,6 +1140,193 @@ class LienMeetDisponibiliteTests(TestCase):
         self.assertTrue(all(s.groupe.lien_reunion == self.lien1.url for s in seances))
 
 
+# ---------- Correctif du 2026-09-13 : regenerer_pour_nouveau_creneau supprimait une séance déjà passée ----------
+class RegenererPourNouveauCreneauProtegeLesSeancesDejaPasseesTests(TestCase):
+    """Bug réel reproduit le 2026-09-13 sur un groupe de test : modifier
+    l'horaire d'un groupe (admin_groupe_modifier -> horaire_a_change ->
+    regenerer_pour_nouveau_creneau) supprimait TOUTE séance datée du jour
+    même non 'terminee' — y compris une séance qui avait déjà RÉELLEMENT eu
+    lieu ce matin (heure de fin passée, élèves potentiellement déjà
+    présents), simplement parce que le prof ne l'avait pas encore soumise.
+    Perte de données réelle, pas un problème d'affichage : la séance
+    disparaissait purement et simplement. Voir Seance.evaluable_par_prof,
+    désormais utilisée pour protéger ces séances au même titre qu'une
+    séance 'terminee'."""
+
+    def setUp(self):
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(9, 0), 'heure_fin': datetime.time(11, 0)},
+        ])
+        self.groupe = Groupe.objects.create(nom='ZZZ_groupe_regen_creneau', creneau=self.creneau)
+
+    def test_seance_du_jour_deja_passee_non_soumise_nest_pas_supprimee(self):
+        from unittest import mock
+        from django.utils import timezone
+
+        maintenant = timezone.make_aware(datetime.datetime(2026, 9, 14, 14, 0))  # lundi 14h
+        # 09h-11h (durée du slot = 2h) -> déjà terminée à 14h, jamais soumise.
+        seance_deja_passee = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(9, 0), type='normal',
+        )
+        with mock.patch('django.utils.timezone.now', return_value=maintenant):
+            regenerer_pour_nouveau_creneau(self.groupe)
+        self.assertTrue(
+            Seance.objects.filter(id=seance_deja_passee.id).exists(),
+            "une séance déjà réellement terminée ne doit jamais être supprimée, même non soumise par le prof",
+        )
+
+    def test_seance_du_jour_pas_encore_atteinte_est_bien_regeneree(self):
+        """Une séance du jour PAS ENCORE atteinte (heure future) doit
+        toujours être supprimée/régénérée normalement — le correctif ne
+        protège QUE les séances réellement déjà passées."""
+        from unittest import mock
+        from django.utils import timezone
+
+        maintenant = timezone.make_aware(datetime.datetime(2026, 9, 14, 7, 0))  # lundi 7h, avant 9h
+        seance_pas_encore = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(9, 0), type='normal',
+        )
+        with mock.patch('django.utils.timezone.now', return_value=maintenant):
+            regenerer_pour_nouveau_creneau(self.groupe)
+        self.assertFalse(Seance.objects.filter(id=seance_pas_encore.id).exists())
+
+    def test_seance_terminee_reste_protegee_comme_avant(self):
+        seance_terminee = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(9, 0),
+            type='normal', statut='terminee',
+        )
+        regenerer_pour_nouveau_creneau(self.groupe)
+        self.assertTrue(Seance.objects.filter(id=seance_terminee.id).exists())
+
+    def test_seance_dun_jour_anterieur_reste_supprimable_normalement(self):
+        """Une séance d'un jour STRICTEMENT antérieur à aujourd'hui n'est de
+        toute façon jamais visée par ce filtre (date__gte=aujourd_hui) —
+        vérifie juste l'absence de régression sur ce cas déjà correct."""
+        ancienne = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 7), heure=datetime.time(9, 0), type='normal',
+        )
+        regenerer_pour_nouveau_creneau(self.groupe)
+        self.assertTrue(Seance.objects.filter(id=ancienne.id).exists())
+
+
+# ---------- Correctif du 2026-09-13 (2e ronde) : nouveau créneau du jour même sauté à tort ----------
+class RegenererPourNouveauCreneauGenereAussiAujourdhuiTests(TestCase):
+    """Bug réel signalé le 2026-09-13 : un admin ajoute un NOUVEAU créneau
+    (ex. "dimanche") à un groupe alors qu'on est justement dimanche — une
+    séance de l'ANCIEN horaire, déjà réellement passée aujourd'hui (protégée,
+    voir RegenererPourNouveauCreneauProtegeLesSeancesDejaPasseesTests),
+    poussait etendre_seances à repartir du LENDEMAIN au lieu d'aujourd'hui —
+    l'occurrence du jour même du nouveau créneau sautait entièrement,
+    remplacée par celle de la semaine suivante. Une séance protégée pour
+    aujourd'hui ne signifie pas "aujourd'hui est déjà généré pour ce
+    créneau" (voir etendre_seances.forcer_depart_aujourdhui.__doc__)."""
+
+    def setUp(self):
+        from django.utils import timezone
+
+        self.aujourdhui = timezone.localdate()
+        self.jour_semaine_aujourdhui = JOUR_INDEX_INVERSE[self.aujourdhui.weekday()]
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        # Ancien horaire : ne contient PAS aujourd'hui — seule une séance
+        # protégée (déjà 'terminee') existe aujourd'hui, héritée d'un horaire
+        # PRÉCÉDENT (simule le cas réel : le prof a déjà donné cette séance
+        # ce matin, sous l'ancien horaire, avant que l'admin ne modifie le
+        # créneau cet après-midi).
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': self.jour_semaine_aujourdhui, 'heure_debut': datetime.time(6, 0), 'heure_fin': datetime.time(7, 0)},
+        ])
+        self.groupe = Groupe.objects.create(nom='ZZZ_groupe_nouveau_creneau_jour_meme', creneau=self.creneau)
+        Seance.objects.create(
+            groupe=self.groupe, date=self.aujourdhui, heure=datetime.time(6, 0),
+            type='normal', statut='terminee',
+        )
+
+    def test_nouveau_creneau_du_jour_meme_genere_bien_aujourdhui_pas_la_semaine_prochaine(self):
+        # Nouveau créneau : garde l'ancien horaire (protégé, déjà terminé) et
+        # AJOUTE un nouveau créneau sur le jour même, à une heure différente.
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': self.jour_semaine_aujourdhui, 'heure_debut': datetime.time(6, 0), 'heure_fin': datetime.time(7, 0)},
+            {'jour': self.jour_semaine_aujourdhui, 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        regenerer_pour_nouveau_creneau(self.groupe)
+
+        self.assertTrue(
+            Seance.objects.filter(groupe=self.groupe, date=self.aujourdhui, heure=datetime.time(16, 0)).exists(),
+            "la nouvelle occurrence du jour même doit être générée immédiatement, pas sautée jusqu'à la semaine prochaine",
+        )
+        # La PREMIÈRE occurrence de ce nouveau créneau doit être aujourd'hui
+        # — pas dans une semaine (les occurrences suivantes, une par semaine
+        # jusqu'à l'horizon de génération, sont normales et attendues).
+        premiere_occurrence = Seance.objects.filter(
+            groupe=self.groupe, heure=datetime.time(16, 0),
+        ).order_by('date').first()
+        self.assertEqual(premiere_occurrence.date, self.aujourdhui)
+        # Exactement UNE occurrence pour aujourd'hui même (pas de doublon).
+        self.assertEqual(
+            Seance.objects.filter(groupe=self.groupe, date=self.aujourdhui, heure=datetime.time(16, 0)).count(), 1,
+        )
+
+    def test_aucun_doublon_exact_cree_pour_une_seance_deja_existante(self):
+        """Si la nouvelle occurrence du jour même coïncide EXACTEMENT (même
+        date ET même heure) avec une séance déjà existante, elle n'est
+        jamais dupliquée."""
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': self.jour_semaine_aujourdhui, 'heure_debut': datetime.time(6, 0), 'heure_fin': datetime.time(7, 0)},
+        ])
+        regenerer_pour_nouveau_creneau(self.groupe)
+        self.assertEqual(
+            Seance.objects.filter(groupe=self.groupe, date=self.aujourdhui, heure=datetime.time(6, 0)).count(), 1,
+        )
+
+
+# ---------- Correctif du 2026-09-13 : doublon d'affichage un dimanche (fin de semaine ISO) ----------
+class RegrouperSeancesAVenirIdAExclureTests(TestCase):
+    """Bug réel reproduit un dimanche sur un groupe de test : quand
+    "aujourd'hui" est un dimanche (dernier jour de la semaine ISO),
+    bucket_semaine_courante est TOUJOURS vide (il ne reste structurellement
+    aucun jour "cette semaine" après aujourd'hui) — la toute prochaine
+    séance (ex. lundi) tombe alors dans semaine_suivante, jamais filtrée par
+    l'ancien code (seul bucket_semaine_courante l'était), et s'affichait
+    donc EN DOUBLE : une fois comme "الحصة القادمة", une 2e fois dans
+    "الأسبوع القادم". Voir regrouper_seances_a_venir(id_a_exclure=...)."""
+
+    def setUp(self):
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(12, 0), 'heure_fin': datetime.time(14, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(12, 0), 'heure_fin': datetime.time(14, 0)},
+        ])
+        self.groupe = Groupe.objects.create(nom='ZZZ_groupe_dimanche_doublon', creneau=self.creneau)
+
+    def test_un_dimanche_la_seance_de_lundi_najamais_double_dans_semaine_suivante(self):
+        from .utils import regrouper_seances_a_venir
+
+        dimanche = datetime.date(2026, 9, 13)  # dimanche
+        seance_lundi = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(12, 0), type='normal')
+        seance_mercredi = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 16), heure=datetime.time(12, 0), type='normal')
+
+        resultat = regrouper_seances_a_venir(
+            Seance.objects.filter(groupe=self.groupe), dimanche, id_a_exclure=seance_lundi.id,
+        )
+        self.assertEqual(resultat['bucket_semaine_courante'], [])
+        ids_semaine_suivante = [s.id for s in resultat['semaine_suivante']['seances']]
+        self.assertNotIn(seance_lundi.id, ids_semaine_suivante)
+        self.assertIn(seance_mercredi.id, ids_semaine_suivante)
+        # Le compteur reste le VRAI total (la séance exclue en fait quand même partie de la semaine).
+        self.assertEqual(resultat['semaine_suivante']['nb'], 2)
+
+    def test_sans_id_a_exclure_comportement_inchange(self):
+        from .utils import regrouper_seances_a_venir
+
+        dimanche = datetime.date(2026, 9, 13)
+        seance_lundi = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(12, 0), type='normal')
+
+        resultat = regrouper_seances_a_venir(Seance.objects.filter(groupe=self.groupe), dimanche)
+        ids_semaine_suivante = [s.id for s in resultat['semaine_suivante']['seances']]
+        self.assertIn(seance_lundi.id, ids_semaine_suivante)
+
+
 class LienMeetVuesGroupeTests(TestCase):
     """Sauvegarde réelle d'un groupe via HTTP (groupe_ajouter/groupe_modifier)
     — la validation de disponibilité doit être appliquée côté SERVEUR, jamais

@@ -568,13 +568,30 @@ def remplacer_slots_creneau(creneau, slots_donnees):
     CreneauSlot.objects.bulk_create(lignes)
 
 
-def etendre_seances(groupe, horizon_semaines=HORIZON_SEMAINES):
+def etendre_seances(groupe, horizon_semaines=HORIZON_SEMAINES, forcer_depart_aujourdhui=False):
     """Complète les séances d'un groupe jusqu'à horizon_semaines à partir d'aujourd'hui.
 
     Ne repart JAMAIS en arrière: on continue toujours à partir du jour suivant
     la dernière séance déjà connue pour ce groupe. Ça évite de recréer une
     séance qu'un admin aurait annulée ou déplacée (point 4) dans une semaine
     déjà générée.
+
+    forcer_depart_aujourdhui (Correctif du 2026-09-13, bug réel reproduit un
+    dimanche sur un groupe de test) : True UNIQUEMENT depuis
+    regenerer_pour_nouveau_creneau (voir son __doc__). Sans ce paramètre, si
+    une séance de l'ANCIEN horaire subsiste aujourd'hui (protégée parce que
+    déjà réellement passée/'terminee', voir regenerer_pour_nouveau_creneau),
+    la règle "ne jamais repartir en arrière" ci-dessus poussait `depart` au
+    lendemain — sautant ENTIÈREMENT aujourd'hui, y compris pour un NOUVEAU
+    créneau qui tombe justement aujourd'hui (ex: un admin ajoute un créneau
+    "dimanche" alors qu'on est dimanche : la 1ʳᵉ occurrence, celle du jour
+    même, disparaissait, remplacée par celle de dimanche PROCHAIN). Une
+    séance protégée pour aujourd'hui ne signifie PAS "aujourd'hui est déjà
+    entièrement généré pour ce créneau" — seulement "cette séance précise,
+    d'un horaire potentiellement différent, a déjà eu lieu". Le déduplicage
+    ci-dessous (`existants`) reste nécessaire avec ce paramètre : on ne doit
+    jamais recréer un doublon EXACT (même date + même heure) d'une séance
+    déjà présente aujourd'hui.
     """
     from .models import Seance
 
@@ -587,7 +604,7 @@ def etendre_seances(groupe, horizon_semaines=HORIZON_SEMAINES):
 
     derniere_seance = Seance.objects.filter(groupe=groupe).order_by('-date').first()
     depart = aujourd_hui
-    if derniere_seance and derniere_seance.date >= depart:
+    if not forcer_depart_aujourdhui and derniere_seance and derniere_seance.date >= depart:
         depart = derniere_seance.date + datetime.timedelta(days=1)
 
     if depart > limite:
@@ -599,11 +616,21 @@ def etendre_seances(groupe, horizon_semaines=HORIZON_SEMAINES):
     # nombre réel de CreneauSlot, jamais stocké ni supposé ailleurs.
     creneaux_jour = [(slot.jour, slot.heure_debut) for slot in creneau.slots.all()]
 
+    # Doublon EXACT (même groupe/date/heure) possible UNIQUEMENT quand
+    # `depart` a pu être ramené avant la 'dernière séance' connue (voir
+    # forcer_depart_aujourdhui ci-dessus) — sans ce garde-fou, une
+    # combinaison (date, heure) déjà existante serait recréée en double.
+    existants = set(
+        Seance.objects.filter(
+            groupe=groupe, date__gte=depart, date__lte=limite,
+        ).values_list('date', 'heure')
+    )
+
     a_creer = []
     jour_courant = depart
     while jour_courant <= limite:
         for jour_code, heure in creneaux_jour:
-            if jour_courant.weekday() == JOUR_INDEX[jour_code]:
+            if jour_courant.weekday() == JOUR_INDEX[jour_code] and (jour_courant, heure) not in existants:
                 a_creer.append(Seance(
                     groupe=groupe,
                     date=jour_courant,
@@ -675,16 +702,37 @@ def etendre_toutes_les_seances_opportuniste():
 def regenerer_pour_nouveau_creneau(groupe):
     """À appeler quand le créneau d'un groupe est assigné pour la première fois
     ou changé pour un autre. Supprime les séances futures non terminées (elles
-    ne correspondent plus au nouvel horaire) puis régénère depuis aujourd'hui."""
+    ne correspondent plus au nouvel horaire) puis régénère depuis aujourd'hui.
+
+    Correctif du 2026-09-13 (audit "précision à la seconde", bug réel
+    reproduit sur un groupe de test) : `date__gte=aujourd_hui` seul supprimait
+    aussi une séance datée d'AUJOURD'HUI mais déjà réellement TERMINÉE dans
+    les faits (heure de fin passée, élèves déjà présents), simplement parce
+    que le prof ne l'avait pas encore soumise (statut resté 'planifiee') —
+    perte de données réelle, pas un simple problème d'affichage : la séance
+    disparaissait purement et simplement, sans aucune trace, dès qu'un admin
+    modifiait l'horaire du groupe le jour même. Seance.evaluable_par_prof
+    (déjà LA notion de "fin réelle dépassée", voir son __doc__) protège
+    désormais cette séance au même titre qu'une séance 'terminee' — seules
+    les séances qui n'ont PAS ENCORE eu lieu (futures, ou du jour même mais
+    pas encore atteintes) sont supprimées et régénérées.
+
+    Correctif du 2026-09-13 (2e ronde, même signalement) : `etendre_seances`
+    appelée SANS forcer_depart_aujourdhui aurait sauté aujourd'hui dès qu'une
+    séance protégée (ci-dessus) y subsiste — y compris pour un NOUVEAU jour
+    de créneau qui tombe justement aujourd'hui (ex: créneau "dimanche" ajouté
+    un dimanche). Voir forcer_depart_aujourdhui.__doc__ pour le détail."""
     from .models import Seance
 
     aujourd_hui = timezone.localdate()
-    Seance.objects.filter(
+    candidats_suppression = Seance.objects.filter(
         groupe=groupe,
         date__gte=aujourd_hui,
-    ).exclude(statut='terminee').delete()
+    ).exclude(statut='terminee')
+    ids_a_supprimer = [s.id for s in candidats_suppression if not s.evaluable_par_prof]
+    Seance.objects.filter(id__in=ids_a_supprimer).delete()
 
-    etendre_seances(groupe)
+    etendre_seances(groupe, forcer_depart_aujourdhui=True)
 
 
 def calculer_progression_eleve(eleve, mois=None):
@@ -1708,7 +1756,7 @@ def navigation_mois_et_semaines(seances_qs, request, aujourdhui, borne_avant=Tru
     }
 
 
-def regrouper_seances_a_venir(seances_qs, aujourdhui):
+def regrouper_seances_a_venir(seances_qs, aujourdhui, id_a_exclure=None):
     """Section "القادمة" — séances futures (Tâche du 2026-08-05, Point 1,
     RETRAVAILLÉE le 2026-08-06 suite à un signalement réel : l'ancienne
     version groupait par SEMAINE indéfiniment — avec plusieurs mois de
@@ -1726,11 +1774,25 @@ def regrouper_seances_a_venir(seances_qs, aujourdhui):
     s'en charge (date__gt=aujourdhui, "aujourd'hui" est déjà couvert par la
     section "اليوم"/"الحصة القادمة" ailleurs sur la page).
 
-    Ne PAS pré-exclure ici la séance déjà affichée séparément par le widget
-    "الحصة القادمة/التالية" — nb_semaine_courante doit rester le compte VRAI
-    de "cette semaine" (elle en fait partie). C'est à l'appelant de retirer
-    cette séance de bucket_semaine_courante avant de l'afficher, sans
-    fausser le compteur.
+    id_a_exclure (optionnel) : id de la séance déjà affichée séparément par
+    le widget "الحصة القادمة/التالية" — RETIRÉE de tous les buckets affichés
+    (bucket_semaine_courante ET semaine_suivante, voir correctif du
+    2026-09-13 ci-dessous), jamais des COMPTEURS (nb_semaine_courante et
+    semaine_suivante['nb'] restent les comptes VRAIS de leur période, "cette
+    séance en fait partie" même si elle n'est pas re-listée ici).
+
+    Correctif du 2026-09-13 (audit "précision à la seconde") : avant, seul
+    l'appelant filtrait bucket_semaine_courante après coup (jamais
+    semaine_suivante) — ça suffisait la plupart des jours, PARCE QUE la
+    séance du widget "القادمة" (le lendemain le plus proche, en général)
+    tombe normalement dans bucket_semaine_courante, jamais dans
+    semaine_suivante. Mais si "aujourd'hui" est un DIMANCHE (dernier jour de
+    la semaine ISO), fin_semaine_courante == aujourdhui : bucket_semaine_
+    courante est alors TOUJOURS vide, et la toute prochaine séance (ex.
+    lundi) tombe dans semaine_suivante — jamais filtrée jusqu'ici, donc
+    affichée EN DOUBLE (une fois comme "الحصة القادمة", une 2e fois dans
+    "الأسبوع القادم"). Reproduit et corrigé le 2026-09-13 sur un groupe de
+    test un dimanche.
 
     Retourne : bucket_semaine_courante (liste, à afficher DÉPLIÉE),
     semaine_suivante ({debut, fin, seances, nb} ou None — à afficher
@@ -1743,10 +1805,18 @@ def regrouper_seances_a_venir(seances_qs, aujourdhui):
     fin_semaine_suivante = fin_semaine_courante + datetime.timedelta(days=7)
     seances_a_venir = list(seances_qs.filter(date__gt=aujourdhui).order_by('date', 'heure'))
 
-    bucket_semaine_courante = [s for s in seances_a_venir if s.date <= fin_semaine_courante]
+    bucket_semaine_courante_brut = [s for s in seances_a_venir if s.date <= fin_semaine_courante]
     apres_semaine_courante = [s for s in seances_a_venir if s.date > fin_semaine_courante]
-    seances_semaine_suivante = [s for s in apres_semaine_courante if s.date <= fin_semaine_suivante]
+    seances_semaine_suivante_brut = [s for s in apres_semaine_courante if s.date <= fin_semaine_suivante]
     au_dela = [s for s in apres_semaine_courante if s.date > fin_semaine_suivante]
+
+    def _sans_doublon(liste):
+        if id_a_exclure is None:
+            return liste
+        return [s for s in liste if s.id != id_a_exclure]
+
+    bucket_semaine_courante = _sans_doublon(bucket_semaine_courante_brut)
+    seances_semaine_suivante = _sans_doublon(seances_semaine_suivante_brut)
 
     semaine_suivante = None
     if seances_semaine_suivante:
@@ -1754,7 +1824,7 @@ def regrouper_seances_a_venir(seances_qs, aujourdhui):
             'debut': fin_semaine_courante + datetime.timedelta(days=1),
             'fin': fin_semaine_suivante,
             'seances': seances_semaine_suivante,
-            'nb': len(seances_semaine_suivante),
+            'nb': len(seances_semaine_suivante_brut),
         }
 
     mois_dict = {}
@@ -1775,7 +1845,7 @@ def regrouper_seances_a_venir(seances_qs, aujourdhui):
         'bucket_semaine_courante': bucket_semaine_courante,
         'semaine_suivante': semaine_suivante,
         'mois_suivants': mois_suivants,
-        'nb_semaine_courante': len(bucket_semaine_courante),
+        'nb_semaine_courante': len(bucket_semaine_courante_brut),
     }
 
 

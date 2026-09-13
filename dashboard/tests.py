@@ -643,11 +643,31 @@ class CritereEleveLocaliseTests(TestCase):
         critere.refresh_from_db()
         self.assertEqual(critere.type_lie, 'mouraja3a')
 
-    def test_page_liste_affiche_le_libelle_du_type_lie(self):
-        CritereEleve.objects.create(nom_ar='معيار عرض المحور', ordre=8, type_lie='hifz')
+    def test_page_liste_naffiche_plus_le_libelle_du_type_lie(self):
+        """Chantier du 2026-09-13 : type_lie est désormais purement
+        descriptif/interne (voir ProfilCriteresSeance.__doc__ et
+        Seance.bloc_memorisation_applicable/bloc_revision_applicable) — le
+        client a jugé le libellé "خاص بالحفظ"/"خاص بالمراجعة" affiché sous
+        chaque critère trompeur (laissait croire à une restriction sur les
+        séances où ce critère serait utilisable, ce qui n'est plus le cas
+        depuis la configuration par position). Retiré de l'affichage
+        uniquement — le champ type_lie et sa valeur restent inchangés en base."""
+        critere = CritereEleve.objects.create(nom_ar='معيار عرض المحور', ordre=8, type_lie='hifz')
         reponse = self.client.get(reverse('admin_criteres_eleves'))
         self.assertContains(reponse, 'معيار عرض المحور')
-        self.assertContains(reponse, 'خاص بالحفظ')
+        self.assertNotContains(reponse, 'خاص بالحفظ')
+        self.assertNotContains(reponse, 'خاص بالمراجعة')
+        # Le champ lui-même n'est ni supprimé ni modifié en base.
+        critere.refresh_from_db()
+        self.assertEqual(critere.type_lie, 'hifz')
+
+    def test_les_4_criteres_de_base_restent_affiches_normalement(self):
+        """Le retrait du libellé type_lie ne doit affecter QUE ce libellé —
+        le nom de chaque critère (y compris ceux avec un type_lie non
+        'commun') reste affiché normalement sur le catalogue."""
+        reponse = self.client.get(reverse('admin_criteres_eleves'))
+        for nom in ('الحفظ', 'المراجعة', 'التلاوة', 'المواظبة والسلوك'):
+            self.assertContains(reponse, nom)
 
     def test_toggle_et_suppression_toujours_fonctionnels(self):
         """La logique de filtrage par axe (chantier du 2026-09-12) ne doit
@@ -3087,6 +3107,225 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
         self.assertContains(reponse, '(1-8)')
 
 
+# ---------- Chantier du 2026-09-13 : vérification ciblée côté PROFESSEUR ----------
+class ProfResolutionAutomatiqueCriteresTests(TestCase):
+    """Demande explicite du client (2026-09-13) : le professeur NE choisit
+    JAMAIS le nombre de séances/semaine ni les critères — tout est dérivé
+    automatiquement de Seance.criteres_applicables (ProfilCriteresSeance.
+    resoudre(groupe, position)), jamais d'un champ de formulaire ni d'un
+    paramètre GET/POST côté prof. Voir dashboard.views.prof_seance_detail/
+    prof_presence_sauvegarder, seuls points d'entrée du parcours prof."""
+
+    MAINTENANT_LUNDI = timezone.make_aware(datetime.datetime(2026, 9, 14, 18, 0))
+    MAINTENANT_MARDI = timezone.make_aware(datetime.datetime(2026, 9, 15, 18, 0))
+
+    def setUp(self):
+        from courses.models import CritereEleve
+
+        self.prof = _creer_prof('prof_resolution_auto@zidni.test')
+        self.eleve = _creer_eleve('eleve_resolution_auto@zidni.test')
+        self.hifz_crit = CritereEleve.objects.get(nom_ar='الحفظ')
+        self.mouraja3a_crit = CritereEleve.objects.get(nom_ar='المراجعة')
+        self.tilawa_crit = CritereEleve.objects.get(nom_ar='التلاوة')
+        self.mouwazaba_crit = CritereEleve.objects.get(nom_ar='المواظبة والسلوك')
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mar', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe = Groupe.objects.create(nom='ZZZ_groupe_resolution_auto', prof=self.prof, creneau=self.creneau)
+        self.groupe.eleves.add(self.eleve)
+        self.seance_s1 = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        self.seance_s2 = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 15), heure=datetime.time(16, 0), type='normal')
+
+    def _champ_note(self, critere):
+        return f'note_critere_{critere.id}_{self.eleve.id}'
+
+    def test_aucun_champ_de_choix_de_cadence_ou_de_position_dans_le_formulaire(self):
+        list(self.seance_s1.criteres_applicables)
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            reponse = self.client.get(reverse('prof_seance_detail', args=[self.seance_s1.id]))
+        self.assertNotContains(reponse, 'name="nb_seances')
+        self.assertNotContains(reponse, 'name="position"')
+        self.assertNotContains(reponse, 'name="cadence"')
+
+    def test_s1_et_s2_affichent_des_criteres_differents_selon_le_commun(self):
+        from courses.models import ProfilCriteresSeance
+
+        list(self.seance_s1.criteres_applicables)
+        list(self.seance_s2.criteres_applicables)
+        ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=2, position=1).criteres.set(
+            [self.hifz_crit, self.tilawa_crit, self.mouwazaba_crit]
+        )
+        ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=2, position=2).criteres.set(
+            [self.mouraja3a_crit, self.hifz_crit, self.mouwazaba_crit]
+        )
+
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            reponse_s1 = self.client.get(reverse('prof_seance_detail', args=[self.seance_s1.id]))
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_MARDI):
+            reponse_s2 = self.client.get(reverse('prof_seance_detail', args=[self.seance_s2.id]))
+
+        self.assertContains(reponse_s1, self._champ_note(self.tilawa_crit))
+        self.assertNotContains(reponse_s1, self._champ_note(self.mouraja3a_crit))
+        self.assertContains(reponse_s2, self._champ_note(self.mouraja3a_crit))
+        self.assertNotContains(reponse_s2, self._champ_note(self.tilawa_crit))
+
+    def test_groupe_personnalise_le_prof_recoit_les_criteres_personnalises(self):
+        from courses.models import ProfilCriteresSeance
+
+        override = ProfilCriteresSeance.objects.create(groupe=self.groupe, position=1)
+        override.criteres.set([self.mouwazaba_crit])
+
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            reponse = self.client.get(reverse('prof_seance_detail', args=[self.seance_s1.id]))
+        self.assertContains(reponse, self._champ_note(self.mouwazaba_crit))
+        self.assertNotContains(reponse, self._champ_note(self.hifz_crit))
+
+    def test_modification_du_commun_repercutee_immediatement_si_non_personnalise(self):
+        from courses.models import ProfilCriteresSeance
+
+        list(self.seance_s1.criteres_applicables)
+        profil1 = ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=2, position=1)
+        profil1.criteres.set([self.hifz_crit])
+
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            reponse_avant = self.client.get(reverse('prof_seance_detail', args=[self.seance_s1.id]))
+        self.assertContains(reponse_avant, self._champ_note(self.hifz_crit))
+        self.assertNotContains(reponse_avant, self._champ_note(self.tilawa_crit))
+
+        # L'admin modifie ENSUITE le commun.
+        profil1.criteres.set([self.tilawa_crit])
+
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            reponse_apres = self.client.get(reverse('prof_seance_detail', args=[self.seance_s1.id]))
+        self.assertContains(reponse_apres, self._champ_note(self.tilawa_crit))
+        self.assertNotContains(reponse_apres, self._champ_note(self.hifz_crit))
+
+    def test_modification_du_commun_sans_effet_sur_un_groupe_personnalise(self):
+        from courses.models import ProfilCriteresSeance
+
+        list(self.seance_s1.criteres_applicables)
+        profil_commun = ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=2, position=1)
+        override = ProfilCriteresSeance.objects.create(groupe=self.groupe, position=1)
+        override.criteres.set([self.mouwazaba_crit])
+
+        profil_commun.criteres.set([self.tilawa_crit])  # modifié après coup
+
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            reponse = self.client.get(reverse('prof_seance_detail', args=[self.seance_s1.id]))
+        self.assertContains(reponse, self._champ_note(self.mouwazaba_crit))
+        self.assertNotContains(reponse, self._champ_note(self.tilawa_crit))
+
+    def test_contournement_impossible_note_forgee_pour_critere_hors_profil_ignoree(self):
+        """Le prof ne peut pas, en forgeant le POST, enregistrer une note pour
+        un critère hors du profil résolu de CETTE séance — criteres_actifs
+        (server-side, dashboard.views.prof_presence_sauvegarder) vient
+        UNIQUEMENT de seance.criteres_applicables, jamais d'un ID de
+        critère lu depuis le POST."""
+        from courses.models import ProfilCriteresSeance, NotePresence
+
+        list(self.seance_s1.criteres_applicables)
+        profil1 = ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=2, position=1)
+        profil1.criteres.set([self.hifz_crit])  # type_lie='commun' -> bloc_memo/bloc_rev restent False ici
+
+        donnees = {
+            f'statut_{self.eleve.id}': 'present',
+            self._champ_note(self.hifz_crit): '15',
+            # Forgé : critère HORS du profil résolu de cette séance (S1 ne contient que hifz_crit).
+            self._champ_note(self.mouraja3a_crit): '20',
+            'action': 'soumettre',
+        }
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance_s1.id]), donnees)
+
+        presence = Presence.objects.get(seance=self.seance_s1, eleve=self.eleve)
+        self.assertEqual(NotePresence.objects.get(presence=presence, critere=self.hifz_crit).note, 15)
+        self.assertFalse(
+            NotePresence.objects.filter(presence=presence, critere=self.mouraja3a_crit).exists(),
+            "un critère hors du profil résolu ne doit jamais être enregistré, même forgé via POST",
+        )
+
+    def test_parametres_cadence_position_forges_sans_effet(self):
+        """Même si le POST contient des champs `nb_seances_semaine`/
+        `position`/`cadence` forgés, ils sont ignorés : ces vues ne les
+        lisent jamais — tout vient de seance.groupe.creneau (voir
+        courses.models.nb_seances_semaine_du_groupe/numero_dans_la_semaine)."""
+        from courses.models import ProfilCriteresSeance
+
+        list(self.seance_s1.criteres_applicables)
+        profil1 = ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=2, position=1)
+        profil1.criteres.set([self.hifz_crit])
+
+        donnees = {
+            f'statut_{self.eleve.id}': 'present',
+            self._champ_note(self.hifz_crit): '15',
+            'nb_seances_semaine': '5',
+            'position': '9',
+            'cadence': '3',
+            'action': 'soumettre',
+        }
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance_s1.id]), donnees)
+
+        self.seance_s1.refresh_from_db()
+        self.assertEqual(self.seance_s1.nb_seances_semaine, 2)
+        self.assertEqual(self.seance_s1.numero_dans_la_semaine, 1)
+
+    def test_permissions_mshrif_et_autre_prof_narrivent_pas_a_la_page(self):
+        mshrif = _creer_mshrif()
+        autre_prof = _creer_prof('autre_prof_resolution_auto@zidni.test')
+        for user in (mshrif, autre_prof.user):
+            self.client.force_login(user)
+            with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+                reponse = self.client.get(reverse('prof_seance_detail', args=[self.seance_s1.id]))
+            self.assertNotEqual(reponse.status_code, 200)
+
+    def test_workflow_enregistrer_puis_soumettre_fonctionne_avec_criteres_resolus(self):
+        from courses.models import ProfilCriteresSeance
+
+        list(self.seance_s1.criteres_applicables)
+        profil1 = ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=2, position=1)
+        profil1.criteres.set([self.hifz_crit, self.tilawa_crit])
+
+        donnees = {
+            f'statut_{self.eleve.id}': 'present',
+            self._champ_note(self.hifz_crit): '14',
+            self._champ_note(self.tilawa_crit): '16',
+            # التلاوة a type_lie='hifz' (voir CritereEleve.TYPE_LIE_CHOICES.__doc__)
+            # -> bloc_memorisation_applicable est True ici, donc le bloc
+            # سورة/آيات/consigne du حفظ est obligatoire pour un élève présent.
+            f'sourate_memo_{self.eleve.id}': '2',
+            f'ayah_debut_memo_{self.eleve.id}': '1',
+            f'ayah_fin_memo_{self.eleve.id}': '10',
+            f'consigne_memo_{self.eleve.id}': 'حفظ الآيات 1-10',
+        }
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            donnees['action'] = 'enregistrer'
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance_s1.id]), donnees)
+            self.seance_s1.refresh_from_db()
+            self.assertEqual(self.seance_s1.statut, 'planifiee')
+
+            donnees['action'] = 'soumettre'
+            reponse = self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance_s1.id]), donnees)
+        self.assertRedirects(reponse, reverse('prof_seances'))
+        self.seance_s1.refresh_from_db()
+        self.assertEqual(self.seance_s1.statut, 'terminee')
+        from courses.models import NotePresence
+        presence = Presence.objects.get(seance=self.seance_s1, eleve=self.eleve)
+        self.assertEqual(NotePresence.objects.get(presence=presence, critere=self.hifz_crit).note, 14)
+        self.assertEqual(NotePresence.objects.get(presence=presence, critere=self.tilawa_crit).note, 16)
+
+
 class HistoriqueNotesCriteresDynamiquesTests(TestCase):
     """Audit affichage du 2026-09-12 : depuis la migration du 2026-08-04 vers
     les critères dynamiques (NotePresence, voir courses.models.NotePresence.
@@ -3245,9 +3484,9 @@ class ProfilCriteresSeanceTests(TestCase):
         seance1 = self._seance_position(1)
         # Force la création du profil commun (1 séance/semaine, position 1)
         # AVANT de créer `nouveau` — sinon, comme CritereEleve.type_lie vaut
-        # 'commun' par défaut, le gabarit par défaut (calculé au premier accès
-        # réel, voir _defaut_criteres_pour_nouvelle_position) l'inclurait
-        # automatiquement, ce qui fausserait l'assertNotIn ci-dessous.
+        # 'commun' par défaut, le gabarit par défaut (ProfilCriteresSeance.
+        # _gabarit_par_defaut, appliqué au premier accès réel via resoudre)
+        # l'inclurait automatiquement, ce qui fausserait l'assertNotIn ci-dessous.
         list(seance1.criteres_applicables)
 
         nouveau = CritereEleve.objects.create(nom_ar='معيار جديد للاختبار', ordre=50)
@@ -3325,20 +3564,6 @@ class ProfilCriteresSeanceTests(TestCase):
         self.assertEqual(
             set(profil2.criteres.values_list('id', flat=True)),
             {self.mouraja3a_crit.id, self.hifz_crit.id},
-        )
-
-    def test_ajouter_position_cree_la_suivante(self):
-        """La position suivante est ajoutée DANS le bucket nb_seances_semaine
-        visé — n'affecte jamais un autre bucket (voir ProfilCriteresSeance.__doc__)."""
-        from courses.models import ProfilCriteresSeance
-
-        ProfilCriteresSeance.objects.all().delete()
-        ProfilCriteresSeance.objects.create(groupe=None, nb_seances_semaine=2, position=1)
-        ProfilCriteresSeance.objects.create(groupe=None, nb_seances_semaine=2, position=2)
-        self.client.force_login(self.admin)
-        self.client.post(reverse('admin_criteres_par_seance_ajouter_position', args=[2]))
-        self.assertTrue(
-            ProfilCriteresSeance.objects.filter(groupe__isnull=True, nb_seances_semaine=2, position=3).exists()
         )
 
     # ---- 11 : aucun filtrage direct par type_lie ne subsiste dans le parcours normal ----
@@ -3588,6 +3813,499 @@ class ProfilCriteresSeanceNiveau2Tests(TestCase):
         self.assertEqual(
             self.client.get(reverse('admin_groupe_criteres_par_seance_modifier', args=[self.groupe_x.id, 1])).status_code, 200,
         )
+
+    def test_liste_groupe_affiche_les_criteres_reellement_resolus(self):
+        """Demande explicite du client (2026-09-13) : la page groupe doit
+        montrer les critères RÉELLEMENT résolus, pas seulement un badge
+        commun/personnalisé — pour la position commune ET pour la position
+        personnalisée."""
+        from courses.models import ProfilCriteresSeance
+
+        profil_x = ProfilCriteresSeance.objects.create(groupe=self.groupe_x, position=1)
+        profil_x.criteres.set([self.mouwazaba_crit])
+
+        self.client.force_login(self.admin)
+        reponse = self.client.get(reverse('admin_groupe_criteres_par_seance', args=[self.groupe_x.id]))
+        # Position 1 (personnalisée) : seul المواظبة affiché.
+        self.assertContains(reponse, self.mouwazaba_crit.nom_ar)
+        # Position 2 (commune, jamais personnalisée) : le commun résolu (المراجعة/الحفظ/المواظبة).
+        self.assertContains(reponse, self.mouraja3a_crit.nom_ar)
+
+    def test_modifier_loverride_ne_modifie_pas_le_commun(self):
+        """Symétrique de test_modification_ulterieure_du_commun_naffecte_pas_
+        le_groupe_personnalise : modifier l'override ne doit pas non plus
+        modifier le commun dont il a été issu."""
+        from courses.models import ProfilCriteresSeance
+
+        list(self.seance_x_pos1.criteres_applicables)  # crée le commun (2, 1)
+        profil_x = ProfilCriteresSeance.objects.create(groupe=self.groupe_x, position=1)
+        profil_x.criteres.set([self.mouwazaba_crit])
+
+        # L'admin modifie ENSUITE l'override lui-même.
+        profil_x.criteres.set([self.tilawa_crit])
+
+        profil_commun = ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=2, position=1)
+        self.assertEqual(
+            {c.id for c in profil_commun.criteres.all()},
+            {self.hifz_crit.id, self.tilawa_crit.id, self.mouwazaba_crit.id},
+            "modifier l'override ne doit jamais modifier le contenu du commun",
+        )
+        # L'AUTRE groupe (jamais personnalisé) suit toujours le commun, inchangé.
+        self.assertEqual(
+            {c.id for c in self.seance_autre_pos1.criteres_applicables},
+            {self.hifz_crit.id, self.tilawa_crit.id, self.mouwazaba_crit.id},
+        )
+
+    def test_override_partiel_une_seule_position_sur_deux(self):
+        """Personnaliser S1 ne doit jamais créer automatiquement un override
+        pour S2 du même groupe — seule la position explicitement visée
+        devient spécifique (demande explicite du client)."""
+        from courses.models import ProfilCriteresSeance
+
+        self.client.force_login(self.admin)
+        self.client.post(
+            reverse('admin_groupe_criteres_par_seance_modifier', args=[self.groupe_x.id, 1]),
+            {'criteres': [self.mouwazaba_crit.id]},
+        )
+        self.assertTrue(
+            ProfilCriteresSeance.objects.filter(groupe=self.groupe_x, position=1).exists()
+        )
+        self.assertFalse(
+            ProfilCriteresSeance.objects.filter(groupe=self.groupe_x, position=2).exists(),
+            "personnaliser S1 ne doit jamais fabriquer un override pour S2",
+        )
+        seance_x_pos2 = Seance.objects.create(
+            groupe=self.groupe_x, date=datetime.date(2026, 9, 15), heure=datetime.time(16, 0), type='normal',
+        )
+        # S2 suit toujours le commun (المراجعة/الحفظ/المواظبة).
+        self.assertIn(self.mouraja3a_crit, list(seance_x_pos2.criteres_applicables))
+
+    def test_reset_ne_modifie_pas_lhistorique_notepresence(self):
+        """Une NotePresence déjà enregistrée sur un critère donné ne doit
+        JAMAIS être modifiée par une personnalisation, ni par un retour au
+        commun (ProfilCriteresSeance n'a aucune FK entrante depuis
+        Presence/NotePresence — voir son __doc__)."""
+        from courses.models import ProfilCriteresSeance, NotePresence
+
+        eleve = _creer_eleve('eleve_reset_historique@zidni.test')
+        self.groupe_x.eleves.add(eleve)
+        presence = Presence.objects.create(seance=self.seance_x_pos1, eleve=eleve, statut='present')
+        note_historique = NotePresence.objects.create(presence=presence, critere=self.mouwazaba_crit, note=17)
+
+        self.client.force_login(self.admin)
+        self.client.post(
+            reverse('admin_groupe_criteres_par_seance_modifier', args=[self.groupe_x.id, 1]),
+            {'criteres': [self.tilawa_crit.id]},
+        )
+        note_historique.refresh_from_db()
+        self.assertEqual(note_historique.note, 17)
+        self.assertEqual(note_historique.critere_id, self.mouwazaba_crit.id)
+
+        self.client.post(reverse('admin_groupe_criteres_par_seance_retirer', args=[self.groupe_x.id, 1]))
+        note_historique.refresh_from_db()
+        self.assertEqual(note_historique.note, 17)
+        self.assertEqual(note_historique.critere_id, self.mouwazaba_crit.id)
+
+    def test_permissions_liste_visible_admin_et_mshrif_pas_prof(self):
+        mshrif = _creer_mshrif()
+        self.client.force_login(mshrif)
+        self.assertEqual(
+            self.client.get(reverse('admin_groupe_criteres_par_seance', args=[self.groupe_x.id])).status_code, 200,
+        )
+        prof = _creer_prof('prof_perm_niveau2@zidni.test')
+        self.client.force_login(prof.user)
+        self.assertNotEqual(
+            self.client.get(reverse('admin_groupe_criteres_par_seance', args=[self.groupe_x.id])).status_code, 200,
+        )
+
+    def test_permissions_modification_refusee_au_mshrif_et_au_prof(self):
+        mshrif = _creer_mshrif()
+        prof = _creer_prof('prof_perm_niveau2_modif@zidni.test')
+
+        for user in (mshrif, prof.user):
+            self.client.force_login(user)
+            self.assertNotEqual(
+                self.client.get(
+                    reverse('admin_groupe_criteres_par_seance_modifier', args=[self.groupe_x.id, 1])
+                ).status_code, 200,
+            )
+            self.client.post(
+                reverse('admin_groupe_criteres_par_seance_modifier', args=[self.groupe_x.id, 1]),
+                {'criteres': [self.mouwazaba_crit.id]},
+            )
+
+        from courses.models import ProfilCriteresSeance
+        self.assertFalse(
+            ProfilCriteresSeance.objects.filter(groupe=self.groupe_x, position=1).exists(),
+            "ni le مشرف ni le prof ne doivent pouvoir créer un override",
+        )
+
+    def test_permissions_admin_peut_personnaliser(self):
+        self.client.force_login(self.admin)
+        reponse = self.client.post(
+            reverse('admin_groupe_criteres_par_seance_modifier', args=[self.groupe_x.id, 1]),
+            {'criteres': [self.mouwazaba_crit.id]},
+        )
+        self.assertRedirects(reponse, reverse('admin_groupe_criteres_par_seance', args=[self.groupe_x.id]))
+        from courses.models import ProfilCriteresSeance
+        self.assertTrue(ProfilCriteresSeance.objects.filter(groupe=self.groupe_x, position=1).exists())
+
+
+# ---------- Chantier du 2026-09-13 : cadences découvertes automatiquement + recherche/personnalisation intégrée ----------
+class AdminCriteresParSeanceCadenceDecouverteTests(TestCase):
+    """Demande explicite du client (2026-09-13) : la page /admin/criteres-par-seance/
+    ne doit plus proposer de bouton "ajouter une حصة/un nombre de séances"
+    (rejeté, voir dashboard.views.admin_criteres_par_seance.__doc__) — les
+    cadences et leur nombre de groupes doivent être calculés depuis les
+    VRAIES données (Groupe.actifs + creneau.slots.count()), jamais une
+    liste manuelle. Couvre aussi la section recherche/personnalisation d'un
+    groupe intégrée à cette même page (items 4, 5, 8, 16 de la demande)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.client.force_login(self.admin)
+
+    def _groupe(self, nom, jours):
+        creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(creneau, [
+            {'jour': j, 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)}
+            for j in jours
+        ])
+        return Groupe.objects.create(nom=nom, creneau=creneau)
+
+    def test_les_urls_ajouter_ont_disparu(self):
+        """Les 2 anciennes URLs "ajouter une position"/"ajouter un bucket"
+        n'existent plus du tout — l'UX "ajouter une séance" est bannie."""
+        from django.urls import NoReverseMatch
+
+        with self.assertRaises(NoReverseMatch):
+            reverse('admin_criteres_par_seance_ajouter_position', args=[2])
+        with self.assertRaises(NoReverseMatch):
+            reverse('admin_criteres_par_seance_ajouter_bucket')
+
+    def test_page_naffiche_plus_le_bouton_ajouter(self):
+        self._groupe('ZZZ_cad_decouverte_1', ['lun'])
+        reponse = self.client.get(reverse('admin_criteres_par_seance'))
+        self.assertNotContains(reponse, 'إضافة حصة أخرى')
+        self.assertNotContains(reponse, 'تحضير عدد حصص/أسبوع جديد')
+
+    def test_cadences_reflete_le_nombre_reel_de_groupes(self):
+        """2 groupes à 1 séance/semaine, 3 groupes à 2 séances/semaine —
+        la page doit afficher exactement ces comptes, calculés depuis les
+        groupes réels, sans aucune association manuelle."""
+        self._groupe('ZZZ_cad_1_a', ['lun'])
+        self._groupe('ZZZ_cad_1_b', ['mar'])
+        self._groupe('ZZZ_cad_2_a', ['lun', 'mar'])
+        self._groupe('ZZZ_cad_2_b', ['mar', 'mer'])
+        self._groupe('ZZZ_cad_2_c', ['jeu', 'ven'])
+
+        reponse = self.client.get(reverse('admin_criteres_par_seance'))
+        cadences = {c['nb_seances']: c['nb_groupes'] for c in reponse.context['cadences']}
+        self.assertEqual(cadences.get(1), 2)
+        self.assertEqual(cadences.get(2), 3)
+
+    def test_groupe_sans_creneau_exclu_et_non_compte_comme_1_seance(self):
+        """Un groupe sans créneau (0 slot) ne doit JAMAIS apparaître dans le
+        bucket "1 حصة/أسبوع" — voir courses.models.cadences_reelles_des_groupes.__doc__,
+        demande explicite du client (item 16/17)."""
+        Groupe.objects.create(nom='ZZZ_sans_creneau')
+        self._groupe('ZZZ_cad_1_seule', ['lun'])
+
+        reponse = self.client.get(reverse('admin_criteres_par_seance'))
+        cadences = {c['nb_seances']: c['nb_groupes'] for c in reponse.context['cadences']}
+        self.assertEqual(cadences.get(1), 1, "le groupe sans créneau ne doit pas gonfler le bucket 1 séance")
+        self.assertEqual(reponse.context['nb_groupes_sans_creneau'], 1)
+
+    def test_nouveau_groupe_meme_cadence_suit_automatiquement_le_commun(self):
+        """Aucune action manuelle nécessaire : un nouveau groupe à 2
+        séances/semaine apparaît immédiatement dans le bon bucket et suit
+        le commun existant, sans qu'aucun admin n'ait eu à l'y associer."""
+        from courses.models import ProfilCriteresSeance, CritereEleve
+
+        groupe1 = self._groupe('ZZZ_cad_auto_1', ['lun', 'mar'])
+        seance1 = Seance.objects.create(groupe=groupe1, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        list(seance1.criteres_applicables)  # force la création du commun (2, 1)
+        profil_commun = ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=2, position=1)
+        critere_special = CritereEleve.objects.create(nom_ar='ZZZ_critere_commun_special', ordre=77)
+        profil_commun.criteres.add(critere_special)
+
+        # Nouveau groupe créé APRÈS coup, même cadence : suit automatiquement.
+        groupe2 = self._groupe('ZZZ_cad_auto_2', ['jeu', 'ven'])
+        seance2 = Seance.objects.create(groupe=groupe2, date=datetime.date(2026, 9, 17), heure=datetime.time(16, 0), type='normal')
+        self.assertIn(critere_special, list(seance2.criteres_applicables))
+
+        reponse = self.client.get(reverse('admin_criteres_par_seance'))
+        cadences = {c['nb_seances']: c['nb_groupes'] for c in reponse.context['cadences']}
+        self.assertEqual(cadences.get(2), 2)
+
+    # ---- Recherche + personnalisation intégrées à la même page ----
+
+    def test_recherche_par_nom_trouve_le_groupe(self):
+        self._groupe('ZZZ_groupe_355_recherche', ['lun', 'mar'])
+        reponse = self.client.get(reverse('admin_criteres_par_seance'), {'q': 'ZZZ_groupe_355'})
+        noms = [item['groupe'].nom for item in reponse.context['resultats_recherche']]
+        self.assertIn('ZZZ_groupe_355_recherche', noms)
+
+    def test_filtre_par_cadence_narrondit_pas_les_groupes_dune_autre_cadence(self):
+        self._groupe('ZZZ_filtre_1seance', ['lun'])
+        self._groupe('ZZZ_filtre_2seances', ['lun', 'mar'])
+        reponse = self.client.get(reverse('admin_criteres_par_seance'), {'cadence': '2'})
+        noms = [item['groupe'].nom for item in reponse.context['resultats_recherche']]
+        self.assertIn('ZZZ_filtre_2seances', noms)
+        self.assertNotIn('ZZZ_filtre_1seance', noms)
+
+    def test_selectionner_un_groupe_affiche_ses_positions_resolues_sur_la_meme_page(self):
+        groupe = self._groupe('ZZZ_groupe_selectionne', ['lun', 'mar'])
+        reponse = self.client.get(reverse('admin_criteres_par_seance'), {'groupe_id': groupe.id})
+        self.assertEqual(reponse.context['groupe_selectionne'].id, groupe.id)
+        self.assertEqual(reponse.context['nb_seances_groupe_selectionne'], 2)
+        self.assertEqual(len(reponse.context['positions_groupe_selectionne']), 2)
+        self.assertContains(reponse, 'ZZZ_groupe_selectionne')
+
+    def test_personnalisation_visible_depuis_la_page_de_recherche(self):
+        """Le badge de personnalisation et le bouton تخصيص doivent apparaître
+        directement dans cette page, sans navigation vers une autre URL —
+        demande explicite du client (item 8)."""
+        groupe = self._groupe('ZZZ_groupe_badge', ['lun'])
+        reponse = self.client.get(reverse('admin_criteres_par_seance'), {'groupe_id': groupe.id})
+        self.assertContains(reponse, 'الإعداد الحالي: الإعداد المشترك')
+        self.assertContains(reponse, 'تخصيص')
+
+
+# ---------- Vérification du 2026-09-13 : CritereEleve.type_lie est purement descriptif ----------
+class TypeLieEstPurementDescriptifTests(TestCase):
+    """Question explicite du client : les libellés "خاص بالحفظ"/"خاص
+    بالمراجعة" affichés sur le catalogue (CritereEleve.type_lie) sont-ils
+    encore une restriction technique, ou purement informatifs depuis le
+    chantier à 2 niveaux ?
+
+    Réponse vérifiée par ces tests : PUREMENT INFORMATIFS. type_lie n'a que
+    2 usages réels dans tout le code (voir courses.models, grep exhaustif) :
+    1) ProfilCriteresSeance._gabarit_par_defaut — seed UNE SEULE FOIS un
+       bucket commun jamais configuré, jamais relu ensuite ;
+    2) Seance.bloc_memorisation_applicable/bloc_revision_applicable — LIT
+       (ne filtre jamais) criteres_applicables pour décider d'afficher le
+       bloc سورة/آيات/consigne حفظ ou مراجعة, une conséquence normale de la
+       composition choisie par l'admin, pas une restriction dessus.
+
+    Aucune vue (admin_criteres_par_seance_modifier,
+    admin_groupe_criteres_par_seance_modifier) ne filtre les critères
+    sélectionnables par type_lie, et Seance.criteres_applicables/
+    ProfilCriteresSeance.resoudre ne filtrent QUE par est_actif — jamais par
+    type_lie. L'admin peut donc librement associer n'importe quel critère,
+    quel que soit son type_lie, à n'importe quelle position."""
+
+    def setUp(self):
+        from courses.models import CritereEleve
+
+        self.admin = _creer_admin()
+        self.prof = _creer_prof('prof_type_lie_descriptif@zidni.test')
+        self.eleve = _creer_eleve('eleve_type_lie_descriptif@zidni.test')
+        self.hifz_crit = CritereEleve.objects.get(nom_ar='الحفظ')  # type_lie='commun'
+        self.mouraja3a_crit = CritereEleve.objects.get(nom_ar='المراجعة')  # type_lie='mouraja3a' ("خاص بالمراجعة")
+        self.tilawa_crit = CritereEleve.objects.get(nom_ar='التلاوة')  # type_lie='hifz' ("خاص بالحفظ")
+        self.mouwazaba_crit = CritereEleve.objects.get(nom_ar='المواظبة والسلوك')  # type_lie='commun'
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe = Groupe.objects.create(nom='ZZZ_groupe_type_lie_descriptif', prof=self.prof, creneau=self.creneau)
+        self.groupe.eleves.add(self.eleve)
+        self.seance_s1 = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+
+    def test_admin_peut_configurer_un_critere_khass_bilmouraja3a_sur_une_position_impaire(self):
+        """المراجعة (type_lie='mouraja3a', "خاص بالمراجعة") assignée
+        EXPLICITEMENT à la position 1 (impaire, "حفظ" par défaut du gabarit)
+        — l'admin doit pouvoir le faire librement, aucune vue ne doit
+        refuser/filtrer ce choix à cause du type_lie."""
+        self.client.force_login(self.admin)
+        reponse = self.client.post(reverse('admin_criteres_par_seance_modifier', args=[1, 1]), {
+            'criteres': [self.mouraja3a_crit.id],
+        })
+        self.assertRedirects(reponse, reverse('admin_criteres_par_seance'))
+
+        from courses.models import ProfilCriteresSeance
+        profil = ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=1, position=1)
+        self.assertEqual(set(profil.criteres.values_list('id', flat=True)), {self.mouraja3a_crit.id})
+
+    def test_criteres_applicables_ne_filtre_jamais_par_type_lie(self):
+        """Les 3 critères (حفظ + مراجعة + تلاوة, 3 type_lie différents) sont
+        TOUS retournés dès qu'ils sont explicitement dans le profil — aucun
+        filtrage par type_lie dans Seance.criteres_applicables."""
+        from courses.models import ProfilCriteresSeance
+
+        list(self.seance_s1.criteres_applicables)  # crée le commun (1, 1)
+        profil1 = ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=1, position=1)
+        profil1.criteres.set([self.hifz_crit, self.mouraja3a_crit, self.tilawa_crit])
+
+        criteres = {c.id for c in self.seance_s1.criteres_applicables}
+        self.assertEqual(criteres, {self.hifz_crit.id, self.mouraja3a_crit.id, self.tilawa_crit.id})
+
+    def test_prof_voit_exactement_les_3_criteres_configures_quel_que_soit_leur_type_lie(self):
+        from courses.models import ProfilCriteresSeance
+
+        list(self.seance_s1.criteres_applicables)
+        profil1 = ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=1, position=1)
+        profil1.criteres.set([self.hifz_crit, self.mouraja3a_crit, self.tilawa_crit])
+
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=timezone.make_aware(datetime.datetime(2026, 9, 14, 18, 0))):
+            reponse = self.client.get(reverse('prof_seance_detail', args=[self.seance_s1.id]))
+        for critere in (self.hifz_crit, self.mouraja3a_crit, self.tilawa_crit):
+            self.assertContains(reponse, f'name="note_critere_{critere.id}_{self.eleve.id}"')
+        self.assertNotContains(reponse, f'name="note_critere_{self.mouwazaba_crit.id}_{self.eleve.id}"')
+
+    def test_prof_voit_uniquement_mouraja3a_si_seul_critere_configure(self):
+        """S1 configurée avec UNIQUEMENT المراجعة (type_lie='mouraja3a') —
+        le prof ne voit que ce champ, même si la position est impaire
+        (gabarit par défaut jamais relu une fois le profil explicitement
+        modifié par l'admin)."""
+        from courses.models import ProfilCriteresSeance
+
+        list(self.seance_s1.criteres_applicables)
+        profil1 = ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=1, position=1)
+        profil1.criteres.set([self.mouraja3a_crit])
+
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=timezone.make_aware(datetime.datetime(2026, 9, 14, 18, 0))):
+            reponse = self.client.get(reverse('prof_seance_detail', args=[self.seance_s1.id]))
+        self.assertContains(reponse, f'name="note_critere_{self.mouraja3a_crit.id}_{self.eleve.id}"')
+        self.assertNotContains(reponse, f'name="note_critere_{self.hifz_crit.id}_{self.eleve.id}"')
+        self.assertNotContains(reponse, f'name="note_critere_{self.tilawa_crit.id}_{self.eleve.id}"')
+        # المراجعة étant présente, le bloc contextuel مراجعة (سورة/آيات/consigne) s'affiche.
+        self.assertContains(reponse, f'name="sourate_rev_{self.eleve.id}"')
+        self.assertNotContains(reponse, f'name="sourate_memo_{self.eleve.id}"')
+
+    def test_type_lie_naffecte_que_le_bloc_contextuel_jamais_la_liste_des_criteres(self):
+        """حفظ + مراجعة configurés ensemble sur la même position : les 2 blocs
+        contextuels s'affichent (conséquence NORMALE de la composition
+        choisie par l'admin, pas une restriction) et les 2 notes
+        s'enregistrent — comportement identique à
+        ProfSeanceAxeAutomatiqueTests, revérifié ici sous l'angle exact de
+        la question posée sur type_lie."""
+        from courses.models import ProfilCriteresSeance, NotePresence
+
+        list(self.seance_s1.criteres_applicables)
+        profil1 = ProfilCriteresSeance.objects.get(groupe__isnull=True, nb_seances_semaine=1, position=1)
+        profil1.criteres.set([self.hifz_crit, self.mouraja3a_crit])
+
+        self.assertFalse(self.seance_s1.bloc_memorisation_applicable)  # الحفظ a type_lie='commun', pas 'hifz'
+        self.assertTrue(self.seance_s1.bloc_revision_applicable)  # المراجعة a bien type_lie='mouraja3a'
+
+        donnees = {
+            f'statut_{self.eleve.id}': 'present',
+            f'note_critere_{self.hifz_crit.id}_{self.eleve.id}': '15',
+            f'note_critere_{self.mouraja3a_crit.id}_{self.eleve.id}': '17',
+            f'sourate_rev_{self.eleve.id}': '3',
+            f'ayah_debut_rev_{self.eleve.id}': '1',
+            f'ayah_fin_rev_{self.eleve.id}': '5',
+            f'consigne_rev_{self.eleve.id}': 'مراجعة عامة',
+            'action': 'soumettre',
+        }
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=timezone.make_aware(datetime.datetime(2026, 9, 14, 18, 0))):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance_s1.id]), donnees)
+
+        presence = Presence.objects.get(seance=self.seance_s1, eleve=self.eleve)
+        self.assertEqual(NotePresence.objects.get(presence=presence, critere=self.hifz_crit).note, 15)
+        self.assertEqual(NotePresence.objects.get(presence=presence, critere=self.mouraja3a_crit).note, 17)
+        self.assertEqual(presence.sourate_revisee, 3)
+
+
+# ---------- Chantier du 2026-09-13 : changement de cadence d'un groupe existant ----------
+class ChangementCadenceGroupeTests(TestCase):
+    """Vérification ciblée demandée par le client : un groupe qui passe de 2
+    à 3 séances/semaine (créneau modifié après coup) doit voir ses
+    positions résolues selon la NOUVELLE cadence — nb_seances_semaine_du_
+    groupe n'est JAMAIS mis en cache, toujours recalculé depuis
+    creneau.slots.count() (voir son __doc__). Un override Niveau 2 (clé
+    (groupe, position), voir ProfilCriteresSeance.__doc__) est INDÉPENDANT
+    de nb_seances_semaine par construction : il continue de s'appliquer à
+    la même position après un changement de cadence — comportement voulu,
+    pas une fuite entre cadences. Vérifie aussi qu'aucune Seance n'est
+    créée/supprimée par cette résolution (elle est purement en lecture)."""
+
+    def setUp(self):
+        from courses.models import CritereEleve
+
+        self.hifz_crit = CritereEleve.objects.get(nom_ar='الحفظ')
+        self.mouraja3a_crit = CritereEleve.objects.get(nom_ar='المراجعة')
+        self.tilawa_crit = CritereEleve.objects.get(nom_ar='التلاوة')
+        self.mouwazaba_crit = CritereEleve.objects.get(nom_ar='المواظبة والسلوك')
+
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mar', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        self.groupe = Groupe.objects.create(nom='ZZZ_groupe_changement_cadence', creneau=self.creneau)
+
+    def _passer_a_3_seances(self):
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mar', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+            {'jour': 'mer', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+
+    def test_nb_seances_semaine_recalcule_immediatement_apres_changement_de_creneau(self):
+        from courses.models import nb_seances_semaine_du_groupe
+
+        self.assertEqual(nb_seances_semaine_du_groupe(self.groupe), 2)
+        self._passer_a_3_seances()
+        self.assertEqual(nb_seances_semaine_du_groupe(self.groupe), 3)
+
+    def test_positions_suivent_le_nouveau_bucket_commun_apres_changement_de_cadence(self):
+        from courses.models import ProfilCriteresSeance
+
+        # Commun 2 séances : position 1 = [التلاوة]. Commun 3 séances : position 1 = [الحفظ] (différent).
+        ProfilCriteresSeance._resoudre_commun(2, 1).criteres.set([self.tilawa_crit])
+        ProfilCriteresSeance._resoudre_commun(3, 1).criteres.set([self.hifz_crit])
+
+        profil_avant, niveau_avant = ProfilCriteresSeance.resoudre(self.groupe, 1)
+        self.assertEqual(niveau_avant, 'commun')
+        self.assertEqual(set(profil_avant.criteres.values_list('id', flat=True)), {self.tilawa_crit.id})
+
+        self._passer_a_3_seances()
+
+        profil_apres, niveau_apres = ProfilCriteresSeance.resoudre(self.groupe, 1)
+        self.assertEqual(niveau_apres, 'commun')
+        self.assertEqual(set(profil_apres.criteres.values_list('id', flat=True)), {self.hifz_crit.id})
+        # Position 3, jamais atteignable avant (groupe à 2 séances), résout
+        # maintenant vers le bucket "3 séances" (créé à la volée si besoin).
+        profil_pos3, _niveau_pos3 = ProfilCriteresSeance.resoudre(self.groupe, 3)
+        self.assertEqual(profil_pos3.nb_seances_semaine, 3)
+
+    def test_override_position_survit_au_changement_de_cadence(self):
+        """Un override Niveau 2 (groupe=ce groupe, position=1) continue de
+        s'appliquer après le passage à 3 séances/semaine — sa clé ne
+        contient jamais nb_seances_semaine, voir resoudre()."""
+        from courses.models import ProfilCriteresSeance
+
+        override = ProfilCriteresSeance.objects.create(groupe=self.groupe, position=1)
+        override.criteres.set([self.mouwazaba_crit])
+
+        profil_avant, niveau_avant = ProfilCriteresSeance.resoudre(self.groupe, 1)
+        self.assertEqual(niveau_avant, 'groupe')
+        self.assertEqual(profil_avant.pk, override.pk)
+
+        self._passer_a_3_seances()
+
+        profil_apres, niveau_apres = ProfilCriteresSeance.resoudre(self.groupe, 1)
+        self.assertEqual(niveau_apres, 'groupe')
+        self.assertEqual(profil_apres.pk, override.pk)
+        self.assertEqual(set(profil_apres.criteres.values_list('id', flat=True)), {self.mouwazaba_crit.id})
+
+    def test_aucune_seance_creee_ou_supprimee_par_la_resolution(self):
+        from courses.models import ProfilCriteresSeance
+
+        nb_avant = Seance.objects.filter(groupe=self.groupe).count()
+        self._passer_a_3_seances()
+        ProfilCriteresSeance.resoudre(self.groupe, 1)
+        ProfilCriteresSeance.resoudre(self.groupe, 2)
+        ProfilCriteresSeance.resoudre(self.groupe, 3)
+        self.assertEqual(Seance.objects.filter(groupe=self.groupe).count(), nb_avant)
+        self.assertEqual(nb_avant, 0)
 
 
 # ---------- Chantier du 2026-09-12 (v3) : workflow Enregistrer / Soumettre ----------
@@ -8128,3 +8846,243 @@ class AgendaDashboardSansN1CreneauTests(TestCase):
 
     def test_prof_seances_pas_de_n1_sur_le_creneau(self):
         self.assertLess(self._delta_requetes_agenda('prof_seances'), 6)
+
+
+# ---------- Correctif du 2026-09-13 : "الحصة القادمة" affichait une séance déjà passée ----------
+class ProchaineSeanceExcluLesSeancesDejaTermineesTests(TestCase):
+    """Signalement réel (reproduit sur un groupe de test avant ce correctif) :
+    une séance du jour dont l'heure de fin réelle est déjà largement passée,
+    mais jamais soumise par le prof (statut resté 'planifiee'), restait
+    affichée comme "الحصة القادمة" sur le tableau de bord prof ET élève —
+    seul `date__gte=aujourdhui` était vérifié, jamais l'heure. Voir le
+    correctif dans dashboard.views.dashboard_prof/dashboard_eleve
+    (prochaine_seance), qui s'appuie désormais sur Seance.evaluable_par_prof
+    (déjà la bonne notion de "cette séance a atteint sa fin réelle", voir
+    son __doc__) plutôt que sur la seule date."""
+
+    MAINTENANT = timezone.make_aware(datetime.datetime(2026, 9, 14, 14, 0))  # lundi 14h
+
+    def setUp(self):
+        self.prof = _creer_prof('prof_prochaine_seance@zidni.test')
+        self.eleve = _creer_eleve('eleve_prochaine_seance@zidni.test')
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(9, 0), 'heure_fin': datetime.time(11, 0)},
+        ])
+        self.groupe = Groupe.objects.create(nom='ZZZ_groupe_prochaine_seance', prof=self.prof, creneau=self.creneau)
+        self.groupe.eleves.add(self.eleve)
+
+    def test_dashboard_prof_najamais_pour_prochaine_une_seance_du_jour_deja_finie(self):
+        # Séance du jour, 09h-11h (déjà finie à 14h), jamais soumise.
+        seance_du_matin = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(9, 0), type='normal',
+        )
+        # Prochaine vraie séance : demain.
+        seance_demain = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 15), heure=datetime.time(9, 0), type='normal',
+        )
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('dashboard_prof'))
+        self.assertEqual(reponse.context['prochaine_seance'].id, seance_demain.id)
+        self.assertNotEqual(reponse.context['prochaine_seance'].id, seance_du_matin.id)
+
+    def test_dashboard_prof_widget_absent_si_aucune_seance_reellement_a_venir(self):
+        """Seule séance candidate déjà finie -> pas de "prochaine séance"
+        plutôt que de mentir sur son statut (elle reste consultable via
+        prof_seances, section "متأخرة")."""
+        Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(9, 0), type='normal',
+        )
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('dashboard_prof'))
+        self.assertIsNone(reponse.context['prochaine_seance'])
+
+    def test_dashboard_prof_widget_affiche_une_seance_en_cours_non_encore_finie(self):
+        """Une séance COMMENCÉE mais pas encore FINIE (en cours) doit encore
+        apparaître comme "القادمة" (le prof peut encore la rejoindre) — le
+        correctif ne doit pas devenir trop strict et cacher une séance en
+        cours."""
+        seance_en_cours = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(13, 0), type='normal',
+        )  # 13h-15h (durée du slot 09h-11h = 2h) ; "now" = 14h -> en cours, pas fini.
+        self.client.force_login(self.prof.user)
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('dashboard_prof'))
+        self.assertEqual(reponse.context['prochaine_seance'].id, seance_en_cours.id)
+
+    def test_dashboard_eleve_meme_correctif(self):
+        seance_du_matin = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(9, 0), type='normal',
+        )
+        seance_demain = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 15), heure=datetime.time(9, 0), type='normal',
+        )
+        self.client.force_login(self.eleve.user)
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(reponse.context['prochaine_seance'].id, seance_demain.id)
+        self.assertNotEqual(reponse.context['prochaine_seance'].id, seance_du_matin.id)
+
+
+# ---------- Correctif du 2026-09-13 (v2) : badge de statut ignorait l'heure réelle ----------
+class BadgeStatutSeanceRespecteLheureReelleTests(TestCase):
+    """Racine du même signalement que ProchaineSeanceExcluLesSeancesDeja
+    TermineesTests : _seance_statut_badge.html (partagé par prof.html,
+    prof_seances.html, eleve.html, eleve_seances.html) testait seulement
+    `seance.date < aujourdhui` pour distinguer une séance "à venir" (badge
+    "مخططة 📅" + icône Meet cliquable) d'une séance "déjà passée, jamais
+    évaluée" (badge "⚠️"/"⛔") — une séance DU JOUR MÊME, dont l'heure de fin
+    réelle est largement dépassée sans jamais avoir été soumise par le
+    prof, restait donc affichée comme "مخططة", lien Meet compris. Corrigé
+    pour utiliser Seance.evaluable_par_prof (déjà LA bonne notion de fin
+    réelle, indépendante du seul jour calendaire) — voir aussi le
+    correctif corrélé sur dashboard_prof.apercu_seances/total_seances_passees
+    ci-dessus (sans lui, la séance disparaissait carrément de tout le
+    tableau de bord au lieu d'y être juste mal étiquetée)."""
+
+    MAINTENANT = timezone.make_aware(datetime.datetime(2026, 9, 14, 14, 0))  # lundi 14h
+
+    def setUp(self):
+        self.prof = _creer_prof('prof_badge_statut@zidni.test')
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(9, 0), 'heure_fin': datetime.time(11, 0)},
+        ])
+        self.groupe = Groupe.objects.create(nom='ZZZ_groupe_badge_statut', prof=self.prof, creneau=self.creneau)
+        self.client.force_login(self.prof.user)
+
+    def test_seance_du_jour_deja_finie_najamais_le_badge_planifiee(self):
+        # 09h-11h, "now" = 14h -> déjà finie, jamais soumise.
+        Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(9, 0), type='normal')
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('prof_seances'))
+        self.assertNotContains(reponse, 'مخططة')
+        self.assertContains(reponse, 'لم يتم تقييمها بعد')
+
+    def test_seance_du_jour_pas_encore_finie_garde_le_badge_planifiee(self):
+        # 13h-15h (durée du slot = 2h), "now" = 14h -> en cours, pas encore finie.
+        Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(13, 0), type='normal')
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('prof_seances'))
+        self.assertContains(reponse, 'مخططة')
+        self.assertNotContains(reponse, 'لم يتم تقييمها بعد')
+
+    def test_seance_ancienne_hors_delai_affiche_toujours_le_badge_expire(self):
+        Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 10), heure=datetime.time(9, 0), type='normal')
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('prof_seances'))
+        self.assertContains(reponse, 'انتهت المهلة')
+
+    def test_apercu_dashboard_prof_inclut_la_seance_du_jour_deja_finie(self):
+        """Fix corrélé : dashboard_prof.apercu_seances ("آخر الحصص") doit
+        aussi inclure une séance du jour déjà finie — sinon elle disparaît
+        de tout le tableau de bord (ni "القادمة", ni "آخر الحصص")."""
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(9, 0), type='normal')
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('dashboard_prof'))
+        self.assertIn(seance, reponse.context['apercu_seances'])
+        self.assertIsNone(reponse.context['prochaine_seance'])
+
+    def test_total_seances_passees_compte_la_seance_du_jour_deja_finie(self):
+        Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(9, 0), type='normal')
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('dashboard_prof'))
+        self.assertEqual(reponse.context['total_seances_passees'], 1)
+
+
+# ---------- Correctif du 2026-09-13 (v3) : badge d'évaluation مؤطر ignorait aussi l'heure réelle ----------
+class BadgeEvaluationSuperviseurRespecteLheureReelleTests(TestCase):
+    """Même famille de bug que BadgeStatutSeanceRespecteLheureReelleTests,
+    trouvée en auditant tout le projet (demande explicite du 2026-09-13
+    "je veux que tout soit précis à la seconde") : _seance_evaluation_badge.html
+    (dashboard_superviseur / superviseur.html) décidait "لم تُدرَّس بعد 📌"
+    (+ icône Meet cliquable) dès que `seance.date >= aujourdhui`, sans jamais
+    vérifier l'heure — une séance du jour déjà terminée mais pas encore
+    évaluée par le مؤطر restait donc affichée comme "pas encore donnée",
+    lien Meet compris. Corrigé pour utiliser Seance.evaluable_par_prof."""
+
+    MAINTENANT = timezone.make_aware(datetime.datetime(2026, 9, 14, 14, 0))  # lundi 14h
+
+    def setUp(self):
+        self.superviseur = _creer_superviseur('superviseur_badge_eval@zidni.test')
+        self.prof = _creer_prof('prof_badge_eval_superviseur@zidni.test')
+        self.superviseur.profs_assignes.add(self.prof)
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(9, 0), 'heure_fin': datetime.time(11, 0)},
+        ])
+        self.groupe = Groupe.objects.create(nom='ZZZ_groupe_badge_eval_superviseur', prof=self.prof, creneau=self.creneau)
+        self.client.force_login(self.superviseur.user)
+
+    def test_seance_du_jour_deja_finie_najamais_le_badge_pas_encore_donnee(self):
+        # 09h-11h, "now" = 14h -> déjà finie, jamais évaluée par le مؤطر.
+        Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(9, 0), type='normal')
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('dashboard_superviseur'))
+        self.assertNotContains(reponse, 'لم تُدرَّس بعد')
+        self.assertContains(reponse, 'لم يتم تقييمها بعد')
+
+    def test_seance_du_jour_pas_encore_finie_garde_le_badge_pas_encore_donnee(self):
+        # 13h-15h (durée du slot = 2h), "now" = 14h -> en cours, pas encore finie.
+        Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(13, 0), type='normal')
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('dashboard_superviseur'))
+        self.assertContains(reponse, 'لم تُدرَّس بعد')
+
+    def test_seance_ancienne_hors_delai_affiche_toujours_le_badge_danger(self):
+        Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 10), heure=datetime.time(9, 0), type='normal')
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('dashboard_superviseur'))
+        self.assertContains(reponse, 'لم يتم تقييمها بعد')
+        self.assertNotContains(reponse, 'لم تُدرَّس بعد')
+
+
+# ---------- Correctif du 2026-09-13 (v4) : "🔜 الحصص القادمة" côté élève ----------
+class EleveSeancesAVenirExcluLesSeancesDejaTermineesTests(TestCase):
+    """Même famille de bug, trouvée en auditant eleve_seances : la section
+    "🔜 الحصص القادمة" utilisait `date__gte=aujourdhui` (inclut TOUJOURS le
+    jour même) — une séance du jour déjà terminée mais jamais soumise par le
+    prof y apparaissait donc, avec son propre badge "لم يتم تقييمها بعد ⚠️"
+    contredisant le titre "à venir" de la section elle-même. Une séance
+    annulée reste affichée quelle que soit l'heure (l'élève doit être
+    informé), seules les séances encore réellement 'planifiee' sont
+    départagées par Seance.evaluable_par_prof."""
+
+    MAINTENANT = timezone.make_aware(datetime.datetime(2026, 9, 14, 14, 0))  # lundi 14h
+
+    def setUp(self):
+        self.prof = _creer_prof('prof_eleve_a_venir@zidni.test')
+        self.eleve = _creer_eleve('eleve_a_venir_precision@zidni.test')
+        self.creneau = Creneau.objects.create(sexe_cible='mixte', type_seance='hifz', riwaya='hafs', age_min=6, age_max=60)
+        remplacer_slots_creneau(self.creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(9, 0), 'heure_fin': datetime.time(11, 0)},
+        ])
+        self.groupe = Groupe.objects.create(nom='ZZZ_groupe_eleve_a_venir', prof=self.prof, creneau=self.creneau)
+        self.groupe.eleves.add(self.eleve)
+        self.client.force_login(self.eleve.user)
+
+    def test_seance_du_jour_deja_finie_disparait_de_la_section_a_venir(self):
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(9, 0), type='normal')
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('eleve_seances'))
+        self.assertNotIn(seance, reponse.context['seances_a_venir'])
+
+    def test_seance_du_jour_pas_encore_finie_reste_dans_la_section_a_venir(self):
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(13, 0), type='normal')
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('eleve_seances'))
+        self.assertIn(seance, reponse.context['seances_a_venir'])
+
+    def test_seance_annulee_du_jour_deja_passee_reste_visible(self):
+        """Une séance annulée doit rester visible même après son heure
+        passée — l'élève doit savoir qu'elle a été annulée, pas la voir
+        disparaître silencieusement."""
+        seance = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(9, 0),
+            type='normal', statut='annulee', remarque='الأستاذ مريض',
+        )
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.get(reverse('eleve_seances'))
+        self.assertIn(seance, reponse.context['seances_a_venir'])

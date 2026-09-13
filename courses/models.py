@@ -914,17 +914,12 @@ class Seance(models.Model):
     @property
     def nb_seances_semaine(self):
         """Nombre de séances/semaine du GROUPE de cette séance — clé du
-        Niveau 1 (commun) de ProfilCriteresSeance, voir son __doc__. Jamais
-        stocké séparément (même principe que CreneauSlot.__doc__, voir aussi
-        courses.utils) : toujours dérivé de groupe.creneau.slots.count().
-        Repli sur 1 si le groupe n'a pas de créneau — même philosophie de
-        repli que numero_dans_la_semaine ci-dessus (un groupe sans créneau
-        n'a par définition qu'une seule séance possible, en position 1)."""
-        creneau = self.groupe.creneau
-        if not creneau:
-            return 1
-        n = creneau.slots.count()
-        return n if n > 0 else 1
+        Niveau 1 (commun) de ProfilCriteresSeance, voir son __doc__. Simple
+        raccourci vers nb_seances_semaine_du_groupe (fonction module-level
+        ci-dessous, seule source de calcul, aussi utilisée par
+        dashboard.views.admin_groupe_criteres_par_seance* qui n'ont pas de
+        Seance concrète sous la main pour chaque position)."""
+        return nb_seances_semaine_du_groupe(self.groupe)
 
     @property
     def type_evaluation(self):
@@ -937,74 +932,29 @@ class Seance(models.Model):
         seule source qui reflète correctement une séance mixte (حفظ ET
         مراجعة à la fois, cas explicitement demandé par le client — ex.
         séance 2 d'un groupe à 2 séances/semaine peut exiger "الحفظ" ET
-        "المراجعة"). type_evaluation reste utilisé pour 2 choses seulement :
-        (1) le bandeau informatif de prof_seance_detail.html (purement
-        indicatif), (2) le gabarit par défaut d'une position encore jamais
-        configurée (_defaut_criteres_pour_nouvelle_position ci-dessous)."""
+        "المراجعة"). type_evaluation ne sert plus désormais que de bandeau
+        informatif dans prof_seance_detail.html (purement indicatif, rien à
+        choisir) — le gabarit par défaut d'une position jamais configurée
+        est calculé indépendamment par ProfilCriteresSeance._gabarit_par_defaut
+        (même parité, mais fonction pure de la position, pas de cette Seance
+        précise — voir ProfilCriteresSeance.resoudre)."""
         return 'hifz' if self.numero_dans_la_semaine % 2 == 1 else 'mouraja3a'
 
     @property
     def type_evaluation_display(self):
         return dict(self.AXES_EVALUATION_ELEVE)[self.type_evaluation]
 
-    def _defaut_criteres_pour_nouvelle_position(self):
-        """Gabarit UNIQUEMENT utilisé la toute première fois qu'un
-        ProfilCriteresSeance (Niveau 1, commun) est créé pour ce couple
-        (nb_seances_semaine, position) — voir criteres_applicables
-        ci-dessous. Reproduit l'ancien mapping CritereEleve.type_lie
-        (impaire='hifz', paire='mouraja3a') pour ne rien changer tant que
-        l'admin n'a rien personnalisé. Dernier usage de type_lie à la
-        création : jamais relu ensuite pour ce profil, jamais utilisé pour
-        filtrer une évaluation en direct (voir ProfilCriteresSeance.__doc__).
-        Un profil de Niveau 2 (spécifique à un groupe), lui, n'a jamais de
-        gabarit par défaut : voir dashboard.views.
-        admin_criteres_par_seance_groupe_modifier, qui pré-remplit
-        explicitement depuis la résolution ACTUELLE (Niveau 2 > Niveau 1 >
-        défaut) au moment de la personnalisation, jamais depuis type_lie
-        directement. CritereEleve est défini plus bas dans ce même fichier —
-        résolu au moment de l'appel, pas à la définition de la classe, donc
-        aucun import n'est nécessaire ici."""
-        return CritereEleve.objects.filter(type_lie__in=('commun', self.type_evaluation))
-
     @property
     def criteres_applicables(self):
         """QuerySet des CritereEleve ACTIFS applicables à CETTE séance —
         SOURCE UNIQUE pendant le parcours normal d'évaluation (voir
         dashboard.views.prof_seance_detail/prof_presence_sauvegarder).
-
-        Résolution à 2 niveaux, priorité stricte (demande explicite du
-        client, 2026-09-12) :
-          1. Niveau 2 — profil spécifique à CE groupe et CETTE position
-             (ProfilCriteresSeance.groupe = self.groupe), si une ligne
-             existe déjà. Jamais créé à la volée : une personnalisation
-             groupe est TOUJOURS un choix explicite de l'admin (voir
-             admin_criteres_par_seance_groupe_modifier), jamais un
-             sous-produit de la lecture d'une séance.
-          2. Niveau 1 — profil commun (groupe NULL) pour CE
-             nb_seances_semaine et CETTE position. Une combinaison encore
-             jamais configurée est créée À LA VOLÉE, avec un contenu par
-             défaut dérivé de type_lie (voir
-             _defaut_criteres_pour_nouvelle_position) — UNE SEULE FOIS : dès
-             que la ligne existe, son contenu enregistré est la seule
-             vérité, plus jamais recalculé (modifier la position 6 d'un
-             nb_seances_semaine=2 ne doit jamais changer si type_lie ou la
-             parité évoluent ensuite, et ne doit jamais affecter la position
-             2, ni un groupe personnalisé au Niveau 2, ni un autre
-             nb_seances_semaine)."""
-        position = self.numero_dans_la_semaine
-
-        profil_specifique = ProfilCriteresSeance.objects.filter(
-            groupe=self.groupe, position=position,
-        ).first()
-        if profil_specifique is not None:
-            return profil_specifique.criteres.filter(est_actif=True).order_by('ordre')
-
-        profil_commun, cree = ProfilCriteresSeance.objects.get_or_create(
-            groupe=None, nb_seances_semaine=self.nb_seances_semaine, position=position,
-        )
-        if cree:
-            profil_commun.criteres.set(self._defaut_criteres_pour_nouvelle_position())
-        return profil_commun.criteres.filter(est_actif=True).order_by('ordre')
+        Simple délégation à ProfilCriteresSeance.resoudre (LE resolver
+        centralisé, voir son __doc__ — aussi utilisé par dashboard.views.
+        admin_groupe_criteres_par_seance* pour afficher à l'admin ce qui est
+        réellement résolu, sans dupliquer cette logique dans chaque vue)."""
+        profil, _niveau = ProfilCriteresSeance.resoudre(self.groupe, self.numero_dans_la_semaine)
+        return profil.criteres.filter(est_actif=True).order_by('ordre')
 
     @property
     def bloc_memorisation_applicable(self):
@@ -1281,13 +1231,15 @@ class CritereEleve(models.Model):
     # utilisée pendant le parcours normal d'évaluation.
     #
     # type_lie ne sert plus qu'à UNE chose : fournir le gabarit par défaut
-    # quand une position de séance est configurée pour la toute première
-    # fois (voir Seance._defaut_criteres_pour_nouvelle_position) — jamais
-    # relu ensuite pour cette position une fois son ProfilCriteresSeance
-    # créé. Valeurs actuelles (issues de la migration 0049, répartition
-    # donnée par le client le 2026-09-12) : "التلاوة" -> 'hifz' ; "المراجعة"
-    # -> 'mouraja3a' ; "الحفظ" et "المواظبة والسلوك" -> 'commun' (valeur par
-    # défaut, jamais touchée).
+    # quand un profil COMMUN (Niveau 1) est créé pour une position pour la
+    # toute première fois (voir ProfilCriteresSeance._gabarit_par_defaut) —
+    # jamais relu ensuite pour cette position une fois créée, jamais utilisé
+    # pour un profil Niveau 2 (spécifique à un groupe, toujours pré-rempli
+    # depuis ProfilCriteresSeance.resoudre, jamais depuis type_lie
+    # directement). Valeurs actuelles (issues de la migration 0049,
+    # répartition donnée par le client le 2026-09-12) : "التلاوة" -> 'hifz' ;
+    # "المراجعة" -> 'mouraja3a' ; "الحفظ" et "المواظبة والسلوك" -> 'commun'
+    # (valeur par défaut, jamais touchée).
     TYPE_LIE_CHOICES = [
         ('commun', _('مشترك (يظهر في الحالتين)')),
         ('hifz', _('خاص بالحفظ')),
@@ -1316,6 +1268,54 @@ class CritereEleve(models.Model):
         ordering = ['ordre']
         verbose_name = "Critère d'évaluation élève"
         verbose_name_plural = "Critères d'évaluation élève"
+
+
+def nb_seances_semaine_du_groupe(groupe):
+    """Nombre de séances/semaine RÉEL d'un groupe — clé du Niveau 1 (commun)
+    de ProfilCriteresSeance (voir son __doc__). SEULE fonction de calcul
+    dans tout le projet (Seance.nb_seances_semaine et
+    ProfilCriteresSeance.resoudre l'appellent tous les deux, jamais de
+    logique dupliquée) : toujours dérivé de groupe.creneau.slots.count(),
+    jamais stocké séparément (même principe que CreneauSlot.__doc__). Repli
+    sur 1 si le groupe n'a pas de créneau (ou 0 slot) — même philosophie de
+    repli que Seance.numero_dans_la_semaine : un groupe sans créneau n'a par
+    définition qu'une seule séance possible, en position 1."""
+    creneau = groupe.creneau
+    if not creneau:
+        return 1
+    n = creneau.slots.count()
+    return n if n > 0 else 1
+
+
+def cadences_reelles_des_groupes():
+    """Chantier du 2026-09-13 — remplace toute liste manuelle de groupes par
+    cadence (rejetée explicitement par le client, voir dashboard.views.
+    admin_criteres_par_seance.__doc__) : calcule, à partir des groupes
+    ACTIFS réels (Groupe.actifs, voir GroupeActifsManager), le nombre de
+    groupes par nb_seances_semaine RÉEL (creneau.slots.count(), jamais
+    nb_seances_semaine_du_groupe — dont le repli sur 1 séance pour un groupe
+    SANS créneau classerait à tort les groupes 381-384 dans le bucket "1
+    حصة/أسبوع", explicitement interdit par le client : "les groupes sans
+    créneau ne représentent pas réellement une cadence hebdomadaire de 1
+    séance").
+
+    Retourne (compteur, nb_sans_creneau) où compteur est un dict
+    {nb_seances_semaine réel (>=1): nombre de groupes}, trié par appelant.
+    prefetch_related('creneau__slots') + len(...) plutôt que
+    creneau.slots.count() par groupe, pour éviter le N+1 déjà corrigé
+    ailleurs dans ce fichier (voir _meet_icon/agenda, audit du 2026-09-10)."""
+    from collections import Counter
+
+    compteur = Counter()
+    nb_sans_creneau = 0
+    groupes = Groupe.actifs.select_related('creneau').prefetch_related('creneau__slots')
+    for groupe in groupes:
+        n = len(groupe.creneau.slots.all()) if groupe.creneau else 0
+        if n > 0:
+            compteur[n] += 1
+        else:
+            nb_sans_creneau += 1
+    return compteur, nb_sans_creneau
 
 
 class ProfilCriteresSeance(models.Model):
@@ -1383,6 +1383,76 @@ class ProfilCriteresSeance(models.Model):
         depuis désactivé (conservé pour l'historique, voir CritereEleve.
         est_actif) : affiché sur admin_criteres_par_seance.html."""
         return self.criteres.filter(est_actif=True).count()
+
+    @staticmethod
+    def _gabarit_par_defaut(position):
+        """Gabarit UNIQUEMENT utilisé la toute première fois qu'un profil
+        COMMUN (Niveau 1) est créé pour cette position — voir resoudre()
+        ci-dessous. Reproduit l'ancien mapping CritereEleve.type_lie
+        (impaire='hifz', paire='mouraja3a') pour ne rien changer tant que
+        l'admin n'a rien personnalisé — fonction PURE de `position` (jamais
+        d'une Seance précise : la parité seule décide, aucune date n'entre
+        en jeu). Dernier usage de type_lie dans le parcours normal : jamais
+        relu ensuite pour ce profil, jamais utilisé pour filtrer une
+        évaluation en direct. Un profil de Niveau 2 (spécifique à un
+        groupe), lui, n'a JAMAIS de gabarit par défaut : voir
+        dashboard.views.admin_groupe_criteres_par_seance_modifier, qui
+        pré-remplit explicitement depuis resoudre() (résolution ACTUELLE)
+        au moment de la personnalisation, jamais depuis type_lie
+        directement."""
+        axe = 'hifz' if position % 2 == 1 else 'mouraja3a'
+        return CritereEleve.objects.filter(type_lie__in=('commun', axe))
+
+    @classmethod
+    def _resoudre_commun(cls, nb_seances_semaine, position):
+        """Résout (en créant À LA VOLÉE si besoin, UNE SEULE FOIS, avec le
+        gabarit par défaut) le profil COMMUN (Niveau 1) d'un
+        (nb_seances_semaine, position) précis — SANS passer par un Groupe
+        concret. Extrait de resoudre() ci-dessous (2026-09-13) pour que
+        dashboard.views.admin_criteres_par_seance puisse afficher/pré-créer
+        les profils communs de chaque cadence RÉELLEMENT présente (voir son
+        __doc__) sans avoir besoin d'un groupe arbitraire sous la main —
+        même logique exacte, aucune divergence possible entre les 2 appelants."""
+        profil_commun, cree = cls.objects.get_or_create(
+            groupe=None, nb_seances_semaine=nb_seances_semaine, position=position,
+        )
+        if cree:
+            profil_commun.criteres.set(cls._gabarit_par_defaut(position))
+        return profil_commun
+
+    @classmethod
+    def resoudre(cls, groupe, position):
+        """RESOLVER CENTRALISÉ UNIQUE — appelé à la fois par
+        Seance.criteres_applicables (pendant l'évaluation réelle, où une
+        Seance concrète existe) et par dashboard.views.
+        admin_groupe_criteres_par_seance/_modifier (pour afficher/pré-remplir
+        ce qui est réellement résolu pour une position, y compris avant
+        qu'aucune Seance concrète ne l'ait jamais atteinte) — aucune vue ne
+        réimplémente sa propre logique de priorité.
+
+        Retourne un tuple (profil, niveau) où niveau vaut :
+          'groupe'  — Niveau 2 : une ligne ProfilCriteresSeance(groupe=...,
+                      position=...) existe déjà. JAMAIS créée à la volée ici
+                      : une personnalisation groupe est TOUJOURS un choix
+                      explicite de l'admin (voir
+                      admin_groupe_criteres_par_seance_modifier), jamais un
+                      sous-produit de la simple consultation/évaluation
+                      d'une séance.
+          'commun'  — Niveau 1 : profil commun (groupe NULL) pour le
+                      nb_seances_semaine RÉEL de ce groupe et cette
+                      position. Une combinaison encore jamais configurée
+                      est créée À LA VOLÉE avec un gabarit par défaut — UNE
+                      SEULE FOIS : dès que la ligne existe, son contenu
+                      enregistré est la seule vérité, plus jamais recalculé
+                      (modifier ce commun plus tard ne doit jamais affecter
+                      une autre position, un autre nb_seances_semaine, ni
+                      un override Niveau 2 déjà créé)."""
+        profil_specifique = cls.objects.filter(groupe=groupe, position=position).first()
+        if profil_specifique is not None:
+            return profil_specifique, 'groupe'
+
+        profil_commun = cls._resoudre_commun(nb_seances_semaine_du_groupe(groupe), position)
+        return profil_commun, 'commun'
 
     class Meta:
         ordering = ['position']

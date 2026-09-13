@@ -5,15 +5,25 @@
 {% elif seance.est_evaluee %}
     {% trans "تم التقييم ✅" as txt_badge_eval %}
     {% include 'dashboard/_badge_statut.html' with type='success' texte=txt_badge_eval %}
-{% elif seance.date > aujourdhui %}
+{% elif not seance.evaluable_par_prof %}
+    {% comment %}
+    Correctif du 2026-09-13 (même famille de bug que _seance_statut_badge.html) :
+    l'ancien test `seance.date > aujourdhui` (puis le `{% else %}` implicite
+    pour "aujourd'hui") ne regardait jamais l'HEURE — une séance du jour même,
+    déjà terminée dans les faits (heure de fin réelle passée) mais jamais
+    évaluée, tombait dans la branche "aujourd'hui" ci-dessous (⏳ + icône Meet
+    cliquable) au lieu d'être traitée comme réellement passée.
+    Seance.evaluable_par_prof (déjà LA notion de "fin réelle dépassée",
+    indépendante du rôle malgré son nom) tranche désormais correctement,
+    qu'il s'agisse d'un jour futur OU du jour même pas encore atteint.
+    {% endcomment %}
     {% trans "لم تُدرَّس بعد 📌" as txt_badge_eval %}
     {% include 'dashboard/_badge_statut.html' with type='neutre' texte=txt_badge_eval %}
     {% include 'dashboard/_meet_icon.html' with seance=seance %}
-{% elif seance.date < aujourdhui %}
-    {% trans "لم يتم تقييمها بعد ⚠️" as txt_badge_eval %}
-    {% include 'dashboard/_badge_statut.html' with type='danger' texte=txt_badge_eval %}
-{% else %}
+{% elif seance.date == aujourdhui %}
     {% trans "لم يتم تقييمها بعد ⏳" as txt_badge_eval %}
     {% include 'dashboard/_badge_statut.html' with type='warning' texte=txt_badge_eval %}
-    {% include 'dashboard/_meet_icon.html' with seance=seance %}
+{% else %}
+    {% trans "لم يتم تقييمها بعد ⚠️" as txt_badge_eval %}
+    {% include 'dashboard/_badge_statut.html' with type='danger' texte=txt_badge_eval %}
 {% endif %}
