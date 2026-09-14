@@ -61,6 +61,12 @@
     {% endcomment %}
     .case-seance-continuation { opacity:0.6; }
     .case-seance-continuation .nom-groupe { font-weight:400; }
+
+    .legende-statuts { display:flex; flex-wrap:wrap; gap:14px; font-size:0.78rem; color:#888; }
+    .legende-statuts .puce { display:inline-block; width:12px; height:12px; border-radius:3px; margin-inline-end:5px; vertical-align:middle; }
+    .legende-statuts .puce-planifiee { background:var(--color-bg-cream); border:1px solid #e4d9c4; }
+    .legende-statuts .puce-terminee { background:#e8f5e9; border:1px solid #b8e0bd; }
+    .legende-statuts .puce-annulee { background:#fce4e4; border:1px solid #f3bcbc; }
 </style>
 
 <div style="background:white; border-radius:12px; padding:18px 24px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
@@ -110,6 +116,23 @@
 </form>
 
 {% comment %}
+Légende des couleurs de statut (Correction du 2026-09-14, question d'Ikram
+"pourquoi il y a une halaka en vert, quelle signification ?") — l'ancienne
+page l'expliquait implicitement via un badge texte+emoji (منتهية ✅/مخططة
+📅/ملغاة ❌) à côté de chaque séance ; la nouvelle grille colore toute la
+carte mais avait perdu ce repère textuel. Rappel du sens (Seance.
+STATUT_CHOICES) : اللون الأخضر = الحصة انتهت وسُجّل الحضور لها (le prof a
+déjà soumis sa fiche de présence), PAS "aujourd'hui"/"dans le passé" au
+sens calendaire — une séance déjà DONNÉE mais dont la présence n'a pas
+encore été soumise reste "مخططة" (couleur normale) jusqu'à la soumission.
+{% endcomment %}
+<div class="legende-statuts mb-2">
+    <span><span class="puce puce-planifiee"></span>{% trans "مخططة" %}</span>
+    <span><span class="puce puce-terminee"></span>{% trans "منتهية (تم تسجيل الحضور)" %}</span>
+    <span><span class="puce puce-annulee"></span>{% trans "ملغاة" %}</span>
+</div>
+
+{% comment %}
 Vue "tableau" (Tâche du 2026-09-14, demande client) : lignes = heures pleines
 de l'école (settings.HEURE_OUVERTURE_ECOLE/_FERMETURE_ECOLE, courses.utils.
 generer_heures_grille), colonnes = les 7 jours de la semaine affichée — même
@@ -139,7 +162,10 @@ heures vides" demandé, remplace l'ancienne liste jour par jour.
                         {% with seance=item.seance %}
                         {% if item.est_debut %}
                         <div class="case-seance statut-{{ seance.statut }}">
-                            <span class="heure-seance">{{ seance.heure|time:"H:i" }}{% if seance.fin_datetime %} – {{ seance.fin_datetime|time:"H:i" }}{% endif %}</span>
+                            <span class="heure-seance">
+                                {{ seance.heure|time:"H:i" }}{% if seance.fin_datetime %} – {{ seance.fin_datetime|time:"H:i" }}{% endif %}
+                                {% if seance.statut == 'terminee' %}✅{% elif seance.statut == 'annulee' %}❌{% endif %}
+                            </span>
                             <span class="nom-groupe">{{ seance.groupe.nom }}</span>
                             <span class="nom-prof">{% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}{% trans "بدون معلم" %}{% endif %}</span>
                         </div>
