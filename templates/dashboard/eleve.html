@@ -7,9 +7,13 @@
 
 .sourate-chip-row { display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; margin-bottom:24px; }
 .sourate-chip { flex:0 0 auto; width:150px; background:white; border-radius:12px; padding:12px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
-.sourate-chip .nom { font-weight:700; font-size:0.88rem; margin-bottom:6px; }
+.sourate-chip .nom { font-weight:700; font-size:0.88rem; margin-bottom:2px; }
 .sourate-chip .ayat-count { color:#888; font-size:0.78rem; margin-bottom:6px; }
 .sourate-chip .progress-track { margin-bottom:8px; }
+/* من/إلى du travail حزب/ثمن récent (chantier du 2026-09-14) — chip un peu
+   plus large que la version سورة (2 positions من/إلى, pas 1 seule valeur). */
+.sourate-chip.travail-chip { width:178px; }
+.travail-chip-label { color:#aaa; font-size:0.68rem; font-weight:600; margin-bottom:1px; }
 </style>
 {% endblock %}
 {% block content %}
@@ -108,6 +112,34 @@ déplacée depuis base_eleve.html.
 {% endif %}
 
 <div class="section-title">{% trans "آخر ما تم حفظه" %}</div>
+{% if travail_recent %}
+{% comment %}
+Chantier du 2026-09-14 : Presence.sourate_memorisee est GELÉ depuis le
+système حزب/ثمن — travail_recent (TravailSeance validé) est désormais la
+source prioritaire ici (voir dashboard.views.dashboard_eleve), sinon cette
+carte restait figée à jamais sur les dernières sourates d'AVANT la bascule.
+{% endcomment %}
+<div class="sourate-chip-row">
+    {% for plage in travail_recent %}
+    {% comment %}
+    Correctif UX du 2026-09-14 (retour client : la version précédente,
+    "حزب 2 → 3" + "وإذا لقوا (الثمن 4) → سيقول (الثمن 1)" sur une seule
+    ligne de 150px, était illisible — trop d'informations compressées).
+    Nouveau format من/إلى empilé, LABEL au-dessus de la valeur (même
+    convention déjà validée par le client pour le formulaire du professeur,
+    voir prof_seance_detail.html) — une seule information par ligne.
+    {% endcomment %}
+    <div class="sourate-chip travail-chip">
+        <div class="travail-chip-label">{% trans "من" %}</div>
+        <div class="nom">{% blocktrans with numero=plage.hizb_debut nom=plage.nom_debut %}حزب {{ numero }} — {{ nom }}{% endblocktrans %}</div>
+        <div class="ayat-count">{% blocktrans with thumn=plage.thumn_debut %}الثمن {{ thumn }}{% endblocktrans %}</div>
+        <div class="travail-chip-label" style="margin-top:8px;">{% trans "إلى" %}</div>
+        <div class="nom" style="color:var(--color-role-eleve-solid);">{% blocktrans with numero=plage.hizb_fin nom=plage.nom_fin %}حزب {{ numero }} — {{ nom }}{% endblocktrans %}</div>
+        <div class="ayat-count">{% blocktrans with thumn=plage.thumn_fin %}الثمن {{ thumn }}{% endblocktrans %}</div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
 <div class="sourate-chip-row">
     {% for s in sourates_recentes %}
     <div class="sourate-chip">
@@ -120,5 +152,6 @@ déplacée depuis base_eleve.html.
     <div style="color:#aaa; padding:10px 4px;">{% trans "لا يوجد أي حفظ مسجَّل بعد" %}</div>
     {% endfor %}
 </div>
+{% endif %}
 
 {% endblock %}

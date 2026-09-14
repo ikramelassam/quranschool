@@ -1,4 +1,5 @@
 import datetime
+import json
 import time
 from unittest import mock
 
@@ -2770,10 +2771,15 @@ class MediaProxyHelpersTests(TestCase):
 # Tâche du 2026-08-18 — Critère ينتقل/يعيد, sauvegarde depuis la vue prof
 # ============================================================================
 class PresenceResultatMemorisationVueTests(TestCase):
-    """prof_presence_sauvegarder enregistre bien resultat_memorisation (axe
-    الحفظ) / resultat_revision (axe المراجعة) — voir courses.tests.
-    ResultatMemorisationProgressionTests pour l'exclusion du calcul de
-    progression lui-même.
+    """prof_presence_sauvegarder enregistre bien le résultat (ينتقل/يعيد) de
+    l'axe الحفظ dans PartieEvaluee (chantier du 2026-09-13 v2 — remplace
+    l'ancien Presence.resultat_memorisation pour cet axe, voir courses.models.
+    PartieEvaluee.__doc__) / resultat_revision pour l'axe المراجعة (inchangé).
+
+    Ces tests portent sur une "séance normale" (ProgressionMemorisation déjà
+    initialisée via _creer_progression, checkbox "أول حصة" décochée) —
+    l'évaluation initiale multi-parties est couverte séparément par
+    PremiereSeanceEvaluationInitialeTests.
 
     Chantier du 2026-09-12 (v2, calcul automatique — voir Seance.
     type_evaluation.__doc__) : le prof ne soumet plus JAMAIS les 2 blocs à la
@@ -2790,14 +2796,20 @@ class PresenceResultatMemorisationVueTests(TestCase):
         self.prof = _creer_prof('prof_resultat_memo@zidni.test')
         self.eleve = _creer_eleve('eleve_resultat_memo@zidni.test')
 
+    def _creer_progression(self, hizb=2, thumn=1, sens='tanazuli'):
+        from courses.models import ProgressionMemorisation
+
+        return ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=hizb, thumn_depart=thumn, sens=sens,
+            hizb_actuel=hizb, thumn_actuel=thumn,
+        )
+
     def _donnees_hifz(self, criteres, resultat_memo='a_refaire'):
         donnees = {
             f'statut_{self.eleve.id}': 'present',
-            f'sourate_memo_{self.eleve.id}': '2',
-            f'ayah_debut_memo_{self.eleve.id}': '1',
-            f'ayah_fin_memo_{self.eleve.id}': '10',
             f'remarque_{self.eleve.id}': '',
             f'consigne_memo_{self.eleve.id}': 'حفظ الآيات 1-10',
+            f'travail_json_{self.eleve.id}': json.dumps([{'hizb_debut': 2, 'thumn_debut': 1, 'hizb_fin': 2, 'thumn_fin': 1}]),
             f'resultat_memo_{self.eleve.id}': resultat_memo,
             'remarque_generale': '',
         }
@@ -2810,6 +2822,7 @@ class PresenceResultatMemorisationVueTests(TestCase):
         systématiquement en position 1 -> axe الحفظ."""
         from courses.models import CritereEleve
 
+        self._creer_progression()
         creneau = _creer_creneau_dashboard()  # 1 slot 'lun' 16:00-17:00
         groupe = Groupe.objects.create(nom='ZZZ_مجموعة_نتيجة_حفظ', prof=self.prof, creneau=creneau)
         groupe.eleves.add(self.eleve)
@@ -2866,6 +2879,7 @@ class PresenceResultatMemorisationVueTests(TestCase):
         historique), jamais une confiance aveugle dans le client."""
         from courses.models import CritereEleve
 
+        self._creer_progression()
         creneau = _creer_creneau_dashboard()
         groupe = Groupe.objects.create(nom='ZZZ_مجموعة_قيمة_خاطئة', prof=self.prof, creneau=creneau)
         groupe.eleves.add(self.eleve)
@@ -2888,6 +2902,7 @@ class PresenceResultatMemorisationVueTests(TestCase):
         est contourné (POST direct, formulaire manipulé)."""
         from courses.models import CritereEleve
 
+        self._creer_progression()
         creneau = _creer_creneau_dashboard()
         groupe = Groupe.objects.create(nom='ZZZ_مجموعة_علامة_عالية', prof=self.prof, creneau=creneau)
         groupe.eleves.add(self.eleve)
@@ -2906,6 +2921,7 @@ class PresenceResultatMemorisationVueTests(TestCase):
         """Borne haute valide — 20/20 doit rester acceptée (pas un bridage à 19)."""
         from courses.models import CritereEleve, NotePresence
 
+        self._creer_progression()
         creneau = _creer_creneau_dashboard()
         groupe = Groupe.objects.create(nom='ZZZ_مجموعة_علامة_20', prof=self.prof, creneau=creneau)
         groupe.eleves.add(self.eleve)
@@ -2920,6 +2936,345 @@ class PresenceResultatMemorisationVueTests(TestCase):
             self.client.post(reverse('prof_presence_sauvegarder', args=[seance.id]), donnees)
         presence = Presence.objects.get(seance=seance, eleve=self.eleve)
         self.assertTrue(NotePresence.objects.filter(presence=presence, note=20).exists())
+
+
+# ============================================================================
+# Chantier du 2026-09-13 v2 — Évaluation initiale multi-parties ("أول حصة")
+# ============================================================================
+class PremiereSeanceEvaluationInitialeTests(TestCase):
+    """L'enseignant peut évaluer plusieurs حزب/ثمن (parties diagnostiques,
+    potentiellement non contigus) lors de la séance explicitement marquée
+    "أول حصة" — voir courses.models.PartieEvaluee.__doc__. Règle métier
+    centrale (demande explicite du client) : نقطة الانطلاق n'est JAMAIS
+    déduite de ces parties, elle vient exclusivement des champs hizb_depart_/
+    thumn_depart_/sens_. Voir aussi PresenceResultatMemorisationVueTests pour
+    le comportement d'une séance NORMALE (progression déjà initialisée)."""
+
+    MAINTENANT_LUNDI = timezone.make_aware(datetime.datetime(2026, 9, 14, 18, 0))  # lundi
+    MAINTENANT_LUNDI_SUIVANT = timezone.make_aware(datetime.datetime(2026, 9, 21, 18, 0))
+
+    def setUp(self):
+        from courses.models import CritereEleve
+
+        self.prof = _creer_prof('prof_premiere_seance@zidni.test')
+        self.eleve = _creer_eleve('eleve_premiere_seance@zidni.test')
+        creneau = _creer_creneau_dashboard()  # 1 slot 'lun' -> toujours position 1 -> axe حفظ
+        self.groupe = Groupe.objects.create(nom='ZZZ_مجموعة_أول_حصة', prof=self.prof, creneau=creneau)
+        self.groupe.eleves.add(self.eleve)
+        self.seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        self.criteres = list(CritereEleve.objects.filter(est_actif=True).exclude(type_lie='mouraja3a'))
+        self.client.force_login(self.prof.user)
+
+    def _donnees_base(self, parties=None, resultat='a_refaire'):
+        donnees = {
+            f'statut_{self.eleve.id}': 'present',
+            f'hizb_depart_{self.eleve.id}': '3',
+            f'thumn_depart_{self.eleve.id}': '4',
+            f'sens_{self.eleve.id}': 'tasaudi',
+            f'consigne_memo_{self.eleve.id}': 'تقييم أولي',
+            f'parties_json_{self.eleve.id}': json.dumps(parties or []),
+            # المحفوظ في هذه الحصة — requis dès que بلوك الحفظ s'applique, même
+            # à la toute première séance (voir dashboard.views.
+            # prof_presence_sauvegarder). resultat_memo par défaut sur
+            # 'a_refaire' pour que les tests existants qui ne s'intéressent
+            # QU'à نقطة الانطلاق restent lisibles (le point de départ ne bouge
+            # pas tant qu'on ne demande pas explicitement الانتقال).
+            f'travail_json_{self.eleve.id}': json.dumps([{'hizb_debut': 3, 'thumn_debut': 4, 'hizb_fin': 3, 'thumn_fin': 4}]),
+            f'resultat_memo_{self.eleve.id}': resultat,
+            'action': 'soumettre',
+        }
+        for c in self.criteres:
+            donnees[f'note_critere_{c.id}_{self.eleve.id}'] = '15'
+        return donnees
+
+    def test_point_de_depart_enregistre_tel_quel(self):
+        from courses.models import ProgressionMemorisation
+
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), self._donnees_base())
+        progression = ProgressionMemorisation.objects.get(eleve=self.eleve)
+        self.assertEqual((progression.hizb_depart, progression.thumn_depart), (3, 4))
+        self.assertEqual((progression.hizb_actuel, progression.thumn_actuel), (3, 4))
+        self.assertEqual(progression.sens, 'tasaudi')
+        self.assertEqual(progression.seance_initiale_id, self.seance.id)
+
+    def test_parties_evaluees_non_contigues_enregistrees_sans_affecter_le_depart(self):
+        from courses.models import ProgressionMemorisation
+
+        parties = [
+            {'hizb': 3, 'thumn': 1, 'resultat': 'valide'},
+            {'hizb': 3, 'thumn': 2, 'resultat': 'valide'},
+            {'hizb': 2, 'thumn': 1, 'resultat': 'a_refaire'},
+            {'hizb': 5, 'thumn': 6, 'resultat': 'valide'},
+        ]
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), self._donnees_base(parties))
+
+        presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
+        enregistrees = {(p.hizb, p.thumn, p.resultat) for p in presence.parties_evaluees.all()}
+        self.assertEqual(enregistrees, {(3, 1, 'valide'), (3, 2, 'valide'), (2, 1, 'a_refaire'), (5, 6, 'valide')})
+
+        # Règle fondamentale : la position réelle vient UNIQUEMENT de نقطة
+        # الانطلاق (3/4 dans _donnees_base), jamais de ces parties (qui
+        # contiennent pourtant des حزب/ثمن différents, dont un "a_refaire").
+        progression = ProgressionMemorisation.objects.get(eleve=self.eleve)
+        self.assertEqual((progression.hizb_actuel, progression.thumn_actuel), (3, 4))
+
+    def test_aucune_partie_evaluee_reste_valide(self):
+        """Les parties évaluées sont optionnelles — نقطة الانطلاق seule
+        suffit à initialiser la progression."""
+        from courses.models import ProgressionMemorisation
+
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), self._donnees_base())
+        presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
+        self.assertEqual(presence.parties_evaluees.count(), 0)
+        self.assertTrue(ProgressionMemorisation.objects.filter(eleve=self.eleve).exists())
+
+    def test_point_de_depart_manquant_refuse(self):
+        from courses.models import ProgressionMemorisation
+
+        donnees = self._donnees_base()
+        del donnees[f'hizb_depart_{self.eleve.id}']
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees)
+        self.assertFalse(ProgressionMemorisation.objects.filter(eleve=self.eleve).exists())
+        self.assertFalse(Presence.objects.filter(seance=self.seance, eleve=self.eleve).exists())
+
+    def test_protection_backend_refuse_ecraser_progression_existante(self):
+        """Un élève déjà initialisé par une AUTRE séance (config_modifiable =
+        False ici, voir dashboard.views.prof_presence_sauvegarder) : même si
+        le POST forgé contient encore hizb_depart_/thumn_depart_/sens_ (champs
+        normalement absents du formulaire dans ce cas), نقطة الانطلاق n'est
+        JAMAIS ré-écrasée silencieusement — mais la séance elle-même (المحفوظ
+        في هذه الحصة + إعادة/انتقال) est enregistrée normalement, comme
+        n'importe quelle séance suivante (plus de notion de "أول حصة" qui
+        bloquerait tout)."""
+        from courses.models import ProgressionMemorisation
+
+        autre_seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 7), heure=datetime.time(16, 0), type='normal')
+        ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=10, thumn_depart=1, sens='tanazuli',
+            hizb_actuel=10, thumn_actuel=1, seance_initiale=autre_seance,
+        )
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), self._donnees_base())
+        progression = ProgressionMemorisation.objects.get(eleve=self.eleve)
+        # نقطة الانطلاق/الموقف inchangés — jamais écrasés par la نقطة انطلاق
+        # forgée (3/4) : resultat par défaut de _donnees_base est 'a_refaire'.
+        self.assertEqual((progression.hizb_depart, progression.thumn_depart), (10, 1))
+        self.assertEqual((progression.hizb_actuel, progression.thumn_actuel), (10, 1))
+        presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
+        plage = presence.travail_seances.get()
+        self.assertEqual((plage.hizb_debut, plage.thumn_debut), (3, 4))
+
+    def test_reenregistrement_du_brouillon_de_la_meme_seance_autorise(self):
+        """Ré-enregistrer (brouillon) la MÊME séance "أول حصة" met à jour
+        نقطة الانطلاق telle que re-soumise — ce n'est PAS le cas "écrasement
+        par une autre séance" ci-dessus."""
+        from courses.models import ProgressionMemorisation
+
+        donnees_brouillon = self._donnees_base()
+        donnees_brouillon['action'] = 'enregistrer'
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees_brouillon)
+
+        donnees_corrigees = self._donnees_base()
+        donnees_corrigees[f'thumn_depart_{self.eleve.id}'] = '5'
+        donnees_corrigees['action'] = 'soumettre'
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees_corrigees)
+
+        progression = ProgressionMemorisation.objects.get(eleve=self.eleve)
+        self.assertEqual((progression.hizb_actuel, progression.thumn_actuel), (3, 5))
+        self.assertEqual(progression.seance_initiale_id, self.seance.id)
+
+    def test_seance_normale_apres_initialisation_utilise_progression_sans_reformulaire(self):
+        """Une fois initialisé, la séance SUIVANTE (pas "أول حصة") avance la
+        position via إعادة/انتقال — sans reformulaire حزب/ثمن/اتجاه."""
+        from courses.models import ProgressionMemorisation
+
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), self._donnees_base())
+
+        seance_2 = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 21), heure=datetime.time(16, 0), type='normal')
+        donnees_2 = {
+            f'statut_{self.eleve.id}': 'present',
+            f'consigne_memo_{self.eleve.id}': 'متابعة',
+            # Correctif du 2026-09-14 v6 : le موقف حالي après الانتقال devient
+            # DIRECTEMENT le "إلى" enregistré (3/5), jamais "3/4 + 1" appliqué
+            # en plus (voir courses.hizb_progression.
+            # nouvelle_position_apres_seance.__doc__) — la plage doit donc
+            # réellement représenter l'avancement (3/4 -> 3/5), pas un point
+            # unique, pour que ce test démontre encore une vraie avancée.
+            f'travail_json_{self.eleve.id}': json.dumps([{'hizb_debut': 3, 'thumn_debut': 4, 'hizb_fin': 3, 'thumn_fin': 5}]),
+            f'resultat_memo_{self.eleve.id}': 'valide',
+            'action': 'soumettre',
+        }
+        for c in self.criteres:
+            donnees_2[f'note_critere_{c.id}_{self.eleve.id}'] = '15'
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI_SUIVANT):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[seance_2.id]), donnees_2)
+
+        progression = ProgressionMemorisation.objects.get(eleve=self.eleve)
+        # موقف حالي = "إلى" de المحفوظ (3/5), jamais "3/4 + 1 ثمن" recalculé.
+        self.assertEqual((progression.hizb_actuel, progression.thumn_actuel), (3, 5))
+        plage = Presence.objects.get(seance=seance_2, eleve=self.eleve).travail_seances.get()
+        self.assertEqual((plage.hizb_debut, plage.thumn_debut, plage.hizb_fin, plage.thumn_fin), (3, 4, 3, 5))
+
+    def test_repasser_present_en_absent_annule_lavancee_de_ce_brouillon(self):
+        """Le prof enregistre d'abord un brouillon 'présent + الانتقال' (fait
+        avancer la progression), puis se ravise et repasse l'élève en absent
+        sur la MÊME séance avant "إرسال نهائي" — la progression doit revenir
+        exactement à sa position d'avant cette séance, pas rester figée sur
+        l'avancée invalidée par le changement de statut."""
+        from courses.models import ProgressionMemorisation
+
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), self._donnees_base())
+
+        seance_2 = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 21), heure=datetime.time(16, 0), type='normal')
+        donnees_present = {
+            f'statut_{self.eleve.id}': 'present',
+            f'consigne_memo_{self.eleve.id}': 'متابعة',
+            f'travail_json_{self.eleve.id}': json.dumps([{'hizb_debut': 3, 'thumn_debut': 4, 'hizb_fin': 3, 'thumn_fin': 5}]),
+            f'resultat_memo_{self.eleve.id}': 'valide',
+            'action': 'enregistrer',
+        }
+        for c in self.criteres:
+            donnees_present[f'note_critere_{c.id}_{self.eleve.id}'] = '15'
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI_SUIVANT):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[seance_2.id]), donnees_present)
+        progression = ProgressionMemorisation.objects.get(eleve=self.eleve)
+        self.assertEqual((progression.hizb_actuel, progression.thumn_actuel), (3, 5))
+
+        donnees_absent = {f'statut_{self.eleve.id}': 'absent', 'action': 'soumettre'}
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI_SUIVANT):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[seance_2.id]), donnees_absent)
+
+        progression.refresh_from_db()
+        self.assertEqual((progression.hizb_actuel, progression.thumn_actuel), (3, 4))
+        presence_2 = Presence.objects.get(seance=seance_2, eleve=self.eleve)
+        self.assertEqual(presence_2.travail_seances.count(), 0)
+
+
+# ---------- Chantier du 2026-09-14 v6 : bug réel "الانتقال" ----------
+class AnticalAdopteLePointDarriveeTests(TestCase):
+    """Reproduction bout-en-bout (vraie requête POST, vraie ProgressionMemorisation
+    en base) du bug réel signalé par le client : "الانتقال" avançait la
+    position de +1 ثمن à partir du موقف الحالي (via l'ancien position_suivante),
+    au lieu d'adopter le "إلى" réellement enregistré dans المحفوظ في هذه
+    الحصة. Voir courses.tests.NouvellePositionApresSeanceTests pour les tests
+    unitaires purs de la fonction centrale, et courses.hizb_progression.
+    nouvelle_position_apres_seance.__doc__ pour le détail du bug."""
+
+    MAINTENANT_LUNDI = timezone.make_aware(datetime.datetime(2026, 9, 14, 18, 0))
+    MAINTENANT_LUNDI_SUIVANT = timezone.make_aware(datetime.datetime(2026, 9, 21, 18, 0))
+
+    def setUp(self):
+        from courses.models import ProgressionMemorisation, CritereEleve
+
+        self.prof = _creer_prof('prof_anticall_bug@zidni.test')
+        self.eleve = _creer_eleve('eleve_anticall_bug@zidni.test')
+        creneau = _creer_creneau_dashboard()
+        self.groupe = Groupe.objects.create(nom='ZZZ_مجموعة_bug_انتقال', prof=self.prof, creneau=creneau)
+        self.groupe.eleves.add(self.eleve)
+        self.criteres = list(CritereEleve.objects.filter(est_actif=True).exclude(type_lie='mouraja3a'))
+        self.client.force_login(self.prof.user)
+        self.progression = None
+
+    def _initialiser_progression(self, hizb, thumn, sens='tanazuli'):
+        from courses.models import ProgressionMemorisation
+
+        self.progression = ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=hizb, thumn_depart=thumn, sens=sens,
+            hizb_actuel=hizb, thumn_actuel=thumn,
+        )
+
+    def _soumettre(self, seance, hizb_debut, thumn_debut, hizb_fin, thumn_fin, resultat='valide', maintenant=None):
+        donnees = {
+            f'statut_{self.eleve.id}': 'present',
+            f'consigne_memo_{self.eleve.id}': 'متابعة',
+            f'travail_json_{self.eleve.id}': json.dumps([{
+                'hizb_debut': hizb_debut, 'thumn_debut': thumn_debut,
+                'hizb_fin': hizb_fin, 'thumn_fin': thumn_fin,
+            }]),
+            f'resultat_memo_{self.eleve.id}': resultat,
+            'action': 'soumettre',
+        }
+        for c in self.criteres:
+            donnees[f'note_critere_{c.id}_{self.eleve.id}'] = '15'
+        with mock.patch('django.utils.timezone.now', return_value=maintenant or self.MAINTENANT_LUNDI):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[seance.id]), donnees)
+        self.progression.refresh_from_db()
+
+    def test_bug_reel_2_5_vers_2_6_donne_2_6_jamais_2_7(self):
+        """Cas exact signalé : موقف 2/5, المحفوظ 2/5->2/6, الانتقال => 2/6."""
+        self._initialiser_progression(2, 5)
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        self._soumettre(seance, 2, 5, 2, 6)
+        self.assertEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (2, 6))
+        self.assertNotEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (2, 7))
+
+    def test_travail_sur_plusieurs_hizb_donne_directement_le_point_darrivee(self):
+        """موقف 2/5, المحفوظ 2/5->3/4, الانتقال => 3/4 directement."""
+        self._initialiser_progression(2, 5)
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        self._soumettre(seance, 2, 5, 3, 4)
+        self.assertEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (3, 4))
+
+    def test_travail_sur_un_seul_thumn_ne_bouge_pas(self):
+        """موقف 2/5, المحفوظ 2/5->2/5, الانتقال => reste 2/5."""
+        self._initialiser_progression(2, 5)
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        self._soumettre(seance, 2, 5, 2, 5)
+        self.assertEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (2, 5))
+
+    def test_transition_entre_hizb_2_8_vers_3_4(self):
+        self._initialiser_progression(2, 8)
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        self._soumettre(seance, 2, 8, 3, 4)
+        self.assertEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (3, 4))
+
+    def test_direction_tasaudi_3_8_vers_2_1(self):
+        self._initialiser_progression(3, 8, sens='tasaudi')
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        self._soumettre(seance, 3, 8, 2, 1)
+        self.assertEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (2, 1))
+
+    def test_direction_tanazuli_3_8_vers_4_1(self):
+        self._initialiser_progression(3, 8, sens='tanazuli')
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        self._soumettre(seance, 3, 8, 4, 1)
+        self.assertEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (4, 1))
+
+    def test_a_refaire_ne_bouge_pas_meme_avec_un_travail_enregistre(self):
+        self._initialiser_progression(2, 5)
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        self._soumettre(seance, 2, 5, 2, 6, resultat='a_refaire')
+        self.assertEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (2, 5))
+
+    def test_historique_conserve_le_de_a_saisi(self):
+        """Le journal (TravailSeance) garde exactement le من->إلى saisi, même
+        après que الموقف الحالي soit devenu ce إلى."""
+        self._initialiser_progression(2, 5)
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        self._soumettre(seance, 2, 5, 3, 4)
+        plage = Presence.objects.get(seance=seance, eleve=self.eleve).travail_seances.get()
+        self.assertEqual((plage.hizb_debut, plage.thumn_debut, plage.hizb_fin, plage.thumn_fin), (2, 5, 3, 4))
+        self.assertEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (3, 4))
+
+    def test_seance_suivante_repart_bien_du_point_darrivee(self):
+        """La séance SUIVANTE doit récupérer 3/4 (jamais 3/5 ni une valeur
+        recalculée) comme موقف الحالي de départ."""
+        self._initialiser_progression(2, 5)
+        seance_1 = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        self._soumettre(seance_1, 2, 5, 3, 4)
+        self.assertEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (3, 4))
+
+        seance_2 = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 21), heure=datetime.time(16, 0), type='normal')
+        self._soumettre(seance_2, 3, 4, 3, 6, maintenant=self.MAINTENANT_LUNDI_SUIVANT)
+        self.assertEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (3, 6))
 
 
 # ---------- Chantier du 2026-09-12 (v2) : axe (الحفظ/المراجعة) 100% automatique ----------
@@ -2983,7 +3338,7 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
         n'existe plus — le formulaire (filtré selon l'axe automatique)
         s'affiche dès l'ouverture de la page."""
         reponse = self._get_detail(self.seance_hifz, self.MAINTENANT_LUNDI)
-        self.assertContains(reponse, f'name="sourate_memo_{self.eleve.id}"')
+        self.assertContains(reponse, f'name="hizb_depart_{self.eleve.id}"')
 
     def test_seance_position_1_affiche_le_bloc_hifz_uniquement(self):
         """Le profil commun de la position 1 (bucket nb_seances_semaine=2,
@@ -2993,7 +3348,7 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
         test_position_mixte_affiche_les_2_blocs_simultanement ci-dessous pour
         le cas où les 2 sont exigibles sur la MÊME séance)."""
         reponse = self._get_detail(self.seance_hifz, self.MAINTENANT_LUNDI)
-        self.assertContains(reponse, f'name="sourate_memo_{self.eleve.id}"')
+        self.assertContains(reponse, f'name="hizb_depart_{self.eleve.id}"')
         self.assertNotContains(reponse, f'name="sourate_rev_{self.eleve.id}"')
         self.assertNotContains(reponse, f'name="note_critere_{self.critere_mouraja3a_only.id}_{self.eleve.id}"')
         self.assertContains(reponse, 'محاور هذه الحصة')
@@ -3009,7 +3364,7 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
         le bloc مراجعة s'affichait (type_evaluation de la position 2 =
         'mouraja3a') et sourate_memorisee/consigne_memorisation étaient
         systématiquement écrasés à vide à chaque sauvegarde."""
-        from courses.models import CritereEleve
+        from courses.models import CritereEleve, ProgressionMemorisation
 
         self.critere_hifz_ajoute_a_position_2 = CritereEleve.objects.create(
             nom_ar='حفظ إضافي على الحصة المختلطة', ordre=98, type_lie='hifz',
@@ -3022,16 +3377,18 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
         profil_2.criteres.add(self.critere_hifz_ajoute_a_position_2)
 
         reponse = self._get_detail(self.seance_mouraja3a, self.MAINTENANT_MARDI)
-        self.assertContains(reponse, f'name="sourate_memo_{self.eleve.id}"')
+        self.assertContains(reponse, f'name="hizb_depart_{self.eleve.id}"')
         self.assertContains(reponse, f'name="sourate_rev_{self.eleve.id}"')
         self.assertContains(reponse, 'الحفظ والمراجعة')
 
         donnees = {
             f'statut_{self.eleve.id}': 'present',
-            f'sourate_memo_{self.eleve.id}': '2',
-            f'ayah_debut_memo_{self.eleve.id}': '1',
-            f'ayah_fin_memo_{self.eleve.id}': '10',
+            f'hizb_depart_{self.eleve.id}': '2',
+            f'thumn_depart_{self.eleve.id}': '1',
+            f'sens_{self.eleve.id}': 'tanazuli',
             f'consigne_memo_{self.eleve.id}': 'حفظ الآيات 1-10',
+            f'travail_json_{self.eleve.id}': json.dumps([{'hizb_debut': 2, 'thumn_debut': 1, 'hizb_fin': 2, 'thumn_fin': 1}]),
+            f'resultat_memo_{self.eleve.id}': 'a_refaire',
             f'sourate_rev_{self.eleve.id}': '3',
             f'ayah_debut_rev_{self.eleve.id}': '1',
             f'ayah_fin_rev_{self.eleve.id}': '5',
@@ -3046,7 +3403,12 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
             })
         presence = Presence.objects.get(seance=self.seance_mouraja3a, eleve=self.eleve)
         # Les 2 blocs sont bien enregistrés EN MÊME TEMPS — plus aucun écrasement.
-        self.assertEqual(presence.sourate_memorisee, 2)
+        # نقطة الانطلاق (حزب/ثمن) est sur ProgressionMemorisation, pas sur une
+        # PartieEvaluee — aucune partie évaluée n'a été soumise ici (parties_json
+        # absent), ce qui est valide (diagnostic optionnel).
+        progression = ProgressionMemorisation.objects.get(eleve=self.eleve)
+        self.assertEqual(progression.hizb_depart, 2)
+        self.assertEqual(progression.thumn_depart, 1)
         self.assertEqual(presence.consigne_memorisation, 'حفظ الآيات 1-10')
         self.assertEqual(presence.sourate_revisee, 3)
         self.assertEqual(presence.consigne_revision, 'مراجعة عامة')
@@ -3054,21 +3416,23 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
     def test_seance_position_2_affiche_le_bloc_mouraja3a_uniquement(self):
         reponse = self._get_detail(self.seance_mouraja3a, self.MAINTENANT_MARDI)
         self.assertContains(reponse, f'name="sourate_rev_{self.eleve.id}"')
-        self.assertNotContains(reponse, f'name="sourate_memo_{self.eleve.id}"')
+        self.assertNotContains(reponse, f'name="hizb_depart_{self.eleve.id}"')
         self.assertContains(reponse, f'name="note_critere_{self.critere_mouraja3a_only.id}_{self.eleve.id}"')
 
     def test_sauvegarde_hifz_ignore_les_champs_revision_forges(self):
         """Même si le POST contient (accès forgé) des champs sourate_rev_/
         consigne_rev_, l'axe مراجعة n'étant pas celui de CETTE séance
         (position 1 = حفظ), ils ne doivent jamais être enregistrés."""
-        from courses.models import CritereEleve
+        from courses.models import CritereEleve, ProgressionMemorisation
 
         donnees = {
             f'statut_{self.eleve.id}': 'present',
-            f'sourate_memo_{self.eleve.id}': '2',
-            f'ayah_debut_memo_{self.eleve.id}': '1',
-            f'ayah_fin_memo_{self.eleve.id}': '10',
+            f'hizb_depart_{self.eleve.id}': '2',
+            f'thumn_depart_{self.eleve.id}': '1',
+            f'sens_{self.eleve.id}': 'tanazuli',
             f'consigne_memo_{self.eleve.id}': 'حفظ الآيات 1-10',
+            f'travail_json_{self.eleve.id}': json.dumps([{'hizb_debut': 2, 'thumn_debut': 1, 'hizb_fin': 2, 'thumn_fin': 1}]),
+            f'resultat_memo_{self.eleve.id}': 'a_refaire',
             # Champs de l'axe non applicable — forgés, doivent être ignorés.
             f'sourate_rev_{self.eleve.id}': '3',
             f'ayah_debut_rev_{self.eleve.id}': '1',
@@ -3081,7 +3445,7 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
         with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
             self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance_hifz.id]), donnees)
         presence = Presence.objects.get(seance=self.seance_hifz, eleve=self.eleve)
-        self.assertEqual(presence.sourate_memorisee, 2)
+        self.assertEqual(ProgressionMemorisation.objects.get(eleve=self.eleve).hizb_depart, 2)
         self.assertIsNone(presence.sourate_revisee)
         self.assertEqual(presence.consigne_revision, '')
 
@@ -3301,12 +3665,15 @@ class ProfResolutionAutomatiqueCriteresTests(TestCase):
             self._champ_note(self.hifz_crit): '14',
             self._champ_note(self.tilawa_crit): '16',
             # التلاوة a type_lie='hifz' (voir CritereEleve.TYPE_LIE_CHOICES.__doc__)
-            # -> bloc_memorisation_applicable est True ici, donc le bloc
-            # سورة/آيات/consigne du حفظ est obligatoire pour un élève présent.
-            f'sourate_memo_{self.eleve.id}': '2',
-            f'ayah_debut_memo_{self.eleve.id}': '1',
-            f'ayah_fin_memo_{self.eleve.id}': '10',
+            # -> bloc_memorisation_applicable est True ici, donc نقطة الانطلاق
+            # est obligatoire pour un élève présent (config_modifiable, car
+            # aucune ProgressionMemorisation n'existe encore).
+            f'hizb_depart_{self.eleve.id}': '2',
+            f'thumn_depart_{self.eleve.id}': '1',
+            f'sens_{self.eleve.id}': 'tanazuli',
             f'consigne_memo_{self.eleve.id}': 'حفظ الآيات 1-10',
+            f'travail_json_{self.eleve.id}': json.dumps([{'hizb_debut': 2, 'thumn_debut': 1, 'hizb_fin': 2, 'thumn_fin': 1}]),
+            f'resultat_memo_{self.eleve.id}': 'a_refaire',
         }
         self.client.force_login(self.prof.user)
         with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT_LUNDI):
@@ -3320,10 +3687,18 @@ class ProfResolutionAutomatiqueCriteresTests(TestCase):
         self.assertRedirects(reponse, reverse('prof_seances'))
         self.seance_s1.refresh_from_db()
         self.assertEqual(self.seance_s1.statut, 'terminee')
-        from courses.models import NotePresence
+        from courses.models import NotePresence, ProgressionMemorisation
         presence = Presence.objects.get(seance=self.seance_s1, eleve=self.eleve)
         self.assertEqual(NotePresence.objects.get(presence=presence, critere=self.hifz_crit).note, 14)
         self.assertEqual(NotePresence.objects.get(presence=presence, critere=self.tilawa_crit).note, 16)
+        # Idempotence (chantier du 2026-09-13 v2) : 2 sauvegardes
+        # ('enregistrer' puis 'soumettre') de la MÊME séance "أول حصة" ne
+        # doivent réinitialiser نقطة الانطلاق qu'avec les MÊMES valeurs —
+        # jamais avancer la position (aucune notion d'action لهذه الحصة).
+        progression = ProgressionMemorisation.objects.get(eleve=self.eleve)
+        self.assertEqual((progression.hizb_depart, progression.thumn_depart), (2, 1))
+        self.assertEqual((progression.hizb_actuel, progression.thumn_actuel), (2, 1))
+        self.assertEqual(progression.seance_initiale_id, self.seance_s1.id)
 
 
 class HistoriqueNotesCriteresDynamiquesTests(TestCase):
@@ -4175,7 +4550,7 @@ class TypeLieEstPurementDescriptifTests(TestCase):
         self.assertNotContains(reponse, f'name="note_critere_{self.tilawa_crit.id}_{self.eleve.id}"')
         # المراجعة étant présente, le bloc contextuel مراجعة (سورة/آيات/consigne) s'affiche.
         self.assertContains(reponse, f'name="sourate_rev_{self.eleve.id}"')
-        self.assertNotContains(reponse, f'name="sourate_memo_{self.eleve.id}"')
+        self.assertNotContains(reponse, f'name="hizb_depart_{self.eleve.id}"')
 
     def test_type_lie_naffecte_que_le_bloc_contextuel_jamais_la_liste_des_criteres(self):
         """حفظ + مراجعة configurés ensemble sur la même position : les 2 blocs
@@ -4334,10 +4709,12 @@ class ProfPresenceEnregistrerSoumettreTests(TestCase):
 
         donnees = {
             f'statut_{self.eleve.id}': 'present',
-            f'sourate_memo_{self.eleve.id}': '2',
-            f'ayah_debut_memo_{self.eleve.id}': '1',
-            f'ayah_fin_memo_{self.eleve.id}': '10',
+            f'hizb_depart_{self.eleve.id}': '2',
+            f'thumn_depart_{self.eleve.id}': '1',
+            f'sens_{self.eleve.id}': 'tanazuli',
             f'consigne_memo_{self.eleve.id}': 'حفظ الآيات 1-10',
+            f'travail_json_{self.eleve.id}': json.dumps([{'hizb_debut': 2, 'thumn_debut': 1, 'hizb_fin': 2, 'thumn_fin': 1}]),
+            f'resultat_memo_{self.eleve.id}': 'a_refaire',
         }
         for c in CritereEleve.objects.filter(est_actif=True):
             donnees[f'note_critere_{c.id}_{self.eleve.id}'] = '15'
@@ -4356,8 +4733,8 @@ class ProfPresenceEnregistrerSoumettreTests(TestCase):
             # une séance de test datée dans le futur) fausserait le résultat.
             self.assertTrue(self.seance.modifiable_par_prof)
         self.assertRedirects(reponse, reverse('prof_seance_detail', args=[self.seance.id]))
-        presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
-        self.assertEqual(presence.sourate_memorisee, 2)
+        from courses.models import ProgressionMemorisation
+        self.assertEqual(ProgressionMemorisation.objects.get(eleve=self.eleve).hizb_depart, 2)
 
     def test_soumettre_sauvegarde_et_finalise(self):
         donnees = self._donnees_valides()
@@ -4406,8 +4783,8 @@ class ProfPresenceEnregistrerSoumettreTests(TestCase):
             self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees)
             reponse = self.client.get(reverse('prof_seance_detail', args=[self.seance.id]))
         self.assertContains(reponse, self.eleve.user.get_full_name())
-        presence = Presence.objects.get(seance=self.seance, eleve=self.eleve)
-        self.assertEqual(presence.sourate_memorisee, 2)
+        from courses.models import ProgressionMemorisation
+        self.assertEqual(ProgressionMemorisation.objects.get(eleve=self.eleve).hizb_depart, 2)
 
 
 # ==================== Chantier notifications (2026-08-19) ====================
@@ -9278,24 +9655,33 @@ class AdminCalendrierFiltresEtGrilleTests(TestCase):
 class IndicateurProgressionHizbSur60Tests(TestCase):
     """Rendu réel des 3 pages qui affichent l'indicateur de progression حزب/ثمن
     (dashboard_eleve, eleve_progression, admin_eleve_detail) avec une VRAIE
-    ProgressionMemorisation en base (حزب complets > 0 ET reste en ثمن > 0,
-    pour exercer les 2 branches du gabarit _ring_hizb.html/admin_eleve_detail.
-    html) — s'assure qu'aucune erreur de gabarit n'a été introduite en
-    remplaçant l'indicateur "ثمن/480" par "حزب/60" (retour explicite du
-    client : l'indicateur PRINCIPAL doit rester en حزب, voir courses.utils.
-    position_progression_eleve)."""
+    ProgressionMemorisation + TravailSeance validée en base (حزب complets > 0
+    ET reste en ثمن > 0, pour exercer les 2 branches du gabarit _ring_hizb.
+    html/admin_eleve_detail.html) — s'assure qu'aucune erreur de gabarit n'a
+    été introduite.
+
+    Chantier du 2026-09-14 v5 (retour client) : l'indicateur PRINCIPAL est
+    désormais basé sur couverture_hifz_reelle (union des TravailSeance
+    validées), PAS sur la distance du parcours officiel (position_hizb) —
+    voir courses.utils.couverture_hifz_reelle.__doc__ pour la raison (un
+    élève qui saute des حزب serait sinon surcompté)."""
 
     def setUp(self):
-        from courses.models import ProgressionMemorisation
+        from courses.models import ProgressionMemorisation, TravailSeance
 
         self.eleve = _creer_eleve('eleve_indicateur_hizb60@zidni.test')
         self.admin = _creer_admin()
-        # Départ 2/3, تنازلي, position actuelle 3/4 -> distance 9 ثمن = 1 حزب
-        # complet + 1 ثمن (cas exact du bug signalé le 2026-09-14 v4).
         ProgressionMemorisation.objects.create(
-            eleve=self.eleve, hizb_depart=2, thumn_depart=3, sens='tanazuli',
-            hizb_actuel=3, thumn_actuel=4,
+            eleve=self.eleve, hizb_depart=1, thumn_depart=1, sens='tanazuli',
+            hizb_actuel=2, thumn_actuel=1,
         )
+        creneau = _creer_creneau_dashboard()
+        groupe = Groupe.objects.create(nom='ZZZ_مجموعة_indicateur_hizb60', creneau=creneau)
+        groupe.eleves.add(self.eleve)
+        seance = Seance.objects.create(groupe=groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        presence = Presence.objects.create(seance=seance, eleve=self.eleve, statut='present', resultat_memorisation='valide')
+        # Couvre حزب 1 en entier (8 ثمن) + le 1er ثمن du حزب 2 -> 1 حزب complet + 1 ثمن.
+        TravailSeance.objects.create(presence=presence, hizb_debut=1, thumn_debut=1, hizb_fin=2, thumn_fin=1, ordre=0)
 
     def test_dashboard_eleve_affiche_hizb_sur_60(self):
         self.client.force_login(self.eleve.user)
@@ -9310,11 +9696,299 @@ class IndicateurProgressionHizbSur60Tests(TestCase):
         reponse = self.client.get(reverse('eleve_progression'))
         self.assertEqual(reponse.status_code, 200)
         self.assertContains(reponse, '/ 60')
-        self.assertEqual(reponse.context['position_hizb']['nb_hizb_complets'], 1)
-        self.assertEqual(reponse.context['position_hizb']['nb_thumn_complets_hizb_courant'], 1)
+        self.assertEqual(reponse.context['couverture_reelle']['nb_hizb_complets'], 1)
+        self.assertEqual(reponse.context['couverture_reelle']['nb_thumns_partiels'], 1)
 
     def test_admin_eleve_detail_affiche_hizb_sur_60(self):
         self.client.force_login(self.admin)
         reponse = self.client.get(reverse('admin_eleve_detail', args=[self.eleve.id]))
         self.assertEqual(reponse.status_code, 200)
         self.assertContains(reponse, '/ 60')
+
+    def test_hizb_1_2_puis_5_6_en_sautant_3_4_affiche_4_pas_6(self):
+        """Reproduction bout-en-bout (rendu réel) du cas signalé par le
+        client : mémorisation non continue -> l'indicateur affiche 4/60,
+        jamais 6/60."""
+        from courses.models import TravailSeance
+
+        eleve = _creer_eleve('eleve_saut_hizb@zidni.test')
+        from courses.models import ProgressionMemorisation
+        ProgressionMemorisation.objects.create(
+            eleve=eleve, hizb_depart=1, thumn_depart=1, sens='tanazuli',
+            hizb_actuel=6, thumn_actuel=8,
+        )
+        creneau = _creer_creneau_dashboard()
+        groupe = Groupe.objects.create(nom='ZZZ_مجموعة_saut_hizb', creneau=creneau)
+        groupe.eleves.add(eleve)
+        s1 = Seance.objects.create(groupe=groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        p1 = Presence.objects.create(seance=s1, eleve=eleve, statut='present', resultat_memorisation='valide')
+        TravailSeance.objects.create(presence=p1, hizb_debut=1, thumn_debut=1, hizb_fin=2, thumn_fin=8, ordre=0)
+        s2 = Seance.objects.create(groupe=groupe, date=datetime.date(2026, 9, 21), heure=datetime.time(16, 0), type='normal')
+        p2 = Presence.objects.create(seance=s2, eleve=eleve, statut='present', resultat_memorisation='valide')
+        TravailSeance.objects.create(presence=p2, hizb_debut=5, thumn_debut=1, hizb_fin=6, thumn_fin=8, ordre=0)
+
+        self.client.force_login(eleve.user)
+        reponse = self.client.get(reverse('eleve_progression'))
+        self.assertEqual(reponse.context['couverture_reelle']['nb_hizb_complets'], 4)
+        self.assertNotEqual(reponse.context['couverture_reelle']['nb_hizb_complets'], 6)
+        self.assertContains(reponse, '4')
+        self.assertContains(reponse, '/ 60')
+
+
+# ---------- Audit du 2026-09-14 §7 : موقف الحالي et couverture réelle affichés ----------
+class MoqifEtCouvertureReelleEndToEndTests(TestCase):
+    """Scénario bout-en-bout exact demandé par le client (audit) : un élève
+    dont الموقف الحالي (ProgressionMemorisation.hizb_actuel/thumn_actuel,
+    parcours OFFICIEL continu) pointe sur حزب 6 — الثمن 3, alors que sa
+    couverture RÉELLEMENT acquise et validée (courses.utils.
+    couverture_hifz_reelle, union des TravailSeance) ne totalise que 4 أحزاب
+    + 2 أثمان (34 ثمن) — les deux chiffres sont volontairement DIFFÉRENTS et
+    doivent être affichés l'un et l'autre, sans jamais être confondus ni
+    fusionnés (voir courses.models.ProgressionMemorisation/TravailSeance.
+    __doc__ : 2 concepts séparés par construction)."""
+
+    def setUp(self):
+        from courses.models import ProgressionMemorisation, TravailSeance
+
+        self.eleve = _creer_eleve('eleve_moqif_vs_couverture@zidni.test')
+        self.admin = _creer_admin()
+        # موقف الحالي : حزب 6 — الثمن 3, indépendant de tout TravailSeance.
+        self.progression = ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=1, thumn_depart=1, sens='tanazuli',
+            hizb_actuel=6, thumn_actuel=3,
+        )
+        creneau = _creer_creneau_dashboard()
+        groupe = Groupe.objects.create(nom='ZZZ_مجموعة_moqif_vs_couverture', creneau=creneau)
+        groupe.eleves.add(self.eleve)
+
+        def _presence(jour):
+            seance = Seance.objects.create(groupe=groupe, date=datetime.date(2026, 9, jour), heure=datetime.time(16, 0), type='normal')
+            return Presence.objects.create(seance=seance, eleve=self.eleve, statut='present', resultat_memorisation='valide')
+
+        # 4 حزب complets, NON contigus (1,2 puis 5,6 — sautant 3,4) = 32 ثمن.
+        TravailSeance.objects.create(presence=_presence(1), hizb_debut=1, thumn_debut=1, hizb_fin=2, thumn_fin=8, ordre=0)
+        TravailSeance.objects.create(presence=_presence(8), hizb_debut=5, thumn_debut=1, hizb_fin=6, thumn_fin=8, ordre=0)
+        # + 2 ثمن partiels ailleurs (حزب 10, non contigu non plus) = 34 ثمن au total.
+        TravailSeance.objects.create(presence=_presence(15), hizb_debut=10, thumn_debut=1, hizb_fin=10, thumn_fin=2, ordre=0)
+
+    def test_couverture_reelle_calculee_distincte_du_moqif(self):
+        from courses.utils import couverture_hifz_reelle, position_progression_eleve
+
+        couverture = couverture_hifz_reelle(self.eleve)
+        self.assertEqual(couverture['nb_hizb_complets'], 4)
+        self.assertEqual(couverture['nb_thumns_partiels'], 2)
+        self.assertEqual(couverture['total_thumns_couverts'], 34)
+
+        position = position_progression_eleve(self.eleve)
+        self.assertEqual(position['hizb_actuel'], 6)
+        self.assertEqual(position['thumn_actuel'], 3)
+        # Les deux indicateurs ne coïncident PAS — exactement le scénario
+        # dont l'affichage doit rester cohérent (pas une erreur de calcul).
+        self.assertNotEqual(couverture['nb_hizb_complets'], position['hizb_actuel'])
+
+    def test_page_admin_affiche_les_deux_chiffres_sans_les_confondre(self):
+        self.client.force_login(self.admin)
+        reponse = self.client.get(reverse('admin_eleve_detail', args=[self.eleve.id]))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse.context['position_hizb']['hizb_actuel'], 6)
+        self.assertEqual(reponse.context['position_hizb']['thumn_actuel'], 3)
+        self.assertEqual(reponse.context['couverture_reelle']['nb_hizb_complets'], 4)
+        self.assertEqual(reponse.context['couverture_reelle']['nb_thumns_partiels'], 2)
+        contenu = reponse.content.decode('utf-8')
+        # موقف الحالي : حزب 6 — الثمن 3 (parcours officiel).
+        self.assertIn('6', contenu)
+        # couverture réelle : "4 حزب + 2 أثمان" (union validée, jamais 6).
+        self.assertIn('4', contenu)
+        self.assertIn('2', contenu)
+
+    def test_page_eleve_progression_affiche_les_deux_chiffres_sans_les_confondre(self):
+        self.client.force_login(self.eleve.user)
+        reponse = self.client.get(reverse('eleve_progression'))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse.context['position_hizb']['hizb_actuel'], 6)
+        self.assertEqual(reponse.context['couverture_reelle']['nb_hizb_complets'], 4)
+        self.assertEqual(reponse.context['couverture_reelle']['nb_thumns_partiels'], 2)
+
+
+# ---------- Audit du 2026-09-14 §8 : prof_modifier_direction_hifz ----------
+class ProfModifierDirectionHifzTests(TestCase):
+    """dashboard.views.prof_modifier_direction_hifz — تعديل مسار الحفظ.
+    Vérifie : GET autorisé, prof non autorisé (élève d'un autre prof) =>
+    404, changement تصاعدي<->تنازلي persisté, hizb_actuel/thumn_actuel/
+    hizb_depart/thumn_depart et l'historique (Presence/TravailSeance)
+    STRICTEMENT inchangés, et le nouveau sens réellement utilisé par la
+    prochaine sauvegarde de séance (dashboard.views.prof_presence_
+    sauvegarder), pas seulement écrit en base sans effet."""
+
+    def setUp(self):
+        from courses.models import ProgressionMemorisation, CritereEleve
+
+        self.prof = _creer_prof('prof_direction_hifz@zidni.test')
+        self.autre_prof = _creer_prof('autre_prof_direction_hifz@zidni.test')
+        self.eleve = _creer_eleve('eleve_direction_hifz@zidni.test')
+        creneau = _creer_creneau_dashboard()
+        self.groupe = Groupe.objects.create(nom='ZZZ_مجموعة_direction_hifz', prof=self.prof, creneau=creneau)
+        self.groupe.eleves.add(self.eleve)
+        self.progression = ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=3, thumn_depart=8, sens='tanazuli',
+            hizb_actuel=3, thumn_actuel=8,
+        )
+        self.criteres = list(CritereEleve.objects.filter(est_actif=True).exclude(type_lie='mouraja3a'))
+
+    def test_get_autorise_affiche_le_formulaire(self):
+        self.client.force_login(self.prof.user)
+        reponse = self.client.get(reverse('prof_modifier_direction_hifz', args=[self.eleve.id]))
+        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(reponse.context['progression'], self.progression)
+        self.assertContains(reponse, 'tanazuli')
+
+    def test_prof_non_autorise_recoit_404(self):
+        """Un élève qui n'est dans AUCUN groupe de ce prof ne doit jamais
+        être accessible via cette vue — même en devinant l'ID."""
+        self.client.force_login(self.autre_prof.user)
+        reponse = self.client.get(reverse('prof_modifier_direction_hifz', args=[self.eleve.id]))
+        self.assertEqual(reponse.status_code, 404)
+
+        reponse_post = self.client.post(
+            reverse('prof_modifier_direction_hifz', args=[self.eleve.id]), {'sens': 'tasaudi'},
+        )
+        self.assertEqual(reponse_post.status_code, 404)
+        self.progression.refresh_from_db()
+        self.assertEqual(self.progression.sens, 'tanazuli')  # inchangé
+
+    def test_changement_tanazuli_vers_tasaudi_persiste(self):
+        self.client.force_login(self.prof.user)
+        reponse = self.client.post(
+            reverse('prof_modifier_direction_hifz', args=[self.eleve.id]), {'sens': 'tasaudi'},
+        )
+        self.assertRedirects(reponse, reverse('prof_groupes'))
+        self.progression.refresh_from_db()
+        self.assertEqual(self.progression.sens, 'tasaudi')
+
+    def test_position_et_depart_strictement_inchanges_apres_changement_de_sens(self):
+        self.client.force_login(self.prof.user)
+        self.client.post(reverse('prof_modifier_direction_hifz', args=[self.eleve.id]), {'sens': 'tasaudi'})
+        self.progression.refresh_from_db()
+        self.assertEqual((self.progression.hizb_depart, self.progression.thumn_depart), (3, 8))
+        self.assertEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (3, 8))
+        self.assertFalse(self.progression.terminee)
+
+    def test_historique_travail_seance_inchange_apres_changement_de_sens(self):
+        from courses.models import TravailSeance
+
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        presence = Presence.objects.create(seance=seance, eleve=self.eleve, statut='present', resultat_memorisation='valide')
+        TravailSeance.objects.create(presence=presence, hizb_debut=3, thumn_debut=8, hizb_fin=3, thumn_fin=8, ordre=0)
+        nb_presences_avant = Presence.objects.filter(eleve=self.eleve).count()
+        nb_travail_avant = TravailSeance.objects.filter(presence__eleve=self.eleve).count()
+
+        self.client.force_login(self.prof.user)
+        self.client.post(reverse('prof_modifier_direction_hifz', args=[self.eleve.id]), {'sens': 'tasaudi'})
+
+        self.assertEqual(Presence.objects.filter(eleve=self.eleve).count(), nb_presences_avant)
+        self.assertEqual(TravailSeance.objects.filter(presence__eleve=self.eleve).count(), nb_travail_avant)
+
+    def test_sens_invalide_rejete_sans_modification(self):
+        self.client.force_login(self.prof.user)
+        self.client.post(reverse('prof_modifier_direction_hifz', args=[self.eleve.id]), {'sens': 'invalide'})
+        self.progression.refresh_from_db()
+        self.assertEqual(self.progression.sens, 'tanazuli')
+
+    def test_nouveau_sens_reellement_utilise_par_la_prochaine_seance(self):
+        """Preuve que le sens changé ici est bien celui LU par
+        prof_presence_sauvegarder ensuite (pas seulement écrit en base sans
+        effet) : موقف 3/8, changement تنازلي -> تصاعدي, puis une séance
+        normale travaillant 3/8 -> 2/1 (transition SEULEMENT valide en
+        تصاعدي, voir courses.hizb_progression.hizb_suivant) doit donner
+        موقف حالي 2/1."""
+        self.client.force_login(self.prof.user)
+        self.client.post(reverse('prof_modifier_direction_hifz', args=[self.eleve.id]), {'sens': 'tasaudi'})
+
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        donnees = {
+            f'statut_{self.eleve.id}': 'present',
+            f'consigne_memo_{self.eleve.id}': 'متابعة',
+            f'travail_json_{self.eleve.id}': json.dumps([{'hizb_debut': 3, 'thumn_debut': 8, 'hizb_fin': 2, 'thumn_fin': 1}]),
+            f'resultat_memo_{self.eleve.id}': 'valide',
+            'action': 'soumettre',
+        }
+        for c in self.criteres:
+            donnees[f'note_critere_{c.id}_{self.eleve.id}'] = '15'
+        self.client.post(reverse('prof_presence_sauvegarder', args=[seance.id]), donnees)
+
+        self.progression.refresh_from_db()
+        self.assertEqual((self.progression.hizb_actuel, self.progression.thumn_actuel), (2, 1))
+        self.assertEqual(self.progression.sens, 'tasaudi')
+
+
+# ---------- Chantier du 2026-09-14 : "آخر ما تم حفظه" figé sur l'ancien système ----------
+class DernierHifzWidgetDashboardEleveTests(TestCase):
+    """Presence.sourate_memorisee est GELÉ depuis le passage au système
+    حزب/ثمن (plus jamais réécrit) — signalé par le client : le widget "آخر ما
+    تم حفظه" de dashboard_eleve restait figé sur les dernières sourates
+    d'AVANT la bascule, sans jamais refléter le travail حزب/ثمن réellement
+    effectué depuis. Voir dashboard.views.dashboard_eleve (travail_recent)."""
+
+    def setUp(self):
+        self.eleve = _creer_eleve('eleve_widget_dernier_hifz@zidni.test')
+        creneau = _creer_creneau_dashboard()
+        self.groupe = Groupe.objects.create(nom='ZZZ_مجموعة_widget_dernier_hifz', creneau=creneau)
+        self.groupe.eleves.add(self.eleve)
+        self.client.force_login(self.eleve.user)
+
+    def test_travail_hizb_recent_remplace_les_anciennes_sourates_figees(self):
+        from courses.models import TravailSeance, CritereEleve, NotePresence
+
+        # Ancienne Presence (avant la bascule) : sourate_memorisee renseignée.
+        seance_ancienne = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 8, 1), heure=datetime.time(16, 0), type='normal',
+        )
+        Presence.objects.create(
+            seance=seance_ancienne, eleve=self.eleve, statut='present',
+            sourate_memorisee=112, ayah_debut_memorisation=1, ayah_fin_memorisation=4,
+        )
+
+        # Nouvelle séance حزب/ثمن (postérieure) : sourate_memorisee reste None
+        # — visible dans l'historique via sa note de critère (comme une
+        # vraie Presence saisie par prof_presence_sauvegarder, voir
+        # calculer_progression_eleve : notes_criteres__isnull=False).
+        critere = CritereEleve.objects.create(nom_ar='معيار تجريبي', ordre=1, est_actif=True)
+        seance_recente = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal',
+        )
+        presence_recente = Presence.objects.create(
+            seance=seance_recente, eleve=self.eleve, statut='present', resultat_memorisation='valide',
+        )
+        NotePresence.objects.create(presence=presence_recente, critere=critere, note=15)
+        TravailSeance.objects.create(presence=presence_recente, hizb_debut=2, thumn_debut=3, hizb_fin=2, thumn_fin=6, ordre=0)
+
+        reponse = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(reponse.status_code, 200)
+        # Le travail حزب/ثمن récent doit apparaître...
+        self.assertEqual(len(reponse.context['travail_recent']), 1)
+        self.assertEqual(reponse.context['travail_recent'][0]['hizb_debut'], 2)
+        self.assertContains(reponse, 'حزب 2')
+        # ... et remplacer entièrement l'ancien aperçu par sourate (plus figé).
+        self.assertEqual(reponse.context['sourates_recentes'], [])
+
+    def test_seance_a_refaire_non_comptee_comme_dernier_hifz(self):
+        from courses.models import TravailSeance, CritereEleve, NotePresence
+
+        critere = CritereEleve.objects.create(nom_ar='معيار تجريبي 2', ordre=1, est_actif=True)
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        presence = Presence.objects.create(seance=seance, eleve=self.eleve, statut='present', resultat_memorisation='a_refaire')
+        NotePresence.objects.create(presence=presence, critere=critere, note=15)
+        TravailSeance.objects.create(presence=presence, hizb_debut=2, thumn_debut=3, hizb_fin=2, thumn_fin=6, ordre=0)
+
+        reponse = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(reponse.context['travail_recent'], [])
+
+    def test_repli_sur_sourates_si_aucun_travail_hizb_enregistre(self):
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 8, 1), heure=datetime.time(16, 0), type='normal')
+        Presence.objects.create(
+            seance=seance, eleve=self.eleve, statut='present',
+            sourate_memorisee=112, ayah_debut_memorisation=1, ayah_fin_memorisation=4,
+        )
+        reponse = self.client.get(reverse('dashboard_eleve'))
+        self.assertEqual(reponse.context['travail_recent'], [])
+        self.assertEqual(len(reponse.context['sourates_recentes']), 1)

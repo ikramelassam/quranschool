@@ -3,17 +3,28 @@
 {% block title %}{% trans "تقدمي في الحفظ" %}{% endblock %}
 {% block content %}
 <div class="page-title">{% trans "تقدمي في الحفظ" %}</div>
-<div class="page-subtitle">{% trans "متابعة تراكمية لما تم حفظه، مبنية على عدد الآيات" %}</div>
+<div class="page-subtitle">{% trans "متابعة مسار الحفظ حسب الحزب والثمن" %}</div>
 
 <div class="hero-ring-card">
     {% include 'dashboard/_ring_hizb.html' %}
-    <div class="stats-row">
-        <div class="stat-mini"><div class="v">{{ progression.total_ayat_memorises }}</div><div class="l">{% trans "آية محفوظة" %}</div></div>
-        <div class="stat-mini"><div class="v">{{ progression.nb_sourates_distinctes }}</div><div class="l">{% trans "سورة بدأت" %}</div></div>
-    </div>
 </div>
 
-<div class="section-title">{% trans "التقدم حسب السورة" %}</div>
+{% if position_hizb %}
+<div class="compact-card mb-4" style="padding:16px 20px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+        <div>
+            <div style="color:#888; font-size:0.78rem;">{% trans "نقطة الانطلاق" %}</div>
+            <div style="font-weight:600;">{% blocktrans with numero=position_hizb.hizb_depart thumn=position_hizb.thumn_depart %}حزب {{ numero }} — الثمن {{ thumn }}{% endblocktrans %}</div>
+        </div>
+        <div>
+            <div style="color:#888; font-size:0.78rem;">{% trans "الاتجاه" %}</div>
+            <div style="font-weight:600;">{{ position_hizb.sens_display }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="section-title">{% trans "التقدم حسب السورة (سجل قديم)" %}</div>
 <div class="compact-card mb-4" style="padding:4px 20px;">
     {% for item in progression.par_sourate %}
     <div style="padding:14px 0; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %}">
@@ -37,7 +48,20 @@
     <div style="padding:14px 0; {% if not forloop.last or progression.historique|length > 10 %}border-bottom:1px solid #f5f0e6;{% endif %}">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
             <div>
-                {% if h.sourate %}
+                {% if h.travail_ranges %}
+                {% for plage in h.travail_ranges %}
+                <div style="font-weight:600;">
+                    {% if plage.hizb_debut == plage.hizb_fin %}
+                    {% blocktrans with numero=plage.hizb_debut nom=plage.nom_debut td=plage.thumn_debut tf=plage.thumn_fin %}حزب {{ numero }} — {{ nom }} — الثمن {{ td }} → {{ tf }}{% endblocktrans %}
+                    {% else %}
+                    {% blocktrans with n1=plage.hizb_debut nom1=plage.nom_debut td=plage.thumn_debut n2=plage.hizb_fin nom2=plage.nom_fin tf=plage.thumn_fin %}حزب {{ n1 }} — {{ nom1 }} — الثمن {{ td }} → حزب {{ n2 }} — {{ nom2 }} — الثمن {{ tf }}{% endblocktrans %}
+                    {% endif %}
+                    {% if h.resultat_memorisation == 'a_refaire' %}
+                    <span style="background:#fdecea; color:#b71c1c; border-radius:20px; padding:1px 8px; font-size:0.72rem; font-weight:600; margin-inline-start:4px;">🔁 {% trans "يعاد" %}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% elif h.sourate %}
                 <div style="font-weight:600;">
                     {{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})
                     {% if h.resultat_memorisation == 'a_refaire' %}
@@ -76,7 +100,20 @@
         <div style="padding:14px 0; {% if not forloop.last %}border-bottom:1px solid #f5f0e6;{% endif %}">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                 <div>
-                    {% if h.sourate %}
+                    {% if h.travail_ranges %}
+                {% for plage in h.travail_ranges %}
+                <div style="font-weight:600;">
+                    {% if plage.hizb_debut == plage.hizb_fin %}
+                    {% blocktrans with numero=plage.hizb_debut nom=plage.nom_debut td=plage.thumn_debut tf=plage.thumn_fin %}حزب {{ numero }} — {{ nom }} — الثمن {{ td }} → {{ tf }}{% endblocktrans %}
+                    {% else %}
+                    {% blocktrans with n1=plage.hizb_debut nom1=plage.nom_debut td=plage.thumn_debut n2=plage.hizb_fin nom2=plage.nom_fin tf=plage.thumn_fin %}حزب {{ n1 }} — {{ nom1 }} — الثمن {{ td }} → حزب {{ n2 }} — {{ nom2 }} — الثمن {{ tf }}{% endblocktrans %}
+                    {% endif %}
+                    {% if h.resultat_memorisation == 'a_refaire' %}
+                    <span style="background:#fdecea; color:#b71c1c; border-radius:20px; padding:1px 8px; font-size:0.72rem; font-weight:600; margin-inline-start:4px;">🔁 {% trans "يعاد" %}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% elif h.sourate %}
                 <div style="font-weight:600;">
                     {{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})
                     {% if h.resultat_memorisation == 'a_refaire' %}

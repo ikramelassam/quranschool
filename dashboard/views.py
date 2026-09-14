@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import secrets
 
@@ -888,8 +889,9 @@ def rejoindre_seance(request, seance_id):
 @role_required('prof')
 def prof_seance_detail(request, seance_id):
     from accounts.models import Prof
-    from courses.models import Seance, Presence, CritereEleve, NotePresence
+    from courses.models import Seance, Presence, CritereEleve, NotePresence, ProgressionMemorisation
     from courses.quran_data import SOURATES
+    from courses.hizb_progression import HIZB_NOMS, SENS_CHOICES
 
     prof = get_object_or_404(Prof, user=request.user)
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
@@ -923,13 +925,30 @@ def prof_seance_detail(request, seance_id):
 
     # Django templates ne peuvent pas faire presences[eleve.id] (lookup par variable).
     # On construit donc directement la liste (élève, présence) dans la vue.
-    presences_par_eleve = {p.eleve_id: p for p in Presence.objects.filter(seance=seance)}
+    # prefetch_related (chantier du 2026-09-14) : la lecture seule d'une
+    # séance déjà 'terminee' (et le pré-remplissage d'un brouillon existant)
+    # itèrent presence.travail_seances.all / presence.parties_evaluees.all
+    # pour chaque élève — sans ça, 1-2 requêtes par élève.
+    presences_par_eleve = {
+        p.eleve_id: p for p in Presence.objects.filter(seance=seance)
+        .prefetch_related('travail_seances', 'parties_evaluees')
+    }
     # Même limitation pour les notes par critère : {(eleve_id, critere_id): note}.
     notes_par_cellule = {
         (n.presence.eleve_id, n.critere_id): n.note
         for n in NotePresence.objects.filter(presence__seance=seance).select_related('presence')
     }
+    # Position حزب/ثمن de chaque élève (chantier du 2026-09-13) — 1 seule
+    # requête pour tout le groupe plutôt qu'un aller-retour par élève (même
+    # principe que notes_par_cellule ci-dessus). Absent (élève jamais encore
+    # évalué en حفظ) => l'élève passe par le mini-formulaire "التقييم الأولي"
+    # dans le template, voir prof_seance_detail.html.
+    progressions_par_eleve = {
+        p.eleve_id: p for p in ProgressionMemorisation.objects.filter(eleve__in=eleves)
+    }
     eleves_presences = []
+    travail_existant_par_eleve = {}
+    parties_existantes_par_eleve = {}
     premiere_non_remplie_trouvee = False
     for eleve in eleves:
         presence = presences_par_eleve.get(eleve.id)
@@ -950,11 +969,53 @@ def prof_seance_detail(request, seance_id):
             }
             for c in criteres_actifs
         ]
+
+        # Aperçu pour "إعادة الجزء" uniquement (reste au موقف الحالي, connu
+        # d'avance) — correctif du 2026-09-14 v6 : plus d'aperçu statique pour
+        # "الانتقال", qui ne signifie plus "position actuelle + 1 ثمن" mais
+        # "adopter le إلى de المحفوظ في هذه الحصة" (voir dashboard.views.
+        # prof_presence_sauvegarder) — sa cible dépend de ce que le prof
+        # saisit dans le formulaire, impossible à précalculer côté serveur
+        # avant soumission. None si l'élève n'a pas encore de progression
+        # configurée ou a déjà terminé sa progression dans son sens.
+        progression_hizb = progressions_par_eleve.get(eleve.id)
+        apercu_actions = None
+        if progression_hizb and not progression_hizb.terminee:
+            apercu_actions = {
+                'a_refaire': (progression_hizb.hizb_actuel, progression_hizb.thumn_actuel),
+            }
+
+        # Chantier du 2026-09-14 (v3, demande explicite du client) : plus de
+        # checkbox "أول حصة" — la config (نقطة الانطلاق + اتجاه) reste
+        # modifiable EN PLACE tant qu'aucune AUTRE séance n'a encore travaillé
+        # dessus (voir ProgressionMemorisation.seance_initiale.__doc__) ;
+        # au-delà, seule l'action explicite "تعديل مسار الحفظ" (direction
+        # uniquement) est proposée — voir prof_modifier_direction_hifz.
+        config_modifiable = progression_hizb is None or progression_hizb.seance_initiale_id == seance.id
+
+        # Sérialisé en JSON-safe (pas des instances de modèle), regroupé par
+        # eleve.id dans travail_existant_par_eleve/parties_existantes_par_eleve
+        # (contexte top-level, voir plus bas) — lu par le JS de
+        # prof_seance_detail.html pour pré-remplir les lignes répétables sur
+        # un brouillon déjà enregistré (ré-ouverture de la page avant "إرسال
+        # نهائي").
+        travail_existant_par_eleve[eleve.id] = [
+            {'hizb_debut': t.hizb_debut, 'thumn_debut': t.thumn_debut, 'hizb_fin': t.hizb_fin, 'thumn_fin': t.thumn_fin}
+            for t in (presence.travail_seances.all() if presence else [])
+        ]
+        parties_existantes_par_eleve[eleve.id] = [
+            {'hizb': p.hizb, 'thumn': p.thumn, 'resultat': p.resultat}
+            for p in (presence.parties_evaluees.all() if presence else [])
+        ]
+
         eleves_presences.append({
             'eleve': eleve,
             'presence': presence,
             'ouvrir_par_defaut': ouvrir_par_defaut,
             'notes_criteres': notes_criteres,
+            'progression_hizb': progression_hizb,
+            'apercu_actions': apercu_actions,
+            'config_modifiable': config_modifiable,
         })
 
     return render(request, 'dashboard/prof_seance_detail.html', {
@@ -963,7 +1024,11 @@ def prof_seance_detail(request, seance_id):
         'eleves_presences': eleves_presences,
         'criteres_actifs': criteres_actifs,
         'sourates': SOURATES,
+        'hizb_noms': HIZB_NOMS,
+        'sens_choices': SENS_CHOICES,
         'statut_choices': Presence.STATUT_CHOICES,
+        'travail_existant_par_eleve': travail_existant_par_eleve,
+        'parties_existantes_par_eleve': parties_existantes_par_eleve,
         # Une séance restée 'planifiee' après le délai de 24h n'est pas forcément
         # vide : un seul élève avec une plage d'ayat invalide suffit à empêcher le
         # passage à 'terminee', même si tous les autres ont bien été enregistrés
@@ -984,7 +1049,8 @@ def prof_seance_detail(request, seance_id):
 @role_required('prof')
 def prof_presence_sauvegarder(request, seance_id):
     from accounts.models import Prof, Eleve
-    from courses.models import Seance, Presence
+    from courses.models import Seance, Presence, ProgressionMemorisation, PartieEvaluee, TravailSeance
+    from courses.hizb_progression import SENS_CHOICES, nouvelle_position_apres_seance
 
     from django.utils import timezone
 
@@ -1045,10 +1111,23 @@ def prof_presence_sauvegarder(request, seance_id):
         # d'erreur ci-dessous — sans ça, 1 requête par élève dès qu'une seule
         # ligne du formulaire est invalide.
         eleves = seance.groupe.eleves.filter(statut='actif').select_related('user')
+
+        # Position حزب/ثمن de chaque élève AVANT cette sauvegarde (chantier du
+        # 2026-09-13) + Presence déjà existante pour CETTE séance précise —
+        # nécessaire pour rester idempotent sur "إعادة الحفظ" (le prof peut
+        # enregistrer un brouillon plusieurs fois avant "إرسال نهائي" : la
+        # position TRAVAILLÉE cette séance ne doit jamais être recalculée à
+        # chaque brouillon, voir plus bas).
+        progressions_par_eleve = {
+            p.eleve_id: p for p in ProgressionMemorisation.objects.filter(eleve__in=eleves)
+        }
+        presences_existantes = {p.eleve_id: p for p in Presence.objects.filter(seance=seance)}
+
         erreurs = []
         for eleve in eleves:
             statut = request.POST.get(f'statut_{eleve.id}', 'absent')
             remarque = request.POST.get(f'remarque_{eleve.id}', '')
+            presence_existante = presences_existantes.get(eleve.id)
 
             # Correction de régression du 2026-09-12 : chaque bloc (حفظ/مراجعة)
             # est désormais lu depuis le POST INDÉPENDAMMENT, d'après
@@ -1060,22 +1139,105 @@ def prof_presence_sauvegarder(request, seance_id):
             # bloc_memorisation_applicable.__doc__). Un bloc non applicable à
             # cette séance reste vidé/valeur par défaut, comme avant, pour
             # ignorer toute valeur POST orpheline (accès forgé).
+            #
+            # Chantier du 2026-09-14 v3, demande explicite du client :
+            # séparation stricte de 3 notions (voir courses.models.
+            # ProgressionMemorisation/TravailSeance/PartieEvaluee.__doc__),
+            # jamais fusionnées ni déduites l'une de l'autre :
+            # - نقطة الانطلاق + اتجاه (ProgressionMemorisation) : choisie UNE
+            #   FOIS, modifiable en place tant qu'aucune AUTRE séance n'a
+            #   encore travaillé dessus (config_modifiable, voir
+            #   prof_seance_detail) — plus de checkbox "أول حصة" séparée : le
+            #   même formulaire sert à chaque séance.
+            # - المحفوظ في هذه الحصة (TravailSeance, 0..N plages) : CE QUI A
+            #   ÉTÉ TRAVAILLÉ, à CHAQUE séance, indépendant de la position
+            #   officielle — jamais utilisé pour calculer la progression.
+            # - أجزاء التقييم الأولي (PartieEvaluee) : diagnostic de niveau,
+            #   uniquement pertinent tant que config_modifiable — jamais
+            #   d'effet sur la progression.
+            progression_hizb = progressions_par_eleve.get(eleve.id)
+            config_modifiable = progression_hizb is None or progression_hizb.seance_initiale_id == seance.id
+            consigne_memorisation = ''
+            position_initiale_invalide = False
+            nouveau_depart = None  # (hizb, thumn, sens) si نقطة الانطلاق (re)définie cette fois
+            parties_a_creer = []  # diagnostic : [(hizb, thumn, resultat, ordre), ...]
+            travail_a_creer = []  # المحفوظ في هذه الحصة : [(hizb_debut, thumn_debut, hizb_fin, thumn_fin, ordre), ...]
+            resultat_avancement = None  # إعادة/انتقال — None = rien à avancer (absent sans progression)
+
             if bloc_memo:
-                sourate_memorisee = request.POST.get(f'sourate_memo_{eleve.id}') or None
-                ayah_debut_memorisation = request.POST.get(f'ayah_debut_memo_{eleve.id}') or None
-                ayah_fin_memorisation = request.POST.get(f'ayah_fin_memo_{eleve.id}') or None
                 consigne_memorisation = request.POST.get(f'consigne_memo_{eleve.id}', '')
-                # Critère ينتقل/يعيد (Tâche du 2026-08-18) — 'valide' par défaut
-                # si rien n'est coché. On ignore toute valeur POST qui ne
-                # serait pas l'un des 2 choix valides plutôt que de faire
-                # confiance au client.
-                resultat_memorisation = request.POST.get(f'resultat_memo_{eleve.id}', 'valide')
-                if resultat_memorisation not in dict(Presence.RESULTAT_CHOICES):
-                    resultat_memorisation = 'valide'
-            else:
-                sourate_memorisee = ayah_debut_memorisation = ayah_fin_memorisation = None
-                consigne_memorisation = ''
-                resultat_memorisation = 'valide'
+
+                if statut != 'present':
+                    # Absent : rien à configurer/travailler cette fois-ci. Si
+                    # une progression existe déjà et qu'un brouillon précédent
+                    # de CETTE séance l'avait fait avancer pendant que l'élève
+                    # était présent, 'a_refaire' la fait revenir exactement à
+                    # sa position d'avant cette séance (voir plus bas).
+                    if progression_hizb is not None:
+                        resultat_avancement = 'a_refaire'
+                else:
+                    if config_modifiable:
+                        hizb_brut = request.POST.get(f'hizb_depart_{eleve.id}')
+                        thumn_brut = request.POST.get(f'thumn_depart_{eleve.id}')
+                        sens_brut = request.POST.get(f'sens_{eleve.id}')
+                        hizb_valide, thumn_valide = _valider_position_hizb(hizb_brut, thumn_brut)
+                        if hizb_valide is None or thumn_valide is None or sens_brut not in dict(SENS_CHOICES):
+                            erreurs.append(
+                                gettext_('%(v0)s: يجب تحديد نقطة انطلاق الحفظ (الحزب، الثمن، واتجاه التقدم).') % {'v0': eleve.user.get_full_name()}
+                            )
+                            position_initiale_invalide = True
+                        else:
+                            nouveau_depart = (hizb_valide, thumn_valide, sens_brut)
+                            # أجزاء التقييم الأولي (diagnostic, facultatif) —
+                            # uniquement tant que la config est modifiable.
+                            try:
+                                parties_liste = json.loads(request.POST.get(f'parties_json_{eleve.id}', '[]'))
+                                if not isinstance(parties_liste, list):
+                                    parties_liste = []
+                            except (TypeError, ValueError):
+                                parties_liste = []
+                            for i, item in enumerate(parties_liste):
+                                if not isinstance(item, dict):
+                                    continue
+                                h_valide, t_valide = _valider_position_hizb(item.get('hizb'), item.get('thumn'))
+                                if h_valide is None or t_valide is None:
+                                    continue
+                                r_valide = item.get('resultat')
+                                if r_valide not in dict(Presence.RESULTAT_CHOICES):
+                                    r_valide = 'valide'
+                                parties_a_creer.append((h_valide, t_valide, r_valide, i))
+
+                    if not position_initiale_invalide:
+                        # المحفوظ في هذه الحصة + ماذا حدث بالنسبة للتقدم —
+                        # TOUJOURS lus ici, que نقطة الانطلاق vienne d'être
+                        # (re)définie ci-dessus ou qu'elle existait déjà : même
+                        # structure de formulaire à chaque séance.
+                        try:
+                            travail_liste = json.loads(request.POST.get(f'travail_json_{eleve.id}', '[]'))
+                            if not isinstance(travail_liste, list):
+                                travail_liste = []
+                        except (TypeError, ValueError):
+                            travail_liste = []
+                        for i, item in enumerate(travail_liste):
+                            if not isinstance(item, dict):
+                                continue
+                            hd, td = _valider_position_hizb(item.get('hizb_debut'), item.get('thumn_debut'))
+                            hf, tf = _valider_position_hizb(item.get('hizb_fin'), item.get('thumn_fin'))
+                            if hd is None or td is None or hf is None or tf is None:
+                                continue
+                            travail_a_creer.append((hd, td, hf, tf, i))
+
+                        if not travail_a_creer:
+                            erreurs.append(
+                                gettext_('%(v0)s: يجب تحديد ما تم حفظه في هذه الحصة (من — إلى).') % {'v0': eleve.user.get_full_name()}
+                            )
+                            position_initiale_invalide = True
+
+                        # Critère ينتقل/يعيد (Tâche du 2026-08-18) — 'valide'
+                        # par défaut si rien n'est coché.
+                        resultat_avancement = request.POST.get(f'resultat_memo_{eleve.id}', 'valide')
+                        if resultat_avancement not in dict(Presence.RESULTAT_CHOICES):
+                            resultat_avancement = 'valide'
 
             if bloc_rev:
                 sourate_revisee = request.POST.get(f'sourate_rev_{eleve.id}') or None
@@ -1101,26 +1263,14 @@ def prof_presence_sauvegarder(request, seance_id):
             }
 
             # Une plage d'ayat inversée (fin < début) donnerait un nombre d'ayat
-            # mémorisés/révisés négatif ou nul silencieusement (voir Presence.nb_ayat_memorises) —
+            # révisés négatif ou nul silencieusement (voir Presence.nb_ayat_revises) —
             # on refuse d'enregistrer cette ligne plutôt que d'accepter une valeur incohérente.
             # De même, une fin au-delà du nombre réel d'ayat de la sourate choisie
             # (ex: ayah 300 pour الفاتحة qui n'en a que 7) doit être refusée — voir
-            # _ayah_depasse_sourate et le commentaire de courses/quran_data.py qui
-            # annonçait cette validation sans qu'elle ait jamais été implémentée.
-            # Les 2 blocs peuvent être validés (séance mixte حفظ+مراجعة) : un
-            # bloc non applicable a ses champs toujours None ci-dessus, ces 2
-            # fonctions renvoient alors False sans rien valider pour lui.
-            ligne_invalide = False
-            if _ayah_incoherentes(ayah_debut_memorisation, ayah_fin_memorisation):
-                erreurs.append(
-                    gettext_('%(v0)s: آية نهاية الحفظ (%(v1)s) يجب أن تكون أكبر من أو تساوي آية البداية (%(v2)s).') % {'v0': eleve.user.get_full_name(), 'v1': ayah_fin_memorisation, 'v2': ayah_debut_memorisation}
-                )
-                ligne_invalide = True
-            elif _ayah_depasse_sourate(sourate_memorisee, ayah_fin_memorisation):
-                erreurs.append(
-                    gettext_('%(v0)s: آية نهاية الحفظ (%(v1)s) تتجاوز عدد آيات %(v2)s (%(v3)s آية).') % {'v0': eleve.user.get_full_name(), 'v1': ayah_fin_memorisation, 'v2': _nom_sourate(sourate_memorisee), 'v3': _total_ayat_sourate(sourate_memorisee)}
-                )
-                ligne_invalide = True
+            # _ayah_depasse_sourate. Ne concerne plus le bloc حفظ depuis le
+            # chantier du 2026-09-13 (position حزب/ثمن, plus de sourate/ayah
+            # saisis manuellement — voir position_initiale_invalide ci-dessus).
+            ligne_invalide = position_initiale_invalide
             if _ayah_incoherentes(ayah_debut_revision, ayah_fin_revision):
                 erreurs.append(
                     gettext_('%(v0)s: آية نهاية المراجعة (%(v1)s) يجب أن تكون أكبر من أو تساوي آية البداية (%(v2)s).') % {'v0': eleve.user.get_full_name(), 'v1': ayah_fin_revision, 'v2': ayah_debut_revision}
@@ -1176,16 +1326,13 @@ def prof_presence_sauvegarder(request, seance_id):
                 eleve=eleve,
                 defaults={
                     'statut': statut,
-                    'sourate_memorisee': sourate_memorisee,
-                    'ayah_debut_memorisation': ayah_debut_memorisation,
-                    'ayah_fin_memorisation': ayah_fin_memorisation,
                     'sourate_revisee': sourate_revisee,
                     'ayah_debut_revision': ayah_debut_revision,
                     'ayah_fin_revision': ayah_fin_revision,
                     'remarque': remarque,
                     'consigne_memorisation': consigne_memorisation,
                     'consigne_revision': consigne_revision,
-                    'resultat_memorisation': resultat_memorisation,
+                    'resultat_memorisation': resultat_avancement or 'valide',
                     'resultat_revision': resultat_revision,
                 }
             )
@@ -1200,6 +1347,86 @@ def prof_presence_sauvegarder(request, seance_id):
                     )
                 else:
                     NotePresence.objects.filter(presence=presence, critere=critere).delete()
+
+            # أجزاء التقييم الأولي (PartieEvaluee, diagnostic) — remplace
+            # intégralement à chaque sauvegarde. 0..N lignes : 0 si la config
+            # n'est pas modifiable cette fois, ou si l'élève est absent.
+            presence.parties_evaluees.all().delete()
+            if parties_a_creer:
+                PartieEvaluee.objects.bulk_create([
+                    PartieEvaluee(presence=presence, hizb=h, thumn=t, resultat=r, ordre=i)
+                    for h, t, r, i in parties_a_creer
+                ])
+
+            # المحفوظ في هذه الحصة (TravailSeance) — remplace intégralement à
+            # chaque sauvegarde (idempotent sur un brouillon re-enregistré).
+            # PUREMENT descriptif : n'influence jamais le calcul ci-dessous.
+            presence.travail_seances.all().delete()
+            if travail_a_creer:
+                TravailSeance.objects.bulk_create([
+                    TravailSeance(presence=presence, hizb_debut=hd, thumn_debut=td, hizb_fin=hf, thumn_fin=tf, ordre=i)
+                    for hd, td, hf, tf, i in travail_a_creer
+                ])
+
+            # ProgressionMemorisation — نقطة الانطلاق (nouveau_depart) n'est
+            # JAMAIS déduite de TravailSeance/PartieEvaluee ci-dessus.
+            if nouveau_depart is not None:
+                hizb_d, thumn_d, sens_d = nouveau_depart
+                if progression_hizb is None:
+                    progression_hizb = ProgressionMemorisation.objects.create(
+                        eleve=eleve, hizb_depart=hizb_d, thumn_depart=thumn_d, sens=sens_d,
+                        hizb_actuel=hizb_d, thumn_actuel=thumn_d, seance_initiale=seance,
+                    )
+                else:
+                    # Ré-enregistrement d'un brouillon de CETTE MÊME séance
+                    # (déjà vérifié plus haut : seance_initiale_id ==
+                    # seance.id) — mise à jour de نقطة الانطلاق telle que
+                    # re-soumise. Réinitialise aussi le suivi d'idempotence
+                    # ci-dessous : cette séance recommence sa contribution
+                    # depuis ce نقطة الانطلاق (éventuellement corrigé).
+                    progression_hizb.hizb_depart = hizb_d
+                    progression_hizb.thumn_depart = thumn_d
+                    progression_hizb.sens = sens_d
+                    progression_hizb.hizb_actuel = hizb_d
+                    progression_hizb.thumn_actuel = thumn_d
+                    progression_hizb.terminee = False
+                    progression_hizb.derniere_seance_travaillee = None
+                    progression_hizb.hizb_avant_derniere_seance = None
+                    progression_hizb.thumn_avant_derniere_seance = None
+                    progression_hizb.save()
+
+            # ماذا حدث بالنسبة للتقدم (إعادة/انتقال) — recalculée ENTIÈREMENT
+            # à partir de la position "avant CETTE séance" à chaque
+            # sauvegarde, jamais de façon incrémentale sur hizb_actuel, pour
+            # rester idempotent si le prof enregistre plusieurs brouillons
+            # avant "إرسال نهائي" (voir ProgressionMemorisation.
+            # derniere_seance_travaillee.__doc__). S'applique aussi bien à la
+            # toute première contribution (juste après نقطة الانطلاق
+            # ci-dessus, hizb_actuel == hizb_depart) qu'à une séance normale.
+            #
+            # Correctif du 2026-09-14 v6 (bug réel signalé par le client) :
+            # "الانتقال" ne signifie PAS "position actuelle + 1 ثمن" mais
+            # "adopter le إلى de المحفوظ في هذه الحصة comme nouveau موقف
+            # حالي" — voir courses.hizb_progression.nouvelle_position_apres_
+            # seance.__doc__, LA source de vérité unique pour ce calcul.
+            if resultat_avancement is not None and progression_hizb is not None:
+                if progression_hizb.derniere_seance_travaillee_id == seance.id:
+                    hizb_avant = progression_hizb.hizb_avant_derniere_seance
+                    thumn_avant = progression_hizb.thumn_avant_derniere_seance
+                else:
+                    hizb_avant = progression_hizb.hizb_actuel
+                    thumn_avant = progression_hizb.thumn_actuel
+                    progression_hizb.hizb_avant_derniere_seance = hizb_avant
+                    progression_hizb.thumn_avant_derniere_seance = thumn_avant
+                    progression_hizb.derniere_seance_travaillee = seance
+
+                plages_travaillees = [(hf, tf) for (_, _, hf, tf, _) in travail_a_creer]
+                nouveau_hizb, nouveau_thumn, terminee = nouvelle_position_apres_seance(
+                    hizb_avant, thumn_avant, progression_hizb.sens, resultat_avancement, plages_travaillees,
+                )
+                progression_hizb.hizb_actuel, progression_hizb.thumn_actuel = nouveau_hizb, nouveau_thumn
+                progression_hizb.terminee = terminee
+                progression_hizb.save()
 
         if erreurs:
             for erreur in erreurs:
@@ -1226,6 +1453,62 @@ def prof_presence_sauvegarder(request, seance_id):
             return redirect('prof_seance_detail', seance_id=seance.id)
 
     return redirect('prof_seance_detail', seance_id=seance_id)
+
+
+@role_required('prof')
+def prof_modifier_direction_hifz(request, eleve_id):
+    """تعديل مسار الحفظ — action EXPLICITE et séparée (demande explicite du
+    client, chantier du 2026-09-14) pour changer UNIQUEMENT la direction
+    (اتجاه) d'un parcours de mémorisation déjà configuré. Ne touche JAMAIS :
+    - hizb_actuel/thumn_actuel (la position actuelle) ;
+    - hizb_depart/thumn_depart (le point de départ historique) ;
+    - l'historique déjà enregistré (TravailSeance, PartieEvaluee, Presence).
+    Un changement de direction ne s'applique qu'aux FUTURES transitions
+    (courses.hizb_progression.hizb_suivant) — voir ProgressionMemorisation.
+    __doc__. Scope identique à prof_seance_detail : uniquement les élèves
+    d'un groupe enseigné par ce prof."""
+    from accounts.models import Prof, Eleve
+    from courses.models import ProgressionMemorisation
+    from courses.hizb_progression import SENS_CHOICES
+
+    prof = get_object_or_404(Prof, user=request.user)
+    eleve = get_object_or_404(Eleve, id=eleve_id, groupes__prof=prof)
+    progression = get_object_or_404(ProgressionMemorisation, eleve=eleve)
+
+    if request.method == 'POST':
+        nouveau_sens = request.POST.get('sens')
+        if nouveau_sens not in dict(SENS_CHOICES):
+            messages.error(request, gettext_('يجب اختيار اتجاه صحيح.'))
+        else:
+            progression.sens = nouveau_sens
+            progression.save()
+            messages.success(request, gettext_('تم تحديث اتجاه مسار الحفظ. لن يتأثر أي مما سُجِّل سابقاً — فقط الانتقالات القادمة.'))
+        suivant = request.POST.get('next')
+        if suivant:
+            return redirect(suivant)
+        return redirect('prof_groupes')
+
+    return render(request, 'dashboard/prof_modifier_direction_hifz.html', {
+        'eleve': eleve,
+        'progression': progression,
+        'sens_choices': SENS_CHOICES,
+        'next': request.GET.get('next', ''),
+    })
+
+
+def _valider_position_hizb(hizb_brut, thumn_brut):
+    """(hizb, thumn) validés (entiers dans leurs bornes 1-60/1-8) à partir des
+    valeurs POST brutes de l'évaluation initiale, ou (None, None) si l'une des
+    deux est absente/invalide — jamais de confiance aveugle dans les <select>
+    du formulaire (accès forgé). Voir dashboard.views.prof_presence_sauvegarder."""
+    try:
+        hizb = int(hizb_brut)
+        thumn = int(thumn_brut)
+    except (TypeError, ValueError):
+        return None, None
+    if not (1 <= hizb <= 60) or not (1 <= thumn <= 8):
+        return None, None
+    return hizb, thumn
 
 
 def _ayah_incoherentes(debut, fin):
@@ -3594,7 +3877,7 @@ def mshrif_logo(request):
 def dashboard_eleve(request):
     from accounts.models import Eleve
     from courses.models import Seance, Presence
-    from courses.utils import calculer_progression_eleve, calculer_hizb_precis, ring_dashoffset_hizb
+    from courses.utils import calculer_progression_eleve, position_progression_eleve, couverture_hifz_reelle, ring_dashoffset_hizb
     from django.utils import timezone
 
     try:
@@ -3606,27 +3889,49 @@ def dashboard_eleve(request):
     aujourdhui = timezone.localdate()
 
     progression = calculer_progression_eleve(eleve)
-    hizb = calculer_hizb_precis(eleve)
-    nb_hizb = hizb['nb_hizb_complets']
-    ring_dashoffset = ring_dashoffset_hizb(nb_hizb)
+    position_hizb = position_progression_eleve(eleve)
+    couverture_reelle = couverture_hifz_reelle(eleve) if position_hizb else None
+    ring_dashoffset = ring_dashoffset_hizb(couverture_reelle['total_thumns_couverts'] if couverture_reelle else 0)
 
-    # Aperçu "dernier hifz par sourate": on part de l'historique (déjà
-    # trié du plus récent au plus ancien par calculer_progression_eleve)
-    # et on garde la 1ère occurrence de chaque sourate rencontrée, donc
-    # triée par récence et non par numéro de sourate. Chaque entrée de
-    # par_sourate porte déjà son propre pourcentage + dernière note.
-    par_sourate_par_nom = {item['nom']: item for item in progression['par_sourate']}
-    sourates_recentes = []
-    vues = set()
+    # "آخر ما تم حفظه" — chantier du 2026-09-14 : Presence.sourate_memorisee
+    # est GELÉ depuis le passage au système حزب/ثمن (plus jamais réécrit par
+    # une nouvelle séance, voir calculer_progression_eleve.__doc__) — un
+    # élève qui n'a QUE des séances حزب/ثمن voyait donc cette carte figée à
+    # jamais sur ses 3 dernières sourates حفظ AVANT la bascule, sans jamais
+    # refléter le moindre travail réel postérieur (signalé par le client :
+    # "pourquoi ça ne change pas ?"). travail_recent (TravailSeance, validé)
+    # est désormais la source PRIORITAIRE ; le rendu par sourate ne sert plus
+    # que de repli pour un élève n'ayant STRICTEMENT aucune séance حزب/ثمن.
+    travail_recent = []
     for h in progression['historique']:
-        if h['sourate'] in vues:
+        if h['resultat_memorisation'] != 'valide':
             continue
-        vues.add(h['sourate'])
-        par = par_sourate_par_nom.get(h['sourate'])
-        if par:
-            sourates_recentes.append(par)
-        if len(sourates_recentes) == 3:
+        for plage in h['travail_ranges']:
+            travail_recent.append(plage)
+            if len(travail_recent) == 3:
+                break
+        if len(travail_recent) == 3:
             break
+
+    sourates_recentes = []
+    if not travail_recent:
+        # Aperçu "dernier hifz par sourate" (repli, historique antérieur au
+        # chantier حزب/ثمن uniquement) : on part de l'historique (déjà trié
+        # du plus récent au plus ancien) et on garde la 1ère occurrence de
+        # chaque sourate rencontrée, donc triée par récence et non par
+        # numéro de sourate. Chaque entrée de par_sourate porte déjà son
+        # propre pourcentage + dernière note.
+        par_sourate_par_nom = {item['nom']: item for item in progression['par_sourate']}
+        vues = set()
+        for h in progression['historique']:
+            if h['sourate'] in vues:
+                continue
+            vues.add(h['sourate'])
+            par = par_sourate_par_nom.get(h['sourate'])
+            if par:
+                sourates_recentes.append(par)
+            if len(sourates_recentes) == 3:
+                break
 
     # Prochaine séance: même filtre que eleve_seances (exclut seulement les
     # séances déjà terminées) — une séance annulée reste affichée avec son
@@ -3689,10 +3994,11 @@ def dashboard_eleve(request):
         'aujourdhui': aujourdhui,
         'total_seances': Presence.objects.filter(eleve=eleve).count(),
         'total_present': Presence.objects.filter(eleve=eleve, statut='present').count(),
-        'nb_hizb_memorises': nb_hizb,
         'nb_sourates_distinctes': progression['nb_sourates_distinctes'],
-        'hizb_en_cours': hizb['hizb_en_cours'],
+        'position_hizb': position_hizb,
+        'couverture_reelle': couverture_reelle,
         'ring_dashoffset': ring_dashoffset,
+        'travail_recent': travail_recent,
         'sourates_recentes': sourates_recentes,
         'prochaine_seance': prochaine_seance,
         'dernieres_evaluations': dernieres_evaluations,
@@ -3775,7 +4081,7 @@ def eleve_seances(request):
     presences = Presence.objects.filter(
         eleve=eleve
     ).select_related('seance__groupe').prefetch_related(
-        'notes_criteres__critere'
+        'notes_criteres__critere', 'travail_seances'
     ).order_by('-seance__date', '-seance__heure')
 
     # Marque le type 'notes_seances' comme lu (panneau 🔔 الإشعارات, Chantier
@@ -3939,18 +4245,19 @@ def eleve_prof_detail(request, prof_id):
 @role_required('eleve')
 def eleve_progression(request):
     from accounts.models import Eleve
-    from courses.utils import calculer_progression_eleve, calculer_hizb_precis, ring_dashoffset_hizb
+    from courses.utils import calculer_progression_eleve, position_progression_eleve, couverture_hifz_reelle, ring_dashoffset_hizb
 
     eleve = get_object_or_404(Eleve, user=request.user)
     progression = calculer_progression_eleve(eleve)
-    hizb = calculer_hizb_precis(eleve)
+    position_hizb = position_progression_eleve(eleve)
+    couverture_reelle = couverture_hifz_reelle(eleve) if position_hizb else None
 
     return render(request, 'dashboard/eleve_progression.html', {
         'eleve': eleve,
         'progression': progression,
-        'nb_hizb_memorises': hizb['nb_hizb_complets'],
-        'hizb_en_cours': hizb['hizb_en_cours'],
-        'ring_dashoffset': ring_dashoffset_hizb(hizb['nb_hizb_complets']),
+        'position_hizb': position_hizb,
+        'couverture_reelle': couverture_reelle,
+        'ring_dashoffset': ring_dashoffset_hizb(couverture_reelle['total_thumns_couverts'] if couverture_reelle else 0),
     })
 
 
@@ -4220,7 +4527,7 @@ def superviseur_seance_detail(request, seance_id):
 
     superviseur = get_object_or_404(Superviseur, user=request.user)
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof__in=superviseur.profs_assignes.all())
-    presences = Presence.objects.filter(seance=seance).prefetch_related('notes_criteres__critere')
+    presences = Presence.objects.filter(seance=seance).prefetch_related('notes_criteres__critere', 'travail_seances')
 
     return render(request, 'dashboard/superviseur_seance_detail.html', {
         'seance': seance,
@@ -4739,10 +5046,12 @@ def admin_eleve_detail(request, eleve_id):
     from accounts.models import Eleve, NotePersonnelle
     from chat.permissions import groupes_chat_accessibles_ids
     from courses.models import DisponibiliteEleve
-    from courses.utils import calculer_progression_eleve, groupes_compatibles_pour_eleve, JOURS_SEMAINE_DISPO, generer_heures_grille
+    from courses.utils import calculer_progression_eleve, position_progression_eleve, couverture_hifz_reelle, groupes_compatibles_pour_eleve, JOURS_SEMAINE_DISPO, generer_heures_grille
 
     eleve = get_object_or_404(Eleve, id=eleve_id)
     progression = calculer_progression_eleve(eleve)
+    position_hizb = position_progression_eleve(eleve)
+    couverture_reelle = couverture_hifz_reelle(eleve) if position_hizb else None
 
     valeurs_form = set(
         f'{j}_{h.strftime("%H:%M")}'
@@ -4753,6 +5062,8 @@ def admin_eleve_detail(request, eleve_id):
         'eleve': eleve,
         'inscription': eleve.inscription,
         'progression': progression,
+        'position_hizb': position_hizb,
+        'couverture_reelle': couverture_reelle,
         'groupes_suggeres': groupes_compatibles_pour_eleve(eleve),
         'groupes_precedents': eleve.historique_groupes.filter(date_fin__isnull=False).select_related('groupe'),
         'valeurs_form': valeurs_form,

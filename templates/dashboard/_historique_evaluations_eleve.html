@@ -15,12 +15,33 @@ Usage : {% include 'dashboard/_historique_evaluations_eleve.html' with historiqu
 <div style="padding:12px 24px; border-bottom:1px solid #f0f0f0;">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <div>
-            {% if h.sourate %}
+            {% if h.travail_ranges %}
+            {% for plage in h.travail_ranges %}
+            <div style="font-weight:600;">
+                {% if plage.hizb_debut == plage.hizb_fin %}
+                {% blocktrans with numero=plage.hizb_debut nom=plage.nom_debut td=plage.thumn_debut tf=plage.thumn_fin %}حزب {{ numero }} — {{ nom }} — الثمن {{ td }} → {{ tf }}{% endblocktrans %}
+                {% else %}
+                {% blocktrans with n1=plage.hizb_debut nom1=plage.nom_debut td=plage.thumn_debut n2=plage.hizb_fin nom2=plage.nom_fin tf=plage.thumn_fin %}حزب {{ n1 }} — {{ nom1 }} — الثمن {{ td }} → حزب {{ n2 }} — {{ nom2 }} — الثمن {{ tf }}{% endblocktrans %}
+                {% endif %}
+                {% if h.resultat_memorisation == 'a_refaire' %}
+                <span style="background:#fdecea; color:#b71c1c; border-radius:20px; padding:1px 8px; font-size:0.72rem; font-weight:600; margin-inline-start:4px;">{% trans "🔁 يعاد" %}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% elif h.sourate %}
             <div style="font-weight:600;">
                 {{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})
                 {% if h.resultat_memorisation == 'a_refaire' %}
                 <span style="background:#fdecea; color:#b71c1c; border-radius:20px; padding:1px 8px; font-size:0.72rem; font-weight:600; margin-inline-start:4px;">{% trans "🔁 يعاد" %}</span>
                 {% endif %}
+            </div>
+            {% endif %}
+            {% if h.parties_hizb %}
+            <div style="font-size:0.75rem; color:#888; margin-top:2px;">
+                🧪 {% trans "تقييم أولي:" %}
+                {% for partie in h.parties_hizb %}
+                {% blocktrans with numero=partie.hizb nom=partie.nom thumn=partie.thumn %}حزب {{ numero }} — {{ nom }} — الثمن {{ thumn }}{% endblocktrans %}{% if not forloop.last %}، {% endif %}
+                {% endfor %}
             </div>
             {% endif %}
             <div style="color:#888; font-size:0.85rem;">{{ h.date }} — {{ h.groupe }}</div>
@@ -61,7 +82,17 @@ Usage : {% include 'dashboard/_historique_evaluations_eleve.html' with historiqu
     <div style="padding:12px 24px; border-bottom:1px solid #f0f0f0;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
             <div>
-                {% if h.sourate %}
+                {% if h.travail_ranges %}
+                {% for plage in h.travail_ranges %}
+                <div style="font-weight:600;">
+                    {% if plage.hizb_debut == plage.hizb_fin %}
+                    {% blocktrans with numero=plage.hizb_debut nom=plage.nom_debut td=plage.thumn_debut tf=plage.thumn_fin %}حزب {{ numero }} — {{ nom }} — الثمن {{ td }} → {{ tf }}{% endblocktrans %}
+                    {% else %}
+                    {% blocktrans with n1=plage.hizb_debut nom1=plage.nom_debut td=plage.thumn_debut n2=plage.hizb_fin nom2=plage.nom_fin tf=plage.thumn_fin %}حزب {{ n1 }} — {{ nom1 }} — الثمن {{ td }} → حزب {{ n2 }} — {{ nom2 }} — الثمن {{ tf }}{% endblocktrans %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% elif h.sourate %}
                 <div style="font-weight:600;">{{ h.sourate }} ({{ h.ayah_debut }}-{{ h.ayah_fin }})</div>
                 {% endif %}
                 <div style="color:#888; font-size:0.85rem;">{{ h.date }} — {{ h.groupe }}</div>

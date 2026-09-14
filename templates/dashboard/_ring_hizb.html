@@ -1,4 +1,17 @@
 {% load i18n l10n %}
+{% comment %}
+Chantier du 2026-09-14 v5 (retour explicite du client après test réel) :
+l'indicateur PRINCIPAL est le nombre de حزب RÉELLEMENT couverts (union des
+plages TravailSeance validées, courses.utils.couverture_hifz_reelle) — PAS la
+distance le long du parcours officiel (position_progression_eleve), qui
+suppose un parcours continu et surestime la quantité dès que l'élève saute
+des حزب (ex: 1,2 puis 5,6 en sautant 3,4 -> couverture_reelle compte bien 4
+حزب, jamais 6). JAMAIS le numéro du حزب actuel non plus (qui n'est qu'une
+position, pas une quantité). Le détail en ثمن (reste après complétion des
+حزب entiers) s'affiche EN PLUS, jamais à la place. "الموقف الحالي" plus bas
+reste basé sur position_hizb (ProgressionMemorisation) — un concept séparé,
+volontairement conservé tel quel (où en est le parcours OFFICIEL).
+{% endcomment %}
 <div class="ring-wrap">
     <svg width="168" height="168" viewBox="0 0 168 168">
         <circle cx="84" cy="84" r="72" fill="none" stroke="#f2ead9" stroke-width="14"/>
@@ -13,17 +26,28 @@
         </defs>
     </svg>
     <div class="ring-center">
-        <div class="num">{{ nb_hizb_memorises }}<span> / 60</span></div>
-        <div class="label">{% trans "حزب محفوظ" %}</div>
+        <div class="num">{{ couverture_reelle.nb_hizb_complets|default:0 }}<span> / {{ couverture_reelle.nb_hizb_total|default:60 }}</span></div>
+        <div class="label">{% trans "حزب" %}</div>
     </div>
 </div>
-{% if hizb_en_cours %}
-<div class="next-goal" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center;">
-    <span>📖 {% trans "قيد الحفظ:" %}</span>
-    {% for h in hizb_en_cours %}
-    <span style="background:rgba(168,100,20,0.12); color:#A86414; padding:2px 10px; border-radius:12px; font-weight:600;">{% blocktrans with numero=h.numero fraction=h.fraction %}الحزب {{ numero }}: {{ fraction }}{% endblocktrans %}</span>
-    {% endfor %}
+{% if not position_hizb %}
+<div class="next-goal" style="color:#aaa;">{% trans "لم يبدأ تقييم الحفظ بعد" %}</div>
+{% else %}
+<div class="next-goal" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center; margin-bottom:6px;">
+    <span style="color:#888; font-size:0.82rem; font-weight:600;">
+        {% if couverture_reelle.nb_thumns_partiels %}
+        {% blocktrans with h=couverture_reelle.nb_hizb_complets t=couverture_reelle.nb_thumns_partiels %}{{ h }} حزب + {{ t }} أثمان{% endblocktrans %}
+        {% else %}
+        {% blocktrans count n=couverture_reelle.nb_hizb_complets %}{{ n }} حزب كامل{% plural %}{{ n }} حزب كامل{% endblocktrans %}
+        {% endif %}
+    </span>
 </div>
-{% elif nb_hizb_memorises == 60 %}
-<div class="next-goal" style="background:rgba(45,90,61,0.12); color:var(--color-success);">🎉 {% trans "ما شاء الله، تم حفظ القرآن كاملاً" %}</div>
+{% if position_hizb.terminee %}
+<div class="next-goal" style="background:rgba(45,90,61,0.12); color:var(--color-success);">🎉 {% trans "ما شاء الله، تم إتمام مسار الحفظ" %}</div>
+{% else %}
+<div class="next-goal" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center;">
+    <span>📖 {% trans "الموقف الحالي:" %}</span>
+    <span style="background:rgba(168,100,20,0.12); color:#A86414; padding:2px 10px; border-radius:12px; font-weight:600;">{% blocktrans with numero=position_hizb.hizb_actuel nom=position_hizb.nom_hizb_actuel thumn=position_hizb.thumn_actuel %}حزب {{ numero }} — {{ nom }} — الثمن {{ thumn }}{% endblocktrans %}</span>
+</div>
+{% endif %}
 {% endif %}

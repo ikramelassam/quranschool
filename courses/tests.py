@@ -18,11 +18,15 @@ from .utils import (
     liens_meet_disponibles, valider_photo_groupe, regenerer_pour_nouveau_creneau,
     groupes_en_conflit_pour_lien_a_horaire_reel, liens_meet_disponibles_pour_seance,
     lien_effectif_disponible_pour_seance, horaire_reel_seance,
-    calculer_hizb_precis, calculer_progression_eleve,
+    position_progression_eleve, ring_dashoffset_hizb, calculer_progression_eleve, couverture_hifz_reelle,
     categorie_derivee_du_creneau, backfiller_categorie_depuis_creneau,
     remplacer_slots_creneau, etendre_seances, JOUR_INDEX_INVERSE,
     calculer_remuneration_prof, couverture_tarifs_remuneration_groupe,
     groupes_compatibles_sexe_age_pour_changement,
+)
+from .hizb_progression import (
+    position_suivante, hizb_suivant, position_vers_index, distance_thumns,
+    position_est_terminale, nouvelle_position_apres_seance,
 )
 from registration.models import GroupeCritereValeur
 
@@ -2048,13 +2052,18 @@ class CreneauNomTests(TestCase):
 # désormais privé à son groupe, plus une entité navigable à part.
 
 # ============================================================================
-# Tâche du 2026-08-18 — Critère ينتقل/يعيد (Presence.resultat_memorisation)
+# Tâche du 2026-08-18 — Critère ينتقل/يعيد (Presence.resultat_memorisation),
+# cumul LEGACY (sourate/ayah) de calculer_progression_eleve — gelé depuis le
+# chantier du 2026-09-13 (voir HizbPositionSuivanteTests/ProgressionMemorisation
+# TestsHizb ci-dessous pour le système حزب/ثمن qui a pris le relais).
 # ============================================================================
-class ResultatMemorisationProgressionTests(TestCase):
-    """Un passage marqué 'a_refaire' ne doit JAMAIS compter dans
-    calculer_hizb_precis/calculer_progression_eleve (courses.utils) — voir
-    _couverture_ayat_par_sourate. Comportement historique (avant ce champ)
-    inchangé : default='valide' compte comme avant."""
+class ResultatMemorisationProgressionLegacyTests(TestCase):
+    """Un passage marqué 'a_refaire' ne doit JAMAIS compter dans le cumul
+    LEGACY sourate/ayah de calculer_progression_eleve (courses.utils).
+    Comportement historique (avant ce champ) inchangé : default='valide'
+    compte comme avant. Ce cumul ne reflète plus la progression حفظ COURANTE
+    (remplacée par ProgressionMemorisation, voir hizb_progression.py) mais
+    reste lu pour l'historique antérieur au chantier du 2026-09-13."""
 
     def setUp(self):
         self.eleve = _creer_eleve()
@@ -2063,8 +2072,6 @@ class ResultatMemorisationProgressionTests(TestCase):
         groupe.eleves.add(self.eleve)
         self.seance_1 = Seance.objects.create(groupe=groupe, date=datetime.date(2026, 8, 1), heure='16:00', type='normal')
         self.seance_2 = Seance.objects.create(groupe=groupe, date=datetime.date(2026, 8, 3), heure='16:00', type='normal')
-        # Sourate 1 (الفاتحة, 7 آيات) entièrement couverte + sourate 2 de 1 à 74
-        # -> couvre exactement les 4 quarts du hizb 1 (voir quran_data.HIZB_QUARTERS[0]).
         Presence.objects.create(
             seance=self.seance_1, eleve=self.eleve, statut='present',
             sourate_memorisee=1, ayah_debut_memorisation=1, ayah_fin_memorisation=7,
@@ -2074,16 +2081,6 @@ class ResultatMemorisationProgressionTests(TestCase):
             sourate_memorisee=2, ayah_debut_memorisation=1, ayah_fin_memorisation=74,
             resultat_memorisation='a_refaire',
         )
-
-    def test_passage_a_refaire_exclu_du_hizb_complet(self):
-        resultat = calculer_hizb_precis(self.eleve)
-        self.assertEqual(resultat['nb_hizb_complets'], 0)
-
-    def test_passage_valide_compte_dans_le_hizb_complet(self):
-        self.presence_sourate_2.resultat_memorisation = 'valide'
-        self.presence_sourate_2.save()
-        resultat = calculer_hizb_precis(self.eleve)
-        self.assertEqual(resultat['nb_hizb_complets'], 1)
 
     def test_progression_eleve_exclut_les_ayat_a_refaire_du_cumul(self):
         progression = calculer_progression_eleve(self.eleve)
@@ -2099,6 +2096,657 @@ class ResultatMemorisationProgressionTests(TestCase):
         self.assertEqual(len(progression['historique']), 2)
         entree_a_refaire = next(h for h in progression['historique'] if h['sourate'] == 'البقرة')
         self.assertEqual(entree_a_refaire['resultat_memorisation'], 'a_refaire')
+
+
+# ============================================================================
+# Chantier du 2026-09-13 — Progression حزب/ثمن (remplace les sourates comme
+# base de l'évaluation/progression de mémorisation, demande explicite du
+# client). Voir courses.hizb_progression (calcul pur) et
+# courses.models.ProgressionMemorisation (persistance).
+# ============================================================================
+class HizbPositionSuivanteTests(TestCase):
+    """Tests unitaires purs de la fonction de calcul — aucune base de données
+    nécessaire, voir courses.hizb_progression.position_suivante.__doc__ pour
+    les règles exactes (section 7 du cahier des charges)."""
+
+    def test_meme_hizb_thumn_croissant(self):
+        self.assertEqual(position_suivante(3, 1, 'tasaudi', 'valide'), (3, 2))
+        self.assertEqual(position_suivante(3, 2, 'tasaudi', 'valide'), (3, 3))
+        self.assertEqual(position_suivante(3, 7, 'tasaudi', 'valide'), (3, 8))
+
+    def test_passage_hizb_en_tasaudi(self):
+        self.assertEqual(position_suivante(3, 8, 'tasaudi', 'valide'), (2, 1))
+        self.assertEqual(position_suivante(2, 8, 'tasaudi', 'valide'), (1, 1))
+
+    def test_passage_hizb_en_tanazuli(self):
+        self.assertEqual(position_suivante(3, 8, 'tanazuli', 'valide'), (4, 1))
+        self.assertEqual(position_suivante(4, 8, 'tanazuli', 'valide'), (5, 1))
+
+    def test_repetition_reste_sur_le_meme_thumn(self):
+        self.assertEqual(position_suivante(3, 4, 'tasaudi', 'a_refaire'), (3, 4))
+        self.assertEqual(position_suivante(3, 8, 'tasaudi', 'a_refaire'), (3, 8))
+        self.assertEqual(position_suivante(3, 8, 'tanazuli', 'a_refaire'), (3, 8))
+
+    def test_limite_tasaudi_fin_de_progression_a_hizb_1(self):
+        """Terminer 1/8 en تصاعدي : plus de حزب suivant (jamais حزب 0)."""
+        self.assertIsNone(position_suivante(1, 8, 'tasaudi', 'valide'))
+
+    def test_limite_tanazuli_fin_de_progression_a_hizb_60(self):
+        """Terminer 60/8 en تنازلي : plus de حزب suivant (jamais حزب 61)."""
+        self.assertIsNone(position_suivante(60, 8, 'tanazuli', 'valide'))
+
+    def test_independance_du_sens_a_linterieur_dun_meme_hizb(self):
+        """3/1 -> 3/2 -> ... -> 3/8 est IDENTIQUE dans les 2 sens — seul le
+        passage APRÈS 3/8 diffère (voir tests ci-dessus)."""
+        for thumn in range(1, 8):
+            self.assertEqual(
+                position_suivante(3, thumn, 'tasaudi', 'valide'),
+                position_suivante(3, thumn, 'tanazuli', 'valide'),
+            )
+
+    def test_hizb_suivant_jamais_hors_bornes(self):
+        self.assertIsNone(hizb_suivant(1, 'tasaudi'))
+        self.assertIsNone(hizb_suivant(60, 'tanazuli'))
+        self.assertEqual(hizb_suivant(1, 'tanazuli'), 2)
+        self.assertEqual(hizb_suivant(60, 'tasaudi'), 59)
+
+
+class NouvellePositionApresSeanceTests(TestCase):
+    """courses.hizb_progression.nouvelle_position_apres_seance — chantier du
+    2026-09-14 v6, bug réel signalé par le client : "الانتقال" ne signifie
+    PAS "موقف حالي + 1 ثمن" (l'ancien comportement, via position_suivante)
+    mais "adopter le إلى de المحفوظ في هذه الحصة comme nouveau موقف حالي".
+    Cette fonction est désormais LA seule source de vérité pour ce calcul,
+    testée ici indépendamment de toute vue Django/POST."""
+
+    def test_bug_reel_2_5_vers_2_6_valide_donne_2_6_jamais_2_7(self):
+        """Cas exact signalé : موقف 2/5, travail 2/5->2/6, الانتقال."""
+        hizb, thumn, terminee = nouvelle_position_apres_seance(2, 5, 'tanazuli', 'valide', [(2, 6)])
+        self.assertEqual((hizb, thumn), (2, 6))
+        self.assertFalse(terminee)
+
+    def test_travail_sur_plusieurs_hizb_donne_directement_le_point_darrivee(self):
+        """موقف 2/5, travail 2/5->3/4, الانتقال => 3/4, jamais 3/5 ni 4/1."""
+        hizb, thumn, terminee = nouvelle_position_apres_seance(2, 5, 'tanazuli', 'valide', [(3, 4)])
+        self.assertEqual((hizb, thumn), (3, 4))
+
+    def test_travail_sur_un_seul_thumn_ne_bouge_pas_dun_cran_de_plus(self):
+        """موقف 2/5, travail 2/5->2/5 (aucun avancement réel), الانتقال
+        => reste 2/5, ne devient PAS 2/6."""
+        hizb, thumn, terminee = nouvelle_position_apres_seance(2, 5, 'tanazuli', 'valide', [(2, 5)])
+        self.assertEqual((hizb, thumn), (2, 5))
+
+    def test_transition_entre_hizb_2_8_vers_3_4(self):
+        hizb, thumn, terminee = nouvelle_position_apres_seance(2, 8, 'tanazuli', 'valide', [(3, 4)])
+        self.assertEqual((hizb, thumn), (3, 4))
+
+    def test_direction_tasaudi_3_8_vers_2_1(self):
+        hizb, thumn, terminee = nouvelle_position_apres_seance(3, 8, 'tasaudi', 'valide', [(2, 1)])
+        self.assertEqual((hizb, thumn), (2, 1))
+
+    def test_direction_tanazuli_3_8_vers_4_1(self):
+        hizb, thumn, terminee = nouvelle_position_apres_seance(3, 8, 'tanazuli', 'valide', [(4, 1)])
+        self.assertEqual((hizb, thumn), (4, 1))
+
+    def test_a_refaire_ne_bouge_jamais_meme_avec_un_travail_enregistre(self):
+        """إعادة الجزء : le parcours ne progresse pas, quel que soit le
+        travail enregistré (jamais de +1 automatique non plus)."""
+        hizb, thumn, terminee = nouvelle_position_apres_seance(2, 5, 'tanazuli', 'a_refaire', [(2, 6)])
+        self.assertEqual((hizb, thumn), (2, 5))
+
+    def test_aucune_plage_ne_bouge_pas(self):
+        hizb, thumn, terminee = nouvelle_position_apres_seance(2, 5, 'tanazuli', 'valide', [])
+        self.assertEqual((hizb, thumn), (2, 5))
+
+    def test_plusieurs_plages_non_contigues_retient_la_plus_avancee(self):
+        """Si plusieurs من→إلى non contigus sont enregistrés dans la même
+        séance, le موقف حالي devient celui le plus avancé le long du sens —
+        jamais le dernier ajouté ni une simple somme."""
+        hizb, thumn, terminee = nouvelle_position_apres_seance(
+            1, 1, 'tanazuli', 'valide', [(2, 8), (5, 6)],
+        )
+        self.assertEqual((hizb, thumn), (5, 6))
+
+    def test_terminee_quand_position_finale_atteinte(self):
+        hizb, thumn, terminee = nouvelle_position_apres_seance(59, 8, 'tanazuli', 'valide', [(60, 8)])
+        self.assertEqual((hizb, thumn), (60, 8))
+        self.assertTrue(terminee)
+
+    def test_non_terminee_si_pas_encore_a_la_position_finale(self):
+        hizb, thumn, terminee = nouvelle_position_apres_seance(59, 7, 'tanazuli', 'valide', [(59, 8)])
+        self.assertFalse(terminee)
+
+
+class PositionEstTerminaleTests(TestCase):
+    def test_derniere_position_tanazuli(self):
+        self.assertTrue(position_est_terminale(60, 8, 'tanazuli'))
+        self.assertFalse(position_est_terminale(60, 7, 'tanazuli'))
+        self.assertFalse(position_est_terminale(59, 8, 'tanazuli'))
+
+    def test_derniere_position_tasaudi(self):
+        self.assertTrue(position_est_terminale(1, 8, 'tasaudi'))
+        self.assertFalse(position_est_terminale(1, 7, 'tasaudi'))
+        self.assertFalse(position_est_terminale(2, 8, 'tasaudi'))
+
+
+class PositionVersIndexDistanceThumnsTests(TestCase):
+    """Chantier du 2026-09-14 v4 (retour client après test réel) : bug réel
+    signalé — un élève parti de حزب 2 / ثمن 3 et arrivé à حزب 3 / ثمن 4 (تنازلي)
+    voyait sa distance calculée à tort (l'ancien code utilisait
+    abs(hizb_actuel - hizb_depart) * 8 + (thumn_actuel - 1), qui oublie de
+    retrancher le ثمن de départ dès qu'il n'est pas 1). position_vers_index/
+    distance_thumns (courses.hizb_progression) sont désormais LA seule source
+    de vérité, testée ici indépendamment de tout modèle Django."""
+
+    def test_meme_hizb_distance_egale_difference_des_thumns(self):
+        self.assertEqual(distance_thumns(3, 2, 3, 5, 'tanazuli'), 3)
+        self.assertEqual(distance_thumns(3, 2, 3, 5, 'tasaudi'), 3)
+
+    def test_bug_reel_signale_2_3_vers_3_4_tanazuli_distance_9_thumns(self):
+        """Cas exact signalé par le client : départ حزب 2 / ثمن 3, تنازلي
+        (numéro du حزب augmente), position atteinte حزب 3 / ثمن 4. La
+        séquence réelle des transitions est : 2/3->2/4->2/5->2/6->2/7->2/8
+        (5 transitions) ->3/1 (6) ->3/2 (7) ->3/3 (8) ->3/4 (9) : 9 ثمن
+        parcourus, PAS 10 (chaque transition = +1, la position de départ vaut
+        0 — voir ProgressionMemorisation.__doc__ ; 9 est aussi la seule valeur
+        cohérente avec les 2 sous-exemples ci-dessous, qui s'additionnent
+        exactement à 9, jamais à 10)."""
+        self.assertEqual(distance_thumns(2, 3, 3, 4, 'tanazuli'), 9)
+
+    def test_depart_2_3_vers_2_8_tanazuli_5_thumns(self):
+        self.assertEqual(distance_thumns(2, 3, 2, 8, 'tanazuli'), 5)
+
+    def test_depart_2_3_vers_3_1_tanazuli_6_thumns(self):
+        self.assertEqual(distance_thumns(2, 3, 3, 1, 'tanazuli'), 6)
+
+    def test_sous_exemples_du_client_sadditionnent_a_9_jamais_10(self):
+        """2/3->3/1 (6) puis 3/1->3/4 (3 transitions : 3/2, 3/3, 3/4) = 9 —
+        démontre que la valeur 9 est la seule cohérente avec les propres
+        sous-exemples du client, malgré le total de 10 mentionné par erreur
+        dans un exemple isolé (incohérent avec ces 2 sous-exemples qui
+        s'additionnent)."""
+        premiere_moitie = distance_thumns(2, 3, 3, 1, 'tanazuli')
+        seconde_moitie = distance_thumns(3, 1, 3, 4, 'tanazuli')
+        self.assertEqual(premiere_moitie + seconde_moitie, 9)
+
+    def test_meme_scenario_en_tasaudi_avec_hizb_decroissants(self):
+        """Équivalent تصاعدي (numéro du حزب diminue) du bug signalé : départ
+        حزب 5 / ثمن 3, arrivée حزب 4 / ثمن 4 -> même distance (9 ثمن) que
+        l'exemple تنازلي 2/3 -> 3/4, par symétrie."""
+        self.assertEqual(distance_thumns(5, 3, 4, 4, 'tasaudi'), 9)
+        self.assertEqual(distance_thumns(5, 3, 5, 8, 'tasaudi'), 5)
+        self.assertEqual(distance_thumns(5, 3, 4, 1, 'tasaudi'), 6)
+
+    def test_position_vers_index_bornes_1_et_60(self):
+        # تنازلي : حزب 1 est le tout début du parcours (index 0), حزب 60/ثمن 8
+        # la toute fin (index 479).
+        self.assertEqual(position_vers_index(1, 1, 'tanazuli'), 0)
+        self.assertEqual(position_vers_index(60, 8, 'tanazuli'), 479)
+        # تصاعدي : symétrique, حزب 60 est le tout début, حزب 1/ثمن 8 la fin.
+        self.assertEqual(position_vers_index(60, 1, 'tasaudi'), 0)
+        self.assertEqual(position_vers_index(1, 8, 'tasaudi'), 479)
+
+    def test_distance_coherente_sur_toute_la_plage_1_a_60(self):
+        """La distance totale départ حزب 1/ثمن 1 -> حزب 60/ثمن 8 (تنازلي)
+        couvre l'intégralité des 480 positions, donc 479 transitions."""
+        self.assertEqual(distance_thumns(1, 1, 60, 8, 'tanazuli'), 479)
+        self.assertEqual(distance_thumns(60, 1, 1, 8, 'tasaudi'), 479)
+
+
+class ProgressionMemorisationTests(TestCase):
+    """Intégration : ProgressionMemorisation + position_progression_eleve
+    (courses.utils) — la vue dashboard.views.prof_presence_sauvegarder est
+    couverte séparément par dashboard.tests."""
+
+    def setUp(self):
+        self.eleve = _creer_eleve()
+
+    def test_position_progression_eleve_none_avant_evaluation_initiale(self):
+        self.assertIsNone(position_progression_eleve(self.eleve))
+
+    def test_avance_dans_le_meme_hizb_ne_compte_pas_encore_un_hizb_complet(self):
+        from .models import ProgressionMemorisation
+
+        ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=3, thumn_depart=1, sens='tasaudi',
+            hizb_actuel=3, thumn_actuel=4,
+        )
+        etat = position_progression_eleve(self.eleve)
+        self.assertEqual(etat['nb_hizb_complets'], 0)
+        self.assertEqual(etat['nb_thumn_complets_hizb_courant'], 3)
+        self.assertFalse(etat['terminee'])
+
+    def test_hizb_deja_change_compte_comme_hizb_complet(self):
+        from .models import ProgressionMemorisation
+
+        ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=3, thumn_depart=1, sens='tasaudi',
+            hizb_actuel=2, thumn_actuel=1,
+        )
+        etat = position_progression_eleve(self.eleve)
+        self.assertEqual(etat['nb_hizb_complets'], 1)
+        self.assertEqual(etat['total_thumns_parcourus'], 8)  # hizb 3 entier
+
+    def test_terminee_quand_fin_de_progression_atteinte(self):
+        from .models import ProgressionMemorisation
+
+        ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=3, thumn_depart=1, sens='tasaudi',
+            hizb_actuel=1, thumn_actuel=8, terminee=True,
+        )
+        etat = position_progression_eleve(self.eleve)
+        self.assertTrue(etat['terminee'])
+        self.assertEqual(etat['hizb_actuel'], 1)
+        self.assertEqual(etat['thumn_actuel'], 8)
+
+    # ------------------------------------------------------------------
+    # Chantier du 2026-09-14, règle métier CRITIQUE (demande explicite du
+    # client) : le NUMÉRO du حزب n'est JAMAIS une quantité mémorisée — حزب 60
+    # comme point de départ ne signifie PAS "60 حزب mémorisés". Seule la
+    # DISTANCE parcourue depuis le départ (en ثمن) a un sens quantitatif.
+    # ------------------------------------------------------------------
+    def test_depart_hizb_60_ne_signifie_pas_60_hizb_memorises(self):
+        from .models import ProgressionMemorisation
+
+        ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=60, thumn_depart=1, sens='tasaudi',
+            hizb_actuel=60, thumn_actuel=1,
+        )
+        etat = position_progression_eleve(self.eleve)
+        self.assertEqual(etat['total_thumns_parcourus'], 0)
+        self.assertEqual(etat['nb_hizb_complets'], 0)
+
+    def test_depart_60_1_position_60_2_egale_1_thumn_parcouru(self):
+        from .models import ProgressionMemorisation
+
+        ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=60, thumn_depart=1, sens='tasaudi',
+            hizb_actuel=60, thumn_actuel=2,
+        )
+        self.assertEqual(position_progression_eleve(self.eleve)['total_thumns_parcourus'], 1)
+
+    def test_depart_60_1_position_60_8_egale_7_thumns_parcourus(self):
+        from .models import ProgressionMemorisation
+
+        ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=60, thumn_depart=1, sens='tasaudi',
+            hizb_actuel=60, thumn_actuel=8,
+        )
+        self.assertEqual(position_progression_eleve(self.eleve)['total_thumns_parcourus'], 7)
+
+    def test_depart_60_1_position_59_1_tasaudi_egale_8_thumns_parcourus(self):
+        from .models import ProgressionMemorisation
+
+        ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=60, thumn_depart=1, sens='tasaudi',
+            hizb_actuel=59, thumn_actuel=1,
+        )
+        self.assertEqual(position_progression_eleve(self.eleve)['total_thumns_parcourus'], 8)
+
+    def test_pourcentage_calcule_sur_480_positions_jamais_sur_60_hizb(self):
+        from .models import ProgressionMemorisation
+
+        ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=1, thumn_depart=1, sens='tanazuli',
+            hizb_actuel=2, thumn_actuel=1,
+        )
+        etat = position_progression_eleve(self.eleve)
+        # 8 thumns parcourus (hizb 1 entier) sur 480 positions -> pas 1/60.
+        self.assertEqual(etat['nb_positions_total'], 480)
+        self.assertEqual(etat['total_thumns_parcourus'], 8)
+        self.assertAlmostEqual(etat['pourcentage'], 8 / 480 * 100, places=1)
+
+    # ------------------------------------------------------------------
+    # Chantier du 2026-09-14 v4 (retour client après test réel) : bug réel où
+    # thumn_depart != 1 faisait calculer une distance FAUSSE (voir
+    # courses.hizb_progression.position_vers_index.__doc__ pour la cause
+    # exacte). Reproduction du scénario exact signalé + vérification de la
+    # décomposition "X حزب complets + Y ثمن" désormais exposée pour
+    # l'affichage (indicateur principal حزب/60, demande explicite du client).
+    # ------------------------------------------------------------------
+    def test_bug_reel_2_3_vers_3_4_tanazuli_donne_9_thumns_1_hizb_1_thumn(self):
+        from .models import ProgressionMemorisation
+
+        ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=2, thumn_depart=3, sens='tanazuli',
+            hizb_actuel=3, thumn_actuel=4,
+        )
+        etat = position_progression_eleve(self.eleve)
+        self.assertEqual(etat['total_thumns_parcourus'], 9)
+        self.assertEqual(etat['nb_hizb_complets'], 1)
+        self.assertEqual(etat['nb_thumn_complets_hizb_courant'], 1)
+
+    def test_indicateur_principal_hizb_sur_60_expose_dans_letat(self):
+        from .models import ProgressionMemorisation
+
+        ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=1, thumn_depart=1, sens='tanazuli',
+            hizb_actuel=3, thumn_actuel=1,
+        )
+        etat = position_progression_eleve(self.eleve)
+        # 16 thumns parcourus (2 hizb entiers, hizb 1 et 2) -> 2 حزب complets.
+        self.assertEqual(etat['total_thumns_parcourus'], 16)
+        self.assertEqual(etat['nb_hizb_complets'], 2)
+        self.assertEqual(etat['nb_thumn_complets_hizb_courant'], 0)
+        self.assertEqual(etat['nb_hizb_total'], 60)
+
+
+class RingDashoffsetHizbTests(TestCase):
+    """ring_dashoffset_hizb (courses.utils) — un seul argument depuis le
+    chantier du 2026-09-14 : le remplissage de l'anneau est TOUJOURS relatif
+    aux 480 positions totales du Coran, jamais au numéro du حزب ni à un total
+    propre au sens de l'élève."""
+
+    def test_zero_thumn_parcouru_anneau_vide(self):
+        self.assertEqual(ring_dashoffset_hizb(0), 452.4)
+
+    def test_480_thumns_parcourus_anneau_plein(self):
+        self.assertEqual(ring_dashoffset_hizb(480), 0.0)
+
+    def test_moitie_du_parcours(self):
+        self.assertAlmostEqual(ring_dashoffset_hizb(240), 452.39 / 2, places=1)
+
+
+class TravailSeanceTests(TestCase):
+    """courses.models.TravailSeance — le travail RÉELLEMENT effectué pendant
+    une séance (من/إلى), INDÉPENDANT de ProgressionMemorisation.hizb_actuel/
+    thumn_actuel (chantier du 2026-09-14, demande explicite du client :
+    3 notions strictement séparées — voir TravailSeance.__doc__)."""
+
+    def setUp(self):
+        self.eleve = _creer_eleve()
+        creneau = _creer_creneau()
+        groupe = Groupe.objects.create(nom='ZZZ_مجموعة_travail_seance', creneau=creneau)
+        groupe.eleves.add(self.eleve)
+        self.seance = Seance.objects.create(groupe=groupe, date=datetime.date(2026, 9, 14), heure='16:00', type='normal')
+        self.presence = Presence.objects.create(seance=self.seance, eleve=self.eleve, statut='present')
+
+    def test_plusieurs_plages_sur_une_meme_presence(self):
+        from .models import TravailSeance
+
+        TravailSeance.objects.create(presence=self.presence, hizb_debut=3, thumn_debut=1, hizb_fin=3, thumn_fin=4, ordre=0)
+        TravailSeance.objects.create(presence=self.presence, hizb_debut=5, thumn_debut=6, hizb_fin=5, thumn_fin=8, ordre=1)
+        self.assertEqual(self.presence.travail_seances.count(), 2)
+
+    def test_plage_peut_traverser_un_hizb(self):
+        from .models import TravailSeance
+
+        plage = TravailSeance.objects.create(presence=self.presence, hizb_debut=3, thumn_debut=7, hizb_fin=4, thumn_fin=3)
+        self.assertEqual((plage.hizb_debut, plage.thumn_debut, plage.hizb_fin, plage.thumn_fin), (3, 7, 4, 3))
+
+    def test_independant_de_progression_memorisation(self):
+        """Le travail enregistré (3/4 -> 3/7) n'affecte JAMAIS
+        ProgressionMemorisation par lui-même — seule l'action إعادة/انتقال,
+        appliquée séparément par la vue, la fait bouger."""
+        from .models import TravailSeance, ProgressionMemorisation
+
+        ProgressionMemorisation.objects.create(
+            eleve=self.eleve, hizb_depart=3, thumn_depart=4, sens='tasaudi',
+            hizb_actuel=3, thumn_actuel=4,
+        )
+        TravailSeance.objects.create(presence=self.presence, hizb_debut=3, thumn_debut=4, hizb_fin=3, thumn_fin=7)
+        progression = ProgressionMemorisation.objects.get(eleve=self.eleve)
+        self.assertEqual((progression.hizb_actuel, progression.thumn_actuel), (3, 4))
+
+
+class CouvertureHifzReelleTests(TestCase):
+    """courses.utils.couverture_hifz_reelle — chantier du 2026-09-14 v5,
+    retour client après un cas réel : un élève peut mémoriser de façon NON
+    continue (ex. حزب 1, 2 puis 5, 6 en sautant 3, 4). position_progression_
+    eleve (le pointeur officiel, un parcours continu) surestimerait cette
+    quantité (il compterait la distance 1->6, soit 6 حزب) — couverture_hifz_
+    reelle calcule au contraire l'UNION des plages TravailSeance VALIDÉES,
+    qui donne la vraie quantité (4 حزب complets), indépendamment des trous."""
+
+    def setUp(self):
+        self.eleve = _creer_eleve()
+        creneau = _creer_creneau()
+        self.groupe = Groupe.objects.create(nom='ZZZ_مجموعة_couverture_reelle', creneau=creneau)
+        self.groupe.eleves.add(self.eleve)
+
+    def _presence(self, jour, resultat='valide'):
+        seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, jour), heure='16:00', type='normal')
+        return Presence.objects.create(seance=seance, eleve=self.eleve, statut='present', resultat_memorisation=resultat)
+
+    def test_aucun_travail_couverture_vide(self):
+        etat = couverture_hifz_reelle(self.eleve)
+        self.assertEqual(etat['nb_hizb_complets'], 0)
+        self.assertEqual(etat['nb_thumns_partiels'], 0)
+        self.assertEqual(etat['total_thumns_couverts'], 0)
+
+    def test_hizb_1_2_puis_5_6_en_sautant_3_4_compte_4_hizb_pas_6(self):
+        """Cas exact signalé par le client."""
+        from .models import TravailSeance
+
+        p1 = self._presence(1)
+        TravailSeance.objects.create(presence=p1, hizb_debut=1, thumn_debut=1, hizb_fin=2, thumn_fin=8, ordre=0)
+        p2 = self._presence(8)
+        TravailSeance.objects.create(presence=p2, hizb_debut=5, thumn_debut=1, hizb_fin=6, thumn_fin=8, ordre=0)
+
+        etat = couverture_hifz_reelle(self.eleve)
+        self.assertEqual(etat['nb_hizb_complets'], 4)
+        self.assertEqual(etat['nb_thumns_partiels'], 0)
+        self.assertEqual(etat['total_thumns_couverts'], 32)  # 4 hizb x 8, jamais 6x8=48
+
+    def test_couverture_partielle_non_alignee_normalisee_par_divmod(self):
+        """Correctif du 2026-09-14 v7 (bug réel signalé : affichage "1 حزب +
+        8 أثمان", impossible puisqu'un حزب = 8 ثمن). 4 derniers ثمن du حزب 1
+        + 4 premiers ثمن du حزب 2 = 8 ثمن couverts au total (contigus) — même
+        si aucun des deux حزب n'est individuellement complet, la quantité
+        TOTALE (8 ثمن) doit être normalisée en "1 حزب" (divmod(8, 8) =
+        (1, 0)), jamais laissée en reliquat "8 ثمن" (>= 8, impossible à
+        afficher)."""
+        from .models import TravailSeance
+
+        p1 = self._presence(1)
+        TravailSeance.objects.create(presence=p1, hizb_debut=1, thumn_debut=5, hizb_fin=2, thumn_fin=4, ordre=0)
+
+        etat = couverture_hifz_reelle(self.eleve)
+        self.assertEqual(etat['nb_hizb_complets'], 1)
+        self.assertEqual(etat['nb_thumns_partiels'], 0)
+        self.assertEqual(etat['total_thumns_couverts'], 8)
+
+    def test_reliquat_jamais_egal_ou_superieur_a_8(self):
+        """Cas exact du bug signalé le 2026-09-14 v7 : peu importe la
+        répartition physique de la couverture, nb_thumns_partiels (le
+        reliquat affiché à côté de "X أحزاب") doit TOUJOURS être dans 0..7 —
+        jamais 8 ni plus (ce qui donnerait le très concret "1 حزب + 8
+        أثمان" signalé, mathématiquement impossible)."""
+        from .models import TravailSeance
+
+        # 15 ثمن couverts (1 حزب complet + 7 ثمن), réparti sur 2 plages non
+        # alignées sur les frontières de حزب (حزب1 ثمن1-8 puis حزب2 ثمن1-7).
+        p1 = self._presence(1)
+        TravailSeance.objects.create(presence=p1, hizb_debut=1, thumn_debut=1, hizb_fin=2, thumn_fin=7, ordre=0)
+
+        etat = couverture_hifz_reelle(self.eleve)
+        self.assertEqual(etat['total_thumns_couverts'], 15)
+        self.assertEqual(etat['nb_hizb_complets'], 1)
+        self.assertEqual(etat['nb_thumns_partiels'], 7)
+        self.assertLess(etat['nb_thumns_partiels'], 8)
+
+    def test_plages_contigues_de_2_seances_differentes_fusionnees(self):
+        from .models import TravailSeance
+
+        p1 = self._presence(1)
+        TravailSeance.objects.create(presence=p1, hizb_debut=1, thumn_debut=1, hizb_fin=1, thumn_fin=4, ordre=0)
+        p2 = self._presence(2)
+        TravailSeance.objects.create(presence=p2, hizb_debut=1, thumn_debut=5, hizb_fin=1, thumn_fin=8, ordre=0)
+
+        etat = couverture_hifz_reelle(self.eleve)
+        self.assertEqual(etat['nb_hizb_complets'], 1)
+        self.assertEqual(etat['total_thumns_couverts'], 8)
+
+    def test_plages_chevauchantes_ne_comptent_pas_deux_fois(self):
+        from .models import TravailSeance
+
+        p1 = self._presence(1)
+        TravailSeance.objects.create(presence=p1, hizb_debut=1, thumn_debut=1, hizb_fin=1, thumn_fin=6, ordre=0)
+        p2 = self._presence(2)
+        TravailSeance.objects.create(presence=p2, hizb_debut=1, thumn_debut=4, hizb_fin=1, thumn_fin=8, ordre=0)
+
+        etat = couverture_hifz_reelle(self.eleve)
+        self.assertEqual(etat['total_thumns_couverts'], 8)  # union 1..8, pas 6+5=11
+        self.assertEqual(etat['nb_hizb_complets'], 1)
+
+    def test_seance_a_refaire_exclue_de_la_couverture(self):
+        """Une plage enregistrée sur une séance marquée 'إعادة الجزء'
+        (a_refaire) n'est PAS comptée comme réellement acquise."""
+        from .models import TravailSeance
+
+        p1 = self._presence(1, resultat='a_refaire')
+        TravailSeance.objects.create(presence=p1, hizb_debut=1, thumn_debut=1, hizb_fin=1, thumn_fin=8, ordre=0)
+
+        etat = couverture_hifz_reelle(self.eleve)
+        self.assertEqual(etat['total_thumns_couverts'], 0)
+        self.assertEqual(etat['nb_hizb_complets'], 0)
+
+    def test_plage_enregistree_en_sens_inverse_toujours_correcte(self):
+        """hizb_debut > hizb_fin (séance تصاعدي, ex. حزب 2 -> حزب 1) doit
+        donner la même couverture physique qu'un enregistrement croissant."""
+        from .models import TravailSeance
+
+        p1 = self._presence(1)
+        TravailSeance.objects.create(presence=p1, hizb_debut=2, thumn_debut=3, hizb_fin=1, thumn_fin=6, ordre=0)
+
+        etat = couverture_hifz_reelle(self.eleve)
+        # Couvre حزب1/ثمن6..8 (3) + حزب2/ثمن1..3 (3) = 6 ثمن, aucun حزب complet.
+        self.assertEqual(etat['total_thumns_couverts'], 6)
+        self.assertEqual(etat['nb_hizb_complets'], 0)
+
+    def test_revision_a_refaire_dune_portion_deja_acquise_ne_double_compte_pas(self):
+        """Audit du 2026-09-14 (§3, demande explicite du client) : une séance
+        1/1->1/8 VALIDE donne 8 ثمن. Une séance SUIVANTE qui re-travaille
+        EXACTEMENT la même plage 1/1->1/8 mais marquée إعادة الجزء
+        (a_refaire) ne doit JAMAIS faire progresser la couverture réelle à 16
+        — cette plage est intégralement exclue de l'union (voir
+        couverture_hifz_reelle.__doc__ : filter resultat_memorisation=
+        'valide'), qu'elle chevauche ou non du déjà-acquis."""
+        from .models import TravailSeance
+
+        p1 = self._presence(1, resultat='valide')
+        TravailSeance.objects.create(presence=p1, hizb_debut=1, thumn_debut=1, hizb_fin=1, thumn_fin=8, ordre=0)
+        etat = couverture_hifz_reelle(self.eleve)
+        self.assertEqual(etat['total_thumns_couverts'], 8)
+
+        p2 = self._presence(8, resultat='a_refaire')
+        TravailSeance.objects.create(presence=p2, hizb_debut=1, thumn_debut=1, hizb_fin=1, thumn_fin=8, ordre=0)
+        etat = couverture_hifz_reelle(self.eleve)
+        self.assertEqual(etat['total_thumns_couverts'], 8)  # toujours 8, jamais 16
+        self.assertEqual(etat['nb_hizb_complets'], 1)
+
+    def test_plages_partielles_non_contigues_saut_de_hizb(self):
+        """Audit §4 : plages PARTIELLES (pas des حزب entiers) ET non
+        contiguës dans la même union — la fusion/le compte doivent rester
+        exacts sans confondre "position actuelle la plus loin" et "quantité
+        réellement couverte"."""
+        from .models import TravailSeance
+
+        p1 = self._presence(1)
+        # Partiel : seulement les 3 derniers ثمن du حزب 10 (pas le حزب entier).
+        TravailSeance.objects.create(presence=p1, hizb_debut=10, thumn_debut=6, hizb_fin=10, thumn_fin=8, ordre=0)
+        p2 = self._presence(2)
+        # Saut non contigu : حزب 20 entier, à 10 حزب de distance physique.
+        TravailSeance.objects.create(presence=p2, hizb_debut=20, thumn_debut=1, hizb_fin=20, thumn_fin=8, ordre=0)
+
+        etat = couverture_hifz_reelle(self.eleve)
+        self.assertEqual(etat['total_thumns_couverts'], 11)  # 3 + 8, jamais fusionnés
+        self.assertEqual(etat['nb_hizb_complets'], 1)
+        self.assertEqual(etat['nb_thumns_partiels'], 3)
+
+
+class DirectionAwareRegressionDetectionTests(TestCase):
+    """Audit du 2026-09-14 §1 — correction explicite du client : la détection
+    "arrivée en arrière de la position actuelle" doit se faire via la
+    coordonnée linéaire ORIENTÉE (position_vers_index/distance_thumns), pas
+    via une comparaison naïve des numéros de حزب (qui donnerait un résultat
+    FAUX puisque تصاعدي et تنازلي inversent le sens dans lequel les numéros
+    de حزب progressent). distance_thumns > 0 = avance réelle le long du sens
+    déclaré ; <= 0 = recul (ou surplace). Les 4 cas exacts fournis par le
+    client :
+    - تنازلي (numéro croissant) : 5/4 -> 6/2 = avance (حزب augmente = sens normal)
+    - تنازلي : 5/4 -> 4/2 = recul (حزب diminue = CONTRE le sens تنازلي)
+    - تصاعدي (numéro décroissant) : 5/4 -> 4/2 = avance (حزب diminue = sens normal)
+    - تصاعدي : 5/4 -> 6/2 = recul (حزب augmente = CONTRE le sens تصاعدي)."""
+
+    def test_tanazuli_5_4_vers_6_2_est_une_avance(self):
+        d = distance_thumns(5, 4, 6, 2, 'tanazuli')
+        self.assertGreater(d, 0)
+
+    def test_tanazuli_5_4_vers_4_2_est_un_recul(self):
+        d = distance_thumns(5, 4, 4, 2, 'tanazuli')
+        self.assertLess(d, 0)
+
+    def test_tasaudi_5_4_vers_4_2_est_une_avance(self):
+        d = distance_thumns(5, 4, 4, 2, 'tasaudi')
+        self.assertGreater(d, 0)
+
+    def test_tasaudi_5_4_vers_6_2_est_un_recul(self):
+        d = distance_thumns(5, 4, 6, 2, 'tasaudi')
+        self.assertLess(d, 0)
+
+    def test_jamais_une_simple_comparaison_de_numeros_de_hizb(self):
+        """Le même couple de positions d'arrivée (6/2 vs 4/2) doit être
+        classé DIFFÉREMMENT selon le sens — la preuve qu'aucune comparaison
+        naïve sur le numéro de حزب seul ne peut donner ce résultat."""
+        avance_tanazuli = distance_thumns(5, 4, 6, 2, 'tanazuli') > 0
+        avance_tasaudi = distance_thumns(5, 4, 6, 2, 'tasaudi') > 0
+        self.assertTrue(avance_tanazuli)
+        self.assertFalse(avance_tasaudi)
+
+
+class NormalisationCouvertureTableTests(TestCase):
+    """Audit §5 — table de normalisation demandée explicitement par le
+    client : divmod(total_thumns, 8) doit TOUJOURS donner un reliquat 0..7,
+    jamais "1 حزب + 8 ثمن" (impossible, voir couverture_hifz_reelle.__doc__
+    v7)."""
+
+    def setUp(self):
+        self.eleve = _creer_eleve('eleve_normalisation_couverture@zidni.test')
+        creneau = _creer_creneau()
+        self.groupe = Groupe.objects.create(nom='ZZZ_مجموعة_normalisation', creneau=creneau)
+        self.groupe.eleves.add(self.eleve)
+        self._compteur_jour = 0
+
+    def _couvrir_thumns(self, nb_thumns):
+        """Crée UNE plage حزب1/ثمن1 -> couvrant exactement nb_thumns ثمن,
+        en partant toujours du حزب 1 (index_physique 0) pour un calcul simple."""
+        from .models import TravailSeance
+        from .hizb_progression import position_depuis_index
+
+        self._compteur_jour += 1
+        seance = Seance.objects.create(
+            groupe=self.groupe, date=datetime.date(2026, 9, self._compteur_jour), heure='16:00', type='normal',
+        )
+        presence = Presence.objects.create(seance=seance, eleve=self.eleve, statut='present', resultat_memorisation='valide')
+        hizb_fin, thumn_fin = position_depuis_index(nb_thumns - 1)
+        TravailSeance.objects.create(presence=presence, hizb_debut=1, thumn_debut=1, hizb_fin=hizb_fin, thumn_fin=thumn_fin, ordre=0)
+
+    def _verifier(self, nb_thumns, hizb_attendus, reste_attendu):
+        self._couvrir_thumns(nb_thumns)
+        etat = couverture_hifz_reelle(self.eleve)
+        self.assertEqual(etat['total_thumns_couverts'], nb_thumns)
+        self.assertEqual(etat['nb_hizb_complets'], hizb_attendus)
+        self.assertEqual(etat['nb_thumns_partiels'], reste_attendu)
+        self.assertLess(etat['nb_thumns_partiels'], 8)
+
+    def test_8_thumns_egale_1_hizb(self):
+        self._verifier(8, 1, 0)
+
+    def test_16_thumns_egale_2_hizb(self):
+        self._verifier(16, 2, 0)
+
+    def test_24_thumns_egale_3_hizb(self):
+        self._verifier(24, 3, 0)
+
+    def test_9_thumns_egale_1_hizb_plus_1_thumn(self):
+        self._verifier(9, 1, 1)
+
+    def test_15_thumns_egale_1_hizb_plus_7_thumns(self):
+        self._verifier(15, 1, 7)
+
+    def test_17_thumns_egale_2_hizb_plus_1_thumn(self):
+        self._verifier(17, 2, 1)
 
 
 # ============================================================================

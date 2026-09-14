@@ -171,10 +171,35 @@ N'apparaît que côté formulaire (séance encore modifiable) : une séance déj
                 <div class="col-md-6">
                     <div class="notation-groupe">
                         <div class="notation-titre">{% trans "الحفظ" %}</div>
-                        {% if presence.nom_sourate_memorisee %}
+                        {% if presence.travail_seances.all %}
+                        {% for plage in presence.travail_seances.all %}
+                        <div>
+                            {% if plage.hizb_debut == plage.hizb_fin %}
+                            {% blocktrans with numero=plage.hizb_debut nom=plage.nom_hizb_debut td=plage.thumn_debut tf=plage.thumn_fin %}حزب {{ numero }} — {{ nom }} — الثمن {{ td }} → {{ tf }}{% endblocktrans %}
+                            {% else %}
+                            {% blocktrans with n1=plage.hizb_debut nom1=plage.nom_hizb_debut td=plage.thumn_debut n2=plage.hizb_fin nom2=plage.nom_hizb_fin tf=plage.thumn_fin %}حزب {{ n1 }} — {{ nom1 }} — الثمن {{ td }} → حزب {{ n2 }} — {{ nom2 }} — الثمن {{ tf }}{% endblocktrans %}
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        <div style="margin-top:4px;">
+                            {% if presence.resultat_memorisation == 'a_refaire' %}
+                            <span style="background:#fdecea; color:#b71c1c; border-radius:20px; padding:1px 8px; font-size:0.78rem; font-weight:600;">🔁 {{ presence.get_resultat_memorisation_display }}</span>
+                            {% else %}
+                            <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:1px 8px; font-size:0.78rem; font-weight:600;">✅ {{ presence.get_resultat_memorisation_display }}</span>
+                            {% endif %}
+                        </div>
+                        {% elif presence.nom_sourate_memorisee %}
                         <div>{{ presence.nom_sourate_memorisee }} ({{ presence.ayah_debut_memorisation }}-{{ presence.ayah_fin_memorisation }})</div>
                         {% else %}
                         <div style="color:#aaa;">{% trans "لا يوجد" %}</div>
+                        {% endif %}
+                        {% if presence.parties_evaluees.all %}
+                        <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #eee; font-size:0.8rem; color:#666;">
+                            🧪 {% trans "تقييم أولي:" %}
+                            {% for partie in presence.parties_evaluees.all %}
+                            {% blocktrans with numero=partie.hizb nom=partie.nom_hizb thumn=partie.thumn %}حزب {{ numero }} — {{ nom }} — الثمن {{ thumn }}{% endblocktrans %}{% if not forloop.last %}، {% endif %}
+                            {% endfor %}
+                        </div>
                         {% endif %}
                         {% if presence.note_memorisation %}
                         <div style="color:#888; font-size:0.85rem; margin-top:4px;">{{ presence.get_note_memorisation_display }} <span style="color:#bbb;">({% trans "تقييم سابق" %})</span></div>
@@ -232,7 +257,7 @@ N'apparaît que côté formulaire (séance encore modifiable) : une séance déj
     {% csrf_token %}
 
     {% for item in eleves_presences %}
-    {% with eleve=item.eleve presence=item.presence %}
+    {% with eleve=item.eleve presence=item.presence progression_hizb=item.progression_hizb apercu=item.apercu_actions config_modifiable=item.config_modifiable %}
     <div class="eleve-card{% if item.ouvrir_par_defaut %} open{% endif %}" id="carte_{{ eleve.id }}">
         <div class="eleve-card-header">
             <div class="eleve-toggle-zone" onclick="toggleCarte({{ eleve.id }})">
@@ -267,46 +292,107 @@ N'apparaît que côté formulaire (séance encore modifiable) : une séance déj
                     <div class="col-12">
                         <div class="notation-groupe">
                             <div class="notation-titre">{% trans "الحفظ" %}</div>
-                            {% trans "— السورة —" as placeholder_sourate %}
-                            {% trans "من" as placeholder_de %}
-                            {% trans "إلى" as placeholder_a %}
-                            <div class="row g-2 ayah-pair">
-                                <div class="col-6">
-                                    <select name="sourate_memo_{{ eleve.id }}" class="form-select form-select-sm" data-select-cherchable>
-                                        <option value="">{{ placeholder_sourate }}</option>
-                                        {% for numero, nom, nb_ayat in sourates %}
-                                        <option value="{{ numero }}" {% if presence.sourate_memorisee == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
-                                        {% endfor %}
-                                    </select>
+                            {% comment %}
+                            Chantier du 2026-09-14 v4, demande explicite du
+                            client : 3 notions strictement séparées (voir
+                            courses.models.ProgressionMemorisation/
+                            TravailSeance/PartieEvaluee.__doc__), même
+                            structure de formulaire à CHAQUE séance (plus de
+                            checkbox "أول حصة" séparée) :
+                            1. نقطة الانطلاق + اتجاه (config, modifiable en
+                               place tant qu'aucune AUTRE séance n'a encore
+                               travaillé dessus — config_modifiable) OU
+                               lecture seule + lien "تعديل مسار الحفظ" sinon ;
+                            2. المحفوظ في هذه الحصة (TravailSeance, 0..N
+                               plages) — à CHAQUE séance ;
+                            3. ماذا حدث بالنسبة للتقدم (إعادة/انتقال) ;
+                            4. أجزاء التقييم الأولي (PartieEvaluee,
+                               diagnostic) — UNIQUEMENT tant que
+                               config_modifiable.
+                            {% endcomment %}
+
+                            {% if config_modifiable %}
+                            <div style="background:#fff8ea; border:1px solid #f0e0b8; border-radius:10px; padding:12px 14px; margin-bottom:10px;">
+                                <div style="font-weight:700; margin-bottom:8px;">📍 {% trans "نقطة الانطلاق" %}</div>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label style="font-size:0.78rem; color:#888;">{% trans "الحزب" %}</label>
+                                        <select name="hizb_depart_{{ eleve.id }}" class="form-select form-select-sm" data-select-cherchable>
+                                            <option value="">{% trans "— الحزب —" %}</option>
+                                            {% for numero, nom in hizb_noms %}
+                                            <option value="{{ numero }}" {% if progression_hizb.hizb_depart == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label style="font-size:0.78rem; color:#888;">{% trans "الثمن" %}</label>
+                                        <select name="thumn_depart_{{ eleve.id }}" class="form-select form-select-sm">
+                                            <option value="">{% trans "— الثمن —" %}</option>
+                                            {% for n in "12345678" %}
+                                            <option value="{{ n }}" {% if progression_hizb.thumn_depart|stringformat:"s" == n %}selected{% endif %}>{{ n }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
                                 </div>
-                                <div class="col-3">
-                                    <input type="number" min="1" name="ayah_debut_memo_{{ eleve.id }}" class="form-control form-control-sm ayah-debut"
-                                           value="{{ presence.ayah_debut_memorisation|default:'' }}" placeholder="{{ placeholder_de }}">
-                                </div>
-                                <div class="col-3">
-                                    <input type="number" min="1" name="ayah_fin_memo_{{ eleve.id }}" class="form-control form-control-sm ayah-fin"
-                                           value="{{ presence.ayah_fin_memorisation|default:'' }}" placeholder="{{ placeholder_a }}">
+                                <div style="margin-top:10px;">
+                                    <label style="font-size:0.78rem; color:#888; display:block; margin-bottom:4px;">{% trans "اتجاه التقدم" %}</label>
+                                    <label class="d-flex align-items-center gap-1 mb-1" style="cursor:pointer; font-size:0.85rem;">
+                                        <input type="radio" name="sens_{{ eleve.id }}" value="tasaudi" {% if progression_hizb.sens == 'tasaudi' %}checked{% endif %} onchange="majTravailJson({{ eleve.id }})">
+                                        {% trans "تصاعدي — نحو الأحزاب السابقة (مثال: 3 ← 2 ← 1)" %}
+                                    </label>
+                                    <label class="d-flex align-items-center gap-1" style="cursor:pointer; font-size:0.85rem;">
+                                        <input type="radio" name="sens_{{ eleve.id }}" value="tanazuli" {% if progression_hizb.sens == 'tanazuli' %}checked{% endif %} onchange="majTravailJson({{ eleve.id }})">
+                                        {% trans "تنازلي — نحو الأحزاب التالية (مثال: 3 ← 4 ← 5)" %}
+                                    </label>
                                 </div>
                             </div>
-                            {% comment %}
-                            Critère ينتقل/يعيد (Tâche du 2026-08-18) : 'valide'
-                            coché par défaut (== comportement historique sans ce
-                            champ) — si يعيد est choisi, ce passage ne compte pas
-                            dans تقدمي في الحفظ (voir courses.utils.
-                            _couverture_ayat_par_sourate).
-                            {% endcomment %}
+                            {% else %}
+                            <div style="background:var(--color-bg-cream); border-radius:10px; padding:10px 14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+                                <div>
+                                    <div style="color:#888; font-size:0.78rem;">📖 {% trans "الحفظ الحالي" %}</div>
+                                    <div style="font-weight:700; font-size:1rem;">{% blocktrans with numero=progression_hizb.hizb_actuel nom=progression_hizb.nom_hizb_actuel %}حزب {{ numero }} — {{ nom }}{% endblocktrans %}</div>
+                                    <div style="font-weight:600;">{% blocktrans with thumn=progression_hizb.thumn_actuel %}الثمن {{ thumn }}{% endblocktrans %}</div>
+                                    <div style="color:#888; font-size:0.8rem; margin-top:4px;">{% trans "اتجاه:" %} {{ progression_hizb.get_sens_display }}</div>
+                                </div>
+                                <a href="{% url 'prof_modifier_direction_hifz' eleve.id %}?next={{ request.path|urlencode }}" target="_blank" rel="noopener" style="font-size:0.78rem; color:var(--color-role-prof-solid); text-decoration:underline; white-space:nowrap;">✏️ {% trans "تعديل مسار الحفظ" %}</a>
+                            </div>
+                            {% if progression_hizb.terminee %}
+                            <div style="color:var(--color-success); font-weight:600; font-size:0.85rem; margin-bottom:10px;">🎉 {% trans "أتمّ الطالب مسار الحفظ في هذا الاتجاه." %}</div>
+                            {% endif %}
+                            {% endif %}
+
+                            <div style="background:#f4f8fb; border-radius:10px; padding:12px 14px; margin-bottom:10px;" data-sens-defaut="{{ progression_hizb.sens|default:'' }}">
+                                <div style="font-weight:700; margin-bottom:4px;">📚 {% trans "المحفوظ في هذه الحصة" %}</div>
+                                <div style="color:#666; font-size:0.82rem; margin-bottom:10px;">{% trans "حدد النطاق (من — إلى) الذي تم حفظه أو العمل عليه خلال هذه الحصة." %}</div>
+                                <div id="travail_{{ eleve.id }}"></div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="ajouterTravail({{ eleve.id }})">+ {% trans "إضافة نطاق آخر" %}</button>
+                                <input type="hidden" name="travail_json_{{ eleve.id }}" id="travail_json_{{ eleve.id }}" value="[]">
+                            </div>
+
+                            <div style="font-weight:700; margin-bottom:4px; font-size:0.9rem;">{% trans "ماذا حدث بالنسبة للتقدم؟" %}</div>
                             <div class="d-flex gap-3 mt-1" style="font-size:0.82rem;">
                                 <label class="d-flex align-items-center gap-1" style="cursor:pointer;">
                                     <input type="radio" name="resultat_memo_{{ eleve.id }}" value="valide"
                                            {% if presence.resultat_memorisation|default:'valide' == 'valide' %}checked{% endif %}>
-                                    ✅ {% trans "ينتقل" %}
+                                    ✅ {% trans "الانتقال" %}
+                                    <span id="apercu_valide_{{ eleve.id }}" style="color:#888;"></span>
                                 </label>
                                 <label class="d-flex align-items-center gap-1" style="cursor:pointer;">
                                     <input type="radio" name="resultat_memo_{{ eleve.id }}" value="a_refaire"
                                            {% if presence.resultat_memorisation == 'a_refaire' %}checked{% endif %}>
-                                    🔁 {% trans "يعيد" %}
+                                    🔁 {% trans "إعادة الجزء" %}
                                 </label>
                             </div>
+
+                            {% if config_modifiable %}
+                            <div style="background:#f4f8fb; border-radius:10px; padding:12px 14px; margin-top:14px;">
+                                <div style="font-weight:700; margin-bottom:4px;">🧪 {% trans "التقييم الأولي (اختياري)" %}</div>
+                                <div style="color:#666; font-size:0.82rem; margin-bottom:10px;">{% trans "لتحديد مستوى الطالب فقط — لا يؤثر على نقطة الانطلاق أعلاه." %}</div>
+                                <div id="parties_eval_{{ eleve.id }}"></div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="ajouterPartieEvaluation({{ eleve.id }})">+ {% trans "إضافة جزء للتقييم" %}</button>
+                                <input type="hidden" name="parties_json_{{ eleve.id }}" id="parties_json_{{ eleve.id }}" value="[]">
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                     {% endif %}
@@ -451,7 +537,214 @@ N'apparaît que côté formulaire (séance encore modifiable) : une séance déj
 </div>
 
 {% trans "يجب أن تكون آية النهاية أكبر من أو تساوي آية البداية" as msg_erreur_plage_ayat %}
+
+{% comment %}
+Données déjà enregistrées pour CETTE séance (chantier du 2026-09-14 v4) —
+regroupées par eleve.id (voir dashboard.views.prof_seance_detail), lues UNE
+FOIS par le JS pour pré-remplir les lignes répétables "المحفوظ في هذه الحصة"/
+"التقييم الأولي" sur un brouillon déjà enregistré (ré-ouverture de la page
+avant "إرسال نهائي") — jamais pour construire des name= dynamiques.
+{% endcomment %}
+{{ travail_existant_par_eleve|json_script:"travail_existant_data" }}
+{{ parties_existantes_par_eleve|json_script:"parties_existantes_data" }}
+
+{% comment %}
+Gabarit pour "+ إضافة نطاق آخر" (المحفوظ في هذه الحصة) — une plage من/إلى, حزب/ثمن
+de chaque côté (نطاق, PAS "جزء" — terminologie réservée au diagnostic
+PartieEvaluee ci-dessous, jamais réutilisée ici depuis le retour client du
+2026-09-14 v4). Aucune donnée spécifique à un élève dedans (lue par JS au
+moment de sérialiser travail_json_<id> — voir ajouterTravail/majTravailJson).
+{% endcomment %}
+<template id="tpl_travail">
+    <div class="travail-ligne" style="border:1px solid #e0e0e0; border-radius:8px; padding:10px; margin-bottom:8px; background:white;">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-5">
+                <label style="font-size:0.75rem; color:#888; display:block;">{% trans "من" %}</label>
+                <div class="d-flex gap-1">
+                    <select class="form-select form-select-sm travail-hizb-debut">
+                        <option value="">{% trans "— الحزب —" %}</option>
+                        {% for numero, nom in hizb_noms %}
+                        <option value="{{ numero }}">{{ numero }}. {{ nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <select class="form-select form-select-sm travail-thumn-debut" style="max-width:90px;">
+                        <option value="">{% trans "الثمن" %}</option>
+                        {% for n in "12345678" %}
+                        <option value="{{ n }}">{{ n }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-12 col-md-5">
+                <label style="font-size:0.75rem; color:#888; display:block;">{% trans "إلى" %}</label>
+                <div class="d-flex gap-1">
+                    <select class="form-select form-select-sm travail-hizb-fin">
+                        <option value="">{% trans "— الحزب —" %}</option>
+                        {% for numero, nom in hizb_noms %}
+                        <option value="{{ numero }}">{{ numero }}. {{ nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <select class="form-select form-select-sm travail-thumn-fin" style="max-width:90px;">
+                        <option value="">{% trans "الثمن" %}</option>
+                        {% for n in "12345678" %}
+                        <option value="{{ n }}">{{ n }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-12 col-md-2 text-md-center">
+                <button type="button" class="btn btn-sm btn-link text-danger travail-remove">🗑</button>
+            </div>
+        </div>
+    </div>
+</template>
+
+{% comment %}
+Gabarit UNIQUE partagé par tous les élèves (Chantier du 2026-09-13 v3) pour
+"+ إضافة جزء للتقييم" — aucune donnée spécifique à un élève dedans (حزب/ثمن/
+نتيجة sont lus par JS au moment de sérialiser parties_json_<id>, jamais soumis
+sous leur propre name= — voir ajouterPartieEvaluation/majPartiesJson). Chaque
+ligne = UNE partie diagnostique (حزب + ثمن + نتيجة), directement modifiable/
+supprimable — pas de liste récapitulative séparée à tenir synchronisée.
+{% endcomment %}
+<template id="tpl_partie_eval">
+    <div class="partie-eval-ligne row g-2 align-items-center" style="margin:0 0 8px; padding:8px; border:1px solid #e0e0e0; border-radius:8px; background:white;">
+        <div class="col-5">
+            <select class="form-select form-select-sm partie-eval-hizb">
+                <option value="">{% trans "— الحزب —" %}</option>
+                {% for numero, nom in hizb_noms %}
+                <option value="{{ numero }}">{{ numero }}. {{ nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-3">
+            <select class="form-select form-select-sm partie-eval-thumn">
+                <option value="">{% trans "— الثمن —" %}</option>
+                {% for n in "12345678" %}
+                <option value="{{ n }}">{% trans "الثمن" %} {{ n }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-3">
+            <select class="form-select form-select-sm partie-eval-resultat">
+                <option value="valide">✅ {% trans "ينتقل" %}</option>
+                <option value="a_refaire">🔁 {% trans "يعيد" %}</option>
+            </select>
+        </div>
+        <div class="col-1">
+            <button type="button" class="btn btn-sm btn-link text-danger partie-eval-remove" style="padding:0;">✕</button>
+        </div>
+    </div>
+</template>
+
 <script>
+const TRAVAIL_EXISTANT_DATA = JSON.parse(document.getElementById('travail_existant_data').textContent);
+const PARTIES_EXISTANTES_DATA = JSON.parse(document.getElementById('parties_existantes_data').textContent);
+
+function ajouterPartieEvaluation(eleveId, prefill) {
+    const tpl = document.getElementById('tpl_partie_eval');
+    const clone = tpl.content.cloneNode(true);
+    if (prefill) {
+        clone.querySelector('.partie-eval-hizb').value = prefill.hizb;
+        clone.querySelector('.partie-eval-thumn').value = prefill.thumn;
+        clone.querySelector('.partie-eval-resultat').value = prefill.resultat;
+    }
+    clone.querySelectorAll('select').forEach(function (sel) {
+        sel.addEventListener('change', function () { majPartiesJson(eleveId); });
+    });
+    clone.querySelector('.partie-eval-remove').addEventListener('click', function (e) {
+        e.target.closest('.partie-eval-ligne').remove();
+        majPartiesJson(eleveId);
+    });
+    document.getElementById('parties_eval_' + eleveId).appendChild(clone);
+}
+
+function majPartiesJson(eleveId) {
+    const container = document.getElementById('parties_eval_' + eleveId);
+    const parties = [];
+    container.querySelectorAll('.partie-eval-ligne').forEach(function (ligne) {
+        const hizbVal = ligne.querySelector('.partie-eval-hizb').value;
+        const thumnVal = ligne.querySelector('.partie-eval-thumn').value;
+        if (!hizbVal || !thumnVal) return;
+        parties.push({
+            hizb: parseInt(hizbVal, 10),
+            thumn: parseInt(thumnVal, 10),
+            resultat: ligne.querySelector('.partie-eval-resultat').value,
+        });
+    });
+    document.getElementById('parties_json_' + eleveId).value = JSON.stringify(parties);
+}
+
+function ajouterTravail(eleveId, prefill) {
+    const tpl = document.getElementById('tpl_travail');
+    const clone = tpl.content.cloneNode(true);
+    if (prefill) {
+        clone.querySelector('.travail-hizb-debut').value = prefill.hizb_debut;
+        clone.querySelector('.travail-thumn-debut').value = prefill.thumn_debut;
+        clone.querySelector('.travail-hizb-fin').value = prefill.hizb_fin;
+        clone.querySelector('.travail-thumn-fin').value = prefill.thumn_fin;
+    }
+    clone.querySelectorAll('select').forEach(function (sel) {
+        sel.addEventListener('change', function () { majTravailJson(eleveId); });
+    });
+    clone.querySelector('.travail-remove').addEventListener('click', function (e) {
+        e.target.closest('.travail-ligne').remove();
+        majTravailJson(eleveId);
+    });
+    document.getElementById('travail_' + eleveId).appendChild(clone);
+}
+
+function majTravailJson(eleveId) {
+    const container = document.getElementById('travail_' + eleveId);
+    const plages = [];
+    container.querySelectorAll('.travail-ligne').forEach(function (ligne) {
+        const hd = ligne.querySelector('.travail-hizb-debut').value;
+        const td = ligne.querySelector('.travail-thumn-debut').value;
+        const hf = ligne.querySelector('.travail-hizb-fin').value;
+        const tf = ligne.querySelector('.travail-thumn-fin').value;
+        if (!hd || !td || !hf || !tf) return;
+        plages.push({
+            hizb_debut: parseInt(hd, 10), thumn_debut: parseInt(td, 10),
+            hizb_fin: parseInt(hf, 10), thumn_fin: parseInt(tf, 10),
+        });
+    });
+    document.getElementById('travail_json_' + eleveId).value = JSON.stringify(plages);
+    majApercuValide(eleveId, plages);
+}
+
+// Aperçu live de "الانتقال" (chantier du 2026-09-14 v6) : "الانتقال" adopte
+// le "إلى" réellement saisi comme nouveau موقف حالي (jamais +1 ثمن
+// automatique, voir dashboard.views.prof_presence_sauvegarder) — donc
+// l'aperçu ne peut être calculé QUE côté client, une fois le "إلى" saisi.
+// S'il y a plusieurs plages, on retient celle dont l'arrivée est la plus
+// avancée le long du sens choisi (même règle que côté serveur).
+function indexPositionPhysique(hizb, thumn, sens) {
+    const rang = sens === 'tasaudi' ? (60 - hizb) : (hizb - 1);
+    return rang * 8 + (thumn - 1);
+}
+
+function majApercuValide(eleveId, plages) {
+    const span = document.getElementById('apercu_valide_' + eleveId);
+    if (!span) return;
+    if (!plages.length) { span.textContent = ''; return; }
+
+    const radioCoche = document.querySelector('input[name="sens_' + eleveId + '"]:checked');
+    let sens = radioCoche ? radioCoche.value : null;
+    if (!sens) {
+        const conteneurTravail = document.getElementById('travail_' + eleveId).closest('[data-sens-defaut]');
+        sens = conteneurTravail ? conteneurTravail.getAttribute('data-sens-defaut') : null;
+    }
+    if (!sens) { span.textContent = ''; return; }
+
+    let meilleure = plages[0];
+    let meilleurIndex = indexPositionPhysique(meilleure.hizb_fin, meilleure.thumn_fin, sens);
+    plages.forEach(function (p) {
+        const idx = indexPositionPhysique(p.hizb_fin, p.thumn_fin, sens);
+        if (idx > meilleurIndex) { meilleure = p; meilleurIndex = idx; }
+    });
+    span.textContent = '(→ حزب ' + meilleure.hizb_fin + ' — الثمن ' + meilleure.thumn_fin + ')';
+}
+
 function toggleCarte(eleveId) {
     document.getElementById('carte_' + eleveId).classList.toggle('open');
 }
@@ -488,6 +781,35 @@ function initialiserPastilles() {
     });
 }
 initialiserPastilles();
+
+// Pré-remplissage depuis un brouillon déjà enregistré pour CETTE séance
+// (ré-ouverture de la page avant "إرسال نهائي"), sinon une ligne vide par
+// défaut pour "المحفوظ في هذه الحصة" (le cas normal en a toujours une).
+{% for item in eleves_presences %}
+(function () {
+    const eleveId = {{ item.eleve.id }};
+    const travailExistant = TRAVAIL_EXISTANT_DATA[eleveId] || [];
+    if (travailExistant.length) {
+        travailExistant.forEach(function (p) { ajouterTravail(eleveId, p); });
+    } else if (document.getElementById('travail_' + eleveId)) {
+        ajouterTravail(eleveId);
+    }
+    // Sérialise immédiatement le pré-remplissage (correctif du 2026-09-14 v6) :
+    // sans cet appel, travail_json_<id> restait "[]" tant que le prof ne
+    // touchait manuellement aucun select, même avec des plages déjà
+    // affichées à l'écran (brouillon ré-ouvert) — un "إرسال نهائي" immédiat
+    // aurait alors été refusé à tort ("يجب تحديد ما تم حفظه في هذه الحصة").
+    if (document.getElementById('travail_' + eleveId)) {
+        majTravailJson(eleveId);
+    }
+    {% if not item.progression_hizb %}
+    const partiesExistantes = PARTIES_EXISTANTES_DATA[eleveId] || [];
+    if (document.getElementById('parties_eval_' + eleveId)) {
+        partiesExistantes.forEach(function (p) { ajouterPartieEvaluation(eleveId, p); });
+    }
+    {% endif %}
+})();
+{% endfor %}
 
 function verifierPlageAyat(paire) {
     const debut = paire.querySelector('.ayah-debut');

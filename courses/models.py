@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _, get_language
 from accounts.models import Prof, Eleve, Superviseur
 from annonces.models import Annonce
+from courses.hizb_progression import SENS_CHOICES as HIZB_PROGRESSION_SENS_CHOICES
 
 
 class DisponibiliteProf(models.Model):
@@ -1132,11 +1133,13 @@ class Presence(models.Model):
     # dans la progression) ou doit-il être repassé (يعيد, ne compte pas) ?
     # default='valide' (PAS null) : tout Presence antérieur à ce champ garde
     # exactement le même comportement qu'avant son ajout — aucune régression
-    # rétroactive sur la progression déjà calculée. Seule resultat_memorisation
-    # est lue par courses.utils._couverture_ayat_par_sourate/
-    # calculer_progression_eleve (le حزب se calcule sur la mémorisation, pas
-    # la révision) : resultat_revision reste donc purement indicatif pour le
-    # suivi du prof, sans effet sur aucun calcul existant.
+    # rétroactive sur la progression déjà calculée. Depuis le chantier du
+    # 2026-09-13, resultat_memorisation est aussi l'action passée à
+    # courses.hizb_progression.position_suivante ('valide' = الانتقال,
+    # 'a_refaire' = إعادة الجزء) pour avancer ProgressionMemorisation —
+    # resultat_revision reste purement indicatif pour le suivi du prof, sans
+    # effet sur aucun calcul de progression (le bloc المراجعة reste basé
+    # sourate, hors périmètre de ce chantier).
     RESULTAT_CHOICES = [
         ('valide', _('ينتقل')),
         ('a_refaire', _('يعيد')),
@@ -1203,6 +1206,172 @@ class Presence(models.Model):
         unique_together = ('seance', 'eleve')
         verbose_name = "Présence"
         verbose_name_plural = "Présences"
+
+
+class ProgressionMemorisation(models.Model):
+    """Point de départ (حزب/ثمن/sens) ET position courante d'un élève dans sa
+    progression de mémorisation — chantier du 2026-09-13, demande explicite du
+    client : la progression n'est plus dérivée des sourates/ayat mémorisés
+    (voir courses.hizb_progression.__doc__) mais d'une séquence explicite de
+    positions (hizb, thumn), avancée séance après séance.
+
+    Créée UNE SEULE FOIS, lors de la séance explicitement marquée "أول حصة"
+    par l'enseignant (voir dashboard.views.prof_presence_sauvegarder) —
+    hizb_depart/thumn_depart/sens sont EXACTEMENT les valeurs choisies par
+    l'enseignant dans "نقطة الانطلاق", JAMAIS déduites des PartieEvaluee de
+    cette même séance (voir PartieEvaluee.__doc__ : les parties évaluées lors
+    du diagnostic initial ne déterminent JAMAIS ce point de départ — règle
+    métier explicite du client, correctif du 2026-09-13 v2). hizb_actuel/
+    thumn_actuel sont la position à laquelle l'élève doit CONTINUER — mises à
+    jour à chaque séance via courses.hizb_progression.position_suivante (voir
+    aussi hizb_avant_derniere_seance ci-dessous pour l'idempotence) — jamais
+    recalculée depuis l'historique des Presence (source de vérité unique,
+    pas un cache). CE N'EST PAS un historique de ce qui a été travaillé —
+    voir TravailSeance pour ça (chantier du 2026-09-13 v3, demande explicite
+    du client de séparer strictement les 3 notions : configuration du
+    parcours (ce modèle), travail réel d'une séance (TravailSeance), et
+    diagnostic de niveau (PartieEvaluee) — ne jamais les fusionner)."""
+    SENS_CHOICES = HIZB_PROGRESSION_SENS_CHOICES
+
+    eleve = models.OneToOneField(Eleve, on_delete=models.CASCADE, related_name='progression_memorisation')
+
+    # Point de départ ET direction — choisis UNE FOIS par l'enseignant (voir
+    # dashboard.views.prof_presence_sauvegarder), modifiables ensuite
+    # uniquement via une action EXPLICITE ("تعديل مسار الحفظ",
+    # dashboard.views.prof_modifier_direction_hifz) — jamais une simple
+    # resaisie silencieuse à chaque séance. Modifier `sens` ne touche QUE les
+    # futures transitions (courses.hizb_progression.hizb_suivant) : ni
+    # hizb_actuel/thumn_actuel, ni l'historique déjà enregistré (TravailSeance/
+    # Presence) ne sont recalculés rétroactivement — voir hizb_progression.__doc__.
+    hizb_depart = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(60)])
+    thumn_depart = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(8)])
+    sens = models.CharField(max_length=10, choices=SENS_CHOICES)
+
+    hizb_actuel = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(60)])
+    thumn_actuel = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(8)])
+
+    # True dès que position_suivante() renvoie None (l'élève a terminé son
+    # dernier ثمن accessible dans son sens) — hizb_actuel/thumn_actuel restent
+    # alors figés sur cette dernière position valide (jamais 0 ni 61, voir
+    # hizb_progression.hizb_suivant.__doc__), plus aucune الانتقال possible.
+    terminee = models.BooleanField(default=False)
+
+    date_debut = models.DateTimeField(auto_now_add=True)
+
+    # Séance qui a configuré le parcours (نقطة الانطلاق + اتجاه) — PROTECTION
+    # backend (demande explicite du client) : tant qu'AUCUNE autre séance n'a
+    # encore travaillé à partir de cette configuration, l'enseignant peut
+    # encore la corriger directement (ré-enregistrement d'un brouillon de
+    # CETTE séance, voir dashboard.views.prof_presence_sauvegarder) ; une fois
+    # une AUTRE séance passée, la corriger exige l'action explicite "تعديل
+    # مسار الحفظ" (prof_modifier_direction_hifz, direction UNIQUEMENT — jamais
+    # un écrasement silencieux). SET_NULL : la suppression d'une séance ne
+    # doit jamais entraîner la suppression de la progression de l'élève,
+    # seulement perdre la référence de traçabilité.
+    seance_initiale = models.ForeignKey(
+        'Seance', on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+
+    # Idempotence séance par séance (chantier du 2026-09-13 v3) : la séance
+    # dont l'action إعادة/انتقال est ACTUELLEMENT reflétée dans hizb_actuel/
+    # thumn_actuel, et la position qui précédait cette contribution. Sans ça,
+    # ré-enregistrer un brouillon de la MÊME séance plusieurs fois (workflow
+    # "حفظ كمسودة" déjà existant, voir Seance.modifiable_par_prof) avancerait
+    # la progression une fois par sauvegarde au lieu d'une fois par séance —
+    # voir dashboard.views.prof_presence_sauvegarder : chaque sauvegarde
+    # recalcule hizb_actuel/thumn_actuel ENTIÈREMENT depuis ce couple
+    # "avant", jamais de façon incrémentale sur hizb_actuel lui-même. Un
+    # changement de statut présent -> absent sur la MÊME séance (le prof se
+    # ravise) restaure aussi exactement cette position "avant", via la même
+    # mécanique (l'absence équivaut à une action إعادة الجزء).
+    derniere_seance_travaillee = models.ForeignKey(
+        'Seance', on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+    hizb_avant_derniere_seance = models.PositiveSmallIntegerField(null=True, blank=True)
+    thumn_avant_derniere_seance = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.eleve} — {self.hizb_actuel}/{self.thumn_actuel}"
+
+    @property
+    def nom_hizb_actuel(self):
+        from courses.hizb_progression import nom_hizb
+        return nom_hizb(self.hizb_actuel)
+
+    class Meta:
+        verbose_name = "Progression de mémorisation"
+        verbose_name_plural = "Progressions de mémorisation"
+
+
+class TravailSeance(models.Model):
+    """Une plage (حزب/ثمن de départ → حزب/ثمن de fin) réellement travaillée
+    pendant UNE séance — 0..N par Presence (chantier du 2026-09-13 v3, demande
+    explicite du client). Répond à "qu'est-ce que cet élève a réellement
+    travaillé pendant CETTE séance ?", question posée à CHAQUE séance (pas
+    seulement la première) — INDÉPENDANTE de ProgressionMemorisation.
+    hizb_actuel/thumn_actuel : une plage peut couvrir plus (ou moins, avec
+    إعادة الجزء) que ce que la progression officielle retient — voir
+    ProgressionMemorisation.__doc__. Ne porte AUCUN résultat إعادة/انتقال
+    propre : cette décision est unique par séance, portée par
+    Presence.resultat_memorisation (champ déjà existant, réutilisé tel quel)."""
+    presence = models.ForeignKey(Presence, on_delete=models.CASCADE, related_name='travail_seances')
+    hizb_debut = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(60)])
+    thumn_debut = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(8)])
+    hizb_fin = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(60)])
+    thumn_fin = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(8)])
+    ordre = models.PositiveSmallIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.presence} — {self.hizb_debut}/{self.thumn_debut} → {self.hizb_fin}/{self.thumn_fin}"
+
+    @property
+    def nom_hizb_debut(self):
+        from courses.hizb_progression import nom_hizb
+        return nom_hizb(self.hizb_debut)
+
+    @property
+    def nom_hizb_fin(self):
+        from courses.hizb_progression import nom_hizb
+        return nom_hizb(self.hizb_fin)
+
+    class Meta:
+        ordering = ['ordre']
+        verbose_name = "Travail de séance (حفظ)"
+        verbose_name_plural = "Travaux de séance (حفظ)"
+
+
+class PartieEvaluee(models.Model):
+    """Une position (حزب/ثمن) testée lors du DIAGNOSTIC de niveau — 0..N par
+    Presence, uniquement lors de la configuration initiale du parcours
+    (aucune progression encore configurée pour l'élève).
+
+    Distinction fondamentale (demande explicite du client) : sert UNIQUEMENT
+    à évaluer le niveau réel de l'élève (plusieurs حزب/ثمن potentiellement non
+    contigus, avec des résultats différents) — n'a JAMAIS d'effet sur
+    ProgressionMemorisation (qui vient exclusivement de "نقطة الانطلاق",
+    choisie explicitement par l'enseignant) ni sur TravailSeance (le travail
+    réel d'une séance normale, un concept différent — voir son __doc__). Ne
+    JAMAIS fusionner ces 3 modèles."""
+    presence = models.ForeignKey(Presence, on_delete=models.CASCADE, related_name='parties_evaluees')
+    hizb = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(60)])
+    thumn = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(8)])
+    # Résultat du test diagnostique (ينتقل/يعيد) — purement informatif,
+    # n'affecte jamais ProgressionMemorisation (voir __doc__ ci-dessus).
+    resultat = models.CharField(max_length=10, choices=Presence.RESULTAT_CHOICES, default='valide')
+    ordre = models.PositiveSmallIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.presence} — {self.hizb}/{self.thumn}"
+
+    @property
+    def nom_hizb(self):
+        from courses.hizb_progression import nom_hizb
+        return nom_hizb(self.hizb)
+
+    class Meta:
+        ordering = ['ordre']
+        verbose_name = "Partie évaluée"
+        verbose_name_plural = "Parties évaluées"
 
 
 class CritereEleve(models.Model):

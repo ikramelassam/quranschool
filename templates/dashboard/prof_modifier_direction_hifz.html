@@ -1,0 +1,45 @@
+{% extends 'dashboard/base_prof.html' %}
+{% load i18n %}
+{% block title %}{% trans "تعديل مسار الحفظ" %}{% endblock %}
+{% block content %}
+<div class="page-title">{% blocktrans with nom=eleve.user.get_full_name %}تعديل مسار الحفظ — {{ nom }}{% endblocktrans %}</div>
+
+<div style="background:white; border-radius:16px; padding:28px; max-width:560px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="background:var(--color-bg-cream); border-radius:10px; padding:14px 18px; margin-bottom:20px;">
+        <div style="color:#888; font-size:0.8rem;">{% trans "الموقف الحالي (لن يتغيّر)" %}</div>
+        <div style="font-weight:700; font-size:1.05rem;">{% blocktrans with numero=progression.hizb_actuel nom=progression.nom_hizb_actuel %}حزب {{ numero }} — {{ nom }}{% endblocktrans %}</div>
+        <div style="font-weight:600;">{% blocktrans with thumn=progression.thumn_actuel %}الثمن {{ thumn }}{% endblocktrans %}</div>
+    </div>
+
+    <div style="background:#fff3cd; border:1px solid #f0e0b8; border-radius:10px; padding:14px 18px; margin-bottom:20px; font-size:0.85rem; color:#7a5c00;">
+        ⚠️ {% trans "تغيير الاتجاه لا يؤثر إطلاقاً على الموقف الحالي أو على ما سُجِّل في الحصص السابقة — فقط على الانتقالات القادمة." %}
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <label style="font-size:0.85rem; color:#888; display:block; margin-bottom:8px;">{% trans "اتجاه التقدم الجديد" %}</label>
+        {% for value, label in sens_choices %}
+        <label class="d-flex align-items-center gap-2 mb-2" style="cursor:pointer; padding:10px 14px; border:1px solid #eee; border-radius:8px;">
+            <input type="radio" name="sens" value="{{ value }}" {% if progression.sens == value %}checked{% endif %}>
+            {% if value == 'tasaudi' %}
+            {% trans "تصاعدي — نحو الأحزاب السابقة (مثال: 3 ← 2 ← 1)" %}
+            {% else %}
+            {% trans "تنازلي — نحو الأحزاب التالية (مثال: 3 ← 4 ← 5)" %}
+            {% endif %}
+        </label>
+        {% endfor %}
+
+        {% trans "سيتم تغيير اتجاه مسار الحفظ لهذا الطالب. هل أنت متأكد؟" as confirmation_texte %}
+        <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn" style="background:var(--color-role-prof); color:white; font-weight:600; padding:10px 24px; border-radius:8px;"
+                    onclick="return confirm('{{ confirmation_texte|escapejs }}');">
+                {% trans "✅ حفظ الاتجاه الجديد" %}
+            </button>
+            <a href="{{ next|default:'javascript:history.back()' }}" class="btn" style="border:2px solid #ddd; padding:10px 24px; border-radius:8px; text-decoration:none; color:inherit;">
+                {% trans "إلغاء" %}
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

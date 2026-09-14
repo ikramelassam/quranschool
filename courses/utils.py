@@ -756,7 +756,16 @@ def calculer_progression_eleve(eleve, mois=None):
     تقييم الطلاب, Point 11 du 2026-08-04 — anciennement l'onglet 'حسب الحصة')
     pour respecter le filtre 'الشهر' actif (Tâche du 2026-08-03) — avant ce
     paramètre, ce mode ignorait silencieusement le filtre et affichait
-    toujours tout l'historique, même avec ?mois=X dans l'URL."""
+    toujours tout l'historique, même avec ?mois=X dans l'URL.
+
+    Depuis le chantier du 2026-09-13, le cumul par sourate ('par_sourate',
+    'total_ayat_memorises', 'nb_sourates_distinctes') ne reflète plus QUE
+    l'historique حفظ antérieur à ce chantier (Presence.sourate_memorisee gelé,
+    jamais réécrit depuis) — la progression حفظ courante vit désormais dans
+    courses.models.ProgressionMemorisation, voir position_progression_eleve
+    ci-dessous. 'historique' (journal séance par séance) reste à jour : chaque
+    entrée porte 'sourate'/'ayah_*' (legacy) OU 'hizb_numero'/'hizb_nom'/
+    'thumn' (nouveau système) selon laquelle des deux a été renseignée."""
     from django.db.models import Q
     from .models import Presence, NotePresence
     from .quran_data import SOURATES_NOMS, SOURATES_NB_AYAT
@@ -787,6 +796,31 @@ def calculer_progression_eleve(eleve, mois=None):
     for liste in notes_par_presence.values():
         liste.sort(key=lambda x: x['ordre'])
 
+    # Travail حزب/ثمن réellement effectué (chantier du 2026-09-14, courses.
+    # models.TravailSeance) — 0..N plages par Presence, LE registre principal
+    # de "qu'est-ce que cet élève a travaillé pendant CETTE séance ?" (toute
+    # séance, pas seulement la configuration initiale). INDÉPENDANT de
+    # ProgressionMemorisation.hizb_actuel — voir TravailSeance.__doc__.
+    from .models import TravailSeance, PartieEvaluee
+
+    travail_par_presence = {}
+    for ts in TravailSeance.objects.filter(presence__eleve=eleve).order_by('presence_id', 'ordre'):
+        travail_par_presence.setdefault(ts.presence_id, []).append({
+            'hizb_debut': ts.hizb_debut, 'nom_debut': ts.nom_hizb_debut, 'thumn_debut': ts.thumn_debut,
+            'hizb_fin': ts.hizb_fin, 'nom_fin': ts.nom_hizb_fin, 'thumn_fin': ts.thumn_fin,
+        })
+
+    # Parties حزب/ثمن du DIAGNOSTIC de niveau (courses.models.PartieEvaluee) —
+    # uniquement présentes sur la séance ayant configuré le parcours (0..N,
+    # potentiellement non contiguës) — voir PartieEvaluee.__doc__. Concept
+    # DIFFÉRENT de travail_par_presence ci-dessus, jamais fusionné.
+    parties_par_presence = {}
+    for pe in PartieEvaluee.objects.filter(presence__eleve=eleve).order_by('presence_id', 'ordre'):
+        parties_par_presence.setdefault(pe.presence_id, []).append({
+            'hizb': pe.hizb, 'nom': pe.nom_hizb, 'thumn': pe.thumn,
+            'resultat': pe.resultat, 'resultat_display': pe.get_resultat_display(),
+        })
+
     intervalles_par_sourate = {}
     notes_par_sourate = {}
     historique = []
@@ -801,6 +835,15 @@ def calculer_progression_eleve(eleve, mois=None):
             'ayah_debut': p.ayah_debut_memorisation,
             'ayah_fin': p.ayah_fin_memorisation,
             'nb_ayat': nb,
+            # Travail حزب/ثمن de CETTE séance (chantier du 2026-09-14) —
+            # remplace 'sourate' ci-dessus pour toute Presence postérieure à
+            # ce chantier (sourate_memorisee reste gelé à None pour ces
+            # lignes-là). Liste (0..N plages) : le cas normal en a une seule,
+            # mais plusieurs plages sont possibles (voir TravailSeance.__doc__).
+            'travail_ranges': travail_par_presence.get(p.id, []),
+            # Diagnostic initial (PartieEvaluee) — uniquement sur la séance de
+            # configuration du parcours, concept séparé de travail_ranges.
+            'parties_hizb': parties_par_presence.get(p.id, []),
             'note_code': p.note_memorisation,
             'note_display': p.get_note_memorisation_display() if p.note_memorisation else None,
             # Critères dynamiques (Point 7, Tâche du 2026-08-04) — remplacent
@@ -822,9 +865,11 @@ def calculer_progression_eleve(eleve, mois=None):
         })
 
         # historique ci-dessus garde TOUTE séance, même يعيد (transparence du
-        # journal séance par séance) — seul le CUMUL de progression ci-dessous
-        # exclut resultat_memorisation='a_refaire' (Tâche du 2026-08-18),
-        # même règle que _couverture_ayat_par_sourate (calculer_hizb_precis).
+        # journal séance par séance) — seul le CUMUL LEGACY de progression
+        # ci-dessous exclut resultat_memorisation='a_refaire' (Tâche du
+        # 2026-08-18) ; ce cumul ne couvre plus que l'historique سورة
+        # antérieur au chantier du 2026-09-13 (voir position_progression_eleve
+        # pour la progression حفظ courante).
         if p.sourate_memorisee is None or p.resultat_memorisation != 'valide':
             continue
 
@@ -934,94 +979,154 @@ def compter_absences_par_eleve(eleve_ids, annee, mois, groupe=None):
 
 RING_CIRCONFERENCE_HIZB = 452.39  # 2*pi*72, rayon du cercle SVG (voir templates/dashboard/_ring_hizb.html)
 
-FRACTION_QUART = {1: '1/4', 2: '1/2', 3: '3/4'}
 
+def position_progression_eleve(eleve):
+    """État de la progression de mémorisation (حزب/ثمن) d'un élève — lecture
+    directe de courses.models.ProgressionMemorisation, LA seule source de
+    vérité pour la position actuelle — jamais recalculée depuis l'historique
+    des Presence/TravailSeance.
 
-def _couverture_ayat_par_sourate(eleve):
-    """{numero_sourate: [(debut, fin), ...]} — intervalles réellement fusionnés
-    (fusionner_intervalles) sur toutes les Presence de l'élève avec
-    mémorisation enregistrée, pas une étendue min/max (voir Tâche 6c du
-    2026-07-25) : deux plages non contiguës d'une même sourate (ex: 1-10 puis
-    60-74) restent deux blocs séparés, jamais fusionnés à tort en [1,74] qui
-    déclarerait couverts des ayat jamais mémorisés (11-59)."""
-    from .models import Presence
+    Retourne None si l'élève n'a pas encore de parcours configuré (voir
+    dashboard.views.prof_presence_sauvegarder, qui crée ProgressionMemorisation
+    à la configuration initiale — نقطة الانطلاق).
 
-    brut = {}
-    # resultat_memorisation='valide' (Tâche du 2026-08-18) : un passage marqué
-    # يعيد par le prof (RESULTAT_CHOICES) ne compte PAS dans la couverture —
-    # exclu ici, seule source d'où dérive calculer_hizb_precis. La valeur par
-    # défaut du champ ('valide') garantit que tout Presence antérieur à ce
-    # critère continue de compter exactement comme avant son ajout.
-    valeurs = Presence.objects.filter(
-        eleve=eleve, sourate_memorisee__isnull=False, resultat_memorisation='valide'
-    ).values_list('sourate_memorisee', 'ayah_debut_memorisation', 'ayah_fin_memorisation')
-    for numero, debut, fin in valeurs:
-        brut.setdefault(numero, []).append((debut, fin))
-    return {numero: fusionner_intervalles(intervalles) for numero, intervalles in brut.items()}
+    RÈGLE MÉTIER CRITIQUE (chantier du 2026-09-14, demande explicite du
+    client) : le NUMÉRO du حزب n'est JAMAIS une quantité mémorisée — un élève
+    parti du حزب 60 n'a PAS "mémorisé 60 حزب", il part simplement d'une
+    POSITION dans le Coran. Seule la DISTANCE parcourue depuis le point de
+    départ (en ثمن) a un sens quantitatif — voir total_thumns_parcourus et
+    ring_dashoffset_hizb ci-dessous, qui l'utilisent exclusivement (jamais
+    hizb_actuel directement) pour tout affichage de progression/pourcentage."""
+    from .models import ProgressionMemorisation
+    from .hizb_progression import NB_HIZB, NB_THUMN_PAR_HIZB, distance_thumns
 
+    try:
+        progression = eleve.progression_memorisation
+    except ProgressionMemorisation.DoesNotExist:
+        return None
 
-def _quart_est_couvert(quart, couverture):
-    """Un quart de hizb (quran_data.HIZB_QUARTERS) est couvert si la
-    mémorisation enregistrée de l'élève recouvre ENTIÈREMENT sa plage
-    d'ayat, sourate par sourate — un quart peut chevaucher 2 sourates
-    consécutives à sa frontière (ex: hizb 45, quart 3 = 36:60 -> 37:21). Une
-    plage de quart doit être entièrement contenue dans UN SEUL intervalle
-    fusionné de la sourate — jamais à cheval sur deux blocs disjoints, qui
-    signifierait un trou non mémorisé entre les deux (voir Tâche 6c)."""
-    from .quran_data import SOURATES_NB_AYAT
-
-    (sourate_debut, ayah_debut), (sourate_fin, ayah_fin) = quart
-    for sourate in range(sourate_debut, sourate_fin + 1):
-        intervalles = couverture.get(sourate)
-        if not intervalles:
-            return False
-        borne_debut = ayah_debut if sourate == sourate_debut else 1
-        borne_fin = ayah_fin if sourate == sourate_fin else SOURATES_NB_AYAT[sourate]
-        if not any(debut <= borne_debut and fin >= borne_fin for debut, fin in intervalles):
-            return False
-    return True
-
-
-def calculer_hizb_precis(eleve):
-    """Progression réelle dans les 60 hizb, basée sur les VRAIES sourates/ayat
-    mémorisés (pas sur un total d'ayat cumulé en supposant une progression
-    linéaire depuis le début du Coran — un élève peut commencer par le
-    hizb 60 ou mémoriser des sourates au milieu du Coran).
-
-    Chaque hizb est découpé en 4 quarts (quran_data.HIZB_QUARTERS, le
-    découpage universel du Coran). Un hizb ne compte comme complet que si
-    ses 4 quarts sont couverts. Retourne le nombre total de hizb complets
-    et la liste de tous les hizb partiellement couverts (1 à 3 quarts sur
-    4), chacun avec sa fraction — un élève peut mémoriser dans plusieurs
-    hizb non consécutifs à la fois, donc pas de "hizb en cours" unique."""
-    from .quran_data import HIZB_QUARTERS
-
-    couverture = _couverture_ayat_par_sourate(eleve)
-
-    nb_hizb_complets = 0
-    hizb_en_cours = []
-    for numero_hizb, quarts in enumerate(HIZB_QUARTERS, start=1):
-        nb_quarts_couverts = sum(1 for quart in quarts if _quart_est_couvert(quart, couverture))
-        if nb_quarts_couverts == 4:
-            nb_hizb_complets += 1
-        elif nb_quarts_couverts > 0:
-            hizb_en_cours.append({
-                'numero': numero_hizb,
-                'quarts_couverts': nb_quarts_couverts,
-                'fraction': FRACTION_QUART[nb_quarts_couverts],
-            })
+    # Distance totale parcourue depuis le départ, en ثمن — LA seule mesure
+    # quantitative correcte de la progression (voir __doc__ ci-dessus et
+    # courses.hizb_progression.distance_thumns/position_vers_index, seule
+    # source de vérité pour ce calcul — correctif du 2026-09-14 : l'ancien
+    # calcul basé sur abs(hizb_actuel - hizb_depart) * 8 + ... était FAUX dès
+    # que thumn_depart != 1 (ex. départ 2/3 -> 3/4 donnait 11 au lieu de 9).
+    total_thumns_parcourus = distance_thumns(
+        progression.hizb_depart, progression.thumn_depart,
+        progression.hizb_actuel, progression.thumn_actuel, progression.sens,
+    )
+    # Décomposition en "X حزب complets + Y ثمن" pour l'affichage (demande
+    # explicite du client, chantier du 2026-09-14 v4) : UNIQUEMENT à partir de
+    # la distance totale déjà correcte ci-dessus — jamais à partir d'une
+    # comparaison directe des numéros de حزب (voir __doc__ ci-dessus).
+    nb_hizb_complets, nb_thumn_complets_hizb_courant = divmod(total_thumns_parcourus, NB_THUMN_PAR_HIZB)
+    nb_positions_total = NB_HIZB * NB_THUMN_PAR_HIZB  # 480 — le Coran entier, jamais relatif au sens propre de l'élève
 
     return {
+        'hizb_actuel': progression.hizb_actuel,
+        'nom_hizb_actuel': progression.nom_hizb_actuel,
+        'thumn_actuel': progression.thumn_actuel,
+        'hizb_depart': progression.hizb_depart,
+        'thumn_depart': progression.thumn_depart,
+        'sens': progression.sens,
+        'sens_display': dict(progression.SENS_CHOICES)[progression.sens],
+        'terminee': progression.terminee,
         'nb_hizb_complets': nb_hizb_complets,
-        'hizb_en_cours': hizb_en_cours,
+        'nb_thumn_complets_hizb_courant': nb_thumn_complets_hizb_courant,
+        'nb_hizb_total': NB_HIZB,
+        'total_thumns_parcourus': total_thumns_parcourus,
+        'nb_positions_total': nb_positions_total,
+        'pourcentage': round(total_thumns_parcourus / nb_positions_total * 100, 1) if nb_positions_total else 0,
     }
 
 
-def ring_dashoffset_hizb(nb_hizb_complets):
+def couverture_hifz_reelle(eleve):
+    """Nombre RÉEL de positions (حزب/ثمن) mémorisées par un élève, calculé
+    comme l'UNION des plages TravailSeance (courses.models.TravailSeance)
+    dont la séance a été VALIDÉE par le professeur (Presence.
+    resultat_memorisation == 'valide', jamais 'a_refaire' — voir "ماذا حدث
+    بالنسبة للتقدم" sur dashboard.views.prof_presence_sauvegarder) — jamais
+    une simple étendue min/max entre نقطة الانطلاق et الموقف الحالي
+    (ProgressionMemorisation/position_progression_eleve, qui mesure la
+    distance le long d'un parcours supposé CONTINU et surestimerait la
+    quantité réellement acquise dès que l'élève saute des حزب).
+
+    Chantier du 2026-09-14 v5 (retour client, cas concret : élève ayant
+    mémorisé les حزب 1, 2 puis 5, 6 en sautant 3 et 4) : position_progression_
+    eleve (le parcours OFFICIEL, un pointeur unique et continu) reste la
+    source de vérité pour "الموقف الحالي" (où en est le parcours officiel) —
+    un concept séparé et volontairement conservé tel quel. Cette fonction-ci
+    répond à une question différente : "combien de ثمن du Coran ont
+    RÉELLEMENT été travaillés et validés, même de façon non contiguë ?".
+
+    RÈGLE MÉTIER (comme partout ailleurs dans ce chantier) : le numéro du
+    حزب n'est JAMAIS une quantité — on compte des POSITIONS (ثمن) réellement
+    couvertes par l'union, jamais des numéros de حزب comparés entre eux.
+
+    Correctif du 2026-09-14 v7 (bug réel signalé par le client : affichage
+    "1 حزب + 8 أثمان", impossible puisqu'un حزب vaut exactement 8 ثمن) :
+    nb_hizb_complets/nb_thumns_partiels sont désormais dérivés par un simple
+    `divmod(total_thumns_couverts, 8)` — JAMAIS en vérifiant si UN حزب précis
+    a ses 8 ثمن tous couverts par une même plage fusionnée (l'ancienne
+    version faisait ça, et sous-comptait dès que 8 ثمن de couverture réelle
+    étaient répartis sur 2 حزب voisins sans qu'aucun des deux ne soit
+    entièrement couvert — ex. ثمن 5-8 du حزب 1 + ثمن 1-4 du حزب 2 : 8 ثمن
+    couverts au total, mais 0 حزب "littéralement complet" selon l'ancien
+    test, d'où le reliquat affiché à tort "8 ثمن" au lieu d'être normalisé en
+    "+1 حزب"). `divmod` est TOUJOURS cohérent (reste 0..7) et traite les 480
+    positions comme des unités fongibles pour l'AFFICHAGE — le calcul de
+    total_thumns_couverts lui-même reste exact et basé sur l'union réelle
+    (voir fusionner_intervalles.__doc__ pour le même principe déjà appliqué
+    à l'ancien système par sourate)."""
+    from .models import TravailSeance
+    from .hizb_progression import index_physique, position_depuis_index, NB_HIZB, NB_THUMN_PAR_HIZB
+
+    intervalles = []
+    for hd, td, hf, tf in TravailSeance.objects.filter(
+        presence__eleve=eleve, presence__resultat_memorisation='valide',
+    ).values_list('hizb_debut', 'thumn_debut', 'hizb_fin', 'thumn_fin'):
+        i1 = index_physique(hd, td)
+        i2 = index_physique(hf, tf)
+        intervalles.append((min(i1, i2), max(i1, i2)))
+
+    fusionnes = fusionner_intervalles(intervalles)
+    total_thumns_couverts = sum(fin - debut + 1 for debut, fin in fusionnes)
+
+    nb_hizb_complets, nb_thumns_partiels = divmod(total_thumns_couverts, NB_THUMN_PAR_HIZB)
+    nb_positions_total = NB_HIZB * NB_THUMN_PAR_HIZB
+
+    plages = []
+    for debut, fin in fusionnes:
+        hizb_debut, thumn_debut = position_depuis_index(debut)
+        hizb_fin, thumn_fin = position_depuis_index(fin)
+        plages.append({
+            'hizb_debut': hizb_debut, 'thumn_debut': thumn_debut,
+            'hizb_fin': hizb_fin, 'thumn_fin': thumn_fin,
+        })
+
+    return {
+        'nb_hizb_complets': nb_hizb_complets,
+        'nb_thumns_partiels': nb_thumns_partiels,
+        'total_thumns_couverts': total_thumns_couverts,
+        'nb_hizb_total': NB_HIZB,
+        'nb_positions_total': nb_positions_total,
+        'pourcentage': round(total_thumns_couverts / nb_positions_total * 100, 1) if nb_positions_total else 0,
+        'plages': plages,
+    }
+
+
+def ring_dashoffset_hizb(total_thumns_parcourus):
     """Remplissage de l'anneau SVG de progression du hifz (accueil élève +
     page "تقدمي في الحفظ", composant _ring_hizb.html), proportionnel au
-    nombre de hizb complets sur 60."""
-    return round(RING_CIRCONFERENCE_HIZB * (1 - nb_hizb_complets / 60), 1)
+    nombre de ثمن parcourus sur les 480 positions TOTALES du Coran (chantier
+    du 2026-09-14, règle métier critique) — JAMAIS relatif au numéro du حزب
+    ni au nombre de حزب restant dans le sens propre de l'élève, qui
+    dépendrait arbitrairement de son point de départ (voir
+    position_progression_eleve.__doc__)."""
+    from .hizb_progression import NB_HIZB, NB_THUMN_PAR_HIZB
+
+    total = NB_HIZB * NB_THUMN_PAR_HIZB
+    return round(RING_CIRCONFERENCE_HIZB * (1 - total_thumns_parcourus / total), 1)
 
 
 AGE_SEUIL_ADULTE = 18  # seuil enfant/adulte — confirmé par le client (moins de 18 = enfant, 18 et plus = adulte)

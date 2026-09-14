@@ -22,7 +22,27 @@
 
     <!-- Mémorisation -->
     <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin-bottom:12px;">{% trans "الحفظ" %}</div>
-    {% if presence.sourate_memorisee %}
+    {% if presence.travail_seances.all %}
+    {% for plage in presence.travail_seances.all %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">
+            {% if plage.hizb_debut == plage.hizb_fin %}
+            {% blocktrans with numero=plage.hizb_debut nom=plage.nom_hizb_debut %}حزب {{ numero }} — {{ nom }}{% endblocktrans %}
+            {% else %}
+            {% blocktrans with n1=plage.hizb_debut nom1=plage.nom_hizb_debut n2=plage.hizb_fin nom2=plage.nom_hizb_fin %}حزب {{ n1 }} — {{ nom1 }} → حزب {{ n2 }} — {{ nom2 }}{% endblocktrans %}
+            {% endif %}
+        </span>
+        <span style="font-weight:600;">{% blocktrans with td=plage.thumn_debut tf=plage.thumn_fin %}الثمن {{ td }} → {{ tf }}{% endblocktrans %}</span>
+    </div>
+    {% endfor %}
+    <div style="display:flex; justify-content:flex-end; padding:4px 0 8px;">
+        {% if presence.resultat_memorisation == 'a_refaire' %}
+        <span style="background:#fdecea; color:#b71c1c; border-radius:20px; padding:3px 12px; font-size:0.85rem;">🔁 {{ presence.get_resultat_memorisation_display }}</span>
+        {% else %}
+        <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.85rem;">✅ {{ presence.get_resultat_memorisation_display }}</span>
+        {% endif %}
+    </div>
+    {% elif presence.sourate_memorisee %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">{% trans "السورة" %}</span>
         <span style="font-weight:600;">{{ presence.nom_sourate_memorisee }}</span>
