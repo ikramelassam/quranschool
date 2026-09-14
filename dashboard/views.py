@@ -5644,10 +5644,30 @@ def admin_demande_changement_halaka_refuser(request, demande_id):
 
 # ==================== ADMIN — CALENDRIER ====================
 
+def _generer_demi_heures_grille():
+    """Comme courses.utils.generer_heures_grille, mais par pas de 30 minutes
+    (Correction du 2026-09-14, remarque d'Ikram) : la grille de disponibilité
+    prof reste à l'heure pleine (choix métier délibéré, cases cochées par le
+    prof), mais admin_calendrier affiche des séances RÉELLES dont la durée
+    est libre (1h, 1h30, 2h... — voir Seance.fin_datetime/_creneau_champs_
+    groupe.html, <input type="time">). Une grille à l'heure pleine ne pouvait
+    pas distinguer une séance de 2h (14h-16h) d'une séance de 1h30
+    (14h-15h30) : les deux "débordaient" identiquement sur la ligne 15h,
+    masquant la demi-heure 15h30-16h pourtant libre dans le 2e cas."""
+    from django.conf import settings
+
+    heures = []
+    h = settings.HEURE_OUVERTURE_ECOLE
+    while h < settings.HEURE_FERMETURE_ECOLE:
+        heures.append(h)
+        h = (datetime.datetime.combine(datetime.date(2000, 1, 1), h) + datetime.timedelta(minutes=30)).time()
+    return heures
+
+
 @role_required('admin', 'mshrif')
 def admin_calendrier(request):
     from courses.models import Seance
-    from courses.utils import etendre_toutes_les_seances_opportuniste
+    from courses.utils import TRANCHES_AGE_PRECISES, etendre_toutes_les_seances_opportuniste
     from django.utils import timezone
 
     # Correctif perf du 2026-08-30 — même throttle qu'admin_seances, voir sa
@@ -5657,6 +5677,15 @@ def admin_calendrier(request):
     semaine_param = request.GET.get('semaine')
     prof_id = request.GET.get('prof', '')
     afficher_archives = request.GET.get('afficher_archives') == '1'
+    # Filtres catégorie/type de séance (Tâche du 2026-09-14, demande client) —
+    # exactement les mêmes 3 niveaux (type جماعي/فردي, catégorie النساء/
+    # الرجال/الأطفال, tranche التلقين/البراعم/اليافعون sous "الأطفال") que
+    # courses.views.groupes_list, sur les mêmes champs Groupe.type_capacite/
+    # categorie/creneau.age_min/age_max — voir son commentaire pour le détail
+    # de la règle de recouvrement par intervalle utilisée pour `tranche`.
+    type_filtre = request.GET.get('type', '')
+    categorie_filtre = request.GET.get('categorie', '')
+    tranche_filtre = request.GET.get('tranche', '')
     try:
         reference = datetime.date.fromisoformat(semaine_param) if semaine_param else timezone.localdate()
     except ValueError:
@@ -5667,32 +5696,104 @@ def admin_calendrier(request):
 
     seances = Seance.objects.filter(
         date__gte=jours_dates[0], date__lte=jours_dates[-1]
-    ).select_related('groupe', 'groupe__prof__user').order_by('date', 'heure')
+    ).select_related(
+        'groupe', 'groupe__prof__user', 'groupe__creneau'
+    ).prefetch_related('groupe__creneau__slots').order_by('date', 'heure')
     if prof_id:
         seances = seances.filter(groupe__prof_id=prof_id)
+    if type_filtre in ('individuel', 'groupe'):
+        seances = seances.filter(groupe__type_capacite=type_filtre)
+    if categorie_filtre:
+        seances = seances.filter(groupe__categorie=categorie_filtre)
+    tranche_info = next((t for t in TRANCHES_AGE_PRECISES if t[0] == tranche_filtre), None)
+    if categorie_filtre == 'mineurs' and tranche_info:
+        _nom, _label, tranche_age_min, tranche_age_max = tranche_info
+        seances = seances.filter(
+            groupe__creneau__age_max__gte=tranche_age_min, groupe__creneau__age_min__lte=tranche_age_max,
+        )
 
-    seances_par_jour = {jour: [] for jour in jours_dates}
+    # Vue "tableau des heures vides" (Tâche du 2026-09-14, demande client :
+    # même principe que la grille de disponibilité prof — templates/courses/
+    # _grille_disponibilites.html — mais construite à partir des séances
+    # RÉELLEMENT programmées cette semaine, pas d'une disponibilité déclarée).
+    # Correction du 2026-09-14 (remarque d'Ikram) : une halaka de 1h30/2h doit
+    # occuper TOUTES les lignes qu'elle recouvre, pas seulement celle de son
+    # heure de début — sinon la ligne suivante paraissait "vide" alors qu'une
+    # séance y est encore en cours. Grille à la DEMI-HEURE (voir
+    # _generer_demi_heures_grille ci-dessus) pour distinguer une séance de 2h
+    # d'une séance de 1h30 (2e remarque d'Ikram, même jour). Utilise Seance.
+    # fin_datetime (durée dérivée du CreneauSlot du jour, voir sa docstring)
+    # pour déterminer l'intervalle réel ; une ligne est occupée dès qu'elle
+    # chevauche, même partiellement, cet intervalle — même règle de
+    # recouvrement que Groupe.tranches_age_visees. `est_debut` distingue la
+    # ligne de démarrage (carte complète) des lignes de continuation (juste
+    # un rappel visuel), affichées par le template.
+    heures_grille = _generer_demi_heures_grille()
+    duree_ligne = datetime.timedelta(minutes=30)
+    seances_par_case = {(jour, heure): [] for jour in jours_dates for heure in heures_grille}
     for seance in seances:
-        seances_par_jour[seance.date].append(seance)
+        debut_dt = seance.debut_datetime
+        fin_dt = seance.fin_datetime or (debut_dt + datetime.timedelta(hours=1))
+        heures_couvertes = []
+        for heure in heures_grille:
+            naive = datetime.datetime.combine(seance.date, heure)
+            ligne_debut = timezone.make_aware(naive) if timezone.is_naive(naive) else naive
+            ligne_fin = ligne_debut + duree_ligne
+            if ligne_debut < fin_dt and ligne_fin > debut_dt:
+                heures_couvertes.append(heure)
+        # La 1ère ligne couverte affiche la carte complète (heure de début
+        # réelle + fin) ; les suivantes ne sont que des lignes de
+        # continuation — y compris si la séance démarre avant l'ouverture de
+        # l'école (heures_couvertes[0] n'est alors pas sa VRAIE heure de
+        # début, mais reste la 1ère ligne visible de la grille pour elle).
+        for indice, heure in enumerate(heures_couvertes):
+            seances_par_case[(seance.date, heure)].append({'seance': seance, 'est_debut': indice == 0})
 
-    # Le filtre prof (et le toggle "afficher archivés") doit survivre à la navigation
-    # semaine précédente/suivante, sinon changer de semaine le réinitialiserait
-    # silencieusement.
-    suffixe_prof = f'&prof={prof_id}' if prof_id else ''
+    lignes_grille = [
+        {
+            'heure': heure,
+            'cellules': [
+                {'date': jour, 'seances': seances_par_case[(jour, heure)]}
+                for jour in jours_dates
+            ],
+        }
+        for heure in heures_grille
+    ]
+
+    # Le filtre prof/catégorie/type (et le toggle "afficher archivés") doit
+    # survivre à la navigation semaine précédente/suivante, sinon changer de
+    # semaine le réinitialiserait silencieusement.
+    suffixe_filtres = ''
+    if prof_id:
+        suffixe_filtres += f'&prof={prof_id}'
+    if type_filtre:
+        suffixe_filtres += f'&type={type_filtre}'
+    if categorie_filtre:
+        suffixe_filtres += f'&categorie={categorie_filtre}'
+    if tranche_filtre:
+        suffixe_filtres += f'&tranche={tranche_filtre}'
     if afficher_archives:
-        suffixe_prof += '&afficher_archives=1'
+        suffixe_filtres += '&afficher_archives=1'
 
     context = {
-        'jours': [
-            {'date': jour, 'nom': JOURS_SEMAINE_AR[jour.weekday()], 'seances': seances_par_jour[jour]}
+        'jours_dates': [
+            {'date': jour, 'nom': JOURS_SEMAINE_AR[jour.weekday()]}
             for jour in jours_dates
         ],
+        'lignes_grille': lignes_grille,
         'lundi': lundi,
         'dimanche': jours_dates[-1],
-        'semaine_precedente': (lundi - datetime.timedelta(days=7)).isoformat() + suffixe_prof,
-        'semaine_suivante': (lundi + datetime.timedelta(days=7)).isoformat() + suffixe_prof,
+        'semaine_precedente': (lundi - datetime.timedelta(days=7)).isoformat() + suffixe_filtres,
+        'semaine_suivante': (lundi + datetime.timedelta(days=7)).isoformat() + suffixe_filtres,
         'profs': profs_pour_filtre(afficher_archives, prof_id),
-        'filtres': {'prof': prof_id, 'afficher_archives': afficher_archives},
+        'tranches_age': TRANCHES_AGE_PRECISES,
+        'filtres': {
+            'prof': prof_id,
+            'afficher_archives': afficher_archives,
+            'type': type_filtre,
+            'categorie': categorie_filtre,
+            'tranche': tranche_filtre,
+        },
         'base_template': _base_template_admin_ou_mshrif(request),
     }
     context.update(_contexte_base_mshrif(request))

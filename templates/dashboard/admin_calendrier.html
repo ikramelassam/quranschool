@@ -19,8 +19,71 @@
     </div>
 </div>
 
+<style>
+    .pill-nav { display:flex; flex-wrap:wrap; gap:8px; }
+    .pill-nav a {
+        display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem;
+        font-weight:600; text-decoration:none; color:#666; background:var(--color-bg-cream);
+        white-space:nowrap; transition:background 0.15s, color 0.15s;
+    }
+    .pill-nav a.active { background:var(--color-role-admin); color:white; }
+    .pill-nav.pill-nav-secondaire a { background:#f2f2f2; font-weight:500; font-size:0.85rem; padding:6px 16px; }
+    .pill-nav.pill-nav-secondaire a.active { background:var(--color-brand-gold); color:white; }
+
+    .grille-calendrier { border-collapse:collapse; width:100%; min-width:900px; font-size:0.82rem; }
+    .grille-calendrier th, .grille-calendrier td { border:1px solid #eee; padding:3px; vertical-align:top; }
+    .grille-calendrier thead th { background:#f9f9f9; text-align:center; padding:8px 4px; position:sticky; top:0; }
+    .grille-calendrier .col-heure { font-weight:600; white-space:nowrap; background:#f9f9f9; text-align:center; width:70px; }
+    {% comment %}Ligne pile à l'heure (:00) — un peu plus marquée pour repérer visuellement les heures pleines dans la grille à la demi-heure.{% endcomment %}
+    .grille-calendrier tr.ligne-heure-pleine .col-heure { border-top:2px solid #ddd; }
+    .grille-calendrier tr.ligne-heure-pleine td { border-top:2px solid #f0f0f0; }
+    .grille-calendrier .case-vide { color:#ccc; text-align:center; padding:6px 4px; }
+    .case-seance {
+        display:block; background:var(--color-bg-cream); border-radius:6px; padding:4px 6px;
+        margin-bottom:3px; font-size:0.78rem; line-height:1.25;
+    }
+    .case-seance .heure-seance { color:#888; font-size:0.72rem; }
+    .case-seance .nom-groupe { font-weight:600; color:#333; }
+    .case-seance .nom-prof { color:#888; font-size:0.72rem; }
+    .case-seance.statut-terminee { background:#e8f5e9; }
+    .case-seance.statut-annulee { background:#fce4e4; text-decoration:line-through; opacity:0.7; }
+    {% comment %}
+    Correction du 2026-09-14 (remarque d'Ikram "pourquoi il y a deux
+    couleurs") : une ligne de continuation gardait AVANT une couleur grise
+    fixe, différente de la couleur de statut de sa propre carte de départ
+    (crème/verte/rouge) — une même halaka de 2h changeait donc de couleur
+    entre sa ligne de départ et sa ligne de continuation, comme si c'étaient
+    2 séances différentes. Ne plus toucher au fond ici : il hérite de la
+    même couleur de statut (.statut-*) que la carte de départ, seule
+    l'opacité baisse pour distinguer visuellement les 2 sans changer de
+    teinte — la halaka reste un seul bloc de couleur cohérent sur toute sa
+    durée, comme dans un vrai calendrier.
+    {% endcomment %}
+    .case-seance-continuation { opacity:0.6; }
+    .case-seance-continuation .nom-groupe { font-weight:400; }
+</style>
+
+<div style="background:white; border-radius:12px; padding:18px 24px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <nav class="pill-nav" aria-label="{% trans 'تصفية حسب نوع الحصة' %}">
+        <a href="{% querystring type=None categorie=None tranche=None %}" class="{% if not filtres.type %}active{% endif %}">{% trans "الكل" %}</a>
+        <a href="{% querystring type='individuel' categorie=None tranche=None %}" class="{% if filtres.type == 'individuel' %}active{% endif %}">{% trans "الحصص الفردية" %}</a>
+        <a href="{% querystring type='groupe' %}" class="{% if filtres.type == 'groupe' %}active{% endif %}">{% trans "الحصص الجماعية" %}</a>
+    </nav>
+    <nav class="pill-nav pill-nav-secondaire mt-2" aria-label="{% trans 'تصفية حسب فئة المجموعة' %}">
+        <a href="{% querystring categorie=None tranche=None %}" class="{% if not filtres.categorie %}active{% endif %}">{% trans "كل الفئات" %}</a>
+        <a href="{% querystring categorie='femmes_adultes' tranche=None %}" class="{% if filtres.categorie == 'femmes_adultes' %}active{% endif %}">{% trans "النساء" %}</a>
+        <a href="{% querystring categorie='hommes_adultes' tranche=None %}" class="{% if filtres.categorie == 'hommes_adultes' %}active{% endif %}">{% trans "الرجال" %}</a>
+        {% for code, nom, age_min, age_max in tranches_age %}
+        <a href="{% querystring categorie='mineurs' tranche=code %}" class="{% if filtres.categorie == 'mineurs' and filtres.tranche == code %}active{% endif %}">{{ nom }}</a>
+        {% endfor %}
+    </nav>
+</div>
+
 <form method="GET" style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <input type="hidden" name="semaine" value="{{ lundi|date:'Y-m-d' }}">
+    <input type="hidden" name="type" value="{{ filtres.type }}">
+    <input type="hidden" name="categorie" value="{{ filtres.categorie }}">
+    <input type="hidden" name="tranche" value="{{ filtres.tranche }}">
     <div class="row g-3 align-items-end">
         <div class="col-md-4">
             <label style="color:#888; font-size:0.8rem;">{% trans "المعلم" %}</label>
@@ -46,32 +109,62 @@
     </div>
 </form>
 
-{% for jour in jours %}
-<div style="background:white; border-radius:12px; padding:16px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-weight:700; color:var(--color-role-admin-solid); margin-bottom:12px;">{{ jour.nom }} — {{ jour.date|date:"d-m-Y" }}</div>
-
-    {% if jour.seances %}
-        {% for seance in jour.seances %}
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0;">
-            <div>
-                <div style="font-weight:600;">{{ seance.groupe.nom }}</div>
-                <div style="color:#888; font-size:0.85rem;">
-                    {{ seance.heure|time:"H:i" }} —
-                    {% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}{% trans "بدون معلم" %}{% endif %}
-                </div>
-            </div>
-            {% if seance.statut == 'terminee' %}
-                <span style="background:#e8f5e9; color:var(--color-success); border-radius:20px; padding:3px 12px; font-size:0.8rem;">{% trans "منتهية ✅" %}</span>
-            {% elif seance.statut == 'planifiee' %}
-                <span style="background:#fff3cd; color:#856404; border-radius:20px; padding:3px 12px; font-size:0.8rem;">{% trans "مخططة 📅" %}</span>
-            {% else %}
-                <span style="background:#fce4e4; color:var(--color-danger); border-radius:20px; padding:3px 12px; font-size:0.8rem;">{% trans "ملغاة ❌" %}</span>
-            {% endif %}
-        </div>
-        {% endfor %}
-    {% else %}
-        <div style="color:#ccc; padding:8px 0;">{% trans "لا توجد حصص" %}</div>
-    {% endif %}
+{% comment %}
+Vue "tableau" (Tâche du 2026-09-14, demande client) : lignes = heures pleines
+de l'école (settings.HEURE_OUVERTURE_ECOLE/_FERMETURE_ECOLE, courses.utils.
+generer_heures_grille), colonnes = les 7 jours de la semaine affichée — même
+principe que templates/courses/_grille_disponibilites.html, mais à partir des
+séances réellement programmées. Une case vide ("case-vide") signale une heure
+sans aucune séance programmée pour les filtres actifs : c'est le "tableau des
+heures vides" demandé, remplace l'ancienne liste jour par jour.
+{% endcomment %}
+<div style="background:white; border-radius:12px; padding:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow-x:auto;">
+    <table class="grille-calendrier">
+        <thead>
+            <tr>
+                <th></th>
+                {% for jour in jours_dates %}
+                <th>{{ jour.nom }}<br><span style="color:#888; font-weight:400;">{{ jour.date|date:"d-m" }}</span></th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for ligne in lignes_grille %}
+            <tr class="{% if ligne.heure|time:'i' == '00' %}ligne-heure-pleine{% endif %}">
+                <td class="col-heure">{{ ligne.heure|time:"H:i" }}</td>
+                {% for cellule in ligne.cellules %}
+                <td>
+                    {% if cellule.seances %}
+                        {% for item in cellule.seances %}
+                        {% with seance=item.seance %}
+                        {% if item.est_debut %}
+                        <div class="case-seance statut-{{ seance.statut }}">
+                            <span class="heure-seance">{{ seance.heure|time:"H:i" }}{% if seance.fin_datetime %} – {{ seance.fin_datetime|time:"H:i" }}{% endif %}</span>
+                            <span class="nom-groupe">{{ seance.groupe.nom }}</span>
+                            <span class="nom-prof">{% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}{% trans "بدون معلم" %}{% endif %}</span>
+                        </div>
+                        {% else %}
+                        {% comment %}
+                        Ligne de continuation (Correction du 2026-09-14) : la
+                        séance a démarré à une ligne précédente et couvre
+                        encore celle-ci (halaka de 1h30/2h) — la ligne ne doit
+                        pas paraître "vide" alors qu'un cours y est en cours,
+                        sans répéter toute la carte.
+                        {% endcomment %}
+                        <div class="case-seance case-seance-continuation statut-{{ seance.statut }}">
+                            <span class="nom-groupe">↳ {{ seance.groupe.nom }}</span>
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+                        {% endfor %}
+                    {% else %}
+                        <div class="case-vide">—</div>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
-{% endfor %}
 {% endblock %}
