@@ -67,7 +67,7 @@
             {% endif %}
 
             {% if message.contenu %}
-            <div class="chat-bubble-texte">{{ message.contenu|linebreaksbr }}</div>
+            <div class="chat-bubble-texte">{{ message.contenu|urlize|linebreaksbr }}</div>
             {% endif %}
         {% endif %}
 

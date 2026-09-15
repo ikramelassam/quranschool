@@ -247,6 +247,7 @@
     .chat-bubble-auteur { font-size: 0.8rem; font-weight: 700; color: var(--color-brand-gold-dark); margin-bottom: 2px; }
     .chat-bubble-role { font-weight: 400; color: var(--color-text-muted); font-size: 0.74rem; }
     .chat-bubble-texte { font-size: 0.92rem; color: var(--color-text-primary); white-space: pre-wrap; }
+    .chat-bubble-texte a { color: var(--color-brand-gold-dark); text-decoration: underline; word-break: break-all; }
     /* .chat-bubble-pied (Tâche du 2026-08-17 "supprimer un message") remplace
        l'ancien conteneur implicite de .chat-bubble-heure : les deux
        cohabitent désormais sur la même ligne (heure + bouton supprimer,
@@ -1031,6 +1032,24 @@ en JS selon le type (image/vidéo/audio/PDF) — voir initMediaViewer().
         });
     }
 
+    // ---------- Liens cliquables dans le texte d'un message (ex: lien Meet collé
+    // par un client) ----------
+    // {{ message.contenu|urlize }} (voir templates/chat/_message_bubbles.html)
+    // transforme déjà l'URL en <a href>, mais le filtre Django ne pose ni
+    // target="_blank" ni rel="noopener" — sans ça le lien s'ouvrirait dans le
+    // même onglet et remplacerait le chat. Délégation sur la liste (mêmes
+    // raisons qu'initSuppressionMessages ci-dessus : bulles insérées en continu).
+    function initLiensMessages() {
+        const liste = document.getElementById('chatMessagesListe');
+        if (!liste) { return; }
+        liste.addEventListener('click', function (e) {
+            const lien = e.target.closest('.chat-bubble-texte a');
+            if (!lien) { return; }
+            e.preventDefault();
+            window.open(lien.href, '_blank', 'noopener');
+        });
+    }
+
     // ---------- Aperçu d'une pièce jointe DANS la page (Besoin du 2026-08-31) ----------
     // Clic sur "فتح" (bouton .chat-media-open, voir _message_bubbles.html) → on
     // remplit la modale #chatMediaOverlay avec <img>/<video>/<audio>/<iframe>
@@ -1123,6 +1142,7 @@ en JS selon le type (image/vidéo/audio/PDF) — voir initMediaViewer().
 
         initPhotoGroupe(panel);
         initSuppressionMessages(panel, groupeId);
+        initLiensMessages();
 
         const messagesDiv = document.getElementById('chatMessages');
         // Contenu initial (chargement complet de la page OU panneau ouvert en
