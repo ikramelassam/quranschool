@@ -13,10 +13,10 @@ from .models import (
     GroupeCritereValeur,
 )
 from .utils import (
-    abonnements_disponibles, champs_structurels_actifs, couverture_critere, couverture_grille_prix,
-    groupes_avec_place_disponible, groupes_compatibles, groupes_compatibles_avec_age, inscrire_eleve,
-    nb_seances_disponibles, nb_slots_reels_systeme, nb_slots_repondu, prix_effectif,
-    valider_champ_structurel_libre,
+    abonnements_disponibles, backfiller_criteres_programme_riwaya, champs_structurels_actifs,
+    couverture_critere, couverture_grille_prix, groupes_avec_place_disponible, groupes_compatibles,
+    groupes_compatibles_avec_age, inscrire_eleve, nb_seances_disponibles, nb_slots_reels_systeme,
+    nb_slots_repondu, preremplir_criteres_depuis_creneau, prix_effectif, valider_champ_structurel_libre,
 )
 
 MOT_DE_PASSE = 'xX!test12345'
@@ -4558,3 +4558,65 @@ class CritereEtapeChampLocaliseTests(TestCase):
         cree = Critere.objects.get(code='methode_apprentissage')
         self.assertEqual(cree.label_fr, "Méthode d'apprentissage")
         self.assertEqual(cree.label_en, 'Learning method')
+
+
+class PreremplirEtBackfillCriteresProgrammeRiwayaTests(TestCase):
+    """Chantier du 2026-09-15 (signalement client : « البرنامج »/« الرواية »
+    restaient à « غير محدد » dans « الخصائص » malgré une info déjà saisie à
+    la création du groupe, via son Creneau)."""
+
+    def setUp(self):
+        self.critere_programme = Critere.objects.get(code='programme')
+        self.critere_riwaya = Critere.objects.get(code='riwaya')
+
+    def _creer_groupe(self, nom, type_seance='hifz', riwaya='hafs'):
+        creneau = Creneau.objects.create(
+            sexe_cible='mixte', type_seance=type_seance, riwaya=riwaya, age_min=6, age_max=60,
+        )
+        remplacer_slots_creneau(creneau, [
+            {'jour': 'lun', 'heure_debut': datetime.time(16, 0), 'heure_fin': datetime.time(17, 0)},
+        ])
+        return Groupe.objects.create(nom=nom, creneau=creneau, statut='actif', type_capacite='groupe', capacite_max=10)
+
+    def test_preremplir_ecrit_les_bonnes_options(self):
+        groupe = self._creer_groupe('ZZZ_test_prefill', type_seance='tathbit', riwaya='warsh')
+        preremplir_criteres_depuis_creneau(groupe)
+        valeur_programme = GroupeCritereValeur.objects.get(groupe=groupe, critere=self.critere_programme)
+        valeur_riwaya = GroupeCritereValeur.objects.get(groupe=groupe, critere=self.critere_riwaya)
+        self.assertEqual(valeur_programme.option.code, 'tathbit')
+        self.assertEqual(valeur_riwaya.option.code, 'warsh')
+
+    def test_preremplir_silencieux_sans_creneau(self):
+        groupe = Groupe.objects.create(nom='ZZZ_test_sans_creneau', statut='actif', type_capacite='individuel', capacite_max=1)
+        preremplir_criteres_depuis_creneau(groupe)  # ne doit lever aucune exception
+        self.assertFalse(GroupeCritereValeur.objects.filter(groupe=groupe).exists())
+
+    def test_backfill_remplit_les_groupes_existants_sans_valeur(self):
+        groupe = self._creer_groupe('ZZZ_test_backfill', type_seance='hifz', riwaya='hafs')
+        self.assertEqual(backfiller_criteres_programme_riwaya(), 2)  # programme + riwaya pour ce groupe
+        self.assertEqual(
+            GroupeCritereValeur.objects.get(groupe=groupe, critere=self.critere_programme).option.code, 'hifz'
+        )
+        self.assertEqual(
+            GroupeCritereValeur.objects.get(groupe=groupe, critere=self.critere_riwaya).option.code, 'hafs'
+        )
+
+    def test_backfill_jamais_une_valeur_deja_choisie_a_la_main(self):
+        groupe = self._creer_groupe('ZZZ_test_backfill_manuel', type_seance='hifz', riwaya='hafs')
+        # Choix manuel VOLONTAIREMENT différent de ce que le Creneau suggérerait.
+        GroupeCritereValeur.objects.create(
+            groupe=groupe, critere=self.critere_programme, option=self.critere_programme.options.get(code='tathbit')
+        )
+        backfiller_criteres_programme_riwaya()
+        self.assertEqual(
+            GroupeCritereValeur.objects.get(groupe=groupe, critere=self.critere_programme).option.code, 'tathbit'
+        )
+        # riwaya, elle, n'avait rien -> remplie normalement.
+        self.assertEqual(
+            GroupeCritereValeur.objects.get(groupe=groupe, critere=self.critere_riwaya).option.code, 'hafs'
+        )
+
+    def test_backfill_idempotent(self):
+        self._creer_groupe('ZZZ_test_backfill_idem', type_seance='hifz', riwaya='hafs')
+        backfiller_criteres_programme_riwaya()
+        self.assertEqual(backfiller_criteres_programme_riwaya(), 0)

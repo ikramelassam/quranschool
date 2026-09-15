@@ -979,6 +979,44 @@ def preremplir_criteres_depuis_creneau(groupe):
         definir_valeurs_groupe(groupe, critere, [option])
 
 
+def backfiller_criteres_programme_riwaya():
+    """Rattrapage pour les groupes créés AVANT preremplir_criteres_depuis_creneau
+    ci-dessus (chantier du 2026-09-15, signalement client : « je trouve
+    maintenant plusieurs groupes » encore à « غير محدد ») — remplit
+    'البرنامج'/'الرواية' pour tout groupe qui a un Creneau mais AUCUNE
+    GroupeCritereValeur pour l'un de ces 2 critères. Ne touche JAMAIS un
+    groupe qui en a déjà une (même partielle, même un seul des 2) — pour ne
+    jamais écraser une valeur déjà choisie à la main dans « الخصائص ».
+    Retourne le nombre de (groupe, critère) effectivement remplis.
+
+    Idempotent : un 2e passage ne retrouve plus aucune ligne à traiter — même
+    patron que courses.utils.backfiller_categorie_depuis_creneau. Utilisé par
+    la commande `backfiller_criteres_programme_riwaya`."""
+    from courses.models import Groupe
+    from .models import Critere, GroupeCritereValeur
+
+    criteres = {
+        c.code: c
+        for c in Critere.objects.filter(code__in=('programme', 'riwaya'), backend='eav', est_actif=True)
+    }
+    nb_remplis = 0
+    groupes = Groupe.objects.filter(creneau__isnull=False).select_related('creneau')
+    for groupe in groupes:
+        correspondance = {'programme': groupe.creneau.type_seance, 'riwaya': groupe.creneau.riwaya}
+        for code, valeur_code in correspondance.items():
+            critere = criteres.get(code)
+            if critere is None:
+                continue
+            if GroupeCritereValeur.objects.filter(groupe=groupe, critere=critere).exists():
+                continue
+            option = critere.options.filter(code=valeur_code, est_actif=True).first()
+            if option is None:
+                continue
+            definir_valeurs_groupe(groupe, critere, [option])
+            nb_remplis += 1
+    return nb_remplis
+
+
 # ==================== VALIDATION D'UNE RÉPONSE DE CHAMP ====================
 
 def _reponses_a_creer_pour_champ(champ, valeur_brute):
