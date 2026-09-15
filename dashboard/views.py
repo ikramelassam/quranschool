@@ -5955,30 +5955,12 @@ def admin_demande_changement_halaka_refuser(request, demande_id):
 
 # ==================== ADMIN — CALENDRIER ====================
 
-def _generer_demi_heures_grille():
-    """Comme courses.utils.generer_heures_grille, mais par pas de 30 minutes
-    (Correction du 2026-09-14, remarque d'Ikram) : la grille de disponibilité
-    prof reste à l'heure pleine (choix métier délibéré, cases cochées par le
-    prof), mais admin_calendrier affiche des séances RÉELLES dont la durée
-    est libre (1h, 1h30, 2h... — voir Seance.fin_datetime/_creneau_champs_
-    groupe.html, <input type="time">). Une grille à l'heure pleine ne pouvait
-    pas distinguer une séance de 2h (14h-16h) d'une séance de 1h30
-    (14h-15h30) : les deux "débordaient" identiquement sur la ligne 15h,
-    masquant la demi-heure 15h30-16h pourtant libre dans le 2e cas."""
-    from django.conf import settings
-
-    heures = []
-    h = settings.HEURE_OUVERTURE_ECOLE
-    while h < settings.HEURE_FERMETURE_ECOLE:
-        heures.append(h)
-        h = (datetime.datetime.combine(datetime.date(2000, 1, 1), h) + datetime.timedelta(minutes=30)).time()
-    return heures
-
-
 @role_required('admin', 'mshrif')
 def admin_calendrier(request):
     from courses.models import Seance
-    from courses.utils import TRANCHES_AGE_PRECISES, etendre_toutes_les_seances_opportuniste
+    from courses.utils import (
+        TRANCHES_AGE_PRECISES, etendre_toutes_les_seances_opportuniste, generer_heures_grille,
+    )
     from django.utils import timezone
 
     # Correctif perf du 2026-08-30 — même throttle qu'admin_seances, voir sa
@@ -6007,9 +5989,7 @@ def admin_calendrier(request):
 
     seances = Seance.objects.filter(
         date__gte=jours_dates[0], date__lte=jours_dates[-1]
-    ).select_related(
-        'groupe', 'groupe__prof__user', 'groupe__creneau'
-    ).prefetch_related('groupe__creneau__slots').order_by('date', 'heure')
+    ).select_related('groupe', 'groupe__prof__user', 'groupe__creneau').order_by('date', 'heure')
     if prof_id:
         seances = seances.filter(groupe__prof_id=prof_id)
     if type_filtre in ('individuel', 'groupe'):
@@ -6027,44 +6007,25 @@ def admin_calendrier(request):
     # même principe que la grille de disponibilité prof — templates/courses/
     # _grille_disponibilites.html — mais construite à partir des séances
     # RÉELLEMENT programmées cette semaine, pas d'une disponibilité déclarée).
-    # Correction du 2026-09-14 (remarque d'Ikram) : une halaka de 1h30/2h doit
-    # occuper TOUTES les lignes qu'elle recouvre, pas seulement celle de son
-    # heure de début — sinon la ligne suivante paraissait "vide" alors qu'une
-    # séance y est encore en cours. Grille à la DEMI-HEURE (voir
-    # _generer_demi_heures_grille ci-dessus) pour distinguer une séance de 2h
-    # d'une séance de 1h30 (2e remarque d'Ikram, même jour). Utilise Seance.
-    # fin_datetime (durée dérivée du CreneauSlot du jour, voir sa docstring)
-    # pour déterminer l'intervalle réel ; une ligne est occupée dès qu'elle
-    # chevauche, même partiellement, cet intervalle — même règle de
-    # recouvrement que Groupe.tranches_age_visees. `est_debut` distingue la
-    # ligne de démarrage (carte complète) des lignes de continuation (juste
-    # un rappel visuel), affichées par le template.
-    heures_grille = _generer_demi_heures_grille()
-    duree_ligne = datetime.timedelta(minutes=30)
-    seances_par_case = {(jour, heure): [] for jour in jours_dates for heure in heures_grille}
+    # Repli explicite du 2026-09-15 (demande client, via Ikram) : une version
+    # intermédiaire faisait apparaître chaque halaka sur TOUTES les lignes
+    # couvertes par sa durée (+ son heure de fin) — le client ne veut PAS voir
+    # quand une séance se termine, seulement à quelle heure elle COMMENCE,
+    # exactement comme la 1ère version. Chaque séance est donc à nouveau
+    # rangée UNIQUEMENT dans la ligne de l'heure PLEINE où elle démarre (ex:
+    # une séance à 9h30 apparaît dans la ligne "09:00").
+    heures_grille = generer_heures_grille()
+    seances_par_case = {(jour, heure.hour): [] for jour in jours_dates for heure in heures_grille}
     for seance in seances:
-        debut_dt = seance.debut_datetime
-        fin_dt = seance.fin_datetime or (debut_dt + datetime.timedelta(hours=1))
-        heures_couvertes = []
-        for heure in heures_grille:
-            naive = datetime.datetime.combine(seance.date, heure)
-            ligne_debut = timezone.make_aware(naive) if timezone.is_naive(naive) else naive
-            ligne_fin = ligne_debut + duree_ligne
-            if ligne_debut < fin_dt and ligne_fin > debut_dt:
-                heures_couvertes.append(heure)
-        # La 1ère ligne couverte affiche la carte complète (heure de début
-        # réelle + fin) ; les suivantes ne sont que des lignes de
-        # continuation — y compris si la séance démarre avant l'ouverture de
-        # l'école (heures_couvertes[0] n'est alors pas sa VRAIE heure de
-        # début, mais reste la 1ère ligne visible de la grille pour elle).
-        for indice, heure in enumerate(heures_couvertes):
-            seances_par_case[(seance.date, heure)].append({'seance': seance, 'est_debut': indice == 0})
+        cle = (seance.date, seance.heure.hour)
+        if cle in seances_par_case:
+            seances_par_case[cle].append(seance)
 
     lignes_grille = [
         {
             'heure': heure,
             'cellules': [
-                {'date': jour, 'seances': seances_par_case[(jour, heure)]}
+                {'date': jour, 'seances': seances_par_case[(jour, heure.hour)]}
                 for jour in jours_dates
             ],
         }

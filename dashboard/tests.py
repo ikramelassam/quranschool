@@ -9472,7 +9472,15 @@ class AdminCalendrierFiltresEtGrilleTests(TestCase):
     champ Groupe.categorie que courses.views.groupes_list) ET par type de
     séance (individuel/groupe, Groupe.type_capacite) — et affiche désormais
     une grille heures×jours (comme templates/courses/_grille_disponibilites.
-    html) plutôt qu'une liste, pour repérer les heures sans séance."""
+    html) plutôt qu'une liste, pour repérer les heures sans séance.
+
+    Repli du 2026-09-15 (demande explicite du client, via Ikram) : une
+    version intermédiaire faisait apparaître chaque halaka sur toutes les
+    lignes couvertes par sa durée + son heure de fin (grille à la demi-
+    heure) — le client ne veut PAS voir la fin d'une séance, seulement son
+    heure de DÉBUT, comme la toute première version. Les tests qui
+    vérifiaient l'étalement sur plusieurs lignes (2h/1h30) ont été retirés
+    en conséquence — voir git log pour leur contenu si on doit y revenir."""
 
     def setUp(self):
         self.admin = _creer_admin()
@@ -9501,11 +9509,9 @@ class AdminCalendrierFiltresEtGrilleTests(TestCase):
             type_capacite='groupe', categorie='mineurs',
         )
 
-        # Créneau individuel de 2h (14h-16h) — vérifie que la halaka occupe
-        # bien LES DEUX lignes de la grille, pas seulement celle de 14h (voir
-        # test_une_seance_de_2h_occupe_les_2_lignes_couvertes ci-dessous,
-        # remarque explicite d'Ikram du 2026-09-14 : "j'ai l'impression que tu
-        # vois juste l'heure de début, tu ne vois pas l'heure de fin").
+        # Créneau individuel de 2h (14h-16h) — sert à vérifier que, malgré sa
+        # durée, la halaka n'apparaît QUE sur sa ligne de début (15h reste
+        # une case vide), demande explicite du client du 2026-09-15.
         self.creneau_individuel = Creneau.objects.create(
             sexe_cible='homme', type_seance='hifz', riwaya='hafs', age_min=25, age_max=60,
         )
@@ -9514,22 +9520,6 @@ class AdminCalendrierFiltresEtGrilleTests(TestCase):
         ])
         self.groupe_individuel = Groupe.objects.create(
             nom='ZZZ_halaka_individuelle_calendrier', prof=self.prof, creneau=self.creneau_individuel,
-            type_capacite='individuel', categorie='hommes_adultes',
-        )
-
-        # Créneau de 1h30 (17h-18h30), même jour — sert à vérifier que la
-        # grille à la DEMI-HEURE distingue bien cette durée de celle de 2h
-        # ci-dessus (2e remarque d'Ikram du 2026-09-14 : "comment séparer une
-        # séance de deux heures et une autre d'une heure et demie" — avec une
-        # grille à l'heure pleine, les deux "débordaient" identiquement).
-        self.creneau_1h30 = Creneau.objects.create(
-            sexe_cible='homme', type_seance='hifz', riwaya='hafs', age_min=25, age_max=60,
-        )
-        remplacer_slots_creneau(self.creneau_1h30, [
-            {'jour': 'lun', 'heure_debut': datetime.time(17, 0), 'heure_fin': datetime.time(18, 30)},
-        ])
-        self.groupe_1h30 = Groupe.objects.create(
-            nom='ZZZ_halaka_1h30_calendrier', prof=self.prof, creneau=self.creneau_1h30,
             type_capacite='individuel', categorie='hommes_adultes',
         )
 
@@ -9543,9 +9533,6 @@ class AdminCalendrierFiltresEtGrilleTests(TestCase):
         self.seance_individuelle = Seance.objects.create(
             groupe=self.groupe_individuel, date=self.lundi, heure=datetime.time(14, 0), type='normal',
         )
-        self.seance_1h30 = Seance.objects.create(
-            groupe=self.groupe_1h30, date=self.lundi, heure=datetime.time(17, 0), type='normal',
-        )
 
     def _get(self, **params):
         params.setdefault('semaine', self.lundi.isoformat())
@@ -9554,10 +9541,10 @@ class AdminCalendrierFiltresEtGrilleTests(TestCase):
     @staticmethod
     def _toutes_seances(reponse):
         return [
-            item['seance']
+            seance
             for ligne in reponse.context['lignes_grille']
             for cellule in ligne['cellules']
-            for item in cellule['seances']
+            for seance in cellule['seances']
         ]
 
     def _seances_de(self, reponse, heure):
@@ -9593,58 +9580,22 @@ class AdminCalendrierFiltresEtGrilleTests(TestCase):
         self.assertNotIn(self.seance_femmes, toutes_seances)
         self.assertNotIn(self.seance_baraim, toutes_seances)
 
-    def test_la_seance_est_rangee_dans_la_ligne_de_son_heure_pleine(self):
+    def test_la_seance_est_rangee_dans_la_ligne_de_son_heure_de_debut(self):
         reponse = self._get()
-        items_9h = self._seances_de(reponse, datetime.time(9, 0))
-        self.assertIn(self.seance_femmes, [item['seance'] for item in items_9h])
-        self.assertTrue(next(item for item in items_9h if item['seance'] == self.seance_femmes)['est_debut'])
+        self.assertIn(self.seance_femmes, self._seances_de(reponse, datetime.time(9, 0)))
 
     def test_une_heure_sans_seance_reste_une_case_vide(self):
         reponse = self._get()
         self.assertEqual(self._seances_de(reponse, datetime.time(8, 0)), [])
 
-    def test_une_seance_de_2h_occupe_les_2_lignes_couvertes(self):
-        """La halaka individuelle 14h-16h doit apparaître à la fois dans la
-        ligne 14h (carte complète, est_debut=True) ET dans la ligne 15h
-        (ligne de continuation, est_debut=False) — pas seulement à 14h."""
+    def test_une_seance_de_2h_napparait_que_sur_sa_ligne_de_debut(self):
+        """Demande explicite du client (2026-09-15) : ne pas montrer la fin
+        d'une séance — la halaka individuelle 14h-16h doit apparaître à 14h
+        et NULLE PART ailleurs, même si elle dure 2h (15h reste vide)."""
         reponse = self._get()
-        items_14h = self._seances_de(reponse, datetime.time(14, 0))
-        items_15h = self._seances_de(reponse, datetime.time(15, 0))
-        items_16h = self._seances_de(reponse, datetime.time(16, 0))
-
-        item_14h = next(item for item in items_14h if item['seance'] == self.seance_individuelle)
-        self.assertTrue(item_14h['est_debut'])
-
-        item_15h = next(item for item in items_15h if item['seance'] == self.seance_individuelle)
-        self.assertFalse(item_15h['est_debut'])
-
-        # La séance finit à 16h00 pile : cette ligne n'est plus couverte.
-        self.assertNotIn(self.seance_individuelle, [item['seance'] for item in items_16h])
-
-    def test_grille_a_la_demi_heure_distingue_2h_de_1h30(self):
-        """2e remarque d'Ikram du 2026-09-14 : une grille uniquement à
-        l'heure pleine ne distinguait pas une séance de 2h (14h-16h) d'une
-        séance de 1h30 (17h-18h30) — les 2 "débordaient" pareil sur la ligne
-        suivante. La grille à la demi-heure doit maintenant les séparer : la
-        halaka de 1h30 laisse 18h30-19h00 réellement libre, contrairement à
-        celle de 2h qui occupe sa demi-heure équivalente (15h30-16h00)."""
-        reponse = self._get()
-        heures_des_lignes = [ligne['heure'] for ligne in reponse.context['lignes_grille']]
-        self.assertIn(datetime.time(15, 30), heures_des_lignes)
-        self.assertIn(datetime.time(18, 30), heures_des_lignes)
-
-        # La halaka de 2h (14h-16h) occupe encore la demi-heure 15h30-16h.
-        items_15h30 = self._seances_de(reponse, datetime.time(15, 30))
-        self.assertIn(self.seance_individuelle, [item['seance'] for item in items_15h30])
-
-        # La halaka de 1h30 (17h-18h30) NE couvre PAS 18h30-19h — libre.
-        items_18h30 = self._seances_de(reponse, datetime.time(18, 30))
-        self.assertNotIn(self.seance_1h30, [item['seance'] for item in items_18h30])
-
-        # Elle couvre bien 17h30-18h (dernière demi-heure avant sa fin), en continuation.
-        items_17h30 = self._seances_de(reponse, datetime.time(17, 30))
-        item_17h30 = next(item for item in items_17h30 if item['seance'] == self.seance_1h30)
-        self.assertFalse(item_17h30['est_debut'])
+        self.assertIn(self.seance_individuelle, self._seances_de(reponse, datetime.time(14, 0)))
+        self.assertNotIn(self.seance_individuelle, self._seances_de(reponse, datetime.time(15, 0)))
+        self.assertNotIn(self.seance_individuelle, self._seances_de(reponse, datetime.time(16, 0)))
 
     def test_page_se_charge_sans_erreur_avec_tous_les_filtres_combines(self):
         reponse = self._get(type='groupe', categorie='mineurs', tranche='baraim', prof=self.prof.id, afficher_archives='1')

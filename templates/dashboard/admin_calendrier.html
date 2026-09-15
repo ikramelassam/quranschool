@@ -34,9 +34,6 @@
     .grille-calendrier th, .grille-calendrier td { border:1px solid #eee; padding:3px; vertical-align:top; }
     .grille-calendrier thead th { background:#f9f9f9; text-align:center; padding:8px 4px; position:sticky; top:0; }
     .grille-calendrier .col-heure { font-weight:600; white-space:nowrap; background:#f9f9f9; text-align:center; width:70px; }
-    {% comment %}Ligne pile à l'heure (:00) — un peu plus marquée pour repérer visuellement les heures pleines dans la grille à la demi-heure.{% endcomment %}
-    .grille-calendrier tr.ligne-heure-pleine .col-heure { border-top:2px solid #ddd; }
-    .grille-calendrier tr.ligne-heure-pleine td { border-top:2px solid #f0f0f0; }
     .grille-calendrier .case-vide { color:#ccc; text-align:center; padding:6px 4px; }
     .case-seance {
         display:block; background:var(--color-bg-cream); border-radius:6px; padding:4px 6px;
@@ -47,20 +44,6 @@
     .case-seance .nom-prof { color:#888; font-size:0.72rem; }
     .case-seance.statut-terminee { background:#e8f5e9; }
     .case-seance.statut-annulee { background:#fce4e4; text-decoration:line-through; opacity:0.7; }
-    {% comment %}
-    Correction du 2026-09-14 (remarque d'Ikram "pourquoi il y a deux
-    couleurs") : une ligne de continuation gardait AVANT une couleur grise
-    fixe, différente de la couleur de statut de sa propre carte de départ
-    (crème/verte/rouge) — une même halaka de 2h changeait donc de couleur
-    entre sa ligne de départ et sa ligne de continuation, comme si c'étaient
-    2 séances différentes. Ne plus toucher au fond ici : il hérite de la
-    même couleur de statut (.statut-*) que la carte de départ, seule
-    l'opacité baisse pour distinguer visuellement les 2 sans changer de
-    teinte — la halaka reste un seul bloc de couleur cohérent sur toute sa
-    durée, comme dans un vrai calendrier.
-    {% endcomment %}
-    .case-seance-continuation { opacity:0.6; }
-    .case-seance-continuation .nom-groupe { font-weight:400; }
 
     .legende-statuts { display:flex; flex-wrap:wrap; gap:14px; font-size:0.78rem; color:#888; }
     .legende-statuts .puce { display:inline-block; width:12px; height:12px; border-radius:3px; margin-inline-end:5px; vertical-align:middle; }
@@ -138,8 +121,10 @@ de l'école (settings.HEURE_OUVERTURE_ECOLE/_FERMETURE_ECOLE, courses.utils.
 generer_heures_grille), colonnes = les 7 jours de la semaine affichée — même
 principe que templates/courses/_grille_disponibilites.html, mais à partir des
 séances réellement programmées. Une case vide ("case-vide") signale une heure
-sans aucune séance programmée pour les filtres actifs : c'est le "tableau des
-heures vides" demandé, remplace l'ancienne liste jour par jour.
+sans aucune séance programmée pour les filtres actifs. Repli du 2026-09-15
+(demande explicite du client) : chaque séance n'apparaît QUE sur sa ligne de
+début — pas d'heure de fin affichée, pas de ligne de continuation sur les
+heures suivantes même pour une halaka de 1h30/2h.
 {% endcomment %}
 <div style="background:white; border-radius:12px; padding:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow-x:auto;">
     <table class="grille-calendrier">
@@ -153,35 +138,20 @@ heures vides" demandé, remplace l'ancienne liste jour par jour.
         </thead>
         <tbody>
             {% for ligne in lignes_grille %}
-            <tr class="{% if ligne.heure|time:'i' == '00' %}ligne-heure-pleine{% endif %}">
+            <tr>
                 <td class="col-heure">{{ ligne.heure|time:"H:i" }}</td>
                 {% for cellule in ligne.cellules %}
                 <td>
                     {% if cellule.seances %}
-                        {% for item in cellule.seances %}
-                        {% with seance=item.seance %}
-                        {% if item.est_debut %}
+                        {% for seance in cellule.seances %}
                         <div class="case-seance statut-{{ seance.statut }}">
                             <span class="heure-seance">
-                                {{ seance.heure|time:"H:i" }}{% if seance.fin_datetime %} – {{ seance.fin_datetime|time:"H:i" }}{% endif %}
+                                {{ seance.heure|time:"H:i" }}
                                 {% if seance.statut == 'terminee' %}✅{% elif seance.statut == 'annulee' %}❌{% endif %}
                             </span>
                             <span class="nom-groupe">{{ seance.groupe.nom }}</span>
                             <span class="nom-prof">{% if seance.groupe.prof %}{{ seance.groupe.prof.user.get_full_name }}{% else %}{% trans "بدون معلم" %}{% endif %}</span>
                         </div>
-                        {% else %}
-                        {% comment %}
-                        Ligne de continuation (Correction du 2026-09-14) : la
-                        séance a démarré à une ligne précédente et couvre
-                        encore celle-ci (halaka de 1h30/2h) — la ligne ne doit
-                        pas paraître "vide" alors qu'un cours y est en cours,
-                        sans répéter toute la carte.
-                        {% endcomment %}
-                        <div class="case-seance case-seance-continuation statut-{{ seance.statut }}">
-                            <span class="nom-groupe">↳ {{ seance.groupe.nom }}</span>
-                        </div>
-                        {% endif %}
-                        {% endwith %}
                         {% endfor %}
                     {% else %}
                         <div class="case-vide">—</div>
