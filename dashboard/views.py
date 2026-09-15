@@ -8908,10 +8908,10 @@ def admin_eleve_ajouter_manuel(request):
     from courses.utils import _age_depuis_naissance, tranche_age_depuis_naissance
     from inscriptions.views import _construire_et_valider_telephone
     from registration.utils import (
-        abonnements_avec_prix_effectif, champs_structurels_actifs, evaluer_champs_actifs,
-        extraire_champs_depuis_post, groupes_avec_place_disponible, groupes_compatibles_avec_age,
-        inscrire_eleve, nb_slots_repondu, reponses_pour_filtrage_depuis_resultats,
-        statut_compatibilite_groupe, abonnements_disponibles,
+        abonnements_avec_prix_effectif, champs_structurels_actifs, critere_type_offre_depuis_reponses,
+        evaluer_champs_actifs, extraire_champs_depuis_post, groupes_avec_place_disponible,
+        groupes_compatibles_avec_age, inscrire_eleve, nb_slots_repondu,
+        reponses_pour_filtrage_depuis_resultats, statut_compatibilite_groupe, abonnements_disponibles,
     )
 
     round_form = request.POST.get('round_form', 'identite') if request.method == 'POST' else 'identite'
@@ -8961,7 +8961,7 @@ def admin_eleve_ajouter_manuel(request):
         }
         resultats = evaluer_champs_actifs(donnees)
         reponses_pour_filtrage = reponses_pour_filtrage_depuis_resultats(resultats)
-        critere_type_offre = next((c for c in reponses_pour_filtrage if c.backend == 'champ_groupe'), None)
+        critere_type_offre = critere_type_offre_depuis_reponses(reponses_pour_filtrage)
         type_offre_valeur = reponses_pour_filtrage.get(critere_type_offre) if critere_type_offre else None
 
         date_naissance = None
@@ -9025,7 +9025,7 @@ def admin_eleve_ajouter_manuel(request):
     }
     resultats = evaluer_champs_actifs(donnees)
     reponses_pour_filtrage = reponses_pour_filtrage_depuis_resultats(resultats)
-    critere_type_offre = next((c for c in reponses_pour_filtrage if c.backend == 'champ_groupe'), None)
+    critere_type_offre = critere_type_offre_depuis_reponses(reponses_pour_filtrage)
     type_offre_valeur = reponses_pour_filtrage.get(critere_type_offre) if critere_type_offre else None
 
     confirme = request.POST.get('confirme_override') == '1'

@@ -346,6 +346,37 @@ def wizard_reinitialiser(request):
 
 # ==================== FILTRAGE GÉNÉRIQUE DES GROUPES (Phase 6) ====================
 
+def valeur_champ_modele_groupe(groupe, champ_modele_groupe, affichage=False):
+    """Résout critere.champ_modele_groupe (backend='champ_groupe') sur un Groupe
+    réel — support des doubles underscores (ex: 'creneau__riwaya' traverse
+    groupe.creneau.riwaya), la MÊME syntaxe que qs.filter(**{...}) ci-dessous
+    (l'ORM Django la comprend déjà nativement pour le filtrage ; cette fonction
+    est ce qui manquait côté AFFICHAGE pour ne jamais avoir 2 façons différentes
+    de résoudre le même champ réel). Introduite pour que 'البرنامج'/'الرواية'
+    (champ_modele_groupe='creneau__type_seance'/'creneau__riwaya') se lisent
+    directement sur groupe.creneau, au même titre que 'نوع الحصة'
+    (champ_modele_groupe='type_capacite', déjà un champ direct de Groupe).
+
+    affichage=True retourne get_<dernier_segment>_display() quand ce champ a
+    des choices (ex: "الحفظ والمراجعة..." plutôt que 'hifz') — sinon la valeur
+    brute. affichage=False (défaut) retourne toujours la valeur brute, celle
+    comparée aux CritereOption.code (JS de filtrage, revalidation serveur)."""
+    segments = champ_modele_groupe.split('__')
+    objet = groupe
+    for segment in segments[:-1]:
+        if objet is None:
+            return None
+        objet = getattr(objet, segment, None)
+    if objet is None:
+        return None
+    dernier = segments[-1]
+    if affichage:
+        accesseur = getattr(objet, f'get_{dernier}_display', None)
+        if callable(accesseur):
+            return accesseur()
+    return getattr(objet, dernier, None)
+
+
 def groupes_compatibles(reponses, exclure_caches_wizard_public=True):
     """reponses : dict {Critere: valeur}, valeur selon critere.backend :
     - 'eav' : une CritereOption, ou une liste/tuple/set de CritereOption (choix
@@ -552,6 +583,22 @@ def snapshot_criteres_pour_demande(reponses_pour_filtrage):
     return snapshot
 
 
+def critere_type_offre_depuis_reponses(reponses):
+    """Retrouve LE critère 'type_offre' (فردي/جماعي) dans un dict {Critere:
+    valeur} déjà construit (reponses_pour_filtrage_depuis_resultats /
+    groupes_compatibles) — identifié par champ_modele_groupe='type_capacite',
+    PAS par backend='champ_groupe' seul : admin_critere_inscription_ajouter
+    permet au مدير/مشرف de créer LIBREMENT un 2e critère backend='champ_groupe'
+    (n'importe quel champ réel de Groupe) depuis le dashboard — un simple
+    next(... if c.backend == 'champ_groupe') redeviendrait alors ambigu dès
+    qu'un candidat répond aux deux, et récupérerait la valeur d'un critère au
+    hasard selon l'ordre d'itération du dict plutôt que celle de type_offre."""
+    return next(
+        (c for c in reponses if c.backend == 'champ_groupe' and c.champ_modele_groupe == 'type_capacite'),
+        None,
+    )
+
+
 def nb_seances_disponibles(reponses_sans_nb_slots):
     """Valeurs de 'nombre de séances hebdomadaires' RÉELLEMENT proposables à
     l'élève à l'étape 2 — jamais 1/2/3/4 codés en dur. reponses_sans_nb_slots :
@@ -579,7 +626,7 @@ def nb_seances_disponibles(reponses_sans_nb_slots):
     séances/semaine créé par le مدير apparaît immédiatement à la prochaine
     requête, sans action supplémentaire (même philosophie que
     courses.utils.lien_seance_est_actif)."""
-    critere_type_offre = next((c for c in reponses_sans_nb_slots if c.backend == 'champ_groupe'), None)
+    critere_type_offre = critere_type_offre_depuis_reponses(reponses_sans_nb_slots)
     type_offre_valeur = reponses_sans_nb_slots.get(critere_type_offre) if critere_type_offre else None
 
     if type_offre_valeur == 'individuel':
@@ -899,6 +946,39 @@ def definir_valeurs_groupe(groupe, critere, options):
     ])
 
 
+def preremplir_criteres_depuis_creneau(groupe):
+    """Pré-remplit les critères EAV 'programme'/'riwaya' d'un groupe NEUF à
+    partir des choix déjà faits pour son Creneau — Creneau.type_seance/riwaya
+    utilisent EXACTEMENT les mêmes codes que ces 2 critères (voir leurs
+    docstrings respectifs dans courses.models), sans qu'aucun lien ne les
+    relie jusqu'ici : le panneau « الخصائص » (admin_groupe_detail) affichait
+    donc « غير محدد » pour une info pourtant déjà saisie à la création
+    (signalement client du 2026-09-15).
+
+    Appelé UNE SEULE FOIS, à la création (courses.views.groupe_ajouter) — ne
+    resynchronise JAMAIS après coup : une modification ultérieure de l'horaire
+    du groupe ne touche plus « الخصائص », qui reste ensuite modifiable
+    indépendamment via ce même panneau, exactement comme avant ce correctif.
+
+    Best-effort et silencieux : un critère 'programme'/'riwaya' absent,
+    désactivé, ou reconfiguré en 'champ_groupe'/'nb_slots' par le مدير/مشرف
+    est simplement ignoré — jamais une erreur à la création d'un groupe pour
+    une configuration de critère qui ne dépend pas de cette fonction."""
+    from .models import Critere
+
+    if groupe.creneau is None:
+        return
+    correspondance = {'programme': groupe.creneau.type_seance, 'riwaya': groupe.creneau.riwaya}
+    for code, valeur_code in correspondance.items():
+        critere = Critere.objects.filter(code=code, backend='eav', est_actif=True).first()
+        if critere is None:
+            continue
+        option = critere.options.filter(code=valeur_code, est_actif=True).first()
+        if option is None:
+            continue
+        definir_valeurs_groupe(groupe, critere, [option])
+
+
 # ==================== VALIDATION D'UNE RÉPONSE DE CHAMP ====================
 
 def _reponses_a_creer_pour_champ(champ, valeur_brute):
@@ -1075,7 +1155,7 @@ def donnees_filtrage_json_pour_wizard():
         valeurs = {}
         for critere in criteres_filtrables:
             if critere.backend == 'champ_groupe':
-                valeurs[critere.id] = getattr(groupe, critere.champ_modele_groupe, None)
+                valeurs[critere.id] = valeur_champ_modele_groupe(groupe, critere.champ_modele_groupe)
             else:
                 option_id = valeurs_par_critere.get(critere.id)
                 option = next(
@@ -1297,9 +1377,7 @@ def inscrire_eleve(reponses_brutes, cree_par=None, confirme_override=False):
     reponses_pour_filtrage = reponses_pour_filtrage_depuis_resultats(resultats)
 
     # ---- 3. Groupe (uniquement si le critère champ_groupe='type_offre' vaut 'groupe') ----
-    critere_type_offre = next(
-        (c for c in reponses_pour_filtrage if c.backend == 'champ_groupe'), None
-    )
+    critere_type_offre = critere_type_offre_depuis_reponses(reponses_pour_filtrage)
     type_offre_valeur = reponses_pour_filtrage.get(critere_type_offre) if critere_type_offre else None
 
     groupe_choisi = None

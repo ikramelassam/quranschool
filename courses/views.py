@@ -381,6 +381,12 @@ def groupe_ajouter(request):
             photo=photo or None,
         )
         regenerer_pour_nouveau_creneau(groupe)
+        # Pré-remplissage « الخصائص » (signalement client du 2026-09-15) :
+        # البرنامج/الرواية sont déjà choisis ci-dessus pour le Creneau — voir
+        # sa docstring pour pourquoi ça ne devait pas rester déconnecté du
+        # panneau de critères.
+        from registration.utils import preremplir_criteres_depuis_creneau
+        preremplir_criteres_depuis_creneau(groupe)
         for avertissement in avertissements_prof:
             messages.warning(request, avertissement)
         messages.success(request, gettext_('تمت إضافة المجموعة وتوليد حصصها تلقائياً بنجاح.'))
@@ -479,6 +485,7 @@ def groupe_detail(request, groupe_id):
     # voir registration.utils.definir_valeurs_groupe). Recalculé à chaque
     # affichage, jamais mis en cache.
     from registration.models import Critere, GroupeCritereValeur
+    from registration.utils import valeur_champ_modele_groupe
 
     criteres_config = []
     for critere in Critere.objects.filter(est_actif=True).order_by('ordre', 'id').prefetch_related('options'):
@@ -493,13 +500,9 @@ def groupe_detail(request, groupe_id):
                 'valeurs_actuelles_ids': valeurs_actuelles_ids,
             })
         elif critere.backend == 'champ_groupe':
-            # get_<champ>_display() si le champ réel a des choices (cas de
-            # type_capacite) — sinon retombe sur la valeur brute.
-            accesseur_affichage = getattr(groupe, f'get_{critere.champ_modele_groupe}_display', None)
-            valeur_affichee = accesseur_affichage() if callable(accesseur_affichage) else getattr(groupe, critere.champ_modele_groupe, None)
             criteres_config.append({
                 'critere': critere,
-                'valeur_reelle': valeur_affichee,
+                'valeur_reelle': valeur_champ_modele_groupe(groupe, critere.champ_modele_groupe, affichage=True),
             })
         else:  # 'nb_slots'
             criteres_config.append({

@@ -384,13 +384,14 @@ def _type_offre_et_reponses_filtrage(donnees):
     des réponses déjà en session — utilise evaluer_champs_actifs/reponses_
     pour_filtrage_depuis_resultats (Étape 6C, partagées avec inscrire_eleve)
     pour ne JAMAIS diverger sur ce qui compte comme "répondu"."""
-    from .utils import evaluer_champs_actifs, reponses_pour_filtrage_depuis_resultats
+    from .utils import (
+        critere_type_offre_depuis_reponses, evaluer_champs_actifs, reponses_pour_filtrage_depuis_resultats,
+    )
 
     resultats = evaluer_champs_actifs(donnees)
     reponses_pour_filtrage = reponses_pour_filtrage_depuis_resultats(resultats)
-    type_offre_valeur = next(
-        (v for c, v in reponses_pour_filtrage.items() if c.backend == 'champ_groupe'), None
-    )
+    critere_type_offre = critere_type_offre_depuis_reponses(reponses_pour_filtrage)
+    type_offre_valeur = reponses_pour_filtrage.get(critere_type_offre) if critere_type_offre else None
     return type_offre_valeur, reponses_pour_filtrage
 
 
