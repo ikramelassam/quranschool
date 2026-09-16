@@ -472,7 +472,11 @@ document.querySelector('form').addEventListener('submit', function (e) {
         recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
         recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
         recorder.onstop = finalize;
-        recorder.start();
+        // Timeslice (ms) : force le navigateur à vider ses chunks régulièrement
+        // au lieu d'attendre un seul gros blob final au stop(). Sans ça, sur
+        // mobile (Chrome Android, Safari iOS), l'enregistrement se tronque
+        // souvent en cours de route pour les prises un peu longues.
+        recorder.start(1000);
         startedAt = Date.now();
         timerEl.textContent = '0:00';
         ticker = setInterval(() => {
