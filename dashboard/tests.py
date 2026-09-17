@@ -5344,7 +5344,13 @@ class NotificationsProfEnAttenteDirectionTests(TestCase):
             reponse, reverse('mshrif_inscription_prof_detail', args=[inscription.id])
         )
 
-    def test_visiter_mshrif_inscriptions_profs_marque_comme_lu(self):
+    def test_visiter_mshrif_inscriptions_profs_ne_marque_plus_comme_lu(self):
+        """Correctif du 2026-09-17 : ce badge est désormais un compteur de
+        tâches réellement en attente (aligné sur le badge sidebar
+        `nb_profs_a_valider`, dashboard.context_processors.
+        badges_sidebar_direction) — la simple consultation de la liste ne
+        l'éteint plus, seule la validation/le rejet réel le fait (voir
+        test_valider_final_eteint_le_badge / test_rejeter_eteint_le_badge)."""
         inscription = self._inscription_en_attente()
         self.client.force_login(self.admin)
         self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
@@ -5352,12 +5358,10 @@ class NotificationsProfEnAttenteDirectionTests(TestCase):
         self.client.force_login(self.mshrif)
         self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 1)
         self.client.get(reverse('mshrif_inscriptions_profs'))
-        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 0)
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 1)
 
-    def test_visiter_la_fiche_candidat_marque_comme_lu(self):
-        """La fiche détail étant la nouvelle cible du lien (voir
-        test_lien_notification_pointe_vers_la_fiche_du_candidat), la consulter
-        doit vider le badge exactement comme la liste."""
+    def test_visiter_la_fiche_candidat_ne_marque_plus_comme_lu(self):
+        """Même correctif que ci-dessus, côté fiche détail cette fois."""
         inscription = self._inscription_en_attente()
         self.client.force_login(self.admin)
         self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
@@ -5365,7 +5369,47 @@ class NotificationsProfEnAttenteDirectionTests(TestCase):
         self.client.force_login(self.mshrif)
         self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 1)
         self.client.get(reverse('mshrif_inscription_prof_detail', args=[inscription.id]))
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 1)
+
+    def test_valider_final_eteint_le_badge(self):
+        """Seule la VRAIE validation finale (statut qui quitte
+        'validee_directeur') éteint le badge, pas la consultation."""
+        inscription = self._inscription_en_attente()
+        self.client.force_login(self.admin)
+        self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
+
+        self.client.force_login(self.mshrif)
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 1)
+        self.client.get(reverse('mshrif_inscription_prof_detail', args=[inscription.id]))
+        self.client.get(reverse('mshrif_valider_prof_final', args=[inscription.id]))
         self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 0)
+
+    def test_rejeter_eteint_le_badge(self):
+        inscription = self._inscription_en_attente()
+        self.client.force_login(self.admin)
+        self.client.get(reverse('admin_valider_prof', args=[inscription.id]))
+
+        self.client.force_login(self.mshrif)
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 1)
+        self.client.post(reverse('mshrif_rejeter_prof', args=[inscription.id]), {'motif': ''})
+        self.assertEqual(self.client.get(reverse('dashboard_mshrif')).context['notif_total'], 0)
+
+    def test_badge_cloche_egal_au_badge_sidebar(self):
+        """Les 2 badges (cloche 🔔 et sidebar « طلبات الأساتذة ») doivent
+        toujours porter le même chiffre pour le مشرف — c'est exactement
+        l'incohérence corrigée le 2026-09-17."""
+        self._inscription_en_attente('مرشح١')
+        self._inscription_en_attente('مرشح٢')
+        self.client.force_login(self.admin)
+        for i in InscriptionProf.objects.values_list('id', flat=True):
+            self.client.get(reverse('admin_valider_prof', args=[i]))
+
+        self.client.force_login(self.mshrif)
+        # Le مشرف consulte tout — le badge sidebar (compteur brut) ne bouge jamais.
+        self.client.get(reverse('mshrif_inscriptions_profs'))
+        reponse = self.client.get(reverse('dashboard_mshrif'))
+        self.assertEqual(reponse.context['notif_total'], reponse.context['nb_profs_a_valider'])
+        self.assertEqual(reponse.context['notif_total'], 2)
 
     def test_prof_deja_valide_ne_declenche_pas(self):
         """Un dossier déjà passé au statut final 'valide' ne concerne plus

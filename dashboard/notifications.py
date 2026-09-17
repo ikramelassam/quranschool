@@ -451,11 +451,21 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
          'demandes_inscription_prof'). Lien : admin_inscription_prof_detail
          (aucune garde de statut).
        - مشرف : voit 'validee_directeur' + finaux, MASQUE 'en_attente' (pas
-         encore de son ressort). `non_lu` sur 'validee_directeur' (`cle`
-         'profs_en_attente_validation', horodatage date_validee_directeur).
-         Lien : mshrif_inscription_prof_detail pour 'validee_directeur'
-         (seul statut que cette vue accepte), sinon la liste
-         mshrif_inscriptions_profs.
+         encore de son ressort). `non_lu` = statut ENCORE 'validee_directeur'
+         (compteur de tâches réellement en attente, PAS un flux de lecture) —
+         correctif du 2026-09-17 : avant, `non_lu` retombait à False dès la
+         simple CONSULTATION de la fiche (`cle` 'profs_en_attente_validation'),
+         alors que le badge de la sidebar (dashboard.context_processors.
+         badges_sidebar_direction, `nb_profs_a_valider`) reste, lui, un compte
+         BRUT des candidatures encore 'validee_directeur' — un مشرف qui avait
+         déjà ouvert toutes les fiches voyait donc 🔔 0 à côté d'un badge
+         sidebar non nul, incohérence rapportée comme "compteur faux" /
+         "notification qui ne disparaît pas". Les 2 badges sont désormais
+         strictement égaux ; le badge ne s'éteint qu'à la VRAIE validation ou
+         au rejet (mshrif_valider_prof_final / mshrif_rejeter_prof), plus à la
+         simple lecture. Lien : mshrif_inscription_prof_detail pour
+         'validee_directeur' (seul statut que cette vue accepte), sinon la
+         liste mshrif_inscriptions_profs.
 
     3. DemandeChangementHalaka — TOUT statut (en_attente / validee / refusee),
     مدير + مشرف, `cle` 'demandes_changement_halaka'. `non_lu` sur 'en_attente'.
@@ -514,8 +524,6 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
         'paiements_retard_eleves', 'nouveaux_paiements',
         'seances_evaluees_direction', 'evaluations_mouatir_direction',
     ]
-    if user.role == 'mshrif':
-        cles.append('profs_en_attente_validation')
     if user.role == 'admin':
         cles.append('demandes_inscription_prof')
     seuils = _seuils(user, cles)
@@ -569,11 +577,11 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
             continue
         libelle, ton = statut_prof.get(p.statut, (p.get_statut_display(), 'neutre'))
         if est_mshrif:
-            non_lu = bool(
-                p.statut == 'validee_directeur'
-                and p.date_validee_directeur
-                and p.date_validee_directeur > seuils['profs_en_attente_validation']
-            )
+            # Compteur de tâches en attente, pas un flux de lecture — voir le
+            # correctif du 2026-09-17 documenté ci-dessus (source 2) : ne
+            # dépend plus d'une visite, seule la validation/le rejet réel
+            # (statut qui change) éteint cette notification.
+            non_lu = p.statut == 'validee_directeur'
             url = (
                 reverse('mshrif_inscription_prof_detail', args=[p.id])
                 if p.statut == 'validee_directeur' else url_liste_profs_mshrif
