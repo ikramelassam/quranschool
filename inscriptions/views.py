@@ -280,9 +280,20 @@ def inscription_eleve_formulaire(request, type_age):
     if type_age == 'enfant' and not parametres.ouverte_eleve_enfant:
         return _reponse_categorie_fermee(request, 'enfant')
 
+    # `t.duree_affichee` (pas `t.label` brut) — correctif du 2026-09-17 :
+    # depuis le Besoin 1.4 (2026-08-27), `label` ne porte plus la durée (les
+    # مدير peuvent créer plusieurs formules du même abonnement pour des
+    # durées différentes, voir TypeAbonnement.DUREE_CHOICES) ; avec `label`
+    # seul, ce formulaire dormant affichait alors plusieurs boutons au libellé
+    # STRICTEMENT IDENTIQUE, distinguables uniquement par le prix — un
+    # candidat ne pouvait pas savoir laquelle il choisissait. `duree_affichee`
+    # est le même champ déjà utilisé par le wizard public (wizard_abonnement.
+    # html) et admin_eleve_ajouter_manuel.html pour ce même besoin : la durée
+    # si elle est renseignée, sinon `label` en entier (jamais de régression
+    # sur les anciennes formules sans durée).
     types_abonnement_json = json.dumps([{
         'code': t.code,
-        'label': t.label,
+        'label': t.duree_affichee,
         'prix': str(t.prix),
     } for t in TypeAbonnement.objects.filter(est_actif=True, cible_age__in=[type_age, 'les_deux']).order_by('ordre')])
 
