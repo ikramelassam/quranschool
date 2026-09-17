@@ -314,6 +314,7 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
     let audioChunks = [];
     let dureeInterval = null;
     let audioDemarreA = 0;
+    let annulationAudioEnCours = false;
 
     btnAudio.addEventListener('click', function () {
         if (!(navigator.mediaDevices && window.MediaRecorder)) {
@@ -337,6 +338,10 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
     // réservé (navigateur qui omet le champ), on renvoie le blob d'origine
     // tel quel — aucune régression possible.
     function patcherDureeWebm(arrayBuffer, dureeMs) {
+        // Décalage d'horloge (rare, ex: resynchro NTP en cours d'enregistrement
+        // mobile) : mieux vaut ne rien patcher qu'écrire une durée absurde,
+        // pire que la valeur "inconnue" d'origine.
+        if (!(dureeMs > 0)) return false;
         const ID_SEGMENT = 0x18538067, ID_INFO = 0x1549A966, ID_DUREE = 0x4489, ID_ECHELLE = 0x2AD7B1;
         const view = new DataView(arrayBuffer);
         function lireVint(offset, garderMarqueur) {
@@ -390,10 +395,18 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
     function demarrerEnregistrement() {
         navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
             audioChunks = [];
+            annulationAudioEnCours = false;
             mediaRecorder = new MediaRecorder(stream);
             mediaRecorder.addEventListener('dataavailable', function (e) { audioChunks.push(e.data); });
             mediaRecorder.addEventListener('stop', async function () {
                 stream.getTracks().forEach(function (t) { t.stop(); });
+                // mediaRecorder.stop() déclenche cet évènement de façon
+                // ASYNCHRONE (après le code synchrone de arreterEnregistrement,
+                // reset de l'interface y compris) : sans ce garde-fou, annuler
+                // pendant l'enregistrement rattachait quand même un fichier
+                // (quasi vide) juste après — même protection que
+                // templates/examens/passage.html.
+                if (annulationAudioEnCours) { annulationAudioEnCours = false; return; }
                 const dureeMs = Date.now() - audioDemarreA;
                 const blob = await corrigerBlobWebm(new Blob(audioChunks, { type: 'audio/webm' }), dureeMs);
                 const fichier = new File([blob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
@@ -418,7 +431,7 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
     }
     function arreterEnregistrement(annuler) {
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            if (annuler) { audioChunks = []; }
+            if (annuler) { annulationAudioEnCours = true; audioChunks = []; }
             mediaRecorder.stop();
         }
         zoneEnregistrement.classList.remove('visible');

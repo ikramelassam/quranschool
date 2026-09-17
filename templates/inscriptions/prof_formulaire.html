@@ -500,6 +500,10 @@ document.querySelector('form').addEventListener('submit', function (e) {
     // d'en-tête) — si l'espace n'a pas été réservé, on renvoie false et
     // finalize() retente le décodage sur le blob non modifié.
     function patcherDureeWebm(arrayBuffer, dureeMs) {
+        // Décalage d'horloge (rare, ex: resynchro NTP en cours d'enregistrement
+        // mobile) : mieux vaut ne rien patcher qu'écrire une durée absurde,
+        // pire que la valeur "inconnue" d'origine.
+        if (!(dureeMs > 0)) return false;
         const ID_SEGMENT = 0x18538067, ID_INFO = 0x1549A966, ID_DUREE = 0x4489, ID_ECHELLE = 0x2AD7B1;
         const view = new DataView(arrayBuffer);
         function lireVint(offset, garderMarqueur) {

@@ -338,6 +338,10 @@ const demarrageAudioExamens = {};
 // quel — aucune régression possible. Fonctionne aussi bien pour un flux
 // audio seul que pour un flux vidéo+audio (même structure de conteneur).
 function patcherDureeWebm(arrayBuffer, dureeMs) {
+    // Décalage d'horloge (rare, ex: resynchro NTP en cours d'enregistrement
+    // mobile) : mieux vaut ne rien patcher qu'écrire une durée absurde, pire
+    // que la valeur "inconnue" d'origine.
+    if (!(dureeMs > 0)) return false;
     const ID_SEGMENT = 0x18538067, ID_INFO = 0x1549A966, ID_DUREE = 0x4489, ID_ECHELLE = 0x2AD7B1;
     const view = new DataView(arrayBuffer);
     function lireVint(offset, garderMarqueur) {
