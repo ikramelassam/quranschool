@@ -158,6 +158,38 @@ class EleveePaiementsPeriodeTests(TestCase):
         p = Paiement.objects.get(eleve=self.eleve)
         self.assertEqual(p.montant, 160)
 
+    def test_chevauchement_partiel_bloque_sans_supprimer_lancien(self):
+        """Correctif du 2026-09-17 : un ancien 'en_attente' de 3 mois
+        (août-sept-oct) ne doit PAS être supprimé en entier par une
+        resoumission qui ne couvre qu'1 mois commun (septembre) — août et
+        octobre perdraient sinon toute trace de paiement. On bloque plutôt
+        avec un message, l'ancien reste intact."""
+        ancien = Paiement.objects.create(
+            eleve=self.eleve, montant=240, mois_reference=datetime.date(2026, 8, 5), nb_mois_couverts=3,
+        )
+        reponse = self.client.post(reverse('eleve_paiements'), {
+            'date_debut': '2026-09-05', 'nb_mois': '1', 'montant': '80', 'screenshot': _screenshot(),
+        })
+        self.assertRedirects(reponse, reverse('eleve_paiements'))
+        ancien.refresh_from_db()
+        self.assertEqual(ancien.montant, 240)
+        self.assertEqual(Paiement.objects.filter(eleve=self.eleve).count(), 1)  # rien de neuf créé
+
+    def test_chevauchement_total_toujours_remplace(self):
+        """Non-régression : quand le nouvel envoi couvre AU MOINS tous les
+        mois de l'ancien (ex: ancien 1 mois inclus dans un nouvel envoi de 2
+        mois), le remplacement automatique reste permis."""
+        ancien = Paiement.objects.create(
+            eleve=self.eleve, montant=999, mois_reference=datetime.date(2026, 8, 5), nb_mois_couverts=1,
+        )
+        reponse = self.client.post(reverse('eleve_paiements'), {
+            'date_debut': '2026-08-05', 'nb_mois': '2', 'montant': '160', 'screenshot': _screenshot(),
+        })
+        self.assertRedirects(reponse, reverse('eleve_paiements'))
+        self.assertFalse(Paiement.objects.filter(id=ancien.id).exists())
+        p = Paiement.objects.get(eleve=self.eleve)
+        self.assertEqual(p.montant, 160)
+
     def test_paiement_rejete_ne_bloque_pas_ni_nest_supprime(self):
         rejete = Paiement.objects.create(
             eleve=self.eleve, montant=80, mois_reference=datetime.date(2026, 8, 5), statut='rejete',

@@ -230,10 +230,33 @@ def eleve_paiements(request):
 
         # Un Paiement `en_attente` qui chevauche est REMPLACÉ par ce nouvel
         # envoi (sinon l'administration verrait deux demandes pour les mêmes
-        # mois). Les Paiement `rejete` sont conservés comme historique.
-        for ancien in Paiement.objects.filter(eleve=eleve, statut='en_attente'):
-            if mois_vises & mois_couverts(ancien.mois_reference, ancien.nb_mois_couverts):
-                ancien.delete()
+        # mois) — MAIS seulement si ce nouvel envoi couvre TOUS les mois de
+        # l'ancien (ancien_mois ⊆ mois_vises). Correctif du 2026-09-17 : avant
+        # cette vérification, un ancien Paiement `en_attente` de 3 mois
+        # (ex: jan-fév-mar) était supprimé EN ENTIER dès qu'une resoumission
+        # ne portant que sur 1 seul mois commun (ex: fév) le chevauchait —
+        # janvier et mars perdaient alors toute trace de paiement, sans que
+        # personne ne soit averti. En cas de chevauchement PARTIEL (ni sous-
+        # ensemble, ni disjoint), on bloque avec un message explicite plutôt
+        # que de deviner quoi effacer — l'élève garde son ancien envoi intact
+        # et peut élargir sa période. Les Paiement `rejete` sont conservés
+        # comme historique.
+        anciens_en_attente = list(Paiement.objects.filter(eleve=eleve, statut='en_attente'))
+        anciens_a_remplacer = []
+        for ancien in anciens_en_attente:
+            mois_ancien = mois_couverts(ancien.mois_reference, ancien.nb_mois_couverts)
+            if not (mois_vises & mois_ancien):
+                continue
+            if mois_ancien <= mois_vises:
+                anciens_a_remplacer.append(ancien)
+            else:
+                messages.error(
+                    request,
+                    gettext_('لديك طلب سابق قيد المراجعة يغطي أشهراً غير مشمولة في هذا الإرسال — وسّع الفترة المختارة لتشملها بالكامل، أو انتظر مراجعة الإدارة لطلبك السابق.'),
+                )
+                return redirect('eleve_paiements')
+        for ancien in anciens_a_remplacer:
+            ancien.delete()
 
         paiement = Paiement(
             eleve=eleve, montant=montant_total, mois_reference=date_debut, nb_mois_couverts=nb_mois,
