@@ -86,13 +86,15 @@ class Message(models.Model):
     )
     nom_fichier_original = models.CharField(max_length=255, blank=True, default='')
     taille_fichier_octets = models.PositiveIntegerField(null=True, blank=True)
-    # Suppression "douce" façon WhatsApp (Tâche du 2026-08-17) : la ligne
-    # RESTE en base (position chronologique/séparateur de jour inchangés,
-    # cohérent avec le reste du module qui n'a jamais de "trous" dans le fil)
-    # — seul le CONTENU est effacé (contenu/fichier/nom_fichier_original/
-    # taille_fichier_octets, voir chat.views.chat_supprimer_message) et un
-    # placeholder "message supprimé" est affiché à la place (voir
-    # templates/chat/_message_bubbles.html). Différent de la purge de
+    # Suppression "douce" façon WhatsApp (Tâche du 2026-08-17, étendue au
+    # مدير le 2026-09-17 — voir chat.permissions.peut_supprimer_message) : la
+    # ligne RESTE en base (position chronologique/séparateur de jour
+    # inchangés, cohérent avec le reste du module qui n'a jamais de "trous"
+    # dans le fil) — seul le CONTENU est effacé (contenu/fichier/
+    # nom_fichier_original/taille_fichier_octets, voir chat.views.
+    # chat_supprimer_message) et un placeholder "message supprimé" est
+    # affiché à la place (voir templates/chat/_message_bubbles.html).
+    # Différent de la purge de
     # rétention (chat.services.purger_messages_expires) qui, elle, fait une
     # VRAIE suppression de la ligne — deux mécanismes distincts, l'un
     # n'empêche pas l'autre (un message "supprimé" par son auteur reste

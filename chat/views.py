@@ -9,7 +9,9 @@ from django.views.decorators.http import require_POST, require_GET
 from accounts.decorators import role_required
 from courses.utils import valider_photo_groupe
 from .models import Conversation, Message
-from .permissions import can_access_conversation, participants_conversation, peut_modifier_photo_groupe
+from .permissions import (
+    can_access_conversation, participants_conversation, peut_modifier_photo_groupe, peut_supprimer_message,
+)
 from .services import (
     annoter_separateurs_jour, content_type_audio, conversations_avec_apercu,
     filtrer_conversations_par_categorie_et_recherche, jour_du_message, marquer_comme_lu,
@@ -451,26 +453,28 @@ def chat_modifier_photo_groupe(request, groupe_id):
 @role_required(*ROLES_AVEC_CHAT)
 @require_POST
 def chat_supprimer_message(request, groupe_id, message_id):
-    """Suppression "douce" d'UN message par son propre auteur, façon
-    WhatsApp (Tâche du 2026-08-17) : le message reste en base (position
-    chronologique/séparateur de jour inchangés) mais son contenu est effacé
-    et remplacé par un placeholder (voir Message.est_supprime et
-    templates/chat/_message_bubbles.html).
+    """Suppression "douce" d'UN message, façon WhatsApp (Tâche du 2026-08-17) :
+    le message reste en base (position chronologique/séparateur de jour
+    inchangés) mais son contenu est effacé et remplacé par un placeholder
+    (voir Message.est_supprime et templates/chat/_message_bubbles.html).
 
-    Vérification STRICTE côté serveur (message.auteur_id ==
-    request.user.id) — jamais une confiance dans le fait que le bouton
-    Supprimer n'était affiché QUE sur ses propres bulles côté client : un
-    utilisateur qui rejoue cette requête pour le message de quelqu'un
-    d'autre (même en connaissant son id) reçoit un 403, ce message n'est
-    JAMAIS modifié. Idempotent : un message déjà supprimé renvoie le même
-    résultat sans rien refaire (un double-clic ou une requête rejouée ne
-    doit jamais planter ni écraser une seconde fois un contenu déjà vidé)."""
+    Réservée à son propre auteur, PLUS le مدير qui peut modérer n'importe
+    quel message de n'importe quelle conversation (Tâche du 2026-09-17) —
+    voir chat.permissions.peut_supprimer_message, seul endroit qui décide de
+    ce droit. Vérification STRICTE côté serveur, jamais une confiance dans le
+    fait que le bouton Supprimer n'était affiché QUE sur les bulles
+    autorisées côté client : un utilisateur qui rejoue cette requête sans en
+    avoir le droit (même en connaissant l'id du message) reçoit un 403, ce
+    message n'est JAMAIS modifié. Idempotent : un message déjà supprimé
+    renvoie le même résultat sans rien refaire (un double-clic ou une requête
+    rejouée ne doit jamais planter ni écraser une seconde fois un contenu
+    déjà vidé)."""
     conversation, erreur = _conversation_ou_403(request, groupe_id)
     if erreur:
         return erreur
 
     message = get_object_or_404(Message, id=message_id, conversation=conversation)
-    if message.auteur_id != request.user.id:
+    if not peut_supprimer_message(request.user, message):
         return HttpResponseForbidden('لا يمكنك حذف رسالة شخص آخر.')
 
     if not message.est_supprime:

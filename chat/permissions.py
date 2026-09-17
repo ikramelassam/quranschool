@@ -107,6 +107,25 @@ def peut_modifier_photo_groupe(user, groupe):
     return user.role == 'admin'
 
 
+def peut_supprimer_message(user, message):
+    """Qui peut supprimer CE message (Tâche du 2026-09-17 "le مدير peut
+    supprimer n'importe quel message du chat") — son propre auteur, dans
+    tous les cas (règle d'origine, Tâche du 2026-08-17), PLUS le مدير qui
+    peut désormais supprimer le message de n'importe qui (modération globale,
+    cohérent avec sa visibilité déjà totale sur toutes les conversations —
+    voir get_conversations_accessibles ci-dessus). prof/superviseur/eleve
+    restent limités à leurs propres messages ; مشرف n'a de toute façon aucun
+    accès au chat. Cette fonction est le SEUL endroit qui décide de ce
+    droit : appelée à la fois par le template (afficher ou non le bouton 🗑
+    sur une bulle qui n'est pas la mienne) et par chat.views.
+    chat_supprimer_message (vérification stricte côté serveur) — jamais une
+    confiance dans le fait que le bouton n'était affiché QUE sur les bulles
+    autorisées côté client."""
+    if not user.is_authenticated or message is None:
+        return False
+    return message.auteur_id == user.id or user.role == 'admin'
+
+
 def participants_conversation(conversation):
     """Liste d'affichage des participants ACTUELS d'une conversation — utilisée
     uniquement pour le panneau "membres" du chat (jamais pour calculer une

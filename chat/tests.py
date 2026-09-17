@@ -1220,13 +1220,27 @@ class SuppressionMessageTests(TestCase):
         self.assertFalse(message.est_supprime)
         self.assertEqual(message.contenu, 'ne pas supprimer')
 
-    def test_admin_ne_peut_pas_supprimer_le_message_dun_autre(self):
-        """Même le مدير (qui voit TOUTES les conversations) ne peut supprimer
-        que ses PROPRES messages — la règle est "auteur == utilisateur",
-        jamais un rôle particulier qui contournerait la vérification."""
+    def test_admin_peut_supprimer_le_message_dun_autre(self):
+        """Le مدير (qui voit TOUTES les conversations) peut modérer n'importe
+        quel message, même s'il n'en est pas l'auteur (Tâche du 2026-09-17)
+        — voir chat.permissions.peut_supprimer_message."""
         message = self._envoyer_message_texte(self.eleve.user, contenu='message élève')
         admin = _creer_admin()
         _connecter(self.client, admin)
+        response = self.client.post(f'/chat/{self.groupe.id}/messages/{message.id}/supprimer/')
+        self.assertEqual(response.status_code, 200)
+        message.refresh_from_db()
+        self.assertTrue(message.est_supprime)
+        self.assertEqual(message.contenu, '')
+
+    def test_prof_ne_peut_pas_supprimer_le_message_dun_eleve(self):
+        """Seul le مدير a ce droit élargi — un prof/مؤطر avec accès légitime à
+        la conversation reste limité à ses propres messages, comme un élève."""
+        message = self._envoyer_message_texte(self.eleve.user, contenu='message élève')
+        prof = _creer_prof()
+        self.groupe.prof = prof
+        self.groupe.save(update_fields=['prof'])
+        _connecter(self.client, prof.user)
         response = self.client.post(f'/chat/{self.groupe.id}/messages/{message.id}/supprimer/')
         self.assertEqual(response.status_code, 403)
         message.refresh_from_db()

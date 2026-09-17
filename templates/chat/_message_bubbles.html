@@ -74,14 +74,16 @@
         <div class="chat-bubble-pied">
             <span class="chat-bubble-heure">{{ message.date_envoi|heure_message }}</span>
             {% comment %}
-            Suppression réservée à l'auteur, vérifiée à nouveau (STRICT) côté
-            serveur dans chat.views.chat_supprimer_message — cette condition
-            côté template n'est qu'un confort d'affichage, jamais la seule
-            protection (Tâche du 2026-08-17, cohérent avec le reste du
-            module : voir chat.permissions.peut_modifier_photo_groupe pour
-            le même principe appliqué à la photo de groupe).
+            Suppression réservée à l'auteur, PLUS le مدير qui peut modérer le
+            message de n'importe qui (Tâche du 2026-09-17) — vérifiée à
+            nouveau (STRICT) côté serveur dans chat.views.
+            chat_supprimer_message, cette condition côté template n'est qu'un
+            confort d'affichage, jamais la seule protection (voir
+            chat.permissions.peut_supprimer_message, seul endroit qui décide
+            de ce droit — même principe que chat.permissions.
+            peut_modifier_photo_groupe pour la photo de groupe).
             {% endcomment %}
-            {% if message.auteur_id == user.id and not message.est_supprime %}
+            {% if not message.est_supprime and message|peut_supprimer:user %}
             <button type="button" class="chat-bubble-supprimer" data-message-id="{{ message.id }}"
                     title="{% trans 'حذف الرسالة' %}" aria-label="{% trans 'حذف الرسالة' %}">🗑</button>
             {% endif %}

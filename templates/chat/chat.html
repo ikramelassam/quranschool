@@ -1071,14 +1071,15 @@ en JS selon le type (image/vidéo/audio/PDF) — voir initMediaViewer().
         });
     }
 
-    // ---------- Suppression d'un message par son propre auteur (Tâche du 2026-08-17) ----------
+    // ---------- Suppression d'un message (Tâche du 2026-08-17, étendue au مدير le 2026-09-17) ----------
     // Délégation d'événement sur la liste (les bulles sont recréées/insérées
     // en continu par l'envoi/le polling/l'historique remonté — jamais un
     // écouteur posé par bouton, qu'il faudrait reposer à chaque insertion).
     // La protection qui compte est côté serveur (chat.views.
-    // chat_supprimer_message, vérifie message.auteur_id == request.user.id) :
-    // le bouton n'est de toute façon rendu QUE sur mes propres bulles non
-    // supprimées (voir templates/chat/_message_bubbles.html).
+    // chat_supprimer_message, vérifie chat.permissions.peut_supprimer_message) :
+    // le bouton n'est de toute façon rendu QUE sur les bulles autorisées —
+    // les miennes, ou n'importe laquelle si je suis مدير (voir
+    // templates/chat/_message_bubbles.html).
     function initSuppressionMessages(panel, groupeId) {
         const liste = document.getElementById('chatMessagesListe');
         if (!liste) { return; }

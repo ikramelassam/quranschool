@@ -65,6 +65,16 @@ def nom_categorie_chat(code_categorie):
 
 
 @register.filter
+def peut_supprimer(message, user):
+    """Le bouton 🗑 doit-il être affiché sur CETTE bulle pour `user` ? Ne fait
+    QUE réutiliser chat.permissions.peut_supprimer_message — aucune règle
+    recodée ici (Tâche du 2026-09-17 "le مدير peut supprimer n'importe quel
+    message"), même principe que chat.permissions.peut_voir_chat_groupe."""
+    from ..permissions import peut_supprimer_message
+    return peut_supprimer_message(user, message)
+
+
+@register.filter
 def taille_lisible(taille_octets):
     """1536 -> '1.5 ك.ب', 3_145_728 -> '3.0 م.ب' — pour la carte de pièce jointe."""
     if not taille_octets:
