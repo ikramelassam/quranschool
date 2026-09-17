@@ -313,6 +313,7 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
     let mediaRecorder = null;
     let audioChunks = [];
     let dureeInterval = null;
+    let audioDemarreA = 0;
 
     btnAudio.addEventListener('click', function () {
         if (!(navigator.mediaDevices && window.MediaRecorder)) {
@@ -325,18 +326,83 @@ elles ne "sont" pas dans une tranche, elles les couvrent toutes à la fois.
         if (fichierAudioSecours.files[0]) { definirFichierEnAttente(fichierAudioSecours.files[0], '🎧'); }
     });
 
+    // Le webm produit par MediaRecorder réserve un espace fixe (4 ou 8 octets)
+    // pour le champ Duration de son en-tête EBML mais le laisse à une valeur
+    // « inconnue » (flux écrit en direct, durée finale connue seulement à
+    // l'arrêt) : résultat, un retour en arrière dans la barre de lecture
+    // s'arrête en cours de route (pas d'index de recherche fiable). On répare
+    // ce champ EN PLACE une fois la vraie durée connue côté client — même
+    // correctif que templates/chat/chat.html et
+    // templates/inscriptions/prof_formulaire.html. Si l'espace n'a pas été
+    // réservé (navigateur qui omet le champ), on renvoie le blob d'origine
+    // tel quel — aucune régression possible.
+    function patcherDureeWebm(arrayBuffer, dureeMs) {
+        const ID_SEGMENT = 0x18538067, ID_INFO = 0x1549A966, ID_DUREE = 0x4489, ID_ECHELLE = 0x2AD7B1;
+        const view = new DataView(arrayBuffer);
+        function lireVint(offset, garderMarqueur) {
+            const premier = view.getUint8(offset);
+            let masque = 0x80, longueur = 1;
+            while (longueur <= 8 && !(premier & masque)) { masque >>= 1; longueur++; }
+            if (longueur > 8) throw new Error('vint invalide');
+            let valeur = garderMarqueur ? premier : (premier & (masque - 1));
+            for (let i = 1; i < longueur; i++) valeur = valeur * 256 + view.getUint8(offset + i);
+            return { valeur, longueur };
+        }
+        let echelle = 1000000; // ns par tick, valeur par défaut EBML
+        function parcourir(debut, fin) {
+            let offset = debut;
+            while (offset < fin) {
+                const id = lireVint(offset, true);
+                const taille = lireVint(offset + id.longueur, false);
+                const debutPayload = offset + id.longueur + taille.longueur;
+                const finPayload = debutPayload + taille.valeur;
+                if (id.valeur === ID_SEGMENT || id.valeur === ID_INFO) {
+                    const trouve = parcourir(debutPayload, Math.min(finPayload, fin));
+                    if (trouve) return trouve;
+                } else if (id.valeur === ID_ECHELLE) {
+                    let v = 0;
+                    for (let i = debutPayload; i < finPayload; i++) v = v * 256 + view.getUint8(i);
+                    echelle = v;
+                } else if (id.valeur === ID_DUREE) {
+                    return { offset: debutPayload, taille: taille.valeur };
+                }
+                offset = finPayload;
+            }
+            return null;
+        }
+        const cible = parcourir(0, arrayBuffer.byteLength);
+        if (!cible || (cible.taille !== 4 && cible.taille !== 8)) return false;
+        const ticks = (dureeMs * 1e6) / echelle;
+        if (cible.taille === 8) view.setFloat64(cible.offset, ticks, false);
+        else view.setFloat32(cible.offset, ticks, false);
+        return true;
+    }
+    async function corrigerBlobWebm(blob, dureeMs) {
+        try {
+            const buffer = await blob.arrayBuffer();
+            if (patcherDureeWebm(buffer, dureeMs)) {
+                return new Blob([buffer], { type: blob.type || 'audio/webm' });
+            }
+        } catch (err) { /* on retombe sur le blob d'origine, sans régression */ }
+        return blob;
+    }
+
     function demarrerEnregistrement() {
         navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
             audioChunks = [];
             mediaRecorder = new MediaRecorder(stream);
             mediaRecorder.addEventListener('dataavailable', function (e) { audioChunks.push(e.data); });
-            mediaRecorder.addEventListener('stop', function () {
+            mediaRecorder.addEventListener('stop', async function () {
                 stream.getTracks().forEach(function (t) { t.stop(); });
-                const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                const dureeMs = Date.now() - audioDemarreA;
+                const blob = await corrigerBlobWebm(new Blob(audioChunks, { type: 'audio/webm' }), dureeMs);
                 const fichier = new File([blob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
                 definirFichierEnAttente(fichier, '🎧');
             });
-            mediaRecorder.start();
+            // Timeslice (ms) : évite la troncature de l'enregistrement sur
+            // mobile pour les prises un peu longues.
+            mediaRecorder.start(1000);
+            audioDemarreA = Date.now();
             zoneEnregistrement.classList.add('visible');
             let secondes = 0;
             dureeSpan.textContent = '00:00';
