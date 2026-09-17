@@ -41,6 +41,17 @@ FENETRE_ANTI_DOUBLON_SECONDES = 5
 # de Paiement d'un coup — aucun élève réel ne paie plus de 2 ans à l'avance.
 NB_MOIS_MAX_PAR_PERIODE = 24
 
+# Borne du repli "legacy" de admin_paiement_detail (regroupement ±120s des
+# paiements 1-mois, voir plus bas) — chantier "Paiement unique" du 2026-09-03
+# (migration payments/0011_paiement_nb_mois_couverts) : avant cette date, un
+# règlement multi-mois créait UN Paiement PAR mois, d'où le besoin de les
+# reconstituer. Correctif du 2026-09-17 : sans cette borne, DEUX paiements
+# distincts d'1 mois envoyés aujourd'hui à moins de 2 minutes d'intervalle
+# (ex: l'élève règle séparément 2 mois au même prix) étaient à tort fusionnés
+# en une seule période affichée. Le lendemain du déploiement pour laisser une
+# marge aux paiements en cours au moment du déploiement.
+DATE_LIMITE_LEGACY_PAIEMENTS_MULTI_MOIS = datetime.datetime(2026, 9, 4, tzinfo=datetime.timezone.utc)
+
 logger = logging.getLogger(__name__)
 
 # Justificatif de paiement : côté cadrage d'image avant l'upload vers le
@@ -371,7 +382,7 @@ def admin_paiement_detail(request, paiement_id):
     if (paiement.nb_mois_couverts or 1) > 1:
         periode_debut = paiement.mois_reference
         periode_fin = _ajouter_mois(paiement.mois_reference, paiement.nb_mois_couverts)
-    else:
+    elif paiement.date < DATE_LIMITE_LEGACY_PAIEMENTS_MULTI_MOIS:
         fenetre = datetime.timedelta(seconds=120)
         lot = list(
             Paiement.objects.filter(
@@ -386,6 +397,13 @@ def admin_paiement_detail(request, paiement_id):
             lot = [paiement]
         periode_debut = lot[0].mois_reference
         periode_fin = _ajouter_mois(lot[-1].mois_reference, 1)
+    else:
+        # Paiement 1-mois POSTÉRIEUR au chantier "Paiement unique" : jamais de
+        # regroupement ±120s (voir DATE_LIMITE_LEGACY_PAIEMENTS_MULTI_MOIS) —
+        # 2 paiements distincts d'1 mois envoyés à quelques secondes d'écart
+        # restent 2 périodes distinctes, jamais fusionnées à tort.
+        periode_debut = paiement.mois_reference
+        periode_fin = _ajouter_mois(paiement.mois_reference, 1)
 
     context = {
         'paiement': paiement,

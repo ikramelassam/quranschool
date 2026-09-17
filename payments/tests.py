@@ -409,12 +409,32 @@ class AdminPaiementDetailPeriodeTests(TestCase):
 
     def test_fallback_legacy_regroupe_les_paiements_dun_mois_dune_meme_soumission(self):
         # Simule d'anciennes données : 2 Paiement d'1 mois, même montant, créés
-        # coup sur coup (avant la migration 0011).
+        # coup sur coup AVANT la migration 0011 (payments.views.
+        # DATE_LIMITE_LEGACY_PAIEMENTS_MULTI_MOIS) — `date` (auto_now_add) est
+        # donc rétro-datée explicitement via .update(), la seule façon de
+        # simuler une vraie ancienne soumission (create() ignore une valeur
+        # passée sur un champ auto_now_add).
+        p1 = Paiement.objects.create(eleve=self.eleve, montant=80, mois_reference=datetime.date(2026, 8, 5))
+        p2 = Paiement.objects.create(eleve=self.eleve, montant=80, mois_reference=datetime.date(2026, 9, 5))
+        date_legacy = datetime.datetime(2026, 8, 20, 10, 0, tzinfo=datetime.timezone.utc)
+        Paiement.objects.filter(id__in=[p1.id, p2.id]).update(date=date_legacy)
+        reponse = self.client.get(reverse('admin_paiement_detail', args=[p1.id]))
+        self.assertEqual(reponse.context['periode_debut'], datetime.date(2026, 8, 5))
+        self.assertEqual(reponse.context['periode_fin'], datetime.date(2026, 10, 5))
+
+    def test_deux_paiements_dun_mois_recents_ne_sont_pas_fusionnes(self):
+        """Correctif du 2026-09-17 : contrairement au cas legacy ci-dessus,
+        2 Paiement d'1 mois POSTÉRIEURS au chantier "Paiement unique"
+        (`date` = aujourd'hui, donc après DATE_LIMITE_LEGACY_PAIEMENTS_
+        MULTI_MOIS), même même montant et créés à quelques secondes
+        d'intervalle, ne doivent JAMAIS être fusionnés en une seule période —
+        ce sont 2 règlements distincts (élève qui paie 2 mois séparément au
+        même prix)."""
         p1 = Paiement.objects.create(eleve=self.eleve, montant=80, mois_reference=datetime.date(2026, 8, 5))
         Paiement.objects.create(eleve=self.eleve, montant=80, mois_reference=datetime.date(2026, 9, 5))
         reponse = self.client.get(reverse('admin_paiement_detail', args=[p1.id]))
         self.assertEqual(reponse.context['periode_debut'], datetime.date(2026, 8, 5))
-        self.assertEqual(reponse.context['periode_fin'], datetime.date(2026, 10, 5))
+        self.assertEqual(reponse.context['periode_fin'], datetime.date(2026, 9, 5))
 
 
 @override_settings(STORAGES=_STORAGES_TEST)
