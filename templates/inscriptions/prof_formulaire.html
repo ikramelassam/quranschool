@@ -485,12 +485,65 @@ document.querySelector('form').addEventListener('submit', function (e) {
         return new Blob([buffer], { type: 'audio/wav' });
     }
 
-    // Le webm/mp4 produit par MediaRecorder n'a ni durée ni index de recherche
-    // valides dans son en-tête (limite connue de cette API) : la lecture avance
-    // en flux continu mais un retour en arrière tombe hors des données connues
-    // et la lecture s'arrête — surtout observé sur mobile. On reconvertit donc
-    // l'enregistrement en WAV (décodage + ré-encodage PCM), format toujours
-    // lisible et « seekable » quel que soit le lecteur.
+    // Répare EN PLACE le champ Duration de l'en-tête EBML du webm produit par
+    // MediaRecorder — celui-ci réserve un espace fixe (4 ou 8 octets) pour ce
+    // champ mais le laisse à une valeur « inconnue » (flux écrit en direct).
+    // Nécessaire AVANT le décodage (toSeekableWav ci-dessous) : constaté en
+    // prod (2026-09-17) qu'un premier correctif qui décodait le blob BRUT
+    // produisait quand même un enregistrement coupé — certains décodeurs
+    // s'appuient sur cette même durée manquante pour savoir où s'arrête le
+    // flux et tronquent le buffer décodé avant la fin réelle, reproduisant le
+    // bug dans le CONTENU cette fois (pas seulement à la lecture). Même
+    // fonction que templates/chat/chat.html, templates/annonces/
+    // canal_detail.html et templates/examens/passage.html. Sans effet sur
+    // mp4 (Safari : conteneur différent, non concerné par ce format
+    // d'en-tête) — si l'espace n'a pas été réservé, on renvoie false et
+    // finalize() retente le décodage sur le blob non modifié.
+    function patcherDureeWebm(arrayBuffer, dureeMs) {
+        const ID_SEGMENT = 0x18538067, ID_INFO = 0x1549A966, ID_DUREE = 0x4489, ID_ECHELLE = 0x2AD7B1;
+        const view = new DataView(arrayBuffer);
+        function lireVint(offset, garderMarqueur) {
+            const premier = view.getUint8(offset);
+            let masque = 0x80, longueur = 1;
+            while (longueur <= 8 && !(premier & masque)) { masque >>= 1; longueur++; }
+            if (longueur > 8) throw new Error('vint invalide');
+            let valeur = garderMarqueur ? premier : (premier & (masque - 1));
+            for (let i = 1; i < longueur; i++) valeur = valeur * 256 + view.getUint8(offset + i);
+            return { valeur, longueur };
+        }
+        let echelle = 1000000; // ns par tick, valeur par défaut EBML
+        function parcourir(debut, fin) {
+            let offset = debut;
+            while (offset < fin) {
+                const id = lireVint(offset, true);
+                const taille = lireVint(offset + id.longueur, false);
+                const debutPayload = offset + id.longueur + taille.longueur;
+                const finPayload = debutPayload + taille.valeur;
+                if (id.valeur === ID_SEGMENT || id.valeur === ID_INFO) {
+                    const trouve = parcourir(debutPayload, Math.min(finPayload, fin));
+                    if (trouve) return trouve;
+                } else if (id.valeur === ID_ECHELLE) {
+                    let v = 0;
+                    for (let i = debutPayload; i < finPayload; i++) v = v * 256 + view.getUint8(i);
+                    echelle = v;
+                } else if (id.valeur === ID_DUREE) {
+                    return { offset: debutPayload, taille: taille.valeur };
+                }
+                offset = finPayload;
+            }
+            return null;
+        }
+        const cible = parcourir(0, arrayBuffer.byteLength);
+        if (!cible || (cible.taille !== 4 && cible.taille !== 8)) return false;
+        const ticks = (dureeMs * 1e6) / echelle;
+        if (cible.taille === 8) view.setFloat64(cible.offset, ticks, false);
+        else view.setFloat32(cible.offset, ticks, false);
+        return true;
+    }
+
+    // Décode puis ré-encode en WAV (PCM), format toujours lisible et
+    // « seekable » quel que soit le lecteur — appelé sur un blob déjà réparé
+    // par patcherDureeWebm quand c'est un webm (voir finalize()).
     async function toSeekableWav(blob) {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         const arrayBuffer = await blob.arrayBuffer();
@@ -546,15 +599,34 @@ document.querySelector('form').addEventListener('submit', function (e) {
     async function finalize() {
         stopTracks();
         const type = (recorder && recorder.mimeType) || 'audio/webm';
+        const dureeMs = Date.now() - startedAt;
         const rawBlob = new Blob(chunks, { type });
-        let finalBlob = rawBlob, ext = 'wav', outType = 'audio/wav';
+
+        // 1re ligne de défense : répare l'en-tête EBML en place (voir
+        // patcherDureeWebm) — nécessaire AVANT le décodage, pas seulement
+        // pour la lecture finale (voir son commentaire pour le pourquoi).
+        let blobRepare = rawBlob;
+        if (type.indexOf('webm') > -1) {
+            try {
+                const buffer = await rawBlob.arrayBuffer();
+                if (patcherDureeWebm(buffer, dureeMs)) {
+                    blobRepare = new Blob([buffer], { type });
+                }
+            } catch (err) { /* tant pis, on tente quand même le décodage plus bas */ }
+        }
+
+        // 2e ligne de défense (le format final le plus robuste) : décoder
+        // PUIS ré-encoder en WAV, à partir du blob déjà réparé ci-dessus.
+        let finalBlob = blobRepare, ext, outType = type;
         try {
-            finalBlob = await toSeekableWav(rawBlob);
+            finalBlob = await toSeekableWav(blobRepare);
+            ext = 'wav';
+            outType = 'audio/wav';
         } catch (err) {
             // Repli : navigateur trop ancien pour décoder/ré-encoder -> on
-            // envoie le blob brut tel quel (comportement précédent).
+            // envoie le blob déjà réparé ci-dessus (ou brut si le patch EBML
+            // n'a rien pu faire, ex: mp4 sur Safari).
             ext = type.indexOf('mp4') > -1 ? 'm4a' : (type.indexOf('ogg') > -1 ? 'ogg' : 'webm');
-            outType = type;
         }
         const file = new File([finalBlob], 'talawa-' + Date.now() + '.' + ext, { type: outType });
         const dt = new DataTransfer();

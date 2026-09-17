@@ -1,4 +1,5 @@
 import datetime
+import os
 import re
 
 from django.shortcuts import render, redirect
@@ -228,6 +229,38 @@ def _email_bloque_pour_candidature_eleve(email):
     # Une autre InscriptionEleve encore en attente avec cet email : c'est
     # justement le cas qu'on autorise (2e candidature élève, même famille).
     return False
+
+
+# Audit du 2026-09-17 : contrairement à chat.services/examens.services/
+# annonces.services (mêmes formats de fichiers reçus, même finalité — un
+# enregistrement audio ou vidéo déposé par l'utilisateur), audio_enregistrement
+# n'avait ICI aucune validation serveur (juste "le champ est-il rempli ?"),
+# ce qui a permis à 2 candidatures réelles de déposer un screenshot .jpg à la
+# place d'un audio sans être bloquées. Liste blanche volontairement plus
+# large que celle de chat/examens (webm/mp3/wav/... uniquement) : les
+# candidatures réelles montrent des fichiers envoyés depuis un téléphone en
+# .mov/.mp4 (export vidéo du magnétophone iPhone, contenu audio) en plus du
+# .webm produit par l'enregistreur intégré au formulaire — les exclure
+# aurait rejeté des soumissions par ailleurs légitimes déjà en base.
+EXTENSIONS_AUDIO_INSCRIPTION_PROF_AUTORISEES = (
+    '.mp3', '.wav', '.m4a', '.ogg', '.oga', '.opus', '.aac', '.amr', '.webm', '.mp4', '.mov',
+)
+TAILLE_MAX_AUDIO_INSCRIPTION_PROF_OCTETS = 15 * 1024 * 1024  # 15 Mo — même plafond que chat/examens/annonces pour de l'audio
+
+
+def _valider_audio_enregistrement(fichier):
+    """Renvoie un message d'erreur arabe si le fichier déposé dans le champ
+    « سجل تلاوة قرآنية بصوتك » n'est pas un format audio/vidéo reconnu ou
+    dépasse la taille max, None s'il est accepté."""
+    extension = os.path.splitext(fichier.name)[1].lower()
+    if extension not in EXTENSIONS_AUDIO_INSCRIPTION_PROF_AUTORISEES:
+        return gettext_('صيغة الملف "%(v0)s" غير مدعومة للتسجيل الصوتي.') % {'v0': extension}
+    if fichier.size > TAILLE_MAX_AUDIO_INSCRIPTION_PROF_OCTETS:
+        return gettext_('حجم الملف كبير جداً (%(v0)s م.ب). الحد الأقصى %(v1)s م.ب.') % {
+            'v0': fichier.size // (1024 * 1024),
+            'v1': TAILLE_MAX_AUDIO_INSCRIPTION_PROF_OCTETS // (1024 * 1024),
+        }
+    return None
 
 
 def inscription_eleve_choix(request):
@@ -470,6 +503,18 @@ def inscription_prof(request):
         if champs_manquants:
             return render(request, 'inscriptions/prof_formulaire.html', {
                 'erreur_champs': gettext_('الحقول التالية إلزامية ولم يتم تعبئتها: ') + '، '.join(champs_manquants),
+                'old_email': email,
+                'valeurs_form': set(disponibilites),
+                **contexte_grille,
+            })
+
+        # Format/taille du fichier audio — voir _valider_audio_enregistrement.
+        # La présence du champ est déjà garantie à ce stade (champs_manquants
+        # ci-dessus), il ne reste qu'à vérifier son contenu.
+        erreur_audio = _valider_audio_enregistrement(audio_enregistrement)
+        if erreur_audio:
+            return render(request, 'inscriptions/prof_formulaire.html', {
+                'erreur_champs': erreur_audio,
                 'old_email': email,
                 'valeurs_form': set(disponibilites),
                 **contexte_grille,
