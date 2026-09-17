@@ -640,11 +640,24 @@ def admin_paiement_valider(request, paiement_id):
     from .cycles import reconcilier
 
     paiement = get_object_or_404(Paiement, id=paiement_id)
-    deja_valide = paiement.statut == 'valide'
-    paiement.statut = 'valide'
-    paiement.valide_par = request.user
-    paiement.date_validation = timezone.now()
-    paiement.save()
+    # UPDATE conditionnel (pas paiement.save() après une lecture séparée) pour
+    # fermer une race condition : un double-clic ou 2 onglets admin postant
+    # cette vue à quelques millisecondes d'intervalle lisaient TOUS LES DEUX
+    # `paiement.statut != 'valide'` avant que l'un des deux n'écrive, donc
+    # TOUS LES DEUX envoyaient la notification Telegram "✅ دفعة مقبولة"
+    # (correctif du 2026-09-17). La clause WHERE ... AND statut != 'valide'
+    # est évaluée par la base au moment du verrou de ligne : sous 2 requêtes
+    # concurrentes, une seule des deux UPDATE peut matcher un statut encore
+    # non 'valide', l'autre affecte 0 ligne et sait donc qu'elle arrive
+    # après coup (deja_valide=True), sans dépendre du timing des lectures
+    # Python qui, elles, ne sont jamais atomiques entre elles.
+    lignes_maj = (
+        Paiement.objects.filter(id=paiement_id)
+        .exclude(statut='valide')
+        .update(statut='valide', valide_par=request.user, date_validation=timezone.now())
+    )
+    deja_valide = lignes_maj == 0
+    paiement.refresh_from_db()
     # Fait avancer les cycles d'abonnement que ce paiement vient de couvrir
     # (chantier relances de paiement du 2026-09-01) — voir payments.models.
     # CycleAbonnement / payments.cycles.
