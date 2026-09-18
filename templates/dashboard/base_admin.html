@@ -295,6 +295,7 @@
             <a href="{% url 'admin_demandes_changement_halaka' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_demandes_changement_halaka' %}active{% endif %}">
                 <span class="icon">🔄</span> {% trans "طلبات تغيير الحلقة" %}
+                {% if nb_changement_halaka_attente %}<span class="menu-badge">{{ nb_changement_halaka_attente }}</span>{% endif %}
             </a>
         </details>
 

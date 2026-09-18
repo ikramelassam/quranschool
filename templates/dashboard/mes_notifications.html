@@ -59,6 +59,20 @@ dashboard.notifications.notifications_direction) : pas d'en-tête, icône
     {% endfor %}
 </div>
 {% endfor %}
+{% comment %}
+Bouton « تحميل المزيد » — admin/mshrif uniquement (voir dashboard.views.
+mes_notifications, chantier du 2026-09-18) : `page_suivante` n'est posé que
+sur cette branche, absent (donc falsy) pour eleve/prof/مؤطر qui n'ont pas ce
+plafond au même degré aujourd'hui. Lien simple (pas d'AJAX) : recharge la
+page avec ?page=N, qui renvoie cumulativement les N premiers blocs.
+{% endcomment %}
+{% if page_suivante %}
+<div style="text-align:center; margin-top:8px;">
+    <a href="?page={{ page_suivante }}" class="btn-secondary" style="display:inline-block; padding:10px 28px; border-radius:10px; text-decoration:none; font-weight:700; background:var(--color-bg-cream); color:var(--color-text-primary);">
+        {% trans "تحميل المزيد ↓" %}
+    </a>
+</div>
+{% endif %}
 {% else %}
 <div class="compact-card" style="text-align:center; color:#aaa; padding:40px;">
     <div style="font-size:1.8rem; opacity:0.5; margin-bottom:8px;">🔔</div>

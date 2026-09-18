@@ -8539,3 +8539,6 @@ msgstr "🔑 Réinitialiser le mot de passe pour envoyer un nouveau message"
 msgid "عالج المشرف طلب الأستاذ: %(nom)s %(prenom)s"
 msgstr "Le superviseur a traité la demande de l'enseignant : %(nom)s %(prenom)s"
 
+
+msgid "تحميل المزيد ↓"
+msgstr "Charger plus ↓"

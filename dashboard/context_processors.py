@@ -38,17 +38,29 @@ def badges_sidebar_direction(request):
       apparaissent dans la liste « طلبات التسجيل » partagée), pas uniquement
       l'action requise par ce rôle, et le total du parent doit rester égal à
       la somme des sous-badges affichés sous peine d'incohérence perçue.
+    - `nb_changement_halaka_attente` (مدير + مشرف) : sous-item « طلبات تغيير
+      الحلقة » (groupe « الحصص والجدولة ») — chantier du 2026-09-18, ajouté
+      suite à un signalement : le panneau 🔔 (dashboard.notifications.
+      notifications_direction) est un historique qui peut noyer une demande
+      peu fréquente sous des évènements à haute fréquence (voir son correctif
+      du même jour) — ce badge, LUI, est un compte BRUT en temps réel
+      (DemandeChangementHalaka.statut='en_attente'), jamais tronqué ni
+      dépendant d'une visite passée, donc jamais manqué. Volontairement PAS
+      inclus dans `badge_gestion_utilisateurs` (groupe de menu différent,
+      « الحصص والجدولة » et non « إدارة المستخدمين »).
     """
     user = getattr(request, 'user', None)
     if user is None or not user.is_authenticated or getattr(user, 'role', None) not in ('admin', 'mshrif'):
         return {}
 
     from inscriptions.models import InscriptionEleve, InscriptionProf
+    from courses.models import DemandeChangementHalaka
 
     nb_inscriptions_attente = (
         InscriptionEleve.objects.filter(statut='en_attente').count()
         + InscriptionProf.objects.filter(statut='en_attente').count()
     )
+    nb_changement_halaka_attente = DemandeChangementHalaka.objects.filter(statut='en_attente').count()
 
     if user.role == 'mshrif':
         nb_profs_a_valider = InscriptionProf.objects.filter(statut='validee_directeur').count()
@@ -56,9 +68,11 @@ def badges_sidebar_direction(request):
             'nb_inscriptions_attente': nb_inscriptions_attente,
             'nb_profs_a_valider': nb_profs_a_valider,
             'badge_gestion_utilisateurs': nb_inscriptions_attente + nb_profs_a_valider,
+            'nb_changement_halaka_attente': nb_changement_halaka_attente,
         }
 
     return {
         'nb_inscriptions_attente': nb_inscriptions_attente,
         'badge_gestion_utilisateurs': nb_inscriptions_attente,
+        'nb_changement_halaka_attente': nb_changement_halaka_attente,
     }

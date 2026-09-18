@@ -57,8 +57,21 @@ LIMITE_PAR_GROUPE = 5
 # Lignes affichées dans le panneau déroulant de la DIRECTION (liste plate, pas
 # groupée par type — voir notifications_direction) : un plafond global, pas
 # par groupe. Plus large que LIMITE_PAR_GROUPE parce qu'il n'y a plus qu'une
-# seule liste ; la page « عرض الكل » reste, elle, à LIMITE_FETCH.
+# seule liste ; la page « عرض الكل » utilise elle-même le bouton « تحميل
+# المزيد » (voir TAILLE_PAGE_HISTORIQUE_DIRECTION ci-dessous) plutôt que ce
+# plafond, qui ne s'applique qu'au dropdown.
 LIMITE_LISTE_PLATE = 15
+# Chantier du 2026-09-18 (bouton « تحميل المزيد » de la page « عرض الكل »
+# direction, voir dashboard.views.mes_notifications) : la page se charge par
+# blocs de cette taille au lieu du plafond fixe LIMITE_FETCH d'avant, qui
+# empêchait le مدير/مشرف de jamais remonter à une demande assez ancienne.
+TAILLE_PAGE_HISTORIQUE_DIRECTION = 50
+# Plafond PAR SOURCE (voir `limite_source` de notifications_direction) quand
+# cette page pagine au-delà de la 1ère page — nettement plus large que
+# LIMITE_FETCH, jamais utilisé sur le dropdown/la page d'accueil (chargés à
+# CHAQUE requête, doivent rester bon marché), seulement ici où une requête
+# supplémentaire par clic « تحميل المزيد » est acceptable.
+LIMITE_FETCH_HISTORIQUE_DIRECTION = 1000
 # Audit du 2026-09-05 (chantier notif paiement du 2026-09-04) :
 # Paiement.soumis_par_eleve n'existe que depuis cette date — la migration qui
 # l'a ajouté (payments/0012) a dû mettre `True` par défaut sur TOUS les
@@ -406,7 +419,7 @@ def notifications_superviseur(user, limite=LIMITE_PAR_GROUPE):
     return _trier_groupes_par_recence(groupes), len(evenements_hakiba)
 
 
-def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
+def notifications_direction(user, limite=LIMITE_LISTE_PLATE, limite_source=LIMITE_FETCH):
     """(groupes, total) pour la cloche 🔔 côté مدير/مشرف (Chantier du
     2026-08-24 ; refontes successives des 2026-09-02).
 
@@ -414,8 +427,13 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     validée explicitement) :
 
       * `groupes` contient AU PLUS UN pseudo-groupe sans `label` — le template
-        rend alors une LISTE PLATE (pas d'en-tête de type), triée par `date`
-        STRICTEMENT décroissante (le plus récent en tête).
+        rend alors une LISTE PLATE (pas d'en-tête de type). Tri (revu le
+        2026-09-18, voir le commentaire au-dessus du slicing plus bas) :
+        NON-LUS d'abord (du plus récent au plus ancien), PUIS lus (idem) —
+        remplace l'ancien tri strictement chronologique global (option iii du
+        2026-09-02), qui laissait un type peu fréquent (ex: changement de
+        حلقة) se faire noyer et disparaître du panneau sous des types à haute
+        fréquence, alors que le badge le comptait toujours comme non lu.
 
       * Le panneau montre l'HISTORIQUE : chaque demande d'inscription élève /
         candidature prof / changement de halaka apparaît, qu'elle soit encore
@@ -431,9 +449,17 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
         d'un type (marquer_visite) éteint le badge de ce type MAIS ne retire
         RIEN de la liste — les demandes restent visibles, juste sans surlignage.
 
-      * Profondeur : les LIMITE_FETCH évènements les plus récents par source,
-        fusionnés puis retriés ; le dropdown en affiche `limite`
-        (LIMITE_LISTE_PLATE), la page « عرض الكل » LIMITE_FETCH.
+      * Profondeur : `limite_source` évènements les plus récents PAR SOURCE
+        (défaut LIMITE_FETCH), fusionnés puis retriés ; le dropdown en affiche
+        `limite` (LIMITE_LISTE_PLATE). `limite=None` désactive la troncature
+        finale (retourne tout ce qui a été fetché, jusqu'à `limite_source` par
+        source) — utilisé par dashboard.views.mes_notifications pour le
+        bouton « تحميل المزيد » (chantier du 2026-09-18, voir son __doc__ :
+        l'ancien plafond fixe de la page « عرض الكل » empêchait le مدير/مشرف
+        de jamais remonter à une demande assez ancienne). `limite_source` y
+        est aussi élevé (voir LIMITE_FETCH_HISTORIQUE) — jamais sur le
+        dropdown/la page d'accueil, qui gardent le défaut LIMITE_FETCH pour ne
+        pas alourdir une page chargée à CHAQUE requête.
 
     Les panneaux élève/prof/مؤطر, eux, restent un simple flux d'inédits
     groupé par type (chaque ligne par construction non lue) — voir
@@ -568,7 +594,7 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     evenements = []
 
     # 1. Inscriptions élève — historique complet.
-    for d in InscriptionEleve.objects.order_by('-date_soumission')[:LIMITE_FETCH]:
+    for d in InscriptionEleve.objects.order_by('-date_soumission')[:limite_source]:
         libelle, ton = statut_eleve.get(d.statut, (d.get_statut_display(), 'neutre'))
         evenements.append({
             'texte': _('طلب تسجيل جديد: %(nom)s') % {'nom': d.nom},
@@ -582,7 +608,7 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
 
     # 2. Candidatures prof — historique complet. مشرف masque 'en_attente'.
     url_liste_profs_mshrif = reverse('mshrif_inscriptions_profs')
-    for p in InscriptionProf.objects.order_by('-date_soumission')[:LIMITE_FETCH]:
+    for p in InscriptionProf.objects.order_by('-date_soumission')[:limite_source]:
         if est_mshrif and p.statut == 'en_attente':
             continue
         libelle, ton = statut_prof.get(p.statut, (p.get_statut_display(), 'neutre'))
@@ -613,7 +639,7 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     url_changement_halaka = reverse('admin_demandes_changement_halaka')
     for d in (
         DemandeChangementHalaka.objects.select_related('eleve__user')
-        .order_by('-date_demande')[:LIMITE_FETCH]
+        .order_by('-date_demande')[:limite_source]
     ):
         libelle, ton = statut_halaka.get(d.statut, (d.get_statut_display(), 'neutre'))
         evenements.append({
@@ -646,7 +672,7 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     # saisies manuelles مدير, voir payments.models.Paiement.soumis_par_eleve).
     for p in (
         Paiement.objects.filter(soumis_par_eleve=True, date__gte=DATE_FIABILITE_SOUMIS_PAR_ELEVE)
-        .select_related('eleve__user').order_by('-date')[:LIMITE_FETCH]
+        .select_related('eleve__user').order_by('-date')[:limite_source]
     ):
         libelle, ton = statut_paiement.get(p.statut, (p.get_statut_display(), 'neutre'))
         evenements.append({
@@ -665,7 +691,7 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     # (une séance 'terminee' l'est définitivement, voir Seance.modifiable_par_prof).
     for s in (
         Seance.objects.filter(statut='terminee').select_related('groupe')
-        .order_by('-date', '-heure')[:LIMITE_FETCH]
+        .order_by('-date', '-heure')[:limite_source]
     ):
         # date_evaluation = quand la feuille a réellement été soumise (voir son
         # __doc__ sur Seance) ; repli sur _datetime_seance pour l'historique
@@ -686,7 +712,7 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     # 7. Évaluation du prof par le مؤطر — historique complet, pas de statut.
     for e in (
         Evaluation.objects.select_related('seance__groupe', 'prof__user')
-        .order_by('-date')[:LIMITE_FETCH]
+        .order_by('-date')[:limite_source]
     ):
         nom_prof = e.prof.user.get_full_name() if e.prof else _('أستاذ محذوف')
         evenements.append({
@@ -705,7 +731,7 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     if user.role == 'admin':
         for p in (
             InscriptionProf.objects.filter(date_traitee_mshrif__isnull=False)
-            .order_by('-date_traitee_mshrif')[:LIMITE_FETCH]
+            .order_by('-date_traitee_mshrif')[:limite_source]
         ):
             libelle, ton = statut_prof.get(p.statut, (p.get_statut_display(), 'neutre'))
             evenements.append({
@@ -721,8 +747,21 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     evenements.sort(key=lambda e: e['date'], reverse=True)
 
     total = sum(1 for e in evenements if e['non_lu'])
-    groupes = (
-        [{'icone': '', 'label': '', 'evenements': evenements[:limite]}]
-        if evenements else []
-    )
+    # Priorise les non-lus avant de tronquer à `limite` (correctif du
+    # 2026-09-18, remplace le tri strictement chronologique de l'option iii
+    # du 2026-09-02) : une demande peu fréquente (ex: DemandeChangementHalaka,
+    # quelques-unes par semaine) pouvait sortir du panneau — et même de la
+    # page « عرض الكل » (LIMITE_FETCH=50) — en 1-2 jours, noyée sous des
+    # dizaines d'évènements quotidiens à haute fréquence (sources 6/7,
+    # séances/évaluations), alors que `total` la comptait toujours comme non
+    # lue : le badge annonçait une notification introuvable nulle part dans
+    # l'UI. Chaque bucket (non-lus / lus) reste trié du plus récent au plus
+    # ancien ; si les non-lus dépassent `limite` à eux seuls, les lus
+    # disparaissent d'abord (acceptable : déjà traités/consultés).
+    if evenements:
+        non_lus = [e for e in evenements if e['non_lu']]
+        lus = [e for e in evenements if not e['non_lu']]
+        groupes = [{'icone': '', 'label': '', 'evenements': (non_lus + lus)[:limite]}]
+    else:
+        groupes = []
     return groupes, total

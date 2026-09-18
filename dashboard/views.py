@@ -308,11 +308,28 @@ def mes_notifications(request):
     admin/mshrif ajoutés au chantier du 2026-08-24 (voir dashboard.
     notifications.notifications_direction) — même page, juste une 3e branche.
     superviseur ajouté au chantier du 2026-08-31 (voir dashboard.
-    notifications.notifications_superviseur) — 4e branche."""
+    notifications.notifications_superviseur) — 4e branche.
+
+    Bouton « تحميل المزيد » côté admin/mshrif (chantier du 2026-09-18) :
+    avant, cette branche plafonnait dur à LIMITE_FETCH (50) — un مدير/مشرف ne
+    pouvait donc JAMAIS remonter au-delà, même en cliquant quoi que ce soit
+    (signalé : une demande de changement de حلقة restait invisible malgré un
+    badge non-lu, voir dashboard.notifications.notifications_direction.
+    __doc__). `?page=N` recharge désormais TOUTE la page avec les N premiers
+    blocs de TAILLE_PAGE_HISTORIQUE_DIRECTION (cumulatif, pas juste le bloc N
+    — plus simple qu'un scroll infini côté JS, et cohérent avec le reste du
+    projet qui évite le JS non indispensable). On fetch un élément de plus
+    que la taille affichée pour savoir s'il reste une page suivante, sans
+    2e requête .count(). `limite_source` monte à LIMITE_FETCH_HISTORIQUE_
+    DIRECTION uniquement ici (jamais sur le dropdown/la page d'accueil,
+    chargés à chaque requête — voir ces constantes)."""
     from dashboard.notifications import (
         notifications_eleve, notifications_prof, notifications_superviseur,
         notifications_direction, LIMITE_FETCH,
+        TAILLE_PAGE_HISTORIQUE_DIRECTION, LIMITE_FETCH_HISTORIQUE_DIRECTION,
     )
+
+    page_suivante = None
 
     if request.user.role == 'eleve':
         from accounts.models import Eleve
@@ -328,13 +345,24 @@ def mes_notifications(request):
         notif_groupes, notif_total = notifications_superviseur(request.user, limite=LIMITE_FETCH)
         base_template = 'dashboard/base_superviseur.html'
     else:  # 'admin' ou 'mshrif'
-        notif_groupes, notif_total = notifications_direction(request.user, limite=LIMITE_FETCH)
+        try:
+            page = max(int(request.GET.get('page', 1)), 1)
+        except ValueError:
+            page = 1
+        taille_page = TAILLE_PAGE_HISTORIQUE_DIRECTION * page
+        notif_groupes, notif_total = notifications_direction(
+            request.user, limite=taille_page + 1, limite_source=LIMITE_FETCH_HISTORIQUE_DIRECTION,
+        )
+        if notif_groupes and len(notif_groupes[0]['evenements']) > taille_page:
+            page_suivante = page + 1
+            notif_groupes[0]['evenements'] = notif_groupes[0]['evenements'][:taille_page]
         base_template = _base_template_admin_ou_mshrif(request)
 
     return render(request, 'dashboard/mes_notifications.html', {
         'notif_groupes': notif_groupes,
         'notif_total': notif_total,
         'base_template': base_template,
+        'page_suivante': page_suivante,
     })
 
 
@@ -3109,7 +3137,7 @@ def admin_inscription_eleve_detail(request, inscription_id):
     groupes_compatibles_avec_age, au moment de l'inscription) ou l'état
     "attente" (DemandeNonSatisfaite liée, chantier "liberté totale du nombre
     de séances") — jamais une 2e suggestion recalculée après coup."""
-    from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO, groupes_compatibles_pour_inscription
+    from courses.utils import generer_heures_grille, JOURS_SEMAINE_DISPO, groupes_compatibles_pour_inscription, avertissements_groupe_inscription
     from registration.models import get_presentation_inscription
 
     inscription = get_object_or_404(InscriptionEleve, id=inscription_id)
@@ -3163,6 +3191,18 @@ def admin_inscription_eleve_detail(request, inscription_id):
         ),
         'groupes_suggeres': (
             [] if a_reponses_nouveau_wizard else groupes_compatibles_pour_inscription(inscription)
+        ),
+        # Correctif du 2026-09-18 : جويرية/بهيجة — un candidat qui n'a trouvé
+        # aucune حلقة EXACTE (DemandeNonSatisfaite créée) peut ensuite
+        # accepter une حلقة "proche" (registration.utils.inscrire_eleve,
+        # repli demande_id) qui ne respecte que les critères BLOQUANTS —
+        # groupe_choisi est alors rempli et la page n'affichait plus JAMAIS
+        # le fait que ce n'est pas un match exact (branche 'groupe_choisi'
+        # et branche 'demande_non_satisfaite' du template étaient mutuellement
+        # exclusives alors que les deux peuvent être vraies en même temps).
+        'avertissements_groupe_choisi': (
+            avertissements_groupe_inscription(inscription, inscription.groupe_choisi)
+            if inscription.groupe_choisi else []
         ),
         'base_template': _base_template_admin_ou_mshrif(request),
     }

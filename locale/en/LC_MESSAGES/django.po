@@ -8539,3 +8539,6 @@ msgstr "🔑 Reset the password to send a new message"
 msgid "عالج المشرف طلب الأستاذ: %(nom)s %(prenom)s"
 msgstr "The supervisor processed the teacher's request: %(nom)s %(prenom)s"
 
+
+msgid "تحميل المزيد ↓"
+msgstr "Load more ↓"
