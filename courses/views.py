@@ -84,6 +84,19 @@ def _resoudre_lien_meet_pour_formulaire(request):
     return (request.POST.get('lien_meet') or None), None
 
 
+def _next_groupes_valide(request):
+    """?next= sûr vers la liste des groupes, page/filtres compris — jamais une
+    URL externe (protection open-redirect, même principe que
+    dashboard.views._next_valide). Corrige le retour à la page 1 après
+    consultation ou suppression d'un groupe depuis une liste paginée/filtrée
+    (signalé le 2026-09-18 : après "عرض التفاصيل" ou suppression, le retour
+    renvoyait toujours à la page 1 au lieu de la page d'origine)."""
+    next_url = request.POST.get('next') or request.GET.get('next') or ''
+    if next_url.startswith('/courses/groupes'):
+        return next_url
+    return reverse('admin_groupes')
+
+
 @role_required('admin', 'mshrif')
 def groupes_list(request):
     from django.db.models import Q, Count
@@ -530,6 +543,7 @@ def groupe_detail(request, groupe_id):
         'peut_voir_chat': peut_voir_chat_groupe(request.user, groupe),
         'criteres_config': criteres_config,
         'base_template': _base_template_admin_ou_mshrif(request),
+        'retour_url': _next_groupes_valide(request),
     }
     context.update(_contexte_base_mshrif(request))
     return render(request, 'courses/admin_groupe_detail.html', context)
@@ -1038,7 +1052,7 @@ def groupe_supprimer(request, groupe_id):
         if creneau is not None:
             creneau.delete()
     messages.success(request, gettext_('تم حذف المجموعة "%(v0)s" نهائياً.') % {'v0': nom})
-    return redirect('admin_groupes')
+    return redirect(_next_groupes_valide(request))
 
 
 # ==================== ARCHIVAGE GROUPE (Tâche du 2026-08-08) ====================
@@ -1108,7 +1122,7 @@ def groupe_supprimer_definitivement(request, groupe_id):
         request,
         gettext_('تم حذف المجموعة "%(v0)s" نهائياً مع كامل سجلها (%(v1)s حصة، %(v2)s حضور).') % {'v0': nom, 'v1': nb_seances, 'v2': nb_presences}
     )
-    return redirect('admin_groupes')
+    return redirect(_next_groupes_valide(request))
 
 
 # ==================== POOL DE LIENS GOOGLE MEET (Tâche du 2026-08-17) ====================

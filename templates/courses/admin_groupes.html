@@ -147,7 +147,7 @@
             </div>
 
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                <a href="{% url 'admin_groupe_detail' groupe.id %}"
+                <a href="{% url 'admin_groupe_detail' groupe.id %}?next={{ request.get_full_path|urlencode }}"
                    style="background:#f0f7ed; color:var(--color-success); border-radius:8px; padding:8px 16px; text-decoration:none; font-size:0.9rem; font-weight:600;">
                    {% trans "عرض التفاصيل ←" %}
                 </a>
