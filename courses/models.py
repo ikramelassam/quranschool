@@ -867,6 +867,13 @@ class Seance(models.Model):
     # dashboard/notifications.py).
     date_evaluation = models.DateTimeField(null=True, blank=True)
 
+    # Réouverture exceptionnelle du délai de 24h (incident ayant empêché la
+    # soumission normale, ex. bug de soumission silencieuse du 2026-09-18 —
+    # voir delai_evaluation_depasse ci-dessous) : posée manuellement
+    # (admin/shell), jamais via une action du prof lui-même. NULL = aucun
+    # traitement particulier, le délai fixe de 24h s'applique normalement.
+    delai_evaluation_prolonge_jusqua = models.DateTimeField(null=True, blank=True)
+
     # Chantier du 2026-09-12 — demande explicite du client : le prof ne doit
     # évaluer QU'UNE seule chose par حصة (typiquement الحفظ à la séance 1 de
     # la semaine, المراجعة à la séance 2), jamais les deux en même temps.
@@ -1060,7 +1067,11 @@ class Seance(models.Model):
 
     @property
     def delai_evaluation_depasse(self):
-        """True si plus de 24h se sont écoulées depuis le DÉBUT de la séance."""
+        """True si plus de 24h se sont écoulées depuis le DÉBUT de la séance,
+        sauf réouverture exceptionnelle encore active
+        (delai_evaluation_prolonge_jusqua, voir son docstring)."""
+        if self.delai_evaluation_prolonge_jusqua and timezone.now() <= self.delai_evaluation_prolonge_jusqua:
+            return False
         return timezone.now() - self.debut_datetime > datetime.timedelta(hours=self.FENETRE_EVALUATION_PRESENCE_HEURES)
 
     @property
@@ -1069,7 +1080,8 @@ class Seance(models.Model):
         encore 'planifiee' (pas déjà soumise -> 'terminee', pas 'annulee'), sa fin réelle
         est déjà passée (Tâche 19 Bug 2 — pas d'évaluation avant la fin réelle) ET le délai
         de 24h depuis le début n'est pas dépassé. Une fois soumise OU le délai dépassé
-        sans soumission, cet état est définitif — jamais réversible dans les deux cas."""
+        sans soumission, cet état est définitif — sauf réouverture exceptionnelle
+        via delai_evaluation_prolonge_jusqua (incident, posé manuellement)."""
         return self.statut == 'planifiee' and self.evaluable_par_prof and not self.delai_evaluation_depasse
 
     class Meta:
