@@ -237,7 +237,7 @@
             <span class="icon">📢</span> {% trans "الإعلانات" %}
         </a>
 
-        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_eleves' or request.resolver_match.url_name == 'admin_profs' or request.resolver_match.url_name == 'admin_inscriptions' or request.resolver_match.url_name == 'admin_eleve_ajouter_manuel' or request.resolver_match.url_name == 'admin_prof_ajouter_manuel' or request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}open{% endif %}>
+        <details class="menu-category-group" {% if request.resolver_match.url_name == 'admin_eleves' or request.resolver_match.url_name == 'admin_profs' or request.resolver_match.url_name == 'admin_inscriptions' or request.resolver_match.url_name == 'admin_eleve_ajouter_manuel' or request.resolver_match.url_name == 'admin_prof_ajouter_manuel' or request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' or request.resolver_match.url_name == 'admin_profs_traites_mshrif' or request.resolver_match.url_name == 'admin_prof_traite_envoyer_message' %}open{% endif %}>
             <summary><span class="menu-cat-titre">{% trans "إدارة المستخدمين" %}{% if badge_gestion_utilisateurs %}<span class="menu-badge">{{ badge_gestion_utilisateurs }}</span>{% endif %}</span></summary>
             <a href="{% url 'admin_eleves' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_eleves' %}active{% endif %}">
@@ -263,6 +263,10 @@
             <a href="{% url 'admin_superviseurs' %}"
                class="menu-item {% if request.resolver_match.url_name == 'admin_superviseurs' or request.resolver_match.url_name == 'admin_superviseur_assignations' %}active{% endif %}">
                 <span class="icon">🧭</span> {% trans "إسناد المؤطرين" %}
+            </a>
+            <a href="{% url 'admin_profs_traites_mshrif' %}"
+               class="menu-item {% if request.resolver_match.url_name == 'admin_profs_traites_mshrif' or request.resolver_match.url_name == 'admin_prof_traite_envoyer_message' %}active{% endif %}">
+                <span class="icon">📨</span> {% trans "طلبات الأساتذة المعالجة" %}
             </a>
         </details>
 

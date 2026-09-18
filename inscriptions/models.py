@@ -525,6 +525,26 @@ class InscriptionProf(models.Model):
     # qui ne passe pas par ce formulaire public.
     charte_acceptee = models.BooleanField(default=False)
     date_acceptation_charte = models.DateTimeField(null=True, blank=True)
+    # Chantier du 2026-09-18 (المشرف ne souhaite plus envoyer lui-même le
+    # message d'acceptation/refus au prof — voir dashboard.views.
+    # admin_profs_traites_mshrif) : horodatage DÉDIÉ de la décision FINALE du
+    # مشرف (mshrif_valider_prof_final / mshrif_rejeter_prof), jamais
+    # date_validee_directeur (posée par le مدير, étape 1) ni date_soumission.
+    # Sert à la fois de repère "traité par le مشرف" (pour distinguer un rejet
+    # مشرف d'un rejet مدير à l'étape 1, qui laisse ce champ à None) et de date
+    # d'évènement pour la notification 🔔 مدير (dashboard.notifications.
+    # notifications_direction, source 8).
+    date_traitee_mshrif = models.DateTimeField(null=True, blank=True)
+    # Mot de passe temporaire généré à l'acceptation finale, gardé en clair
+    # jusqu'à l'envoi par le مدير — dérogation volontaire et EXPLICITEMENT
+    # demandée au principe habituel du projet ("jamais de mot de passe en
+    # clair au-delà d'une requête", voir dashboard.views.
+    # admin_utilisateur_reinitialiser_mot_de_passe) : le مدير doit pouvoir
+    # renvoyer EXACTEMENT le même message que celui que le مشرف aurait
+    # envoyé, à un moment ultérieur et imprévisible (pas une régénération à
+    # la volée). Vide pour un refus (aucun mot de passe créé) et vide par
+    # défaut pour toute candidature déjà traitée avant ce chantier.
+    mot_de_passe_genere = models.CharField(max_length=128, blank=True, default='')
 
     def __str__(self):
         return f"{self.nom} {self.prenom}"

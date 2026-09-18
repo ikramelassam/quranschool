@@ -9987,3 +9987,119 @@ class DernierHifzWidgetDashboardEleveTests(TestCase):
         reponse = self.client.get(reverse('dashboard_eleve'))
         self.assertEqual(reponse.context['travail_recent'], [])
         self.assertEqual(len(reponse.context['sourates_recentes']), 1)
+
+
+@override_settings(STORAGES=_STORAGES_TEST)
+class AdminProfsTraitesMshrifTests(TestCase):
+    """Chantier du 2026-09-18 : le مشرف a indiqué ne plus vouloir envoyer
+    lui-même le message WhatsApp d'acceptation/refus au prof — cette page
+    مدير-only liste les candidatures dont la décision finale a été prise par
+    le مشرف (InscriptionProf.date_traitee_mshrif) et permet de reconstruire
+    EXACTEMENT le même message (voir dashboard.views.
+    admin_prof_traite_envoyer_message)."""
+
+    def setUp(self):
+        self.admin = _creer_admin()
+        self.mshrif = _creer_mshrif()
+
+    def test_mshrif_valider_prof_final_horodate_et_garde_le_mot_de_passe(self):
+        inscription = _creer_inscription_prof(
+            statut='validee_directeur', email='accepte_traite@zidni.test',
+        )
+        self.client.force_login(self.mshrif)
+        self.client.get(reverse('mshrif_valider_prof_final', args=[inscription.id]))
+
+        inscription.refresh_from_db()
+        self.assertIsNotNone(inscription.date_traitee_mshrif)
+        self.assertEqual(inscription.statut, 'valide')
+        self.assertTrue(inscription.mot_de_passe_genere)
+
+    def test_mshrif_rejeter_prof_horodate_sans_mot_de_passe(self):
+        inscription = _creer_inscription_prof(
+            statut='validee_directeur', email='refuse_traite@zidni.test',
+        )
+        self.client.force_login(self.mshrif)
+        self.client.post(reverse('mshrif_rejeter_prof', args=[inscription.id]), {'motif': 'سبب الرفض التجريبي'})
+
+        inscription.refresh_from_db()
+        self.assertIsNotNone(inscription.date_traitee_mshrif)
+        self.assertEqual(inscription.statut, 'rejete')
+        self.assertEqual(inscription.mot_de_passe_genere, '')
+
+    def test_admin_rejeter_prof_etape1_ne_renseigne_jamais_date_traitee_mshrif(self):
+        """Un rejet مدير à l'étape 1 (jamais passé par le مشرف) ne doit JAMAIS
+        apparaître dans admin_profs_traites_mshrif — sinon le مدير serait
+        notifié de sa propre action."""
+        inscription = _creer_inscription_prof(email='refuse_etape1@zidni.test')
+        self.client.force_login(self.admin)
+        self.client.post(reverse('admin_rejeter_prof', args=[inscription.id]), {'motif': 'refus direct مدير'})
+
+        inscription.refresh_from_db()
+        self.assertIsNone(inscription.date_traitee_mshrif)
+
+        html = self.client.get(reverse('admin_profs_traites_mshrif')).content.decode('utf-8')
+        self.assertNotIn(inscription.nom, html)
+
+    def test_liste_admin_affiche_les_dossiers_traites_par_mshrif(self):
+        inscription = _creer_inscription_prof(
+            statut='validee_directeur', email='liste_traites@zidni.test',
+        )
+        self.client.force_login(self.mshrif)
+        self.client.get(reverse('mshrif_valider_prof_final', args=[inscription.id]))
+
+        self.client.force_login(self.admin)
+        html = self.client.get(reverse('admin_profs_traites_mshrif')).content.decode('utf-8')
+        self.assertIn(inscription.nom, html)
+
+    def test_page_reservee_au_mdir_pas_au_mshrif(self):
+        self.client.force_login(self.mshrif)
+        response = self.client.get(reverse('admin_profs_traites_mshrif'))
+        self.assertRedirects(response, reverse('dashboard_mshrif'))
+
+    def test_message_envoi_contient_le_meme_mot_de_passe_que_mshrif_aurait_envoye(self):
+        inscription = _creer_inscription_prof(
+            statut='validee_directeur', email='meme_mdp@zidni.test',
+        )
+        self.client.force_login(self.mshrif)
+        self.client.get(reverse('mshrif_valider_prof_final', args=[inscription.id]))
+        inscription.refresh_from_db()
+        mot_de_passe_reel = inscription.mot_de_passe_genere
+
+        self.client.force_login(self.admin)
+        html = self.client.get(reverse('admin_prof_traite_envoyer_message', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn(mot_de_passe_reel, html)
+        self.assertIn(inscription.email, html)
+
+    def test_message_envoi_refus_reprend_le_motif_enregistre(self):
+        inscription = _creer_inscription_prof(
+            statut='validee_directeur', email='motif_traite@zidni.test',
+        )
+        self.client.force_login(self.mshrif)
+        self.client.post(reverse('mshrif_rejeter_prof', args=[inscription.id]), {'motif': 'MotifRefusMarqueurZ9k3'})
+
+        self.client.force_login(self.admin)
+        html = self.client.get(reverse('admin_prof_traite_envoyer_message', args=[inscription.id])).content.decode('utf-8')
+        self.assertIn('MotifRefusMarqueurZ9k3', html)
+
+    def test_acces_direct_bloque_si_pas_encore_traite_par_mshrif(self):
+        inscription = _creer_inscription_prof(email='pas_encore_traite@zidni.test')
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('admin_prof_traite_envoyer_message', args=[inscription.id]), follow=True)
+        self.assertRedirects(response, reverse('admin_profs_traites_mshrif'))
+
+    def test_notification_direction_signale_le_traitement_mshrif_au_mdir(self):
+        inscription = _creer_inscription_prof(
+            statut='validee_directeur', email='notif_direction@zidni.test',
+        )
+        self.client.force_login(self.mshrif)
+        self.client.get(reverse('mshrif_valider_prof_final', args=[inscription.id]))
+
+        from dashboard.notifications import notifications_direction
+        _, total = notifications_direction(self.admin)
+        self.assertGreaterEqual(total, 1)
+
+        # Visiter la liste éteint le badge (même patron que le reste du module).
+        self.client.force_login(self.admin)
+        self.client.get(reverse('admin_profs_traites_mshrif'))
+        _, total_apres = notifications_direction(self.admin)
+        self.assertEqual(total_apres, 0)

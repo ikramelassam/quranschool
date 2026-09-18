@@ -3491,6 +3491,15 @@ def mshrif_valider_prof_final(request, inscription_id):
 
     envoyer_email_bienvenue(request, inscription.email, password_temp, f'{inscription.nom} {inscription.prenom}')
 
+    # Chantier du 2026-09-18 — voir InscriptionProf.date_traitee_mshrif /
+    # mot_de_passe_genere.__doc__ : permet au مدير de renvoyer plus tard EXACTEMENT
+    # le même message d'acceptation depuis admin_profs_traites_mshrif, sans obliger
+    # le مشرف à cliquer lui-même sur un bouton WhatsApp maintenant.
+    from django.utils import timezone
+    inscription.date_traitee_mshrif = timezone.now()
+    inscription.mot_de_passe_genere = password_temp
+    inscription.save(update_fields=['date_traitee_mshrif', 'mot_de_passe_genere'])
+
     request.session['confirmation_creation_compte'] = {
         'type_compte': 'prof',
         'nom': f'{inscription.nom} {inscription.prenom}'.strip(),
@@ -3519,9 +3528,15 @@ def mshrif_rejeter_prof(request, inscription_id):
         return redirect('mshrif_inscriptions_profs')
 
     if request.method == 'POST':
+        from django.utils import timezone
         motif = request.POST.get('motif', '').strip()
         inscription.statut = 'rejete'
         inscription.motif_refus = motif
+        # Voir InscriptionProf.date_traitee_mshrif.__doc__ : distingue ce rejet
+        # (étape 2, مشرف) d'un rejet مدير à l'étape 1 (admin_rejeter_prof, qui ne
+        # touche jamais ce champ) — alimente admin_profs_traites_mshrif + la
+        # notification 🔔 مدير.
+        inscription.date_traitee_mshrif = timezone.now()
         inscription.save()
         if motif:
             if request.POST.get('enregistrer_phrase') == 'on':
@@ -3558,6 +3573,94 @@ def mshrif_rejeter_prof(request, inscription_id):
         'base_template': 'dashboard/base_mshrif.html',
     }
     return render(request, 'dashboard/refuser_inscription.html', context)
+
+
+# ==================== مدير : طلبات الأساتذة المعالجة من طرف المشرف ====================
+# Chantier du 2026-09-18 : le مشرف a indiqué préférer ne plus être celui qui
+# envoie le message WhatsApp d'acceptation/refus au prof — il propose que le مدير
+# s'en charge lui-même, depuis une page dédiée à son propre profil. Cette liste
+# affiche toute InscriptionProf dont date_traitee_mshrif est renseigné (décision
+# FINALE du مشرف, acceptation ou refus) ; admin_prof_traite_envoyer_message
+# reconstruit le message EXACT que le مشرف aurait envoyé.
+
+@role_required('admin')
+def admin_profs_traites_mshrif(request):
+    from inscriptions.models import InscriptionProf
+
+    inscriptions = InscriptionProf.objects.filter(
+        date_traitee_mshrif__isnull=False
+    ).order_by('-date_traitee_mshrif')
+    context = {'inscriptions': paginer(request, inscriptions, 10)}
+    # Panneau 🔔 مدير — voir dashboard.notifications.notifications_direction
+    # (source 8) : visiter cette liste éteint le badge de ce type.
+    from dashboard.notifications import marquer_visite
+    marquer_visite(request.user, 'profs_traites_mshrif')
+    return render(request, 'dashboard/admin_profs_traites_mshrif.html', context)
+
+
+@role_required('admin')
+def admin_prof_traite_envoyer_message(request, inscription_id):
+    """Reconstruit — pour le مدير, à un moment ultérieur et imprévisible — le
+    message WhatsApp EXACT que le مشرف aurait envoyé au prof lors de sa décision
+    finale :
+    - acceptation ('valide') : même texte que confirmation_creation_compte
+      (construire_message_acceptation_whatsapp), avec le mot de passe RÉELLEMENT
+      généré à ce moment-là (InscriptionProf.mot_de_passe_genere — voir son
+      __doc__ sur pourquoi il est exceptionnellement gardé en clair, dérogation
+      demandée explicitement pour ce chantier).
+    - refus ('rejete') : même gabarit que refus_confirme (GABARIT_REFUS_AVANT_MOTIF
+      + motif_refus + GABARIT_REFUS_APRES_MOTIF), motif relu depuis la base
+      (jamais une session éphémère, cette page n'en a pas besoin)."""
+    from inscriptions.models import InscriptionProf
+
+    inscription = get_object_or_404(InscriptionProf, id=inscription_id)
+    if not inscription.date_traitee_mshrif:
+        messages.error(request, gettext_('لم تتم معالجة هذا الطلب بعد من طرف المشرف.'))
+        return redirect('admin_profs_traites_mshrif')
+
+    nom_complet = f'{inscription.nom} {inscription.prenom}'
+    mot_de_passe_disponible = True
+    prof_lie = inscription.prof_valide.select_related('user').first()
+
+    if inscription.statut == 'valide':
+        if inscription.mot_de_passe_genere:
+            message = construire_message_acceptation_whatsapp(
+                nom_complet, inscription.email, inscription.mot_de_passe_genere
+            )
+        else:
+            # Candidature traitée avant ce chantier (champ vide, jamais rempli
+            # rétroactivement) : aucun mot de passe en clair à reconstruire — le
+            # مدير doit passer par une réinitialisation pour en générer un
+            # nouveau à communiquer (voir url_reinitialiser_mot_de_passe).
+            mot_de_passe_disponible = False
+            message = ''
+        titre = gettext_('تم قبول الأستاذ نهائياً')
+    else:
+        message = (
+            GABARIT_REFUS_AVANT_MOTIF.format(nom=nom_complet)
+            + inscription.motif_refus
+            + GABARIT_REFUS_APRES_MOTIF
+        )
+        titre = gettext_('تم رفض طلب الأستاذ')
+
+    context = {
+        'inscription': inscription,
+        'nom_complet': nom_complet,
+        'titre': titre,
+        'message': message,
+        'mot_de_passe_disponible': mot_de_passe_disponible,
+        'telephone_personne': inscription.telephone,
+        'libelle_personne': format_lazy(gettext_lazy_('مع {personne}'), personne=nom_complet),
+        'texte_absence_personne': format_lazy(
+            gettext_lazy_('لا يوجد رقم هاتف مسجَّل لهذا {personne}'),
+            personne=LIBELLE_PERSONNE_CONTACT['prof'],
+        ),
+        'url_reinitialiser_mot_de_passe': (
+            reverse('admin_utilisateur_reinitialiser_mot_de_passe', args=[prof_lie.user_id])
+            if prof_lie else None
+        ),
+    }
+    return render(request, 'dashboard/admin_prof_traite_detail.html', context)
 
 
 @role_required('admin', 'mshrif')

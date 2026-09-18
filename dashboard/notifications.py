@@ -512,7 +512,16 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     de proxy nécessaire, la date réelle de l'évaluation est fiable. `cle`
     'evaluations_mouatir_direction', partagée مدير+مشرف. Lien :
     admin_evaluation_detail (même fiche que le point 6, les deux y sont déjà
-    affichés côte à côte)."""
+    affichés côte à côte).
+
+    8. Candidature prof traitée (décision FINALE, acceptée ou rejetée) par le
+    مشرف (InscriptionProf.date_traitee_mshrif, chantier du 2026-09-18) — le مشرف
+    a indiqué préférer ne plus envoyer lui-même le message WhatsApp au prof ;
+    cette source notifie le مدير qu'un dossier attend désormais SON action sur
+    dashboard.views.admin_prof_traite_envoyer_message. مدير UNIQUEMENT (le مشرف
+    n'a pas à être notifié de sa propre décision) — `cle`
+    'profs_traites_mshrif'. `non_lu` sur date_traitee_mshrif postérieure à la
+    dernière visite de admin_profs_traites_mshrif."""
     from inscriptions.models import InscriptionEleve, InscriptionProf
     from courses.models import DemandeChangementHalaka, Seance
     from payments.cycles import eleves_en_retard
@@ -526,6 +535,7 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
     ]
     if user.role == 'admin':
         cles.append('demandes_inscription_prof')
+        cles.append('profs_traites_mshrif')
     seuils = _seuils(user, cles)
 
     est_mshrif = user.role == 'mshrif'
@@ -690,6 +700,23 @@ def notifications_direction(user, limite=LIMITE_LISTE_PLATE):
             'statut_ton': '',
             'non_lu': e.date > seuils['evaluations_mouatir_direction'],
         })
+
+    # 8. Candidatures prof traitées (décision finale) par le مشرف — مدير uniquement.
+    if user.role == 'admin':
+        for p in (
+            InscriptionProf.objects.filter(date_traitee_mshrif__isnull=False)
+            .order_by('-date_traitee_mshrif')[:LIMITE_FETCH]
+        ):
+            libelle, ton = statut_prof.get(p.statut, (p.get_statut_display(), 'neutre'))
+            evenements.append({
+                'texte': _('عالج المشرف طلب الأستاذ: %(nom)s %(prenom)s') % {'nom': p.nom, 'prenom': p.prenom},
+                'url': reverse('admin_prof_traite_envoyer_message', args=[p.id]),
+                'date': p.date_traitee_mshrif,
+                'icone': '📨',
+                'statut_label': libelle,
+                'statut_ton': ton,
+                'non_lu': p.date_traitee_mshrif > seuils['profs_traites_mshrif'],
+            })
 
     evenements.sort(key=lambda e: e['date'], reverse=True)
 

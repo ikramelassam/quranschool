@@ -1,0 +1,43 @@
+{% extends 'dashboard/base_admin.html' %}
+{% load i18n %}
+{% block title %}{% trans "طلبات الأساتذة المعالجة" %}{% endblock %}
+
+{% block content %}
+<div class="page-title">{% trans "طلبات الأساتذة المعالجة من طرف المشرف" %}</div>
+<div class="page-subtitle">{% blocktrans with n=inscriptions.paginator.count %}العدد الإجمالي: {{ n }}{% endblocktrans %}</div>
+<div style="color:#888; font-size:0.88rem; margin-bottom:20px; max-width:760px;">
+    {% trans "كل طلب أستاذ عالجه المشرف (قبولاً أو رفضاً) يظهر هنا — يمكنك فتح الطلب لإرسال رسالة واتساب للأستاذ بنفس نص الرسالة (بيانات الدخول عند القبول، أو سبب الرفض)." %}
+</div>
+
+{% if inscriptions %}
+    {% for ins in inscriptions %}
+    <div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+        <div class="row align-items-center">
+            <div class="col-md-7">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    {% if ins.statut == 'valide' %}
+                    <span style="background:#E3F4E4; color:#1E7B33; border-radius:20px; padding:2px 10px; font-size:0.75rem; font-weight:700;">✅ {% trans "مقبول نهائياً" %}</span>
+                    {% else %}
+                    <span style="background:#FBE4E4; color:#B42318; border-radius:20px; padding:2px 10px; font-size:0.75rem; font-weight:700;">❌ {% trans "مرفوض" %}</span>
+                    {% endif %}
+                    <div style="font-weight:700; font-size:1.1rem;">{{ ins.nom }} {{ ins.prenom }}</div>
+                </div>
+                <div style="color:#888; font-size:0.9rem;"><span class="email-copiable">{{ ins.email }}</span></div>
+                <div style="color:#888; font-size:0.85rem; margin-top:4px;">
+                    {% blocktrans with date=ins.date_traitee_mshrif|date:"d-m-Y H:i" %}تاريخ معالجة المشرف: {{ date }}{% endblocktrans %}
+                </div>
+            </div>
+            <div class="col-md-5 d-flex gap-2 justify-content-end mt-3 mt-md-0">
+                <a href="{% url 'admin_prof_traite_envoyer_message' ins.id %}"
+                   style="background:var(--gradient-cta-gold); color:var(--color-cta-gold-text); border:none; border-radius:8px; padding:9px 20px; font-weight:700; text-decoration:none;">
+                   📨 {% trans "عرض الرسالة وإرسالها" %}
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div style="text-align:center; padding:60px; color:#aaa;">{% trans "لا توجد طلبات معالجة بعد" %}</div>
+{% endif %}
+{% include 'dashboard/_pagination.html' with page_obj=inscriptions %}
+{% endblock %}

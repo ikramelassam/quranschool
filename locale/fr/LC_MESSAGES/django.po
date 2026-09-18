@@ -8496,3 +8496,46 @@ msgstr "Nouvel e-mail :"
 #, python-format
 msgid " — %(n)s مجموعة حالياً"
 msgstr " — %(n)s groupe(s) actuellement"
+
+msgid "طلبات الأساتذة المعالجة"
+msgstr "Demandes des enseignants traitées"
+
+msgid "طلبات الأساتذة المعالجة من طرف المشرف"
+msgstr "Demandes des enseignants traitées par le superviseur"
+
+#, python-format
+msgid "العدد الإجمالي: %(n)s"
+msgstr "Total : %(n)s"
+
+msgid "كل طلب أستاذ عالجه المشرف (قبولاً أو رفضاً) يظهر هنا — يمكنك فتح الطلب لإرسال رسالة واتساب للأستاذ بنفس نص الرسالة (بيانات الدخول عند القبول، أو سبب الرفض)."
+msgstr "Chaque demande d'enseignant traitée par le superviseur (acceptée ou refusée) apparaît ici — vous pouvez ouvrir la demande pour envoyer à l'enseignant un message WhatsApp avec exactement le même texte (identifiants de connexion en cas d'acceptation, ou motif du refus)."
+
+#, python-format
+msgid "تاريخ معالجة المشرف: %(date)s"
+msgstr "Date de traitement par le superviseur : %(date)s"
+
+msgid "عرض الرسالة وإرسالها"
+msgstr "Voir le message et l'envoyer"
+
+msgid "لا توجد طلبات معالجة بعد"
+msgstr "Aucune demande traitée pour l'instant"
+
+msgid "لم تتم معالجة هذا الطلب بعد من طرف المشرف."
+msgstr "Cette demande n'a pas encore été traitée par le superviseur."
+
+msgid "تم قبول الأستاذ نهائياً"
+msgstr "L'enseignant a été définitivement accepté"
+
+msgid "تم رفض طلب الأستاذ"
+msgstr "La demande de l'enseignant a été refusée"
+
+msgid "⚠️ كلمة المرور الأصلية التي ولّدها المشرف عند القبول لم تعد متوفرة (طلب معالج قبل تفعيل هذه الميزة)."
+msgstr "⚠️ Le mot de passe original généré par le superviseur lors de l'acceptation n'est plus disponible (demande traitée avant l'activation de cette fonctionnalité)."
+
+msgid "🔑 إعادة تعيين كلمة المرور لإرسال رسالة جديدة"
+msgstr "🔑 Réinitialiser le mot de passe pour envoyer un nouveau message"
+
+#, python-format
+msgid "عالج المشرف طلب الأستاذ: %(nom)s %(prenom)s"
+msgstr "Le superviseur a traité la demande de l'enseignant : %(nom)s %(prenom)s"
+

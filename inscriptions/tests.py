@@ -252,6 +252,21 @@ class ChampsInscriptionVisiblesTests(TestCase):
             "jamais affiché comme une valeur libellée sur la fiche candidature. "
             "Voir le commentaire de InscriptionProf.date_validee_directeur dans models.py."
         ),
+        'date_traitee_mshrif': (
+            "horodatage de workflow posé automatiquement à la décision finale du "
+            "مشرف (migration 0038, chantier مدير envoie le message du 2026-09-18) — "
+            "consommé par dashboard.views.admin_profs_traites_mshrif et "
+            "dashboard.notifications.notifications_direction(), jamais affiché comme "
+            "une valeur libellée sur la fiche candidature elle-même (admin_inscription_"
+            "prof_detail / mshrif_inscription_prof_detail)."
+        ),
+        'mot_de_passe_genere': (
+            "mot de passe temporaire gardé en clair (dérogation volontaire, voir son "
+            "__doc__ dans models.py) jusqu'à l'envoi par le مدير — affiché UNIQUEMENT "
+            "sur dashboard.views.admin_prof_traite_envoyer_message, jamais sur la fiche "
+            "de candidature elle-même (qui reste consultée par n'importe quel مدير/مشرف, "
+            "pas seulement celui qui doit l'envoyer)."
+        ),
     }
 
     def _creer_inscription_prof(self, **overrides):

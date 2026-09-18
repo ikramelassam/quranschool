@@ -63,6 +63,10 @@ urlpatterns = [
     path('admin/inscriptions/prof/<int:inscription_id>/rejeter/', views.admin_rejeter_prof, name='admin_rejeter_prof'),
     path('admin/users/<int:user_id>/supprimer-orphelin/', views.admin_supprimer_user_orphelin, name='admin_supprimer_user_orphelin'),
 
+    # Admin — طلبات الأساتذة المعالجة من طرف المشرف (Chantier du 2026-09-18)
+    path('admin/profs-traites-mshrif/', views.admin_profs_traites_mshrif, name='admin_profs_traites_mshrif'),
+    path('admin/profs-traites-mshrif/<int:inscription_id>/', views.admin_prof_traite_envoyer_message, name='admin_prof_traite_envoyer_message'),
+
     # المشرف — validation finale des candidatures profs (étape 2/2)
     path('mshrif/candidatures-profs/', views.mshrif_inscriptions_profs, name='mshrif_inscriptions_profs'),
     path('mshrif/candidatures-profs/<int:inscription_id>/', views.mshrif_inscription_prof_detail, name='mshrif_inscription_prof_detail'),
