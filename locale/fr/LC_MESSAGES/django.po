@@ -8545,3 +8545,6 @@ msgstr "Le superviseur a traité la demande de l'enseignant : %(nom)s %(prenom)s
 
 msgid "تحميل المزيد ↓"
 msgstr "Charger plus ↓"
+
+msgid "لم يتم حفظ هذا الطالب — راجع الأخطاء المذكورة أعلاه."
+msgstr "Cet élève n'a pas été enregistré — vérifiez les erreurs mentionnées plus haut."

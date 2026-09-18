@@ -924,6 +924,17 @@ def prof_seance_detail(request, seance_id):
     prof = get_object_or_404(Prof, user=request.user)
     seance = get_object_or_404(Seance, id=seance_id, groupe__prof=prof)
 
+    # Élèves dont la sauvegarde précédente a été refusée (voir
+    # dashboard.views.prof_presence_sauvegarder, ?erreurs_eleves=1,2,3 sur son
+    # redirect) — leur carte doit se rouvrir et se signaler d'elle-même,
+    # plutôt que de laisser le prof deviner lequel des champs "obligatoires en
+    # pratique" (نقطة الانطلاق, المحفوظ في هذه الحصة...) mais sans required
+    # HTML il a oublié, au milieu d'une liste potentiellement longue.
+    ids_eleves_en_erreur = set()
+    for brut in request.GET.get('erreurs_eleves', '').split(','):
+        if brut.isdigit():
+            ids_eleves_en_erreur.add(int(brut))
+
     # Un élève suspendu/archivé ne doit plus apparaître dans les feuilles de
     # présence à venir (voir Tâche 3 du 2026-07-25) — son historique passé
     # n'est pas affecté, seule cette liste "à remplir maintenant" l'exclut.
@@ -980,9 +991,11 @@ def prof_seance_detail(request, seance_id):
     premiere_non_remplie_trouvee = False
     for eleve in eleves:
         presence = presences_par_eleve.get(eleve.id)
+        en_erreur = eleve.id in ids_eleves_en_erreur
         # Seule la première carte non encore remplie s'ouvre automatiquement —
         # les autres restent repliées pour garder le formulaire rapide sur mobile.
-        ouvrir_par_defaut = not presence and not premiere_non_remplie_trouvee
+        # Toute carte en erreur s'ouvre TOUJOURS, même au-delà de la première.
+        ouvrir_par_defaut = en_erreur or (not presence and not premiere_non_remplie_trouvee)
         if not presence:
             premiere_non_remplie_trouvee = True
         notes_criteres = [
@@ -1040,6 +1053,7 @@ def prof_seance_detail(request, seance_id):
             'eleve': eleve,
             'presence': presence,
             'ouvrir_par_defaut': ouvrir_par_defaut,
+            'en_erreur': en_erreur,
             'notes_criteres': notes_criteres,
             'progression_hizb': progression_hizb,
             'apercu_actions': apercu_actions,
@@ -1152,6 +1166,13 @@ def prof_presence_sauvegarder(request, seance_id):
         presences_existantes = {p.eleve_id: p for p in Presence.objects.filter(seance=seance)}
 
         erreurs = []
+        # Chantier UX du 2026-09-18 : quels élèves précisément sont en cause
+        # (pas seulement leur nom dans le texte d'erreur) — pour que le
+        # template puisse ré-ouvrir et surligner LEUR carte au lieu de forcer
+        # le prof à retrouver, au milieu d'une longue liste, lequel des
+        # champs "obligatoires en pratique" (نقطة الانطلاق, المحفوظ في هذه
+        # الحصة...) mais sans required HTML a été oublié.
+        eleves_en_erreur = []
         for eleve in eleves:
             statut = request.POST.get(f'statut_{eleve.id}', 'absent')
             remarque = request.POST.get(f'remarque_{eleve.id}', '')
@@ -1347,6 +1368,7 @@ def prof_presence_sauvegarder(request, seance_id):
                 consigne_revision = ''
 
             if ligne_invalide:
+                eleves_en_erreur.append(eleve.id)
                 continue
 
             presence, _ = Presence.objects.update_or_create(
@@ -1460,7 +1482,14 @@ def prof_presence_sauvegarder(request, seance_id):
             for erreur in erreurs:
                 messages.error(request, erreur)
             messages.warning(request, gettext_('تم حفظ باقي الطلاب. صحّح الآيات أعلاه ثم احفظ مجدداً لإتمام حصة الطلاب المذكورين.'))
-            return redirect('prof_seance_detail', seance_id=seance.id)
+            url = reverse('prof_seance_detail', kwargs={'seance_id': seance.id})
+            # eleves_en_erreur en query string (pas en session) : simple
+            # aller-retour dans l'URL de CE redirect précis, rien à nettoyer
+            # ensuite — lu une seule fois par prof_seance_detail ci-dessus
+            # pour ré-ouvrir/surligner directement les cartes concernées.
+            if eleves_en_erreur:
+                url += '?erreurs_eleves=' + ','.join(str(i) for i in eleves_en_erreur)
+            return redirect(url)
 
         seance.remarque_generale = request.POST.get('remarque_generale', '')
         if action == 'soumettre':

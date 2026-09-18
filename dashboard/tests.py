@@ -4787,6 +4787,78 @@ class ProfPresenceEnregistrerSoumettreTests(TestCase):
         self.assertEqual(ProgressionMemorisation.objects.get(eleve=self.eleve).hizb_depart, 2)
 
 
+class PresenceErreurCarteSurligneeTests(TestCase):
+    """Chantier UX du 2026-09-18 (retour terrain : une prof qui "remplit tous
+    les élèves" affirmait ne pas pouvoir envoyer) : quand UN SEUL élève d'un
+    groupe a une erreur (ex: "المحفوظ في هذه الحصة" oublié — obligatoire en
+    pratique côté serveur mais sans required HTML, voir prof_seance_detail.
+    html), la soumission ENTIÈRE est refusée (voir dashboard.views.
+    prof_presence_sauvegarder) — jusqu'ici sans aucun moyen de savoir, dans
+    une liste potentiellement longue, LEQUEL des élèves posait problème
+    (seul son nom apparaissait, noyé, dans le texte du message d'erreur tout
+    en haut de page). Le redirect porte désormais son id (?erreurs_eleves=)
+    et sa carte se rouvre/se surligne (.en-erreur) automatiquement."""
+
+    MAINTENANT = timezone.make_aware(datetime.datetime(2026, 9, 14, 18, 0))
+
+    def setUp(self):
+        from courses.models import CritereEleve
+
+        self.prof = _creer_prof('prof_erreur_surlignee@zidni.test')
+        self.eleve_valide = _creer_eleve('eleve_valide_surlignee@zidni.test')
+        self.eleve_invalide = _creer_eleve('eleve_invalide_surlignee@zidni.test')
+        creneau = _creer_creneau_dashboard()
+        self.groupe = Groupe.objects.create(nom='ZZZ_erreur_surlignee', prof=self.prof, creneau=creneau)
+        self.groupe.eleves.add(self.eleve_valide, self.eleve_invalide)
+        self.seance = Seance.objects.create(groupe=self.groupe, date=datetime.date(2026, 9, 14), heure=datetime.time(16, 0), type='normal')
+        self.criteres = list(CritereEleve.objects.filter(est_actif=True).exclude(type_lie='mouraja3a'))
+        self.client.force_login(self.prof.user)
+
+    def _donnees(self, eleve, travail_json='[]'):
+        donnees = {
+            f'statut_{eleve.id}': 'present',
+            f'hizb_depart_{eleve.id}': '2',
+            f'thumn_depart_{eleve.id}': '1',
+            f'sens_{eleve.id}': 'tanazuli',
+            f'consigne_memo_{eleve.id}': 'حفظ الآيات 1-10',
+            f'travail_json_{eleve.id}': travail_json,
+            f'resultat_memo_{eleve.id}': 'a_refaire',
+        }
+        for c in self.criteres:
+            donnees[f'note_critere_{c.id}_{eleve.id}'] = '15'
+        return donnees
+
+    def test_redirect_signale_uniquement_leleve_en_erreur(self):
+        donnees = {'action': 'soumettre'}
+        donnees.update(self._donnees(self.eleve_valide, travail_json=json.dumps(
+            [{'hizb_debut': 2, 'thumn_debut': 1, 'hizb_fin': 2, 'thumn_fin': 1}])
+        ))
+        donnees.update(self._donnees(self.eleve_invalide, travail_json='[]'))
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            reponse = self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees)
+        url_attendue = reverse('prof_seance_detail', args=[self.seance.id]) + '?erreurs_eleves=' + str(self.eleve_invalide.id)
+        self.assertRedirects(reponse, url_attendue)
+
+    def test_seule_la_carte_en_erreur_est_surlignee(self):
+        donnees = {'action': 'soumettre'}
+        donnees.update(self._donnees(self.eleve_valide, travail_json=json.dumps(
+            [{'hizb_debut': 2, 'thumn_debut': 1, 'hizb_fin': 2, 'thumn_fin': 1}])
+        ))
+        donnees.update(self._donnees(self.eleve_invalide, travail_json='[]'))
+        with mock.patch('django.utils.timezone.now', return_value=self.MAINTENANT):
+            self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance.id]), donnees)
+            reponse = self.client.get(reverse('prof_seance_detail', args=[self.seance.id]) + '?erreurs_eleves=' + str(self.eleve_invalide.id))
+        self.assertContains(reponse, f'eleve-card open en-erreur" id="carte_{self.eleve_invalide.id}"')
+        self.assertNotContains(reponse, f'id="carte_{self.eleve_valide.id}"><div class="eleve-card-erreur-bandeau"')
+        # L'élève valide a bien été enregistré malgré l'erreur de l'autre —
+        # seule la finalisation de la séance entière est bloquée, pas
+        # l'enregistrement individuel des lignes valides (voir
+        # dashboard.views.prof_presence_sauvegarder : `continue` par ligne,
+        # pas d'abandon global avant le test `if erreurs:` final).
+        self.assertTrue(Presence.objects.filter(seance=self.seance, eleve=self.eleve_valide).exists())
+        self.assertFalse(Presence.objects.filter(seance=self.seance, eleve=self.eleve_invalide).exists())
+
+
 # ==================== Chantier notifications (2026-08-19) ====================
 # Panneau 🔔 الإشعارات — un test par déclencheur (Point F de la todo list
 # validée), plus marquage lu, amorçage, anti-fausse-notification et

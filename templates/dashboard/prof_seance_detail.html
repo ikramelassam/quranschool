@@ -11,6 +11,14 @@
         box-shadow: 0 2px 12px rgba(0,0,0,0.06);
         overflow: hidden;
     }
+    /* Carte refusée par le dernier enregistrement (dashboard.views.
+       prof_presence_sauvegarder, ?erreurs_eleves=...) — se distingue à l'œil
+       nu dans une liste potentiellement longue, sans avoir à relire le nom
+       de l'élève dans le message d'erreur tout en haut de page. */
+    .eleve-card.en-erreur { box-shadow: 0 0 0 2px #dc3545, 0 2px 12px rgba(0,0,0,0.06); }
+    .eleve-card-erreur-bandeau {
+        background: #fce4e4; color: #a12626; padding: 8px 18px; font-size: 0.82rem; font-weight: 600;
+    }
     .eleve-card-header {
         display: flex;
         align-items: center;
@@ -258,7 +266,10 @@ N'apparaît que côté formulaire (séance encore modifiable) : une séance déj
 
     {% for item in eleves_presences %}
     {% with eleve=item.eleve presence=item.presence progression_hizb=item.progression_hizb apercu=item.apercu_actions config_modifiable=item.config_modifiable %}
-    <div class="eleve-card{% if item.ouvrir_par_defaut %} open{% endif %}" id="carte_{{ eleve.id }}">
+    <div class="eleve-card{% if item.ouvrir_par_defaut %} open{% endif %}{% if item.en_erreur %} en-erreur{% endif %}" id="carte_{{ eleve.id }}">
+        {% if item.en_erreur %}
+        <div class="eleve-card-erreur-bandeau">⚠️ {% trans "لم يتم حفظ هذا الطالب — راجع الأخطاء المذكورة أعلاه." %}</div>
+        {% endif %}
         <div class="eleve-card-header">
             <div class="eleve-toggle-zone" onclick="toggleCarte({{ eleve.id }})">
                 <span class="chevron">▾</span>
@@ -313,7 +324,7 @@ N'apparaît que côté formulaire (séance encore modifiable) : une séance déj
 
                             {% if config_modifiable %}
                             <div style="background:#fff8ea; border:1px solid #f0e0b8; border-radius:10px; padding:12px 14px; margin-bottom:10px;">
-                                <div style="font-weight:700; margin-bottom:8px;">📍 {% trans "نقطة الانطلاق" %}</div>
+                                <div style="font-weight:700; margin-bottom:8px;">📍 {% trans "نقطة الانطلاق" %} *</div>
                                 <div class="row g-2">
                                     <div class="col-6">
                                         <label style="font-size:0.78rem; color:#888;">{% trans "الحزب" %}</label>
@@ -362,7 +373,7 @@ N'apparaît que côté formulaire (séance encore modifiable) : une séance déj
                             {% endif %}
 
                             <div style="background:#f4f8fb; border-radius:10px; padding:12px 14px; margin-bottom:10px;" data-sens-defaut="{{ progression_hizb.sens|default:'' }}">
-                                <div style="font-weight:700; margin-bottom:4px;">📚 {% trans "المحفوظ في هذه الحصة" %}</div>
+                                <div style="font-weight:700; margin-bottom:4px;">📚 {% trans "المحفوظ في هذه الحصة" %} *</div>
                                 <div style="color:#666; font-size:0.82rem; margin-bottom:10px;">{% trans "حدد النطاق (من — إلى) الذي تم حفظه أو العمل عليه خلال هذه الحصة." %}</div>
                                 <div id="travail_{{ eleve.id }}"></div>
                                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="ajouterTravail({{ eleve.id }})">+ {% trans "إضافة نطاق آخر" %}</button>
@@ -797,6 +808,18 @@ function initialiserPastilles() {
     });
 }
 initialiserPastilles();
+
+// Après un renvoi refusé (dashboard.views.prof_presence_sauvegarder), les
+// cartes en erreur sont déjà ouvertes/surlignées côté serveur (voir
+// .en-erreur ci-dessus) — reste à y amener l'œil sans que le prof ait à
+// rechercher, dans une liste potentiellement longue, laquelle des cartes a
+// été refusée derrière le message d'erreur tout en haut de page.
+(function () {
+    const premiereEnErreur = document.querySelector('.eleve-card.en-erreur');
+    if (premiereEnErreur) {
+        premiereEnErreur.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+})();
 
 // Pré-remplissage depuis un brouillon déjà enregistré pour CETTE séance
 // (ré-ouverture de la page avant "إرسال نهائي"), sinon une ligne vide par
