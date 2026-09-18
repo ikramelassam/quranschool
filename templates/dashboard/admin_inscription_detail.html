@@ -269,6 +269,25 @@ pas seulement au moment du refus lui-même.
                 </span>
             </div>
         </div>
+        {% if avertissements_groupe_choisi %}
+        {% comment %}
+        Correctif du 2026-09-18 : un candidat sans حلقة EXACTE disponible
+        (DemandeNonSatisfaite créée à l'étape 3 du wizard) peut ensuite
+        accepter une حلقة "proche" qui ne respecte que les critères
+        BLOQUANTS (âge/sexe/type d'offre) — voir dashboard.views.
+        admin_inscription_eleve_detail pour le calcul exact. Jusqu'ici rien
+        ne signalait ce cas au مدير : la boîte verte ci-dessus s'affichait
+        exactement comme pour un match exact.
+        {% endcomment %}
+        <div style="background:#fff3cd; border-radius:10px; padding:12px 16px; margin-top:8px; color:#856404; font-size:0.9rem;">
+            <div style="font-weight:700; margin-bottom:4px;">⚠️ {% trans "هذه الحلقة ليست تطابقاً تاماً لمعايير الطالب" %}</div>
+            <ul style="margin:0; padding-inline-start:18px;">
+                {% for avertissement in avertissements_groupe_choisi %}
+                <li>{{ avertissement }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
         {% elif inscription.abonnement_type_offre == 'individuel' %}
         <div style="background:#f0ebe3; border-radius:10px; padding:12px 16px; margin-top:8px; color:#555; font-size:0.9rem;">
             ℹ️ {% trans "اشتراك فردي — لا حاجة إلى مجموعة/حلقة." %}

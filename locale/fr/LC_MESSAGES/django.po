@@ -3625,6 +3625,9 @@ msgstr "Groupes compatibles"
 msgid "المجموعة المختارة"
 msgstr "Groupe choisi"
 
+msgid "هذه الحلقة ليست تطابقاً تاماً لمعايير الطالب"
+msgstr "Cette halaka ne correspond pas exactement aux critères de l'élève"
+
 msgid "اشتراك فردي — لا حاجة إلى مجموعة/حلقة."
 msgstr "Abonnement individuel — aucun groupe/halaka nécessaire."
 

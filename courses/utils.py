@@ -196,6 +196,33 @@ def raison_incompatibilite_groupe(eleve, groupe):
     return None
 
 
+def _valeur_programme_ou_riwaya(inscription, code_critere, valeur_champ_legacy):
+    """Résout la valeur RÉELLE (code CritereOption, ex: 'hifz'/'tathbit',
+    comparable directement à Creneau.type_seance/riwaya) du critère
+    programme/riwaya pour une InscriptionEleve, quel que soit le parcours qui
+    l'a créée. Bug corrigé le 2026-09-18 : avertissements_groupe/
+    avertissements_groupe_inscription comparaient jusqu'ici inscription.
+    programme/riwaya directement — ces 2 colonnes restent TOUJOURS vides pour
+    une candidature du nouveau wizard (valeur réelle dans ReponseInscription,
+    EAV), donc l'avertissement se déclenchait à tort pour 100% des candidats
+    du nouveau parcours (comparaison à '') sans jamais détecter un VRAI
+    désaccord de riwaya (toujours signalé, même quand elle correspondait
+    réellement). Même repli que registration_tags.reponse_ou_ancien_champ
+    (champ legacy fait foi s'il est renseigné, sinon ReponseInscription),
+    mais retourne un CODE, jamais un libellé traduit. None si introuvable
+    nulle part (candidature legacy sans valeur, ou critère pas configuré) —
+    l'appelant ne doit alors déclencher aucun avertissement, une absence de
+    donnée n'étant jamais la preuve d'un désaccord."""
+    if valeur_champ_legacy:
+        return valeur_champ_legacy
+    from registration.models import ReponseInscription
+
+    reponse = ReponseInscription.objects.filter(
+        inscription=inscription, critere__code=code_critere, option__isnull=False,
+    ).select_related('option').first()
+    return reponse.option.code if reponse else None
+
+
 def avertissements_groupe(eleve, groupe):
     """Critères informatifs (non bloquants) pour un couple (eleve, groupe) :
     programme, riwaya, sexe (non bloquants depuis la Tâche 14), type
@@ -220,9 +247,11 @@ def avertissements_groupe(eleve, groupe):
         return []
 
     avertissements = []
-    if inscription.programme != creneau.type_seance:
+    programme = _valeur_programme_ou_riwaya(inscription, 'programme', inscription.programme)
+    if programme and programme != creneau.type_seance:
         avertissements.append(gettext_('نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب.'))
-    if inscription.riwaya != creneau.riwaya:
+    riwaya = _valeur_programme_ou_riwaya(inscription, 'riwaya', inscription.riwaya)
+    if riwaya and riwaya != creneau.riwaya:
         avertissements.append(gettext_('رواية الحلقة لا تتوافق مع رواية الطالب.'))
     if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
         avertissements.append(gettext_('جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة.'))
@@ -274,9 +303,11 @@ def avertissements_groupe_inscription(inscription, groupe):
         return []
 
     avertissements = []
-    if inscription.programme != creneau.type_seance:
+    programme = _valeur_programme_ou_riwaya(inscription, 'programme', inscription.programme)
+    if programme and programme != creneau.type_seance:
         avertissements.append(gettext_('نوع الحلقة (حفظ/تثبيت) لا يتوافق مع برنامج الطالب.'))
-    if inscription.riwaya != creneau.riwaya:
+    riwaya = _valeur_programme_ou_riwaya(inscription, 'riwaya', inscription.riwaya)
+    if riwaya and riwaya != creneau.riwaya:
         avertissements.append(gettext_('رواية الحلقة لا تتوافق مع رواية الطالب.'))
     if creneau.sexe_cible != 'mixte' and creneau.sexe_cible != inscription.sexe:
         avertissements.append(gettext_('جنس الطالب لا يتوافق مع الفئة المستهدفة لهذه الحلقة.'))
