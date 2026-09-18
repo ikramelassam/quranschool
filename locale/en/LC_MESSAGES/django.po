@@ -8458,6 +8458,9 @@ msgstr "⚠️ The student had chosen the group \"%(nom)s\" at registration, but
 msgid "سجل تلاوة قرآنية بصوتك"
 msgstr "Record a Quranic recitation in your own voice"
 
+msgid "أرسل تسجيلاً صوتياً لمقطع من القرآن الكريم غنيّاً بأحكام التجويد (باستثناء سورة الفاتحة)."
+msgstr "Send an audio recording of a Quranic passage rich in tajwid rules (excluding Surah Al-Fatiha)."
+
 msgid "بدء التسجيل"
 msgstr "Start recording"
 
