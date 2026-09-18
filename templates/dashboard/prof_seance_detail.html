@@ -515,14 +515,15 @@ N'apparaît que côté formulaire (séance encore modifiable) : une séance déj
     {% trans "هل أنت متأكد من الإرسال النهائي؟ سيتم اعتبار هذه الحصة منتهية ولن يكون بالإمكان تعديلها بعد ذلك." as confirmation_soumettre %}
     <div class="d-flex flex-wrap gap-2">
         <button type="submit" name="action" value="enregistrer" class="btn btn-enregistrer-seance"
+                onclick="ouvrirToutesLesCartes();"
                 style="background:white; color:var(--color-role-prof); border:2px solid var(--color-role-prof); font-weight:600; padding:10px 24px; border-radius:8px;">
             {% trans "💾 حفظ كمسودة" %}
         </button>
         <button type="submit" name="action" value="soumettre" class="btn btn-enregistrer-seance"
                 {% if seance.statut == 'terminee' %}
-                onclick="return confirm('{{ confirmation_maj_terminee|escapejs }}');"
+                onclick="ouvrirToutesLesCartes(); return confirm('{{ confirmation_maj_terminee|escapejs }}');"
                 {% else %}
-                onclick="return confirm('{{ confirmation_soumettre|escapejs }}');"
+                onclick="ouvrirToutesLesCartes(); return confirm('{{ confirmation_soumettre|escapejs }}');"
                 {% endif %}
                 style="background:var(--color-role-prof); color:white; font-weight:600; padding:10px 24px; border-radius:8px;">
             {% trans "✅ إرسال نهائي" %}
@@ -747,6 +748,21 @@ function majApercuValide(eleveId, plages) {
 
 function toggleCarte(eleveId) {
     document.getElementById('carte_' + eleveId).classList.toggle('open');
+}
+
+// Sans ça, un champ "required" (ex: consigne_memo/consigne_rev) resté vide dans
+// la carte REPLIÉE d'un autre élève (seule la 1ère carte non remplie s'ouvre
+// par défaut, voir dashboard.views.prof_seance_detail) bloque silencieusement
+// la soumission : le champ invalide est dans un ancêtre display:none, donc le
+// navigateur ne peut ni le montrer ni y faire défiler l'écran — rien ne se
+// passe visuellement au clic sur "إرسال نهائي"/"حفظ كمسودة", même après avoir
+// confirmé la boîte de dialogue. Ouvrir TOUTES les cartes juste avant la
+// validation native (déclenchée par ce même clic) rend visible tout champ
+// manquant, pour que le navigateur puisse enfin y faire défiler et l'indiquer.
+function ouvrirToutesLesCartes() {
+    document.querySelectorAll('.eleve-card').forEach(function (carte) {
+        carte.classList.add('open');
+    });
 }
 
 function selectStatut(eleveId, value, btn) {
