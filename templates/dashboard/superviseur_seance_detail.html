@@ -78,7 +78,15 @@
         </div>
         <div class="col-md-3">
             <div style="color:#888; font-size:0.8rem;">{% trans "المراجعة" %}</div>
-            <div style="font-weight:600;">{% if presence.sourate_revisee %}{{ presence.nom_sourate_revisee }} ({{ presence.ayah_debut_revision }}-{{ presence.ayah_fin_revision }}){% else %}—{% endif %}</div>
+            <div style="font-weight:600;">
+                {% if presence.hizb_debut_revision %}
+                {% if presence.hizb_debut_revision == presence.hizb_fin_revision %}
+                {% blocktrans with numero=presence.hizb_debut_revision nom=presence.nom_hizb_debut_revision td=presence.thumn_debut_revision tf=presence.thumn_fin_revision %}حزب {{ numero }} — {{ nom }} — الثمن {{ td }} → {{ tf }}{% endblocktrans %}
+                {% else %}
+                {% blocktrans with n1=presence.hizb_debut_revision nom1=presence.nom_hizb_debut_revision td=presence.thumn_debut_revision n2=presence.hizb_fin_revision nom2=presence.nom_hizb_fin_revision tf=presence.thumn_fin_revision %}حزب {{ n1 }} — {{ nom1 }} — الثمن {{ td }} → حزب {{ n2 }} — {{ nom2 }} — الثمن {{ tf }}{% endblocktrans %}
+                {% endif %}
+                {% elif presence.sourate_revisee %}{{ presence.nom_sourate_revisee }} ({{ presence.ayah_debut_revision }}-{{ presence.ayah_fin_revision }}){% else %}—{% endif %}
+            </div>
             {% if presence.note_revision %}
             <span style="{{ presence.note_revision|note_style }} border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ presence.get_note_revision_display }}</span>
             {% endif %}

@@ -93,11 +93,6 @@
            Les contrôles Bootstrap "-sm" sont à 0.875rem (14px) → on les repasse à
            16px sur mobile uniquement (la densité "-sm" du bureau ne change pas). */
         .form-select-sm, .form-control-sm { font-size: 16px; }
-        /* La paire آية : la sourate prend toute la largeur, "من" / "إلى" se
-           partagent la ligne suivante moitié-moitié (au lieu de 3 colonnes
-           écrasées à ~70px chacune). */
-        .ayah-pair > .col-6 { flex: 0 0 100%; width: 100%; max-width: 100%; }
-        .ayah-pair > .col-3 { flex: 0 0 50%; width: 50%; max-width: 50%; }
         .btn-enregistrer-seance { display: block; width: 100%; }
     }
 </style>
@@ -217,7 +212,15 @@ N'apparaît que côté formulaire (séance encore modifiable) : une séance déj
                 <div class="col-md-6">
                     <div class="notation-groupe">
                         <div class="notation-titre">{% trans "المراجعة" %}</div>
-                        {% if presence.nom_sourate_revisee %}
+                        {% if presence.hizb_debut_revision %}
+                        <div>
+                            {% if presence.hizb_debut_revision == presence.hizb_fin_revision %}
+                            {% blocktrans with numero=presence.hizb_debut_revision nom=presence.nom_hizb_debut_revision td=presence.thumn_debut_revision tf=presence.thumn_fin_revision %}حزب {{ numero }} — {{ nom }} — الثمن {{ td }} → {{ tf }}{% endblocktrans %}
+                            {% else %}
+                            {% blocktrans with n1=presence.hizb_debut_revision nom1=presence.nom_hizb_debut_revision td=presence.thumn_debut_revision n2=presence.hizb_fin_revision nom2=presence.nom_hizb_fin_revision tf=presence.thumn_fin_revision %}حزب {{ n1 }} — {{ nom1 }} — الثمن {{ td }} → حزب {{ n2 }} — {{ nom2 }} — الثمن {{ tf }}{% endblocktrans %}
+                            {% endif %}
+                        </div>
+                        {% elif presence.nom_sourate_revisee %}
                         <div>{{ presence.nom_sourate_revisee }} ({{ presence.ayah_debut_revision }}-{{ presence.ayah_fin_revision }})</div>
                         {% else %}
                         <div style="color:#aaa;">{% trans "لا يوجد" %}</div>
@@ -411,28 +414,47 @@ N'apparaît que côté formulaire (séance encore modifiable) : une séance déj
                     <div class="col-12">
                         <div class="notation-groupe">
                             <div class="notation-titre">{% trans "المراجعة" %}</div>
-                            {% trans "— السورة —" as placeholder_sourate %}
-                            {% trans "من" as placeholder_de %}
-                            {% trans "إلى" as placeholder_a %}
-                            <div class="row g-2 ayah-pair">
+                            {% trans "— الحزب —" as placeholder_hizb %}
+                            {% trans "— الثمن —" as placeholder_thumn %}
+                            <div style="color:#888; font-size:0.78rem; margin-bottom:4px;">{% trans "من" %}</div>
+                            <div class="row g-2 mb-2">
                                 <div class="col-6">
-                                    <select name="sourate_rev_{{ eleve.id }}" class="form-select form-select-sm" data-select-cherchable>
-                                        <option value="">{{ placeholder_sourate }}</option>
-                                        {% for numero, nom, nb_ayat in sourates %}
-                                        <option value="{{ numero }}" {% if presence.sourate_revisee == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
+                                    <select name="hizb_debut_rev_{{ eleve.id }}" class="form-select form-select-sm hizb-rev-debut" data-select-cherchable>
+                                        <option value="">{{ placeholder_hizb }}</option>
+                                        {% for numero, nom in hizb_noms %}
+                                        <option value="{{ numero }}" {% if presence.hizb_debut_revision == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
-                                <div class="col-3">
-                                    <input type="number" min="1" name="ayah_debut_rev_{{ eleve.id }}" class="form-control form-control-sm ayah-debut"
-                                           value="{{ presence.ayah_debut_revision|default:'' }}" placeholder="{{ placeholder_de }}">
-                                </div>
-                                <div class="col-3">
-                                    <input type="number" min="1" name="ayah_fin_rev_{{ eleve.id }}" class="form-control form-control-sm ayah-fin"
-                                           value="{{ presence.ayah_fin_revision|default:'' }}" placeholder="{{ placeholder_a }}">
+                                <div class="col-6">
+                                    <select name="thumn_debut_rev_{{ eleve.id }}" class="form-select form-select-sm thumn-rev-debut">
+                                        <option value="">{{ placeholder_thumn }}</option>
+                                        {% for n in "12345678" %}
+                                        <option value="{{ n }}" {% if presence.thumn_debut_revision|stringformat:"s" == n %}selected{% endif %}>{{ n }}</option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
                             </div>
-                            <div class="d-flex gap-3 mt-1" style="font-size:0.82rem;">
+                            <div style="color:#888; font-size:0.78rem; margin-bottom:4px;">{% trans "إلى" %}</div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <select name="hizb_fin_rev_{{ eleve.id }}" class="form-select form-select-sm hizb-rev-fin" data-select-cherchable>
+                                        <option value="">{{ placeholder_hizb }}</option>
+                                        {% for numero, nom in hizb_noms %}
+                                        <option value="{{ numero }}" {% if presence.hizb_fin_revision == numero %}selected{% endif %}>{{ numero }}. {{ nom }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <select name="thumn_fin_rev_{{ eleve.id }}" class="form-select form-select-sm thumn-rev-fin">
+                                        <option value="">{{ placeholder_thumn }}</option>
+                                        {% for n in "12345678" %}
+                                        <option value="{{ n }}" {% if presence.thumn_fin_revision|stringformat:"s" == n %}selected{% endif %}>{{ n }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-3 mt-2" style="font-size:0.82rem;">
                                 <label class="d-flex align-items-center gap-1" style="cursor:pointer;">
                                     <input type="radio" name="resultat_rev_{{ eleve.id }}" value="valide"
                                            {% if presence.resultat_revision|default:'valide' == 'valide' %}checked{% endif %}>
@@ -548,7 +570,7 @@ N'apparaît que côté formulaire (séance encore modifiable) : une séance déj
     <a href="{% url 'prof_seances' %}" style="color:var(--color-role-prof-solid); text-decoration:none;">{% trans "← رجوع إلى سجل الحصص" %}</a>
 </div>
 
-{% trans "يجب أن تكون آية النهاية أكبر من أو تساوي آية البداية" as msg_erreur_plage_ayat %}
+{% trans "يجب أن تكون نهاية المراجعة بعد أو تساوي بدايتها" as msg_erreur_plage_revision %}
 
 {% comment %}
 Données déjà enregistrées pour CETTE séance (chantier du 2026-09-14 v4) —
@@ -850,19 +872,23 @@ initialiserPastilles();
 })();
 {% endfor %}
 
-function verifierPlageAyat(paire) {
-    const debut = paire.querySelector('.ayah-debut');
-    const fin = paire.querySelector('.ayah-fin');
-    if (!debut || !fin) return;
-    if (debut.value && fin.value && parseInt(fin.value, 10) < parseInt(debut.value, 10)) {
-        fin.setCustomValidity('{{ msg_erreur_plage_ayat|escapejs }}');
+function verifierPlageRevision(eleveId) {
+    const hizbDebut = document.querySelector('select[name="hizb_debut_rev_' + eleveId + '"]');
+    const thumnDebut = document.querySelector('select[name="thumn_debut_rev_' + eleveId + '"]');
+    const hizbFin = document.querySelector('select[name="hizb_fin_rev_' + eleveId + '"]');
+    const thumnFin = document.querySelector('select[name="thumn_fin_rev_' + eleveId + '"]');
+    if (!hizbDebut || !thumnDebut || !hizbFin || !thumnFin) return;
+    if (hizbDebut.value && thumnDebut.value && hizbFin.value && thumnFin.value) {
+        const indexDebut = (parseInt(hizbDebut.value, 10) - 1) * 8 + (parseInt(thumnDebut.value, 10) - 1);
+        const indexFin = (parseInt(hizbFin.value, 10) - 1) * 8 + (parseInt(thumnFin.value, 10) - 1);
+        hizbFin.setCustomValidity(indexFin < indexDebut ? '{{ msg_erreur_plage_revision|escapejs }}' : '');
     } else {
-        fin.setCustomValidity('');
+        hizbFin.setCustomValidity('');
     }
 }
-document.querySelectorAll('.ayah-pair').forEach(function (paire) {
-    paire.querySelectorAll('.ayah-debut, .ayah-fin').forEach(function (champ) {
-        champ.addEventListener('input', function () { verifierPlageAyat(paire); });
+document.querySelectorAll('.hizb-rev-debut, .thumn-rev-debut, .hizb-rev-fin, .thumn-rev-fin').forEach(function (champ) {
+    champ.addEventListener('change', function () {
+        verifierPlageRevision(champ.name.split('_').pop());
     });
 });
 </script>

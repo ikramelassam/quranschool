@@ -2856,9 +2856,10 @@ class PresenceResultatMemorisationVueTests(TestCase):
 
         donnees = {
             f'statut_{self.eleve.id}': 'present',
-            f'sourate_rev_{self.eleve.id}': '2',
-            f'ayah_debut_rev_{self.eleve.id}': '1',
-            f'ayah_fin_rev_{self.eleve.id}': '10',
+            f'hizb_debut_rev_{self.eleve.id}': '2',
+            f'thumn_debut_rev_{self.eleve.id}': '1',
+            f'hizb_fin_rev_{self.eleve.id}': '2',
+            f'thumn_fin_rev_{self.eleve.id}': '3',
             f'remarque_{self.eleve.id}': '',
             f'consigne_rev_{self.eleve.id}': 'مراجعة عامة',
             f'resultat_rev_{self.eleve.id}': 'a_refaire',
@@ -3349,7 +3350,7 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
         le cas où les 2 sont exigibles sur la MÊME séance)."""
         reponse = self._get_detail(self.seance_hifz, self.MAINTENANT_LUNDI)
         self.assertContains(reponse, f'name="hizb_depart_{self.eleve.id}"')
-        self.assertNotContains(reponse, f'name="sourate_rev_{self.eleve.id}"')
+        self.assertNotContains(reponse, f'name="hizb_debut_rev_{self.eleve.id}"')
         self.assertNotContains(reponse, f'name="note_critere_{self.critere_mouraja3a_only.id}_{self.eleve.id}"')
         self.assertContains(reponse, 'محاور هذه الحصة')
         self.assertContains(reponse, 'الحفظ')
@@ -3378,7 +3379,7 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
 
         reponse = self._get_detail(self.seance_mouraja3a, self.MAINTENANT_MARDI)
         self.assertContains(reponse, f'name="hizb_depart_{self.eleve.id}"')
-        self.assertContains(reponse, f'name="sourate_rev_{self.eleve.id}"')
+        self.assertContains(reponse, f'name="hizb_debut_rev_{self.eleve.id}"')
         self.assertContains(reponse, 'الحفظ والمراجعة')
 
         donnees = {
@@ -3389,9 +3390,10 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
             f'consigne_memo_{self.eleve.id}': 'حفظ الآيات 1-10',
             f'travail_json_{self.eleve.id}': json.dumps([{'hizb_debut': 2, 'thumn_debut': 1, 'hizb_fin': 2, 'thumn_fin': 1}]),
             f'resultat_memo_{self.eleve.id}': 'a_refaire',
-            f'sourate_rev_{self.eleve.id}': '3',
-            f'ayah_debut_rev_{self.eleve.id}': '1',
-            f'ayah_fin_rev_{self.eleve.id}': '5',
+            f'hizb_debut_rev_{self.eleve.id}': '3',
+            f'thumn_debut_rev_{self.eleve.id}': '1',
+            f'hizb_fin_rev_{self.eleve.id}': '3',
+            f'thumn_fin_rev_{self.eleve.id}': '5',
             f'consigne_rev_{self.eleve.id}': 'مراجعة عامة',
         }
         for c in CritereEleve.objects.filter(est_actif=True):
@@ -3410,17 +3412,18 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
         self.assertEqual(progression.hizb_depart, 2)
         self.assertEqual(progression.thumn_depart, 1)
         self.assertEqual(presence.consigne_memorisation, 'حفظ الآيات 1-10')
-        self.assertEqual(presence.sourate_revisee, 3)
+        self.assertEqual(presence.hizb_debut_revision, 3)
+        self.assertEqual(presence.hizb_fin_revision, 3)
         self.assertEqual(presence.consigne_revision, 'مراجعة عامة')
 
     def test_seance_position_2_affiche_le_bloc_mouraja3a_uniquement(self):
         reponse = self._get_detail(self.seance_mouraja3a, self.MAINTENANT_MARDI)
-        self.assertContains(reponse, f'name="sourate_rev_{self.eleve.id}"')
+        self.assertContains(reponse, f'name="hizb_debut_rev_{self.eleve.id}"')
         self.assertNotContains(reponse, f'name="hizb_depart_{self.eleve.id}"')
         self.assertContains(reponse, f'name="note_critere_{self.critere_mouraja3a_only.id}_{self.eleve.id}"')
 
     def test_sauvegarde_hifz_ignore_les_champs_revision_forges(self):
-        """Même si le POST contient (accès forgé) des champs sourate_rev_/
+        """Même si le POST contient (accès forgé) des champs hizb_debut_rev_/
         consigne_rev_, l'axe مراجعة n'étant pas celui de CETTE séance
         (position 1 = حفظ), ils ne doivent jamais être enregistrés."""
         from courses.models import CritereEleve, ProgressionMemorisation
@@ -3434,9 +3437,10 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
             f'travail_json_{self.eleve.id}': json.dumps([{'hizb_debut': 2, 'thumn_debut': 1, 'hizb_fin': 2, 'thumn_fin': 1}]),
             f'resultat_memo_{self.eleve.id}': 'a_refaire',
             # Champs de l'axe non applicable — forgés, doivent être ignorés.
-            f'sourate_rev_{self.eleve.id}': '3',
-            f'ayah_debut_rev_{self.eleve.id}': '1',
-            f'ayah_fin_rev_{self.eleve.id}': '5',
+            f'hizb_debut_rev_{self.eleve.id}': '3',
+            f'thumn_debut_rev_{self.eleve.id}': '1',
+            f'hizb_fin_rev_{self.eleve.id}': '3',
+            f'thumn_fin_rev_{self.eleve.id}': '5',
             f'consigne_rev_{self.eleve.id}': 'مراجعة عامة',
         }
         for c in CritereEleve.objects.filter(est_actif=True).exclude(type_lie='mouraja3a'):
@@ -3446,7 +3450,7 @@ class ProfSeanceAxeAutomatiqueTests(TestCase):
             self.client.post(reverse('prof_presence_sauvegarder', args=[self.seance_hifz.id]), donnees)
         presence = Presence.objects.get(seance=self.seance_hifz, eleve=self.eleve)
         self.assertEqual(ProgressionMemorisation.objects.get(eleve=self.eleve).hizb_depart, 2)
-        self.assertIsNone(presence.sourate_revisee)
+        self.assertIsNone(presence.hizb_debut_revision)
         self.assertEqual(presence.consigne_revision, '')
 
     def test_lecture_seule_dune_seance_terminee_affiche_toujours_les_deux_blocs(self):
@@ -4548,8 +4552,8 @@ class TypeLieEstPurementDescriptifTests(TestCase):
         self.assertContains(reponse, f'name="note_critere_{self.mouraja3a_crit.id}_{self.eleve.id}"')
         self.assertNotContains(reponse, f'name="note_critere_{self.hifz_crit.id}_{self.eleve.id}"')
         self.assertNotContains(reponse, f'name="note_critere_{self.tilawa_crit.id}_{self.eleve.id}"')
-        # المراجعة étant présente, le bloc contextuel مراجعة (سورة/آيات/consigne) s'affiche.
-        self.assertContains(reponse, f'name="sourate_rev_{self.eleve.id}"')
+        # المراجعة étant présente, le bloc contextuel مراجعة (حزب/ثمن/consigne) s'affiche.
+        self.assertContains(reponse, f'name="hizb_debut_rev_{self.eleve.id}"')
         self.assertNotContains(reponse, f'name="hizb_depart_{self.eleve.id}"')
 
     def test_type_lie_naffecte_que_le_bloc_contextuel_jamais_la_liste_des_criteres(self):
@@ -4572,9 +4576,10 @@ class TypeLieEstPurementDescriptifTests(TestCase):
             f'statut_{self.eleve.id}': 'present',
             f'note_critere_{self.hifz_crit.id}_{self.eleve.id}': '15',
             f'note_critere_{self.mouraja3a_crit.id}_{self.eleve.id}': '17',
-            f'sourate_rev_{self.eleve.id}': '3',
-            f'ayah_debut_rev_{self.eleve.id}': '1',
-            f'ayah_fin_rev_{self.eleve.id}': '5',
+            f'hizb_debut_rev_{self.eleve.id}': '3',
+            f'thumn_debut_rev_{self.eleve.id}': '1',
+            f'hizb_fin_rev_{self.eleve.id}': '3',
+            f'thumn_fin_rev_{self.eleve.id}': '5',
             f'consigne_rev_{self.eleve.id}': 'مراجعة عامة',
             'action': 'soumettre',
         }
@@ -4585,7 +4590,7 @@ class TypeLieEstPurementDescriptifTests(TestCase):
         presence = Presence.objects.get(seance=self.seance_s1, eleve=self.eleve)
         self.assertEqual(NotePresence.objects.get(presence=presence, critere=self.hifz_crit).note, 15)
         self.assertEqual(NotePresence.objects.get(presence=presence, critere=self.mouraja3a_crit).note, 17)
-        self.assertEqual(presence.sourate_revisee, 3)
+        self.assertEqual(presence.hizb_debut_revision, 3)
 
 
 # ---------- Chantier du 2026-09-13 : changement de cadence d'un groupe existant ----------

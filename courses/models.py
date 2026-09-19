@@ -1130,9 +1130,39 @@ class Presence(models.Model):
         choices=NOTE_CHOICES,
         blank=True
     )
+    # Gelés depuis le chantier du 2026-09-19 (v2, voir hizb_debut_revision
+    # ci-dessous) — conservés en LECTURE SEULE pour l'historique déjà en base
+    # (même principe que sourate_memorisee/ayah_*_memorisation, voir plus
+    # haut) : plus jamais écrits depuis dashboard.views.prof_presence_
+    # sauvegarder, aucune donnée existante remappée/perdue.
     sourate_revisee = models.PositiveSmallIntegerField(null=True, blank=True)
     ayah_debut_revision = models.PositiveSmallIntegerField(null=True, blank=True)
     ayah_fin_revision = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    # Remplace sourate_revisee/ayah_debut_revision/ayah_fin_revision
+    # ci-dessus (chantier du 2026-09-19, demande explicite du client :
+    # المراجعة doit se saisir en حزب/ثمن comme الحفظ, voir courses.
+    # hizb_progression.__doc__ — mise à jour de ce module désormais fausse
+    # sur ce point). Portée volontairement restreinte (choix explicite du
+    # client) : une SIMPLE plage libre (من→إلى) par séance, comme avant —
+    # PAS de ProgressionMemorisation dédiée, PAS de sens, PAS d'avancement
+    # automatique d'une séance à l'autre. Cohérence (fin >= début) vérifiée
+    # via courses.hizb_progression.index_physique (ordre PHYSIQUE Mushaf,
+    # aucun sens de progression n'existe ici) — voir dashboard.views.
+    # prof_presence_sauvegarder.
+    hizb_debut_revision = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(60)]
+    )
+    thumn_debut_revision = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(8)]
+    )
+    hizb_fin_revision = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(60)]
+    )
+    thumn_fin_revision = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(8)]
+    )
+
     note_revision = models.CharField(
         max_length=20,
         choices=NOTE_CHOICES,
@@ -1150,8 +1180,10 @@ class Presence(models.Model):
     # courses.hizb_progression.position_suivante ('valide' = الانتقال,
     # 'a_refaire' = إعادة الجزء) pour avancer ProgressionMemorisation —
     # resultat_revision reste purement indicatif pour le suivi du prof, sans
-    # effet sur aucun calcul de progression (le bloc المراجعة reste basé
-    # sourate, hors périmètre de ce chantier).
+    # effet sur aucun calcul de progression : le bloc المراجعة a beau être
+    # saisi en حزب/ثمن depuis le 2026-09-19 (voir hizb_debut_revision
+    # ci-dessus), il n'a PAS de ProgressionMemorisation dédiée (choix
+    # explicite du client, portée volontairement restreinte).
     RESULTAT_CHOICES = [
         ('valide', _('ينتقل')),
         ('a_refaire', _('يعيد')),
@@ -1201,6 +1233,16 @@ class Presence(models.Model):
     def nom_sourate_revisee(self):
         from courses.quran_data import SOURATES_NOMS
         return SOURATES_NOMS.get(self.sourate_revisee)
+
+    @property
+    def nom_hizb_debut_revision(self):
+        from courses.hizb_progression import nom_hizb
+        return nom_hizb(self.hizb_debut_revision)
+
+    @property
+    def nom_hizb_fin_revision(self):
+        from courses.hizb_progression import nom_hizb
+        return nom_hizb(self.hizb_fin_revision)
 
     @property
     def nb_ayat_memorises(self):

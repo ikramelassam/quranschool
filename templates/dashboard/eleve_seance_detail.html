@@ -65,7 +65,26 @@
 
     <!-- Révision -->
     <div style="color:var(--color-role-eleve-solid); font-weight:700; border-bottom:2px solid var(--color-role-eleve-solid); padding-bottom:6px; margin:20px 0 12px;">{% trans "المراجعة" %}</div>
-    {% if presence.sourate_revisee %}
+    {% if presence.hizb_debut_revision %}
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">
+            {% if presence.hizb_debut_revision == presence.hizb_fin_revision %}
+            {% blocktrans with numero=presence.hizb_debut_revision nom=presence.nom_hizb_debut_revision %}حزب {{ numero }} — {{ nom }}{% endblocktrans %}
+            {% else %}
+            {% blocktrans with n1=presence.hizb_debut_revision nom1=presence.nom_hizb_debut_revision n2=presence.hizb_fin_revision nom2=presence.nom_hizb_fin_revision %}حزب {{ n1 }} — {{ nom1 }} → حزب {{ n2 }} — {{ nom2 }}{% endblocktrans %}
+            {% endif %}
+        </span>
+        <span style="font-weight:600;">{% blocktrans with td=presence.thumn_debut_revision tf=presence.thumn_fin_revision %}الثمن {{ td }} → {{ tf }}{% endblocktrans %}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+        <span style="color:#888;">{% trans "التقييم" %}</span>
+        <span style="font-weight:600;">
+            {% if presence.note_revision %}
+            <span style="{{ presence.note_revision|note_style }} border-radius:20px; padding:3px 12px; font-size:0.85rem;">{{ presence.get_note_revision_display }}</span>
+            {% else %}—{% endif %}
+        </span>
+    </div>
+    {% elif presence.sourate_revisee %}
     <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0;">
         <span style="color:#888;">{% trans "السورة" %}</span>
         <span style="font-weight:600;">{{ presence.nom_sourate_revisee }}</span>

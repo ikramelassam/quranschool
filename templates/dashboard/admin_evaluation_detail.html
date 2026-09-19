@@ -30,7 +30,14 @@
         </div>
         <div class="col-md-6">
             <div style="color:#888; font-size:0.8rem;">{% trans "المراجعة" %}</div>
-            <div style="font-weight:600;">{% if p.sourate_revisee %}{{ p.nom_sourate_revisee }} ({{ p.ayah_debut_revision }}-{{ p.ayah_fin_revision }}){% else %}—{% endif %}
+            <div style="font-weight:600;">
+                {% if p.hizb_debut_revision %}
+                {% if p.hizb_debut_revision == p.hizb_fin_revision %}
+                {% blocktrans with numero=p.hizb_debut_revision nom=p.nom_hizb_debut_revision td=p.thumn_debut_revision tf=p.thumn_fin_revision %}حزب {{ numero }} — {{ nom }} — الثمن {{ td }} → {{ tf }}{% endblocktrans %}
+                {% else %}
+                {% blocktrans with n1=p.hizb_debut_revision nom1=p.nom_hizb_debut_revision td=p.thumn_debut_revision n2=p.hizb_fin_revision nom2=p.nom_hizb_fin_revision tf=p.thumn_fin_revision %}حزب {{ n1 }} — {{ nom1 }} — الثمن {{ td }} → حزب {{ n2 }} — {{ nom2 }} — الثمن {{ tf }}{% endblocktrans %}
+                {% endif %}
+                {% elif p.sourate_revisee %}{{ p.nom_sourate_revisee }} ({{ p.ayah_debut_revision }}-{{ p.ayah_fin_revision }}){% else %}—{% endif %}
                 {% if p.note_revision %}<span style="{{ p.note_revision|note_style }} border-radius:20px; padding:2px 8px; font-size:0.75rem;">{{ p.get_note_revision_display }}</span>{% endif %}
             </div>
         </div>

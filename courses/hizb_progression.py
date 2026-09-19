@@ -1,7 +1,14 @@
 """Progression de mémorisation basée sur (حزب, ثمن) + sens de progression —
 remplace l'ancien système basé sur les sourates/ayat pour le bloc الحفظ
 (voir courses.models.ProgressionMemorisation et courses.models.PartieEvaluee).
-Ne concerne PAS le bloc المراجعة, resté basé sourate.
+
+Depuis le chantier du 2026-09-19, le bloc المراجعة est LUI AUSSI saisi en
+حزب/ثمن (voir courses.models.Presence.hizb_debut_revision) — mais SANS
+ProgressionMemorisation dédiée : juste une plage (من→إلى) libre par séance,
+comme l'était l'ancienne saisie sourate/ayah. index_physique ci-dessous
+(ordre PHYSIQUE, indépendant de tout sens) est la fonction utilisée pour
+vérifier sa cohérence (fin >= début) — aucune des autres fonctions de ce
+module (orientées "sens de progression") ne le concerne.
 
 Le Coran est ici divisé en 60 أحزاب (numéro stable 1-60, ordre Mushaf), chacun
 en 8 أثمان (1-8, ordre FIXE — jamais inversé selon le sens de progression, voir

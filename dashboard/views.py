@@ -1092,7 +1092,7 @@ def prof_seance_detail(request, seance_id):
 def prof_presence_sauvegarder(request, seance_id):
     from accounts.models import Prof, Eleve
     from courses.models import Seance, Presence, ProgressionMemorisation, PartieEvaluee, TravailSeance
-    from courses.hizb_progression import SENS_CHOICES, nouvelle_position_apres_seance
+    from courses.hizb_progression import SENS_CHOICES, nouvelle_position_apres_seance, index_physique
 
     from django.utils import timezone
 
@@ -1289,15 +1289,18 @@ def prof_presence_sauvegarder(request, seance_id):
                             resultat_avancement = 'valide'
 
             if bloc_rev:
-                sourate_revisee = request.POST.get(f'sourate_rev_{eleve.id}') or None
-                ayah_debut_revision = request.POST.get(f'ayah_debut_rev_{eleve.id}') or None
-                ayah_fin_revision = request.POST.get(f'ayah_fin_rev_{eleve.id}') or None
+                hizb_debut_revision, thumn_debut_revision = _valider_position_hizb(
+                    request.POST.get(f'hizb_debut_rev_{eleve.id}'), request.POST.get(f'thumn_debut_rev_{eleve.id}')
+                )
+                hizb_fin_revision, thumn_fin_revision = _valider_position_hizb(
+                    request.POST.get(f'hizb_fin_rev_{eleve.id}'), request.POST.get(f'thumn_fin_rev_{eleve.id}')
+                )
                 consigne_revision = request.POST.get(f'consigne_rev_{eleve.id}', '')
                 resultat_revision = request.POST.get(f'resultat_rev_{eleve.id}', 'valide')
                 if resultat_revision not in dict(Presence.RESULTAT_CHOICES):
                     resultat_revision = 'valide'
             else:
-                sourate_revisee = ayah_debut_revision = ayah_fin_revision = None
+                hizb_debut_revision = thumn_debut_revision = hizb_fin_revision = thumn_fin_revision = None
                 consigne_revision = ''
                 resultat_revision = 'valide'
 
@@ -1311,23 +1314,22 @@ def prof_presence_sauvegarder(request, seance_id):
                 for critere in criteres_actifs
             }
 
-            # Une plage d'ayat inversée (fin < début) donnerait un nombre d'ayat
-            # révisés négatif ou nul silencieusement (voir Presence.nb_ayat_revises) —
-            # on refuse d'enregistrer cette ligne plutôt que d'accepter une valeur incohérente.
-            # De même, une fin au-delà du nombre réel d'ayat de la sourate choisie
-            # (ex: ayah 300 pour الفاتحة qui n'en a que 7) doit être refusée — voir
-            # _ayah_depasse_sourate. Ne concerne plus le bloc حفظ depuis le
-            # chantier du 2026-09-13 (position حزب/ثمن, plus de sourate/ayah
-            # saisis manuellement — voir position_initiale_invalide ci-dessus).
+            # Une plage حزب/ثمن inversée (fin avant début, dans l'ordre PHYSIQUE
+            # du Mushaf — voir index_physique.__doc__, aucun sens de progression
+            # n'existe pour المراجعة) est refusée plutôt qu'acceptée en
+            # silence — chantier du 2026-09-19, remplace l'ancienne
+            # cohérence sourate/ayah (_ayah_incoherentes/_ayah_depasse_sourate,
+            # devenues obsolètes puisque سورة/آية ne sont plus saisis pour ce
+            # bloc). Ne s'applique que si les 2 points sont ENTIÈREMENT
+            # renseignés (bloc facultatif, comme l'était l'ancienne saisie
+            # sourate/ayah — voir hizb_debut_revision.__doc__).
             ligne_invalide = position_initiale_invalide
-            if _ayah_incoherentes(ayah_debut_revision, ayah_fin_revision):
+            if (
+                hizb_debut_revision is not None and hizb_fin_revision is not None
+                and index_physique(hizb_fin_revision, thumn_fin_revision) < index_physique(hizb_debut_revision, thumn_debut_revision)
+            ):
                 erreurs.append(
-                    gettext_('%(v0)s: آية نهاية المراجعة (%(v1)s) يجب أن تكون أكبر من أو تساوي آية البداية (%(v2)s).') % {'v0': eleve.user.get_full_name(), 'v1': ayah_fin_revision, 'v2': ayah_debut_revision}
-                )
-                ligne_invalide = True
-            elif _ayah_depasse_sourate(sourate_revisee, ayah_fin_revision):
-                erreurs.append(
-                    gettext_('%(v0)s: آية نهاية المراجعة (%(v1)s) تتجاوز عدد آيات %(v2)s (%(v3)s آية).') % {'v0': eleve.user.get_full_name(), 'v1': ayah_fin_revision, 'v2': _nom_sourate(sourate_revisee), 'v3': _total_ayat_sourate(sourate_revisee)}
+                    gettext_('%(v0)s: نهاية المراجعة يجب أن تكون بعد أو تساوي بدايتها.') % {'v0': eleve.user.get_full_name()}
                 )
                 ligne_invalide = True
 
@@ -1376,9 +1378,10 @@ def prof_presence_sauvegarder(request, seance_id):
                 eleve=eleve,
                 defaults={
                     'statut': statut,
-                    'sourate_revisee': sourate_revisee,
-                    'ayah_debut_revision': ayah_debut_revision,
-                    'ayah_fin_revision': ayah_fin_revision,
+                    'hizb_debut_revision': hizb_debut_revision,
+                    'thumn_debut_revision': thumn_debut_revision,
+                    'hizb_fin_revision': hizb_fin_revision,
+                    'thumn_fin_revision': thumn_fin_revision,
                     'remarque': remarque,
                     'consigne_memorisation': consigne_memorisation,
                     'consigne_revision': consigne_revision,
@@ -1566,48 +1569,6 @@ def _valider_position_hizb(hizb_brut, thumn_brut):
     if not (1 <= hizb <= 60) or not (1 <= thumn <= 8):
         return None, None
     return hizb, thumn
-
-
-def _ayah_incoherentes(debut, fin):
-    """True si les deux valeurs sont fournies et que fin < début (plage inversée)."""
-    if not debut or not fin:
-        return False
-    try:
-        return int(fin) < int(debut)
-    except ValueError:
-        return False
-
-
-def _ayah_depasse_sourate(sourate, fin):
-    """True si l'ayah de fin dépasse le nombre réel d'ayat de la sourate choisie
-    (ex: ayah 300 pour الفاتحة qui n'en a que 7) — voir courses/quran_data.py,
-    dont le commentaire annonçait cette validation sans qu'elle ait jamais été
-    implémentée."""
-    if not sourate or not fin:
-        return False
-    from courses.quran_data import SOURATES_NB_AYAT
-    try:
-        total_ayat = SOURATES_NB_AYAT.get(int(sourate))
-        fin_int = int(fin)
-    except ValueError:
-        return False
-    return bool(total_ayat) and fin_int > total_ayat
-
-
-def _nom_sourate(sourate):
-    from courses.quran_data import SOURATES_NOMS
-    try:
-        return SOURATES_NOMS.get(int(sourate), '')
-    except ValueError:
-        return ''
-
-
-def _total_ayat_sourate(sourate):
-    from courses.quran_data import SOURATES_NB_AYAT
-    try:
-        return SOURATES_NB_AYAT.get(int(sourate), '')
-    except ValueError:
-        return ''
 
 
 @role_required('prof')

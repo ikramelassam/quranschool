@@ -75,7 +75,21 @@
                 </div>
             </div>
             {% endif %}
-            {% if presence.sourate_revisee %}
+            {% if presence.hizb_debut_revision %}
+            <div class="col-md-6">
+                <div style="background:var(--color-bg-cream); border-radius:8px; padding:10px;">
+                    <div style="color:#888; font-size:0.8rem;">{% trans "المراجعة" %}</div>
+                    <div style="font-weight:600; font-size:0.9rem; margin-bottom:6px;">
+                        {% if presence.hizb_debut_revision == presence.hizb_fin_revision %}
+                        {% blocktrans with numero=presence.hizb_debut_revision nom=presence.nom_hizb_debut_revision td=presence.thumn_debut_revision tf=presence.thumn_fin_revision %}حزب {{ numero }} — {{ nom }} — الثمن {{ td }} → {{ tf }}{% endblocktrans %}
+                        {% else %}
+                        {% blocktrans with n1=presence.hizb_debut_revision nom1=presence.nom_hizb_debut_revision td=presence.thumn_debut_revision n2=presence.hizb_fin_revision nom2=presence.nom_hizb_fin_revision tf=presence.thumn_fin_revision %}حزب {{ n1 }} — {{ nom1 }} — الثمن {{ td }} → حزب {{ n2 }} — {{ nom2 }} — الثمن {{ tf }}{% endblocktrans %}
+                        {% endif %}
+                    </div>
+                    {% include 'dashboard/_medal_badge.html' with code=presence.note_revision label=presence.get_note_revision_display %}
+                </div>
+            </div>
+            {% elif presence.sourate_revisee %}
             <div class="col-md-6">
                 <div style="background:var(--color-bg-cream); border-radius:8px; padding:10px;">
                     <div style="color:#888; font-size:0.8rem;">{% trans "المراجعة" %}</div>
